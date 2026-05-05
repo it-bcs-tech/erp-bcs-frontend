@@ -1,11 +1,6 @@
 import { fail } from '@sveltejs/kit';
 import type { Actions } from './$types';
-import postgres from 'postgres';
-import bcrypt from 'bcryptjs';
-import { env } from '$env/dynamic/private';
-
-// Menggunakan koneksi database postgres dari environment variable (lokal vs docker)
-const sql = postgres(env.DATABASE_URL || 'postgres://bcs_admin:sangatrahasia@103.31.205.199:5433/mybcs_db');
+import { apiFetch } from '$lib/utils/api';
 
 export const actions = {
 	default: async ({ request, cookies }) => {
@@ -18,40 +13,52 @@ export const actions = {
 		}
 
 		try {
-			// Mencari pengguna di skema master, tabel m_presensi
-			const users = await sql`
-				SELECT id, name, email, password 
-				FROM master.m_presensi 
-				WHERE email = ${email}
-				LIMIT 1
-			`;
+			// ┌─────────────────────────────────────────────────────┐
+			// │ KETIKA BACKEND SUDAH AKTIF, uncomment blok ini:     │
+			// └─────────────────────────────────────────────────────┘
+			// const response = await apiFetch<{ token: string; user: { id: number; name: string } }>(
+			// 	'/api/v1/auth/login',
+			// 	{
+			// 		method: 'POST',
+			// 		body: JSON.stringify({ email, password })
+			// 	}
+			// );
+			//
+			// cookies.set('auth_token', response.data.token, {
+			// 	path: '/',
+			// 	httpOnly: true,   // Tidak bisa diakses JavaScript browser (aman dari XSS)
+			// 	secure: false,    // Set true jika sudah menggunakan HTTPS
+			// 	maxAge: 60 * 60 * 24 // 1 hari
+			// });
+			//
+			// return { success: true, userName: response.data.user.name };
 
-			if (users.length === 0) {
+			// ┌─────────────────────────────────────────────────────┐
+			// │ MOCK LOGIN — Hapus blok ini setelah backend aktif   │
+			// │ Akun demo: admin@mybcs.com / password               │
+			// └─────────────────────────────────────────────────────┘
+			const mockUsers = [
+				{ id: 1, email: 'admin@mybcs.com', password: 'password', name: 'Admin BCS' },
+				{ id: 2, email: 'hris@mybcs.com', password: 'password', name: 'HRIS Manager' },
+			];
+
+			const user = mockUsers.find(u => u.email === email && u.password === password);
+
+			if (!user) {
 				return fail(400, { email, error: 'Invalid email or password' });
 			}
 
-			const user = users[0];
-
-			// Memeriksa kecocokan password menggunakan bcrypt (karena Laravel umumnya menggunakan bcrypt)
-			// Catatan: Jika Laravel menggunakan Argon2, kita perlu menyesuaikan ini.
-			const isValidPassword = await bcrypt.compare(password, user.password);
-
-			if (!isValidPassword) {
-				return fail(400, { email, error: 'Invalid email or password' });
-			}
-
-			// Jika berhasil, setel cookie auth_token dengan ID pengguna untuk simulasi
 			cookies.set('auth_token', `user_token_${user.id}`, {
 				path: '/',
-				httpOnly: false, // Diset false agar bisa diakses jika diperlukan dari sisi klien
-				secure: false,   // PENTING: Harus false jika dites di HTTP tanpa HTTPS
-				maxAge: 60 * 60 * 24 // 1 hari
+				httpOnly: true,
+				secure: false,
+				maxAge: 60 * 60 * 24
 			});
 
 			return { success: true, userName: user.name };
 		} catch (error) {
-			console.error('Database connection error:', error);
-			return fail(500, { email, error: 'Internal server error: ' + (error as Error).message });
+			console.error('Login error:', error);
+			return fail(500, { email, error: 'Internal server error' });
 		}
 	}
 } satisfies Actions;

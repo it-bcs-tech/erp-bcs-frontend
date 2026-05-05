@@ -24,12 +24,3 @@ vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 
 presensi/
-
-db_test.mjs
-db_test2.mjs
-db_test3.mjs
-db_test4.mjs
-db_test5.mjs
-db_test6.mjs
-db_test7.mjs
-db_test8.mjs

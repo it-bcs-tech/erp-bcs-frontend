@@ -1,43 +1,66 @@
-// Base URL untuk backend Laravel nantinya
-// Saat ini kita mock dulu, atau Anda bisa gunakan environment variable $env/static/public
-const API_BASE_URL = 'http://localhost:8000/api/v1';
+/**
+ * Server-Side API Utility
+ * ─────────────────────────────────────────────────────────
+ * File ini HANYA boleh diimpor dari file server-side:
+ *   - +page.server.ts
+ *   - +layout.server.ts
+ *   - +server.ts
+ *   - hooks.server.ts
+ *
+ * JANGAN impor dari file client-side (+page.svelte, +layout.svelte)
+ * karena API_URL bersifat PRIVATE (tidak terekspos ke browser)
+ * ─────────────────────────────────────────────────────────
+ */
+
+import { env } from '$env/dynamic/private';
+
+// Base URL diambil dari variabel PRIVATE (tanpa prefix PUBLIC_)
+// Di Docker production: http://backend:9000 (jalur internal, sangat cepat)
+// Di lokal development: http://localhost:8080 (fallback)
+const API_BASE_URL = env.API_URL || 'http://localhost:8080';
 
 export interface ApiResponse<T> {
 	status: 'success' | 'error';
 	message?: string;
 	data: T;
-	meta?: any;
+	meta?: {
+		current_page?: number;
+		total?: number;
+		per_page?: number;
+	};
 }
 
 /**
- * Standard HTTP Fetch Wrapper
- * Digunakan agar semua request memiliki headers standar (termasuk Auth Token nantinya).
- * @param customFetch - pass the `fetch` function from SvelteKit's LoadEvent
+ * Standard HTTP Fetch Wrapper (Server-Side Only)
+ * Digunakan agar semua request ke Backend Laravel memiliki headers standar.
+ *
+ * @param endpoint - Path API (contoh: '/api/v1/hris/employees')
+ * @param options - RequestInit tambahan (method, body, dll)
+ * @param authToken - Token autentikasi dari cookie user (opsional)
  */
 export async function apiFetch<T>(
 	endpoint: string,
 	options: RequestInit = {},
-	customFetch: typeof fetch = fetch
+	authToken?: string
 ): Promise<ApiResponse<T>> {
 	const url = `${API_BASE_URL}${endpoint}`;
-	
-	// Default headers (misalnya untuk menyisipkan Bearer token)
+
 	const headers = new Headers(options.headers || {});
 	headers.set('Content-Type', 'application/json');
 	headers.set('Accept', 'application/json');
-	
-	// TODO: Nanti tambahkan logika pengambilan token dari cookies/store di sini
-	// headers.set('Authorization', `Bearer ${token}`);
 
-	const response = await customFetch(url, { ...options, headers });
-	
-	// Untuk saat ini, jika API gagal (karena backend Laravel belum ada),
-	// kita bisa handle atau membiarkan fetch SvelteKit menangkap errornya.
-	if (!response.ok) {
-		// Logika error handling
-		console.warn(`API Error on ${url}: ${response.statusText}`);
-		throw new Error(response.statusText);
+	// Sertakan token autentikasi jika tersedia
+	if (authToken) {
+		headers.set('Authorization', `Bearer ${authToken}`);
 	}
 
-	return await response.json() as ApiResponse<T>;
+	const response = await fetch(url, { ...options, headers });
+
+	if (!response.ok) {
+		const errorBody = await response.text();
+		console.error(`API Error [${response.status}] on ${url}:`, errorBody);
+		throw new Error(`API Error: ${response.status} ${response.statusText}`);
+	}
+
+	return (await response.json()) as ApiResponse<T>;
 }

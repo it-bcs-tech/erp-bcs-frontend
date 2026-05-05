@@ -4,7 +4,7 @@ services:
   # 1. Frontend (SvelteKit)
   # Membangun container langsung dari file Dockerfile di folder ini
   frontend:
-    image: ghcr.io/it-bcs-tech/erp-bcs:latest
+    image: ghcr.io/it-bcs-tech/erp-bcs-frontend:latest
     build:
       context: .
       dockerfile: Dockerfile
@@ -15,8 +15,7 @@ services:
     environment:
       - NODE_ENV=production
       - ORIGIN=http://erp.bcslabs.tech
-      - DATABASE_URL=postgres://bcs_admin:sangatrahasia@database:5432/mybcs_db
-      # - PUBLIC_API_URL=http://backend:8080/api # Contoh variabel untuk koneksi ke backend nanti
+      - API_URL=http://backend:9000 # Server-side only, tidak terekspos ke browser
     networks:
       - erp_network
 
@@ -47,51 +46,64 @@ services:
       - erp_network
 
   # =========================================================================
-  # BAGIAN DI BAWAH INI ADALAH PLACEHOLDER (KERANGKA) UNTUK TIM BACKEND
-  # Jika tim Backend sudah siap, cukup hapus tanda pagar (#) untuk menyalakannya
+  # BAGIAN DI BAWAH INI ADALAH KERANGKA UNTUK TIM BACKEND & PRESENSI
+  # Jika tim sudah siap, cukup hapus tanda pagar (#) untuk menyalakannya
+  # Semua aplikasi PHP dilayani oleh NGINX PUSAT di Server Biznet (bukan Docker)
   # =========================================================================
 
-  # 4. Backend Utama (Core ERP)
+  # 4. Backend Utama (Laravel PHP-FPM - Core ERP API)
   # backend:
-  #   image: image-backend-erp-anda:latest
+  #   image: ghcr.io/it-bcs-tech/erp-bcs-backend:latest
   #   container_name: erp_backend
   #   ports:
-  #     - "8080:8080"
-  #   environment:
-  #     - DB_HOST=database
-  #     - DB_USER=erp_user
-  #     - DB_PASS=erp_password
-  #     - REDIS_HOST=redis
+  #     - "9001:9000"  # PHP-FPM, dilayani oleh Nginx Pusat Server Biznet
+  #   env_file:
+  #     - .env
+  #   volumes:
+  #     - backend_storage:/var/www/html/storage
   #   depends_on:
   #     - database
   #     - redis
   #   networks:
   #     - erp_network
 
-  # 5. Golang Microservice (FMS Telemetry)
+  # 5. Presensi (Laravel Filament PHP-FPM)
+  # presensi:
+  #   image: ghcr.io/it-bcs-tech/presensi-app:latest
+  #   container_name: erp_presensi
+  #   ports:
+  #     - "9002:9000"  # PHP-FPM, dilayani oleh Nginx Pusat Server Biznet
+  #   env_file:
+  #     - .env.presensi
+  #   volumes:
+  #     - presensi_storage:/var/www/html/storage
+  #   depends_on:
+  #     - database
+  #   networks:
+  #     - erp_network
+
+  # 6. Golang Microservice (FMS Telemetry)
   # golang-fms:
-  #   image: image-golang-fms-anda:latest
+  #   image: ghcr.io/it-bcs-tech/erp-fms-telemetry:latest
   #   container_name: erp_golang_fms
   #   ports:
   #     - "8081:8081"
-  #   environment:
-  #     - DB_HOST=database
-  #     - REDIS_HOST=redis
+  #   env_file:
+  #     - .env
   #   depends_on:
   #     - database
   #     - redis
   #   networks:
   #     - erp_network
 
-  # 6. Python Microservice (DMS AI Module)
+  # 7. Python Microservice (DMS AI Module)
   # python-ai-dms:
-  #   image: image-python-dms-anda:latest
+  #   image: ghcr.io/it-bcs-tech/erp-dms-ai:latest
   #   container_name: erp_python_dms
   #   ports:
-  #     - "8000:8000" # Port default FastAPI / Flask
-  #   environment:
-  #     - DB_HOST=database
-  #     - REDIS_HOST=redis
+  #     - "8082:8000"
+  #   env_file:
+  #     - .env
   #   volumes:
   #     - dms_documents:/app/uploads
   #   depends_on:
@@ -109,5 +121,7 @@ networks:
 volumes:
   db_data:
   dms_documents:
+  backend_storage:
+  presensi_storage:
 
 # hapus data volumes: docker-compose down -v

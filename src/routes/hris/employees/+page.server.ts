@@ -1,20 +1,27 @@
 import type { PageServerLoad } from './$types';
 import type { Employee } from '$lib/types/hris';
-// Nanti gunakan ini ketika backend Laravel sudah aktif:
-// import { apiFetch } from '$lib/utils/api';
+import { apiFetch } from '$lib/utils/api';
 
-export const load: PageServerLoad = async ({ fetch }) => {
-	
-	// CONTOH KETIKA BACKEND SUDAH AKTIF:
+export const load: PageServerLoad = async ({ cookies }) => {
+	const authToken = cookies.get('auth_token');
+
+	// ┌─────────────────────────────────────────────────────┐
+	// │ KETIKA BACKEND SUDAH AKTIF, uncomment blok ini:     │
+	// └─────────────────────────────────────────────────────┘
 	// try {
-	// 	const response = await apiFetch<Employee[]>('/hris/employees', {}, fetch);
+	// 	const response = await apiFetch<Employee[]>(
+	// 		'/api/v1/hris/employees',
+	// 		{},
+	// 		authToken
+	// 	);
 	// 	return { employees: response.data };
-	// } catch (e) { ... }
-	
-	// SAAT INI (MOCK DATA)
-	// Kita mensimulasikan delay network agar mirip fetching asli
-	await new Promise(resolve => setTimeout(resolve, 300));
+	// } catch (error) {
+	// 	console.error('Failed to fetch employees:', error);
+	// }
 
+	// ┌─────────────────────────────────────────────────────┐
+	// │ MOCK DATA — Hapus blok ini setelah backend aktif    │
+	// └─────────────────────────────────────────────────────┘
 	const mockEmployees: Employee[] = [
 		{ id: 'EMP-001', name: 'Sarah Jenkins', role: 'Head of Operations', department: 'Management', email: 'sarah.j@company.com', status: 'Active', avatar: 'https://ui-avatars.com/api/?name=Sarah+Jenkins&background=ffd7f1&color=57344f', color: 'primary' },
 		{ id: 'EMP-002', name: 'Robert Chen', role: 'Senior Frontend Engineer', department: 'Engineering', email: 'robert.c@company.com', status: 'On Leave', avatar: 'https://ui-avatars.com/api/?name=Robert+Chen&background=f5dbea&color=57344f', color: 'secondary' },
