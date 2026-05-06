@@ -52,20 +52,20 @@ services:
   # =========================================================================
 
   # 4. Backend Utama (Laravel PHP-FPM - Core ERP API)
-  # backend:
-  #   image: ghcr.io/it-bcs-tech/erp-bcs-backend:latest
-  #   container_name: erp_backend
-  #   ports:
-  #     - "9001:9000"  # PHP-FPM, dilayani oleh Nginx Pusat Server Biznet
-  #   env_file:
-  #     - .env
-  #   volumes:
-  #     - backend_storage:/var/www/html/storage
-  #   depends_on:
-  #     - database
-  #     - redis
-  #   networks:
-  #     - erp_network
+  backend:
+    image: ghcr.io/it-bcs-tech/erp-bcs-backend:latest
+    container_name: erp_backend
+    ports:
+      - "9001:9000"  # PHP-FPM, dilayani oleh Nginx Pusat Server Biznet
+    env_file:
+      - .env
+    volumes:
+      - backend_storage:/var/www/html/storage
+    depends_on:
+      - database
+      - redis
+    networks:
+      - erp_network
 
   # 5. Presensi (Laravel Filament PHP-FPM)
   # presensi:
