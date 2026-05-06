@@ -1,9 +1,12 @@
 <script lang="ts">
-	function handleLogout() {
-		// Hapus mock token
-		document.cookie = "auth_token=; path=/; max-age=0";
-		// Arahkan kembali ke halaman login
-		window.location.href = '/login';
+	async function handleLogout() {
+		// Mengirim request ke server-side endpoint untuk menghapus httpOnly cookie
+		const response = await fetch('/logout', { method: 'POST' });
+		if (response.redirected) {
+			window.location.href = response.url;
+		} else {
+			window.location.href = '/login';
+		}
 	}
 </script>
 
@@ -33,7 +36,7 @@
 			<span class="material-symbols-outlined">logout</span>
 		</button>
 		<div class="ml-2 w-8 h-8 rounded-full bg-primary-fixed flex items-center justify-center border-2 border-surface-container-highest overflow-hidden">
-			<img alt="User profile" class="w-full h-full object-cover" src="https://ui-avatars.com/api/?name=Architect&background=e9b8d9&color=57344f"/>
+			<span class="material-symbols-outlined text-on-primary-fixed text-[18px]">person</span>
 		</div>
 	</div>
 </header>

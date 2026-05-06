@@ -1,7 +1,7 @@
 import { redirect, type Handle } from '@sveltejs/kit';
 
 export const handle: Handle = async ({ event, resolve }) => {
-	// Mengambil mock token dari cookie (Nantinya diganti dengan pengecekan JWT yang valid)
+	// Mengambil token dari cookie (Validasi diurus oleh backend atau saat request ke API)
 	const authToken = event.cookies.get('auth_token');
 	const isLoginPage = event.url.pathname.startsWith('/login');
 

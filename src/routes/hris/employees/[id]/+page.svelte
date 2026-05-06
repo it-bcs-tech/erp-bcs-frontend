@@ -1,27 +1,6 @@
 <script lang="ts">
-	import { page } from '$app/stores';
-	
-	// Mock fetching employee based on ID
-	const empId = $page.params.id;
-	
-	// Simulated detailed employee data
-	const employee = {
-		id: empId,
-		name: 'Sarah Jenkins',
-		role: 'Head of Operations',
-		department: 'Management',
-		email: 'sarah.j@company.com',
-		phone: '+1 (555) 123-4567',
-		location: 'New York Office',
-		joinDate: 'Oct 12, 2019',
-		manager: 'Michael Scott',
-		status: 'Active',
-		avatar: 'https://ui-avatars.com/api/?name=Sarah+Jenkins&background=ffd7f1&color=57344f&size=256',
-		cover: 'bg-gradient-to-r from-primary-container via-secondary-container to-tertiary-container',
-		skills: ['Leadership', 'Strategic Planning', 'Agile', 'Budgeting'],
-		performance: 92,
-		leaveBalance: 14
-	};
+	let { data } = $props();
+	const employee = data.employee;
 </script>
 
 <svelte:head>
