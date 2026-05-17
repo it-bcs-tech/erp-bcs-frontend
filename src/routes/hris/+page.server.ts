@@ -6,7 +6,7 @@ export const load: PageServerLoad = async ({ cookies }) => {
 
 	try {
 		const response = await apiFetch<any>(
-			'/api/v1/hris/dashboard-metrics',
+			'/api/v1/hris/dashboard/metrics',
 			{},
 			authToken
 		);

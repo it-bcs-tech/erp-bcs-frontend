@@ -16,6 +16,7 @@ services:
       - NODE_ENV=production
       - ORIGIN=http://erp.bcslabs.tech
       - API_URL=http://api.bcslabs.tech # Server-side, lewat Nginx Pusat (HTTP → FastCGI → PHP-FPM)
+      - AI_BRIDGE_URL=http://ai-bridge:8000  # Python AI Bridge (internal Docker network)
     networks:
       - erp_network
 
@@ -96,7 +97,30 @@ services:
   #   networks:
   #     - erp_network
 
-  # 7. Python Microservice (DMS AI Module)
+  # 7. Python AI Bridge (HRIS AI Assistant — FastAPI)
+  # Jembatan antara Frontend ↔ Openclaw LLM ↔ PostgreSQL
+  ai-bridge:
+    build:
+      context: ./ai-bridge
+      dockerfile: Dockerfile
+    container_name: erp_ai_bridge
+    ports:
+      - "8083:8000"
+    environment:
+      - OPENCLAW_BASE_URL=https://ai.bcslabs.tech/v1
+      - OPENCLAW_API_KEY=${OPENCLAW_API_KEY}
+      - OPENCLAW_MODEL=${OPENCLAW_MODEL:-glm-4.7-flash}
+      - DATABASE_URL=postgresql+asyncpg://bcs_admin:sangatrahasia@database:5432/mybcs_db
+      - AI_BRIDGE_DEBUG=false
+    extra_hosts:
+      - "host.docker.internal:host-gateway"  # Agar bisa akses Openclaw di host (jika lokal)
+    depends_on:
+      - database
+    restart: always
+    networks:
+      - erp_network
+
+  # 8. Python Microservice (DMS AI Module — Coming Soon)
   # python-ai-dms:
   #   image: ghcr.io/it-bcs-tech/erp-dms-ai:latest
   #   container_name: erp_python_dms

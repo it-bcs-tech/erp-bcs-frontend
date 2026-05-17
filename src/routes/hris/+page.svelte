@@ -76,7 +76,7 @@
 		<div class="flex items-center justify-between mb-8">
 			<div>
 				<h3 class="text-xl font-bold text-on-surface tracking-tight">Monthly Attendance Trend</h3>
-				<p class="text-xs text-on-surface-variant mt-1">Yearly comparative analysis (2024)</p>
+				<p class="text-xs text-on-surface-variant mt-1">Yearly comparative analysis (2026)</p>
 			</div>
 			<div class="flex gap-4">
 				<div class="flex items-center gap-2">
@@ -228,6 +228,6 @@
 </div>
 
 <!-- Contextual FAB -->
-<button class="fixed bottom-8 right-8 w-14 h-14 bg-primary text-on-primary rounded-2xl shadow-xl shadow-primary/20 flex items-center justify-center hover:scale-110 hover:-translate-y-1 transition-all duration-300 z-50 group">
+<!-- <button class="fixed bottom-8 right-8 w-14 h-14 bg-primary text-on-primary rounded-2xl shadow-xl shadow-primary/20 flex items-center justify-center hover:scale-110 hover:-translate-y-1 transition-all duration-300 z-50 group">
 	<span class="material-symbols-outlined text-2xl group-hover:rotate-90 transition-transform">add</span>
-</button>
+</button> -->

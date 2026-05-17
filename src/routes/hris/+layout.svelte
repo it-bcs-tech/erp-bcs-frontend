@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { page } from '$app/stores';
+	import Chatbot from '$lib/components/Chatbot.svelte';
 	let { children } = $props();
 </script>
 
@@ -37,9 +38,13 @@
 				<span class="material-symbols-outlined">pending_actions</span>
 				<span class="font-medium text-sm">Leave Requests</span>
 			</a>
-			<a class="flex items-center gap-3 px-4 py-3 rounded-xl transition-transform duration-200 hover:translate-x-1 {$page.url.pathname.includes('/hris/recruitment') ? 'bg-surface-container-highest text-primary' : 'text-on-surface-variant hover:bg-surface-container'}" href="/hris/recruitment">
-				<span class="material-symbols-outlined">work_outline</span>
-				<span class="font-medium text-sm">Recruitment</span>
+			<a class="flex items-center gap-3 px-4 py-3 rounded-xl transition-transform duration-200 hover:translate-x-1 {$page.url.pathname.includes('/hris/lifecycle') ? 'bg-surface-container-highest text-primary' : 'text-on-surface-variant hover:bg-surface-container'}" href="/hris/lifecycle">
+				<span class="material-symbols-outlined">manage_accounts</span>
+				<span class="font-medium text-sm">Lifecycle & Actions</span>
+			</a>
+			<a class="flex items-center gap-3 px-4 py-3 rounded-xl transition-transform duration-200 hover:translate-x-1 {$page.url.pathname.includes('/hris/performance') ? 'bg-surface-container-highest text-primary' : 'text-on-surface-variant hover:bg-surface-container'}" href="/hris/performance">
+				<span class="material-symbols-outlined">assessment</span>
+				<span class="font-medium text-sm">Performance</span>
 			</a>
 		</nav>
 	</aside>
@@ -50,4 +55,7 @@
 			{@render children()}
 		</div>
 	</main>
+
+	<!-- AI Assistant Chatbot -->
+	<Chatbot />
 </div>

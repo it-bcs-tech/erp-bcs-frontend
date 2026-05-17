@@ -1,6 +1,7 @@
 import { fail } from '@sveltejs/kit';
 import type { Actions } from './$types';
 import { apiFetch } from '$lib/utils/api';
+import { logError } from '$lib/utils/logger';
 
 export const actions = {
 	default: async ({ request, cookies }) => {
@@ -13,7 +14,7 @@ export const actions = {
 		}
 
 		try {
-			const response = await apiFetch<{ token: string; user: { id: number; name: string } }>(
+			const response = await apiFetch<{ access_token: string; user: { id: number; name: string } }>(
 				'/api/v1/auth/login',
 				{
 					method: 'POST',
@@ -21,7 +22,7 @@ export const actions = {
 				}
 			);
 
-			cookies.set('auth_token', response.data.token, {
+			cookies.set('auth_token', response.data.access_token, {
 				path: '/',
 				httpOnly: true,   // Tidak bisa diakses JavaScript browser (aman dari XSS)
 				secure: false,    // Set true jika sudah menggunakan HTTPS
@@ -29,9 +30,9 @@ export const actions = {
 			});
 
 			return { success: true, userName: response.data.user.name };
-		} catch (error) {
-			console.error('Login error:', error);
-			return fail(500, { email, error: 'Internal server error' });
+		} catch (error: any) {
+			logError('LOGIN_ACTION', 'Failed to login', { email, error: error?.message || error });
+			return fail(500, { email, error: 'Internal server error or connection failed' });
 		}
 	}
 } satisfies Actions;

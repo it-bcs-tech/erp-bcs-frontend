@@ -13,6 +13,7 @@
  */
 
 import { env } from '$env/dynamic/private';
+import { logError } from './logger';
 
 // Base URL diambil dari variabel PRIVATE (tanpa prefix PUBLIC_)
 // Di Docker production: http://backend:9000 (jalur internal, sangat cepat)
@@ -54,13 +55,32 @@ export async function apiFetch<T>(
 		headers.set('Authorization', `Bearer ${authToken}`);
 	}
 
-	const response = await fetch(url, { ...options, headers });
+	try {
+		const response = await fetch(url, { ...options, headers });
+		const textResponse = await response.text();
 
-	if (!response.ok) {
-		const errorBody = await response.text();
-		console.error(`API Error [${response.status}] on ${url}:`, errorBody);
-		throw new Error(`API Error: ${response.status} ${response.statusText}`);
+		if (!response.ok) {
+			logError('API_FETCH', `Error [${response.status}] on ${url}`, textResponse);
+			throw new Error(`API Error: ${response.status} ${response.statusText}`);
+		}
+
+		let jsonStr = textResponse.trim();
+		
+		// Auto-cleaner: Jika tim backend secara tidak sengaja meninggalkan 'echo' 
+		// atau mencetak debug data (seperti payload request) sebelum response asli
+		const realJsonStart = jsonStr.lastIndexOf('{"status"');
+		if (realJsonStart > 0) {
+			jsonStr = jsonStr.substring(realJsonStart);
+		}
+
+		try {
+			return JSON.parse(jsonStr) as ApiResponse<T>;
+		} catch (parseError: any) {
+			logError('API_PARSE_ERROR', `Invalid JSON from ${url}`, `Raw Response:\n${textResponse}\n\nParse Error: ${parseError.message}`);
+			throw new Error('Backend returned invalid JSON format (possibly PHP warning/error leaked). Check logs.');
+		}
+	} catch (err: any) {
+		logError('API_FETCH_EXCEPTION', `Fetch failed for ${url}`, err?.message || err);
+		throw err;
 	}
-
-	return (await response.json()) as ApiResponse<T>;
 }
