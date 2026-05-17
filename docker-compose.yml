@@ -99,21 +99,16 @@ services:
 
   # 7. Python AI Bridge (HRIS AI Assistant — FastAPI)
   # Jembatan antara Frontend ↔ Openclaw LLM ↔ PostgreSQL
+  # Image dibangun otomatis via GitHub Actions dan disimpan di GHCR
   ai-bridge:
-    build:
-      context: ./ai-bridge
-      dockerfile: Dockerfile
+    image: ghcr.io/it-bcs-tech/erp-bcs-ai-bridge:latest
     container_name: erp_ai_bridge
     ports:
       - "8083:8000"
-    environment:
-      - OPENCLAW_BASE_URL=https://ai.bcslabs.tech/v1
-      - OPENCLAW_API_KEY=${OPENCLAW_API_KEY}
-      - OPENCLAW_MODEL=${OPENCLAW_MODEL:-glm-4.7-flash}
-      - DATABASE_URL=postgresql+asyncpg://bcs_admin:sangatrahasia@database:5432/mybcs_db
-      - AI_BRIDGE_DEBUG=false
+    env_file:
+      - ~/erp-bcs/.env.ai-bridge  # File .env khusus AI Bridge di server, tidak di-commit ke Git
     extra_hosts:
-      - "host.docker.internal:host-gateway"  # Agar bisa akses Openclaw di host (jika lokal)
+      - "host.docker.internal:host-gateway"
     depends_on:
       - database
     restart: always

@@ -18,7 +18,7 @@ import { logError } from './logger';
 // Base URL diambil dari variabel PRIVATE (tanpa prefix PUBLIC_)
 // Di Docker production: http://backend:9000 (jalur internal, sangat cepat)
 // Di lokal development: http://localhost:8080 (fallback)
-const API_BASE_URL = env.API_URL || 'http://localhost:8080';
+const API_BASE_URL = env.API_URL || 'http://backend:9000';
 
 export interface ApiResponse<T> {
 	status: 'success' | 'error';
