@@ -22,11 +22,14 @@ export const actions = {
 				}
 			);
 
+			// Deteksi apakah berjalan di HTTPS (production) atau HTTP (development)
+			const isSecure = request.headers.get('x-forwarded-proto') === 'https';
 			cookies.set('auth_token', response.data.access_token, {
 				path: '/',
-				httpOnly: true,   // Tidak bisa diakses JavaScript browser (aman dari XSS)
-				secure: false,    // Set true jika sudah menggunakan HTTPS
-				maxAge: 60 * 60 * 24 // 1 hari
+				httpOnly: true,
+				secure: isSecure,          // true jika HTTPS (production), false jika HTTP (dev)
+				sameSite: 'lax',           // Kompatibel dengan redirect lintas halaman
+				maxAge: 60 * 60 * 24       // 1 hari
 			});
 
 			return { success: true, userName: response.data.user.name };
