@@ -1,11 +1,16 @@
 <script lang="ts">
+	import { goto } from '$app/navigation';
+
 	async function handleLogout() {
-		// Mengirim request ke server-side endpoint untuk menghapus httpOnly cookie
-		const response = await fetch('/logout', { method: 'POST' });
-		if (response.redirected) {
-			window.location.href = response.url;
-		} else {
-			window.location.href = '/login';
+		try {
+			// Kirim request ke server untuk menghapus httpOnly cookie
+			await fetch('/logout', { method: 'POST' });
+		} catch {
+			// Lanjutkan logout meski terjadi error jaringan
+		} finally {
+			// Navigasi ke halaman login secara eksplisit
+			// Ini bekerja dengan andal di balik Nginx/Docker manapun
+			window.location.replace('/login');
 		}
 	}
 </script>
