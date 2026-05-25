@@ -152,11 +152,41 @@
 	<!-- Floating Action Button -->
 	{#if !isOpen}
 		<button
-			class="fixed bottom-6 right-6 w-14 h-14 bg-primary text-on-primary rounded-full shadow-lg flex items-center justify-center hover:scale-110 hover:shadow-xl hover:-translate-y-1 transition-all duration-300 z-50 group"
+			class="fixed bottom-6 right-6 w-16 h-16 bg-primary text-on-primary rounded-full shadow-lg flex items-center justify-center hover:scale-105 hover:shadow-xl hover:-translate-y-1 transition-all duration-300 z-50"
 			onclick={toggleChat}
-			aria-label="Buka AI Assistant"
+			aria-label="Buka HARIS — Asisten HRIS"
 		>
-			<span class="material-symbols-outlined text-2xl group-hover:rotate-12 transition-transform">smart_toy</span>
+			<!-- Inner wrapper for relative positioning -->
+			<div class="relative w-full h-full flex items-center justify-center">
+				<!-- Pulse ring -->
+				<span class="haris-fab-ring"></span>
+				<!-- Female assistant SVG avatar (HARIS) -->
+				<svg viewBox="0 0 56 56" fill="none" xmlns="http://www.w3.org/2000/svg" class="w-11 h-11">
+					<!-- Head -->
+					<circle cx="28" cy="17" r="9" fill="#fde68a" />
+					<!-- Hair -->
+					<path d="M19 17 Q19 8 28 8 Q37 8 37 17 Q37 13 34 12 Q30 10 28 11 Q23 10 22 13 Z" fill="#1f2937"/>
+					<path d="M19 17 Q17 22 19 27" stroke="#1f2937" stroke-width="2.5" stroke-linecap="round" fill="none"/>
+					<path d="M37 17 Q39 22 37 27" stroke="#1f2937" stroke-width="2.5" stroke-linecap="round" fill="none"/>
+					<!-- Neck -->
+					<rect x="25" y="25" width="6" height="4" rx="2" fill="#fde68a"/>
+					<!-- Body / Blazer -->
+					<path d="M16 44 Q16 32 22 30 L28 34 L34 30 Q40 32 40 44 Z" fill="#7c3aed"/>
+					<!-- Shirt -->
+					<path d="M24 30 L28 34 L32 30 L30 28 L28 30 L26 28 Z" fill="white"/>
+					<!-- Microphone -->
+					<rect x="31" y="20" width="6" height="10" rx="3" fill="#374151"/>
+					<path d="M31 28 Q31 34 37 34" stroke="#374151" stroke-width="1.5" stroke-linecap="round" fill="none"/>
+					<line x1="34" y1="34" x2="34" y2="37" stroke="#374151" stroke-width="1.5" stroke-linecap="round"/>
+					<line x1="32" y1="37" x2="36" y2="37" stroke="#374151" stroke-width="1.5" stroke-linecap="round"/>
+					<circle cx="34" cy="25" r="2" fill="#7c3aed" opacity="0.6"/>
+					<!-- Earrings -->
+					<circle cx="19.5" cy="21" r="1.5" fill="#a78bfa"/>
+					<circle cx="36.5" cy="21" r="1.5" fill="#a78bfa"/>
+				</svg>
+				<!-- Online dot -->
+				<span class="haris-online-dot"></span>
+			</div>
 		</button>
 	{/if}
 
@@ -172,8 +202,20 @@
 			<!-- Header -->
 			<div class="bg-primary p-4 flex items-center justify-between text-on-primary shadow-sm">
 				<div class="flex items-center gap-3">
-					<div class="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center">
-						<span class="material-symbols-outlined text-xl">smart_toy</span>
+					<!-- Mini avatar in header -->
+					<div class="w-12 h-12 rounded-full bg-white/15 flex items-center justify-center flex-shrink-0 border border-white/20 overflow-hidden">
+						<svg viewBox="0 0 56 56" fill="none" xmlns="http://www.w3.org/2000/svg" class="w-10 h-10">
+							<circle cx="28" cy="17" r="9" fill="#fde68a"/>
+							<path d="M19 17 Q19 8 28 8 Q37 8 37 17" fill="#1f2937"/>
+							<path d="M19 17 Q17 22 19 27" stroke="#1f2937" stroke-width="2.5" stroke-linecap="round" fill="none"/>
+							<path d="M37 17 Q39 22 37 27" stroke="#1f2937" stroke-width="2.5" stroke-linecap="round" fill="none"/>
+							<rect x="25" y="25" width="6" height="4" rx="2" fill="#fde68a"/>
+							<path d="M16 44 Q16 32 22 30 L28 34 L34 30 Q40 32 40 44 Z" fill="#c4b5fd"/>
+							<path d="M24 30 L28 34 L32 30 L30 28 L28 30 L26 28 Z" fill="white"/>
+							<rect x="31" y="20" width="6" height="10" rx="3" fill="#374151"/>
+							<circle cx="19.5" cy="21" r="1.5" fill="#a78bfa"/>
+							<circle cx="36.5" cy="21" r="1.5" fill="#a78bfa"/>
+						</svg>
 					</div>
 					<div>
 						<h3 class="font-extrabold text-sm tracking-wide">HRIS AI Assistant</h3>
@@ -218,8 +260,13 @@
 					{#each messages as msg (msg.id)}
 						{#if msg.role === 'assistant'}
 							<div class="flex gap-3 max-w-[85%]">
-								<div class="w-8 h-8 rounded-full bg-primary-container flex-shrink-0 flex items-center justify-center text-primary mt-1 border border-primary/10">
-									<span class="material-symbols-outlined text-sm">smart_toy</span>
+								<div class="w-9 h-9 rounded-full bg-primary-container flex-shrink-0 flex items-center justify-center mt-1 border border-primary/10 overflow-hidden">
+									<svg viewBox="0 0 56 56" fill="none" class="w-7 h-7">
+										<circle cx="28" cy="17" r="9" fill="#fde68a"/>
+										<path d="M19 17 Q19 8 28 8 Q37 8 37 17" fill="#1f2937"/>
+										<rect x="25" y="25" width="6" height="4" rx="2" fill="#fde68a"/>
+										<path d="M16 44 Q16 32 22 30 L28 34 L34 30 Q40 32 40 44 Z" fill="#7c3aed"/>
+									</svg>
 								</div>
 								<div class="bg-surface-container-low p-3 rounded-2xl rounded-tl-sm text-sm text-on-surface shadow-sm border border-outline-variant/20 leading-relaxed markdown-body">
 									{#if msg.content === '' && isLoading}
@@ -314,4 +361,30 @@
 	:global(.markdown-body strong) {
 		font-weight: 600;
 	}
+
+	/* ── HARIS FAB avatar decorations ────────────────────── */
+	:global(.haris-fab-ring) {
+		position: absolute;
+		inset: -4px;
+		border-radius: 50%;
+		border: 2px solid rgba(var(--color-primary-rgb, 103, 80, 164), 0.35);
+		animation: haris-pulse 2.5s ease-in-out infinite;
+		pointer-events: none;
+	}
+	:global(.haris-online-dot) {
+		position: absolute;
+		top: 4px;
+		right: 4px;
+		width: 12px;
+		height: 12px;
+		border-radius: 50%;
+		background: #10b981;
+		border: 2px solid white;
+		box-shadow: 0 0 6px rgba(16, 185, 129, 0.6);
+	}
+	@keyframes haris-pulse {
+		0%, 100% { transform: scale(1); opacity: 0.5; }
+		50%       { transform: scale(1.1); opacity: 0.15; }
+	}
 </style>
+

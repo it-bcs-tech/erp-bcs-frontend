@@ -30,10 +30,7 @@
 				<span class="material-symbols-outlined">group</span>
 				<span class="font-medium text-sm">Customers</span>
 			</a>
-			<a class="flex items-center gap-3 px-4 py-3 rounded-xl transition-transform duration-200 hover:translate-x-1 {$page.url.pathname.includes('/marketing/tariffs') ? 'bg-surface-container-highest text-rose-600 dark:text-rose-400' : 'text-on-surface-variant hover:bg-surface-container'}" href="/marketing/tariffs">
-				<span class="material-symbols-outlined">price_change</span>
-				<span class="font-medium text-sm">Tariffs & Pricing</span>
-			</a>
+
 			<a class="flex items-center gap-3 px-4 py-3 rounded-xl transition-transform duration-200 hover:translate-x-1 {$page.url.pathname.includes('/marketing/orders') ? 'bg-surface-container-highest text-rose-600 dark:text-rose-400' : 'text-on-surface-variant hover:bg-surface-container'}" href="/marketing/orders">
 				<span class="material-symbols-outlined">receipt_long</span>
 				<span class="font-medium text-sm">Orders / DO</span>

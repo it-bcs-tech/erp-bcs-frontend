@@ -45,6 +45,7 @@
 		"@types/bcryptjs": "^2.4.6",
 		"ai": "^6.0.176",
 		"leaflet": "^1.9.4",
-		"marked": "^18.0.3"
+		"marked": "^18.0.3",
+		"postgres": "^3.4.9"
 	}
 }

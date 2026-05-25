@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { page } from '$app/stores';
-	import Chatbot from '$lib/components/Chatbot.svelte';
+	import FaridaChat from '$lib/components/FaridaChat.svelte';
 	let { children } = $props();
 </script>
 
@@ -64,6 +64,20 @@
 				<span class="material-symbols-outlined">report</span>
 				<span class="font-medium text-sm">Incidents</span>
 			</a>
+
+			<!-- Section Divider: Monitoring -->
+			<div class="pt-3 pb-1 px-4">
+				<p class="text-[9px] font-black text-on-surface-variant/50 uppercase tracking-[0.2em]">Monitoring</p>
+			</div>
+
+			<a class="flex items-center gap-3 px-4 py-3 rounded-xl transition-transform duration-200 hover:translate-x-1 {$page.url.pathname.includes('/fms/route-history') ? 'bg-surface-container-highest text-blue-600 dark:text-blue-400' : 'text-on-surface-variant hover:bg-surface-container'}" href="/fms/route-history">
+				<span class="material-symbols-outlined">history</span>
+				<span class="font-medium text-sm">Route History</span>
+			</a>
+			<a class="flex items-center gap-3 px-4 py-3 rounded-xl transition-transform duration-200 hover:translate-x-1 {$page.url.pathname.includes('/fms/live-map') ? 'bg-surface-container-highest text-blue-600 dark:text-blue-400' : 'text-on-surface-variant hover:bg-surface-container'}" href="/fms/live-map">
+				<span class="material-symbols-outlined">map</span>
+				<span class="font-medium text-sm">Live Map</span>
+			</a>
 		</nav>
 	</aside>
 
@@ -74,6 +88,6 @@
 		</div>
 	</main>
 
-	<!-- AI Assistant Chatbot -->
-	<Chatbot />
+	<!-- FARIDA — AI Monitoring Armada FMS -->
+	<FaridaChat />
 </div>

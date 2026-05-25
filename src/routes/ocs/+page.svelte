@@ -1,208 +1,184 @@
 <script lang="ts">
-	let { data } = $props();
-	const { fleetSummary, activeAlerts, liveUnits } = data;
+	import type { PageData } from './$types';
+	let { data }: { data: PageData } = $props();
+	let { summary, pendingDOs, activeJourneys, recentCompletions } = $derived(data);
 
-	const statusConfig: Record<string, { color: string; icon: string; label: string }> = {
-		available: { color: 'emerald', icon: 'check_circle', label: 'Available' },
-		moving: { color: 'sky', icon: 'local_shipping', label: 'Moving' },
-		transit: { color: 'amber', icon: 'pause_circle', label: 'Transit' },
-		loading: { color: 'indigo', icon: 'forklift', label: 'Loading' },
-		maintenance: { color: 'orange', icon: 'build', label: 'Maintenance' },
-		overhaul: { color: 'rose', icon: 'engineering', label: 'Overhaul' },
-		accident: { color: 'red', icon: 'car_crash', label: 'Accident' },
-		onDO: { color: 'blue', icon: 'assignment', label: 'On DO' }
-	};
-
-	function getSeverityStyle(severity: string) {
-		switch(severity) {
-			case 'critical': return 'bg-rose-500/10 border-rose-500/30 text-rose-600';
-			case 'warning': return 'bg-amber-500/10 border-amber-500/30 text-amber-600';
-			default: return 'bg-blue-500/10 border-blue-500/30 text-blue-600';
-		}
-	}
-
-	function getUnitStatusStyle(status: string) {
-		switch(status) {
-			case 'Moving': return 'text-sky-600 bg-sky-500/10 border-sky-500/20';
-			case 'Transit': return 'text-amber-600 bg-amber-500/10 border-amber-500/20';
-			case 'Loading': return 'text-indigo-600 bg-indigo-500/10 border-indigo-500/20';
-			case 'Available': return 'text-emerald-600 bg-emerald-500/10 border-emerald-500/20';
-			default: return 'text-slate-600 bg-slate-500/10 border-slate-500/20';
-		}
-	}
-
-	function getStatusDot(status: string) {
-		switch(status) {
-			case 'Moving': return 'bg-sky-500 animate-pulse';
-			case 'Transit': return 'bg-amber-500';
-			case 'Loading': return 'bg-indigo-500 animate-pulse';
-			case 'Available': return 'bg-emerald-500';
-			default: return 'bg-slate-400';
-		}
-	}
+	const formatCurrency = (amount: number) =>
+		new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(amount);
 </script>
 
 <svelte:head>
-	<title>Command Center | OCS</title>
+	<title>OCS Dashboard | ERP BCS</title>
 </svelte:head>
 
-<!-- Header Section -->
-<header class="mb-8">
-	<div class="flex flex-col md:flex-row md:items-end justify-between gap-4">
+<div class="flex flex-col h-full">
+	<header class="mb-8 flex flex-col md:flex-row md:items-end justify-between gap-4">
 		<div>
-			<h1 class="text-3xl font-extrabold text-on-surface tracking-tight mb-2">Command Center</h1>
-			<p class="text-on-surface-variant font-medium text-sm">Real-time fleet monitoring, alerts, and operational intelligence</p>
+			<h1 class="text-3xl font-extrabold text-on-surface tracking-tight mb-2">OCS Dashboard</h1>
+			<p class="text-on-surface-variant font-medium text-sm">Operational Command System — Dispatch, UJO, dan kendali perjalanan armada</p>
 		</div>
-		<div class="flex items-center gap-3">
-			<div class="flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
-				<span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-				<span class="text-xs font-bold text-emerald-600 uppercase tracking-wider">Live System</span>
+		<div class="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-sky-500/10 border border-sky-500/20">
+			<span class="w-2 h-2 rounded-full bg-sky-500 animate-pulse"></span>
+			<span class="text-[10px] font-bold text-sky-600 uppercase tracking-wider">Operational</span>
+		</div>
+	</header>
+
+	<!-- Summary Cards -->
+	<div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+		<div class="bg-surface-container-lowest p-5 rounded-2xl border border-amber-500/20 shadow-sm hover:scale-[1.02] transition-transform">
+			<p class="text-xs font-bold text-amber-600 uppercase tracking-wider mb-2">Pending Dispatch</p>
+			<div class="flex items-end justify-between">
+				<h3 class="text-3xl font-black text-amber-600">{summary.pendingDispatch}</h3>
+				<span class="material-symbols-outlined text-3xl text-amber-500/40">pending_actions</span>
 			</div>
-			<a href="/ocs/live-map" class="bg-sky-600 text-white px-5 py-2.5 rounded-xl text-sm font-semibold shadow-sm flex items-center gap-2 hover:bg-sky-700 transition-colors">
-				<span class="material-symbols-outlined text-lg">map</span>
-				Open Live Map
+			<a href="/ocs/dispatch" class="text-[10px] font-bold text-amber-600 mt-2 flex items-center gap-1 hover:underline">
+				Proses sekarang <span class="material-symbols-outlined text-[12px]">arrow_forward</span>
 			</a>
 		</div>
-	</div>
-</header>
-
-<!-- Fleet Status Grid -->
-<div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-3 mb-8">
-	{#each Object.entries(statusConfig) as [key, config]}
-		{@const count = fleetSummary[key as keyof typeof fleetSummary]}
-		<div class="bg-surface-container-lowest p-4 rounded-2xl shadow-sm hover:scale-[1.03] transition-transform duration-300 cursor-pointer border border-surface-container text-center group">
-			<span class="material-symbols-outlined text-2xl text-{config.color}-500 group-hover:scale-110 transition-transform inline-block mb-2">{config.icon}</span>
-			<p class="text-2xl font-black text-on-surface">{count}</p>
-			<p class="text-[9px] font-bold text-on-surface-variant uppercase tracking-widest mt-1">{config.label}</p>
+		<div class="bg-surface-container-lowest p-5 rounded-2xl border border-sky-500/20 shadow-sm hover:scale-[1.02] transition-transform">
+			<p class="text-xs font-bold text-sky-600 uppercase tracking-wider mb-2">Active Journeys</p>
+			<div class="flex items-end justify-between">
+				<h3 class="text-3xl font-black text-sky-600">{summary.activeJourneys}</h3>
+				<span class="material-symbols-outlined text-3xl text-sky-500/40">local_shipping</span>
+			</div>
 		</div>
-	{/each}
-</div>
+		<div class="bg-surface-container-lowest p-5 rounded-2xl border border-emerald-500/20 shadow-sm hover:scale-[1.02] transition-transform">
+			<p class="text-xs font-bold text-emerald-600 uppercase tracking-wider mb-2">Completed Today</p>
+			<div class="flex items-end justify-between">
+				<h3 class="text-3xl font-black text-emerald-600">{summary.completedToday}</h3>
+				<span class="material-symbols-outlined text-3xl text-emerald-500/40">check_circle</span>
+			</div>
+		</div>
+		<div class="bg-surface-container-lowest p-5 rounded-2xl border border-violet-500/20 shadow-sm hover:scale-[1.02] transition-transform">
+			<p class="text-xs font-bold text-violet-600 uppercase tracking-wider mb-2">Total UJO Hari Ini</p>
+			<div class="flex items-end justify-between">
+				<h3 class="text-xl font-black text-violet-600">{formatCurrency(summary.totalUJO)}</h3>
+				<span class="material-symbols-outlined text-3xl text-violet-500/40">payments</span>
+			</div>
+		</div>
+	</div>
 
-<!-- Main Content: Alerts + Live Units -->
-<div class="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
-	<!-- Active Alerts -->
-	<div class="bg-slate-800 p-8 rounded-[24px] text-white shadow-lg flex flex-col overflow-hidden relative group">
-		<div class="absolute top-0 right-0 w-48 h-48 bg-rose-500/20 rounded-full -mr-16 -mt-16 blur-3xl group-hover:scale-110 transition-transform duration-700"></div>
-		<div class="relative z-10 flex-1">
-			<h3 class="text-xl font-extrabold mb-6 flex items-center gap-2">
-				<span class="material-symbols-outlined text-3xl text-rose-400">notifications_active</span>
-				Active Alerts
-				<span class="ml-auto px-2 py-0.5 text-xs font-black bg-rose-500/30 text-rose-300 rounded-full">{activeAlerts.length}</span>
-			</h3>
-			<div class="space-y-3">
-				{#each activeAlerts as alert}
-					<div class="flex items-start gap-3 bg-white/5 hover:bg-white/10 p-3 -mx-3 rounded-xl backdrop-blur-sm transition-colors cursor-pointer">
-						<div class="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5 {alert.severity === 'critical' ? 'bg-rose-500/20 text-rose-400' : alert.severity === 'warning' ? 'bg-amber-500/20 text-amber-400' : 'bg-blue-500/20 text-blue-400'}">
-							<span class="material-symbols-outlined text-sm">{alert.severity === 'critical' ? 'error' : alert.severity === 'warning' ? 'warning' : 'info'}</span>
-						</div>
-						<div class="flex-1 min-w-0">
-							<div class="flex items-center gap-2 mb-0.5">
-								<span class="text-xs font-black">{alert.unit}</span>
-								<span class="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded {alert.severity === 'critical' ? 'bg-rose-500/30 text-rose-300' : 'bg-amber-500/30 text-amber-300'}">{alert.type}</span>
+	<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+		<!-- Pending DOs (Left col) -->
+		<div class="bg-surface-container-lowest rounded-[24px] shadow-sm flex flex-col overflow-hidden">
+			<div class="px-6 pt-6 pb-4 border-b border-surface-container flex items-center justify-between">
+				<h2 class="text-base font-extrabold text-on-surface flex items-center gap-2">
+					<span class="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span>
+					DO Pending Dispatch
+				</h2>
+				<a href="/ocs/dispatch" class="text-xs font-bold text-sky-600 hover:underline">Lihat Semua</a>
+			</div>
+			<div class="p-4 space-y-3 flex-1 overflow-y-auto">
+				{#each pendingDOs as order}
+					<div class="p-4 rounded-xl bg-surface-container-low hover:bg-surface-container-high transition-colors border border-amber-500/10 hover:border-amber-500/20 cursor-pointer">
+						<div class="flex items-start justify-between mb-2">
+							<div>
+								<p class="text-sm font-black text-on-surface">{order.id}</p>
+								<p class="text-[10px] text-on-surface-variant font-medium">{order.customer}</p>
 							</div>
-							<p class="text-[11px] text-white/60 font-medium leading-relaxed">{alert.message}</p>
-							<p class="text-[10px] text-white/40 mt-1">{alert.time}</p>
+							<span class="text-[9px] font-bold bg-amber-500/10 text-amber-600 px-2 py-0.5 rounded uppercase border border-amber-500/20">Pending</span>
+						</div>
+						<div class="text-[11px] text-on-surface-variant space-y-1">
+							<p class="flex items-center gap-1.5">
+								<span class="material-symbols-outlined text-[13px] text-sky-500">route</span>
+								<strong class="text-on-surface">{order.origin} → {order.destination}</strong>
+							</p>
+							<p class="flex items-center gap-1.5">
+								<span class="material-symbols-outlined text-[13px]">inventory_2</span>
+								{order.cargo} · {order.weight}
+							</p>
+							<p class="flex items-center gap-1.5">
+								<span class="material-symbols-outlined text-[13px]">local_shipping</span>
+								{order.vehicleReq}
+							</p>
+						</div>
+						<div class="mt-3 flex items-center justify-between">
+							<span class="text-[10px] font-bold text-sky-600">{formatCurrency(order.tariff)}</span>
+							<a href="/ocs/dispatch" class="text-[10px] font-bold text-sky-600 bg-sky-500/10 px-2.5 py-1 rounded-lg hover:bg-sky-500/20 transition-colors">
+								Assign Unit
+							</a>
 						</div>
 					</div>
 				{/each}
 			</div>
 		</div>
-	</div>
 
-	<!-- Live Unit Tracking Table -->
-	<div class="lg:col-span-2 bg-surface-container-lowest rounded-[24px] p-8 shadow-sm flex flex-col">
-		<div class="flex items-center justify-between mb-6">
-			<h3 class="text-xl font-bold text-on-surface tracking-tight">Live Unit Tracking</h3>
-			<a href="/ocs/live-map" class="text-xs font-bold text-sky-600 cursor-pointer hover:underline px-3 py-1.5 rounded-lg hover:bg-sky-100/30 dark:hover:bg-sky-900/20 transition-colors">View on Map</a>
-		</div>
-		<div class="overflow-x-auto flex-1">
-			<table class="w-full text-left border-collapse min-w-[700px]">
-				<thead>
-					<tr class="border-b border-surface-container">
-						<th class="pb-3 px-2 text-[10px] font-black uppercase tracking-widest text-on-surface-variant">Unit</th>
-						<th class="pb-3 px-2 text-[10px] font-black uppercase tracking-widest text-on-surface-variant">Driver</th>
-						<th class="pb-3 px-2 text-[10px] font-black uppercase tracking-widest text-on-surface-variant">Status</th>
-						<th class="pb-3 px-2 text-[10px] font-black uppercase tracking-widest text-on-surface-variant">Route</th>
-						<th class="pb-3 px-2 text-[10px] font-black uppercase tracking-widest text-on-surface-variant">Progress</th>
-					</tr>
-				</thead>
-				<tbody class="divide-y divide-surface-container/50">
-					{#each liveUnits as unit}
-						<tr class="hover:bg-surface-container-low transition-colors group cursor-pointer">
-							<td class="py-3 px-2">
-								<div class="flex items-center gap-2">
-									<div class="w-8 h-8 rounded-lg bg-sky-100 dark:bg-sky-900/30 flex items-center justify-center text-sky-600 dark:text-sky-400 group-hover:scale-110 transition-transform">
-										<span class="material-symbols-outlined text-[16px]">local_shipping</span>
-									</div>
-									<div>
-										<p class="text-sm font-bold text-on-surface">{unit.id}</p>
-										<p class="text-[9px] text-on-surface-variant font-medium">{unit.do}</p>
-									</div>
-								</div>
-							</td>
-							<td class="py-3 px-2">
-								<p class="text-sm font-medium text-on-surface">{unit.driver}</p>
-								{#if unit.speed > 0}
-									<p class="text-[10px] text-sky-600 font-bold mt-0.5">{unit.speed} km/h</p>
-								{/if}
-							</td>
-							<td class="py-3 px-2">
-								<span class="inline-flex items-center gap-1.5 font-bold text-[11px] px-2.5 py-1 rounded-md uppercase tracking-wider border {getUnitStatusStyle(unit.status)}">
-									<span class="w-1.5 h-1.5 rounded-full {getStatusDot(unit.status)}"></span> {unit.status}
-								</span>
-							</td>
-							<td class="py-3 px-2">
-								{#if unit.origin !== '-'}
-									<p class="text-sm font-medium text-on-surface">{unit.origin} → {unit.destination}</p>
-								{:else}
-									<p class="text-sm text-on-surface-variant">Standby at Pool</p>
-								{/if}
-							</td>
-							<td class="py-3 px-2 w-32">
-								{#if unit.progress > 0}
-									<div class="w-full bg-surface-container-high h-2 rounded-full overflow-hidden">
-										<div class="bg-sky-500 h-full rounded-full transition-all" style="width: {unit.progress}%"></div>
-									</div>
-									<p class="text-[10px] font-bold text-on-surface-variant mt-1">{unit.progress}%</p>
-								{:else}
-									<span class="text-[10px] font-medium text-on-surface-variant">—</span>
-								{/if}
-							</td>
+		<!-- Active Journeys (Right 2 cols) -->
+		<div class="lg:col-span-2 bg-surface-container-lowest rounded-[24px] shadow-sm flex flex-col overflow-hidden">
+			<div class="px-6 pt-6 pb-4 border-b border-surface-container flex items-center justify-between">
+				<h2 class="text-base font-extrabold text-on-surface flex items-center gap-2">
+					<span class="w-2 h-2 rounded-full bg-sky-500 animate-pulse"></span>
+					Perjalanan Aktif
+				</h2>
+				<a href="/ocs/history" class="text-xs font-bold text-sky-600 hover:underline">History</a>
+			</div>
+			<div class="overflow-x-auto flex-1">
+				<table class="w-full text-left border-collapse min-w-[520px]">
+					<thead>
+						<tr class="border-b border-surface-container">
+							<th class="py-3 px-6 text-[10px] font-black uppercase tracking-widest text-on-surface-variant">Unit & Driver</th>
+							<th class="py-3 px-6 text-[10px] font-black uppercase tracking-widest text-on-surface-variant">Rute</th>
+							<th class="py-3 px-6 text-[10px] font-black uppercase tracking-widest text-on-surface-variant">Progress</th>
+							<th class="py-3 px-6 text-[10px] font-black uppercase tracking-widest text-on-surface-variant">UJO</th>
 						</tr>
-					{/each}
-				</tbody>
-			</table>
-		</div>
-	</div>
-</div>
+					</thead>
+					<tbody class="divide-y divide-surface-container">
+						{#each activeJourneys as j}
+							<tr class="hover:bg-surface-container-low transition-colors">
+								<td class="py-4 px-6">
+									<div class="flex items-center gap-3">
+										<div class="w-9 h-9 rounded-lg bg-sky-100 dark:bg-sky-900/30 flex items-center justify-center text-sky-600">
+											<span class="material-symbols-outlined text-[18px]">local_shipping</span>
+										</div>
+										<div>
+											<p class="text-sm font-bold text-on-surface">{j.unit}</p>
+											<p class="text-[10px] text-on-surface-variant">{j.driver}</p>
+											<p class="text-[10px] text-sky-600 font-bold">{j.do}</p>
+										</div>
+									</div>
+								</td>
+								<td class="py-4 px-6">
+									<p class="text-sm font-bold text-on-surface">{j.origin} → {j.destination}</p>
+								</td>
+								<td class="py-4 px-6">
+									<div class="w-28">
+										<div class="w-full bg-surface-container-high h-2 rounded-full overflow-hidden mb-1">
+											<div class="bg-sky-500 h-full rounded-full shadow-[0_0_6px_rgba(14,165,233,0.5)]" style="width:{j.progress}%"></div>
+										</div>
+										<p class="text-[10px] font-bold text-on-surface-variant">{j.progress}%</p>
+									</div>
+								</td>
+								<td class="py-4 px-6">
+									<p class="text-sm font-bold text-on-surface">{formatCurrency(j.ujo)}</p>
+									<span class="text-[9px] font-bold uppercase {j.ujoStatus === 'Paid' ? 'text-emerald-600' : 'text-amber-600'}">{j.ujoStatus}</span>
+								</td>
+							</tr>
+						{/each}
+					</tbody>
+				</table>
+			</div>
 
-<!-- Bottom Section: Quick Stats -->
-<div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-	<div class="bg-surface-container-lowest rounded-[24px] p-6 shadow-sm flex items-center gap-5">
-		<div class="w-14 h-14 rounded-2xl bg-sky-100 dark:bg-sky-900/30 flex items-center justify-center text-sky-600 flex-shrink-0">
-			<span class="material-symbols-outlined text-3xl">speed</span>
-		</div>
-		<div>
-			<p class="text-xs font-bold text-on-surface-variant uppercase tracking-wider">Avg. Speed</p>
-			<p class="text-2xl font-black text-on-surface">58 <span class="text-sm font-medium text-on-surface-variant">km/h</span></p>
-		</div>
-	</div>
-	<div class="bg-surface-container-lowest rounded-[24px] p-6 shadow-sm flex items-center gap-5">
-		<div class="w-14 h-14 rounded-2xl bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center text-emerald-600 flex-shrink-0">
-			<span class="material-symbols-outlined text-3xl">check_circle</span>
-		</div>
-		<div>
-			<p class="text-xs font-bold text-on-surface-variant uppercase tracking-wider">Deliveries Today</p>
-			<p class="text-2xl font-black text-on-surface">18 <span class="text-sm font-medium text-on-surface-variant">completed</span></p>
-		</div>
-	</div>
-	<div class="bg-surface-container-lowest rounded-[24px] p-6 shadow-sm flex items-center gap-5">
-		<div class="w-14 h-14 rounded-2xl bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center text-amber-600 flex-shrink-0">
-			<span class="material-symbols-outlined text-3xl">distance</span>
-		</div>
-		<div>
-			<p class="text-xs font-bold text-on-surface-variant uppercase tracking-wider">Total KM Today</p>
-			<p class="text-2xl font-black text-on-surface">4,280 <span class="text-sm font-medium text-on-surface-variant">km</span></p>
+			<!-- Recent Completions -->
+			<div class="border-t border-surface-container px-6 py-4">
+				<p class="text-[9px] font-black text-on-surface-variant uppercase tracking-widest mb-3">Baru Selesai</p>
+				<div class="space-y-2">
+					{#each recentCompletions as c}
+						<div class="flex items-center justify-between p-3 rounded-xl bg-emerald-500/5 border border-emerald-500/10">
+							<div class="flex items-center gap-3">
+								<span class="material-symbols-outlined text-emerald-500 text-[18px]">check_circle</span>
+								<div>
+									<p class="text-xs font-bold text-on-surface">{c.unit} • {c.driver}</p>
+									<p class="text-[10px] text-on-surface-variant">{c.route} · {c.do}</p>
+								</div>
+							</div>
+							<div class="text-right">
+								<p class="text-[10px] font-bold text-emerald-600">{formatCurrency(c.ujo)}</p>
+								<p class="text-[9px] text-on-surface-variant">{c.completedAt}</p>
+							</div>
+						</div>
+					{/each}
+				</div>
+			</div>
 		</div>
 	</div>
 </div>

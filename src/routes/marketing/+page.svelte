@@ -1,10 +1,22 @@
 <script lang="ts">
 	let { data } = $props();
-	const { metrics } = data;
+	const { metrics, recentOrders, topCustomers, fleetAvailability } = data;
 
 	const formatCurrency = (amount: number) => {
 		return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(amount);
 	};
+
+	function getStatusBadge(status: string) {
+		switch(status) {
+			case 'COMPLETED': return 'emerald';
+			case 'READY_TO_DISPATCH': return 'blue';
+			case 'DISPATCHED': return 'indigo';
+			case 'WAITING_UJO':
+			case 'WAITING_TARIFF':
+			case 'WAITING_CUSTOMER': return 'amber';
+			default: return 'slate';
+		}
+	}
 </script>
 
 <svelte:head>
@@ -42,9 +54,9 @@
 			</div>
 			<p class="text-4xl font-black text-on-surface mb-1">{metrics.activeCustomers}</p>
 			<div class="w-full bg-surface-container-high h-1.5 rounded-full mt-4 overflow-hidden">
-				<div class="bg-rose-500 h-full rounded-full shadow-[0_0_8px_rgba(244,63,94,0.6)]" style="width: {Math.round(metrics.activeCustomers / metrics.totalCustomers * 100)}%"></div>
+				<div class="bg-rose-500 h-full rounded-full shadow-[0_0_8px_rgba(244,63,94,0.6)]" style="width: {metrics.totalCustomers > 0 ? Math.round(metrics.activeCustomers / metrics.totalCustomers * 100) : 0}%"></div>
 			</div>
-			<p class="text-[10px] font-medium text-on-surface-variant mt-2">{Math.round(metrics.activeCustomers / metrics.totalCustomers * 100)}% Active Rate</p>
+			<p class="text-[10px] font-medium text-on-surface-variant mt-2">{metrics.totalCustomers > 0 ? Math.round(metrics.activeCustomers / metrics.totalCustomers * 100) : 0}% Active Rate</p>
 		</div>
 	</div>
 
@@ -77,8 +89,8 @@
 	</div>
 </div>
 
-<!-- Middle Section: Revenue Chart + Top Customers -->
-<div class="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-10">
+<!-- Middle Section: Revenue Chart + Pipeline + Fleet -->
+<div class="grid grid-cols-1 lg:grid-cols-4 gap-8 mb-10">
 	<!-- Revenue Trend Chart -->
 	<div class="lg:col-span-2 bg-surface-container-lowest rounded-[24px] p-8 shadow-sm">
 		<div class="flex items-center justify-between mb-8">
@@ -124,7 +136,7 @@
 	</div>
 
 	<!-- Sales Pipeline -->
-	<div class="bg-slate-800 p-8 rounded-[24px] text-white shadow-lg flex flex-col justify-between overflow-hidden relative group">
+	<div class="lg:col-span-1 bg-slate-800 p-8 rounded-[24px] text-white shadow-lg flex flex-col justify-between overflow-hidden relative group">
 		<div class="absolute top-0 right-0 w-48 h-48 bg-rose-500/20 rounded-full -mr-16 -mt-16 blur-3xl group-hover:scale-110 transition-transform duration-700"></div>
 		<div class="relative z-10">
 			<h3 class="text-xl font-extrabold mb-8 flex items-center gap-2">
@@ -171,8 +183,47 @@
 			</div>
 		</div>
 		<a href="/marketing/customers" class="mt-8 bg-white text-slate-900 py-3 px-6 rounded-xl text-sm font-bold hover:bg-slate-200 transition-all flex items-center justify-center gap-2 shadow-sm relative z-10">
-			View All Customers
+			View All
 		</a>
+	</div>
+
+	<!-- Fleet Availability -->
+	<div class="lg:col-span-1 bg-indigo-900 p-8 rounded-[24px] text-white shadow-lg flex flex-col justify-between overflow-hidden relative group">
+		<div class="absolute top-0 right-0 w-48 h-48 bg-indigo-500/20 rounded-full -mr-16 -mt-16 blur-3xl group-hover:scale-110 transition-transform duration-700"></div>
+		<div class="relative z-10">
+			<h3 class="text-xl font-extrabold mb-8 flex items-center gap-2">
+				<span class="material-symbols-outlined text-3xl text-indigo-400">local_shipping</span>
+				Unit Availability
+			</h3>
+			<div class="space-y-4">
+				<div class="flex items-center justify-between bg-white/5 p-3 -mx-3 rounded-xl border border-white/5 backdrop-blur-sm">
+					<div class="flex items-center gap-3">
+						<div class="w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.6)]"></div>
+						<span class="text-sm font-bold text-indigo-100">Standby (Available)</span>
+					</div>
+					<span class="text-xl font-black text-emerald-400">{fleetAvailability.available}</span>
+				</div>
+				<div class="flex items-center justify-between bg-white/5 p-3 -mx-3 rounded-xl border border-white/5 backdrop-blur-sm">
+					<div class="flex items-center gap-3">
+						<div class="w-2 h-2 rounded-full bg-blue-400 shadow-[0_0_8px_rgba(96,165,250,0.6)] animate-pulse"></div>
+						<span class="text-sm font-bold text-indigo-100">In Transit</span>
+					</div>
+					<span class="text-xl font-black text-blue-400">{fleetAvailability.moving}</span>
+				</div>
+				<div class="flex items-center justify-between bg-white/5 p-3 -mx-3 rounded-xl border border-white/5 backdrop-blur-sm">
+					<div class="flex items-center gap-3">
+						<div class="w-2 h-2 rounded-full bg-rose-400"></div>
+						<span class="text-sm font-bold text-indigo-100">Maintenance</span>
+					</div>
+					<span class="text-xl font-black text-rose-400">{fleetAvailability.maintenance}</span>
+				</div>
+			</div>
+			
+			<div class="mt-8 pt-4 border-t border-white/10 flex items-end justify-between">
+				<p class="text-xs font-bold text-indigo-300 uppercase tracking-widest">Total Active Fleet</p>
+				<p class="text-3xl font-black text-white">{fleetAvailability.total}</p>
+			</div>
+		</div>
 	</div>
 </div>
 
@@ -184,35 +235,24 @@
 			<a href="/marketing/orders" class="text-xs font-bold text-rose-600 cursor-pointer hover:underline px-3 py-1.5 rounded-lg hover:bg-rose-100/30 dark:hover:bg-rose-900/20 transition-colors">View All</a>
 		</div>
 		<div class="space-y-3">
-			{#each [
-				{ customer: 'PT Indofood Sukses', do: 'DO-260515001', route: 'Jakarta → Surabaya', status: 'Confirmed', color: 'blue' },
-				{ customer: 'PT Unilever Indonesia', do: 'DO-260514008', route: 'Bandung → Semarang', status: 'Completed', color: 'emerald' },
-				{ customer: 'PT Mayora Indah', do: 'DO-260515003', route: 'Jakarta → Cirebon', status: 'Pending', color: 'amber' }
-			] as order}
+			{#if recentOrders.length === 0}
+				<p class="text-sm text-on-surface-variant p-4">Belum ada pesanan.</p>
+			{/if}
+			{#each recentOrders as order}
 				<div class="flex items-center justify-between p-4 bg-surface-container-low rounded-xl hover:bg-surface-container-high transition-colors cursor-pointer group">
 					<div class="flex items-center gap-4">
-						<div class="w-10 h-10 rounded-lg bg-{order.color}-100 dark:bg-{order.color}-900/30 flex items-center justify-center text-{order.color}-600 dark:text-{order.color}-400 group-hover:scale-110 transition-transform">
+						<div class="w-10 h-10 rounded-lg bg-{getStatusBadge(order.status)}-100 dark:bg-{getStatusBadge(order.status)}-900/30 flex items-center justify-center text-{getStatusBadge(order.status)}-600 dark:text-{getStatusBadge(order.status)}-400 group-hover:scale-110 transition-transform">
 							<span class="material-symbols-outlined text-lg">receipt_long</span>
 						</div>
 						<div>
 							<p class="text-sm font-bold text-on-surface">{order.customer}</p>
-							<p class="text-[10px] text-on-surface-variant font-medium uppercase tracking-wider mt-0.5">{order.do} • {order.route}</p>
+							<p class="text-[10px] text-on-surface-variant font-medium uppercase tracking-wider mt-0.5">{order.do} • {order.origin} → {order.destination}</p>
 						</div>
 					</div>
 					<div class="text-right">
-						{#if order.status === 'Confirmed'}
-							<span class="inline-flex items-center gap-1 text-blue-600 dark:text-blue-400 text-[10px] font-bold bg-blue-500/10 px-2 py-0.5 rounded-full">
-								<span class="w-1 h-1 rounded-full bg-blue-500 animate-pulse"></span> Confirmed
-							</span>
-						{:else if order.status === 'Completed'}
-							<span class="inline-flex items-center gap-1 text-emerald-600 dark:text-emerald-400 text-[10px] font-bold bg-emerald-500/10 px-2 py-0.5 rounded-full">
-								<span class="w-1 h-1 rounded-full bg-emerald-500"></span> Completed
-							</span>
-						{:else}
-							<span class="inline-flex items-center gap-1 text-amber-600 dark:text-amber-400 text-[10px] font-bold bg-amber-500/10 px-2 py-0.5 rounded-full">
-								<span class="w-1 h-1 rounded-full bg-amber-500"></span> Pending
-							</span>
-						{/if}
+						<span class="inline-flex items-center gap-1 text-{getStatusBadge(order.status)}-600 dark:text-{getStatusBadge(order.status)}-400 text-[10px] font-bold bg-{getStatusBadge(order.status)}-500/10 px-2 py-0.5 rounded-full">
+							<span class="w-1 h-1 rounded-full bg-{getStatusBadge(order.status)}-500"></span> {order.status}
+						</span>
 					</div>
 				</div>
 			{/each}
@@ -225,11 +265,10 @@
 			<a href="/marketing/customers" class="text-xs font-bold text-rose-600 cursor-pointer hover:underline px-3 py-1.5 rounded-lg hover:bg-rose-100/30 dark:hover:bg-rose-900/20 transition-colors">View All</a>
 		</div>
 		<div class="space-y-3">
-			{#each [
-				{ name: 'PT Indofood Sukses Makmur', orders: 48, revenue: 580000000, tier: 'Platinum' },
-				{ name: 'PT Unilever Indonesia', orders: 35, revenue: 420000000, tier: 'Gold' },
-				{ name: 'PT Mayora Indah Tbk', orders: 28, revenue: 310000000, tier: 'Gold' }
-			] as cust, i}
+			{#if topCustomers.length === 0}
+				<p class="text-sm text-on-surface-variant p-4">Belum ada data customer teratas.</p>
+			{/if}
+			{#each topCustomers as cust, i}
 				<div class="flex items-center justify-between p-4 bg-surface-container-low rounded-xl hover:bg-surface-container-high transition-colors cursor-pointer group">
 					<div class="flex items-center gap-4">
 						<div class="w-10 h-10 rounded-full bg-rose-100 dark:bg-rose-900/30 flex items-center justify-center text-rose-700 dark:text-rose-300 font-black text-sm group-hover:scale-110 transition-transform border-2 {i === 0 ? 'border-amber-400' : 'border-transparent'}">
@@ -241,7 +280,7 @@
 						</div>
 					</div>
 					<div class="flex flex-col items-end">
-						<span class="text-sm font-black text-on-surface">{formatCurrency(cust.revenue)}</span>
+						<span class="text-sm font-black text-on-surface">{formatCurrency(parseFloat(cust.revenue))}</span>
 					</div>
 				</div>
 			{/each}

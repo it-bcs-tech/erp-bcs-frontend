@@ -84,18 +84,15 @@ services:
   #     - erp_network
 
   # 6. Golang Microservice (FMS Telemetry)
-  # golang-fms:
-  #   image: ghcr.io/it-bcs-tech/erp-fms-telemetry:latest
-  #   container_name: erp_golang_fms
-  #   ports:
-  #     - "8081:8081"
-  #   env_file:
-  #     - .env
-  #   depends_on:
-  #     - database
-  #     - redis
-  #   networks:
-  #     - erp_network
+  erp_go_map:
+    image: ghcr.io/it-bcs-tech/erp-bcs-go-map:latest
+    container_name: erp_go_map
+    ports:
+      - "8081:8081"
+    env_file:
+      - .env
+    networks:
+      - erp_network
 
   # 7. Python AI Bridge (HRIS AI Assistant — FastAPI)
   # Jembatan antara Frontend ↔ Openclaw LLM ↔ PostgreSQL

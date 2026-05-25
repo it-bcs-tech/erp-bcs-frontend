@@ -20,21 +20,14 @@
 				</div>
 			</div>
 		</div>
+
 		<nav class="flex-1 space-y-1">
 			<a class="flex items-center gap-3 px-4 py-3 rounded-xl shadow-sm transition-transform duration-200 hover:translate-x-1 {$page.url.pathname === '/ocs' ? 'bg-surface-container-highest text-sky-600 dark:text-sky-400' : 'text-on-surface-variant hover:bg-surface-container'}" href="/ocs">
 				<span class="material-symbols-outlined">space_dashboard</span>
-				<span class="font-medium text-sm">Command Center</span>
-			</a>
-			<a class="flex items-center gap-3 px-4 py-3 rounded-xl transition-transform duration-200 hover:translate-x-1 {$page.url.pathname.includes('/ocs/live-map') ? 'bg-surface-container-highest text-sky-600 dark:text-sky-400' : 'text-on-surface-variant hover:bg-surface-container'}" href="/ocs/live-map">
-				<span class="material-symbols-outlined">map</span>
-				<span class="font-medium text-sm">Live Map</span>
-			</a>
-			<a class="flex items-center gap-3 px-4 py-3 rounded-xl transition-transform duration-200 hover:translate-x-1 {$page.url.pathname.includes('/ocs/fleet-status') ? 'bg-surface-container-highest text-sky-600 dark:text-sky-400' : 'text-on-surface-variant hover:bg-surface-container'}" href="/ocs/fleet-status">
-				<span class="material-symbols-outlined">grid_view</span>
-				<span class="font-medium text-sm">Fleet Status</span>
+				<span class="font-medium text-sm">Dashboard</span>
 			</a>
 
-			<!-- Section Divider -->
+			<!-- Section Divider: Operations -->
 			<div class="pt-3 pb-1 px-4">
 				<p class="text-[9px] font-black text-on-surface-variant/50 uppercase tracking-[0.2em]">Operations</p>
 			</div>
@@ -43,10 +36,16 @@
 				<span class="material-symbols-outlined">assignment</span>
 				<span class="font-medium text-sm">Dispatch</span>
 			</a>
-			<a class="flex items-center gap-3 px-4 py-3 rounded-xl transition-transform duration-200 hover:translate-x-1 {$page.url.pathname.includes('/ocs/history') ? 'bg-surface-container-highest text-sky-600 dark:text-sky-400' : 'text-on-surface-variant hover:bg-surface-container'}" href="/ocs/history">
-				<span class="material-symbols-outlined">history</span>
-				<span class="font-medium text-sm">Route History</span>
+			<a class="flex items-center gap-3 px-4 py-3 rounded-xl transition-transform duration-200 hover:translate-x-1 {$page.url.pathname.includes('/ocs/ujo') ? 'bg-surface-container-highest text-sky-600 dark:text-sky-400' : 'text-on-surface-variant hover:bg-surface-container'}" href="/ocs/ujo">
+				<span class="material-symbols-outlined">payments</span>
+				<span class="font-medium text-sm">UJO (Uang Jalan)</span>
 			</a>
+			<a class="flex items-center gap-3 px-4 py-3 rounded-xl transition-transform duration-200 hover:translate-x-1 {$page.url.pathname.includes('/ocs/assign-driver') ? 'bg-surface-container-highest text-sky-600 dark:text-sky-400' : 'text-on-surface-variant hover:bg-surface-container'}" href="/ocs/assign-driver">
+				<span class="material-symbols-outlined">person_pin</span>
+				<span class="font-medium text-sm">Assign Driver</span>
+			</a>
+
+
 		</nav>
 	</aside>
 

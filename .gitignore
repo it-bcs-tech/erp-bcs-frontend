@@ -8,6 +8,15 @@ node_modules
 /.svelte-kit
 /build
 PANDUAN_MIGRASI_GITHUB.md
+perubahan-flow-bisnis.md
+db/
+skill.md
+Skill-assessment.md
+test_db.mjs
+fms_backend_endpoints.md
+FMS_Backend_Refactor.md
+PRD.md
+backend-endpoints.md
 
 # OS
 .DS_Store
@@ -25,3 +34,7 @@ vite.config.ts.timestamp-*
 
 presensi/
 ai-bridge/
+go-map/
+logs/
+db/
+test_db.mjs

@@ -1,48 +1,165 @@
-import type { PageServerLoad } from './$types';
+import type { PageServerLoad, Actions } from './$types';
+import { fail } from '@sveltejs/kit';
+import postgres from 'postgres';
+import { env } from '$env/dynamic/private';
 
-export const load: PageServerLoad = async ({ url }) => {
-	const allOrders = [
-		{ id: 'DO-260515001', customer: 'PT Indofood Sukses Makmur', origin: 'Jakarta', destination: 'Surabaya', cargoType: 'FMCG / Dry Food', weight: '12 Ton', vehicleType: 'Heavy Truck', tariff: 8500000, loadingDate: '2026-05-16', eta: '2026-05-17', status: 'Confirmed', createdAt: '2026-05-15' },
-		{ id: 'DO-260515002', customer: 'PT Astra International', origin: 'Jakarta', destination: 'Semarang', cargoType: 'Auto Parts', weight: '8 Ton', vehicleType: 'Box Truck', tariff: 5200000, loadingDate: '2026-05-17', eta: '2026-05-18', status: 'Pending', createdAt: '2026-05-15' },
-		{ id: 'DO-260514008', customer: 'PT Unilever Indonesia', origin: 'Bandung', destination: 'Semarang', cargoType: 'Consumer Goods', weight: '10 Ton', vehicleType: 'Heavy Truck', tariff: 6200000, loadingDate: '2026-05-14', eta: '2026-05-15', status: 'Completed', createdAt: '2026-05-13' },
-		{ id: 'DO-260515003', customer: 'PT Mayora Indah', origin: 'Jakarta', destination: 'Cirebon', cargoType: 'Biscuits / Snacks', weight: '6 Ton', vehicleType: 'Box Truck', tariff: 3500000, loadingDate: '2026-05-16', eta: '2026-05-16', status: 'Pending', createdAt: '2026-05-15' },
-		{ id: 'DO-260513005', customer: 'PT Kalbe Farma', origin: 'Jakarta', destination: 'Yogyakarta', cargoType: 'Pharmaceutical', weight: '4 Ton', vehicleType: 'Box Truck', tariff: 6000000, loadingDate: '2026-05-13', eta: '2026-05-14', status: 'In Transit', createdAt: '2026-05-12' },
-		{ id: 'DO-260512010', customer: 'PT Semen Indonesia', origin: 'Gresik', destination: 'Surabaya', cargoType: 'Construction Material', weight: '20 Ton', vehicleType: 'Heavy Truck', tariff: 2500000, loadingDate: '2026-05-12', eta: '2026-05-12', status: 'Completed', createdAt: '2026-05-11' },
-		{ id: 'DO-260515004', customer: 'CV Berkah Makmur', origin: 'Jakarta', destination: 'Bogor', cargoType: 'General Cargo', weight: '2 Ton', vehicleType: 'Pickup', tariff: 1200000, loadingDate: '2026-05-16', eta: '2026-05-16', status: 'Confirmed', createdAt: '2026-05-15' },
-		{ id: 'DO-260510007', customer: 'PT Pertamina Lubricants', origin: 'Cilacap', destination: 'Jakarta', cargoType: 'Lubricants (Hazmat)', weight: '14 Ton', vehicleType: 'Heavy Truck', tariff: 9800000, loadingDate: '2026-05-10', eta: '2026-05-11', status: 'Cancelled', createdAt: '2026-05-09' },
-	];
+const sql = postgres(env.DATABASE_URL || 'postgres://bcs_admin:sangatrahasia@103.31.205.199:5433/mybcs_db');
 
-	const metrics = {
-		totalOrders: allOrders.length,
-		pending: allOrders.filter(o => o.status === 'Pending').length,
-		confirmed: allOrders.filter(o => o.status === 'Confirmed').length,
-		inTransit: allOrders.filter(o => o.status === 'In Transit').length,
-		completed: allOrders.filter(o => o.status === 'Completed').length
-	};
+export const load: PageServerLoad = async () => {
+	try {
+		// Get Orders
+		const orders = await sql`
+			SELECT 
+				o.id,
+				c.nama_kustomer as customer_name,
+				ori.nama_kustomer as origin_name,
+				dest.nama_kustomer as destination_name,
+				tu.nama_tipe as vehicle_type,
+				o.jenis_muatan,
+				o.berat_muatan,
+				o.tgl_muat,
+				o.tgl_bongkar,
+				o.estimated_ujo,
+				o.tariff,
+				o.status,
+				o.created_at
+			FROM marketing.sales_order o
+			LEFT JOIN master.m_customer c ON c.id = o.customer_id
+			LEFT JOIN master.m_customer ori ON ori.id = o.origin_id
+			LEFT JOIN master.m_customer dest ON dest.id = o.destination_id
+			LEFT JOIN master.m_tipe_unit tu ON tu.id = o.tipe_unit_id
+			ORDER BY o.created_at DESC
+		`;
 
-	const search = url.searchParams.get('search')?.toLowerCase() || '';
-	const statusFilter = url.searchParams.get('status') || 'All';
+		// Get Customers for Dropdown
+		const customers = await sql`
+			SELECT id, nama_kustomer 
+			FROM master.m_customer 
+			WHERE is_active = true 
+			ORDER BY nama_kustomer ASC
+		`;
 
-	let filtered = allOrders;
-	if (search) {
-		filtered = filtered.filter(o =>
-			o.customer.toLowerCase().includes(search) ||
-			o.id.toLowerCase().includes(search) ||
-			o.origin.toLowerCase().includes(search) ||
-			o.destination.toLowerCase().includes(search)
-		);
+		// Get Vehicle Types for Dropdown
+		const vehicleTypes = await sql`
+			SELECT id, nama_tipe 
+			FROM master.m_tipe_unit 
+			ORDER BY nama_tipe ASC
+		`;
+
+		return {
+			orders: orders as any[],
+			customers: customers as {id: string, nama_kustomer: string}[],
+			vehicleTypes: vehicleTypes as {id: string, nama_tipe: string}[]
+		};
+	} catch (error) {
+		console.error("Error loading marketing orders:", error);
+		return { orders: [], customers: [], vehicleTypes: [] };
 	}
-	if (statusFilter !== 'All') filtered = filtered.filter(o => o.status === statusFilter);
+};
 
-	const perPage = 5;
-	const page = parseInt(url.searchParams.get('page') || '1');
-	const total = filtered.length;
-	const start = (page - 1) * perPage;
-	const paginated = filtered.slice(start, start + perPage);
+export const actions: Actions = {
+	createOrder: async ({ request }) => {
+		const data = await request.formData();
+		const customerId = data.get('customerId') as string;
+		const originId = data.get('originId') as string;
+		const destinationId = data.get('destinationId') as string;
+		const vehicleTypeId = data.get('vehicleTypeId') as string;
+		const cargoType = data.get('cargoType') as string;
+		const weight = parseFloat(data.get('weight') as string) || null;
+		const loadDate = data.get('loadDate') as string;
+		const unloadDate = data.get('unloadDate') as string;
 
-	return {
-		orders: paginated,
-		metrics,
-		meta: { current_page: page, per_page: perPage, total }
-	};
+		if (!customerId || !originId || !destinationId || !vehicleTypeId || !cargoType || !loadDate) {
+			return fail(400, { missing: true, message: 'Harap lengkapi semua field wajib!' });
+		}
+
+		try {
+			// Generate SO Number (Format: SO-YYYYMMDD-XXXX)
+			const today = new Date();
+			const yyyymmdd = today.toISOString().split('T')[0].replace(/-/g, '');
+			const counterQuery = await sql`SELECT count(*) FROM marketing.sales_order WHERE id LIKE ${'SO-' + yyyymmdd + '-%'}`;
+			const count = parseInt(counterQuery[0].count) + 1;
+			const soId = `SO-${yyyymmdd}-${count.toString().padStart(3, '0')}`;
+
+			await sql`
+				INSERT INTO marketing.sales_order (
+					id, customer_id, origin_id, destination_id, tipe_unit_id, 
+					jenis_muatan, berat_muatan, tgl_muat, tgl_bongkar, status
+				) VALUES (
+					${soId}, ${customerId}, ${originId}, ${destinationId}, ${vehicleTypeId},
+					${cargoType}, ${weight}, ${loadDate}, ${unloadDate || null}, 'WAITING_UJO'
+				)
+			`;
+			return { success: true, message: 'Order berhasil dibuat.' };
+		} catch (e: any) {
+			console.error("Create order error:", e);
+			return fail(500, { error: e.message || 'Gagal menyimpan data.' });
+		}
+	},
+
+	updateOrder: async ({ request }) => {
+		const data = await request.formData();
+		const id = data.get('id') as string;
+		const customerId = data.get('customerId') as string;
+		const originId = data.get('originId') as string;
+		const destinationId = data.get('destinationId') as string;
+		const vehicleTypeId = data.get('vehicleTypeId') as string;
+		const cargoType = data.get('cargoType') as string;
+		const weight = parseFloat(data.get('weight') as string) || null;
+		const loadDate = data.get('loadDate') as string;
+		const unloadDate = data.get('unloadDate') as string;
+		const status = data.get('status') as string; // Optional manual override
+
+		if (!id || !customerId || !originId || !destinationId || !vehicleTypeId || !cargoType || !loadDate) {
+			return fail(400, { missing: true, message: 'Harap lengkapi semua field wajib!' });
+		}
+
+		try {
+			if (status) {
+				await sql`
+					UPDATE marketing.sales_order 
+					SET customer_id = ${customerId}, origin_id = ${originId}, destination_id = ${destinationId},
+						tipe_unit_id = ${vehicleTypeId}, jenis_muatan = ${cargoType}, berat_muatan = ${weight},
+						tgl_muat = ${loadDate}, tgl_bongkar = ${unloadDate || null}, status = ${status}
+					WHERE id = ${id}
+				`;
+			} else {
+				await sql`
+					UPDATE marketing.sales_order 
+					SET customer_id = ${customerId}, origin_id = ${originId}, destination_id = ${destinationId},
+						tipe_unit_id = ${vehicleTypeId}, jenis_muatan = ${cargoType}, berat_muatan = ${weight},
+						tgl_muat = ${loadDate}, tgl_bongkar = ${unloadDate || null}
+					WHERE id = ${id}
+				`;
+			}
+			return { success: true, message: 'Order berhasil diupdate.' };
+		} catch (e: any) {
+			console.error("Update order error:", e);
+			return fail(500, { error: e.message || 'Gagal menyimpan data.' });
+		}
+	},
+
+	submitTariff: async ({ request }) => {
+		const data = await request.formData();
+		const id = data.get('id') as string;
+		const tariff = parseFloat(data.get('tariff') as string);
+
+		if (!id || isNaN(tariff)) {
+			return fail(400, { missing: true, message: 'Tarif tidak valid!' });
+		}
+
+		try {
+			// Update tariff and change status to WAITING_CUSTOMER or READY_TO_DISPATCH
+			// Assuming READY_TO_DISPATCH right away since it's confirmed.
+			await sql`
+				UPDATE marketing.sales_order 
+				SET tariff = ${tariff}, status = 'READY_TO_DISPATCH'
+				WHERE id = ${id}
+			`;
+			return { success: true, message: 'Tarif berhasil diinput.' };
+		} catch (e: any) {
+			console.error("Submit tariff error:", e);
+			return fail(500, { error: e.message || 'Gagal menyimpan tarif.' });
+		}
+	}
 };

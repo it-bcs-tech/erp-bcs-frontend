@@ -1,51 +1,112 @@
-import type { PageServerLoad } from './$types';
+import type { PageServerLoad, Actions } from './$types';
+import { fail } from '@sveltejs/kit';
+import postgres from 'postgres';
+import { env } from '$env/dynamic/private';
 
-export const load: PageServerLoad = async ({ url }) => {
-	const allCustomers = [
-		{ id: 'CUST-001', name: 'PT Indofood Sukses Makmur', type: 'Corporate', sector: 'FMCG', contactPerson: 'Hendro Wijaya', phone: '+62 21 5795-8888', email: 'hendro@indofood.co.id', address: 'Sudirman Plaza, Jakarta', term: 'NET 30', tier: 'Platinum', status: 'Active', totalOrders: 48, totalRevenue: 580000000 },
-		{ id: 'CUST-002', name: 'PT Unilever Indonesia', type: 'Corporate', sector: 'FMCG', contactPerson: 'Sari Dewi', phone: '+62 21 5260-882', email: 'sari.dewi@unilever.com', address: 'Grha Unilever, BSD', term: 'NET 45', tier: 'Gold', status: 'Active', totalOrders: 35, totalRevenue: 420000000 },
-		{ id: 'CUST-003', name: 'PT Mayora Indah Tbk', type: 'Corporate', sector: 'FMCG', contactPerson: 'Budi Hartono', phone: '+62 21 5210-788', email: 'budi.h@mayora.co.id', address: 'Daan Mogot, Tangerang', term: 'NET 30', tier: 'Gold', status: 'Active', totalOrders: 28, totalRevenue: 310000000 },
-		{ id: 'CUST-004', name: 'PT Semen Indonesia', type: 'Corporate', sector: 'Construction', contactPerson: 'Agus Prasetyo', phone: '+62 31 398-1732', email: 'agus.p@semenindonesia.com', address: 'Gresik, Jawa Timur', term: 'NET 60', tier: 'Silver', status: 'Active', totalOrders: 15, totalRevenue: 195000000 },
-		{ id: 'CUST-005', name: 'PT Astra International', type: 'Corporate', sector: 'Automotive', contactPerson: 'Rina Saptari', phone: '+62 21 508-9999', email: 'rina.s@astra.co.id', address: 'Sunter, Jakarta', term: 'NET 30', tier: 'Platinum', status: 'Active', totalOrders: 42, totalRevenue: 520000000 },
-		{ id: 'CUST-006', name: 'CV Berkah Makmur', type: 'SME', sector: 'Retail', contactPerson: 'Adi Nugroho', phone: '+62 813-1234-5678', email: 'adi@berkahmakmur.id', address: 'Pasar Minggu, Jakarta', term: 'COD', tier: 'Standard', status: 'Active', totalOrders: 8, totalRevenue: 45000000 },
-		{ id: 'CUST-007', name: 'PT Pertamina Lubricants', type: 'Corporate', sector: 'Oil & Gas', contactPerson: 'Yusuf Rachman', phone: '+62 21 7251-4700', email: 'yusuf.r@pertamina.com', address: 'Cilacap, Jawa Tengah', term: 'NET 45', tier: 'Gold', status: 'Inactive', totalOrders: 12, totalRevenue: 180000000 },
-		{ id: 'CUST-008', name: 'PT Kalbe Farma', type: 'Corporate', sector: 'Pharmaceutical', contactPerson: 'Dewi Lestari', phone: '+62 21 4288-0111', email: 'dewi.l@kalbe.co.id', address: 'Pulomas, Jakarta', term: 'NET 30', tier: 'Silver', status: 'Active', totalOrders: 18, totalRevenue: 210000000 },
-	];
+const sql = postgres(env.DATABASE_URL || 'postgres://bcs_admin:sangatrahasia@103.31.205.199:5433/mybcs_db');
 
-	const metrics = {
-		total: allCustomers.length,
-		active: allCustomers.filter(c => c.status === 'Active').length,
-		corporate: allCustomers.filter(c => c.type === 'Corporate').length,
-		sme: allCustomers.filter(c => c.type === 'SME').length
-	};
+export const load: PageServerLoad = async () => {
+	try {
+		// Metrics
+		const totalResult = await sql`SELECT COUNT(*) FROM master.m_customer WHERE is_active = true`;
+		const activeResult = await sql`
+			SELECT COUNT(DISTINCT customer_id) 
+			FROM marketing.sales_order 
+			WHERE status NOT IN ('CANCELED', 'COMPLETED')
+		`;
+		const corporateResult = await sql`SELECT COUNT(*) FROM master.m_customer WHERE kategori = 'Corporate' AND is_active = true`;
+		const smeResult = await sql`SELECT COUNT(*) FROM master.m_customer WHERE kategori = 'SME' AND is_active = true`;
 
-	const search = url.searchParams.get('search')?.toLowerCase() || '';
-	const typeFilter = url.searchParams.get('type') || 'All';
-	const tierFilter = url.searchParams.get('tier') || 'All';
-	const statusFilter = url.searchParams.get('status') || 'All';
+		const metrics = {
+			total: parseInt(totalResult[0].count),
+			active: parseInt(activeResult[0].count),
+			corporate: parseInt(corporateResult[0].count),
+			sme: parseInt(smeResult[0].count)
+		};
 
-	let filtered = allCustomers;
-	if (search) {
-		filtered = filtered.filter(c =>
-			c.name.toLowerCase().includes(search) ||
-			c.contactPerson.toLowerCase().includes(search) ||
-			c.id.toLowerCase().includes(search) ||
-			c.sector.toLowerCase().includes(search)
-		);
+		// Customers List
+		const customers = await sql`
+			SELECT 
+				c.id,
+				c.nama_kustomer as name,
+				c.kategori as type,
+				c.contact_person as "contactPerson",
+				c.email,
+				c.phone,
+				c.tier,
+				c.alamat,
+				c.latitude,
+				c.longitude,
+				'30 Days' as term, -- Mock term
+				c.is_active,
+				COUNT(o.id) as "totalOrders",
+				COALESCE(SUM(o.tariff), 0) as "totalRevenue",
+				CASE WHEN c.is_active THEN 'Active' ELSE 'Inactive' END as status,
+				'Logistics' as sector -- Mock sector
+			FROM master.m_customer c
+			LEFT JOIN marketing.sales_order o ON c.id = o.customer_id
+			GROUP BY c.id, c.nama_kustomer, c.kategori, c.contact_person, c.email, c.phone, c.tier, c.alamat, c.latitude, c.longitude, c.is_active
+			ORDER BY "totalRevenue" DESC, c.nama_kustomer ASC
+		`;
+
+		return {
+			metrics,
+			customers: customers as any[],
+			meta: {
+				total: customers.length,
+				per_page: 5,
+				current_page: 1
+			}
+		};
+	} catch (error) {
+		console.error("Error loading marketing customers:", error);
+		return { 
+			metrics: { total: 0, active: 0, corporate: 0, sme: 0 },
+			customers: [],
+			meta: { total: 0, per_page: 5, current_page: 1 }
+		};
 	}
-	if (typeFilter !== 'All') filtered = filtered.filter(c => c.type === typeFilter);
-	if (tierFilter !== 'All') filtered = filtered.filter(c => c.tier === tierFilter);
-	if (statusFilter !== 'All') filtered = filtered.filter(c => c.status === statusFilter);
+};
 
-	const perPage = 5;
-	const page = parseInt(url.searchParams.get('page') || '1');
-	const total = filtered.length;
-	const start = (page - 1) * perPage;
-	const paginated = filtered.slice(start, start + perPage);
-
-	return {
-		customers: paginated,
-		metrics,
-		meta: { current_page: page, per_page: perPage, total }
-	};
+export const actions: Actions = {
+	editCustomer: async ({ request }) => {
+		const data = await request.formData();
+		const id = data.get('id')?.toString();
+		const name = data.get('name')?.toString();
+		const type = data.get('type')?.toString();
+		const tier = data.get('tier')?.toString();
+		const contactPerson = data.get('contactPerson')?.toString();
+		const phone = data.get('phone')?.toString();
+		const email = data.get('email')?.toString();
+		const status = data.get('status')?.toString();
+		const alamat = data.get('alamat')?.toString();
+		const latitude = data.get('latitude')?.toString();
+		const longitude = data.get('longitude')?.toString();
+		
+		if (!id || !name) {
+			return fail(400, { error: 'ID and Name are required' });
+		}
+		
+		try {
+			await sql`
+				UPDATE master.m_customer
+				SET 
+					nama_kustomer = ${name},
+					kategori = ${type || null},
+					tier = ${tier || null},
+					contact_person = ${contactPerson || null},
+					phone = ${phone || null},
+					email = ${email || null},
+					alamat = ${alamat || null},
+					latitude = ${latitude ? parseFloat(latitude) : null},
+					longitude = ${longitude ? parseFloat(longitude) : null},
+					is_active = ${status === 'Active'}
+				WHERE id = ${id}
+			`;
+			return { success: true, message: 'Customer updated successfully.' };
+		} catch (error: any) {
+			console.error("Error updating customer:", error);
+			return fail(500, { error: 'Failed to update customer' });
+		}
+	}
 };
