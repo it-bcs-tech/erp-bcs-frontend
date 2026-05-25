@@ -48,7 +48,7 @@ export const GET: RequestHandler = async ({ fetch }) => {
 		}
 
 		// 2. Fetch latest GPS coordinates from EasyGo API wrapper
-		const res = await fetch('http://localhost:8081/api/fms/live-map');
+		const res = await fetch(`${env.FMS_API_URL || 'http://localhost:8081'}/api/fms/live-map`);
 		if (!res.ok) throw new Error('Failed to fetch EasyGo GPS data');
 		const gpsData = await res.json();
 		const vehicles = gpsData.records || [];
@@ -120,7 +120,7 @@ export const GET: RequestHandler = async ({ fetch }) => {
 				// Rule D: Route Deviation Alert (only if ON_ROUTE and hasn't arrived)
 				if (trip.o_lat && trip.o_lon) {
 					try {
-						const routeRes = await fetch(`http://localhost:8081/api/fms/route?startLat=${trip.o_lat}&startLng=${trip.o_lon}&endLat=${trip.d_lat}&endLng=${trip.d_lon}`);
+						const routeRes = await fetch(`${env.FMS_API_URL || 'http://localhost:8081'}/api/fms/route?startLat=${trip.o_lat}&startLng=${trip.o_lon}&endLat=${trip.d_lat}&endLng=${trip.d_lon}`);
 						if (routeRes.ok) {
 							const routeData = await routeRes.json();
 							if (routeData.coordinates && routeData.coordinates.length > 0) {

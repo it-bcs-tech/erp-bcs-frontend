@@ -1,5 +1,6 @@
 import type { PageServerLoad } from './$types';
 import sql from '$lib/server/db';
+import { env } from '$env/dynamic/private';
 
 export const load: PageServerLoad = async ({ fetch }) => {
 	try {
@@ -54,7 +55,7 @@ export const load: PageServerLoad = async ({ fetch }) => {
 
 		// 2. Fetch unified GPS data from our Golang Backend
 
-		const res = await fetch('http://localhost:8081/api/fms/live-map');
+		const res = await fetch(`${env.FMS_API_URL || 'http://localhost:8081'}/api/fms/live-map`);
 		
 		if (!res.ok) throw new Error('Failed to fetch from Golang FMS API');
 		

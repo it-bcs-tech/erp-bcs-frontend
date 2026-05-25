@@ -17,6 +17,8 @@ services:
       - ORIGIN=https://erp.bcslabs.tech
       - API_URL=http://api.bcslabs.tech # Server-side, lewat Nginx Host (HTTP → FastCGI → PHP-FPM)
       - AI_BRIDGE_URL=http://ai-bridge:8000  # Python AI Bridge (internal Docker network)
+      - FMS_API_URL=http://erp_go_map:8081
+      - PUBLIC_FMS_API_URL=http://api.bcslabs.tech:8081 # Sesuaikan jika beda domain
     networks:
       - erp_network
 
