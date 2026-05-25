@@ -1,5 +1,4 @@
 <script lang="ts">
-	import { env } from '$env/dynamic/public';
 	import { onMount } from 'svelte';
 	import { invalidateAll } from '$app/navigation';
 	import type { PageData } from './$types';
@@ -271,7 +270,7 @@
 
 				if (selectedUnit.originLat && selectedUnit.originLng && selectedUnit.destLat && selectedUnit.destLng) {
 					// 1. Fetch Planned Route (Origin -> Destination) - drawn faintly
-					fetch(`${env.PUBLIC_FMS_API_URL || 'http://localhost:8081'}/api/fms/route?startLat=${selectedUnit.originLat}&startLng=${selectedUnit.originLng}&endLat=${selectedUnit.destLat}&endLng=${selectedUnit.destLng}`)
+					fetch(`/api/fms/route?startLat=${selectedUnit.originLat}&startLng=${selectedUnit.originLng}&endLat=${selectedUnit.destLat}&endLng=${selectedUnit.destLng}`)
 						.then(r => r.json())
 						.then(routeData => {
 							if (routeData.coordinates && routeData.coordinates.length > 1) {
@@ -286,7 +285,7 @@
 						}).catch(() => {});
 
 					// 2. Fetch Active Route (Current Truck -> Destination) - drawn boldly
-					fetch(`${env.PUBLIC_FMS_API_URL || 'http://localhost:8081'}/api/fms/route?startLat=${selectedUnit.lat}&startLng=${selectedUnit.lng}&endLat=${selectedUnit.destLat}&endLng=${selectedUnit.destLng}`)
+					fetch(`/api/fms/route?startLat=${selectedUnit.lat}&startLng=${selectedUnit.lng}&endLat=${selectedUnit.destLat}&endLng=${selectedUnit.destLng}`)
 						.then(r => r.json())
 						.then(routeData => {
 							if (routeData.distance && routeData.duration) {
