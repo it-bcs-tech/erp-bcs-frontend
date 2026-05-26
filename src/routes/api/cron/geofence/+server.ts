@@ -133,13 +133,40 @@ export const GET: RequestHandler = async ({ fetch }) => {
 								
 								// If deviated by more than 500m
 								if (minDist > 500) {
-									// Check if last checkpoint was already this anomaly to avoid spam
+									// Check if last checkpoint was already an anomaly to avoid spam
 									const lastChk = await sql`SELECT notes FROM fleet.trip_checkpoint WHERE trip_id = ${trip.id} ORDER BY id DESC LIMIT 1`;
-									const isAlreadyDeviated = lastChk.length > 0 && lastChk[0].notes === 'ANOMALI: KELUAR JALUR';
+									const isAlreadyDeviated = lastChk.length > 0 && (lastChk[0].notes.includes('ANOMALI') || lastChk[0].notes.includes('shortcut'));
 									
 									if (!isAlreadyDeviated) {
-										await sql`INSERT INTO fleet.trip_checkpoint (trip_id, event, lat, lon, notes) VALUES (${trip.id}, 'INCIDENT', ${gps.lat}, ${gps.lon}, 'ANOMALI: KELUAR JALUR')`;
-										logs.push(`[GEOFENCE-DEVIATION] Truk ${trip.nomor_unit} keluar jalur sejauh ${(minDist/1000).toFixed(1)}km!`);
+										// Call AI Bridge for Intelligent Analysis
+										let aiStatus = 'INCIDENT';
+										let aiNotes = 'ANOMALI: KELUAR JALUR';
+										
+										try {
+											const aiRes = await fetch(`${env.AI_BRIDGE_URL || 'http://localhost:8000'}/fms/anomaly-analysis`, {
+												method: 'POST',
+												headers: { 'Content-Type': 'application/json' },
+												body: JSON.stringify({
+													trip_id: trip.id,
+													vehicle_plate: trip.nomor_unit,
+													current_lat: gps.lat,
+													current_lon: gps.lon,
+													destination_lat: parseFloat(trip.d_lat),
+													destination_lon: parseFloat(trip.d_lon)
+												})
+											});
+											
+											if (aiRes.ok) {
+												const aiData = await aiRes.json();
+												if (aiData.status) aiStatus = aiData.status;
+												if (aiData.notes) aiNotes = aiData.notes;
+											}
+										} catch (err) {
+											console.error("Failed to reach AI Bridge for Anomaly Analysis:", err);
+										}
+
+										await sql`INSERT INTO fleet.trip_checkpoint (trip_id, event, lat, lon, notes) VALUES (${trip.id}, ${aiStatus}, ${gps.lat}, ${gps.lon}, ${aiNotes})`;
+										logs.push(`[GEOFENCE-DEVIATION-AI] Truk ${trip.nomor_unit} keluar jalur sejauh ${(minDist/1000).toFixed(1)}km! AI: ${aiStatus}`);
 										updatedCount++;
 									}
 								} else {

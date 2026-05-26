@@ -56,6 +56,29 @@
 	function isLicenseExpired(expiry: string): boolean {
 		return new Date(expiry) < new Date();
 	}
+
+	let showScoringModal = $state(false);
+	let isAiLoading = $state(false);
+	let scoringResult = $state<{leaderboard: {driver_id: string, name: string, score: number, review: string}[]} | null>(null);
+
+	async function analyzeScoring() {
+		showScoringModal = true;
+		isAiLoading = true;
+		scoringResult = null;
+		
+		try {
+			const res = await fetch('/api/fms/driver-scoring');
+			if (res.ok) {
+				scoringResult = await res.json();
+			} else {
+				scoringResult = { leaderboard: [] };
+			}
+		} catch (e) {
+			scoringResult = { leaderboard: [] };
+		} finally {
+			isAiLoading = false;
+		}
+	}
 </script>
 
 <svelte:head>
@@ -73,6 +96,10 @@
 			<button class="bg-surface-container-lowest border border-outline-variant/30 text-on-surface px-4 py-2.5 rounded-xl text-sm font-semibold flex items-center gap-2 hover:bg-surface-container-low transition-colors">
 				<span class="material-symbols-outlined text-lg">download</span>
 				Export
+			</button>
+			<button onclick={analyzeScoring} class="bg-indigo-50 text-indigo-700 border border-indigo-200 px-4 py-2.5 rounded-xl text-sm font-bold shadow-sm flex items-center gap-2 hover:bg-indigo-100 transition-colors dark:bg-indigo-900/30 dark:text-indigo-400 dark:border-indigo-800/50">
+				<span class="material-symbols-outlined text-lg">workspace_premium</span>
+				AI Scoring
 			</button>
 			<button class="bg-blue-600 text-white px-5 py-2.5 rounded-xl text-sm font-semibold shadow-sm flex items-center gap-2 hover:bg-blue-700 transition-colors">
 				<span class="material-symbols-outlined text-lg">person_add</span>
@@ -271,3 +298,85 @@
 		</div>
 	</div>
 </div>
+
+{#if showScoringModal}
+	<div class="fixed inset-0 z-50 flex items-center justify-center p-4">
+		<!-- Backdrop -->
+		<div class="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onclick={() => showScoringModal = false}></div>
+		
+		<!-- Modal Content -->
+		<div class="relative w-full max-w-2xl bg-surface-container-lowest rounded-[24px] shadow-2xl flex flex-col overflow-hidden max-h-[90vh] animate-in zoom-in-95 duration-200">
+			<div class="p-6 border-b border-surface-container flex items-start justify-between bg-indigo-50/50 dark:bg-indigo-900/10">
+				<div class="flex items-center gap-3">
+					<div class="w-10 h-10 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center flex-shrink-0">
+						<span class="material-symbols-outlined text-[20px]">workspace_premium</span>
+					</div>
+					<div>
+						<h3 class="text-xl font-bold text-on-surface">AI Driver Leaderboard</h3>
+						<p class="text-xs text-on-surface-variant mt-0.5">Evaluasi kinerja sopir 30 hari terakhir oleh FARIDA</p>
+					</div>
+				</div>
+				<button onclick={() => showScoringModal = false} class="w-8 h-8 rounded-full bg-surface-container hover:bg-surface-container-high flex items-center justify-center text-on-surface-variant transition-colors">
+					<span class="material-symbols-outlined text-lg">close</span>
+				</button>
+			</div>
+			
+			<div class="p-6 overflow-y-auto bg-surface-container-lowest">
+				{#if isAiLoading}
+					<div class="flex flex-col items-center justify-center py-12">
+						<span class="material-symbols-outlined text-4xl text-indigo-400 animate-spin mb-4">settings</span>
+						<p class="text-sm font-bold text-on-surface">FARIDA sedang mengevaluasi...</p>
+						<p class="text-xs text-on-surface-variant mt-1 text-center max-w-sm">Menganalisis ribuan data perjalanan, anomali, dan kepatuhan pengemudi.</p>
+					</div>
+				{:else if scoringResult && scoringResult.leaderboard.length > 0}
+					<div class="space-y-3">
+						{#each scoringResult.leaderboard as driver, index}
+							<div class="p-4 rounded-xl border flex gap-4 items-center {index === 0 ? 'bg-amber-50 border-amber-200' : 'bg-surface-container border-outline-variant/20'}">
+								<div class="flex-shrink-0">
+									{#if index === 0}
+										<div class="w-12 h-12 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center border-2 border-amber-200">
+											<span class="material-symbols-outlined text-2xl">emoji_events</span>
+										</div>
+									{:else if index === 1}
+										<div class="w-12 h-12 rounded-full bg-slate-100 text-slate-500 flex items-center justify-center border-2 border-slate-200">
+											<span class="text-xl font-black">2</span>
+										</div>
+									{:else if index === 2}
+										<div class="w-12 h-12 rounded-full bg-orange-50 text-orange-700 flex items-center justify-center border-2 border-orange-200">
+											<span class="text-xl font-black">3</span>
+										</div>
+									{:else}
+										<div class="w-12 h-12 rounded-full bg-surface-container-high text-on-surface-variant flex items-center justify-center">
+											<span class="text-lg font-bold">{index + 1}</span>
+										</div>
+									{/if}
+								</div>
+								
+								<div class="flex-1">
+									<h4 class="font-bold text-on-surface text-lg">{driver.name}</h4>
+									<p class="text-xs text-on-surface-variant mt-0.5 leading-relaxed italic">"{driver.review}"</p>
+								</div>
+								
+								<div class="flex-shrink-0 text-right">
+									<div class="flex items-center gap-1 justify-end">
+										<span class="text-2xl font-black {driver.score >= 90 ? 'text-emerald-600' : driver.score >= 70 ? 'text-blue-600' : 'text-rose-600'}">{driver.score}</span>
+										<span class="text-xs font-bold text-on-surface-variant pt-1">/100</span>
+									</div>
+									<div class="w-24 h-1.5 bg-surface-container-high rounded-full mt-2 overflow-hidden">
+										<div class="h-full rounded-full {driver.score >= 90 ? 'bg-emerald-500' : driver.score >= 70 ? 'bg-blue-500' : 'bg-rose-500'}" style="width: {driver.score}%"></div>
+									</div>
+								</div>
+							</div>
+						{/each}
+					</div>
+				{:else}
+					<div class="text-center py-8">
+						<span class="material-symbols-outlined text-5xl text-on-surface-variant/30 mb-3 block">sentiment_dissatisfied</span>
+						<p class="text-lg font-bold text-on-surface">Tidak ada data sopir</p>
+						<p class="text-sm text-on-surface-variant mt-1">Belum ada perjalanan dalam 30 hari terakhir untuk dievaluasi.</p>
+					</div>
+				{/if}
+			</div>
+		</div>
+	</div>
+{/if}

@@ -11,11 +11,23 @@
 	// Modal State
 	let showModal = $state(false);
 	let isSubmitting = $state(false);
+	let tableSearch = $state('');
+
+	let filteredAssignments = $derived(
+		tableSearch.trim() === '' 
+			? assignments 
+			: assignments.filter((a: any) => 
+				(a.nomor_unit && a.nomor_unit.toLowerCase().includes(tableSearch.toLowerCase())) ||
+				(a.driver_name && a.driver_name.toLowerCase().includes(tableSearch.toLowerCase())) ||
+				(a.posisi && a.posisi.toLowerCase().includes(tableSearch.toLowerCase()))
+			)
+	);
 
 	// Form State
 	let selectedUnitId = $state('');
 	let selectedDriverId = $state('');
 	let selectedPosisi = $state('SUPIR_UTAMA');
+	let isException = $state(false);
 
 	// Unit Combobox
 	let unitSearch = $state('');
@@ -36,6 +48,7 @@
 		selectedUnitId = '';
 		selectedDriverId = '';
 		selectedPosisi = 'SUPIR_UTAMA';
+		isException = false;
 		unitSearch = '';
 		driverSearch = '';
 		showModal = true;
@@ -72,8 +85,12 @@
 			<h1 class="text-3xl font-extrabold text-on-surface tracking-tight mb-2">Driver Assignment</h1>
 			<p class="text-on-surface-variant font-medium text-sm">Kelola pasangan Supir dan Unit Kendaraan secara real-time</p>
 		</div>
-		<div class="flex gap-3">
-			<button onclick={openModal} class="bg-sky-600 text-white px-5 py-2.5 rounded-xl text-sm font-semibold shadow-sm flex items-center gap-2 hover:bg-sky-700 transition-colors">
+		<div class="flex flex-col md:flex-row gap-3">
+			<div class="relative w-full md:w-64">
+				<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant/50 text-lg">search</span>
+				<input type="text" bind:value={tableSearch} placeholder="Cari unit atau sopir..." class="w-full pl-10 pr-4 py-2.5 bg-surface-container-lowest border border-surface-container rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-sky-500/50">
+			</div>
+			<button onclick={openModal} class="bg-sky-600 text-white px-5 py-2.5 rounded-xl text-sm font-semibold shadow-sm flex items-center justify-center gap-2 hover:bg-sky-700 transition-colors whitespace-nowrap">
 				<span class="material-symbols-outlined text-lg">person_add</span>
 				Assign New Driver
 			</button>
@@ -107,14 +124,14 @@
 					</tr>
 				</thead>
 				<tbody class="divide-y divide-surface-container">
-					{#if assignments.length === 0}
+					{#if filteredAssignments.length === 0}
 						<tr>
 							<td colspan="6" class="py-12 text-center text-on-surface-variant text-sm font-medium">
-								Tidak ada data penugasan sopir aktif saat ini.
+								Tidak ada data penugasan yang sesuai.
 							</td>
 						</tr>
 					{/if}
-					{#each assignments as item}
+					{#each filteredAssignments as item}
 						<tr class="hover:bg-surface-container-low/50 transition-colors group">
 							<td class="py-4 px-6">
 								<div class="flex items-center gap-3">
@@ -188,7 +205,7 @@
 								{#each filteredUnits as u}
 									<!-- svelte-ignore a11y_click_events_have_key_events -->
 									<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
-									<li class="px-4 py-3 text-sm text-on-surface cursor-pointer hover:bg-sky-50 dark:hover:bg-sky-900/30 transition-colors border-b border-surface-container last:border-0" onclick={() => { selectedUnitId = u.id; unitSearch = `${u.nomor_unit} (${u.type})`; showUnitDropdown = false; }}>
+									<li class="px-4 py-3 text-sm text-on-surface cursor-pointer hover:bg-sky-50 dark:hover:bg-sky-900/30 transition-colors border-b border-surface-container last:border-0" onclick={() => { selectedUnitId = u.id; unitSearch = `${u.nomor_unit} (${u.type})`; showUnitDropdown = false; selectedPosisi = u.has_supir_utama ? 'SUPIR_CADANGAN' : 'SUPIR_UTAMA'; }}>
 										<span class="font-bold">{u.nomor_unit}</span> 
 										<span class="text-[10px] bg-surface-container-high px-1.5 py-0.5 rounded ml-1 text-on-surface-variant">{u.type}</span>
 									</li>
@@ -206,8 +223,11 @@
 								{#each filteredDrivers as d}
 									<!-- svelte-ignore a11y_click_events_have_key_events -->
 									<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
-									<li class="px-4 py-3 text-sm font-bold text-on-surface cursor-pointer hover:bg-sky-50 dark:hover:bg-sky-900/30 transition-colors border-b border-surface-container last:border-0" onclick={() => { selectedDriverId = d.id; driverSearch = d.name; showDriverDropdown = false; }}>
-										{d.name}
+									<li class="px-4 py-3 text-sm flex items-center justify-between cursor-pointer hover:bg-sky-50 dark:hover:bg-sky-900/30 transition-colors border-b border-surface-container last:border-0" onclick={() => { selectedDriverId = d.id; driverSearch = d.name; showDriverDropdown = false; }}>
+										<span class="font-bold text-on-surface">{d.name}</span>
+										<span class="text-[10px] px-2 py-0.5 rounded-full font-bold {d.working_days_this_month >= 14 ? 'bg-rose-100 text-rose-700' : 'bg-emerald-100 text-emerald-700'}" title="{d.working_days_this_month} hari kerja bulan ini">
+											{d.working_days_this_month} Hari
+										</span>
 									</li>
 								{/each}
 							</ul>
@@ -222,6 +242,16 @@
 							<option value="KENEK">Kenek</option>
 							<option value="HELPER">Helper</option>
 						</select>
+					</div>
+
+					<div>
+						<label class="flex items-center gap-3 cursor-pointer bg-amber-50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-900/30 p-3.5 rounded-xl hover:bg-amber-100/50 transition-colors">
+							<input type="checkbox" name="isException" value="true" bind:checked={isException} class="w-5 h-5 text-amber-600 rounded border-amber-300 focus:ring-amber-500/50">
+							<div class="flex flex-col">
+								<span class="text-xs font-extrabold text-amber-800 dark:text-amber-500">Izinkan Pengecualian (Force Assign)</span>
+								<span class="text-[10px] text-amber-700/90 dark:text-amber-400/80 mt-0.5 leading-relaxed">Abaikan aturan batas 14 hari kerja dan batas 2 sopir per unit jika ini adalah keadaan darurat atau sopir pengganti.</span>
+							</div>
+						</label>
 					</div>
 
 					<div class="bg-sky-50/50 dark:bg-sky-900/10 p-3 rounded-xl border border-sky-100 dark:border-sky-900/30 flex items-start gap-2">

@@ -38,3 +38,4 @@ go-map/
 logs/
 db/
 test_db.mjs
+schema_check*.js

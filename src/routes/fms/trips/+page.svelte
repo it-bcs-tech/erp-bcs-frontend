@@ -11,6 +11,7 @@
 
 	let searchQuery = $state($page.url.searchParams.get('search') || '');
 	let statusFilter = $state($page.url.searchParams.get('status') || 'All');
+	let expandedTripId = $state<string | null>(null);
 	
 	let searchTimer: ReturnType<typeof setTimeout>;
 
@@ -147,7 +148,9 @@
 				</thead>
 				<tbody class="divide-y divide-surface-container">
 					{#each trips as trip}
-						<tr class="group hover:bg-surface-container-low transition-colors">
+						<!-- svelte-ignore a11y_click_events_have_key_events -->
+						<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+						<tr class="group hover:bg-surface-container-low transition-colors cursor-pointer {expandedTripId === trip.id ? 'bg-surface-container-low/50' : ''}" onclick={() => expandedTripId = expandedTripId === trip.id ? null : trip.id}>
 							<td class="py-4 px-6">
 								<div class="flex flex-col gap-2">
 									<span class="text-[10px] font-black tracking-widest uppercase text-on-surface-variant/70">{trip.id}</span>
@@ -222,6 +225,56 @@
 								</div>
 							</td>
 						</tr>
+						{#if expandedTripId === trip.id}
+							<tr class="bg-surface-container-lowest border-b border-surface-container">
+								<td colspan="5" class="p-8">
+									<div class="w-full bg-surface-container-lowest rounded-xl">
+										<p class="text-xs font-black text-on-surface-variant tracking-widest uppercase mb-8 flex items-center gap-2">
+											<span class="material-symbols-outlined text-[16px]">history</span> Trip Journey Timeline
+										</p>
+										<div class="flex justify-between relative mt-4">
+											<!-- Base line connecting all nodes -->
+											<div class="absolute left-8 right-8 top-2 -translate-y-1/2 h-1 bg-surface-container-high rounded-full z-0"></div>
+											
+											{#if trip.history && trip.history.length > 0}
+												{#each trip.history as event, index}
+													<div class="relative z-10 flex flex-col items-center flex-1">
+														<!-- Timeline Dot -->
+														<div class="w-5 h-5 rounded-full border-4 border-surface-container-lowest 
+															{event.active ? 'bg-blue-500 shadow-[0_0_16px_rgba(59,130,246,0.8)] animate-pulse' : (event.completed ? 'bg-emerald-500' : 'bg-surface-container-high')}">
+														</div>
+														
+														<!-- Connection line fill for completed steps -->
+														{#if event.completed && index < trip.history.length - 1}
+															<div class="absolute left-1/2 right-[-50%] top-2 -translate-y-1/2 h-1 bg-emerald-500 z-[-1]"></div>
+														{/if}
+														
+														<!-- Event Details -->
+														<div class="mt-4 text-center px-2">
+															<p class="text-xs font-bold {event.active ? 'text-blue-600 dark:text-blue-400' : (event.completed ? 'text-on-surface' : 'text-on-surface-variant/50')}">
+																{event.label}
+															</p>
+															{#if event.time}
+																<p class="text-[10px] {event.completed ? 'text-on-surface-variant' : 'text-on-surface-variant/40'} mt-1 font-medium">{event.time}</p>
+															{/if}
+															{#if event.notes}
+																<p class="text-[10px] mt-2 px-2 py-1 bg-surface-container border border-surface-container-highest rounded text-on-surface-variant italic inline-block">
+																	{event.notes}
+																</p>
+															{/if}
+														</div>
+													</div>
+												{/each}
+											{:else}
+												<div class="w-full text-center py-4">
+													<p class="text-sm font-medium text-on-surface-variant">No history available for this trip.</p>
+												</div>
+											{/if}
+										</div>
+									</div>
+								</td>
+							</tr>
+						{/if}
 					{/each}
 				</tbody>
 			</table>

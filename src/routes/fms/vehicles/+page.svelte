@@ -23,6 +23,29 @@
 		OUTSOURCING:    'Outsourcing',
 	};
 
+	let showMaintenanceModal = $state(false);
+	let isAiLoading = $state(false);
+	let maintenanceResult = $state<{summary: string, alerts: {nopol: string, urgency: string, reason: string}[]} | null>(null);
+
+	async function analyzeMaintenance() {
+		showMaintenanceModal = true;
+		isAiLoading = true;
+		maintenanceResult = null;
+		
+		try {
+			const res = await fetch('/api/fms/maintenance-prediction');
+			if (res.ok) {
+				maintenanceResult = await res.json();
+			} else {
+				maintenanceResult = { summary: 'Gagal memuat analisis AI.', alerts: [] };
+			}
+		} catch (e) {
+			maintenanceResult = { summary: 'Terjadi kesalahan jaringan saat memanggil AI.', alerts: [] };
+		} finally {
+			isAiLoading = false;
+		}
+	}
+
 	let searchTimer: ReturnType<typeof setTimeout>;
 
 	function updateQueryParams() {
@@ -114,6 +137,10 @@
 			<button class="bg-surface-container-lowest border border-outline-variant/30 text-on-surface px-4 py-2.5 rounded-xl text-sm font-semibold flex items-center gap-2 hover:bg-surface-container-low transition-colors">
 				<span class="material-symbols-outlined text-lg">download</span>
 				Export
+			</button>
+			<button onclick={analyzeMaintenance} class="bg-orange-50 text-orange-700 border border-orange-200 px-4 py-2.5 rounded-xl text-sm font-bold shadow-sm flex items-center gap-2 hover:bg-orange-100 transition-colors dark:bg-orange-900/30 dark:text-orange-400 dark:border-orange-800/50">
+				<span class="material-symbols-outlined text-lg">smart_toy</span>
+				AI Maintenance
 			</button>
 			<button class="bg-blue-600 text-white px-5 py-2.5 rounded-xl text-sm font-semibold shadow-sm flex items-center gap-2 hover:bg-blue-700 transition-colors">
 				<span class="material-symbols-outlined text-lg">add_circle</span>
@@ -347,6 +374,75 @@
 		</div>
 	</div>
 </div>
+
+{#if showMaintenanceModal}
+	<div class="fixed inset-0 z-50 flex items-center justify-center p-4">
+		<!-- Backdrop -->
+		<div class="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onclick={() => showMaintenanceModal = false}></div>
+		
+		<!-- Modal Content -->
+		<div class="relative w-full max-w-2xl bg-surface-container-lowest rounded-[24px] shadow-2xl flex flex-col overflow-hidden max-h-[90vh] animate-in zoom-in-95 duration-200">
+			<div class="p-6 border-b border-surface-container flex items-start justify-between bg-orange-50/50 dark:bg-orange-900/10">
+				<div class="flex items-center gap-3">
+					<div class="w-10 h-10 rounded-full bg-orange-100 text-orange-600 flex items-center justify-center flex-shrink-0">
+						<span class="material-symbols-outlined text-[20px]">smart_toy</span>
+					</div>
+					<div>
+						<h3 class="text-xl font-bold text-on-surface">Predictive Maintenance AI</h3>
+						<p class="text-xs text-on-surface-variant mt-0.5">Analisis kondisi armada oleh FARIDA</p>
+					</div>
+				</div>
+				<button onclick={() => showMaintenanceModal = false} class="w-8 h-8 rounded-full bg-surface-container hover:bg-surface-container-high flex items-center justify-center text-on-surface-variant transition-colors">
+					<span class="material-symbols-outlined text-lg">close</span>
+				</button>
+			</div>
+			
+			<div class="p-6 overflow-y-auto bg-surface-container-lowest">
+				{#if isAiLoading}
+					<div class="flex flex-col items-center justify-center py-12">
+						<span class="material-symbols-outlined text-4xl text-orange-400 animate-spin mb-4">settings</span>
+						<p class="text-sm font-bold text-on-surface">FARIDA sedang menganalisis...</p>
+						<p class="text-xs text-on-surface-variant mt-1 text-center max-w-sm">Memindai jadwal servis preventif dan riwayat perjalanan 30 hari terakhir dari seluruh armada.</p>
+					</div>
+				{:else if maintenanceResult}
+					<div class="mb-6 p-4 bg-orange-50 rounded-xl border border-orange-100">
+						<p class="text-sm font-medium text-orange-900 leading-relaxed"><strong class="font-black text-orange-700">Ringkasan:</strong> {maintenanceResult.summary}</p>
+					</div>
+
+					{#if maintenanceResult.alerts.length > 0}
+						<div class="space-y-3">
+							<h4 class="text-xs font-black uppercase tracking-widest text-on-surface-variant mb-4">Daftar Peringatan</h4>
+							{#each maintenanceResult.alerts as alert}
+								<div class="p-4 rounded-xl border flex gap-4 {alert.urgency === 'CRITICAL' ? 'bg-rose-50 border-rose-200' : 'bg-amber-50 border-amber-200'}">
+									<div class="flex-shrink-0 mt-0.5">
+										<span class="material-symbols-outlined {alert.urgency === 'CRITICAL' ? 'text-rose-600' : 'text-amber-600'}">
+											{alert.urgency === 'CRITICAL' ? 'error' : 'warning'}
+										</span>
+									</div>
+									<div class="flex-1">
+										<div class="flex justify-between items-start mb-1">
+											<h5 class="font-bold {alert.urgency === 'CRITICAL' ? 'text-rose-900' : 'text-amber-900'}">{alert.nopol}</h5>
+											<span class="text-[9px] font-black uppercase px-2 py-0.5 rounded-md {alert.urgency === 'CRITICAL' ? 'bg-rose-200 text-rose-800' : 'bg-amber-200 text-amber-800'}">
+												{alert.urgency}
+											</span>
+										</div>
+										<p class="text-xs {alert.urgency === 'CRITICAL' ? 'text-rose-800' : 'text-amber-800'} leading-relaxed">{alert.reason}</p>
+									</div>
+								</div>
+							{/each}
+						</div>
+					{:else}
+						<div class="text-center py-8">
+							<span class="material-symbols-outlined text-5xl text-emerald-500 mb-3 block">verified_user</span>
+							<p class="text-lg font-bold text-on-surface">Armada dalam Kondisi Prima</p>
+							<p class="text-sm text-on-surface-variant mt-1">Tidak ada truk yang membutuhkan pemeliharaan mendesak saat ini.</p>
+						</div>
+					{/if}
+				{/if}
+			</div>
+		</div>
+	</div>
+{/if}
 
 <style>
 	.hide-scrollbar::-webkit-scrollbar { display: none; }

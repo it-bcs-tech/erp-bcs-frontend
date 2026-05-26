@@ -22,6 +22,41 @@
 	let ujoTol = $state('');
 	let isSubmitting = $state(false);
 
+	let aiReason = $state('');
+	let isAiLoading = $state(false);
+
+	async function getSmartDispatch() {
+		if (!selectedOrder) return;
+		isAiLoading = true;
+		aiReason = '';
+		try {
+			const res = await fetch('/api/fms/smart-dispatch', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ orderId: selectedOrder.id })
+			});
+			if (res.ok) {
+				const data = await res.json();
+				if (data.recommended_unit) {
+					ujoUnit = data.recommended_unit;
+					const unit = availableUnits.find((u: any) => u.id === data.recommended_unit);
+					if (unit) {
+						unitSearch = `${unit.id} • ${unit.driver} (${unit.type})`;
+					} else {
+						unitSearch = data.recommended_unit;
+					}
+				}
+				aiReason = data.reason || '';
+			} else {
+				aiReason = 'Gagal memuat rekomendasi AI.';
+			}
+		} catch (e) {
+			aiReason = 'Terjadi kesalahan jaringan saat memanggil AI.';
+		} finally {
+			isAiLoading = false;
+		}
+	}
+
 	let unitSearch = $state('');
 	let showUnitDropdown = $state(false);
 	let filteredUnits = $derived(availableUnits.filter(u => 
@@ -47,6 +82,7 @@
 		} else {
 			ujoAmount = '';
 		}
+		aiReason = '';
 		showUjoModal = true;
 	}
 
@@ -356,7 +392,19 @@
 					<!-- Form Inputs -->
 					<div class="space-y-5">
 						<div class="relative">
-							<label class="block text-xs font-bold text-on-surface-variant mb-2">Select Unit & Driver</label>
+							<div class="flex items-center justify-between mb-2">
+								<label class="block text-xs font-bold text-on-surface-variant">Select Unit & Driver</label>
+								<button type="button" onclick={getSmartDispatch} disabled={isAiLoading} class="text-[10px] font-bold text-orange-600 bg-orange-50 px-2 py-1.5 rounded-lg border border-orange-200 flex items-center gap-1 hover:bg-orange-100 transition-colors disabled:opacity-50">
+									{#if isAiLoading}
+										<span class="material-symbols-outlined text-[14px] animate-spin">refresh</span>
+										Menganalisis...
+									{:else}
+										<span class="material-symbols-outlined text-[14px]">smart_toy</span>
+										✨ Tanya FARIDA
+									{/if}
+								</button>
+							</div>
+							
 							<input type="hidden" name="unitId" bind:value={ujoUnit} required />
 							<input type="text" bind:value={unitSearch} onfocus={() => showUnitDropdown = true} onblur={() => setTimeout(() => showUnitDropdown = false, 200)} placeholder="Search unit number, driver, or type..." class="w-full bg-surface-container-low border border-surface-container rounded-xl px-4 py-3 text-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-indigo-500/50" autocomplete="off" />
 							{#if showUnitDropdown && filteredUnits.length > 0}
@@ -370,6 +418,16 @@
 										</li>
 									{/each}
 								</ul>
+							{/if}
+							
+							{#if aiReason}
+								<div class="mt-3 p-3 rounded-xl bg-orange-50 border border-orange-200 animate-in fade-in slide-in-from-top-2">
+									<div class="flex items-center gap-1.5 mb-1.5">
+										<span class="material-symbols-outlined text-orange-600 text-[14px]">smart_toy</span>
+										<p class="text-[10px] font-black text-orange-600 uppercase tracking-wider">FARIDA Insight</p>
+									</div>
+									<p class="text-xs font-medium text-orange-900 leading-relaxed">{aiReason}</p>
+								</div>
 							{/if}
 						</div>
 						

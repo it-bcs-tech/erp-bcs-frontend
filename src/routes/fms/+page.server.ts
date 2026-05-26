@@ -64,7 +64,7 @@ export const load: PageServerLoad = async () => {
 			total_30d:         string;
 		}]>`
 			SELECT
-				COUNT(*) FILTER (WHERE status IN ('AT_ORIGIN','ON_ROUTE','AT_DESTINATION','RETURNING'))             AS active_trips,
+				COUNT(*) FILTER (WHERE status IN ('DISPATCHED','AT_ORIGIN','ON_ROUTE','AT_DESTINATION','RETURNING'))             AS active_trips,
 				COUNT(*) FILTER (WHERE tgl_trip = CURRENT_DATE AND status = 'COMPLETED') AS completed_today,
 				COUNT(*) FILTER (WHERE status = 'AT_ORIGIN')                           AS count_loading,
 				COUNT(*) FILTER (WHERE status = 'ON_ROUTE')                          AS count_on_route,

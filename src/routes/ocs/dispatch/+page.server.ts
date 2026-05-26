@@ -41,15 +41,32 @@ export const load: PageServerLoad = async () => {
 				u.nomor_unit as id,
 				mu.nama_produk as brand,
 				tu.nama_tipe as type,
-				COALESCE(k.nama_karyawan, 'No Driver') as driver,
+				COALESCE(k.nama_karyawan, 'Sopir Libur (Habis 14 Hari)') as driver,
 				d.id as "driverId",
 				u.current_state,
 				'Pool' as location
 			FROM fleet.unit u
 			LEFT JOIN master.m_model_unit mu ON mu.id = u.model_unit_id
 			LEFT JOIN master.m_tipe_unit tu ON tu.id = mu.tipe_unit_id
-			LEFT JOIN fleet.unit_driver_assignment uda ON uda.unit_id = u.id AND uda.is_aktif = true AND uda.posisi = 'SUPIR_UTAMA'
-			LEFT JOIN master.m_drivers d ON d.id = uda.driver_id
+			LEFT JOIN LATERAL (
+				SELECT 
+					uda.driver_id,
+					COALESCE(trip_count.days_worked, 0) as days_worked
+				FROM fleet.unit_driver_assignment uda
+				LEFT JOIN (
+					SELECT driver_id, COUNT(DISTINCT tgl_trip) as days_worked
+					FROM fleet.trip
+					WHERE tgl_trip >= date_trunc('month', CURRENT_DATE)
+					GROUP BY driver_id
+				) trip_count ON trip_count.driver_id = uda.driver_id
+				WHERE uda.unit_id = u.id AND uda.is_aktif = true
+				  AND COALESCE(trip_count.days_worked, 0) < 14
+				ORDER BY 
+					CASE WHEN uda.posisi = 'SUPIR_UTAMA' THEN 1 ELSE 2 END ASC,
+					COALESCE(trip_count.days_worked, 0) ASC
+				LIMIT 1
+			) eligible_driver ON true
+			LEFT JOIN master.m_drivers d ON d.id = eligible_driver.driver_id
 			LEFT JOIN master.m_karyawan k ON k.id = d.karyawan_id
 			WHERE u.is_active = true 
 			  AND u.current_state IN ('AT_POOL')
@@ -82,9 +99,25 @@ export const actions: Actions = {
 		try {
 			// Get unit_id and driver_id from unit selection
 			const unitData = await sql`
-				SELECT u.id, uda.driver_id 
+				SELECT u.id, eligible_driver.driver_id 
 				FROM fleet.unit u 
-				LEFT JOIN fleet.unit_driver_assignment uda ON uda.unit_id = u.id AND uda.is_aktif = true 
+				LEFT JOIN LATERAL (
+					SELECT 
+						uda.driver_id
+					FROM fleet.unit_driver_assignment uda
+					LEFT JOIN (
+						SELECT driver_id, COUNT(DISTINCT tgl_trip) as days_worked
+						FROM fleet.trip
+						WHERE tgl_trip >= date_trunc('month', CURRENT_DATE)
+						GROUP BY driver_id
+					) trip_count ON trip_count.driver_id = uda.driver_id
+					WHERE uda.unit_id = u.id AND uda.is_aktif = true
+					  AND COALESCE(trip_count.days_worked, 0) < 14
+					ORDER BY 
+						CASE WHEN uda.posisi = 'SUPIR_UTAMA' THEN 1 ELSE 2 END ASC,
+						COALESCE(trip_count.days_worked, 0) ASC
+					LIMIT 1
+				) eligible_driver ON true
 				WHERE u.nomor_unit = ${unitId} LIMIT 1
 			`;
 

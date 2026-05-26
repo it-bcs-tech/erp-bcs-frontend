@@ -671,6 +671,15 @@
 						<div><p class="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider mb-1">Customer</p><p class="text-sm font-bold text-on-surface">{selectedUnit.customer}</p></div>
 						<div><p class="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider mb-1">Cargo</p><p class="text-sm font-medium text-on-surface">{selectedUnit.cargo}</p></div>
 						<div><p class="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider mb-1">Delivery Order</p><p class="text-sm font-bold text-blue-600">{selectedUnit.do}</p></div>
+						{#if selectedUnit.aiNote}
+							<div class="p-3 rounded-lg bg-orange-50 border border-orange-200">
+								<div class="flex items-center gap-1.5 mb-1">
+									<span class="material-symbols-outlined text-orange-600 text-[14px]">smart_toy</span>
+									<p class="text-[10px] font-black text-orange-600 uppercase tracking-wider">FARIDA Insight</p>
+								</div>
+								<p class="text-xs font-medium text-orange-900 leading-relaxed">{selectedUnit.aiNote}</p>
+							</div>
+						{/if}
 						{#if selectedUnit.speed > 0}
 							<div><p class="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider mb-1">Speed</p>
 							<p class="text-2xl font-black text-blue-600">{selectedUnit.speed} <span class="text-sm text-on-surface-variant">km/h</span></p></div>

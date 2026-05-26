@@ -15,6 +15,7 @@ export const load: PageServerLoad = async ({ fetch }) => {
 			customer: string;
 		}[]>`
 			SELECT 
+				t.id,
 				u.nomor_unit, 
 				t.no_surat_tugas, 
 				COALESCE(k.nama_karyawan, t.driver_nama) as driver_nama,
@@ -126,7 +127,8 @@ export const load: PageServerLoad = async ({ fetch }) => {
 				do: dbTrip?.no_surat_tugas || `DO-EGO-${(v.vehicle_id || '').substring(3, 9)}`,
 				cargo: dbTrip?.cargo || v.car_type || 'General Cargo',
 				customer: dbTrip?.customer || v.company_nm || '-',
-				isDeviated: dbTrip != null && checkpointMap.get(String(dbTrip.id)) === 'ANOMALI: KELUAR JALUR',
+				isDeviated: dbTrip != null && checkpointMap.get(String(dbTrip.id)) != null && (checkpointMap.get(String(dbTrip.id)).includes('ANOMALI') || checkpointMap.get(String(dbTrip.id)).includes('shortcut') || checkpointMap.get(String(dbTrip.id)).includes('alternatif')),
+				aiNote: dbTrip != null ? checkpointMap.get(String(dbTrip.id)) : null,
 				progress: v.speed > 0 ? Math.floor(Math.random() * 80) + 10 : 0,
 				eta: v.speed > 0 ? 'In Transit' : 'Standby'
 			};
