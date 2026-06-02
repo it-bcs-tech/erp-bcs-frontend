@@ -54,8 +54,25 @@ export const load: PageServerLoad = async ({ fetch }) => {
 			tripMap.set(t.nomor_unit.replace(/\s+/g, '').toUpperCase(), t);
 		}
 
-		// 2. Fetch unified GPS data from our Golang Backend
+		// Helper Haversine
+		function getDistanceKm(lat1: number, lon1: number, lat2: number, lon2: number) {
+			const R = 6371;
+			const dLat = (lat2 - lat1) * Math.PI / 180;
+			const dLon = (lon2 - lon1) * Math.PI / 180;
+			const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+					  Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+					  Math.sin(dLon/2) * Math.sin(dLon/2);
+			const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+			return R * c;
+		}
 
+		// Definisi Geofence Pool Resmi
+		const POOLS = [
+			{ id: 'cilegon', name: 'Pool Cilegon', lat: -5.9794663, lng: 106.0079733, radiusKm: 0.35 },
+			{ id: 'bogor', name: 'Pool Bogor', lat: -6.4618702, lng: 106.8941709, radiusKm: 0.15 }
+		];
+
+		// 2. Fetch unified GPS data from our Golang Backend
 		const res = await fetch(`${env.FMS_API_URL || 'http://localhost:8081'}/api/fms/live-map`);
 		
 		if (!res.ok) throw new Error('Failed to fetch from Golang FMS API');
@@ -111,19 +128,50 @@ export const load: PageServerLoad = async ({ fetch }) => {
 					}
 				}
 			}
+
+			// Geofence & Status Logic
+			let geofenceStatus = statusStr;
+			let finalDestination = dbTrip?.destination || v.kota || '-';
+			let isAtPool = false;
+
+			// Cek apakah di dalam pool
+			for (const pool of POOLS) {
+				const dist = getDistanceKm(lat, lon, pool.lat, pool.lng);
+				if (dist <= pool.radiusKm) {
+					geofenceStatus = `Di ${pool.name}`;
+					finalDestination = pool.name;
+					isAtPool = true;
+					break;
+				}
+			}
+
+			// Jika tidak di pool, tidak ada cargo aktif, dan bergerak, maka "Menuju Pool"
+			if (!isAtPool && (!dbTrip || !dbTrip.cargo) && v.speed > 0) {
+				// Cari pool terdekat untuk perkiraan destinasi
+				let nearestPool = POOLS[0];
+				let minDist = getDistanceKm(lat, lon, POOLS[0].lat, POOLS[0].lng);
+				for (let i = 1; i < POOLS.length; i++) {
+					const d = getDistanceKm(lat, lon, POOLS[i].lat, POOLS[i].lng);
+					if (d < minDist) { minDist = d; nearestPool = POOLS[i]; }
+				}
+				geofenceStatus = `Menuju ${nearestPool.name}`;
+				finalDestination = nearestPool.name;
+			}
 			
 			return {
 				id: v.nopol || v.vehicle_id,
 				driver: dbTrip?.driver_nama || v.driver_nm || 'System Assigner',
-				status: statusStr,
+				status: geofenceStatus,
 				speed: Math.round(v.speed || 0),
 				lat: lat,
 				lng: lon,
 				location: v.addr || v.currentStatusVehicle?.driving?.start_detail?.addr || v.currentStatusVehicle?.parking?.addr || '-',
+				streetName: (v.addr || '').split(',')[0]?.trim() || '-',
+				direction: typeof v.direction === 'number' ? v.direction : parseInt(v.direction || '0') || 0,
 				originLat, originLng,
 				destLat, destLng,
 				origin: dbTrip?.origin || v.currentGeoAreaStatus?.geo_nm || v.provinsi || 'Pool',
-				destination: dbTrip?.destination || v.kota || '-',
+				destination: finalDestination,
 				do: dbTrip?.no_surat_tugas || `DO-EGO-${(v.vehicle_id || '').substring(3, 9)}`,
 				cargo: dbTrip?.cargo || v.car_type || 'General Cargo',
 				customer: dbTrip?.customer || v.company_nm || '-',

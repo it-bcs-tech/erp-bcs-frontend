@@ -35,6 +35,11 @@
 				<span class="material-symbols-outlined">receipt_long</span>
 				<span class="font-medium text-sm">Orders / DO</span>
 			</a>
+			
+			<a class="flex items-center gap-3 px-4 py-3 rounded-xl transition-transform duration-200 hover:translate-x-1 {$page.url.pathname.includes('/marketing/contracts') ? 'bg-surface-container-highest text-rose-600 dark:text-rose-400' : 'text-on-surface-variant hover:bg-surface-container'}" href="/marketing/contracts">
+				<span class="material-symbols-outlined">handshake</span>
+				<span class="font-medium text-sm">Master Kontrak (PO)</span>
+			</a>
 
 			<!-- Section Divider -->
 			<div class="pt-3 pb-1 px-4">

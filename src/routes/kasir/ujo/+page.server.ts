@@ -32,12 +32,29 @@ export const load: PageServerLoad = async () => {
 			ORDER BY CASE WHEN o.ujo_payment_status = 'UNPAID' THEN 1 ELSE 2 END, o.created_at ASC
 		`;
 
+		// Mock Contract UJO Requests (PO)
+		const contractUjos = [
+			{
+				id: 'DO-PO-05001-A',
+				contract_id: 'PO-2026-05-001',
+				driver: 'Budi Santoso',
+				unit: 'B 1234 CD',
+				amount: 2500000,
+				origin: 'Jakarta (Sunter)',
+				destination: 'Surabaya (Rungkut)',
+				status: 'READY_TO_DISPATCH',
+				paymentStatus: 'UNPAID',
+				loadingDate: new Date().toISOString()
+			}
+		];
+
 		return {
-			ujoRequests: ujoRequests as any[]
+			ujoRequests: ujoRequests as any[],
+			contractUjos
 		};
 	} catch (error) {
 		console.error("Error loading Kasir UJO:", error);
-		return { ujoRequests: [] };
+		return { ujoRequests: [], contractUjos: [] };
 	}
 };
 

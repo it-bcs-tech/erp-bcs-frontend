@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { invalidateAll } from '$app/navigation';
+	import { page } from '$app/stores';
 	import type { PageData } from './$types';
 	let { data }: { data: PageData } = $props();
 	
@@ -37,12 +38,28 @@
 	let selectedUnitId = $state<string | null>(null);
 	let selectedUnit = $derived(displayUnits.find((u: any) => u.id === selectedUnitId) || null);
 	let showInCar = $state(false);
+	let isInitialFlyTo = $state(false);
 	
 	let routeMeta = $state<{dist: string, eta: string} | null>(null);
+	let roadSteps = $state<{currentRoad: string | null, nextRoad: string | null}>({ currentRoad: null, nextRoad: null });
 
 	$effect(() => {
 		// Reset route meta when selected unit changes
 		if (selectedUnitId) routeMeta = null;
+	});
+
+	$effect(() => {
+		// Fetch next road name dari OSRM saat unit aktif dipilih dan punya koordinat tujuan
+		roadSteps = { currentRoad: null, nextRoad: null };
+		if (selectedUnit && selectedUnit.destLat && selectedUnit.destLng) {
+			fetch(`/api/fms/road-steps?lat=${selectedUnit.lat}&lng=${selectedUnit.lng}&destLat=${selectedUnit.destLat}&destLng=${selectedUnit.destLng}`)
+				.then(r => r.json())
+				.then(d => { roadSteps = d; })
+				.catch(() => {});
+		} else if (selectedUnit) {
+			// Fallback: pakai nama jalan dari GPS addr
+			roadSteps = { currentRoad: selectedUnit.streetName || null, nextRoad: null };
+		}
 	});
 
 	// ==============================
@@ -178,6 +195,19 @@
 	let mapLayers: any[] = [];
 	let mapReady = $state(false);
 
+	// Bearing derajat → nama arah kompas
+	function bearingToDirection(deg: number): { label: string; icon: string; color: string } {
+		const d = ((deg % 360) + 360) % 360;
+		if (d >= 337.5 || d < 22.5)  return { label: 'Utara',       icon: 'north',       color: 'text-blue-500' };
+		if (d < 67.5)                 return { label: 'Timur Laut',  icon: 'north_east',  color: 'text-cyan-500' };
+		if (d < 112.5)                return { label: 'Timur',       icon: 'east',        color: 'text-emerald-500' };
+		if (d < 157.5)                return { label: 'Tenggara',    icon: 'south_east',  color: 'text-teal-500' };
+		if (d < 202.5)                return { label: 'Selatan',     icon: 'south',       color: 'text-amber-500' };
+		if (d < 247.5)                return { label: 'Barat Daya',  icon: 'south_west',  color: 'text-orange-500' };
+		if (d < 292.5)                return { label: 'Barat',       icon: 'west',        color: 'text-rose-500' };
+		                              return { label: 'Barat Laut',  icon: 'north_west',  color: 'text-purple-500' };
+	}
+
 	function getStatusColor(status: string): string {
 		switch(status) {
 			case 'Moving': return '#3b82f6';
@@ -218,7 +248,41 @@
 			attribution: '&copy; OpenStreetMap &copy; CARTO',
 			subdomains: 'abcd', maxZoom: 19
 		}).addTo(map);
-		setTimeout(() => { map.invalidateSize(); mapReady = true; }, 100);
+		setTimeout(() => { 
+			map.invalidateSize(); 
+			mapReady = true;
+
+			// Draw Geofence Pools
+			const pools = [
+				{ name: 'Pool Cilegon', lat: -5.9794663, lng: 106.0079733, radiusMeters: 350 },
+				{ name: 'Pool Bogor', lat: -6.4618702, lng: 106.8941709, radiusMeters: 150 }
+			];
+			pools.forEach(p => {
+				const circle = L.circle([p.lat, p.lng], {
+					color: '#10b981',
+					fillColor: '#10b981',
+					fillOpacity: 0.15,
+					weight: 2,
+					radius: p.radiusMeters
+				}).addTo(map);
+				circle.bindTooltip(`<div class="font-bold text-xs text-emerald-700">${p.name}</div>`, { permanent: true, direction: 'center', className: 'bg-transparent border-none shadow-none text-center' });
+			});
+
+			// Auto-select unit dari query param ?unit= (normalize spasi & case)
+			const paramUnit = new URL(window.location.href).searchParams.get('unit');
+			if (paramUnit) {
+				const paramNorm = paramUnit.replace(/\s+/g, '').toUpperCase();
+				const target = units.find((u: any) => 
+					(u.id || '').replace(/\s+/g, '').toUpperCase() === paramNorm
+				);
+				if (target) {
+					isInitialFlyTo = true;
+					selectedUnitId = target.id;
+					map.flyTo([target.lat, target.lng], 15, { animate: true, duration: 1.2 });
+					setTimeout(() => { isInitialFlyTo = false; }, 2000);
+				}
+			}
+		}, 300);
 		const interval = setInterval(() => { invalidateAll(); }, 10000);
 		return () => { 
 			clearInterval(interval);
@@ -239,7 +303,7 @@
 					html: `
 						<div style="position:relative;transition:transform 0.2s;${isSelected ? 'transform:scale(1.3)' : ''}">
 							<div style="width:36px;height:36px;border-radius:12px;background:${color};display:flex;align-items:center;justify-content:center;box-shadow:0 0 ${isSelected ? '24px' : '12px'} ${color}${isSelected ? 'dd' : '70'},0 2px 8px rgba(0,0,0,0.25);border:${isSelected ? '3px' : '2px'} solid #fff;">
-								<span class="material-symbols-outlined" style="font-size:18px;color:white;">local_shipping</span>
+								<span class="material-symbols-outlined" style="font-size:18px;color:white;${(unit.direction && unit.direction > 180 && unit.direction < 360) ? 'transform:scaleX(-1);' : ''}">local_shipping</span>
 							</div>
 							<div style="position:absolute;top:-6px;right:-6px;width:10px;height:10px;border-radius:50%;background:${unit.speed > 0 ? '#10b981' : '#94a3b8'};border:2px solid #fff;"></div>
 						</div>
@@ -266,7 +330,10 @@
 			});
 
 			if (selectedUnit) {
-				map.panTo([selectedUnit.lat, selectedUnit.lng], { animate: true, duration: 0.5 });
+				// Jangan panTo jika sedang flyTo dari URL param (Track Live)
+				if (!isInitialFlyTo) {
+					map.panTo([selectedUnit.lat, selectedUnit.lng], { animate: true, duration: 0.5 });
+				}
 
 				if (selectedUnit.originLat && selectedUnit.originLng && selectedUnit.destLat && selectedUnit.destLng) {
 					// 1. Fetch Planned Route (Origin -> Destination) - drawn faintly
@@ -667,7 +734,55 @@
 								<div class="flex-1"><p class="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider mb-1">Smart ETA</p><p class="text-sm font-black text-amber-600">{routeMeta.eta}</p></div>
 							</div>
 						{/if}
-						<div><p class="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider mb-1">Current Location</p><p class="text-sm font-bold text-on-surface">{selectedUnit.location}</p></div>
+						
+						<!-- Direction Indicator: papan petunjuk jalan dari OSRM steps -->
+						{#if roadSteps.currentRoad || selectedUnit.streetName !== '-'}
+							<div class="rounded-xl overflow-hidden border border-surface-container">
+								<!-- Header -->
+								<div class="bg-surface-container px-3 py-1.5 flex items-center gap-1.5">
+									<span class="material-symbols-outlined text-[13px] text-on-surface-variant">signpost</span>
+									<p class="text-[9px] font-black text-on-surface-variant uppercase tracking-widest">Posisi & Arah Jalan</p>
+								</div>
+								<!-- Body -->
+								<div class="bg-surface-container-low px-3 py-3 space-y-2.5">
+
+									<!-- Jalan saat ini -->
+									<div class="flex items-start gap-2">
+										<div class="w-2 h-2 rounded-full bg-blue-500 flex-shrink-0 mt-1"></div>
+										<div class="min-w-0">
+											<p class="text-[9px] text-on-surface-variant font-medium uppercase tracking-wider leading-none mb-0.5">Saat ini di</p>
+											<p class="text-xs font-bold text-on-surface leading-tight">
+												{roadSteps.currentRoad ?? selectedUnit.streetName}
+											</p>
+										</div>
+									</div>
+
+									<!-- Penghubung + label -->
+									<div class="flex items-center gap-2 pl-[3px]">
+										<div class="h-4 w-[2px] bg-surface-container-high rounded-full"></div>
+										<span class="material-symbols-outlined text-[16px] text-amber-500">arrow_downward</span>
+										<p class="text-[9px] font-black text-amber-500 uppercase tracking-wider">jalan berikutnya</p>
+									</div>
+
+									<!-- Jalan berikutnya -->
+									<div class="flex items-start gap-2">
+										<div class="w-2 h-2 rounded-full bg-emerald-500 flex-shrink-0 mt-1"></div>
+										<div class="min-w-0">
+											{#if roadSteps.nextRoad}
+												<p class="text-[9px] text-on-surface-variant font-medium uppercase tracking-wider leading-none mb-0.5">Menuju</p>
+												<p class="text-xs font-bold text-emerald-600 leading-tight">{roadSteps.nextRoad}</p>
+											{:else if !selectedUnit.destLat}
+												<p class="text-xs text-on-surface-variant italic">Unit tidak sedang bertugas</p>
+											{:else}
+												<p class="text-xs text-on-surface-variant italic animate-pulse">Memuat rute...</p>
+											{/if}
+										</div>
+									</div>
+
+								</div>
+							</div>
+						{/if}
+
 						<div><p class="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider mb-1">Customer</p><p class="text-sm font-bold text-on-surface">{selectedUnit.customer}</p></div>
 						<div><p class="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider mb-1">Cargo</p><p class="text-sm font-medium text-on-surface">{selectedUnit.cargo}</p></div>
 						<div><p class="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider mb-1">Delivery Order</p><p class="text-sm font-bold text-blue-600">{selectedUnit.do}</p></div>

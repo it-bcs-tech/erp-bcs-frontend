@@ -5,11 +5,14 @@
 
 	let { data, form }: { data: PageData, form: ActionData } = $props();
 	let requests = $derived(data.ujoRequests || []);
+	let contractRequests = $derived(data.contractUjos || []);
 
 	let filterStatus = $state('UNPAID');
+	let activeTab = $state('REGULAR'); // REGULAR | CONTRACT
 
 	let filteredRequests = $derived.by(() => {
-		return requests.filter(r => r.paymentStatus === filterStatus);
+		const source = activeTab === 'REGULAR' ? requests : contractRequests;
+		return source.filter((r: any) => r.paymentStatus === filterStatus);
 	});
 
 	const formatCurrency = (amount: number) =>
@@ -38,14 +41,23 @@
 			<h1 class="text-3xl font-extrabold text-on-surface tracking-tight mb-2">Pencairan UJO</h1>
 			<p class="text-on-surface-variant font-medium text-sm">Proses pencairan Uang Jalan Operasional untuk supir.</p>
 		</div>
-		
-		<div class="flex bg-surface-container-low p-1 rounded-xl">
-			<button class="px-4 py-2 rounded-lg text-sm font-bold transition-colors {filterStatus === 'UNPAID' ? 'bg-white shadow-sm text-indigo-700' : 'text-on-surface-variant hover:text-on-surface'}" onclick={() => filterStatus = 'UNPAID'}>
-				Menunggu Cair
-			</button>
-			<button class="px-4 py-2 rounded-lg text-sm font-bold transition-colors {filterStatus === 'PAID' ? 'bg-white shadow-sm text-emerald-700' : 'text-on-surface-variant hover:text-on-surface'}" onclick={() => filterStatus = 'PAID'}>
-				Sudah Cair
-			</button>
+		<div class="flex flex-col gap-3 items-end">
+			<div class="flex bg-surface-container-low p-1 rounded-xl">
+				<button class="px-4 py-2 rounded-lg text-sm font-bold transition-colors {activeTab === 'REGULAR' ? 'bg-indigo-600 shadow-sm text-white' : 'text-on-surface-variant hover:text-on-surface'}" onclick={() => activeTab = 'REGULAR'}>
+					UJO Reguler
+				</button>
+				<button class="px-4 py-2 rounded-lg text-sm font-bold transition-colors flex items-center gap-2 {activeTab === 'CONTRACT' ? 'bg-indigo-600 shadow-sm text-white' : 'text-on-surface-variant hover:text-on-surface'}" onclick={() => activeTab = 'CONTRACT'}>
+					<span class="material-symbols-outlined text-[16px]">handshake</span> UJO Kontrak (PO)
+				</button>
+			</div>
+			<div class="flex bg-surface-container-low p-1 rounded-xl self-end">
+				<button class="px-3 py-1.5 rounded-lg text-xs font-bold transition-colors {filterStatus === 'UNPAID' ? 'bg-white shadow-sm text-indigo-700' : 'text-on-surface-variant hover:text-on-surface'}" onclick={() => filterStatus = 'UNPAID'}>
+					Menunggu Cair
+				</button>
+				<button class="px-3 py-1.5 rounded-lg text-xs font-bold transition-colors {filterStatus === 'PAID' ? 'bg-white shadow-sm text-emerald-700' : 'text-on-surface-variant hover:text-on-surface'}" onclick={() => filterStatus = 'PAID'}>
+					Sudah Cair
+				</button>
+			</div>
 		</div>
 	</header>
 
@@ -96,11 +108,17 @@
 								<p class="text-[11px] font-bold text-on-surface">{req.destination}</p>
 							</td>
 							<td class="py-4 px-6 text-right">
-								<div class="text-[10px] text-on-surface-variant space-y-1 mb-2 border-b border-surface-container pb-2 inline-block">
-									<div class="flex justify-between gap-4"><span class="font-medium">UJO Dasar:</span> <span>{formatCurrency(req.amount - (req.ujoMakan||0) - (req.ujoTol||0))}</span></div>
-									<div class="flex justify-between gap-4"><span class="font-medium">Uang Makan:</span> <span>{formatCurrency(req.ujoMakan||0)}</span></div>
-									<div class="flex justify-between gap-4"><span class="font-medium">Tol:</span> <span>{formatCurrency(req.ujoTol||0)}</span></div>
-								</div>
+								{#if activeTab === 'REGULAR'}
+									<div class="text-[10px] text-on-surface-variant space-y-1 mb-2 border-b border-surface-container pb-2 inline-block">
+										<div class="flex justify-between gap-4"><span class="font-medium">UJO Dasar:</span> <span>{formatCurrency(req.amount - (req.ujoMakan||0) - (req.ujoTol||0))}</span></div>
+										<div class="flex justify-between gap-4"><span class="font-medium">Uang Makan:</span> <span>{formatCurrency(req.ujoMakan||0)}</span></div>
+										<div class="flex justify-between gap-4"><span class="font-medium">Tol:</span> <span>{formatCurrency(req.ujoTol||0)}</span></div>
+									</div>
+								{:else}
+									<div class="text-[10px] text-indigo-600 font-bold bg-indigo-50 px-2 py-1 rounded inline-block mb-1 border border-indigo-200">
+										TARIF UJO BAKU (PO)
+									</div><br>
+								{/if}
 								<p class="text-base font-black text-indigo-600">{formatCurrency(req.amount)}</p>
 							</td>
 							<td class="py-4 px-6 text-center">

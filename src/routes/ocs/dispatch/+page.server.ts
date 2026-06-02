@@ -73,9 +73,29 @@ export const load: PageServerLoad = async () => {
 			ORDER BY u.current_state ASC, u.nomor_unit ASC
 		`;
 
+		// Mock Contract (PO) Orders for AI Auto-Dispatch
+		const contractOrders = [
+			{
+				id: 'DO-PO-05001-A',
+				contract_id: 'PO-2026-05-001',
+				customer: 'PT Indofood CBP',
+				origin: 'Jakarta (Sunter)',
+				destination: 'Surabaya (Rungkut)',
+				targetTonnage: 500,
+				deliveredTonnage: 320,
+				cargo: 'Consumer Goods',
+				status: 'READY_TO_DISPATCH',
+				// AI Recommendation Logic: Prioritize yesterday's unit if < 14 days
+				ai_recommended_unit: unitsResult.length > 0 ? unitsResult[0].id : '-',
+				ai_recommended_driver: unitsResult.length > 0 ? unitsResult[0].driver : '-',
+				ai_reason: 'Rekomendasi AI: Unit dan sopir ini melakukan rute yang sama kemarin dan baru bekerja selama 5 hari (belum batas 14 hari).'
+			}
+		];
+
 		return {
 			orders: ordersResult as any[],
-			availableUnits: unitsResult as any[]
+			availableUnits: unitsResult as any[],
+			contractOrders
 		};
 	} catch (error) {
 		console.error("Error loading dispatch data:", error);

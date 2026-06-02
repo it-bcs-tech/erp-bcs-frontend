@@ -200,6 +200,53 @@
 	<div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
 		<!-- Orders List -->
 		<div class="lg:col-span-2">
+			<!-- AI Contract Auto-Dispatch Section -->
+			{#if data.contractOrders && data.contractOrders.length > 0}
+				<div class="mb-6 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-2xl p-1 shadow-lg">
+					<div class="bg-surface-container-lowest rounded-xl p-5 h-full">
+						<div class="flex items-center justify-between mb-4">
+							<div class="flex items-center gap-2 text-blue-600">
+								<span class="material-symbols-outlined text-[24px]">robot_2</span>
+								<h2 class="text-sm font-black tracking-widest uppercase">AI Contract Dispatch</h2>
+							</div>
+							<span class="text-[10px] font-bold px-2 py-1 bg-blue-100 text-blue-700 rounded uppercase">PO Routine</span>
+						</div>
+						
+						{#each data.contractOrders as contractOrder}
+							<div class="bg-blue-50 dark:bg-blue-900/10 rounded-xl p-4 border border-blue-500/20 mb-3">
+								<div class="flex justify-between items-start mb-2">
+									<div>
+										<p class="text-sm font-black text-on-surface">{contractOrder.id}</p>
+										<p class="text-xs text-on-surface-variant font-medium">{contractOrder.customer} ({contractOrder.contract_id})</p>
+									</div>
+									<div class="text-right">
+										<p class="text-[10px] font-bold text-on-surface-variant uppercase">Rute</p>
+										<p class="text-xs font-bold text-on-surface">{contractOrder.origin} &rarr; {contractOrder.destination}</p>
+									</div>
+								</div>
+								
+								<div class="bg-white dark:bg-surface-container-highest p-3 rounded-lg border border-surface-container mt-3">
+									<div class="flex items-start gap-3">
+										<span class="material-symbols-outlined text-amber-500 text-[20px] mt-0.5">tips_and_updates</span>
+										<div>
+											<p class="text-[11px] text-on-surface-variant italic mb-2">"{contractOrder.ai_reason}"</p>
+											<div class="flex items-center justify-between">
+												<div>
+													<p class="text-[10px] uppercase font-bold text-on-surface-variant">Recommended Unit</p>
+													<p class="text-sm font-black text-blue-600">{contractOrder.ai_recommended_unit} &bull; {contractOrder.ai_recommended_driver}</p>
+												</div>
+												<button class="bg-blue-600 text-white px-4 py-2 rounded-lg text-xs font-bold hover:bg-blue-700 shadow-sm flex items-center gap-1 transition-colors">
+													<span class="material-symbols-outlined text-[16px]">task_alt</span> Approve & Buat DO
+												</button>
+											</div>
+										</div>
+									</div>
+								</div>
+							</div>
+						{/each}
+					</div>
+				</div>
+			{/if}
 			<!-- Status Tabs -->
 			<div class="flex gap-2 mb-4 overflow-x-auto pb-2">
 				{#each ['All', 'New Order', 'Waiting Marketing', 'Ready to Dispatch', 'Dispatched', 'Closing'] as tab}

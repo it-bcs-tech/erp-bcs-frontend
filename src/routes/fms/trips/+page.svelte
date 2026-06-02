@@ -12,8 +12,48 @@
 	let searchQuery = $state($page.url.searchParams.get('search') || '');
 	let statusFilter = $state($page.url.searchParams.get('status') || 'All');
 	let expandedTripId = $state<string | null>(null);
+	let generatingSummaryFor = $state<string | null>(null);
+	let aiSummaries = $state<Record<string, any>>({});
 	
 	let searchTimer: ReturnType<typeof setTimeout>;
+
+	async function generateAISummary(trip: any) {
+		generatingSummaryFor = trip.id;
+		try {
+			const res = await fetch('http://localhost:8000/fms/trip-summary', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					trip_id: trip.id,
+					unit: trip.vehicle,
+					driver: trip.driver,
+					origin: trip.origin,
+					destination: trip.destination,
+					start_time: trip.history?.[1]?.time || '08:00',
+					end_time: trip.history?.[4]?.time || '20:00',
+					distance: 120 // mock distance
+				})
+			});
+			if (!res.ok) throw new Error('API Error');
+			const data = await res.json();
+			
+			// Handle dict/nested dict depending on Groq JSON output
+			let parsed = data;
+			if (typeof data.narrative === 'undefined') {
+			    // fallback if nested
+			    const keys = Object.keys(data);
+			    if (keys.length > 0 && typeof data[keys[0]].narrative !== 'undefined') {
+			        parsed = data[keys[0]];
+			    }
+			}
+			aiSummaries[trip.id] = parsed;
+		} catch (error) {
+			console.error(error);
+			alert('Gagal membuat AI Summary');
+		} finally {
+			generatingSummaryFor = null;
+		}
+	}
 
 	function updateQueryParams() {
 		const url = new URL(window.location.href);
@@ -216,9 +256,16 @@
 							</td>
 							<td class="py-4 px-6 text-right">
 								<div class="flex items-center justify-end gap-2">
-									<button class="p-2 rounded-lg text-blue-600 hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors" title="Track Live">
+									<!-- svelte-ignore a11y_click_events_have_key_events -->
+									<!-- svelte-ignore a11y_no_static_element_interactions -->
+									<div 
+										class="p-2 rounded-lg text-blue-600 hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors cursor-pointer flex items-center gap-1.5 text-xs font-bold"
+										title="Track Live di Peta"
+										onclick={(e) => { e.stopPropagation(); goto(`/fms/live-map?unit=${encodeURIComponent(trip.vehicle)}`); }}
+									>
 										<span class="material-symbols-outlined text-[20px]">my_location</span>
-									</button>
+										<span class="hidden lg:inline">Track Live</span>
+									</div>
 									<button class="p-2 rounded-lg text-on-surface-variant hover:bg-surface-container-high transition-colors" title="More Options">
 										<span class="material-symbols-outlined text-[20px]">more_vert</span>
 									</button>
@@ -271,6 +318,47 @@
 												</div>
 											{/if}
 										</div>
+
+										<!-- AI Summary Section -->
+										<div class="mt-10 border-t border-surface-container-high pt-8">
+											<div class="flex items-center justify-between mb-6">
+												<p class="text-xs font-black text-on-surface-variant tracking-widest uppercase flex items-center gap-2">
+													<span class="material-symbols-outlined text-[16px] text-blue-500">robot_2</span> AI Journey Summary
+												</p>
+												{#if !aiSummaries[trip.id]}
+													<button 
+														onclick={(e) => { e.stopPropagation(); generateAISummary(trip); }}
+														disabled={generatingSummaryFor === trip.id}
+														class="bg-blue-600/10 text-blue-600 border border-blue-500/20 px-4 py-2 rounded-lg text-xs font-bold hover:bg-blue-600/20 transition-colors disabled:opacity-50 flex items-center gap-2">
+														{#if generatingSummaryFor === trip.id}
+															<span class="material-symbols-outlined text-[16px] animate-spin">refresh</span> Generating...
+														{:else}
+															<span class="material-symbols-outlined text-[16px]">auto_awesome</span> Generate AI Summary
+														{/if}
+													</button>
+												{/if}
+											</div>
+
+											{#if aiSummaries[trip.id]}
+												{@const summary = aiSummaries[trip.id]}
+												<div class="bg-blue-50 dark:bg-blue-900/10 p-5 rounded-2xl border border-blue-500/20">
+													<p class="text-sm font-medium text-on-surface leading-relaxed mb-6">
+														{summary.narrative || "Rangkuman tersedia."}
+													</p>
+													
+													<div class="grid grid-cols-1 md:grid-cols-5 gap-3">
+														{#each summary.timeline || [] as phase}
+															<div class="bg-surface-container-lowest p-3 rounded-xl border border-surface-container-highest shadow-sm">
+																<p class="text-[10px] font-bold text-blue-600 uppercase tracking-wider mb-1">{phase.phase}</p>
+																<p class="text-xl font-black text-on-surface mb-2">{phase.duration}</p>
+																<p class="text-[11px] text-on-surface-variant leading-tight">{phase.description}</p>
+															</div>
+														{/each}
+													</div>
+												</div>
+											{/if}
+										</div>
+
 									</div>
 								</td>
 							</tr>
