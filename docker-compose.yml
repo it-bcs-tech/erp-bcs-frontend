@@ -21,6 +21,10 @@ services:
       - PUBLIC_FMS_API_URL=http://api.bcslabs.tech:8081 # Sesuaikan jika beda domain
     networks:
       - erp_network
+    extra_hosts:
+      # Resolusi internal: hindari DNS publik dan hairpin NAT
+      # api.bcslabs.tech langsung diarahkan ke host gateway (Nginx di server)
+      - "api.bcslabs.tech:host-gateway"
 
   # 2. Database (Contoh: PostgreSQL, Anda bisa ganti ke MySQL jika tim backend menggunakan MySQL)
   database:
