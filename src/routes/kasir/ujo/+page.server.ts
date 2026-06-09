@@ -68,12 +68,86 @@ export const actions: Actions = {
 		}
 
 		try {
-			await sql`
-				UPDATE marketing.sales_order 
-				SET ujo_payment_status = 'PAID'
-				WHERE id = ${orderId}
-			`;
-			return { success: true, message: 'UJO Berhasil Dicairkan!' };
+			await sql.begin(async (sql) => {
+				// 1. Mark UJO as Paid
+				await sql`
+					UPDATE marketing.sales_order 
+					SET ujo_payment_status = 'PAID'
+					WHERE id = ${orderId}
+				`;
+
+				// 2. Fetch the order details to see if it needs auto-dispatching
+				const orderData = await sql`
+					SELECT status, assigned_unit_id, assigned_driver_id, customer_id, origin_id, destination_id, jenis_muatan, tgl_muat
+					FROM marketing.sales_order
+					WHERE id = ${orderId}
+				`;
+
+				if (orderData.length > 0 && orderData[0].status === 'READY_TO_DISPATCH') {
+					const order = orderData[0];
+					if (order.assigned_unit_id && order.assigned_driver_id) {
+						// Auto-Dispatch Logic
+						// Update Order Status
+						await sql`
+							UPDATE marketing.sales_order 
+							SET status = 'DISPATCHED' 
+							WHERE id = ${orderId}
+						`;
+
+						// Generate ST Number
+						const stNumber = 'ST-' + Date.now().toString().slice(-8);
+
+						// Create Trip
+						const tripResult = await sql`
+							INSERT INTO fleet.trip (
+								no_surat_tugas,
+								tgl_trip,
+								unit_id,
+								driver_id,
+								customer,
+								origin_id,
+								destination_id,
+								origin,
+								destination,
+								cargo,
+								status,
+								created_by
+							) VALUES (
+								${stNumber},
+								${order.tgl_muat},
+								${order.assigned_unit_id},
+								${order.assigned_driver_id},
+								(SELECT nama_kustomer FROM master.m_customer WHERE id = ${order.customer_id}),
+								${order.origin_id},
+								${order.destination_id},
+								(SELECT nama_kustomer FROM master.m_customer WHERE id = ${order.origin_id}),
+								(SELECT nama_kustomer FROM master.m_customer WHERE id = ${order.destination_id}),
+								${order.jenis_muatan},
+								'DISPATCHED',
+								'Kasir System (Auto)'
+							)
+							RETURNING id
+						`;
+						
+						const tripId = tripResult[0].id;
+
+						// Tambahkan log checkpoint awal
+						await sql`
+							INSERT INTO fleet.trip_checkpoint (trip_id, event, lat, lon, notes)
+							VALUES (${tripId}, 'NOTE', 0, 0, 'Sistem Kasir: UJO Dicairkan, Unit Otomatis Berangkat (Auto-Dispatch)')
+						`;
+
+						// Update Unit Status
+						await sql`
+							UPDATE fleet.unit 
+							SET current_state = 'ON_DUTY' 
+							WHERE id = ${order.assigned_unit_id}
+						`;
+					}
+				}
+			});
+
+			return { success: true, message: 'UJO Berhasil Dicairkan! Jika status Ready, unit otomatis ter-Dispatch.' };
 		} catch (e: any) {
 			console.error("Pay UJO error:", e);
 			return fail(500, { error: e.message || 'Gagal menyimpan transaksi.' });

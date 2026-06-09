@@ -222,6 +222,65 @@
 	</div>
 </div>
 
+<!-- Active Contracts Tonnage Tracker -->
+{#if data.activeContracts && data.activeContracts.length > 0}
+	<div class="mb-10">
+		<div class="flex items-center justify-between mb-6">
+			<div>
+				<h3 class="text-xl font-bold text-on-surface tracking-tight">Live Contract Tonnage Tracker</h3>
+				<p class="text-xs text-on-surface-variant mt-1">Real-time delivery progress for active POs</p>
+			</div>
+			<a href="/marketing/contracts" class="text-xs font-bold text-blue-600 cursor-pointer hover:underline px-3 py-1.5 rounded-lg hover:bg-blue-100/30 dark:hover:bg-blue-900/20 transition-colors flex items-center gap-1"><span class="material-symbols-outlined text-[16px]">open_in_new</span> Lihat di Marketing</a>
+		</div>
+		<div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+			{#each data.activeContracts as contract}
+				<div class="bg-surface-container-lowest p-6 sm:p-8 rounded-[24px] shadow-sm border border-surface-container hover:shadow-md transition-shadow hover:scale-[1.02] duration-300">
+					<div class="flex justify-between items-start mb-6">
+						<div>
+							<span class="text-xs font-black tracking-widest uppercase text-indigo-600 bg-indigo-50 dark:bg-indigo-900/30 px-3 py-1.5 rounded-lg mb-3 inline-block border border-indigo-100 dark:border-indigo-900/50">{contract.id}</span>
+							<h4 class="text-lg sm:text-xl font-bold text-on-surface mb-1">{contract.customer}</h4>
+							<p class="text-xs text-on-surface-variant uppercase tracking-wider font-semibold">{contract.project_category}</p>
+						</div>
+						<span class="text-sm font-black text-on-surface bg-surface-container-low px-3 py-1.5 rounded-lg border border-surface-container shadow-sm">{contract.targetTonnage} T</span>
+					</div>
+					
+					<!-- The Multi-Color Bar -->
+					<div class="w-full h-4 sm:h-5 bg-surface-container-highest rounded-full overflow-hidden mb-5 flex relative shadow-inner">
+						<div class="h-full bg-emerald-500 hover:opacity-80 transition-opacity" style="width: {contract.targetTonnage > 0 ? (contract.deliveredTonnage / contract.targetTonnage) * 100 : 0}%" title="Delivered: {contract.deliveredTonnage} Ton"></div>
+						<div class="h-full bg-sky-500 hover:opacity-80 transition-opacity" style="width: {contract.targetTonnage > 0 ? (contract.onrouteTonnage / contract.targetTonnage) * 100 : 0}%" title="On Route: {contract.onrouteTonnage} Ton"></div>
+						<div class="h-full bg-amber-500 hover:opacity-80 transition-opacity" style="width: {contract.targetTonnage > 0 ? (contract.loadingTonnage / contract.targetTonnage) * 100 : 0}%" title="Loading: {contract.loadingTonnage} Ton"></div>
+						<div class="h-full bg-indigo-500 hover:opacity-80 transition-opacity" style="width: {contract.targetTonnage > 0 ? (contract.dispatchedTonnage / contract.targetTonnage) * 100 : 0}%" title="Dispatched: {contract.dispatchedTonnage} Ton"></div>
+					</div>
+					
+					<!-- Legend -->
+					<div class="grid grid-cols-2 gap-x-4 gap-y-3">
+						<div class="flex items-center justify-between text-xs sm:text-sm">
+							<div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-emerald-500"></span><span class="text-on-surface-variant font-medium">Delivered</span></div>
+							<span class="font-bold text-on-surface">{contract.deliveredTonnage} <span class="font-medium opacity-60">T</span></span>
+						</div>
+						<div class="flex items-center justify-between text-xs sm:text-sm">
+							<div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-sky-500"></span><span class="text-on-surface-variant font-medium">On-Route</span></div>
+							<span class="font-bold text-on-surface">{contract.onrouteTonnage} <span class="font-medium opacity-60">T</span></span>
+						</div>
+						<div class="flex items-center justify-between text-xs sm:text-sm">
+							<div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-amber-500"></span><span class="text-on-surface-variant font-medium">Loading</span></div>
+							<span class="font-bold text-on-surface">{contract.loadingTonnage} <span class="font-medium opacity-60">T</span></span>
+						</div>
+						<div class="flex items-center justify-between text-xs sm:text-sm">
+							<div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-indigo-500"></span><span class="text-on-surface-variant font-medium">Dispatched</span></div>
+							<span class="font-bold text-on-surface">{contract.dispatchedTonnage} <span class="font-medium opacity-60">T</span></span>
+						</div>
+						<div class="flex items-center justify-between text-xs sm:text-sm col-span-2 pt-2 border-t border-surface-container">
+							<div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-surface-container-highest border border-surface-container"></span><span class="text-on-surface-variant font-medium">Remaining</span></div>
+							<span class="font-bold text-on-surface">{contract.remainingTonnage} <span class="font-medium opacity-60">T</span></span>
+						</div>
+					</div>
+				</div>
+			{/each}
+		</div>
+	</div>
+{/if}
+
 <!-- Bottom Grid: Recent Trips & Top Drivers -->
 <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
 	<!-- Recent Trips (data real dari fleet.trip) -->

@@ -10,8 +10,10 @@
 	let searchQuery = $state('');
 	let filterStatus = $state('All');
 	let displayUnits = $derived(units.filter((u: any) => {
-		const matchSearch = u.id.toLowerCase().includes(searchQuery.toLowerCase()) || 
-							u.driver.toLowerCase().includes(searchQuery.toLowerCase());
+		const searchLower = searchQuery.toLowerCase();
+		const matchSearch = u.id.toLowerCase().includes(searchLower) || 
+							u.driver.toLowerCase().includes(searchLower) ||
+							(u.customer && u.customer.toLowerCase().includes(searchLower));
 		const matchStatus = filterStatus === 'All' || u.status === filterStatus;
 		return matchSearch && matchStatus;
 	}));
@@ -644,7 +646,7 @@
 			<div class="flex items-center gap-2 bg-surface-container-lowest border border-surface-container rounded-xl p-1 shadow-sm">
 				<div class="flex items-center px-3 gap-2 border-r border-surface-container">
 					<span class="material-symbols-outlined text-surface-variant text-sm">search</span>
-					<input type="text" bind:value={searchQuery} placeholder="Search Nopol / Driver..." class="bg-transparent border-none outline-none text-sm w-40 text-on-surface placeholder:text-surface-variant">
+					<input type="text" bind:value={searchQuery} placeholder="Search Nopol / Driver / Customer..." class="bg-transparent border-none outline-none text-sm w-56 text-on-surface placeholder:text-surface-variant">
 				</div>
 				<select bind:value={filterStatus} class="bg-transparent border-none outline-none text-sm px-3 py-1.5 text-on-surface cursor-pointer rounded-lg hover:bg-surface-container-low transition-colors">
 					<option value="All">All Status</option>

@@ -1,5 +1,8 @@
 <script lang="ts">
 	import ModuleCard from '$lib/components/ModuleCard.svelte';
+	import { authUser, hasModuleAccess, getRoleLabel } from '$lib/stores/auth';
+	import { page } from '$app/stores';
+	import { fade } from 'svelte/transition';
 	
 	const modules = [
 		{ id: 'fms', title: 'FMS', subtitle: 'Fleet Management', icon: 'precision_manufacturing', colorClass: 'bg-blue-50', textClass: 'text-blue-600' },
@@ -12,6 +15,26 @@
 		{ id: 'dms', title: 'DMS', subtitle: 'Document Asset', icon: 'folder_managed', colorClass: 'bg-indigo-50', textClass: 'text-indigo-600' },
 		{ id: 'qhse', title: 'QHSE', subtitle: 'Quality & Safety', icon: 'verified_user', colorClass: 'bg-orange-50', textClass: 'text-orange-600' }
 	];
+
+	// Cek access_denied parameter dari URL
+	const accessDenied = $derived($page.url.searchParams.get('access_denied'));
+	let showAccessDenied = $state(false);
+
+	$effect(() => {
+		if (accessDenied) {
+			showAccessDenied = true;
+			// Hapus parameter dari URL setelah 4 detik
+			setTimeout(() => {
+				showAccessDenied = false;
+				const url = new URL(window.location.href);
+				url.searchParams.delete('access_denied');
+				window.history.replaceState({}, '', url.toString());
+			}, 4000);
+		}
+	});
+
+	// Reactive user state
+	const user = $derived($authUser);
 </script>
 
 <main class="min-h-[calc(100vh-130px)] flex flex-col items-center justify-center px-6 py-12 relative overflow-hidden">
@@ -21,15 +44,47 @@
 		<div class="absolute bottom-0 left-0 w-[600px] h-[600px] bg-gradient-to-tr from-secondary-container/20 to-transparent rounded-full blur-3xl"></div>
 	</div>
 
+	<!-- Access Denied Toast -->
+	{#if showAccessDenied}
+		<div 
+			transition:fade={{ duration: 300 }}
+			class="fixed top-20 left-1/2 -translate-x-1/2 z-50 bg-red-50 border border-red-200 text-red-800 px-6 py-4 rounded-2xl shadow-xl flex items-center gap-3 max-w-md"
+		>
+			<span class="material-symbols-outlined text-red-500">block</span>
+			<div>
+				<p class="font-bold text-sm">Akses Ditolak</p>
+				<p class="text-xs mt-0.5">Anda tidak memiliki hak akses ke modul <strong class="uppercase">{accessDenied}</strong>. Hubungi Administrator.</p>
+			</div>
+		</div>
+	{/if}
+
 	<div class="w-full max-w-5xl z-10">
 		<header class="mb-12 text-center">
-			<h1 class="text-4xl font-extrabold text-primary tracking-tight mb-3">Welcome, BCS Logistics</h1>
-			<p class="text-on-surface-variant font-medium">Select a module to begin your workspace orchestration</p>
+			<h1 class="text-4xl font-extrabold text-primary tracking-tight mb-3">
+				{#if user}
+					Selamat Datang, {user.name.split(' ')[0]}
+				{:else}
+					Welcome, BCS Logistics
+				{/if}
+			</h1>
+			<p class="text-on-surface-variant font-medium">
+				{#if user}
+					{getRoleLabel(user.role)} — {user.division}
+				{:else}
+					Select a module to begin your workspace orchestration
+				{/if}
+			</p>
 		</header>
 
 		<!-- Module App Switcher Grid -->
 		<div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 lg:gap-8">
 			{#each modules as mod}
+				{@const canAccess = user ? hasModuleAccess(user, mod.id) : true}
+				{@const disabledReason = !canAccess 
+					? (mod.id === 'ocs' && user && user.levelSequence < 4
+						? 'Level akses tidak mencukupi (min. Supervisor)'
+						: 'Akses Terbatas — Hubungi Administrator') 
+					: ''}
 				<ModuleCard 
 					title={mod.title}
 					subtitle={mod.subtitle}
@@ -37,6 +92,8 @@
 					colorClass={mod.colorClass}
 					textClass={mod.textClass}
 					href={'/' + mod.id}
+					disabled={!canAccess}
+					disabledReason={disabledReason}
 				/>
 			{/each}
 

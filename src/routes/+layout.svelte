@@ -4,9 +4,19 @@
 	import Footer from '$lib/components/Footer.svelte';
 	import { page } from '$app/stores';
 	import { activeToasts, removeToast } from '$lib/stores/notifications';
+	import { authUser } from '$lib/stores/auth';
 	import { fade, fly } from 'svelte/transition';
 	
-	let { children } = $props();
+	let { data, children } = $props();
+
+	// Hydrate auth store dari server layout data
+	$effect(() => {
+		if (data.user) {
+			authUser.set(data.user);
+		} else {
+			authUser.set(null);
+		}
+	});
 </script>
 
 {#if !$page.url.pathname.startsWith('/login')}

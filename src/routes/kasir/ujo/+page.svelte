@@ -108,17 +108,16 @@
 								<p class="text-[11px] font-bold text-on-surface">{req.destination}</p>
 							</td>
 							<td class="py-4 px-6 text-right">
-								{#if activeTab === 'REGULAR'}
-									<div class="text-[10px] text-on-surface-variant space-y-1 mb-2 border-b border-surface-container pb-2 inline-block">
-										<div class="flex justify-between gap-4"><span class="font-medium">UJO Dasar:</span> <span>{formatCurrency(req.amount - (req.ujoMakan||0) - (req.ujoTol||0))}</span></div>
-										<div class="flex justify-between gap-4"><span class="font-medium">Uang Makan:</span> <span>{formatCurrency(req.ujoMakan||0)}</span></div>
-										<div class="flex justify-between gap-4"><span class="font-medium">Tol:</span> <span>{formatCurrency(req.ujoTol||0)}</span></div>
-									</div>
-								{:else}
+								{#if activeTab !== 'REGULAR'}
 									<div class="text-[10px] text-indigo-600 font-bold bg-indigo-50 px-2 py-1 rounded inline-block mb-1 border border-indigo-200">
-										TARIF UJO BAKU (PO)
+										UJO KONTRAK (PO)
 									</div><br>
 								{/if}
+								<div class="text-[10px] text-on-surface-variant space-y-1 mb-2 border-b border-surface-container pb-2 inline-block text-left w-full max-w-[150px]">
+									<div class="flex justify-between gap-4"><span class="font-medium">UJO Dasar:</span> <span>{formatCurrency(req.amount - (req.ujoMakan||0) - (req.ujoTol||0))}</span></div>
+									<div class="flex justify-between gap-4"><span class="font-medium">Uang Makan:</span> <span>{formatCurrency(req.ujoMakan||0)}</span></div>
+									<div class="flex justify-between gap-4"><span class="font-medium">Tol:</span> <span>{formatCurrency(req.ujoTol||0)}</span></div>
+								</div>
 								<p class="text-base font-black text-indigo-600">{formatCurrency(req.amount)}</p>
 							</td>
 							<td class="py-4 px-6 text-center">

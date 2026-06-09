@@ -117,17 +117,62 @@
 	let selectedOrder = $state<any>(null);
 	let isSubmitting = $state(false);
 
+	let customersList = $state(data.customers || []);
+
+	let customerSearch = $state('');
+	let selectedCustomerId = $state('');
+	let showCustomerDropdown = $state(false);
+	let filteredCustomers = $derived(customersList.filter((c: any) => (c.nama_kustomer || c.name).toLowerCase().includes(customerSearch.toLowerCase())));
+
 	let originSearch = $state('');
 	let selectedOriginId = $state('');
 	let showOriginDropdown = $state(false);
-	let filteredOrigins = $derived((data.customers || []).filter((c: any) => c.nama_kustomer.toLowerCase().includes(originSearch.toLowerCase())));
+	let filteredOrigins = $derived(customersList.filter((c: any) => (c.nama_kustomer || c.name).toLowerCase().includes(originSearch.toLowerCase())));
 
 	let destSearch = $state('');
 	let selectedDestId = $state('');
 	let showDestDropdown = $state(false);
-	let filteredDests = $derived((data.customers || []).filter((c: any) => c.nama_kustomer.toLowerCase().includes(destSearch.toLowerCase())));
+	let filteredDests = $derived(customersList.filter((c: any) => (c.nama_kustomer || c.name).toLowerCase().includes(destSearch.toLowerCase())));
+
+	async function quickCreateCustomer(name: string, type: 'customer' | 'origin' | 'dest') {
+		isSubmitting = true;
+		try {
+			const res = await fetch('/api/customers', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ name })
+			});
+			const result = await res.json();
+			if (result.success) {
+				// The API returns { id, name }, we map it to match nama_kustomer for consistency
+				const newCustomer = { ...result.customer, nama_kustomer: result.customer.name };
+				customersList = [...customersList, newCustomer];
+				
+				if (type === 'customer') {
+					selectedCustomerId = newCustomer.id;
+					customerSearch = newCustomer.nama_kustomer;
+					showCustomerDropdown = false;
+				} else if (type === 'origin') {
+					selectedOriginId = newCustomer.id;
+					originSearch = newCustomer.nama_kustomer;
+					showOriginDropdown = false;
+				} else if (type === 'dest') {
+					selectedDestId = newCustomer.id;
+					destSearch = newCustomer.nama_kustomer;
+					showDestDropdown = false;
+				}
+			} else {
+				alert('Failed to create: ' + result.error);
+			}
+		} catch (e) {
+			alert('Error creating new data');
+		}
+		isSubmitting = false;
+	}
 
 	function openNewOrder() { 
+		customerSearch = '';
+		selectedCustomerId = '';
 		originSearch = '';
 		selectedOriginId = '';
 		destSearch = '';
@@ -360,14 +405,30 @@
 				};
 			}}>
 				<div class="p-6 overflow-y-auto space-y-4">
-					<div>
+					<div class="relative">
 						<label class="block text-xs font-bold text-on-surface-variant mb-2">Customer</label>
-						<select name="customerId" required class="w-full bg-surface-container-low border border-surface-container rounded-xl px-4 py-3 text-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-rose-500/50">
-							<option value="">-- Select Customer --</option>
-							{#each data.customers as c}
-								<option value={c.id}>{c.nama_kustomer}</option>
-							{/each}
-						</select>
+						<input type="hidden" name="customerId" value={selectedCustomerId} required />
+						<input type="text" bind:value={customerSearch} onfocus={() => showCustomerDropdown = true} onblur={() => setTimeout(() => showCustomerDropdown = false, 200)} placeholder="Search Customer..." class="w-full bg-surface-container-low border border-surface-container rounded-xl px-4 py-3 text-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-rose-500/50" autocomplete="off" />
+						{#if showCustomerDropdown}
+							<ul class="absolute z-10 w-full mt-1 bg-surface-container-lowest border border-surface-container rounded-xl shadow-lg max-h-48 overflow-y-auto hide-scrollbar">
+								{#if filteredCustomers.length > 0}
+									{#each filteredCustomers as c}
+										<!-- svelte-ignore a11y_click_events_have_key_events -->
+										<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+										<li class="px-4 py-2 text-sm text-on-surface cursor-pointer hover:bg-surface-container-low transition-colors border-b border-surface-container last:border-0" onclick={() => { selectedCustomerId = c.id; customerSearch = c.nama_kustomer || c.name; showCustomerDropdown = false; }}>
+											{c.nama_kustomer || c.name}
+										</li>
+									{/each}
+								{:else if customerSearch.trim().length > 0}
+									<li class="px-4 py-3 text-center">
+										<p class="text-xs text-on-surface-variant mb-2">"{customerSearch}" not found</p>
+										<button type="button" class="px-3 py-1.5 bg-rose-100 text-rose-700 hover:bg-rose-200 transition-colors rounded-lg text-xs font-bold w-full" onclick={() => quickCreateCustomer(customerSearch, 'customer')}>
+											+ Tambah "{customerSearch}"
+										</button>
+									</li>
+								{/if}
+							</ul>
+						{/if}
 					</div>
 					
 					<div class="grid grid-cols-2 gap-4">
@@ -375,15 +436,24 @@
 							<label class="block text-xs font-bold text-on-surface-variant mb-2">Origin Location</label>
 							<input type="hidden" name="originId" value={selectedOriginId} required />
 							<input type="text" bind:value={originSearch} onfocus={() => showOriginDropdown = true} onblur={() => setTimeout(() => showOriginDropdown = false, 200)} placeholder="Search Origin..." class="w-full bg-surface-container-low border border-surface-container rounded-xl px-4 py-3 text-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-rose-500/50" autocomplete="off" />
-							{#if showOriginDropdown && filteredOrigins.length > 0}
+							{#if showOriginDropdown}
 								<ul class="absolute z-10 w-full mt-1 bg-surface-container-lowest border border-surface-container rounded-xl shadow-lg max-h-48 overflow-y-auto hide-scrollbar">
-									{#each filteredOrigins as c}
-										<!-- svelte-ignore a11y_click_events_have_key_events -->
-										<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
-										<li class="px-4 py-2 text-sm text-on-surface cursor-pointer hover:bg-surface-container-low transition-colors border-b border-surface-container last:border-0" onclick={() => { selectedOriginId = c.id; originSearch = c.nama_kustomer; showOriginDropdown = false; }}>
-											{c.nama_kustomer}
+									{#if filteredOrigins.length > 0}
+										{#each filteredOrigins as c}
+											<!-- svelte-ignore a11y_click_events_have_key_events -->
+											<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+											<li class="px-4 py-2 text-sm text-on-surface cursor-pointer hover:bg-surface-container-low transition-colors border-b border-surface-container last:border-0" onclick={() => { selectedOriginId = c.id; originSearch = c.nama_kustomer || c.name; showOriginDropdown = false; }}>
+												{c.nama_kustomer || c.name}
+											</li>
+										{/each}
+									{:else if originSearch.trim().length > 0}
+										<li class="px-4 py-3 text-center">
+											<p class="text-xs text-on-surface-variant mb-2">"{originSearch}" not found</p>
+											<button type="button" class="px-3 py-1.5 bg-rose-100 text-rose-700 hover:bg-rose-200 transition-colors rounded-lg text-xs font-bold w-full" onclick={() => quickCreateCustomer(originSearch, 'origin')}>
+												+ Tambah "{originSearch}"
+											</button>
 										</li>
-									{/each}
+									{/if}
 								</ul>
 							{/if}
 						</div>
@@ -391,21 +461,39 @@
 							<label class="block text-xs font-bold text-on-surface-variant mb-2">Destination Location</label>
 							<input type="hidden" name="destinationId" value={selectedDestId} required />
 							<input type="text" bind:value={destSearch} onfocus={() => showDestDropdown = true} onblur={() => setTimeout(() => showDestDropdown = false, 200)} placeholder="Search Destination..." class="w-full bg-surface-container-low border border-surface-container rounded-xl px-4 py-3 text-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-rose-500/50" autocomplete="off" />
-							{#if showDestDropdown && filteredDests.length > 0}
+							{#if showDestDropdown}
 								<ul class="absolute z-10 w-full mt-1 bg-surface-container-lowest border border-surface-container rounded-xl shadow-lg max-h-48 overflow-y-auto hide-scrollbar">
-									{#each filteredDests as c}
-										<!-- svelte-ignore a11y_click_events_have_key_events -->
-										<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
-										<li class="px-4 py-2 text-sm text-on-surface cursor-pointer hover:bg-surface-container-low transition-colors border-b border-surface-container last:border-0" onclick={() => { selectedDestId = c.id; destSearch = c.nama_kustomer; showDestDropdown = false; }}>
-											{c.nama_kustomer}
+									{#if filteredDests.length > 0}
+										{#each filteredDests as c}
+											<!-- svelte-ignore a11y_click_events_have_key_events -->
+											<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+											<li class="px-4 py-2 text-sm text-on-surface cursor-pointer hover:bg-surface-container-low transition-colors border-b border-surface-container last:border-0" onclick={() => { selectedDestId = c.id; destSearch = c.nama_kustomer || c.name; showDestDropdown = false; }}>
+												{c.nama_kustomer || c.name}
+											</li>
+										{/each}
+									{:else if destSearch.trim().length > 0}
+										<li class="px-4 py-3 text-center">
+											<p class="text-xs text-on-surface-variant mb-2">"{destSearch}" not found</p>
+											<button type="button" class="px-3 py-1.5 bg-rose-100 text-rose-700 hover:bg-rose-200 transition-colors rounded-lg text-xs font-bold w-full" onclick={() => quickCreateCustomer(destSearch, 'dest')}>
+												+ Tambah "{destSearch}"
+											</button>
 										</li>
-									{/each}
+									{/if}
 								</ul>
 							{/if}
 						</div>
 					</div>
 
-					<div class="grid grid-cols-2 gap-4">
+					<div class="grid grid-cols-2 md:grid-cols-3 gap-4">
+						<div>
+							<label class="block text-xs font-bold text-on-surface-variant mb-2">Project / Unit Bisnis</label>
+							<select name="projectId" required class="w-full bg-surface-container-low border border-surface-container rounded-xl px-4 py-3 text-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-rose-500/50">
+								<option value="">-- Select Project --</option>
+								{#each data.projects as p}
+									<option value={p.id}>{p.project_name} ({p.category})</option>
+								{/each}
+							</select>
+						</div>
 						<div>
 							<label class="block text-xs font-bold text-on-surface-variant mb-2">Vehicle Type</label>
 							<select name="vehicleTypeId" required class="w-full bg-surface-container-low border border-surface-container rounded-xl px-4 py-3 text-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-rose-500/50">
@@ -582,6 +670,10 @@
 						<div class="flex justify-between pt-2 border-t border-surface-container">
 							<span class="text-on-surface-variant">Estimated UJO by OCS:</span>
 							<span class="font-black text-rose-600">{selectedOrder.estimated_ujo ? formatCurrency(Number(selectedOrder.estimated_ujo)) : 'Belum diisi OCS'}</span>
+						</div>
+						<div class="flex justify-between pt-2">
+							<span class="text-on-surface-variant">Recommended Tariff (From Master Rute):</span>
+							<span class="font-black text-emerald-600">{selectedOrder.recommended_tariff && Number(selectedOrder.recommended_tariff) > 0 ? formatCurrency(Number(selectedOrder.recommended_tariff)) : 'Tidak Diset OCS'}</span>
 						</div>
 					</div>
 

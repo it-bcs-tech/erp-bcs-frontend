@@ -68,10 +68,6 @@
 				<span class="material-symbols-outlined text-lg">download</span>
 				Export
 			</button>
-			<button class="bg-rose-600 text-white px-5 py-2.5 rounded-xl text-sm font-semibold shadow-sm flex items-center gap-2 hover:bg-rose-700 transition-colors">
-				<span class="material-symbols-outlined text-lg">add_alert</span>
-				Report Incident
-			</button>
 		</div>
 	</header>
 

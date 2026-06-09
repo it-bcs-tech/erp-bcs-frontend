@@ -82,11 +82,36 @@ export const load: PageServerLoad = async () => {
 			LIMIT 3
 		`;
 
+		// Pipeline Counts
+		const pipelineResult = await sql`
+			SELECT stage, count(*) as count 
+			FROM marketing.deals 
+			GROUP BY stage
+		`;
+		let pipelineCounts = {
+			PROSPECTING: 0,
+			QUOTATION: 0,
+			NEGOTIATION: 0,
+			WON: 0,
+			LOST: 0
+		};
+		pipelineResult.forEach(row => {
+			const st = row.stage;
+			if (pipelineCounts.hasOwnProperty(st)) {
+				pipelineCounts[st as keyof typeof pipelineCounts] = parseInt(row.count);
+			} else if (st === 'CLOSED_WON') {
+				pipelineCounts.WON += parseInt(row.count);
+			} else if (st === 'CLOSED_LOST') {
+				pipelineCounts.LOST += parseInt(row.count);
+			}
+		});
+
 		return {
 			metrics,
 			fleetAvailability,
 			recentOrders: recentOrders as any[],
-			topCustomers: topCustomers as any[]
+			topCustomers: topCustomers as any[],
+			pipelineCounts
 		};
 	} catch (error) {
 		console.error("Error loading marketing overview:", error);
@@ -94,7 +119,8 @@ export const load: PageServerLoad = async () => {
 			metrics: { totalCustomers: 0, newCustomersThisMonth: 0, activeCustomers: 0, ordersThisMonth: 0, pendingOrders: 0, revenue: 0, revenueGrowth: 0 },
 			fleetAvailability: { available: 0, moving: 0, maintenance: 0, total: 0 },
 			recentOrders: [],
-			topCustomers: []
+			topCustomers: [],
+			pipelineCounts: { PROSPECTING: 0, QUOTATION: 0, NEGOTIATION: 0, WON: 0, LOST: 0 }
 		};
 	}
 };

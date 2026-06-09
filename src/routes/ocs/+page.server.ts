@@ -56,7 +56,7 @@ export const load: PageServerLoad = async () => {
 				o.id as do,
 				0 as progress, -- Mock progress for now
 				COALESCE(o.estimated_ujo, 0) as ujo,
-				'Pending' as "ujoStatus"
+				COALESCE(o.ujo_payment_status, 'UNPAID') as "ujoStatus"
 			FROM fleet.trip t
 			LEFT JOIN fleet.unit u ON u.id = t.unit_id
 			LEFT JOIN master.m_drivers md ON md.id = t.driver_id

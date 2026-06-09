@@ -22,6 +22,7 @@
 		"@sveltejs/vite-plugin-svelte": "^7.0.0",
 		"@tailwindcss/forms": "^0.5.11",
 		"@tailwindcss/vite": "^4.2.2",
+		"@types/bcryptjs": "^2.4.6",
 		"@types/leaflet": "^1.9.21",
 		"@types/marked": "^5.0.2",
 		"@types/node": "^22",
@@ -42,8 +43,9 @@
 	"dependencies": {
 		"@ai-sdk/openai": "^3.0.63",
 		"@ai-sdk/svelte": "^4.0.176",
-		"@types/bcryptjs": "^2.4.6",
 		"ai": "^6.0.176",
+		"bcryptjs": "^3.0.3",
+		"csv-parse": "^6.2.1",
 		"leaflet": "^1.9.4",
 		"marked": "^18.0.3",
 		"postgres": "^3.4.9"

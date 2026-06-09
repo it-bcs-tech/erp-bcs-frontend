@@ -22,7 +22,9 @@ export const load: PageServerLoad = async () => {
 				o.ujo_tol as "ujoTol",
 				u.nomor_unit as "assignedUnit",
 				k.nama_karyawan as "assignedDriver",
-				o.status
+				o.status,
+				ori.latitude as origin_lat,
+				dest.latitude as dest_lat
 			FROM marketing.sales_order o
 			LEFT JOIN master.m_customer c ON c.id = o.customer_id
 			LEFT JOIN master.m_customer ori ON ori.id = o.origin_id
@@ -43,6 +45,7 @@ export const load: PageServerLoad = async () => {
 				tu.nama_tipe as type,
 				COALESCE(k.nama_karyawan, 'Sopir Libur (Habis 14 Hari)') as driver,
 				d.id as "driverId",
+				eligible_driver.days_worked,
 				u.current_state,
 				'Pool' as location
 			FROM fleet.unit u
@@ -73,24 +76,89 @@ export const load: PageServerLoad = async () => {
 			ORDER BY u.current_state ASC, u.nomor_unit ASC
 		`;
 
-		// Mock Contract (PO) Orders for AI Auto-Dispatch
-		const contractOrders = [
-			{
-				id: 'DO-PO-05001-A',
-				contract_id: 'PO-2026-05-001',
-				customer: 'PT Indofood CBP',
-				origin: 'Jakarta (Sunter)',
-				destination: 'Surabaya (Rungkut)',
-				targetTonnage: 500,
-				deliveredTonnage: 320,
-				cargo: 'Consumer Goods',
+		// Fetch actual Active Contracts
+		const activeContracts = await sql`
+			SELECT 
+				c.id as contract_id,
+				c.target_tonnage,
+				c.delivered_tonnage,
+				(c.contract_value / NULLIF(c.target_tonnage, 0)) as tariff_per_ton,
+				((c.contract_value / NULLIF(c.target_tonnage, 0)) * (c.max_ujo_percentage / 100)) as fixed_ujo,
+				c.project_id,
+				cust.nama_kustomer as customer,
+				COALESCE(ori.nama_kustomer, mori.nama_kustomer) as origin,
+				COALESCE(c.origin_id, mru.origin_id) as origin_id,
+				COALESCE(dest.nama_kustomer, mdest.nama_kustomer) as destination,
+				COALESCE(c.destination_id, mru.destination_id) as destination_id
+			FROM marketing.contract c
+			LEFT JOIN master.m_customer cust ON cust.id = c.customer_id
+			LEFT JOIN master.m_customer ori ON ori.id = c.origin_id
+			LEFT JOIN master.m_customer dest ON dest.id = c.destination_id
+			LEFT JOIN master.m_rute_ujo mru ON mru.id = c.master_rute_id
+			LEFT JOIN master.m_customer mori ON mori.id = mru.origin_id
+			LEFT JOIN master.m_customer mdest ON mdest.id = mru.destination_id
+			WHERE c.status = 'Active' 
+			  AND COALESCE(c.delivered_tonnage, 0) < c.target_tonnage
+			  AND (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Jakarta')::date BETWEEN c.start_date AND c.end_date
+			ORDER BY c.created_at ASC
+		`;
+
+		const contractOrders = [];
+		let availableUnitsPool = [...unitsResult]; // copy to keep track of assigned units in this session
+
+		console.log("Active Contracts found:", activeContracts.length);
+		if (activeContracts.length > 0) {
+			console.log("First active contract:", activeContracts[0].contract_id);
+		}
+
+		for (const contract of activeContracts) {
+			// AI Logic: Find best unit that is AT_POOL and driver days < 14
+			// unitsResult is already filtered and sorted by days_worked ASC
+			let bestUnit = availableUnitsPool.find(u => u.driverId && u.days_worked < 14);
+			
+			// Find up to 5 alternatives (excluding the best unit)
+			let alternatives = availableUnitsPool
+				.filter(u => u.driverId && u.days_worked < 14 && (!bestUnit || u.unitId !== bestUnit.unitId))
+				.slice(0, 5)
+				.map(u => ({
+					unitId: u.unitId,
+					unitName: u.id,
+					driverId: u.driverId,
+					driverName: u.driver,
+					reason: `Sopir bekerja ${u.days_worked} hari`
+				}));
+
+			contractOrders.push({
+				id: `PO-${contract.contract_id}`, // Just a display label
+				contract_id: contract.contract_id,
+				customer: contract.customer,
+				origin: contract.origin,
+				origin_id: contract.origin_id,
+				destination: contract.destination,
+				destination_id: contract.destination_id,
+				targetTonnage: contract.target_tonnage,
+				deliveredTonnage: contract.delivered_tonnage,
+				tariff: contract.tariff_per_ton,
+				fixedUjo: contract.fixed_ujo,
+				cargo: 'Sesuai Kontrak',
 				status: 'READY_TO_DISPATCH',
-				// AI Recommendation Logic: Prioritize yesterday's unit if < 14 days
-				ai_recommended_unit: unitsResult.length > 0 ? unitsResult[0].id : '-',
-				ai_recommended_driver: unitsResult.length > 0 ? unitsResult[0].driver : '-',
-				ai_reason: 'Rekomendasi AI: Unit dan sopir ini melakukan rute yang sama kemarin dan baru bekerja selama 5 hari (belum batas 14 hari).'
+				ai_recommended_unit: bestUnit ? bestUnit.id : 'Menunggu Unit',
+				ai_recommended_unit_id: bestUnit ? bestUnit.unitId : '',
+				ai_recommended_driver: bestUnit ? bestUnit.driver : '-',
+				ai_recommended_driver_id: bestUnit ? bestUnit.driverId : '',
+				ai_reason: bestUnit 
+					? `Rekomendasi AI: Unit ready di Pool. Sopir baru bekerja ${bestUnit.days_worked} hari bulan ini.` 
+					: `PERINGATAN: Saat ini tidak ada unit yang tersedia di Pool dengan Supir yang berstatus aktif. Kontrak ini belum bisa dijalankan.`,
+				alternatives: alternatives
+			});
+
+			if (bestUnit) {
+				// Remove unit from pool so next contract gets a different unit
+				availableUnitsPool = availableUnitsPool.filter(u => u.unitId !== bestUnit.unitId);
 			}
-		];
+		}
+
+		console.log("Contract Orders length:", contractOrders.length);
 
 		return {
 			orders: ordersResult as any[],
@@ -104,6 +172,100 @@ export const load: PageServerLoad = async () => {
 };
 
 export const actions: Actions = {
+	createDoFromPo: async ({ request }) => {
+		const data = await request.formData();
+		const contractId = data.get('contractId') as string;
+		const unitId = data.get('unitId') as string;
+		const driverId = data.get('driverId') as string;
+		
+		if (!contractId || !unitId || !driverId) {
+			return fail(400, { message: 'Data unit/driver tidak lengkap.' });
+		}
+
+		try {
+			await sql.begin(async (sql) => {
+				// Get contract with calculated origin/destination and financial values
+				const contractData = await sql`
+					SELECT 
+						c.id, 
+						c.customer_id, 
+						COALESCE(c.origin_id, mru.origin_id) as final_origin_id,
+						COALESCE(c.destination_id, mru.destination_id) as final_dest_id,
+						c.target_tonnage,
+						c.contract_value,
+						c.max_ujo_percentage,
+						c.jenis_muatan,
+						COALESCE(mru.total_ujo, ((c.contract_value / NULLIF(c.target_tonnage, 0)) * (c.max_ujo_percentage / 100))) as fixed_ujo,
+						(c.contract_value / NULLIF(c.target_tonnage, 0)) as tariff_per_ton,
+						COALESCE(mru.biaya_tol, 0) as ujo_tol,
+						COALESCE(mru.uang_makan, 0) as ujo_makan
+					FROM marketing.contract c
+					LEFT JOIN master.m_rute_ujo mru ON mru.id = c.master_rute_id
+					WHERE c.id = ${contractId}
+				`;
+				if (contractData.length === 0) throw new Error('Kontrak tidak ditemukan.');
+				const contract = contractData[0];
+
+				// Get Unit Capacity and Tipe Unit ID
+				const unitDataResult = await sql`
+					SELECT u.id, mu.tipe_unit_id
+					FROM fleet.unit u
+					LEFT JOIN master.m_model_unit mu ON mu.id = u.model_unit_id
+					WHERE u.id = ${unitId}
+				`;
+				if (unitDataResult.length === 0) throw new Error('Unit tidak valid.');
+				const unitData = unitDataResult[0];
+				
+				const realCapacity = 30; // Default capacity as DB doesn't have it
+				const totalRit = Math.ceil(contract.target_tonnage / realCapacity);
+				
+				// Re-calculate UJO if it falls back to percentage
+				let finalEstimatedUjo = contract.fixed_ujo;
+				let finalTariff = contract.contract_value / (totalRit > 0 ? totalRit : 1); // Tariff is exact per trip
+				
+				// We need to know if we used MRU.
+				const mruCheck = await sql`SELECT master_rute_id FROM marketing.contract WHERE id = ${contractId}`;
+				if (!mruCheck[0].master_rute_id) {
+					finalEstimatedUjo = finalTariff * (contract.max_ujo_percentage / 100);
+				}
+
+				// Check coordinates to prevent dispatching un-geocoded contracts
+				const coordinateCheck = await sql`
+					SELECT ori.latitude as origin_lat, dest.latitude as dest_lat
+					FROM master.m_customer ori, master.m_customer dest
+					WHERE ori.id = ${contract.final_origin_id} AND dest.id = ${contract.final_dest_id}
+				`;
+				if (coordinateCheck.length > 0) {
+					if (!coordinateCheck[0].origin_lat || !coordinateCheck[0].dest_lat) {
+						throw new Error('Gagal Create DO: Koordinat Origin/Destination pada Kontrak belum diset.');
+					}
+				}
+
+				const doId = `DO-PO-${Date.now().toString().slice(-6)}`;
+
+				await sql`
+					INSERT INTO marketing.sales_order (
+						id, contract_id, customer_id, origin_id, destination_id,
+						tipe_unit_id, jenis_muatan, berat_muatan, tgl_muat, estimated_ujo, 
+						ujo_tol, ujo_makan, tariff,
+						assigned_unit_id, assigned_driver_id, status, ujo_payment_status
+					) VALUES (
+						${doId}, ${contractId}, ${contract.customer_id}, ${contract.final_origin_id}, ${contract.final_dest_id},
+						${unitData.tipe_unit_id}, ${contract.jenis_muatan || 'Muatan Kontrak'}, ${realCapacity}, CURRENT_DATE, ${finalEstimatedUjo || 0}, 
+						${contract.ujo_tol}, ${contract.ujo_makan}, ${finalTariff || 0},
+						${unitId}, ${driverId}, 'READY_TO_DISPATCH', 'UNPAID'
+					)
+				`;
+
+			});
+
+			return { success: true, message: 'Assign Berhasil: Menunggu UJO dicairkan oleh Kasir.' };
+		} catch (e: any) {
+			console.error("Create DO from PO error:", e);
+			return fail(500, { error: e.message || 'Gagal generate DO dari Kontrak.' });
+		}
+	},
+
 	assignUjo: async ({ request }) => {
 		const data = await request.formData();
 		const orderId = data.get('orderId') as string;
@@ -143,6 +305,20 @@ export const actions: Actions = {
 
 			if (unitData.length === 0) return fail(400, { message: 'Unit tidak ditemukan.' });
 
+			// Check if Origin or Destination is missing coordinates
+			const coordinateCheck = await sql`
+				SELECT ori.latitude as origin_lat, dest.latitude as dest_lat
+				FROM marketing.sales_order o
+				LEFT JOIN master.m_customer ori ON ori.id = o.origin_id
+				LEFT JOIN master.m_customer dest ON dest.id = o.destination_id
+				WHERE o.id = ${orderId}
+			`;
+			if (coordinateCheck.length > 0) {
+				if (!coordinateCheck[0].origin_lat || !coordinateCheck[0].dest_lat) {
+					return fail(400, { message: 'Gagal Assign: Koordinat Origin/Destination belum diset. Silakan lengkapi di Master Customer terlebih dahulu.' });
+				}
+			}
+
 			const dbUnitId = unitData[0].id;
 			const dbDriverId = unitData[0].driver_id;
 			const totalUjo = ujoAmount + ujoMakan + ujoTol;
@@ -164,90 +340,7 @@ export const actions: Actions = {
 		}
 	},
 
-	finalizeDispatch: async ({ request }) => {
-		const data = await request.formData();
-		const orderId = data.get('orderId') as string;
 
-		if (!orderId) return fail(400, { message: 'Order ID kosong.' });
-
-		try {
-			// Start transaction
-			await sql.begin(async (sql) => {
-				// 1. Get Order details
-				const orderData = await sql`
-					SELECT * FROM marketing.sales_order WHERE id = ${orderId}
-				`;
-				if (orderData.length === 0) throw new Error('Order tidak ditemukan');
-				const order = orderData[0];
-
-				if (!order.assigned_unit_id || !order.assigned_driver_id) {
-					throw new Error('Unit / Driver belum diassign.');
-				}
-
-				// 2. Update Order status
-				await sql`
-					UPDATE marketing.sales_order 
-					SET status = 'DISPATCHED' 
-					WHERE id = ${orderId}
-				`;
-
-				// 3. Generate Nomor Surat Tugas (ST)
-				const stNumber = 'ST-' + Date.now().toString().slice(-8);
-
-				// 4. Create Trip record in fleet.trip
-				const tripResult = await sql`
-					INSERT INTO fleet.trip (
-						no_surat_tugas,
-						tgl_trip,
-						unit_id,
-						driver_id,
-						customer,
-						origin_id,
-						destination_id,
-						origin,
-						destination,
-						cargo,
-						status,
-						created_by
-					) VALUES (
-						${stNumber},
-						${order.tgl_muat},
-						${order.assigned_unit_id},
-						${order.assigned_driver_id},
-						(SELECT nama_kustomer FROM master.m_customer WHERE id = ${order.customer_id}),
-						${order.origin_id},
-						${order.destination_id},
-						(SELECT nama_kustomer FROM master.m_customer WHERE id = ${order.origin_id}),
-						(SELECT nama_kustomer FROM master.m_customer WHERE id = ${order.destination_id}),
-						${order.jenis_muatan},
-						'DISPATCHED',
-						'OCS System'
-					)
-					RETURNING id
-				`;
-				
-				const tripId = tripResult[0].id;
-
-				// Tambahkan log checkpoint awal
-				await sql`
-					INSERT INTO fleet.trip_checkpoint (trip_id, event, lat, lon, notes)
-					VALUES (${tripId}, 'NOTE', 0, 0, 'Sistem: Surat Jalan (DO) Diterbitkan dan di-Dispatch')
-				`;
-
-				// 5. Update Unit Status
-				await sql`
-					UPDATE fleet.unit 
-					SET current_state = 'ON_DUTY' 
-					WHERE id = ${order.assigned_unit_id}
-				`;
-			});
-
-			return { success: true, message: 'Dispatch berhasil! Unit segera berjalan.' };
-		} catch (e: any) {
-			console.error("Finalize Dispatch error:", e);
-			return fail(500, { error: e.message || 'Gagal eksekusi dispatch.' });
-		}
-	},
 
 	submitClosing: async ({ request }) => {
 		const data = await request.formData();

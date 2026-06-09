@@ -52,6 +52,7 @@ export const load: PageServerLoad = async () => {
 		return {
 			metrics,
 			customers: customers as any[],
+			googleMapsApiKey: env.GOOGLE_MAPS_API_KEY || '',
 			meta: {
 				total: customers.length,
 				per_page: 5,
@@ -69,6 +70,70 @@ export const load: PageServerLoad = async () => {
 };
 
 export const actions: Actions = {
+	addCustomer: async ({ request }) => {
+		const data = await request.formData();
+		const name = data.get('name')?.toString()?.trim();
+		const type = data.get('type')?.toString() || 'Corporate';
+		const tier = data.get('tier')?.toString() || 'Standard';
+		const contactPerson = data.get('contactPerson')?.toString() || null;
+		const phone = data.get('phone')?.toString() || null;
+		const email = data.get('email')?.toString() || null;
+		const status = data.get('status')?.toString() || 'Active';
+		const alamat = data.get('alamat')?.toString() || null;
+		const latitude = data.get('latitude')?.toString() || null;
+		const longitude = data.get('longitude')?.toString() || null;
+		
+		if (!name) {
+			return fail(400, { error: 'Nama kustomer wajib diisi.' });
+		}
+
+		try {
+			// Generate kode_kustomer C-[Huruf][SEQ]
+			let cleanName = name;
+			if (cleanName.toUpperCase().startsWith('PT. ')) cleanName = cleanName.substring(4);
+			else if (cleanName.toUpperCase().startsWith('PT ')) cleanName = cleanName.substring(3);
+			else if (cleanName.toUpperCase().startsWith('CV. ')) cleanName = cleanName.substring(4);
+			else if (cleanName.toUpperCase().startsWith('CV ')) cleanName = cleanName.substring(3);
+
+			cleanName = cleanName.trim();
+			const firstLetter = cleanName.charAt(0).toUpperCase();
+			const prefix = `C-${firstLetter}`;
+
+			const lastCust = await sql`
+				SELECT kode_kustomer 
+				FROM master.m_customer 
+				WHERE kode_kustomer LIKE ${prefix + '%'}
+				ORDER BY kode_kustomer DESC 
+				LIMIT 1
+			`;
+
+			let nextSeq = 1;
+			if (lastCust.length > 0) {
+				const lastCode = lastCust[0].kode_kustomer;
+				const numPart = lastCode.substring(3);
+				const lastNum = parseInt(numPart, 10);
+				if (!isNaN(lastNum)) nextSeq = lastNum + 1;
+			}
+			
+			const kode_kustomer = `${prefix}${nextSeq.toString().padStart(3, '0')}`;
+			const isActive = status === 'Active';
+
+			await sql`
+				INSERT INTO master.m_customer (
+					kode_kustomer, nama_kustomer, kategori, tier, contact_person,
+					phone, email, alamat, latitude, longitude, is_active
+				) VALUES (
+					${kode_kustomer}, ${name}, ${type}, ${tier}, ${contactPerson},
+					${phone}, ${email}, ${alamat}, ${latitude ? parseFloat(latitude) : null}, ${longitude ? parseFloat(longitude) : null}, ${isActive}
+				)
+			`;
+			
+			return { success: true, message: `Berhasil menambahkan kustomer baru dengan kode ${kode_kustomer}` };
+		} catch (e: any) {
+			console.error("Failed adding customer:", e);
+			return fail(500, { error: 'Gagal menambahkan kustomer. Server error.' });
+		}
+	},
 	editCustomer: async ({ request }) => {
 		const data = await request.formData();
 		const id = data.get('id')?.toString();

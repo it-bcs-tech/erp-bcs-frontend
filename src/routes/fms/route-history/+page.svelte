@@ -44,6 +44,126 @@
 		url.searchParams.set('page', p.toString());
 		goto(url.toString(), { invalidateAll: true, noScroll: true });
 	}
+
+	// ===================================
+	// Playback Modal & Map Logic
+	// ===================================
+	let showPlaybackModal = $state(false);
+	let isPlaying = $state(false);
+	let playSpeed = $state(1); // multiplier
+	let mapContainer: HTMLElement;
+	let L: any;
+	let map: any;
+	let truckMarker: any;
+	let pathLine: any;
+	let playbackInterval: any;
+	
+	let playbackData = $state<{lat: number, lon: number, speed: number, time: string}[]>([]);
+	let currentPointIndex = $state(0);
+	let currentPlaybackSpeed = $state(0);
+	let playbackTripId = $state('');
+
+	async function openPlayback(tripId: string) {
+		playbackTripId = tripId;
+		showPlaybackModal = true;
+		playbackData = [];
+		currentPointIndex = 0;
+		isPlaying = false;
+		currentPlaybackSpeed = 0;
+
+		try {
+			const res = await fetch(`/api/fms/trip/${tripId}/path`);
+			const resData = await res.json();
+			if (resData.success && resData.path.length > 0) {
+				playbackData = resData.path;
+			} else {
+				alert("Tidak ada data path tersimpan untuk trip ini.");
+				showPlaybackModal = false;
+				return;
+			}
+		} catch (e) {
+			console.error("Failed to load path", e);
+			alert("Gagal memuat jalur playback.");
+			showPlaybackModal = false;
+			return;
+		}
+
+		if (!L) {
+			const leaflet = await import('leaflet');
+			L = leaflet.default;
+			await import('leaflet/dist/leaflet.css');
+		}
+
+		// Wait for modal transition to render container
+		setTimeout(() => {
+			if (!map) {
+				map = L.map(mapContainer, { zoomControl: false }).setView([-6.8, 109.5], 10);
+				L.control.zoom({ position: 'topright' }).addTo(map);
+				L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+					attribution: '&copy; OpenStreetMap &copy; CARTO'
+				}).addTo(map);
+			}
+
+			if (pathLine) map.removeLayer(pathLine);
+			if (truckMarker) map.removeLayer(truckMarker);
+
+			const latlngs = playbackData.map(p => [p.lat, p.lon]);
+			pathLine = L.polyline(latlngs, { color: '#3b82f6', weight: 4, opacity: 0.7 }).addTo(map);
+			map.fitBounds(pathLine.getBounds(), { padding: [30, 30] });
+
+			// Custom Truck Icon
+			const truckIcon = L.divIcon({
+				html: `<div style="transform: rotate(0deg); width: 28px; height: 28px; background: white; border-radius: 50%; box-shadow: 0 2px 5px rgba(0,0,0,0.3); display: flex; align-items: center; justify-content: center; border: 2px solid #3b82f6;"><span class="material-symbols-outlined" style="font-size: 16px; color: #3b82f6;">local_shipping</span></div>`,
+				className: 'truck-marker',
+				iconSize: [28, 28],
+				iconAnchor: [14, 14]
+			});
+
+			truckMarker = L.marker(latlngs[0], { icon: truckIcon }).addTo(map);
+		}, 300);
+	}
+
+	function closePlayback() {
+		showPlaybackModal = false;
+		pausePlayback();
+	}
+
+	function togglePlay() {
+		if (isPlaying) {
+			pausePlayback();
+		} else {
+			startPlayback();
+		}
+	}
+
+	function pausePlayback() {
+		isPlaying = false;
+		if (playbackInterval) clearInterval(playbackInterval);
+	}
+
+	function startPlayback() {
+		if (playbackData.length === 0) return;
+		if (currentPointIndex >= playbackData.length - 1) {
+			currentPointIndex = 0; // restart
+		}
+		isPlaying = true;
+		
+		playbackInterval = setInterval(() => {
+			if (currentPointIndex < playbackData.length - 1) {
+				currentPointIndex++;
+				const point = playbackData[currentPointIndex];
+				if (truckMarker && map) {
+					truckMarker.setLatLng([point.lat, point.lon]);
+					map.panTo([point.lat, point.lon], { animate: true, duration: 0.5 });
+				}
+				currentPlaybackSpeed = point.speed;
+			} else {
+				pausePlayback();
+			}
+		}, Math.max(50, 1000 / playSpeed));
+	}
+
+
 </script>
 
 <svelte:head>
@@ -196,7 +316,7 @@
 							</td>
 							<td class="py-4 px-6 text-right">
 								<div class="flex items-center justify-end gap-2">
-									<button class="p-2 rounded-lg text-sky-600 hover:bg-sky-100 dark:hover:bg-sky-900/30 transition-colors" title="Playback Route">
+									<button class="p-2 rounded-lg text-sky-600 hover:bg-sky-100 dark:hover:bg-sky-900/30 transition-colors" title="Playback Route" onclick={() => openPlayback(trip.dbId)}>
 										<span class="material-symbols-outlined text-[20px]">play_circle</span>
 									</button>
 									<button class="p-2 rounded-lg text-on-surface-variant hover:bg-surface-container-high transition-colors" title="View Details">
@@ -229,3 +349,77 @@
 		</div>
 	</div>
 </div>
+
+<!-- Playback Modal -->
+{#if showPlaybackModal}
+<div class="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm transition-all duration-300">
+	<div class="bg-surface-container-lowest w-full max-w-4xl h-[80vh] rounded-2xl shadow-2xl overflow-hidden flex flex-col scale-100">
+		<div class="px-6 py-4 border-b border-surface-container flex items-center justify-between bg-surface-container-low/50">
+			<div>
+				<h2 class="text-lg font-bold text-on-surface">Route Playback</h2>
+				<p class="text-sm text-on-surface-variant">Trip ID: {playbackTripId}</p>
+			</div>
+			<button class="w-10 h-10 rounded-full flex items-center justify-center text-on-surface-variant hover:bg-surface-container-high transition-colors" onclick={closePlayback}>
+				<span class="material-symbols-outlined">close</span>
+			</button>
+		</div>
+		
+		<div class="flex-1 relative bg-surface-container">
+			<div bind:this={mapContainer} class="absolute inset-0 z-0"></div>
+			
+			<!-- Speed Overlay overlay -->
+			<div class="absolute top-4 left-4 z-[400] bg-surface-container-lowest/90 backdrop-blur-md px-4 py-2 rounded-xl shadow-lg border border-surface-container flex items-center gap-3">
+				<span class="material-symbols-outlined text-sky-500">speed</span>
+				<div class="flex flex-col">
+					<span class="text-xs font-semibold text-on-surface-variant uppercase tracking-wider">Kecepatan Saat Ini</span>
+					<span class="text-xl font-bold text-on-surface leading-none mt-1">{currentPlaybackSpeed} <span class="text-sm font-medium text-on-surface-variant">km/h</span></span>
+				</div>
+			</div>
+		</div>
+
+		<div class="p-6 bg-surface-container-lowest border-t border-surface-container flex flex-col gap-4">
+			<div class="flex items-center gap-4">
+				<button 
+					class="w-12 h-12 rounded-full flex items-center justify-center bg-sky-600 text-white hover:bg-sky-700 shadow-md transition-colors shrink-0" 
+					onclick={togglePlay}
+				>
+					<span class="material-symbols-outlined text-[28px]">{isPlaying ? 'pause' : 'play_arrow'}</span>
+				</button>
+				
+				<div class="flex-1 flex flex-col gap-2">
+					<div class="flex items-center justify-between text-xs font-medium text-on-surface-variant px-1">
+						<span>Titik Awal</span>
+						<span>{playbackData.length > 0 ? playbackData[currentPointIndex]?.time.split('T')[1].substring(0,5) : '00:00'}</span>
+						<span>Tujuan</span>
+					</div>
+					<input 
+						type="range" 
+						min="0" 
+						max={Math.max(0, playbackData.length - 1)} 
+						bind:value={currentPointIndex} 
+						class="w-full h-2 bg-surface-container-high rounded-full appearance-none cursor-pointer accent-sky-600"
+						oninput={() => { pausePlayback(); if(playbackData.length>0) { const p = playbackData[currentPointIndex]; truckMarker.setLatLng([p.lat, p.lon]); map.panTo([p.lat, p.lon]); currentPlaybackSpeed = p.speed; } }}
+					>
+				</div>
+				
+				<div class="flex items-center gap-2 bg-surface-container-low p-1.5 rounded-xl border border-surface-container">
+					{#each [1, 5, 10, 20] as speed}
+						<button 
+							class="w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold transition-all {playSpeed === speed ? 'bg-white shadow text-sky-600' : 'text-on-surface-variant hover:text-on-surface'}"
+							onclick={() => { 
+								playSpeed = speed; 
+								if(isPlaying) { 
+									clearInterval(playbackInterval); 
+									startPlayback(); 
+								} 
+							}}
+						>
+							{speed}x
+						</button>
+					{/each}
+				</div>
+			</div>
+		</div>
+	</div>
+</div>
+{/if}

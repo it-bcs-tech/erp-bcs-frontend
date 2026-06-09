@@ -11,6 +11,7 @@ export const load: PageServerLoad = async ({ url }) => {
 		const status = url.searchParams.get('status') || 'All';
 		const startDate = url.searchParams.get('startDate') || '';
 		const endDate = url.searchParams.get('endDate') || '';
+		const projectId = url.searchParams.get('projectId') || '';
 
 		// Dynamic Query
 		let conditions = [];
@@ -36,6 +37,11 @@ export const load: PageServerLoad = async ({ url }) => {
 			conditions.push(`o.tgl_muat <= $${params.length}::date`);
 		}
 
+		if (projectId && projectId !== 'All') {
+			params.push(projectId);
+			conditions.push(`o.project_id = $${params.length}`);
+		}
+
 		const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
 
 		const query = `
@@ -57,6 +63,7 @@ export const load: PageServerLoad = async ({ url }) => {
 			LEFT JOIN master.m_customer ori ON ori.id = o.origin_id
 			LEFT JOIN master.m_customer dest ON dest.id = o.destination_id
 			LEFT JOIN master.m_tipe_unit tu ON tu.id = o.tipe_unit_id
+			LEFT JOIN master.m_project p ON p.id = o.project_id
 			${whereClause}
 			ORDER BY o.created_at DESC
 		`;
@@ -80,17 +87,27 @@ export const load: PageServerLoad = async ({ url }) => {
 			margin: totalRevenue - totalUjo
 		};
 
+		// Get Projects for Dropdown
+		const projects = await sql`
+			SELECT id, project_name, category 
+			FROM master.m_project 
+			WHERE is_active = true 
+			ORDER BY project_name ASC
+		`;
+
 		return {
 			reports: reportsResult as any[],
+			projects: projects as {id: string, project_name: string, category: string}[],
 			summary,
-			filters: { search, status, startDate, endDate }
+			filters: { search, status, startDate, endDate, projectId }
 		};
 	} catch (error) {
 		console.error("Error loading marketing reports:", error);
 		return { 
 			reports: [],
+			projects: [],
 			summary: { totalOrders: 0, totalRevenue: 0, totalUjo: 0, margin: 0 },
-			filters: { search: '', status: 'All', startDate: '', endDate: '' }
+			filters: { search: '', status: 'All', startDate: '', endDate: '', projectId: 'All' }
 		};
 	}
 };

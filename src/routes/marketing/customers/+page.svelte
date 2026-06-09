@@ -83,11 +83,21 @@
 	}
 
 	let showEditModal = $state(false);
+	let isEditMode = $state(false);
 	let selectedCustomer = $state<any>(null);
 	let isSubmitting = $state(false);
 
+	function openAddModal() {
+		isEditMode = false;
+		selectedCustomer = {
+			name: '', type: 'Corporate', tier: 'Standard', contactPerson: '', phone: '', email: '', status: 'Active', alamat: '', latitude: '', longitude: ''
+		};
+		showEditModal = true;
+	}
+
 	function openEditModal(cust: any) {
-		selectedCustomer = cust;
+		isEditMode = true;
+		selectedCustomer = { ...cust };
 		showEditModal = true;
 	}
 	function closeEditModal() {
@@ -95,52 +105,26 @@
 		selectedCustomer = null;
 	}
 
-	let L: any;
+	let googleMapsLoaded = $state(false);
 	let showMapPicker = $state(false);
 	let mapElement = $state<HTMLElement | null>(null);
-	let pickerMap: any;
-	let pickerMarker: any;
-	let isFetchingAddress = $state(false);
+	let googleMap: any;
+	let googleMarker: any;
+	let autocomplete: any;
 	
+	let isFetchingAddress = $state(false);
 	let mapSearchQuery = $state('');
-	let isSearchingMap = $state(false);
 
-	async function searchMap(e: Event) {
-		e.preventDefault();
-		if (!mapSearchQuery.trim()) return;
-		isSearchingMap = true;
-		try {
-			const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(mapSearchQuery)}&limit=1`);
-			const data = await res.json();
-			if (data && data.length > 0) {
-				const { lat, lon, display_name } = data[0];
-				
-				// Move map and marker
-				if (pickerMap && pickerMarker) {
-					pickerMap.setView([lat, lon], 16);
-					pickerMarker.setLatLng([lat, lon]);
-				}
-				
-				// Update selected location
-				selectedCustomer = {
-					...selectedCustomer,
-					alamat: display_name,
-					latitude: parseFloat(lat).toFixed(6),
-					longitude: parseFloat(lon).toFixed(6)
-				};
-			} else {
-				alert("Lokasi tidak ditemukan. Coba kata kunci yang lebih spesifik.");
-			}
-		} catch (err) {
-			console.error("Map search failed", err);
-		} finally {
-			isSearchingMap = false;
-		}
-	}
-
-	onMount(async () => {
-		if (browser) {
-			L = await import('leaflet');
+	onMount(() => {
+		if (browser && !window.google && data.googleMapsApiKey) {
+			const script = document.createElement('script');
+			script.src = `https://maps.googleapis.com/maps/api/js?key=${data.googleMapsApiKey}&libraries=places`;
+			script.async = true;
+			script.defer = true;
+			script.onload = () => { googleMapsLoaded = true; };
+			document.head.appendChild(script);
+		} else if (window.google) {
+			googleMapsLoaded = true;
 		}
 	});
 
@@ -148,75 +132,90 @@
 		mapSearchQuery = '';
 		showMapPicker = true;
 		setTimeout(() => {
-			if (!mapElement || !L) return;
+			if (!mapElement || !window.google) return;
 			
-			const initialLat = selectedCustomer.latitude || -6.200000;
-			const initialLng = selectedCustomer.longitude || 106.816666;
+			const initialLat = parseFloat(selectedCustomer.latitude) || -6.200000;
+			const initialLng = parseFloat(selectedCustomer.longitude) || 106.816666;
+			const center = { lat: initialLat, lng: initialLng };
 			
-			pickerMap = L.map(mapElement).setView([initialLat, initialLng], 15);
-			L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-				attribution: '&copy; OpenStreetMap contributors'
-			}).addTo(pickerMap);
-
-			const icon = L.divIcon({
-				className: 'custom-pin',
-				html: `<div style="background-color: #e11d48; width: 24px; height: 24px; border-radius: 50%; border: 3px solid white; box-shadow: 0 0 10px rgba(0,0,0,0.3);"></div>`,
-				iconSize: [24, 24],
-				iconAnchor: [12, 12]
+			googleMap = new google.maps.Map(mapElement, {
+				center,
+				zoom: 15,
+				mapTypeControl: false,
+				streetViewControl: false,
 			});
 
-			pickerMarker = L.marker([initialLat, initialLng], { icon, draggable: true }).addTo(pickerMap);
+			googleMarker = new google.maps.Marker({
+				position: center,
+				map: googleMap,
+				draggable: true,
+				animation: google.maps.Animation.DROP
+			});
 
-			const updateLocation = async (lat: number, lng: number) => {
+			const geocoder = new google.maps.Geocoder();
+
+			const updateLocation = (latLng: any) => {
 				isFetchingAddress = true;
-				try {
-					const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`);
-					const data = await res.json();
-					if (data && data.display_name) {
+				const lat = latLng.lat();
+				const lng = latLng.lng();
+				
+				geocoder.geocode({ location: latLng }, (results: any, status: any) => {
+					isFetchingAddress = false;
+					if (status === "OK" && results[0]) {
 						selectedCustomer = {
 							...selectedCustomer,
-							alamat: data.display_name,
-							latitude: parseFloat(lat.toString()).toFixed(6),
-							longitude: parseFloat(lng.toString()).toFixed(6)
+							alamat: results[0].formatted_address,
+							latitude: lat.toFixed(6),
+							longitude: lng.toFixed(6)
+						};
+					} else {
+						selectedCustomer = {
+							...selectedCustomer,
+							latitude: lat.toFixed(6),
+							longitude: lng.toFixed(6)
 						};
 					}
-				} catch (err) {
-					console.error("Reverse geocoding failed", err);
-					selectedCustomer = {
-						...selectedCustomer,
-						latitude: parseFloat(lat.toString()).toFixed(6),
-						longitude: parseFloat(lng.toString()).toFixed(6)
-					};
-				} finally {
-					isFetchingAddress = false;
-				}
+				});
 			};
 
-			pickerMap.on('click', (e: any) => {
-				const { lat, lng } = e.latlng;
-				pickerMarker.setLatLng([lat, lng]);
-				updateLocation(lat, lng);
+			google.maps.event.addListener(googleMarker, 'dragend', () => {
+				updateLocation(googleMarker.getPosition());
+			});
+			google.maps.event.addListener(googleMap, 'click', (event: any) => {
+				googleMarker.setPosition(event.latLng);
+				updateLocation(event.latLng);
 			});
 
-			pickerMarker.on('dragend', (e: any) => {
-				const { lat, lng } = e.target.getLatLng();
-				updateLocation(lat, lng);
-			});
+			const input = document.getElementById('mapSearchInput') as HTMLInputElement;
+			if (input) {
+				autocomplete = new google.maps.places.Autocomplete(input);
+				autocomplete.bindTo('bounds', googleMap);
+				autocomplete.addListener('place_changed', () => {
+					const place = autocomplete.getPlace();
+					if (!place.geometry || !place.geometry.location) return;
+					
+					googleMap.setCenter(place.geometry.location);
+					googleMap.setZoom(17);
+					googleMarker.setPosition(place.geometry.location);
+					
+					selectedCustomer = {
+						...selectedCustomer,
+						alamat: place.formatted_address || place.name,
+						latitude: place.geometry.location.lat().toFixed(6),
+						longitude: place.geometry.location.lng().toFixed(6)
+					};
+				});
+			}
 		}, 100);
 	}
 
 	function closeMapPicker() {
-		if (pickerMap) {
-			pickerMap.remove();
-			pickerMap = null;
-		}
 		showMapPicker = false;
 	}
 </script>
 
 <svelte:head>
 	<title>Customers | Marketing</title>
-	<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 </svelte:head>
 
 <div class="flex flex-col h-full">
@@ -231,7 +230,7 @@
 				<span class="material-symbols-outlined text-lg">download</span>
 				Export
 			</button>
-			<button class="bg-rose-600 text-white px-5 py-2.5 rounded-xl text-sm font-semibold shadow-sm flex items-center gap-2 hover:bg-rose-700 transition-colors">
+			<button onclick={openAddModal} class="bg-rose-600 text-white px-5 py-2.5 rounded-xl text-sm font-semibold shadow-sm flex items-center gap-2 hover:bg-rose-700 transition-colors">
 				<span class="material-symbols-outlined text-lg">person_add</span>
 				Add Customer
 			</button>
@@ -440,8 +439,12 @@
 			<div class="p-6 border-b border-surface-container">
 				<div class="flex items-start justify-between">
 					<div>
-						<h3 class="text-xl font-bold text-on-surface">Edit Customer</h3>
-						<p class="text-xs text-on-surface-variant mt-1">Customer ID: <span class="font-bold text-on-surface">{selectedCustomer.id}</span></p>
+						<h3 class="text-xl font-bold text-on-surface">{isEditMode ? 'Edit Customer' : 'Add New Customer'}</h3>
+						{#if isEditMode}
+							<p class="text-xs text-on-surface-variant mt-1">Customer ID: <span class="font-bold text-on-surface">{selectedCustomer.id}</span></p>
+						{:else}
+							<p class="text-xs text-on-surface-variant mt-1">Customer ID will be auto-generated</p>
+						{/if}
 					</div>
 					<button onclick={closeEditModal} class="w-8 h-8 rounded-full bg-surface-container hover:bg-surface-container-high flex items-center justify-center text-on-surface-variant">
 						<span class="material-symbols-outlined text-lg">close</span>
@@ -449,7 +452,7 @@
 				</div>
 			</div>
 			
-			<form method="POST" action="?/editCustomer" use:enhance={() => {
+			<form method="POST" action={isEditMode ? '?/editCustomer' : '?/addCustomer'} use:enhance={() => {
 				isSubmitting = true;
 				return async ({ update, result }) => {
 					isSubmitting = false;
@@ -457,7 +460,9 @@
 					update();
 				};
 			}}>
-				<input type="hidden" name="id" value={selectedCustomer.id} />
+				{#if isEditMode}
+					<input type="hidden" name="id" value={selectedCustomer.id} />
+				{/if}
 				<div class="p-6 overflow-y-auto space-y-4">
 					<div>
 						<label class="block text-xs font-bold text-on-surface-variant mb-2">Customer Name</label>
@@ -561,19 +566,12 @@
 			<div class="p-0 h-[60vh] bg-surface-container-low relative">
 				<!-- Search Bar Overlay -->
 				<div class="absolute top-4 left-4 right-4 z-[1000] lg:left-1/2 lg:-translate-x-1/2 lg:w-96">
-					<form onsubmit={searchMap} class="flex gap-2">
+					<div class="relative w-full flex gap-2">
 						<div class="relative flex-1">
 							<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant text-[18px]">search</span>
-							<input type="text" bind:value={mapSearchQuery} placeholder="Cari lokasi (contoh: Monas)..." class="w-full bg-surface-container-lowest/95 backdrop-blur border border-surface-container rounded-xl pl-9 pr-3 py-2.5 text-sm shadow-md focus:outline-none focus:ring-2 focus:ring-rose-500/50" />
+							<input type="text" id="mapSearchInput" placeholder="Cari lokasi (contoh: Monas)..." class="w-full bg-surface-container-lowest/95 backdrop-blur border border-surface-container rounded-xl pl-9 pr-3 py-2.5 text-sm shadow-md focus:outline-none focus:ring-2 focus:ring-rose-500/50" />
 						</div>
-						<button type="submit" disabled={isSearchingMap} class="px-4 py-2.5 bg-surface-container-highest text-on-surface border border-surface-container rounded-xl shadow-md hover:bg-surface-container-high transition-colors disabled:opacity-50 flex items-center justify-center font-bold text-sm">
-							{#if isSearchingMap}
-								<span class="w-4 h-4 border-2 border-on-surface border-t-transparent rounded-full animate-spin"></span>
-							{:else}
-								Cari
-							{/if}
-						</button>
-					</form>
+					</div>
 				</div>
 				
 				<div bind:this={mapElement} class="w-full h-full z-0"></div>

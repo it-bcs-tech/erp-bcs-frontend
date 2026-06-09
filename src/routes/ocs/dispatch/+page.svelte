@@ -136,6 +136,93 @@
 		};
 	});
 
+	let showAlternatives: Record<string, boolean> = $state({});
+	let showSearchBox: Record<string, boolean> = $state({});
+	let contractSearchQuery: Record<string, string> = $state({});
+
+	let localContractOrders = $state<any[]>([]);
+
+	$effect(() => {
+		if (data.contractOrders && localContractOrders.length !== data.contractOrders.length) {
+			localContractOrders = JSON.parse(JSON.stringify(data.contractOrders));
+		}
+	});
+
+	function skipRecommendation(orderId: string) {
+		const order = localContractOrders.find(o => o.id === orderId);
+		if (order && order.alternatives && order.alternatives.length > 0) {
+			const oldUnit = {
+				unitId: order.ai_recommended_unit_id,
+				unitName: order.ai_recommended_unit,
+				driverId: order.ai_recommended_driver_id,
+				driverName: order.ai_recommended_driver,
+				reason: order.ai_reason || 'Di-skip'
+			};
+			const nextUnit = order.alternatives.shift();
+			
+			order.ai_recommended_unit = nextUnit.unitName;
+			order.ai_recommended_unit_id = nextUnit.unitId;
+			order.ai_recommended_driver = nextUnit.driverName;
+			order.ai_recommended_driver_id = nextUnit.driverId;
+			order.ai_reason = "Manual Skip: " + nextUnit.reason;
+			
+			if (oldUnit.unitId) {
+				order.alternatives.push(oldUnit);
+			}
+		}
+	}
+
+	function selectAlternative(orderId: string, altIndex: number) {
+		const order = localContractOrders.find(o => o.id === orderId);
+		if (order && order.alternatives) {
+			const oldUnit = {
+				unitId: order.ai_recommended_unit_id,
+				unitName: order.ai_recommended_unit,
+				driverId: order.ai_recommended_driver_id,
+				driverName: order.ai_recommended_driver,
+				reason: order.ai_reason || 'Pilihan sebelumnya'
+			};
+			const selectedUnit = order.alternatives.splice(altIndex, 1)[0];
+			
+			order.ai_recommended_unit = selectedUnit.unitName;
+			order.ai_recommended_unit_id = selectedUnit.unitId;
+			order.ai_recommended_driver = selectedUnit.driverName;
+			order.ai_recommended_driver_id = selectedUnit.driverId;
+			order.ai_reason = "Manual Select: " + selectedUnit.reason;
+			
+			if (oldUnit.unitId) {
+				order.alternatives.push(oldUnit);
+			}
+			showAlternatives[orderId] = false;
+			showSearchBox[orderId] = false;
+		}
+	}
+
+	function selectManualUnit(orderId: string, unit: any) {
+		const order = localContractOrders.find(o => o.id === orderId);
+		if (order) {
+			const oldUnit = {
+				unitId: order.ai_recommended_unit_id,
+				unitName: order.ai_recommended_unit,
+				driverId: order.ai_recommended_driver_id,
+				driverName: order.ai_recommended_driver,
+				reason: order.ai_reason || 'Pilihan sebelumnya'
+			};
+			
+			order.ai_recommended_unit = unit.id;
+			order.ai_recommended_unit_id = unit.unitId || unit.id;
+			order.ai_recommended_driver = unit.driver;
+			order.ai_recommended_driver_id = unit.driverId;
+			order.ai_reason = "Manual Search: Dipilih langsung oleh Dispatcher";
+			
+			if (oldUnit.unitId) {
+				if (!order.alternatives) order.alternatives = [];
+				order.alternatives.push(oldUnit);
+			}
+			showSearchBox[orderId] = false;
+		}
+	}
+
 	$effect(() => {
 		if (form?.success) {
 			closeUjoModal();
@@ -201,7 +288,7 @@
 		<!-- Orders List -->
 		<div class="lg:col-span-2">
 			<!-- AI Contract Auto-Dispatch Section -->
-			{#if data.contractOrders && data.contractOrders.length > 0}
+			{#if localContractOrders && localContractOrders.length > 0}
 				<div class="mb-6 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-2xl p-1 shadow-lg">
 					<div class="bg-surface-container-lowest rounded-xl p-5 h-full">
 						<div class="flex items-center justify-between mb-4">
@@ -212,7 +299,7 @@
 							<span class="text-[10px] font-bold px-2 py-1 bg-blue-100 text-blue-700 rounded uppercase">PO Routine</span>
 						</div>
 						
-						{#each data.contractOrders as contractOrder}
+						{#each localContractOrders as contractOrder}
 							<div class="bg-blue-50 dark:bg-blue-900/10 rounded-xl p-4 border border-blue-500/20 mb-3">
 								<div class="flex justify-between items-start mb-2">
 									<div>
@@ -228,17 +315,83 @@
 								<div class="bg-white dark:bg-surface-container-highest p-3 rounded-lg border border-surface-container mt-3">
 									<div class="flex items-start gap-3">
 										<span class="material-symbols-outlined text-amber-500 text-[20px] mt-0.5">tips_and_updates</span>
-										<div>
+										<div class="w-full">
 											<p class="text-[11px] text-on-surface-variant italic mb-2">"{contractOrder.ai_reason}"</p>
 											<div class="flex items-center justify-between">
 												<div>
-													<p class="text-[10px] uppercase font-bold text-on-surface-variant">Recommended Unit</p>
-													<p class="text-sm font-black text-blue-600">{contractOrder.ai_recommended_unit} &bull; {contractOrder.ai_recommended_driver}</p>
+													<p class="text-[10px] uppercase font-bold text-on-surface-variant mb-1">Recommended Unit</p>
+													<div class="flex items-center gap-2">
+														<p class="text-sm font-black text-blue-600">{contractOrder.ai_recommended_unit} &bull; {contractOrder.ai_recommended_driver}</p>
+														{#if contractOrder.alternatives && contractOrder.alternatives.length > 0}
+															<button type="button" onclick={() => skipRecommendation(contractOrder.id)} class="w-6 h-6 rounded-full bg-rose-100 text-rose-600 hover:bg-rose-200 flex items-center justify-center transition-colors" title="Skip unit ini">
+																<span class="material-symbols-outlined text-[14px]">close</span>
+															</button>
+														{/if}
+													</div>
 												</div>
-												<button class="bg-blue-600 text-white px-4 py-2 rounded-lg text-xs font-bold hover:bg-blue-700 shadow-sm flex items-center gap-1 transition-colors">
-													<span class="material-symbols-outlined text-[16px]">task_alt</span> Approve & Buat DO
-												</button>
+												<div class="flex items-center gap-2">
+													<button type="button" onclick={() => showSearchBox[contractOrder.id] = !showSearchBox[contractOrder.id]} class="px-3 py-2 {contractOrder.ai_recommended_unit_id ? 'bg-surface-container-high text-on-surface-variant' : 'bg-rose-100 text-rose-700 animate-pulse'} rounded-lg text-xs font-bold hover:bg-surface-container transition-colors flex items-center gap-1">
+														<span class="material-symbols-outlined text-[16px]">search</span> {contractOrder.ai_recommended_unit_id ? 'Tukar Unit Manual' : 'Pilih Unit Manual'}
+													</button>
+													{#if contractOrder.ai_recommended_unit_id}
+														<form method="POST" action="?/createDoFromPo" use:enhance={() => { isSubmitting = true; return async ({ update }) => { await update(); isSubmitting = false; } }}>
+															<input type="hidden" name="contractId" value={contractOrder.contract_id}>
+															<input type="hidden" name="unitId" value={contractOrder.ai_recommended_unit_id}>
+															<input type="hidden" name="driverId" value={contractOrder.ai_recommended_driver_id}>
+															<button type="submit" disabled={isSubmitting} class="bg-blue-600 text-white px-4 py-2 rounded-lg text-xs font-bold hover:bg-blue-700 shadow-sm flex items-center gap-1 transition-colors disabled:opacity-50">
+																<span class="material-symbols-outlined text-[16px]">task_alt</span> Approve Dispatch
+															</button>
+														</form>
+													{:else}
+														<button disabled class="bg-surface-container-high text-on-surface-variant px-4 py-2 rounded-lg text-xs font-bold cursor-not-allowed flex items-center gap-1 transition-colors">
+															<span class="material-symbols-outlined text-[16px]">hourglass_empty</span> Belum Ada Unit
+														</button>
+													{/if}
+												</div>
 											</div>
+											
+											{#if showSearchBox[contractOrder.id]}
+												<div class="mt-4 border-t border-surface-container pt-3 w-full">
+													<div class="relative mb-2">
+														<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant text-[18px]">search</span>
+														<input type="text" bind:value={contractSearchQuery[contractOrder.id]} placeholder="Cari unit atau supir..." class="w-full pl-9 pr-4 py-2 rounded-lg bg-surface-container-low border border-surface-container focus:border-blue-500 outline-none text-xs" />
+													</div>
+													<div class="max-h-48 overflow-y-auto pr-2 space-y-2">
+														{#each availableUnits.filter(u => !contractSearchQuery[contractOrder.id] || u.id.toLowerCase().includes(contractSearchQuery[contractOrder.id].toLowerCase()) || u.driver.toLowerCase().includes(contractSearchQuery[contractOrder.id].toLowerCase())) as unit}
+															<div class="flex items-center justify-between p-2 bg-surface-container-lowest border border-surface-container hover:border-blue-300 rounded-lg group cursor-pointer transition-colors" onclick={() => selectManualUnit(contractOrder.id, unit)}>
+																<div>
+																	<p class="text-xs font-bold text-on-surface">{unit.id} <span class="text-[10px] text-on-surface-variant font-normal">({unit.type})</span></p>
+																	<p class="text-[10px] text-on-surface-variant">{unit.driver}</p>
+																</div>
+																<button class="text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity">Pilih</button>
+															</div>
+														{/each}
+													</div>
+												</div>
+											{/if}
+
+											{#if contractOrder.alternatives && contractOrder.alternatives.length > 0}
+												<div class="mt-4 border-t border-surface-container pt-3 w-full">
+													<button onclick={() => showAlternatives[contractOrder.id] = !showAlternatives[contractOrder.id]} class="text-[11px] font-bold text-blue-600 flex items-center gap-1 hover:underline">
+														<span class="material-symbols-outlined text-[16px] transition-transform {showAlternatives[contractOrder.id] ? 'rotate-180' : ''}">expand_more</span> Tampilkan {contractOrder.alternatives.length} Alternatif Unit Lainnya
+													</button>
+													{#if showAlternatives[contractOrder.id]}
+														<div class="mt-3 flex flex-col gap-2">
+															{#each contractOrder.alternatives as alt, idx}
+																<div class="flex items-center justify-between p-2 bg-surface-container-lowest border border-surface-container rounded-lg">
+																	<div>
+																		<p class="text-xs font-bold text-on-surface">{alt.unitName}</p>
+																		<p class="text-[10px] text-on-surface-variant">{alt.driverName} • {alt.reason}</p>
+																	</div>
+																	<button onclick={() => selectAlternative(contractOrder.id, idx)} class="px-3 py-1 bg-surface-container hover:bg-blue-100 hover:text-blue-700 text-on-surface-variant text-[10px] font-bold rounded transition-colors">
+																		Pilih
+																	</button>
+																</div>
+															{/each}
+														</div>
+													{/if}
+												</div>
+											{/if}
 										</div>
 									</div>
 								</div>
@@ -304,6 +457,16 @@
 							</div>
 						</div>
 
+						{#if !order.origin_lat || !order.dest_lat}
+							<div class="p-3 rounded-xl bg-rose-50 border border-rose-200 dark:bg-rose-900/20 dark:border-rose-900/50 flex items-center gap-3 mb-4">
+								<span class="material-symbols-outlined text-rose-600 dark:text-rose-400 text-lg">warning</span>
+								<div>
+									<p class="text-xs font-bold text-rose-700 dark:text-rose-400">Koordinat Lokasi Belum Diset</p>
+									<p class="text-[10px] text-rose-600/80 dark:text-rose-400/80">Lengkapi lat/long di Master Customer agar unit bisa diberangkatkan.</p>
+								</div>
+							</div>
+						{/if}
+
 						{#if order.assignedUnit}
 							<div class="p-3 rounded-xl bg-surface-container border border-surface-container-high flex items-center gap-3 mb-4">
 								<span class="material-symbols-outlined text-on-surface-variant text-lg">local_shipping</span>
@@ -316,7 +479,7 @@
 
 						<div class="pt-3 border-t border-surface-container flex justify-end">
 							{#if order.status === 'WAITING_UJO'}
-								<button onclick={() => openUjoModal(order)} class="px-4 py-2 bg-indigo-600 text-white rounded-lg text-xs font-bold shadow-sm hover:bg-indigo-700 transition-colors flex items-center gap-2">
+								<button onclick={() => openUjoModal(order)} disabled={!order.origin_lat || !order.dest_lat} class="px-4 py-2 bg-indigo-600 text-white rounded-lg text-xs font-bold shadow-sm hover:bg-indigo-700 transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
 									<span class="material-symbols-outlined text-[16px]">add_task</span>
 									Assign Unit & Input UJO
 								</button>
@@ -331,13 +494,10 @@
 									</button>
 								</div>
 							{:else if order.status === 'READY_TO_DISPATCH'}
-								<form method="POST" action="?/finalizeDispatch" use:enhance={() => { isSubmitting = true; return async ({ update }) => { await update(); isSubmitting = false; } }}>
-									<input type="hidden" name="orderId" value={order.id}>
-									<button type="submit" disabled={isSubmitting} class="px-4 py-2 bg-emerald-600 text-white rounded-lg text-xs font-bold shadow-sm hover:bg-emerald-700 transition-colors flex items-center gap-2 disabled:opacity-50">
-										<span class="material-symbols-outlined text-[16px]">send</span>
-										Finalize Dispatch & Send UJO
-									</button>
-								</form>
+								<div class="px-4 py-2 bg-emerald-50 text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-900/50 rounded-lg text-xs font-bold flex items-center gap-2 justify-center w-full shadow-sm">
+									<span class="material-symbols-outlined text-[16px] animate-spin">sync</span>
+									Menunggu Kasir Mencairkan UJO
+								</div>
 							{:else if order.status === 'DISPATCHED'}
 								<form method="POST" action="?/submitClosing" use:enhance={() => { isSubmitting = true; return async ({ update }) => { await update(); isSubmitting = false; } }}>
 									<input type="hidden" name="orderId" value={order.id}>

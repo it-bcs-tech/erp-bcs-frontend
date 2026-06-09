@@ -60,11 +60,22 @@ export const actions: Actions = {
 					SET status = 'COMPLETED',
 						closing_payment_status = 'PAID'
 					WHERE id = ${orderId}
-					RETURNING assigned_unit_id
+					RETURNING assigned_unit_id, contract_id, COALESCE(real_weight, berat_muatan, 0) as final_weight
 				`;
 
 				if (orderData.length > 0) {
 					const unitId = orderData[0].assigned_unit_id;
+					const contractId = orderData[0].contract_id;
+					const finalWeight = orderData[0].final_weight;
+
+					// 1.b. Update Contract delivered_tonnage if it's a contract order
+					if (contractId) {
+						await sql`
+							UPDATE marketing.contract
+							SET delivered_tonnage = COALESCE(delivered_tonnage, 0) + ${finalWeight}
+							WHERE id = ${contractId}
+						`;
+					}
 					
 					// 2. Mark corresponding active Trip as COMPLETED
 					await sql`

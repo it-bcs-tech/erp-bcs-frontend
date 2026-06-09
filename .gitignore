@@ -39,3 +39,9 @@ logs/
 db/
 test_db.mjs
 schema_check*.js
+
+# Temporary/Test scripts and files
+query.js
+test_*.js
+scripts/
+tarif_tol.csv

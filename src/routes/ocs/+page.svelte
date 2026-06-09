@@ -150,7 +150,9 @@
 								</td>
 								<td class="py-4 px-6">
 									<p class="text-sm font-bold text-on-surface">{formatCurrency(j.ujo)}</p>
-									<span class="text-[9px] font-bold uppercase {j.ujoStatus === 'Paid' ? 'text-emerald-600' : 'text-amber-600'}">{j.ujoStatus}</span>
+									<span class="text-[9px] font-bold uppercase {j.ujoStatus === 'PAID' ? 'text-emerald-600' : 'text-amber-600'}">
+										{j.ujoStatus === 'PAID' ? 'Sudah Cair' : 'Menunggu Kasir'}
+									</span>
 								</td>
 							</tr>
 						{/each}

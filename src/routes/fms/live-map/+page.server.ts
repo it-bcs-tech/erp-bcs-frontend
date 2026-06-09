@@ -13,6 +13,7 @@ export const load: PageServerLoad = async ({ fetch }) => {
 			destination: string;
 			cargo: string;
 			customer: string;
+			status: string;
 		}[]>`
 			SELECT 
 				t.id,
@@ -23,6 +24,7 @@ export const load: PageServerLoad = async ({ fetch }) => {
 				t.destination, 
 				t.cargo,
 				t.customer,
+				t.status,
 				c_ori.latitude as origin_lat,
 				c_ori.longitude as origin_lng,
 				c_dest.latitude as dest_lat,
@@ -64,6 +66,22 @@ export const load: PageServerLoad = async ({ fetch }) => {
 					  Math.sin(dLon/2) * Math.sin(dLon/2);
 			const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
 			return R * c;
+		}
+
+		function getBearing(lat1: number, lon1: number, lat2: number, lon2: number) {
+			const toRad = (deg: number) => deg * Math.PI / 180;
+			const toDeg = (rad: number) => rad * 180 / Math.PI;
+			const dLon = toRad(lon2 - lon1);
+			const y = Math.sin(dLon) * Math.cos(toRad(lat2));
+			const x = Math.cos(toRad(lat1)) * Math.sin(toRad(lat2)) -
+					  Math.sin(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.cos(dLon);
+			let brng = toDeg(Math.atan2(y, x));
+			return (brng + 360) % 360;
+		}
+
+		function getAngleDiff(a1: number, a2: number) {
+			let diff = Math.abs(a1 - a2) % 360;
+			return diff > 180 ? 360 - diff : diff;
 		}
 
 		// Definisi Geofence Pool Resmi
@@ -145,17 +163,36 @@ export const load: PageServerLoad = async ({ fetch }) => {
 				}
 			}
 
-			// Jika tidak di pool, tidak ada cargo aktif, dan bergerak, maka "Menuju Pool"
-			if (!isAtPool && (!dbTrip || !dbTrip.cargo) && v.speed > 0) {
-				// Cari pool terdekat untuk perkiraan destinasi
+			// Jika sedang RETURNING atau (tidak ada cargo dan sedang bergerak), arahkan ke Pool
+			if (dbTrip?.status === 'RETURNING' || (!isAtPool && (!dbTrip || !dbTrip.cargo) && v.speed > 0)) {
 				let nearestPool = POOLS[0];
-				let minDist = getDistanceKm(lat, lon, POOLS[0].lat, POOLS[0].lng);
-				for (let i = 1; i < POOLS.length; i++) {
-					const d = getDistanceKm(lat, lon, POOLS[i].lat, POOLS[i].lng);
-					if (d < minDist) { minDist = d; nearestPool = POOLS[i]; }
+				let vehicleHeading = typeof v.direction === 'number' ? v.direction : parseInt(v.direction || '0') || 0;
+				
+				// Hitung selisih sudut (heading) unit saat ini terhadap titik kordinat Pool
+				let minAngleDiff = 360;
+				
+				for (const pool of POOLS) {
+					// Hitung arah ideal dari lokasi unit saat ini ke pool tersebut
+					const idealBearing = getBearing(lat, lon, pool.lat, pool.lng);
+					// Bandingkan arah ideal dengan arah jalan unit saat ini (heading)
+					const angleDiff = getAngleDiff(vehicleHeading, idealBearing);
+					
+					if (angleDiff < minAngleDiff) {
+						minAngleDiff = angleDiff;
+						nearestPool = pool;
+					}
 				}
+				
 				geofenceStatus = `Menuju ${nearestPool.name}`;
 				finalDestination = nearestPool.name;
+				
+				// Rute di peta: dari destinasi kustomer (atau lokasi saat ini) ke pool
+				if (dbTrip?.status === 'RETURNING') {
+					originLat = dbTrip?.dest_lat ? parseFloat(dbTrip.dest_lat) : lat;
+					originLng = dbTrip?.dest_lng ? parseFloat(dbTrip.dest_lng) : lon;
+				}
+				destLat = nearestPool.lat;
+				destLng = nearestPool.lng;
 			}
 			
 			return {

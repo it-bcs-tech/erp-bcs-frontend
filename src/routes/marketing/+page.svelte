@@ -144,7 +144,7 @@
 				Sales Pipeline
 			</h3>
 			<div class="space-y-4">
-				<div class="flex items-center gap-4 bg-white/5 hover:bg-white/10 p-3 -mx-3 rounded-xl backdrop-blur-sm transition-colors cursor-pointer">
+				<div class="flex items-center gap-4 bg-white/5 hover:bg-white/10 p-3 -mx-3 rounded-xl backdrop-blur-sm transition-colors cursor-pointer" onclick={() => window.location.href = '/marketing/pipeline'}>
 					<div class="w-10 h-10 rounded-full bg-blue-500/20 text-blue-400 flex items-center justify-center flex-shrink-0">
 						<span class="material-symbols-outlined text-sm">call</span>
 					</div>
@@ -154,31 +154,31 @@
 							<div class="bg-blue-400 h-full rounded-full" style="width: 100%"></div>
 						</div>
 					</div>
-					<span class="text-xl font-black text-blue-400">24</span>
+					<span class="text-xl font-black text-blue-400">{data.pipelineCounts.PROSPECTING}</span>
 				</div>
-				<div class="flex items-center gap-4 bg-white/5 hover:bg-white/10 p-3 -mx-3 rounded-xl backdrop-blur-sm transition-colors cursor-pointer">
+				<div class="flex items-center gap-4 bg-white/5 hover:bg-white/10 p-3 -mx-3 rounded-xl backdrop-blur-sm transition-colors cursor-pointer" onclick={() => window.location.href = '/marketing/pipeline'}>
 					<div class="w-10 h-10 rounded-full bg-amber-500/20 text-amber-400 flex items-center justify-center flex-shrink-0">
 						<span class="material-symbols-outlined text-sm">handshake</span>
 					</div>
 					<div class="flex-1">
-						<p class="text-sm font-bold">Negotiation</p>
+						<p class="text-sm font-bold">Negotiation & Quotation</p>
 						<div class="w-full bg-white/10 h-1.5 rounded-full mt-2 overflow-hidden">
 							<div class="bg-amber-400 h-full rounded-full" style="width: 50%"></div>
 						</div>
 					</div>
-					<span class="text-xl font-black text-amber-400">12</span>
+					<span class="text-xl font-black text-amber-400">{data.pipelineCounts.NEGOTIATION + data.pipelineCounts.QUOTATION}</span>
 				</div>
-				<div class="flex items-center gap-4 bg-white/5 hover:bg-white/10 p-3 -mx-3 rounded-xl backdrop-blur-sm transition-colors cursor-pointer">
+				<div class="flex items-center gap-4 bg-white/5 hover:bg-white/10 p-3 -mx-3 rounded-xl backdrop-blur-sm transition-colors cursor-pointer" onclick={() => window.location.href = '/marketing/pipeline'}>
 					<div class="w-10 h-10 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center flex-shrink-0">
 						<span class="material-symbols-outlined text-sm">verified</span>
 					</div>
 					<div class="flex-1">
-						<p class="text-sm font-bold">Contracted</p>
+						<p class="text-sm font-bold">Won / Contracted</p>
 						<div class="w-full bg-white/10 h-1.5 rounded-full mt-2 overflow-hidden">
 							<div class="bg-emerald-400 h-full rounded-full" style="width: 75%"></div>
 						</div>
 					</div>
-					<span class="text-xl font-black text-emerald-400">64</span>
+					<span class="text-xl font-black text-emerald-400">{data.pipelineCounts.WON}</span>
 				</div>
 			</div>
 		</div>

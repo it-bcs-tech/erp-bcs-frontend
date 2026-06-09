@@ -1,0 +1,54 @@
+import { json } from '@sveltejs/kit';
+import type { RequestHandler } from './$types';
+import postgres from 'postgres';
+import { env } from '$env/dynamic/private';
+
+const sql = postgres(env.DATABASE_URL || 'postgres://bcs_admin:sangatrahasia@103.31.205.199:5433/mybcs_db');
+
+export const GET: RequestHandler = async ({ params }) => {
+	try {
+		const tripId = params.id;
+		if (!tripId) {
+			return json({ success: false, error: 'Missing trip ID' }, { status: 400 });
+		}
+
+		// Also fetch origin and destination for completeness
+		const tripData = await sql`
+			SELECT 
+				t.id, u.nomor_unit as unit, t.status,
+				o.latitude as origin_lat, o.longitude as origin_lon, o.nama_kustomer as origin_name,
+				d.latitude as dest_lat, d.longitude as dest_lon, d.nama_kustomer as dest_name
+			FROM fleet.trip t
+			LEFT JOIN fleet.unit u ON u.id = t.unit_id
+			LEFT JOIN master.m_customer o ON o.id = t.origin_id
+			LEFT JOIN master.m_customer d ON d.id = t.destination_id
+			WHERE t.id = ${tripId}
+		`;
+
+		if (tripData.length === 0) {
+			return json({ success: false, error: 'Trip not found' }, { status: 404 });
+		}
+
+		const paths = await sql`
+			SELECT lat, lon, speed, recorded_at 
+			FROM fleet.trip_path 
+			WHERE trip_id = ${tripId}
+			ORDER BY recorded_at ASC
+		`;
+
+		return json({
+			success: true,
+			trip: tripData[0],
+			path: paths.map(p => ({
+				lat: parseFloat(p.lat),
+				lon: parseFloat(p.lon),
+				speed: p.speed,
+				time: p.recorded_at
+			}))
+		});
+
+	} catch (error: any) {
+		console.error("Trip Path API Error:", error);
+		return json({ success: false, error: error.message }, { status: 500 });
+	}
+};

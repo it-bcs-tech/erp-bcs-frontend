@@ -209,7 +209,47 @@ export const load: PageServerLoad = async () => {
 			}))
 		];
 
+		// ── 8. Active Contracts for Tonnage Tracker ──────────────────────────────
+		const activeContracts = await sql<{
+			contract_id: string;
+			target_tonnage: string;
+			delivered_tonnage: string;
+			onroute_tonnage: string;
+			loading_tonnage: string;
+			customer: string | null;
+			project_category: string | null;
+		}[]>`
+			SELECT 
+				c.id as contract_id,
+				c.target_tonnage,
+				COALESCE(c.delivered_tonnage, 0) as delivered_tonnage,
+				(SELECT COALESCE(SUM(o.berat_muatan), 0) FROM marketing.sales_order o LEFT JOIN fleet.trip t ON t.unit_id = o.assigned_unit_id AND t.status NOT IN ('COMPLETED', 'CANCELED') WHERE o.contract_id = c.id AND o.status NOT IN ('COMPLETED', 'CANCELED') AND (t.id IS NULL OR t.status IN ('SCHEDULED', 'DISPATCHED'))) as dispatched_tonnage,
+				(SELECT COALESCE(SUM(o.berat_muatan), 0) FROM marketing.sales_order o JOIN fleet.trip t ON t.unit_id = o.assigned_unit_id AND t.status NOT IN ('COMPLETED', 'CANCELED') WHERE o.contract_id = c.id AND t.status = 'AT_ORIGIN') as loading_tonnage,
+				(SELECT COALESCE(SUM(o.berat_muatan), 0) FROM marketing.sales_order o JOIN fleet.trip t ON t.unit_id = o.assigned_unit_id AND t.status NOT IN ('COMPLETED', 'CANCELED') WHERE o.contract_id = c.id AND t.status IN ('ON_ROUTE', 'AT_DESTINATION', 'RETURNING')) as onroute_tonnage,
+				cust.nama_kustomer as customer,
+				p.category as project_category
+			FROM marketing.contract c
+			LEFT JOIN master.m_customer cust ON cust.id = c.customer_id
+			LEFT JOIN master.m_project p ON p.id = c.project_id
+			WHERE c.status = 'Active' 
+			  AND COALESCE(c.delivered_tonnage, 0) < c.target_tonnage
+			  AND (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Jakarta')::date BETWEEN c.start_date AND c.end_date
+			ORDER BY c.created_at DESC
+			LIMIT 5
+		`;
+
 		return {
+			activeContracts: activeContracts.map(c => ({
+				id: c.contract_id,
+				customer: c.customer || 'Unknown',
+				project_category: c.project_category || '-',
+				targetTonnage: Number(c.target_tonnage) || 0,
+				deliveredTonnage: Number(c.delivered_tonnage) || 0,
+				onrouteTonnage: Number(c.onroute_tonnage) || 0,
+				loadingTonnage: Number(c.loading_tonnage) || 0,
+				dispatchedTonnage: Number(c.dispatched_tonnage) || 0,
+				remainingTonnage: Math.max(0, (Number(c.target_tonnage) || 0) - (Number(c.delivered_tonnage) || 0) - (Number(c.onroute_tonnage) || 0) - (Number(c.loading_tonnage) || 0) - (Number(c.dispatched_tonnage) || 0))
+			})),
 			metrics: {
 				totalVehicles:       total,
 				activeVehicles:      active,

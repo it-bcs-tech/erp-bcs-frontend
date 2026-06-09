@@ -46,13 +46,34 @@ export const load: PageServerLoad = async ({ url }) => {
 			if (t.status === 'COMPLETED') {
 				mappedStatus = 'Completed';
 				progress = 100;
-			} else if (t.status === 'AT_DESTINATION') {
+			} else if (t.status === 'RETURNING') {
 				mappedStatus = 'In Transit';
 				progress = 90;
+			} else if (t.status === 'AT_DESTINATION') {
+				mappedStatus = 'In Transit';
+				progress = 75;
+			} else if (t.status === 'ON_ROUTE') {
+				mappedStatus = 'In Transit';
+				progress = 60;
+			} else if (t.status === 'AT_ORIGIN') {
+				mappedStatus = 'In Transit';
+				progress = 40;
 			} else if (t.status === 'DISPATCHED') {
 				mappedStatus = 'In Transit';
-				progress = 50;
+				progress = 20;
+			} else if (t.status === 'CANCELED') {
+				mappedStatus = 'Canceled';
+				progress = 0;
 			}
+
+			const completedStatuses = {
+				'AT_POOL': true,
+				'HEADING_ORIGIN': ['AT_ORIGIN', 'ON_ROUTE', 'AT_DESTINATION', 'RETURNING', 'COMPLETED'].includes(t.status),
+				'AT_ORIGIN': ['ON_ROUTE', 'AT_DESTINATION', 'RETURNING', 'COMPLETED'].includes(t.status),
+				'HEADING_DEST': ['AT_DESTINATION', 'RETURNING', 'COMPLETED'].includes(t.status),
+				'AT_DEST': ['RETURNING', 'COMPLETED'].includes(t.status),
+				'RETURNING': t.status === 'COMPLETED'
+			};
 
 			// Generate horizontal timeline history
 			const history = [
@@ -60,43 +81,43 @@ export const load: PageServerLoad = async ({ url }) => {
 					step: 'AT_POOL', 
 					label: 'Standby at Pool', 
 					time: createdTime, 
-					completed: true, 
-					active: mappedStatus === 'Scheduled' 
+					completed: completedStatuses['AT_POOL'], 
+					active: t.status === 'SCHEDULED' 
 				},
 				{ 
 					step: 'HEADING_ORIGIN', 
 					label: 'Heading to Origin', 
 					time: departTime, 
-					completed: !!departTime || mappedStatus !== 'Scheduled', 
-					active: false 
+					completed: completedStatuses['HEADING_ORIGIN'], 
+					active: t.status === 'DISPATCHED' 
 				},
 				{ 
 					step: 'AT_ORIGIN', 
 					label: 'Loading at Origin', 
 					time: null, 
-					completed: mappedStatus !== 'Scheduled', 
-					active: false 
+					completed: completedStatuses['AT_ORIGIN'], 
+					active: t.status === 'AT_ORIGIN' 
 				},
 				{ 
 					step: 'HEADING_DEST', 
 					label: 'On Route to Dest', 
 					time: null, 
-					completed: mappedStatus === 'Completed' || t.status === 'AT_DESTINATION', 
-					active: mappedStatus === 'In Transit' && t.status === 'DISPATCHED' 
+					completed: completedStatuses['HEADING_DEST'], 
+					active: t.status === 'ON_ROUTE' 
 				},
 				{ 
 					step: 'AT_DEST', 
 					label: 'Unloading at Dest', 
 					time: arriveTime, 
-					completed: mappedStatus === 'Completed', 
+					completed: completedStatuses['AT_DEST'], 
 					active: t.status === 'AT_DESTINATION' 
 				},
 				{ 
 					step: 'RETURNING', 
 					label: 'Returning to Pool', 
 					time: null, 
-					completed: mappedStatus === 'Completed', 
-					active: mappedStatus === 'Completed'
+					completed: completedStatuses['RETURNING'], 
+					active: t.status === 'RETURNING'
 				},
 			];
 

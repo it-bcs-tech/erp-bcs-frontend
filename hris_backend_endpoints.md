@@ -47,7 +47,34 @@
       "joinDate": "2020-01-15",
       "avatar": "https://ui-avatars.com/api/?name=Budi+Santoso"
     }
-  ]
+}
+```
+
+---
+
+## 2.1 Employee Detail
+- **Method:** `GET`
+- **Endpoint:** `/api/v1/hris/employees/{id}`
+- **Deskripsi:** Menampilkan detail data karyawan spesifik berdasarkan ID karyawan.
+- **Expected Response:**
+```json
+{
+  "status": "success",
+  "message": "Employee details retrieved successfully",
+  "data": {
+    "id": "EMP-001",
+    "name": "Budi Santoso",
+    "role": "Manager Operations",
+    "department": "Operations",
+    "email": "budi.s@bcslabs.tech",
+    "phone": "+6281234567890",
+    "status": "Active",
+    "joinDate": "2020-01-15",
+    "avatar": "https://ui-avatars.com/api/?name=Budi+Santoso",
+    "address": "Jl. Sudirman No. 123, Cilegon",
+    "manager": "Siti Aminah",
+    "employmentType": "Full-time"
+  }
 }
 ```
 

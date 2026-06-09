@@ -9,6 +9,7 @@
 	let statusFilter = $state(data.filters.status);
 	let startDate = $state(data.filters.startDate);
 	let endDate = $state(data.filters.endDate);
+	let projectIdFilter = $state(data.filters.projectId || 'All');
 	
 	function applyFilters() {
 		const url = new URL(window.location.href);
@@ -23,6 +24,9 @@
 		
 		if (endDate) url.searchParams.set('endDate', endDate);
 		else url.searchParams.delete('endDate');
+
+		if (projectIdFilter && projectIdFilter !== 'All') url.searchParams.set('projectId', projectIdFilter);
+		else url.searchParams.delete('projectId');
 		
 		goto(url.toString(), { keepFocus: true });
 	}
@@ -32,6 +36,7 @@
 		statusFilter = 'All';
 		startDate = '';
 		endDate = '';
+		projectIdFilter = 'All';
 		applyFilters();
 	}
 
@@ -61,10 +66,19 @@
 	<!-- Filters -->
 	<div class="bg-surface-container-lowest p-6 rounded-[24px] shadow-sm mb-8">
 		<h3 class="text-sm font-bold text-on-surface mb-4">Filter Reports</h3>
-		<div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+		<div class="grid grid-cols-1 md:grid-cols-5 gap-4">
 			<div>
 				<label class="block text-xs font-bold text-on-surface-variant mb-1">Search</label>
 				<input type="text" bind:value={search} placeholder="DO or Customer..." class="w-full bg-surface-container-low border border-surface-container rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-rose-500/50">
+			</div>
+			<div>
+				<label class="block text-xs font-bold text-on-surface-variant mb-1">Unit Bisnis / Project</label>
+				<select bind:value={projectIdFilter} class="w-full bg-surface-container-low border border-surface-container rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-rose-500/50">
+					<option value="All">All Projects</option>
+					{#each data.projects as p}
+						<option value={p.id}>{p.project_name}</option>
+					{/each}
+				</select>
 			</div>
 			<div>
 				<label class="block text-xs font-bold text-on-surface-variant mb-1">Status</label>

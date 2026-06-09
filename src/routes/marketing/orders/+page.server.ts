@@ -11,23 +11,26 @@ export const load: PageServerLoad = async () => {
 		const orders = await sql`
 			SELECT 
 				o.id,
-				c.nama_kustomer as customer_name,
+				c.nama_kustomer as customer,
 				ori.nama_kustomer as origin_name,
 				dest.nama_kustomer as destination_name,
 				tu.nama_tipe as vehicle_type,
+				p.project_name as project,
+				p.category as project_category,
 				o.jenis_muatan,
 				o.berat_muatan,
 				o.tgl_muat,
-				o.tgl_bongkar,
+				o.status,
 				o.estimated_ujo,
 				o.tariff,
-				o.status,
-				o.created_at
+				r.tarif_customer as recommended_tariff
 			FROM marketing.sales_order o
 			LEFT JOIN master.m_customer c ON c.id = o.customer_id
 			LEFT JOIN master.m_customer ori ON ori.id = o.origin_id
 			LEFT JOIN master.m_customer dest ON dest.id = o.destination_id
 			LEFT JOIN master.m_tipe_unit tu ON tu.id = o.tipe_unit_id
+			LEFT JOIN master.m_project p ON p.id = o.project_id
+			LEFT JOIN master.m_rute_ujo r ON r.origin_id = o.origin_id AND r.destination_id = o.destination_id AND r.tipe_unit_id = o.tipe_unit_id
 			ORDER BY o.created_at DESC
 		`;
 
@@ -46,10 +49,19 @@ export const load: PageServerLoad = async () => {
 			ORDER BY nama_tipe ASC
 		`;
 
+		// Get Projects for Dropdown
+		const projects = await sql`
+			SELECT id, project_name, category 
+			FROM master.m_project 
+			WHERE is_active = true 
+			ORDER BY project_name ASC
+		`;
+
 		return {
 			orders: orders as any[],
 			customers: customers as {id: string, nama_kustomer: string}[],
-			vehicleTypes: vehicleTypes as {id: string, nama_tipe: string}[]
+			vehicleTypes: vehicleTypes as {id: string, nama_tipe: string}[],
+			projects: projects as {id: string, project_name: string, category: string}[]
 		};
 	} catch (error) {
 		console.error("Error loading marketing orders:", error);
@@ -64,12 +76,13 @@ export const actions: Actions = {
 		const originId = data.get('originId') as string;
 		const destinationId = data.get('destinationId') as string;
 		const vehicleTypeId = data.get('vehicleTypeId') as string;
+		const projectId = data.get('projectId') as string;
 		const cargoType = data.get('cargoType') as string;
 		const weight = parseFloat(data.get('weight') as string) || null;
 		const loadDate = data.get('loadDate') as string;
 		const unloadDate = data.get('unloadDate') as string;
 
-		if (!customerId || !originId || !destinationId || !vehicleTypeId || !cargoType || !loadDate) {
+		if (!customerId || !originId || !destinationId || !vehicleTypeId || !projectId || !cargoType || !loadDate) {
 			return fail(400, { missing: true, message: 'Harap lengkapi semua field wajib!' });
 		}
 
@@ -83,10 +96,10 @@ export const actions: Actions = {
 
 			await sql`
 				INSERT INTO marketing.sales_order (
-					id, customer_id, origin_id, destination_id, tipe_unit_id, 
+					id, customer_id, origin_id, destination_id, tipe_unit_id, project_id,
 					jenis_muatan, berat_muatan, tgl_muat, tgl_bongkar, status
 				) VALUES (
-					${soId}, ${customerId}, ${originId}, ${destinationId}, ${vehicleTypeId},
+					${soId}, ${customerId}, ${originId}, ${destinationId}, ${vehicleTypeId}, ${projectId},
 					${cargoType}, ${weight}, ${loadDate}, ${unloadDate || null}, 'WAITING_UJO'
 				)
 			`;

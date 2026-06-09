@@ -44,9 +44,16 @@
 				<span class="material-symbols-outlined">person_pin</span>
 				<span class="font-medium text-sm">Assign Driver</span>
 			</a>
+			
+			<!-- Section Divider: Master Data -->
+			<div class="pt-3 pb-1 px-4">
+				<p class="text-[9px] font-black text-on-surface-variant/50 uppercase tracking-[0.2em]">Master Data</p>
+			</div>
 
-
-		</nav>
+			<a class="flex items-center gap-3 px-4 py-3 rounded-xl transition-transform duration-200 hover:translate-x-1 {$page.url.pathname.includes('/ocs/rute') ? 'bg-surface-container-highest text-sky-600 dark:text-sky-400' : 'text-on-surface-variant hover:bg-surface-container'}" href="/ocs/rute">
+				<span class="material-symbols-outlined">route</span>
+				<span class="font-medium text-sm">Master Rute (UJO)</span>
+			</a>
 	</aside>
 
 	<!-- Main Content Canvas -->

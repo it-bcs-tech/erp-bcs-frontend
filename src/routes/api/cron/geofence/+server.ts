@@ -34,7 +34,14 @@ export const GET: RequestHandler = async ({ fetch }) => {
 				COALESCE(o.geofence_radius, 2000) as o_rad, 
 				d.latitude as d_lat, 
 				d.longitude as d_lon, 
-				COALESCE(d.geofence_radius, 2000) as d_rad
+				COALESCE(d.geofence_radius, 2000) as d_rad,
+				t.last_lat,
+				t.last_lon,
+				COALESCE(t.distance_km, 0) as distance_km,
+				COALESCE(t.max_speed_kmh, 0) as max_speed_kmh,
+				COALESCE(t.avg_speed_kmh, 0) as avg_speed_kmh,
+				COALESCE(t.stop_count, 0) as stop_count,
+				t.depart_time
 			FROM fleet.trip t
 			JOIN fleet.unit u ON u.id = t.unit_id
 			LEFT JOIN master.m_customer o ON o.id = t.origin_id
@@ -59,16 +66,16 @@ export const GET: RequestHandler = async ({ fetch }) => {
 			const nopol = (v.nopol || v.vehicle_id || '').replace(/\s+/g, '').toUpperCase();
 			let lat = v.lat || 0;
 			let lon = v.lon || 0;
+			let speed = v.speed || 0;
 			
 			// Fallback parsing if currentStatusVehicle has more accurate coords
 			if (v.currentStatusVehicle) {
 				if (v.currentStatusVehicle.driving && v.currentStatusVehicle.driving.start_detail?.lat) {
-					// Use current live lat/lon, wait... driving has start_detail but current live is in v.lat/v.lon.
-					// We trust v.lat/v.lon as the current live coordinate.
+					// Use current live lat/lon
 				}
 			}
 			if (lat !== 0 && lon !== 0) {
-				gpsMap.set(nopol, { lat, lon });
+				gpsMap.set(nopol, { lat, lon, speed });
 			}
 		}
 
@@ -81,8 +88,60 @@ export const GET: RequestHandler = async ({ fetch }) => {
 			const gps = gpsMap.get(nopolClean);
 			if (!gps) continue; // No GPS signal for this truck
 
-			// Update last_seen in trip table
-			await sql`UPDATE fleet.trip SET last_lat = ${gps.lat}, last_lon = ${gps.lon}, last_seen = NOW() WHERE id = ${trip.id}`;
+			// Update last_seen and calculate metrics if ON_ROUTE
+			let newDistance = parseFloat(trip.distance_km);
+			let newMaxSpeed = parseInt(trip.max_speed_kmh);
+			let newAvgSpeed = parseInt(trip.avg_speed_kmh);
+			let newStopCount = parseInt(trip.stop_count);
+			
+			if (['DISPATCHED', 'AT_ORIGIN', 'ON_ROUTE'].includes(trip.status)) {
+				const currentSpeed = Math.round(gps.speed || 0);
+				let shouldLogPath = false;
+
+				if (trip.last_lat && trip.last_lon) {
+					const deltaMeters = haversine(parseFloat(trip.last_lat), parseFloat(trip.last_lon), gps.lat, gps.lon);
+					if (deltaMeters > 20 && deltaMeters < 5000) { // filter out GPS jumps
+						newDistance += (deltaMeters / 1000);
+						shouldLogPath = true;
+					}
+				} else {
+					shouldLogPath = true; // first ping
+				}
+				
+				if (currentSpeed > newMaxSpeed) newMaxSpeed = currentSpeed;
+				
+				// Very basic cumulative average
+				if (currentSpeed > 0) {
+					newAvgSpeed = newAvgSpeed === 0 ? currentSpeed : Math.round((newAvgSpeed + currentSpeed) / 2);
+				} else if (currentSpeed === 0) {
+					newStopCount += 1;
+				}
+
+				// Log path for playback
+				if (shouldLogPath || currentSpeed > 0) {
+					await sql`
+						INSERT INTO fleet.trip_path (trip_id, lat, lon, speed) 
+						VALUES (${trip.id}, ${gps.lat}, ${gps.lon}, ${currentSpeed})
+					`;
+				}
+			}
+			
+			const fuelUsed = newDistance / 3.0; // 1:3 ratio
+			
+			await sql`
+				UPDATE fleet.trip 
+				SET 
+					last_lat = ${gps.lat}, 
+					last_lon = ${gps.lon}, 
+					last_seen = NOW(),
+					distance_km = ${newDistance},
+					max_speed_kmh = ${newMaxSpeed},
+					avg_speed_kmh = ${newAvgSpeed},
+					stop_count = ${newStopCount},
+					fuel_used_l = ${fuelUsed}
+				WHERE id = ${trip.id}
+			`;
+			updatedCount++;
 
 			// Rule A: Arriving at Origin -> AT_ORIGIN
 			if (trip.status === 'DISPATCHED' && trip.o_lat && trip.o_lon) {
