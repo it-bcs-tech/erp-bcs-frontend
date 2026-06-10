@@ -59,6 +59,7 @@
 	let playbackInterval: any;
 	
 	let playbackData = $state<{lat: number, lon: number, speed: number, time: string}[]>([]);
+	let restAreaLogs = $state<any[]>([]);
 	let currentPointIndex = $state(0);
 	let currentPlaybackSpeed = $state(0);
 	let playbackTripId = $state('');
@@ -67,6 +68,7 @@
 		playbackTripId = tripId;
 		showPlaybackModal = true;
 		playbackData = [];
+		restAreaLogs = [];
 		currentPointIndex = 0;
 		isPlaying = false;
 		currentPlaybackSpeed = 0;
@@ -76,6 +78,7 @@
 			const resData = await res.json();
 			if (resData.success && resData.path.length > 0) {
 				playbackData = resData.path;
+				restAreaLogs = resData.rest_areas || [];
 			} else {
 				alert("Tidak ada data path tersimpan untuk trip ini.");
 				showPlaybackModal = false;
@@ -376,6 +379,23 @@
 				</div>
 			</div>
 		</div>
+
+		{#if restAreaLogs.length > 0}
+			<div class="px-6 py-3 bg-amber-50 border-t border-amber-200 flex items-center gap-4 overflow-x-auto">
+				<span class="text-xs font-bold text-amber-800 uppercase tracking-widest whitespace-nowrap">Rest Area Stops:</span>
+				{#each restAreaLogs as log}
+					<div class="flex items-center gap-2 bg-white px-3 py-1.5 rounded-lg border border-amber-200 shadow-sm whitespace-nowrap">
+						<span class="material-symbols-outlined text-[16px] text-amber-600">local_cafe</span>
+						<div>
+							<p class="text-xs font-bold text-on-surface leading-none">{log.nama_rest_area}</p>
+							<p class="text-[10px] text-on-surface-variant font-medium mt-0.5">
+								{log.duration_minutes ? Math.round(log.duration_minutes) + ' mins' : 'Masih istirahat...'}
+							</p>
+						</div>
+					</div>
+				{/each}
+			</div>
+		{/if}
 
 		<div class="p-6 bg-surface-container-lowest border-t border-surface-container flex flex-col gap-4">
 			<div class="flex items-center gap-4">

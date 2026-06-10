@@ -78,6 +78,10 @@
 				<span class="material-symbols-outlined">map</span>
 				<span class="font-medium text-sm">Live Map</span>
 			</a>
+			<a class="flex items-center gap-3 px-4 py-3 rounded-xl transition-transform duration-200 hover:translate-x-1 {$page.url.pathname.includes('/fms/rest-area') ? 'bg-surface-container-highest text-blue-600 dark:text-blue-400' : 'text-on-surface-variant hover:bg-surface-container'}" href="/fms/rest-area">
+				<span class="material-symbols-outlined">local_cafe</span>
+				<span class="font-medium text-sm">Rest Areas</span>
+			</a>
 		</nav>
 	</aside>
 

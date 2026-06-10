@@ -36,9 +36,18 @@ export const GET: RequestHandler = async ({ params }) => {
 			ORDER BY recorded_at ASC
 		`;
 
+		const restAreaLogs = await sql`
+			SELECT r.nama_rest_area, l.enter_time, l.exit_time, l.duration_minutes
+			FROM fleet.trip_rest_area_log l
+			JOIN master.m_rest_area r ON r.id = l.rest_area_id
+			WHERE l.trip_id = ${tripId}
+			ORDER BY l.enter_time ASC
+		`;
+
 		return json({
 			success: true,
 			trip: tripData[0],
+			rest_areas: restAreaLogs,
 			path: paths.map(p => ({
 				lat: parseFloat(p.lat),
 				lon: parseFloat(p.lon),

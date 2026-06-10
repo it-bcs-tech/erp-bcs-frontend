@@ -20,6 +20,20 @@ function haversine(lat1: number, lon1: number, lat2: number, lon2: number): numb
 	return R * c; // in meters
 }
 
+function pointInPolygon(point: {lat: number, lon: number}, polygon: {lat: number, lng: number}[]): boolean {
+	let x = point.lat, y = point.lon;
+	let inside = false;
+	for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+		let xi = polygon[i].lat, yi = polygon[i].lng;
+		let xj = polygon[j].lat, yj = polygon[j].lng;
+		
+		let intersect = ((yi > y) !== (yj > y))
+			&& (x < (xj - xi) * (y - yi) / (yj - yi) + xi);
+		if (intersect) inside = !inside;
+	}
+	return inside;
+}
+
 export const GET: RequestHandler = async ({ fetch }) => {
 	try {
 		// 1. Fetch active trips that are subject to geofence auto-pilot
@@ -54,7 +68,10 @@ export const GET: RequestHandler = async ({ fetch }) => {
 			return json({ success: true, message: 'No active trips to monitor.', logs: [] });
 		}
 
-		// 2. Fetch latest GPS coordinates from EasyGo API wrapper
+		// 2. Fetch active Rest Areas
+		const restAreas = await sql`SELECT id, nama_rest_area, polygon_points FROM master.m_rest_area WHERE is_active = true`;
+
+		// 3. Fetch latest GPS coordinates from EasyGo API wrapper
 		const res = await fetch(`${env.FMS_API_URL || 'http://localhost:8081'}/api/fms/live-map`);
 		if (!res.ok) throw new Error('Failed to fetch EasyGo GPS data');
 		const gpsData = await res.json();
@@ -165,7 +182,59 @@ export const GET: RequestHandler = async ({ fetch }) => {
 				}
 			}
 
-			// Rule C: Arriving at Destination -> AT_DESTINATION
+			// Rule C: Rest Area Monitoring (Polygon & Speed & Dwell Time)
+			if (restAreas.length > 0) {
+				for (const ra of restAreas) {
+					// Check Polygon
+					const inPolygon = pointInPolygon({lat: gps.lat, lon: gps.lon}, ra.polygon_points);
+					
+					// Check if there is an active log for this rest area
+					const activeLog = await sql`
+						SELECT id, enter_time 
+						FROM fleet.trip_rest_area_log 
+						WHERE trip_id = ${trip.id} AND rest_area_id = ${ra.id} AND exit_time IS NULL
+						LIMIT 1
+					`;
+
+					if (inPolygon) {
+						// Inside box
+						if (activeLog.length === 0 && currentSpeed < 10) {
+							// Just entered and slowed down -> log it
+							await sql`
+								INSERT INTO fleet.trip_rest_area_log (trip_id, rest_area_id, enter_time) 
+								VALUES (${trip.id}, ${ra.id}, NOW())
+							`;
+							logs.push(`[REST-AREA] Truk ${trip.nomor_unit} memasuki Rest Area ${ra.nama_rest_area} (Speed: ${currentSpeed}km/h).`);
+						}
+					} else {
+						// Outside box
+						if (activeLog.length > 0) {
+							// Just left -> set exit_time and duration
+							const logId = activeLog[0].id;
+							
+							const exitRes = await sql`
+								UPDATE fleet.trip_rest_area_log 
+								SET exit_time = NOW(),
+									duration_minutes = EXTRACT(EPOCH FROM (NOW() - enter_time)) / 60
+								WHERE id = ${logId}
+								RETURNING duration_minutes
+							`;
+							
+							const duration = exitRes[0]?.duration_minutes || 0;
+							
+							// If duration < 3 mins, delete it (fly-by or traffic jam)
+							if (duration < 3) {
+								await sql`DELETE FROM fleet.trip_rest_area_log WHERE id = ${logId}`;
+								logs.push(`[REST-AREA-FLYBY] Truk ${trip.nomor_unit} keluar dari Rest Area ${ra.nama_rest_area}. Durasi: ${Math.round(duration)}m (<3m, Dihapus).`);
+							} else {
+								logs.push(`[REST-AREA-STOP] Truk ${trip.nomor_unit} selesai istirahat di Rest Area ${ra.nama_rest_area}. Durasi: ${Math.round(duration)}m.`);
+							}
+						}
+					}
+				}
+			}
+
+			// Rule D: Arriving at Destination -> AT_DESTINATION
 			if (trip.status === 'ON_ROUTE' && trip.d_lat && trip.d_lon) {
 				const distance = haversine(gps.lat, gps.lon, parseFloat(trip.d_lat), parseFloat(trip.d_lon));
 				if (distance <= trip.d_rad) {

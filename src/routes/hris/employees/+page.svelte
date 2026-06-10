@@ -193,11 +193,15 @@
 				</button>
 				
 				{#each Array(totalPages) as _, i}
-					<button 
-						class="w-8 h-8 rounded-lg flex items-center justify-center font-bold text-sm shadow-sm transition-colors {currentPage === i + 1 ? 'bg-primary text-on-primary' : 'text-on-surface hover:bg-surface-container-high'}"
-						onclick={() => goToPage(i + 1)}>
-						{i + 1}
-					</button>
+					{#if Math.abs(currentPage - (i + 1)) <= 2 || i === 0 || i === totalPages - 1}
+						<button 
+							class="w-8 h-8 rounded-lg flex items-center justify-center font-bold text-sm shadow-sm transition-colors {currentPage === i + 1 ? 'bg-primary text-on-primary' : 'text-on-surface hover:bg-surface-container-high'}"
+							onclick={() => goToPage(i + 1)}>
+							{i + 1}
+						</button>
+					{:else if Math.abs(currentPage - (i + 1)) === 3}
+						<span class="w-8 h-8 flex items-center justify-center text-on-surface-variant text-sm font-bold">...</span>
+					{/if}
 				{/each}
 
 				<button 
