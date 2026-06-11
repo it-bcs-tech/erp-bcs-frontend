@@ -130,13 +130,19 @@
 			<h1 class="text-3xl font-extrabold text-on-surface tracking-tight">User Management</h1>
 			<p class="text-sm text-on-surface-variant font-medium mt-1">Manage ERP access, roles, and modular permissions.</p>
 		</div>
-		<button 
-			onclick={() => showAddModal = true}
-			class="bg-primary text-on-primary px-5 py-2.5 rounded-full font-bold shadow-md hover:shadow-lg transition-all flex items-center gap-2 transform active:scale-95"
-		>
-			<span class="material-symbols-outlined text-sm">person_add</span>
-			Add New User
-		</button>
+		<div class="flex items-center gap-3">
+			<span class="inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full {data.dataSource === 'laravel' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}">
+				<span class="w-1.5 h-1.5 rounded-full {data.dataSource === 'laravel' ? 'bg-emerald-500' : 'bg-amber-500'}"></span>
+				{data.dataSource === 'laravel' ? 'Laravel API' : 'Svelte Fallback'}
+			</span>
+			<button 
+				onclick={() => showAddModal = true}
+				class="bg-primary text-on-primary px-5 py-2.5 rounded-full font-bold shadow-md hover:shadow-lg transition-all flex items-center gap-2 transform active:scale-95"
+			>
+				<span class="material-symbols-outlined text-sm">person_add</span>
+				Add New User
+			</button>
+		</div>
 	</div>
 
 	<!-- Users Table -->
