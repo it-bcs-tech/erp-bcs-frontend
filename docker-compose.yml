@@ -38,6 +38,7 @@ services:
       POSTGRES_USER: bcs_admin
       POSTGRES_PASSWORD: sangatrahasia
       POSTGRES_DB: mybcs_db
+      TZ: Asia/Jakarta
     ports:
       - "5433:5432" # Dibuka agar Anda bisa mengecek DB menggunakan DBeaver/TablePlus dari Macbook
     volumes:

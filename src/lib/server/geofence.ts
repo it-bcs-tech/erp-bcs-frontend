@@ -44,9 +44,11 @@ export async function runGeofenceEngine() {
 				o.latitude as o_lat, 
 				o.longitude as o_lon, 
 				COALESCE(o.geofence_radius, 2000) as o_rad, 
+				o.polygon_points as o_polygon,
 				d.latitude as d_lat, 
 				d.longitude as d_lon, 
 				COALESCE(d.geofence_radius, 2000) as d_rad,
+				d.polygon_points as d_polygon,
 				t.last_lat,
 				t.last_lon,
 				COALESCE(t.distance_km, 0) as distance_km,
@@ -154,24 +156,40 @@ export async function runGeofenceEngine() {
 
 			// Rule A: Arriving at Origin -> AT_ORIGIN
 			if (trip.status === 'DISPATCHED' && trip.o_lat && trip.o_lon) {
-				const distance = haversine(gps.lat, gps.lon, parseFloat(trip.o_lat), parseFloat(trip.o_lon));
-				if (distance <= trip.o_rad) {
+				let isInside = false;
+				let distance = 0;
+				if (trip.o_polygon && trip.o_polygon.length > 2) {
+					isInside = pointInPolygon({lat: gps.lat, lon: gps.lon}, trip.o_polygon);
+				} else {
+					distance = haversine(gps.lat, gps.lon, parseFloat(trip.o_lat), parseFloat(trip.o_lon));
+					isInside = distance <= trip.o_rad;
+				}
+
+				if (isInside) {
 					await sql`UPDATE fleet.trip SET status = 'AT_ORIGIN' WHERE id = ${trip.id}`;
 					await sql`INSERT INTO fleet.trip_status_log (trip_id, status) VALUES (${trip.id}, 'AT_ORIGIN')`;
 					await sql`INSERT INTO fleet.trip_checkpoint (trip_id, event, lat, lon, notes) VALUES (${trip.id}, 'AT_ORIGIN', ${gps.lat}, ${gps.lon}, 'Auto-pilot: Tiba di Origin')`;
-					logs.push(`[GEOFENCE-ARRIVE-ORIGIN] Truk ${trip.nomor_unit} tiba di Origin (${distance.toFixed(0)}m). Status -> AT_ORIGIN`);
+					logs.push(`[GEOFENCE-ARRIVE-ORIGIN] Truk ${trip.nomor_unit} tiba di Origin. Status -> AT_ORIGIN`);
 					updatedCount++;
 				}
 			}
 
 			// Rule B: Leaving Origin -> ON_ROUTE
 			if (trip.status === 'AT_ORIGIN' && trip.o_lat && trip.o_lon) {
-				const distance = haversine(gps.lat, gps.lon, parseFloat(trip.o_lat), parseFloat(trip.o_lon));
-				if (distance > trip.o_rad) {
+				let isOutside = false;
+				let distance = 0;
+				if (trip.o_polygon && trip.o_polygon.length > 2) {
+					isOutside = !pointInPolygon({lat: gps.lat, lon: gps.lon}, trip.o_polygon);
+				} else {
+					distance = haversine(gps.lat, gps.lon, parseFloat(trip.o_lat), parseFloat(trip.o_lon));
+					isOutside = distance > trip.o_rad;
+				}
+
+				if (isOutside) {
 					await sql`UPDATE fleet.trip SET status = 'ON_ROUTE', depart_time = NOW() WHERE id = ${trip.id}`;
 					await sql`INSERT INTO fleet.trip_status_log (trip_id, status) VALUES (${trip.id}, 'ON_ROUTE')`;
 					await sql`INSERT INTO fleet.trip_checkpoint (trip_id, event, lat, lon, notes) VALUES (${trip.id}, 'ON_ROUTE', ${gps.lat}, ${gps.lon}, 'Auto-pilot: Berangkat dari Origin')`;
-					logs.push(`[GEOFENCE-LEAVE] Truk ${trip.nomor_unit} telah keluar radius origin (${distance.toFixed(0)}m). Status -> ON_ROUTE`);
+					logs.push(`[GEOFENCE-LEAVE] Truk ${trip.nomor_unit} telah keluar geofence origin. Status -> ON_ROUTE`);
 					updatedCount++;
 				}
 			}
@@ -221,12 +239,20 @@ export async function runGeofenceEngine() {
 
 			// Rule D: Arriving at Destination -> AT_DESTINATION
 			if (trip.status === 'ON_ROUTE' && trip.d_lat && trip.d_lon) {
-				const distance = haversine(gps.lat, gps.lon, parseFloat(trip.d_lat), parseFloat(trip.d_lon));
-				if (distance <= trip.d_rad) {
+				let isInside = false;
+				let distance = 0;
+				if (trip.d_polygon && trip.d_polygon.length > 2) {
+					isInside = pointInPolygon({lat: gps.lat, lon: gps.lon}, trip.d_polygon);
+				} else {
+					distance = haversine(gps.lat, gps.lon, parseFloat(trip.d_lat), parseFloat(trip.d_lon));
+					isInside = distance <= trip.d_rad;
+				}
+
+				if (isInside) {
 					await sql`UPDATE fleet.trip SET status = 'AT_DESTINATION', arrive_time = NOW() WHERE id = ${trip.id}`;
 					await sql`INSERT INTO fleet.trip_status_log (trip_id, status) VALUES (${trip.id}, 'AT_DESTINATION')`;
 					await sql`INSERT INTO fleet.trip_checkpoint (trip_id, event, lat, lon, notes) VALUES (${trip.id}, 'AT_DESTINATION', ${gps.lat}, ${gps.lon}, 'Auto-pilot: Tiba di Destination')`;
-					logs.push(`[GEOFENCE-ARRIVE] Truk ${trip.nomor_unit} telah masuk radius tujuan (${distance.toFixed(0)}m). Status -> AT_DESTINATION`);
+					logs.push(`[GEOFENCE-ARRIVE] Truk ${trip.nomor_unit} telah masuk geofence tujuan. Status -> AT_DESTINATION`);
 					updatedCount++;
 					continue;
 				}

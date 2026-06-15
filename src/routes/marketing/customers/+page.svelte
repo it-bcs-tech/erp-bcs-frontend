@@ -110,7 +110,10 @@
 	let mapElement = $state<HTMLElement | null>(null);
 	let googleMap: any;
 	let googleMarker: any;
+	let googlePolygon: any;
+	let googlePolygonCoords: any[] = [];
 	let autocomplete: any;
+	let mapMode = $state<'point' | 'polygon'>('point');
 	
 	let isFetchingAddress = $state(false);
 	let mapSearchQuery = $state('');
@@ -118,7 +121,7 @@
 	onMount(() => {
 		if (browser && !window.google && data.googleMapsApiKey) {
 			const script = document.createElement('script');
-			script.src = `https://maps.googleapis.com/maps/api/js?key=${data.googleMapsApiKey}&libraries=places`;
+			script.src = `https://maps.googleapis.com/maps/api/js?key=${data.googleMapsApiKey}&libraries=places,drawing`;
 			script.async = true;
 			script.defer = true;
 			script.onload = () => { googleMapsLoaded = true; };
@@ -152,6 +155,17 @@
 				animation: google.maps.Animation.DROP
 			});
 
+			googlePolygon = new google.maps.Polygon({
+				map: googleMap,
+				paths: selectedCustomer.polygonPoints || [],
+				strokeColor: "#10b981",
+				strokeOpacity: 0.8,
+				strokeWeight: 2,
+				fillColor: "#10b981",
+				fillOpacity: 0.35,
+			});
+			googlePolygonCoords = selectedCustomer.polygonPoints ? [...selectedCustomer.polygonPoints] : [];
+
 			const geocoder = new google.maps.Geocoder();
 
 			const updateLocation = (latLng: any) => {
@@ -182,8 +196,14 @@
 				updateLocation(googleMarker.getPosition());
 			});
 			google.maps.event.addListener(googleMap, 'click', (event: any) => {
-				googleMarker.setPosition(event.latLng);
-				updateLocation(event.latLng);
+				if (mapMode === 'point') {
+					googleMarker.setPosition(event.latLng);
+					updateLocation(event.latLng);
+				} else {
+					googlePolygonCoords.push({ lat: event.latLng.lat(), lng: event.latLng.lng() });
+					googlePolygon.setPath(googlePolygonCoords);
+					selectedCustomer = { ...selectedCustomer, polygonPoints: googlePolygonCoords };
+				}
 			});
 
 			const input = document.getElementById('mapSearchInput') as HTMLInputElement;
@@ -207,6 +227,12 @@
 				});
 			}
 		}, 100);
+	}
+
+	function resetPolygon() {
+		googlePolygonCoords = [];
+		if (googlePolygon) googlePolygon.setPath([]);
+		selectedCustomer = { ...selectedCustomer, polygonPoints: null };
 	}
 
 	function closeMapPicker() {
@@ -522,6 +548,7 @@
 							<input type="number" step="any" name="longitude" value={selectedCustomer.longitude || ''} placeholder="106.123456" class="w-full bg-surface-container-low border border-surface-container rounded-xl px-4 py-3 text-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-rose-500/50">
 						</div>
 					</div>
+					<input type="hidden" name="polygonPoints" value={selectedCustomer.polygonPoints ? JSON.stringify(selectedCustomer.polygonPoints) : ''} />
 
 					<div class="grid grid-cols-2 gap-4">
 						<div>
@@ -565,11 +592,24 @@
 			</div>
 			<div class="p-0 h-[60vh] bg-surface-container-low relative">
 				<!-- Search Bar Overlay -->
-				<div class="absolute top-4 left-4 right-4 z-[1000] lg:left-1/2 lg:-translate-x-1/2 lg:w-96">
-					<div class="relative w-full flex gap-2">
-						<div class="relative flex-1">
+				<div class="absolute top-4 left-4 right-4 z-[1000] lg:left-1/2 lg:-translate-x-1/2 lg:w-[32rem]">
+					<div class="relative w-full flex flex-col gap-2">
+						<div class="relative w-full">
 							<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant text-[18px]">search</span>
 							<input type="text" id="mapSearchInput" placeholder="Cari lokasi (contoh: Monas)..." class="w-full bg-surface-container-lowest/95 backdrop-blur border border-surface-container rounded-xl pl-9 pr-3 py-2.5 text-sm shadow-md focus:outline-none focus:ring-2 focus:ring-rose-500/50" />
+						</div>
+						<div class="flex items-center gap-2 bg-surface-container-lowest/95 backdrop-blur p-1 rounded-xl shadow-md border border-surface-container w-fit">
+							<button onclick={() => mapMode = 'point'} class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-colors {mapMode === 'point' ? 'bg-rose-100 text-rose-700' : 'text-on-surface-variant hover:bg-surface-container-high'}">
+								<span class="material-symbols-outlined text-[16px]">location_on</span> Point
+							</button>
+							<button onclick={() => mapMode = 'polygon'} class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-colors {mapMode === 'polygon' ? 'bg-emerald-100 text-emerald-700' : 'text-on-surface-variant hover:bg-surface-container-high'}">
+								<span class="material-symbols-outlined text-[16px]">polyline</span> Geofence Polygon
+							</button>
+							{#if mapMode === 'polygon'}
+							<button onclick={resetPolygon} class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold text-rose-600 hover:bg-rose-50 transition-colors ml-2 border border-rose-200">
+								<span class="material-symbols-outlined text-[16px]">delete</span> Reset
+							</button>
+							{/if}
 						</div>
 					</div>
 				</div>

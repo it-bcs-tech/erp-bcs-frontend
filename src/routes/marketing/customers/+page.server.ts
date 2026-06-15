@@ -37,6 +37,7 @@ export const load: PageServerLoad = async () => {
 				c.alamat,
 				c.latitude,
 				c.longitude,
+				c.polygon_points as "polygonPoints",
 				'30 Days' as term, -- Mock term
 				c.is_active,
 				COUNT(o.id) as "totalOrders",
@@ -82,6 +83,7 @@ export const actions: Actions = {
 		const alamat = data.get('alamat')?.toString() || null;
 		const latitude = data.get('latitude')?.toString() || null;
 		const longitude = data.get('longitude')?.toString() || null;
+		const polygonPoints = data.get('polygonPoints')?.toString() || null;
 		
 		if (!name) {
 			return fail(400, { error: 'Nama kustomer wajib diisi.' });
@@ -118,13 +120,19 @@ export const actions: Actions = {
 			const kode_kustomer = `${prefix}${nextSeq.toString().padStart(3, '0')}`;
 			const isActive = status === 'Active';
 
+			let parsedPolygon = null;
+			if (polygonPoints) {
+				try { parsedPolygon = JSON.parse(polygonPoints); } catch(e) {}
+			}
+
 			await sql`
 				INSERT INTO master.m_customer (
 					kode_kustomer, nama_kustomer, kategori, tier, contact_person,
-					phone, email, alamat, latitude, longitude, is_active
+					phone, email, alamat, latitude, longitude, polygon_points, is_active
 				) VALUES (
 					${kode_kustomer}, ${name}, ${type}, ${tier}, ${contactPerson},
-					${phone}, ${email}, ${alamat}, ${latitude ? parseFloat(latitude) : null}, ${longitude ? parseFloat(longitude) : null}, ${isActive}
+					${phone}, ${email}, ${alamat}, ${latitude ? parseFloat(latitude) : null}, ${longitude ? parseFloat(longitude) : null}, 
+					${parsedPolygon ? sql.json(parsedPolygon) : null}, ${isActive}
 				)
 			`;
 			
@@ -147,12 +155,18 @@ export const actions: Actions = {
 		const alamat = data.get('alamat')?.toString();
 		const latitude = data.get('latitude')?.toString();
 		const longitude = data.get('longitude')?.toString();
+		const polygonPoints = data.get('polygonPoints')?.toString();
 		
 		if (!id || !name) {
 			return fail(400, { error: 'ID and Name are required' });
 		}
 		
 		try {
+			let parsedPolygon = null;
+			if (polygonPoints) {
+				try { parsedPolygon = JSON.parse(polygonPoints); } catch(e) {}
+			}
+
 			await sql`
 				UPDATE master.m_customer
 				SET 
@@ -165,6 +179,7 @@ export const actions: Actions = {
 					alamat = ${alamat || null},
 					latitude = ${latitude ? parseFloat(latitude) : null},
 					longitude = ${longitude ? parseFloat(longitude) : null},
+					polygon_points = ${parsedPolygon ? sql.json(parsedPolygon) : null},
 					is_active = ${status === 'Active'}
 				WHERE id = ${id}
 			`;

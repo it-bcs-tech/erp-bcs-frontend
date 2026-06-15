@@ -393,6 +393,29 @@
 					}).addTo(map);
 					originM.bindPopup("<div style='font-family:system-ui;font-size:11px;font-weight:700;'>📍 Titik Berangkat (Origin)</div>");
 					mapLayers.push(originM);
+
+					// Draw Origin Geofence
+					if (selectedUnit.originPolygon && selectedUnit.originPolygon.length > 2) {
+						const pts = selectedUnit.originPolygon.map((p: any) => [p.lat, p.lng]);
+						const originGeo = L.polygon(pts, {
+							color: getStatusColor(selectedUnit.status),
+							weight: 2,
+							fillColor: getStatusColor(selectedUnit.status),
+							fillOpacity: 0.15,
+							dashArray: '5, 5'
+						}).addTo(map);
+						mapLayers.push(originGeo);
+					} else {
+						const originGeo = L.circle([selectedUnit.originLat, selectedUnit.originLng], {
+							radius: selectedUnit.originRad || 2000,
+							color: getStatusColor(selectedUnit.status),
+							weight: 2,
+							fillColor: getStatusColor(selectedUnit.status),
+							fillOpacity: 0.1,
+							dashArray: '5, 5'
+						}).addTo(map);
+						mapLayers.push(originGeo);
+					}
 				}
 
 				if (selectedUnit.destLat && selectedUnit.destLng) {
@@ -401,6 +424,29 @@
 					}).addTo(map);
 					destM.bindPopup("<div style='font-family:system-ui;font-size:11px;font-weight:700;'>🎯 Titik Tujuan (Destination)</div>");
 					mapLayers.push(destM);
+
+					// Draw Destination Geofence
+					if (selectedUnit.destPolygon && selectedUnit.destPolygon.length > 2) {
+						const pts = selectedUnit.destPolygon.map((p: any) => [p.lat, p.lng]);
+						const destGeo = L.polygon(pts, {
+							color: '#ef4444',
+							weight: 2,
+							fillColor: '#ef4444',
+							fillOpacity: 0.15,
+							dashArray: '5, 5'
+						}).addTo(map);
+						mapLayers.push(destGeo);
+					} else {
+						const destGeo = L.circle([selectedUnit.destLat, selectedUnit.destLng], {
+							radius: selectedUnit.destRad || 2000,
+							color: '#ef4444',
+							weight: 2,
+							fillColor: '#ef4444',
+							fillOpacity: 0.1,
+							dashArray: '5, 5'
+						}).addTo(map);
+						mapLayers.push(destGeo);
+					}
 				}
 			}
 		}

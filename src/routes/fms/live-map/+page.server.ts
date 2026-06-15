@@ -27,8 +27,12 @@ export const load: PageServerLoad = async ({ fetch }) => {
 				t.status,
 				c_ori.latitude as origin_lat,
 				c_ori.longitude as origin_lng,
+				COALESCE(c_ori.geofence_radius, 2000) as origin_rad,
+				c_ori.polygon_points as origin_polygon,
 				c_dest.latitude as dest_lat,
-				c_dest.longitude as dest_lng
+				c_dest.longitude as dest_lng,
+				COALESCE(c_dest.geofence_radius, 2000) as dest_rad,
+				c_dest.polygon_points as dest_polygon
 			FROM fleet.trip t
 			JOIN fleet.unit u ON u.id = t.unit_id
 			LEFT JOIN master.m_drivers dr ON dr.id = t.driver_id
@@ -169,6 +173,8 @@ export const load: PageServerLoad = async ({ fetch }) => {
 			let finalDestination = dbTrip?.destination || v.kota || '-';
 			let isAtPool = false;
 
+			let destRad = dbTrip?.dest_rad || 2000;
+
 			// Cek apakah di dalam pool
 			for (const pool of POOLS) {
 				const dist = getDistanceKm(lat, lon, pool.lat, pool.lng);
@@ -210,6 +216,7 @@ export const load: PageServerLoad = async ({ fetch }) => {
 				}
 				destLat = nearestPool.lat;
 				destLng = nearestPool.lng;
+				destRad = nearestPool.radiusKm * 1000;
 			}
 			
 			return {
@@ -222,8 +229,10 @@ export const load: PageServerLoad = async ({ fetch }) => {
 				location: v.addr || v.currentStatusVehicle?.driving?.start_detail?.addr || v.currentStatusVehicle?.parking?.addr || '-',
 				streetName: (v.addr || '').split(',')[0]?.trim() || '-',
 				direction: typeof v.direction === 'number' ? v.direction : parseInt(v.direction || '0') || 0,
-				originLat, originLng,
-				destLat, destLng,
+				originLat, originLng, originRad: dbTrip?.origin_rad ? parseInt(dbTrip.origin_rad) : 2000,
+				originPolygon: dbTrip?.origin_polygon,
+				destLat, destLng, destRad,
+				destPolygon: dbTrip?.dest_polygon,
 				origin: dbTrip?.origin || v.currentGeoAreaStatus?.geo_nm || v.provinsi || 'Pool',
 				destination: finalDestination,
 				do: dbTrip?.no_surat_tugas || `DO-EGO-${(v.vehicle_id || '').substring(3, 9)}`,
