@@ -104,10 +104,14 @@
 				<span class="material-symbols-outlined text-blue-600">directions_car</span>
 			</div>
 			<p class="text-4xl font-black text-on-surface mb-1">{metrics.activeVehicles}</p>
-			<div class="w-full bg-surface-container-high h-1.5 rounded-full mt-4 overflow-hidden">
-				<div class="bg-blue-500 h-full rounded-full shadow-[0_0_8px_rgba(59,130,246,0.6)]" style="width: {metrics.fleetUtilization}%"></div>
+			<div class="flex flex-wrap gap-2 mt-3">
+				<span class="px-2 py-0.5 bg-emerald-100/50 text-emerald-700 text-[10px] font-bold rounded-md" title="Available di Pool">🟢 {metrics.availableVehicles} Available</span>
+				<span class="px-2 py-0.5 bg-blue-100/50 text-blue-700 text-[10px] font-bold rounded-md">🔵 {metrics.activeTrips} On Trip</span>
+				<span class="px-2 py-0.5 bg-orange-100/50 text-orange-700 text-[10px] font-bold rounded-md">🟠 {metrics.inMaintenance} In Maintenance</span>
 			</div>
-			<p class="text-[10px] font-medium text-on-surface-variant mt-2">{metrics.fleetUtilization}% Utilization</p>
+			<div class="w-full bg-surface-container-high h-1 mt-4 rounded-full overflow-hidden">
+				<div class="bg-blue-500 h-full rounded-full" style="width: {metrics.fleetUtilization}%"></div>
+			</div>
 		</div>
 	</div>
 
@@ -118,8 +122,11 @@
 			<span class="material-symbols-outlined text-emerald-500">route</span>
 		</div>
 		<p class="text-4xl font-black text-on-surface mb-1">{metrics.activeTrips}</p>
-		<div class="flex items-center gap-2 mt-2">
-			<span class="px-2 py-0.5 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 text-[10px] font-bold rounded-full">{metrics.completedTripsToday} Completed Today</span>
+		<div class="flex flex-wrap gap-2 mt-3">
+			<span class="px-2 py-0.5 bg-indigo-100/50 text-indigo-700 text-[10px] font-bold rounded-md">🟣 {metrics.loadingTrips} Loading</span>
+			<span class="px-2 py-0.5 bg-blue-100/50 text-blue-700 text-[10px] font-bold rounded-md">🔵 {metrics.onRouteTrips} On Route</span>
+			<span class="px-2 py-0.5 bg-amber-100/50 text-amber-700 text-[10px] font-bold rounded-md">🟡 {metrics.atCustomerTrips} At Customer</span>
+			<span class="px-2 py-0.5 bg-slate-100/50 text-slate-700 text-[10px] font-bold rounded-md">⚪️ {metrics.returningTrips} Returning</span>
 		</div>
 	</div>
 
@@ -130,8 +137,9 @@
 			<span class="material-symbols-outlined text-rose-500">build</span>
 		</div>
 		<p class="text-4xl font-black text-on-surface mb-1">{metrics.maintenanceAlerts}</p>
-		<div class="flex items-center gap-2 mt-2">
-			<span class="text-rose-500 text-xs font-bold">{metrics.criticalMaintenance} Asuransi Expired</span>
+		<div class="flex items-center gap-2 mt-3">
+			<span class="px-2 py-0.5 bg-rose-100/50 text-rose-700 text-[10px] font-bold rounded-md">🔴 {metrics.criticalMaintenance} Asuransi Expired</span>
+			<span class="px-2 py-0.5 bg-orange-100/50 text-orange-700 text-[10px] font-bold rounded-md">🛠️ {metrics.inMaintenance} Sedang Servis</span>
 		</div>
 	</div>
 </div>
@@ -159,14 +167,7 @@
 		
 		<!-- Bar Chart -->
 		<div class="relative h-64 w-full flex items-end justify-between px-2 gap-4">
-			{#each [
-				{ month: 'Jan', active: '55%', trips: '40%' },
-				{ month: 'Feb', active: '60%', trips: '50%' },
-				{ month: 'Mar', active: '65%', trips: '55%' },
-				{ month: 'Apr', active: '58%', trips: '48%' },
-				{ month: 'May', active: '72%', trips: '65%' },
-				{ month: 'Jun', active: '68%', trips: '58%' }
-			] as item}
+			{#each data.trendData || [] as item}
 				<div class="flex flex-col items-center flex-1 gap-3 h-full group/bar cursor-pointer">
 					<div class="w-full flex items-end justify-center gap-1.5 h-full relative">
 						<div class="w-5 bg-blue-500/40 rounded-t-md transition-all duration-300 group-hover/bar:bg-blue-500" style="height: {item.active}"></div>

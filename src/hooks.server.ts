@@ -82,3 +82,25 @@ export const handle: Handle = async ({ event, resolve }) => {
 
 	return resolve(event);
 };
+
+// ─────────────────────────────────────────────────────────────────
+// GEOFENCE AUTO-PILOT BACKGROUND WORKER
+// ─────────────────────────────────────────────────────────────────
+import { runGeofenceEngine } from '$lib/server/geofence';
+
+const globalStore = globalThis as any;
+if (!globalStore.__geofenceCronStarted) {
+	globalStore.__geofenceCronStarted = true;
+	console.log('[CRON] Geofence Auto-Pilot initialized.');
+
+	const runCron = async () => {
+		try {
+			await runGeofenceEngine();
+		} catch (e) {
+			console.error('[CRON] Geofence Auto-Pilot Error:', e);
+		}
+	};
+
+	// Run every 2 minutes
+	setInterval(runCron, 2 * 60 * 1000);
+}

@@ -73,6 +73,12 @@ export const load: PageServerLoad = async () => {
 			LEFT JOIN master.m_karyawan k ON k.id = d.karyawan_id
 			WHERE u.is_active = true 
 			  AND u.current_state IN ('AT_POOL')
+			  AND u.id NOT IN (
+			      SELECT assigned_unit_id FROM marketing.sales_order WHERE status NOT IN ('COMPLETED', 'CANCELED') AND assigned_unit_id IS NOT NULL
+			  )
+			  AND u.nomor_unit NOT IN (
+			      SELECT unit_id FROM fleet.work_orders WHERE status IN ('Open', 'Proses') AND unit_id IS NOT NULL
+			  )
 			ORDER BY u.current_state ASC, u.nomor_unit ASC
 		`;
 
@@ -115,6 +121,11 @@ export const load: PageServerLoad = async () => {
 			// AI Logic: Find best unit that is AT_POOL and driver days < 14
 			// unitsResult is already filtered and sorted by days_worked ASC
 			let bestUnit = availableUnitsPool.find(u => u.driverId && u.days_worked < 14);
+			
+			if (bestUnit) {
+				// Remove the chosen unit from the pool so it doesn't get assigned to the next contract
+				availableUnitsPool = availableUnitsPool.filter(u => u.unitId !== bestUnit?.unitId);
+			}
 			
 			// Find up to 5 alternatives (excluding the best unit)
 			let alternatives = availableUnitsPool

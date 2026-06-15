@@ -18,6 +18,7 @@ export const load: PageServerLoad = async ({ url }) => {
 	const searchQuery = url.searchParams.get('search') || '';
 	const statusFilter = url.searchParams.get('status') || '';
 	const buFilter    = url.searchParams.get('business_unit') || '';
+	const assetGroup  = url.searchParams.get('asset_group') || 'LOGISTICS_FLEET';
 
 	try {
 		// ── Bangun kondisi WHERE dinamis ──────────────────────────
@@ -45,6 +46,12 @@ export const load: PageServerLoad = async ({ url }) => {
 			p++;
 		}
 
+		if (assetGroup && assetGroup !== 'All') {
+			conditions.push(`tu.asset_group = $${p}`);
+			params.push(assetGroup);
+			p++;
+		}
+
 		const where = conditions.join(' AND ');
 
 		// ── Query utama: data unit dengan JOIN ────────────────────
@@ -64,6 +71,7 @@ export const load: PageServerLoad = async ({ url }) => {
 				mu.nama_model,
 				mu.axle_config,
 				tu.nama_tipe,
+				tu.asset_group,
 				u.business_unit,
 				u.no_proyek,
 				u.project_area,
@@ -104,19 +112,24 @@ export const load: PageServerLoad = async ({ url }) => {
 			`SELECT COUNT(*) AS total
 			 FROM fleet.unit u
 			 JOIN master.m_model_unit mu ON mu.id = u.model_unit_id
+			 JOIN master.m_tipe_unit tu ON tu.id = mu.tipe_unit_id
 			 WHERE ${where}`,
 			params
 		);
 
 		// ── Query metrics (selalu tanpa filter halaman) ───────────
-		const [metrics] = await sql<
-			[{ totalAll: string; active: string; inactive: string }]
-		>`SELECT
+		const [metrics] = await sql.unsafe<
+			[{ totalAll: string; active: string; inactive: string; maintenance: string }]
+		>(`SELECT
 			COUNT(*)                                    AS "totalAll",
-			SUM(CASE WHEN is_active = true  THEN 1 ELSE 0 END) AS "active",
-			SUM(CASE WHEN is_active = false THEN 1 ELSE 0 END) AS "inactive"
-		  FROM fleet.unit
-		  WHERE deleted_at IS NULL`;
+			SUM(CASE WHEN u.is_active = true  THEN 1 ELSE 0 END) AS "active",
+			SUM(CASE WHEN u.is_active = false THEN 1 ELSE 0 END) AS "inactive",
+			SUM(CASE WHEN u.tgl_maintenance_prevent IS NOT NULL AND u.tgl_maintenance_prevent < CURRENT_DATE THEN 1 ELSE 0 END) AS "maintenance"
+		  FROM fleet.unit u
+		  JOIN master.m_model_unit mu ON mu.id = u.model_unit_id
+		  JOIN master.m_tipe_unit tu ON tu.id = mu.tipe_unit_id
+		  WHERE u.deleted_at IS NULL
+		  AND (${assetGroup !== 'All' ? `tu.asset_group = '${assetGroup}'` : '1=1'})`);
 
 		return {
 			vehicles: vehicles as unknown[],
@@ -124,7 +137,7 @@ export const load: PageServerLoad = async ({ url }) => {
 				total:       Number(metrics.totalAll),
 				active:      Number(metrics.active),
 				inactive:    Number(metrics.inactive),
-				maintenance: 0 // akan diisi backend ketika field maintenance tersedia
+				maintenance: Number(metrics.maintenance)
 			},
 			meta: {
 				current_page: page,

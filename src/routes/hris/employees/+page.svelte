@@ -150,8 +150,8 @@
 							</td>
 							<td class="py-4 px-6">
 								{#if emp.status === 'Active'}
-									<span class="inline-flex items-center gap-2 text-tertiary font-bold text-xs bg-tertiary-container/30 px-3 py-1.5 rounded-full">
-										<span class="w-1.5 h-1.5 rounded-full bg-tertiary"></span> Active
+									<span class="inline-flex items-center gap-2 text-green-700 font-bold text-xs bg-green-500/20 px-3 py-1.5 rounded-full">
+										<span class="w-1.5 h-1.5 rounded-full bg-green-600"></span> Active
 									</span>
 								{:else}
 									<span class="inline-flex items-center gap-2 text-error font-bold text-xs bg-error-container/30 px-3 py-1.5 rounded-full">

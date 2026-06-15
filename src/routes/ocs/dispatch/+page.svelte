@@ -143,7 +143,7 @@
 	let localContractOrders = $state<any[]>([]);
 
 	$effect(() => {
-		if (data.contractOrders && localContractOrders.length !== data.contractOrders.length) {
+		if (data.contractOrders) {
 			localContractOrders = JSON.parse(JSON.stringify(data.contractOrders));
 		}
 	});

@@ -25,33 +25,44 @@ export const load: PageServerLoad = async () => {
 		}]>`
 			SELECT
 				COUNT(*)                                                      AS total_vehicles,
-				SUM(CASE WHEN is_active THEN 1 ELSE 0 END)                    AS active_vehicles,
-				SUM(CASE WHEN NOT is_active THEN 1 ELSE 0 END)                AS inactive_vehicles,
+				SUM(CASE WHEN u.is_active THEN 1 ELSE 0 END)                    AS active_vehicles,
+				SUM(CASE WHEN NOT u.is_active THEN 1 ELSE 0 END)                AS inactive_vehicles,
 				ROUND(
-					SUM(CASE WHEN is_active THEN 1 ELSE 0 END)::numeric
+					SUM(CASE WHEN u.is_active THEN 1 ELSE 0 END)::numeric
 					/ NULLIF(COUNT(*), 0) * 100, 1
 				)                                                             AS utilization_pct,
 				COUNT(*) FILTER (
-					WHERE tgl_maintenance_prevent IS NOT NULL
-					  AND tgl_maintenance_prevent < CURRENT_DATE
+					WHERE u.tgl_maintenance_prevent IS NOT NULL
+					  AND u.tgl_maintenance_prevent < CURRENT_DATE
 				)                                                             AS maintenance_overdue,
 				COUNT(*) FILTER (
-					WHERE expire_date_asuransi IS NOT NULL
-					  AND expire_date_asuransi < now()
+					WHERE u.expire_date_asuransi IS NOT NULL
+					  AND u.expire_date_asuransi < now()
 				)                                                             AS asuransi_expired
-			FROM fleet.unit
-			WHERE deleted_at IS NULL
+			FROM fleet.unit u
+			JOIN master.m_model_unit mu ON mu.id = u.model_unit_id
+			JOIN master.m_tipe_unit tu ON tu.id = mu.tipe_unit_id
+			WHERE u.deleted_at IS NULL
+			AND tu.asset_group = 'LOGISTICS_FLEET'
 		`;
+
+		const total        = Number(metricsRow.total_vehicles);
+		const active       = Number(metricsRow.active_vehicles);
+		const inactive     = Number(metricsRow.inactive_vehicles);
+		const maintAlerts  = Number(metricsRow.maintenance_overdue);
 
 		// ── 2. Distribusi per business_unit ───────────────────────────────────
 		const buRows = await sql<{ business_unit: string; total: string; aktif: string }[]>`
 			SELECT
-				business_unit,
+				u.business_unit,
 				COUNT(*)                                            AS total,
-				SUM(CASE WHEN is_active THEN 1 ELSE 0 END)         AS aktif
-			FROM fleet.unit
-			WHERE deleted_at IS NULL
-			GROUP BY business_unit
+				SUM(CASE WHEN u.is_active THEN 1 ELSE 0 END)         AS aktif
+			FROM fleet.unit u
+			JOIN master.m_model_unit mu ON mu.id = u.model_unit_id
+			JOIN master.m_tipe_unit tu ON tu.id = mu.tipe_unit_id
+			WHERE u.deleted_at IS NULL
+			AND tu.asset_group = 'LOGISTICS_FLEET'
+			GROUP BY u.business_unit
 			ORDER BY total DESC
 		`;
 
@@ -64,13 +75,43 @@ export const load: PageServerLoad = async () => {
 			total_30d:         string;
 		}]>`
 			SELECT
-				COUNT(*) FILTER (WHERE status IN ('DISPATCHED','AT_ORIGIN','ON_ROUTE','AT_DESTINATION','RETURNING'))             AS active_trips,
-				COUNT(*) FILTER (WHERE tgl_trip = CURRENT_DATE AND status = 'COMPLETED') AS completed_today,
-				COUNT(*) FILTER (WHERE status = 'AT_ORIGIN')                           AS count_loading,
-				COUNT(*) FILTER (WHERE status = 'ON_ROUTE')                          AS count_on_route,
-				COUNT(*) FILTER (WHERE tgl_trip >= CURRENT_DATE - INTERVAL '30 days') AS total_30d
-			FROM fleet.trip
-			WHERE deleted_at IS NULL
+				COUNT(*) FILTER (WHERE t.status IN ('DISPATCHED','AT_ORIGIN','ON_ROUTE','AT_DESTINATION','RETURNING'))             AS active_trips,
+				COUNT(*) FILTER (WHERE t.tgl_trip = CURRENT_DATE AND t.status = 'COMPLETED') AS completed_today,
+				COUNT(*) FILTER (WHERE t.status = 'AT_ORIGIN')                           AS count_loading,
+				COUNT(*) FILTER (WHERE t.status = 'ON_ROUTE')                          AS count_on_route,
+				COUNT(*) FILTER (WHERE t.status = 'AT_DESTINATION')                      AS count_at_customer,
+				COUNT(*) FILTER (WHERE t.status = 'RETURNING')                           AS count_returning,
+				COUNT(*) FILTER (WHERE t.tgl_trip >= CURRENT_DATE - INTERVAL '30 days') AS total_30d
+			FROM fleet.trip t
+			JOIN fleet.unit u ON u.id = t.unit_id
+			JOIN master.m_model_unit mu ON mu.id = u.model_unit_id
+			JOIN master.m_tipe_unit tu ON tu.id = mu.tipe_unit_id
+			WHERE t.deleted_at IS NULL
+			AND tu.asset_group = 'LOGISTICS_FLEET'
+		`;
+
+		// ── 3.5 Metrics dari fleet.work_orders ────────────────────────────────
+		const [woMetrics] = await sql<[{ in_maintenance: string }]>`
+			SELECT COUNT(DISTINCT unit_id) as in_maintenance
+			FROM fleet.work_orders
+			WHERE status IN ('Open', 'Proses')
+		`;
+
+		// ── 3.8 Metrics Available Units (Real Data Synchronized with OCS) ───
+		const [availMetrics] = await sql<[{ count_available: string }]>`
+			SELECT COUNT(*) as count_available
+			FROM fleet.unit u
+			JOIN master.m_model_unit mu ON mu.id = u.model_unit_id
+			JOIN master.m_tipe_unit tu ON tu.id = mu.tipe_unit_id
+			WHERE u.is_active = true 
+			  AND tu.asset_group = 'LOGISTICS_FLEET'
+			  AND u.current_state IN ('AT_POOL')
+			  AND u.id NOT IN (
+			      SELECT assigned_unit_id FROM marketing.sales_order WHERE status NOT IN ('COMPLETED', 'CANCELED') AND assigned_unit_id IS NOT NULL
+			  )
+			  AND u.nomor_unit NOT IN (
+			      SELECT unit_id FROM fleet.work_orders WHERE status IN ('Open', 'Proses') AND unit_id IS NOT NULL
+			  )
 		`;
 
 		// ── 4. Recent trips (5 terbaru) ───────────────────────────────────────
@@ -103,12 +144,55 @@ export const load: PageServerLoad = async () => {
 			JOIN  fleet.unit        u  ON u.id  = t.unit_id
 			LEFT JOIN master.m_drivers   dr ON dr.id = t.driver_id
 			LEFT JOIN master.m_karyawan  k  ON k.id  = dr.karyawan_id
+			JOIN master.m_model_unit mu ON mu.id = u.model_unit_id
+			JOIN master.m_tipe_unit tu ON tu.id = mu.tipe_unit_id
 			WHERE t.deleted_at IS NULL
+			AND tu.asset_group = 'LOGISTICS_FLEET'
 			ORDER BY t.tgl_trip DESC, t.updated_at DESC NULLS LAST
 			LIMIT 5
 		`;
 
-		// ── 5. Maintenance alerts (unit overdue) ──────────────────────────────
+		// ── 5. Trend Pemanfaatan (6 Bulan Terakhir) ───────────────────────────
+		const trendRows = await sql<{
+			month: string;
+			total_trips: string;
+			unique_units_used: string;
+		}[]>`
+			WITH months AS (
+				SELECT generate_series(
+					date_trunc('month', CURRENT_DATE) - INTERVAL '5 months',
+					date_trunc('month', CURRENT_DATE),
+					'1 month'
+				)::date AS month_start
+			)
+			SELECT 
+				to_char(m.month_start, 'Mon') as month,
+				COUNT(t.id) as total_trips,
+				COUNT(DISTINCT t.unit_id) as unique_units_used
+			FROM months m
+			LEFT JOIN fleet.trip t ON date_trunc('month', t.tgl_trip) = m.month_start AND t.deleted_at IS NULL
+			GROUP BY m.month_start
+			ORDER BY m.month_start;
+		`;
+
+		const trendData = trendRows.map(r => {
+			const u = Number(r.unique_units_used);
+			const t = Number(r.total_trips);
+			const baseFleet = Number(active) || 141; // fallback to 141
+			const pctActive = Math.min(100, Math.round((u / baseFleet) * 100));
+			// Anggap 1 unit target = 20 trip per bulan
+			const pctTrips = Math.min(100, Math.round((t / (baseFleet * 20)) * 100));
+			
+			return {
+				month: r.month,
+				active: `${pctActive}%`,
+				trips: `${pctTrips}%`,
+				raw_units: u,
+				raw_trips: t
+			};
+		});
+
+		// ── 6. Maintenance alerts (unit overdue) ──────────────────────────────
 		const maintenanceAlerts = await sql<{
 			nomor_unit:              string;
 			nama_tipe:               string;
@@ -126,6 +210,7 @@ export const load: PageServerLoad = async () => {
 			WHERE u.tgl_maintenance_prevent IS NOT NULL
 			  AND u.tgl_maintenance_prevent < CURRENT_DATE
 			  AND u.deleted_at IS NULL
+			  AND tu.asset_group = 'LOGISTICS_FLEET'
 			ORDER BY hari_overdue DESC
 			LIMIT 5
 		`;
@@ -173,12 +258,6 @@ export const load: PageServerLoad = async () => {
 			ORDER BY COUNT(uda.id) DESC, k.nama_karyawan
 			LIMIT 5
 		`;
-
-		// ── Hitung angka untuk UI ─────────────────────────────────────────────
-		const total      = Number(metricsRow.total_vehicles);
-		const active     = Number(metricsRow.active_vehicles);
-		const inactive   = Number(metricsRow.inactive_vehicles);
-		const maintAlerts = Number(metricsRow.maintenance_overdue);
 
 		const activeTrips   = Number(tripMetrics.active_trips);
 		const cntLoading    = Number(tripMetrics.count_loading);
@@ -238,6 +317,10 @@ export const load: PageServerLoad = async () => {
 			LIMIT 5
 		`;
 
+		const metricActiveTrips = Number(tripMetrics.active_trips) || 0;
+		const metricMaintenance = Number(woMetrics.in_maintenance) || 0;
+		const metricAvailable = Number(availMetrics.count_available) || 0;
+
 		return {
 			activeContracts: activeContracts.map(c => ({
 				id: c.contract_id,
@@ -254,11 +337,17 @@ export const load: PageServerLoad = async () => {
 				totalVehicles:       total,
 				activeVehicles:      active,
 				inactiveVehicles:    inactive,
-				fleetUtilization:    Number(metricsRow.utilization_pct) || 0,
+				fleetUtilization:    Number(metricsRow.utilization_pct),
+				activeTrips:         metricActiveTrips,
+				completedTripsToday: Number(tripMetrics.completed_today),
 				maintenanceAlerts:   maintAlerts,
 				criticalMaintenance: Number(metricsRow.asuransi_expired),
-				activeTrips,
-				completedTripsToday: cntDoneToday,
+				inMaintenance:       metricMaintenance,
+				availableVehicles:   metricAvailable,
+				loadingTrips:        Number(tripMetrics.count_loading),
+				onRouteTrips:        Number(tripMetrics.count_on_route),
+				atCustomerTrips:     Number(tripMetrics.count_at_customer),
+				returningTrips:      Number(tripMetrics.count_returning)
 			},
 			fleetSummary: {
 				available,
@@ -284,6 +373,7 @@ export const load: PageServerLoad = async () => {
 				trips:         0,
 				rating:        null
 			})),
+			trendData,
 			recentTrips,
 			alerts,
 			// liveUnits: akan diisi ketika GPS real-time tersedia

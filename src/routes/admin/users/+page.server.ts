@@ -109,11 +109,11 @@ export const load: PageServerLoad = async ({ cookies }) => {
 					mk.payroll_id AS nik,
 					mk.nama_karyawan,
 					ml.level AS level_name,
-					md.div_name
+					mt.title AS title_name
 				FROM master.erp_users eu
 				LEFT JOIN master.m_karyawan mk ON mk.id = eu.karyawan_id
 				LEFT JOIN master.m_level ml ON ml.level_code = mk.level
-				LEFT JOIN master.m_division md ON md.div_code = mk.div_id
+				LEFT JOIN master.m_title mt ON mt.title_code = mk.title
 				ORDER BY eu.id DESC
 			`;
 			return { usersList, dataSource: 'svelte-db' as const };

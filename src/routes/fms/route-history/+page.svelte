@@ -129,6 +129,12 @@
 	function closePlayback() {
 		showPlaybackModal = false;
 		pausePlayback();
+		if (map) {
+			map.remove();
+			map = null;
+			pathLine = null;
+			truckMarker = null;
+		}
 	}
 
 	function togglePlay() {

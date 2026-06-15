@@ -51,20 +51,21 @@ export const load: PageServerLoad = async () => {
 			SELECT 
 				u.nomor_unit as unit,
 				COALESCE(d.nama_karyawan, 'No Driver') as driver,
-				t.origin,
-				t.destination,
+				COALESCE(ori.nama_kustomer, '-') as origin,
+				COALESCE(dest.nama_kustomer, '-') as destination,
 				o.id as do,
 				0 as progress, -- Mock progress for now
 				COALESCE(o.estimated_ujo, 0) as ujo,
 				COALESCE(o.ujo_payment_status, 'UNPAID') as "ujoStatus"
-			FROM fleet.trip t
-			LEFT JOIN fleet.unit u ON u.id = t.unit_id
-			LEFT JOIN master.m_drivers md ON md.id = t.driver_id
+			FROM marketing.sales_order o
+			LEFT JOIN fleet.unit u ON u.id = o.assigned_unit_id
+			LEFT JOIN master.m_drivers md ON md.id = o.assigned_driver_id
 			LEFT JOIN master.m_karyawan d ON d.id = md.karyawan_id
-			-- Get related DO/Sales Order (assuming 1 DO active per unit right now)
-			LEFT JOIN marketing.sales_order o ON o.assigned_unit_id = t.unit_id AND o.status IN ('DISPATCHED', 'CLOSING')
-			WHERE t.status NOT IN ('COMPLETED', 'CANCELED')
-			ORDER BY t.created_at DESC
+			LEFT JOIN master.m_customer ori ON ori.id = o.origin_id
+			LEFT JOIN master.m_customer dest ON dest.id = o.destination_id
+			WHERE o.status NOT IN ('COMPLETED', 'CANCELED', 'WAITING_UJO')
+			  AND o.assigned_unit_id IS NOT NULL
+			ORDER BY o.created_at DESC
 			LIMIT 5
 		`;
 

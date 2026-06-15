@@ -54,6 +54,10 @@
 				<span class="material-symbols-outlined">warehouse</span>
 				<span class="font-medium text-sm">Stock & Gudang</span>
 			</a>
+			<a class="flex items-center gap-3 px-4 py-3 rounded-xl transition-transform duration-200 hover:translate-x-1 {$page.url.pathname.includes('/pms/delivery-notes') ? 'bg-surface-container-highest text-amber-600 dark:text-amber-400' : 'text-on-surface-variant hover:bg-surface-container'}" href="/pms/delivery-notes">
+				<span class="material-symbols-outlined">outbox</span>
+				<span class="font-medium text-sm">Delivery Notes</span>
+			</a>
 
 			<!-- Section: Maintenance Schedules -->
 			<div class="pt-3 pb-1 px-4">

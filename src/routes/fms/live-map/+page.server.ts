@@ -100,11 +100,30 @@ export const load: PageServerLoad = async ({ fetch }) => {
 		
 		// Map the EasyGo vehicle data to our UI structure
 		const mappedUnits = vehicles.map((v: any, index: number) => {
+			const nopolClean = (v.nopol || v.vehicle_id || '').replace(/\s+/g, '').toUpperCase();
+			const dbTrip = tripMap.get(nopolClean);
+
 			let statusStr = 'Maintenance';
 			if (v.currentStatusVehicle) {
-				if (v.currentStatusVehicle.status === 0) statusStr = 'Available'; // Parking
-				else if (v.currentStatusVehicle.status === 1) statusStr = 'Loading'; // Idle
-				else if (v.currentStatusVehicle.status === 2) statusStr = 'Moving'; // Driving
+				if (v.currentStatusVehicle.status === 0) { // Parking
+					if (dbTrip) {
+						if (dbTrip.status === 'AT_ORIGIN' || dbTrip.status === 'AT_DESTINATION') statusStr = 'Loading';
+						else statusStr = 'Transit';
+					} else {
+						statusStr = 'Available';
+					}
+				}
+				else if (v.currentStatusVehicle.status === 1) { // Idle
+					if (dbTrip) {
+						if (dbTrip.status === 'AT_ORIGIN' || dbTrip.status === 'AT_DESTINATION') statusStr = 'Loading';
+						else statusStr = 'Transit';
+					} else {
+						statusStr = 'Transit';
+					}
+				}
+				else if (v.currentStatusVehicle.status === 2) { // Driving
+					statusStr = 'Moving';
+				}
 			}
 
 			// Some fallback if lat/lon is 0
@@ -115,8 +134,6 @@ export const load: PageServerLoad = async ({ fetch }) => {
 				lon = 106.8940; // Default pool Bogor
 			}
 			
-			const nopolClean = (v.nopol || v.vehicle_id || '').replace(/\s+/g, '').toUpperCase();
-			const dbTrip = tripMap.get(nopolClean);
 			
 			// Prioritize database planned coordinates for drawing route lines
 			let originLat = dbTrip?.origin_lat ? parseFloat(dbTrip.origin_lat) : null;

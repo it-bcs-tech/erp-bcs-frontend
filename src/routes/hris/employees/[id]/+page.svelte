@@ -1,6 +1,8 @@
 <script lang="ts">
 	let { data } = $props();
 	const employee = data.employee;
+
+	let activeTab = $state('employment'); // 'employment', 'personal', 'documents'
 </script>
 
 <svelte:head>
@@ -18,10 +20,10 @@
 			<span class="text-on-surface font-bold">{employee.name}</span>
 		</nav>
 		<div class="flex gap-2">
-			<button class="bg-surface-container-lowest text-primary px-4 py-2 rounded-xl text-sm font-bold flex items-center gap-2 hover:bg-surface-container-low transition-colors shadow-sm">
+			<a href={`/hris/employees/${employee.rawId}/edit`} class="bg-surface-container-lowest text-primary px-4 py-2 rounded-xl text-sm font-bold flex items-center gap-2 hover:bg-surface-container-low transition-colors shadow-sm">
 				<span class="material-symbols-outlined text-[18px]">edit</span>
 				Edit Profile
-			</button>
+			</a>
 		</div>
 	</div>
 
@@ -56,8 +58,8 @@
 				
 				<div class="flex flex-col items-start md:items-end gap-3">
 					{#if employee.status === 'Active'}
-						<span class="inline-flex items-center gap-2 text-tertiary font-bold text-sm bg-tertiary-container/30 px-4 py-2 rounded-full border border-tertiary/20">
-							<span class="w-2 h-2 rounded-full bg-tertiary animate-pulse"></span> Active Employee
+						<span class="inline-flex items-center gap-2 text-green-700 font-bold text-sm bg-green-500/20 px-4 py-2 rounded-full border border-green-600/20">
+							<span class="w-2 h-2 rounded-full bg-green-600 animate-pulse"></span> Active Employee
 						</span>
 					{:else}
 						<span class="inline-flex items-center gap-2 text-error font-bold text-sm bg-error-container/30 px-4 py-2 rounded-full border border-error/20">
@@ -84,7 +86,7 @@
 					</div>
 					<div class="relative z-10">
 						<p class="text-4xl font-black">{employee.performance}%</p>
-						<p class="text-xs font-medium mt-1 text-primary-fixed">Exceeds Expec.</p>
+						<p class="text-xs font-medium mt-1 text-primary-fixed">{parseFloat(employee.performance) >= 85 ? 'Exceeds Expec.' : parseFloat(employee.performance) >= 70 ? 'Meets Expec.' : 'Needs Improvement'}</p>
 					</div>
 				</div>
 				
@@ -109,11 +111,11 @@
 						<p class="text-[10px] text-on-surface-variant font-bold uppercase tracking-widest mb-3">Reports To</p>
 						<div class="flex items-center gap-3 p-3 bg-surface-container-low rounded-xl hover:bg-surface-container-high transition-colors cursor-pointer">
 							<div class="w-10 h-10 rounded-full bg-secondary-container text-on-secondary-container flex items-center justify-center font-bold text-sm">
-								MS
+								{employee.manager.substring(0,2).toUpperCase()}
 							</div>
 							<div>
 								<p class="text-sm font-bold text-on-surface">{employee.manager}</p>
-								<p class="text-xs text-on-surface-variant font-medium">Chief Operating Officer</p>
+								<p class="text-xs text-on-surface-variant font-medium">Direct Manager</p>
 							</div>
 						</div>
 					</div>
@@ -124,11 +126,15 @@
 			<div class="bg-surface-container-lowest rounded-[24px] p-6 shadow-sm">
 				<h3 class="text-lg font-bold text-on-surface mb-4">Competencies</h3>
 				<div class="flex flex-wrap gap-2">
-					{#each employee.skills as skill}
-						<span class="px-3 py-1.5 bg-surface-container-high text-on-surface-variant text-xs font-bold rounded-lg border border-outline-variant/10">
-							{skill}
-						</span>
-					{/each}
+					{#if employee.skills && employee.skills.length > 0}
+						{#each employee.skills as skill}
+							<span class="px-3 py-1.5 bg-surface-container-high text-on-surface-variant text-xs font-bold rounded-lg border border-outline-variant/10">
+								{skill}
+							</span>
+						{/each}
+					{:else}
+						<span class="text-xs text-on-surface-variant italic">No training records found.</span>
+					{/if}
 				</div>
 			</div>
 		</div>
@@ -139,87 +145,159 @@
 			<div class="bg-surface-container-lowest rounded-[24px] shadow-sm overflow-hidden flex flex-col h-full">
 				<!-- Tabs Header -->
 				<div class="flex border-b border-surface-container px-6 pt-2">
-					<button class="px-6 py-4 text-sm font-bold text-primary border-b-2 border-primary relative">
+					<button 
+						onclick={() => activeTab = 'employment'}
+						class={`px-6 py-4 text-sm font-bold transition-colors border-b-2 ${activeTab === 'employment' ? 'text-primary border-primary' : 'text-on-surface-variant hover:text-on-surface border-transparent'}`}>
 						Employment Info
 					</button>
-					<button class="px-6 py-4 text-sm font-bold text-on-surface-variant hover:text-on-surface transition-colors border-b-2 border-transparent">
+					<button 
+						onclick={() => activeTab = 'personal'}
+						class={`px-6 py-4 text-sm font-bold transition-colors border-b-2 ${activeTab === 'personal' ? 'text-primary border-primary' : 'text-on-surface-variant hover:text-on-surface border-transparent'}`}>
 						Personal Info
 					</button>
-					<button class="px-6 py-4 text-sm font-bold text-on-surface-variant hover:text-on-surface transition-colors border-b-2 border-transparent">
+					<button 
+						onclick={() => activeTab = 'documents'}
+						class={`px-6 py-4 text-sm font-bold transition-colors border-b-2 ${activeTab === 'documents' ? 'text-primary border-primary' : 'text-on-surface-variant hover:text-on-surface border-transparent'}`}>
 						Documents
 					</button>
 				</div>
 
 				<!-- Tab Content -->
-				<div class="p-8 flex-1">
-					<div class="grid grid-cols-1 md:grid-cols-2 gap-8">
-						<div class="space-y-6">
-							<div>
-								<p class="text-[10px] text-on-surface-variant font-bold uppercase tracking-widest mb-1">Employee ID</p>
-								<p class="text-base font-semibold text-on-surface">{employee.id}</p>
-							</div>
-							<div>
-								<p class="text-[10px] text-on-surface-variant font-bold uppercase tracking-widest mb-1">Employment Type</p>
-								<p class="text-base font-semibold text-on-surface">Full-Time Permanent</p>
-							</div>
-							<div>
-								<p class="text-[10px] text-on-surface-variant font-bold uppercase tracking-widest mb-1">Work Schedule</p>
-								<p class="text-base font-semibold text-on-surface">Standard (Mon-Fri, 9am-5pm)</p>
-							</div>
-						</div>
-						
-						<div class="space-y-6">
-							<div>
-								<p class="text-[10px] text-on-surface-variant font-bold uppercase tracking-widest mb-1">Job Grade</p>
-								<p class="text-base font-semibold text-on-surface">M3 - Senior Director</p>
-							</div>
-							<div>
-								<p class="text-[10px] text-on-surface-variant font-bold uppercase tracking-widest mb-1">Base Location</p>
-								<p class="text-base font-semibold text-on-surface">{employee.location}</p>
-							</div>
-							<div>
-								<p class="text-[10px] text-on-surface-variant font-bold uppercase tracking-widest mb-1">Work Model</p>
-								<p class="text-base font-semibold text-on-surface">Hybrid (3 Days Office)</p>
-							</div>
-						</div>
-					</div>
-
-					<div class="mt-10">
-						<h4 class="text-sm font-bold text-on-surface mb-6 uppercase tracking-wider border-b border-surface-container pb-2">Recent Timeline</h4>
-						
-						<div class="space-y-6 relative pl-2">
-							<div class="absolute left-4 top-2 bottom-2 w-0.5 bg-surface-container"></div>
-							
-							<div class="relative flex items-start gap-4 z-10">
-								<div class="w-5 h-5 rounded-full bg-primary ring-4 ring-surface-container-lowest mt-0.5"></div>
-								<div class="bg-surface-container-low p-4 rounded-xl flex-1 hover:bg-surface-container-high transition-colors cursor-pointer">
-									<div class="flex justify-between items-start mb-1">
-										<p class="text-sm font-bold text-on-surface">Promotion to Head of Operations</p>
-										<span class="text-xs text-on-surface-variant font-medium">Jan 1, 2024</span>
-									</div>
-									<p class="text-xs text-on-surface-variant">Promoted from Senior Operations Manager.</p>
+				<div class="p-8 flex-1 overflow-y-auto">
+					{#if activeTab === 'employment'}
+						<div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+							<div class="space-y-6">
+								<div>
+									<p class="text-[10px] text-on-surface-variant font-bold uppercase tracking-widest mb-1">Employee ID</p>
+									<p class="text-base font-semibold text-on-surface">{employee.id}</p>
 								</div>
-							</div>
-
-							<div class="relative flex items-start gap-4 z-10">
-								<div class="w-5 h-5 rounded-full bg-tertiary ring-4 ring-surface-container-lowest mt-0.5"></div>
-								<div class="bg-surface-container-low p-4 rounded-xl flex-1 hover:bg-surface-container-high transition-colors cursor-pointer">
-									<div class="flex justify-between items-start mb-1">
-										<p class="text-sm font-bold text-on-surface">Annual Performance Review</p>
-										<span class="text-xs text-on-surface-variant font-medium">Dec 15, 2023</span>
-									</div>
-									<p class="text-xs text-on-surface-variant">Scored 92% (Exceeds Expectations).</p>
+								<div>
+									<p class="text-[10px] text-on-surface-variant font-bold uppercase tracking-widest mb-1">Employment Type</p>
+									<p class="text-base font-semibold text-on-surface">{employee.type}</p>
+								</div>
+								<div>
+									<p class="text-[10px] text-on-surface-variant font-bold uppercase tracking-widest mb-1">Work Schedule</p>
+									<p class="text-base font-semibold text-on-surface">Standard (Mon-Fri)</p>
 								</div>
 							</div>
 							
-							<div class="relative flex items-start gap-4 z-10">
-								<div class="w-5 h-5 rounded-full bg-surface-container-highest ring-4 ring-surface-container-lowest mt-0.5"></div>
-								<div class="p-2 flex-1">
-									<p class="text-sm font-bold text-on-surface-variant hover:text-primary transition-colors cursor-pointer">View full timeline</p>
+							<div class="space-y-6">
+								<div>
+									<p class="text-[10px] text-on-surface-variant font-bold uppercase tracking-widest mb-1">Job Role</p>
+									<p class="text-base font-semibold text-on-surface">{employee.role}</p>
+								</div>
+								<div>
+									<p class="text-[10px] text-on-surface-variant font-bold uppercase tracking-widest mb-1">Base Location</p>
+									<p class="text-base font-semibold text-on-surface">{employee.location}</p>
+								</div>
+								<div>
+									<p class="text-[10px] text-on-surface-variant font-bold uppercase tracking-widest mb-1">Business Unit</p>
+									<p class="text-base font-semibold text-on-surface">{employee.businessUnit}</p>
 								</div>
 							</div>
 						</div>
-					</div>
+
+						<div class="mt-10">
+							<h4 class="text-sm font-bold text-on-surface mb-6 uppercase tracking-wider border-b border-surface-container pb-2">Recent Timeline</h4>
+							
+							<div class="space-y-6 relative pl-2">
+								<div class="absolute left-4 top-2 bottom-2 w-0.5 bg-surface-container"></div>
+								
+								{#if employee.timeline && employee.timeline.length > 0}
+									{#each employee.timeline as item, i}
+										<div class="relative flex items-start gap-4 z-10">
+											<div class="w-5 h-5 rounded-full {i === 0 ? 'bg-primary' : 'bg-surface-container-highest'} ring-4 ring-surface-container-lowest mt-0.5"></div>
+											<div class="bg-surface-container-low p-4 rounded-xl flex-1 hover:bg-surface-container-high transition-colors cursor-pointer">
+												<div class="flex justify-between items-start mb-1">
+													<p class="text-sm font-bold text-on-surface">{item.type}</p>
+													<span class="text-xs text-on-surface-variant font-medium">{item.date}</span>
+												</div>
+												<p class="text-xs text-on-surface-variant">{item.desc}</p>
+											</div>
+										</div>
+									{/each}
+								{:else}
+									<div class="relative flex items-start gap-4 z-10">
+										<div class="w-5 h-5 rounded-full bg-surface-container-highest ring-4 ring-surface-container-lowest mt-0.5"></div>
+										<div class="p-2 flex-1">
+											<p class="text-sm font-bold text-on-surface-variant italic">No recent timeline records found.</p>
+										</div>
+									</div>
+								{/if}
+							</div>
+						</div>
+					{/if}
+
+					{#if activeTab === 'personal'}
+						<div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+							<div class="space-y-6">
+								<div>
+									<p class="text-[10px] text-on-surface-variant font-bold uppercase tracking-widest mb-1">Full Name</p>
+									<p class="text-base font-semibold text-on-surface">{employee.name}</p>
+								</div>
+								<div>
+									<p class="text-[10px] text-on-surface-variant font-bold uppercase tracking-widest mb-1">Birth Info</p>
+									<p class="text-base font-semibold text-on-surface">{employee.birthPlace || '-'}, {employee.birthDate || '-'}</p>
+								</div>
+								<div>
+									<p class="text-[10px] text-on-surface-variant font-bold uppercase tracking-widest mb-1">Gender & Religion</p>
+									<p class="text-base font-semibold text-on-surface">{employee.gender === 'MALE' || employee.gender === 'L' ? 'Male' : employee.gender === 'FEMALE' || employee.gender === 'P' ? 'Female' : (employee.gender || '-')} - {employee.religion || '-'}</p>
+								</div>
+								<div>
+									<p class="text-[10px] text-on-surface-variant font-bold uppercase tracking-widest mb-1">Marital Status</p>
+									<p class="text-base font-semibold text-on-surface">{employee.maritalStatus || '-'}</p>
+								</div>
+							</div>
+							
+							<div class="space-y-6">
+								<div>
+									<p class="text-[10px] text-on-surface-variant font-bold uppercase tracking-widest mb-1">Address</p>
+									<p class="text-base font-semibold text-on-surface">{employee.address || '-'}</p>
+									{#if employee.city}
+										<p class="text-sm text-on-surface-variant mt-1">{employee.city}</p>
+									{/if}
+								</div>
+								<div>
+									<p class="text-[10px] text-on-surface-variant font-bold uppercase tracking-widest mb-1">Contact Details</p>
+									<p class="text-base font-semibold text-on-surface">{employee.phone || 'No Phone Number'}</p>
+									<p class="text-sm text-on-surface-variant mt-1">{employee.email || 'No Email'}</p>
+								</div>
+								<div>
+									<p class="text-[10px] text-on-surface-variant font-bold uppercase tracking-widest mb-1">Education</p>
+									<p class="text-base font-semibold text-on-surface">{employee.education || '-'}</p>
+								</div>
+							</div>
+						</div>
+					{/if}
+
+					{#if activeTab === 'documents'}
+						<div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+							<div class="space-y-6">
+								<div>
+									<p class="text-[10px] text-on-surface-variant font-bold uppercase tracking-widest mb-1">National ID (NIK/KTP)</p>
+									<div class="flex items-center gap-3 mt-1">
+										<p class="text-base font-semibold text-on-surface">{employee.nik || 'Not Provided'}</p>
+										{#if employee.nik}
+											<span class="material-symbols-outlined text-tertiary text-[18px]">verified</span>
+										{/if}
+									</div>
+								</div>
+								<div>
+									<p class="text-[10px] text-on-surface-variant font-bold uppercase tracking-widest mb-1">Tax ID (NPWP)</p>
+									<p class="text-base font-semibold text-on-surface">{employee.npwp || 'Not Provided'}</p>
+								</div>
+							</div>
+							
+							<div class="bg-surface-container-low rounded-2xl p-6 border border-dashed border-outline-variant/50 flex flex-col items-center justify-center text-center">
+								<span class="material-symbols-outlined text-4xl text-on-surface-variant mb-2">folder_open</span>
+								<p class="text-sm font-bold text-on-surface">Employee Files</p>
+								<p class="text-xs text-on-surface-variant mt-1 mb-4">View contracts, ID scans, and other documents.</p>
+								<button class="px-4 py-2 bg-surface-container-highest text-on-surface text-xs font-bold rounded-xl hover:bg-outline-variant/20 transition-colors">
+									Open File Directory
+								</button>
+							</div>
+						</div>
+					{/if}
 				</div>
 			</div>
 		</div>

@@ -6,7 +6,7 @@
 
 <div class="flex h-[calc(100vh-64px)] overflow-hidden bg-surface relative">
 	<!-- SideNavBar (FMS Specific) -->
-	<aside class="w-64 flex-shrink-0 h-full bg-surface-container-low flex flex-col p-4 gap-2 z-40 relative">
+	<aside class="w-64 flex-shrink-0 h-full bg-surface-container-low flex flex-col p-4 gap-2 z-40 relative overflow-y-auto">
 		<!-- Add an subtle gradient overlay to avoid pure 1px border as per guideline -->
 		<div class="absolute inset-y-0 right-0 w-[1px] bg-gradient-to-b from-transparent via-surface-variant/30 to-transparent"></div>
 		
@@ -37,6 +37,10 @@
 			<a class="flex items-center gap-3 px-4 py-3 rounded-xl transition-transform duration-200 hover:translate-x-1 {$page.url.pathname.includes('/fms/maintenance') ? 'bg-surface-container-highest text-blue-600 dark:text-blue-400' : 'text-on-surface-variant hover:bg-surface-container'}" href="/fms/maintenance">
 				<span class="material-symbols-outlined">build</span>
 				<span class="font-medium text-sm">Maintenance</span>
+			</a>
+			<a class="flex items-center gap-3 px-4 py-3 rounded-xl transition-transform duration-200 hover:translate-x-1 {$page.url.pathname.includes('/fms/mechanic') ? 'bg-surface-container-highest text-blue-600 dark:text-blue-400' : 'text-on-surface-variant hover:bg-surface-container'}" href="/fms/mechanic">
+				<span class="material-symbols-outlined">home_repair_service</span>
+				<span class="font-medium text-sm">Mechanic Dasbor</span>
 			</a>
 			<a class="flex items-center gap-3 px-4 py-3 rounded-xl transition-transform duration-200 hover:translate-x-1 {$page.url.pathname.includes('/fms/drivers') ? 'bg-surface-container-highest text-blue-600 dark:text-blue-400' : 'text-on-surface-variant hover:bg-surface-container'}" href="/fms/drivers">
 				<span class="material-symbols-outlined">airline_seat_recline_normal</span>

@@ -23,8 +23,33 @@
 
 	let totalPages = $derived(Math.max(1, Math.ceil((meta?.total || 0) / (meta?.per_page || 8))));
 	let currentPage = $derived(meta?.current_page || 1);
-	function goToPage(p: number) {
-		if (p < 1 || p > totalPages) return;
+	
+	let visiblePages = $derived.by(() => {
+		const pages = [];
+		if (totalPages <= 7) {
+			for (let i = 1; i <= totalPages; i++) pages.push(i);
+		} else {
+			if (currentPage <= 4) {
+				for (let i = 1; i <= 5; i++) pages.push(i);
+				pages.push('...');
+				pages.push(totalPages);
+			} else if (currentPage >= totalPages - 3) {
+				pages.push(1);
+				pages.push('...');
+				for (let i = totalPages - 4; i <= totalPages; i++) pages.push(i);
+			} else {
+				pages.push(1);
+				pages.push('...');
+				for (let i = currentPage - 1; i <= currentPage + 1; i++) pages.push(i);
+				pages.push('...');
+				pages.push(totalPages);
+			}
+		}
+		return pages;
+	});
+
+	function goToPage(p: number | string) {
+		if (typeof p !== 'number' || p < 1 || p > totalPages) return;
 		const url = new URL(window.location.href);
 		url.searchParams.set('page', p.toString());
 		goto(url.toString(), { invalidateAll: true, noScroll: true });
@@ -53,14 +78,20 @@
 
 	<!-- Filters -->
 	<div class="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 mb-6">
-		<div class="flex gap-2 flex-wrap">
-			{#each ['All', ...categories] as cat}
-				<button onclick={() => { catFilter = cat; updateParams(); }}
-					class="px-4 py-2 rounded-full text-sm font-bold transition-colors {catFilter === cat ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300' : 'text-on-surface-variant hover:bg-surface-container'}">
-					{cat}
-				</button>
-			{/each}
+		<div class="flex gap-2 items-center w-full lg:w-auto">
+			<span class="material-symbols-outlined text-on-surface-variant hidden lg:block">filter_list</span>
+			<select 
+				bind:value={catFilter} 
+				onchange={updateParams}
+				class="w-full lg:w-64 px-4 py-2.5 bg-surface border border-outline-variant/30 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-amber-500/50 appearance-none cursor-pointer"
+			>
+				<option value="All">All Categories</option>
+				{#each categories as cat}
+					<option value={cat}>{cat}</option>
+				{/each}
+			</select>
 		</div>
+
 		<div class="relative w-full lg:w-72 flex-shrink-0">
 			<span class="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-on-surface-variant text-lg">search</span>
 			<input type="text" bind:value={searchQuery} oninput={handleSearch}
@@ -144,8 +175,12 @@
 				<button class="w-8 h-8 rounded-lg flex items-center justify-center text-on-surface-variant hover:bg-surface-container-high disabled:opacity-50 transition-colors" disabled={currentPage <= 1} onclick={() => goToPage(currentPage - 1)}>
 					<span class="material-symbols-outlined text-lg">chevron_left</span>
 				</button>
-				{#each Array(totalPages) as _, i}
-					<button class="w-8 h-8 rounded-lg flex items-center justify-center font-bold text-sm transition-colors {currentPage === i + 1 ? 'bg-amber-600 text-white' : 'text-on-surface hover:bg-surface-container-high'}" onclick={() => goToPage(i + 1)}>{i + 1}</button>
+				{#each visiblePages as p}
+					{#if p === '...'}
+						<div class="w-8 h-8 flex items-center justify-center text-on-surface-variant">...</div>
+					{:else}
+						<button class="w-8 h-8 rounded-lg flex items-center justify-center font-bold text-sm transition-colors {currentPage === p ? 'bg-amber-600 text-white' : 'text-on-surface hover:bg-surface-container-high'}" onclick={() => goToPage(p)}>{p}</button>
+					{/if}
 				{/each}
 				<button class="w-8 h-8 rounded-lg flex items-center justify-center text-on-surface-variant hover:bg-surface-container-high disabled:opacity-50 transition-colors" disabled={currentPage >= totalPages} onclick={() => goToPage(currentPage + 1)}>
 					<span class="material-symbols-outlined text-lg">chevron_right</span>

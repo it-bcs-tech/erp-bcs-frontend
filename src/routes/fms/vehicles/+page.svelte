@@ -13,14 +13,23 @@
 	let searchQuery   = $state($page.url.searchParams.get('search') || '');
 	let activeFilter  = $state($page.url.searchParams.get('business_unit') || 'All');
 	let activeStatus  = $state($page.url.searchParams.get('status') || 'All');
+	let activeAssetGroup = $state($page.url.searchParams.get('asset_group') || 'LOGISTICS_FLEET');
 
 	const buFilters     = ['All', 'DUMP_TRUCK', 'TRANSPORTATION', 'OUTSOURCING'];
 	const statusFilters = ['All', 'ACTIVE', 'INACTIVE'];
+	const assetGroupFilters = ['LOGISTICS_FLEET', 'SUPPORT_VEHICLE', 'HEAVY_EQUIPMENT', 'ATTACHMENT', 'All'];
 
 	const buLabel: Record<string, string> = {
 		DUMP_TRUCK:     'Dump Truck',
 		TRANSPORTATION: 'Transportation',
 		OUTSOURCING:    'Outsourcing',
+	};
+
+	const assetGroupLabel: Record<string, string> = {
+		LOGISTICS_FLEET: 'Armada Logistik',
+		SUPPORT_VEHICLE: 'Kendaraan Pendukung',
+		HEAVY_EQUIPMENT: 'Alat Berat',
+		ATTACHMENT:      'Gandengan',
 	};
 
 	let showMaintenanceModal = $state(false);
@@ -59,6 +68,9 @@
 		if (activeStatus && activeStatus !== 'All') url.searchParams.set('status', activeStatus);
 		else url.searchParams.delete('status');
 
+		if (activeAssetGroup && activeAssetGroup !== 'All') url.searchParams.set('asset_group', activeAssetGroup);
+		else url.searchParams.delete('asset_group');
+
 		url.searchParams.set('page', '1');
 		goto(url.toString(), { keepFocus: true, noScroll: true });
 	}
@@ -75,6 +87,11 @@
 
 	function handleStatusClick(status: string) {
 		activeStatus = status;
+		updateQueryParams();
+	}
+
+	function handleAssetGroupClick(ag: string) {
+		activeAssetGroup = ag;
 		updateQueryParams();
 	}
 
@@ -182,8 +199,24 @@
 	</div>
 
 	<!-- Filters & Search -->
-	<div class="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-3 mb-6">
-		<div class="flex flex-wrap gap-2">
+	<div class="flex flex-col gap-4 mb-6">
+		<!-- Main Row: Asset Group Tabs -->
+		<div class="flex border-b border-outline-variant/30 overflow-x-auto hide-scrollbar">
+			{#each assetGroupFilters as ag}
+				<button
+					class="px-5 py-3 text-sm font-bold whitespace-nowrap border-b-2 transition-all {activeAssetGroup === ag
+						? 'border-blue-600 text-blue-600 dark:border-blue-400 dark:text-blue-400'
+						: 'border-transparent text-on-surface-variant hover:text-on-surface hover:bg-surface-container-lowest'}"
+					onclick={() => handleAssetGroupClick(ag)}
+				>
+					{ag === 'All' ? 'Semua Kategori' : assetGroupLabel[ag] ?? ag}
+				</button>
+			{/each}
+		</div>
+
+		<!-- Second Row: BU, Status, Search -->
+		<div class="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-3">
+			<div class="flex flex-wrap gap-2">
 			<!-- Business Unit Filter -->
 			{#each buFilters as filter}
 				<button
@@ -225,6 +258,7 @@
 			/>
 		</div>
 	</div>
+</div>
 
 	<!-- Table -->
 	<div class="bg-surface-container-lowest rounded-[24px] shadow-sm flex-1 overflow-hidden flex flex-col">

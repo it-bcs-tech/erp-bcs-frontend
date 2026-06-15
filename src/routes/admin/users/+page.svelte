@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
 	import { spawnToast } from '$lib/stores/notifications';
-	import { ALL_MODULES } from '$lib/types/auth';
+	import { ALL_MODULES, ROLE_MODULE_MAP, ADMIN_ROLES } from '$lib/types/auth';
 
 	let { data, form } = $props();
 
@@ -17,12 +17,14 @@
 	// Selected User for Add
 	let selectedKaryawan = $state<any>(null);
 	
+	// New User Form State
+	let newSelectedModules = $state<string[]>([]);
+	let newRole = $state('');
+
 	// Edit Modal State
 	let editUser = $state<any>(null);
 	let editSelectedModules = $state<string[]>([]);
-
-	// New User Form State
-	let newSelectedModules = $state<string[]>([]);
+	let editRole = $state('');
 
 	// Define role list
 	const availableRoles = [
@@ -65,6 +67,7 @@
 
 	function openEditModal(user: any) {
 		editUser = { ...user };
+		editRole = user.erp_role || '';
 		try {
 			// Parse JSON modules
 			if (typeof user.allowed_modules === 'string') {
@@ -76,6 +79,33 @@
 			editSelectedModules = [];
 		}
 		showEditModal = true;
+	}
+
+	function handleNewRoleChange(e: Event) {
+		const target = e.target as HTMLSelectElement;
+		newRole = target.value;
+		
+		if (ADMIN_ROLES.includes(newRole)) {
+			newSelectedModules = ['*'];
+		} else if (ROLE_MODULE_MAP[newRole]) {
+			newSelectedModules = [...ROLE_MODULE_MAP[newRole]];
+		} else {
+			newSelectedModules = [];
+		}
+	}
+
+	function handleEditRoleChange(e: Event) {
+		const target = e.target as HTMLSelectElement;
+		editRole = target.value;
+		editUser.erp_role = editRole;
+
+		if (ADMIN_ROLES.includes(editRole)) {
+			editSelectedModules = ['*'];
+		} else if (ROLE_MODULE_MAP[editRole]) {
+			editSelectedModules = [...ROLE_MODULE_MAP[editRole]];
+		} else {
+			editSelectedModules = [];
+		}
 	}
 
 	let searchTimeout: any;
@@ -168,8 +198,8 @@
 									<div>
 										<p class="font-bold text-sm text-on-surface">{user.nama_karyawan || 'External User'}</p>
 										<p class="text-xs text-on-surface-variant">{user.email}</p>
-										{#if user.div_name}
-											<p class="text-[10px] text-primary font-bold uppercase tracking-wider mt-0.5">{user.div_name}</p>
+										{#if user.title_name}
+											<p class="text-[10px] text-primary font-bold uppercase tracking-wider mt-0.5">{user.title_name}</p>
 										{/if}
 									</div>
 								</div>
@@ -292,7 +322,7 @@
 											class="w-full text-left px-4 py-3 hover:bg-surface-container-low border-b border-surface-container last:border-0"
 										>
 											<p class="font-bold text-sm text-on-surface">{emp.nama_karyawan} <span class="text-xs font-normal text-on-surface-variant ml-2">{emp.nik}</span></p>
-											<p class="text-[10px] text-primary font-bold uppercase mt-1">{emp.div_name} — {emp.level_name}</p>
+											<p class="text-[10px] text-primary font-bold uppercase mt-1">{emp.title_name} — {emp.level_name}</p>
 										</button>
 									{/each}
 								</div>
@@ -319,7 +349,7 @@
 
 					<div>
 						<label class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-1.5">ERP Role</label>
-						<select name="role" required class="w-full bg-surface-container border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm">
+						<select name="role" required class="w-full bg-surface-container border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm" bind:value={newRole} onchange={handleNewRoleChange}>
 							<option value="">-- Select Role --</option>
 							{#each availableRoles as r}
 								<option value={r}>{r}</option>
@@ -390,7 +420,7 @@
 
 					<div>
 						<label class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-1.5">ERP Role</label>
-						<select name="role" required class="w-full bg-surface-container border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm" bind:value={editUser.erp_role}>
+						<select name="role" required class="w-full bg-surface-container border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm" bind:value={editRole} onchange={handleEditRoleChange}>
 							{#each availableRoles as r}
 								<option value={r}>{r}</option>
 							{/each}

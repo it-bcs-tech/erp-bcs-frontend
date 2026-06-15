@@ -137,6 +137,11 @@ export const actions: Actions = {
 							VALUES (${tripId}, 'NOTE', 0, 0, 'Sistem Kasir: UJO Dicairkan, Unit Otomatis Berangkat (Auto-Dispatch)')
 						`;
 
+						await sql`
+							INSERT INTO fleet.trip_status_log (trip_id, status)
+							VALUES (${tripId}, 'DISPATCHED')
+						`;
+
 						// Update Unit Status
 						await sql`
 							UPDATE fleet.unit 

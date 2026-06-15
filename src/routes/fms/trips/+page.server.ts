@@ -19,7 +19,12 @@ export const load: PageServerLoad = async ({ url }) => {
 				t.status,
 				t.depart_time,
 				t.arrive_time,
-				t.created_at
+				t.created_at,
+				COALESCE(
+					(SELECT json_agg(json_build_object('status', sl.status, 'created_at', sl.created_at) ORDER BY sl.created_at ASC)
+					 FROM fleet.trip_status_log sl WHERE sl.trip_id = t.id),
+					'[]'::json
+				) as status_logs
 			FROM fleet.trip t
 			LEFT JOIN fleet.unit u ON t.unit_id = u.id
 			LEFT JOIN master.m_drivers d ON d.id = t.driver_id
@@ -75,6 +80,41 @@ export const load: PageServerLoad = async ({ url }) => {
 				'RETURNING': t.status === 'COMPLETED'
 			};
 
+			const logs = Array.isArray(t.status_logs) ? t.status_logs : [];
+			const logMap = new Map();
+			logs.forEach((l: any) => {
+				if (!logMap.has(l.status)) {
+					logMap.set(l.status, l.created_at);
+				}
+			});
+
+			const calcDuration = (startStatus: string, endStatus: string) => {
+				const start = logMap.get(startStatus);
+				let end = logMap.get(endStatus);
+				let isOngoing = false;
+				
+				if (!start) return null;
+
+				if (!end) {
+					end = new Date().toISOString();
+					isOngoing = true;
+				}
+				
+				const diffMs = new Date(end).getTime() - new Date(start).getTime();
+				const totalMins = Math.floor(diffMs / 60000);
+				const h = Math.floor(totalMins / 60);
+				const m = totalMins % 60;
+				let str = h > 0 ? `${h}j ${m}m` : `${m}m`;
+				
+				const startFmt = formatTime(start);
+				const endFmt = isOngoing ? 'Sekarang' : formatTime(end);
+				
+				return {
+					value: str,
+					tooltip: `${startFmt} s/d ${endFmt}`
+				};
+			};
+
 			// Generate horizontal timeline history
 			const history = [
 				{ 
@@ -82,43 +122,49 @@ export const load: PageServerLoad = async ({ url }) => {
 					label: 'Standby at Pool', 
 					time: createdTime, 
 					completed: completedStatuses['AT_POOL'], 
-					active: t.status === 'SCHEDULED' 
+					active: t.status === 'SCHEDULED',
+					duration: null
 				},
 				{ 
 					step: 'HEADING_ORIGIN', 
 					label: 'Heading to Origin', 
-					time: departTime, 
+					time: logMap.get('DISPATCHED') ? formatTime(logMap.get('DISPATCHED')) : departTime, 
 					completed: completedStatuses['HEADING_ORIGIN'], 
-					active: t.status === 'DISPATCHED' 
+					active: t.status === 'DISPATCHED',
+					duration: calcDuration('DISPATCHED', 'AT_ORIGIN')
 				},
 				{ 
 					step: 'AT_ORIGIN', 
 					label: 'Loading at Origin', 
-					time: null, 
+					time: logMap.get('AT_ORIGIN') ? formatTime(logMap.get('AT_ORIGIN')) : null, 
 					completed: completedStatuses['AT_ORIGIN'], 
-					active: t.status === 'AT_ORIGIN' 
+					active: t.status === 'AT_ORIGIN',
+					duration: calcDuration('AT_ORIGIN', 'ON_ROUTE')
 				},
 				{ 
 					step: 'HEADING_DEST', 
 					label: 'On Route to Dest', 
-					time: null, 
+					time: logMap.get('ON_ROUTE') ? formatTime(logMap.get('ON_ROUTE')) : null, 
 					completed: completedStatuses['HEADING_DEST'], 
-					active: t.status === 'ON_ROUTE' 
+					active: t.status === 'ON_ROUTE',
+					duration: calcDuration('ON_ROUTE', 'AT_DESTINATION')
 				},
 				{ 
 					step: 'AT_DEST', 
 					label: 'Unloading at Dest', 
-					time: arriveTime, 
+					time: logMap.get('AT_DESTINATION') ? formatTime(logMap.get('AT_DESTINATION')) : null, 
 					completed: completedStatuses['AT_DEST'], 
-					active: t.status === 'AT_DESTINATION' 
+					active: t.status === 'AT_DESTINATION',
+					duration: calcDuration('AT_DESTINATION', 'RETURNING')
 				},
 				{ 
 					step: 'RETURNING', 
 					label: 'Returning to Pool', 
-					time: null, 
+					time: logMap.get('RETURNING') ? formatTime(logMap.get('RETURNING')) : null, 
 					completed: completedStatuses['RETURNING'], 
-					active: t.status === 'RETURNING'
-				},
+					active: t.status === 'RETURNING',
+					duration: calcDuration('RETURNING', 'COMPLETED')
+				}
 			];
 
 			return {

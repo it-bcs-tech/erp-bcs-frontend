@@ -62,6 +62,10 @@
 				<span class="material-symbols-outlined text-lg">download</span>
 				Export
 			</button>
+			<a href="/fms/maintenance/create" class="bg-primary text-on-primary px-4 py-2.5 rounded-xl text-sm font-semibold flex items-center gap-2 hover:bg-primary/90 transition-colors shadow-sm">
+				<span class="material-symbols-outlined text-lg">add</span>
+				New Work Order
+			</a>
 		</div>
 	</header>
 
@@ -187,29 +191,29 @@
 								{/if}
 							</td>
 							<td class="py-4 px-6">
-								{#if rec.status === 'Overdue'}
+								{#if rec.status?.toLowerCase().includes('open') || rec.status?.toLowerCase().includes('overdue')}
 									<span class="inline-flex items-center gap-1.5 text-rose-600 dark:text-rose-400 font-bold text-[11px] bg-rose-500/10 px-2.5 py-1 rounded-md uppercase tracking-wider border border-rose-500/20">
-										<span class="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse"></span> Overdue
+										<span class="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse"></span> {rec.status}
 									</span>
-								{:else if rec.status === 'In Progress'}
+								{:else if rec.status?.toLowerCase().includes('proses') || rec.status?.toLowerCase().includes('progress')}
 									<span class="inline-flex items-center gap-1.5 text-blue-600 dark:text-blue-400 font-bold text-[11px] bg-blue-500/10 px-2.5 py-1 rounded-md uppercase tracking-wider border border-blue-500/20">
-										<span class="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse"></span> In Progress
+										<span class="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse"></span> {rec.status}
 									</span>
-								{:else if rec.status === 'Completed'}
+								{:else if rec.status?.toLowerCase().includes('close') || rec.status?.toLowerCase().includes('complete')}
 									<span class="inline-flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400 font-bold text-[11px] bg-emerald-500/10 px-2.5 py-1 rounded-md uppercase tracking-wider border border-emerald-500/20">
-										<span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> Completed
+										<span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> {rec.status}
 									</span>
 								{:else}
-									<span class="inline-flex items-center gap-1.5 text-amber-600 dark:text-amber-400 font-bold text-[11px] bg-amber-500/10 px-2.5 py-1 rounded-md uppercase tracking-wider border border-amber-500/20">
-										<span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span> Scheduled
+									<span class="inline-flex items-center gap-1.5 text-slate-500 dark:text-slate-400 font-bold text-[11px] bg-slate-500/10 px-2.5 py-1 rounded-md uppercase tracking-wider border border-slate-500/20">
+										<span class="w-1.5 h-1.5 rounded-full bg-slate-500"></span> {rec.status}
 									</span>
 								{/if}
 							</td>
 							<td class="py-4 px-6 text-right">
 								<div class="flex items-center justify-end gap-2">
-									<button class="p-2 rounded-lg text-blue-600 hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors" title="View Details">
+									<a href={`/fms/maintenance/${encodeURIComponent(rec.id)}`} class="inline-block p-2 rounded-lg text-blue-600 hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors" title="View Details">
 										<span class="material-symbols-outlined text-[20px]">visibility</span>
-									</button>
+									</a>
 									<button class="p-2 rounded-lg text-on-surface-variant hover:bg-surface-container-high transition-colors" title="More Options">
 										<span class="material-symbols-outlined text-[20px]">more_vert</span>
 									</button>

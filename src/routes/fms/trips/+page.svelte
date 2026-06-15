@@ -298,7 +298,17 @@
 																{event.label}
 															</p>
 															{#if event.time}
-																<p class="text-[10px] {event.completed ? 'text-on-surface-variant' : 'text-on-surface-variant/40'} mt-1 font-medium">{event.time}</p>
+																<p class="text-[10px] {event.active ? 'text-blue-500/80 font-medium' : 'text-on-surface-variant font-medium'} mt-1">
+																	{event.time}
+																</p>
+															{/if}
+															{#if event.duration}
+																<div 
+																	class="mt-2 inline-flex items-center gap-1 bg-surface-container-low px-2 py-0.5 rounded text-[9px] font-bold text-on-surface-variant border border-outline-variant/30 cursor-help"
+																	title={event.duration.tooltip}
+																>
+																	<span class="material-symbols-outlined text-[10px]">timer</span> {event.duration.value}
+																</div>
 															{/if}
 															{#if event.notes}
 																<p class="text-[10px] mt-2 px-2 py-1 bg-surface-container border border-surface-container-highest rounded text-on-surface-variant italic inline-block">
