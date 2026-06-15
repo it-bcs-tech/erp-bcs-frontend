@@ -16,6 +16,7 @@ services:
       - .env
     environment:
       - NODE_ENV=production
+      - TZ=Asia/Jakarta
       - ORIGIN=https://erp.bcslabs.tech
       - API_URL=http://api.bcslabs.tech # Server-side, lewat Nginx Host (HTTP → FastCGI → PHP-FPM)
       - AI_BRIDGE_URL=http://ai-bridge:8000  # Python AI Bridge (internal Docker network)
@@ -68,6 +69,8 @@ services:
       - "9001:9000"  # PHP-FPM, diakses oleh Nginx Pusat via fastcgi_pass
     env_file:
       - .env
+    environment:
+      - TZ=Asia/Jakarta
     volumes:
       - backend_storage:/var/www/html/storage
     depends_on:
