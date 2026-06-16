@@ -47,7 +47,6 @@ export async function runGeofenceEngine() {
 				o.polygon_points as o_polygon,
 				d.latitude as d_lat, 
 				d.longitude as d_lon, 
-				COALESCE(d.geofence_radius, 2000) as d_rad,
 				d.polygon_points as d_polygon,
 				t.last_lat,
 				t.last_lon,
@@ -60,7 +59,7 @@ export async function runGeofenceEngine() {
 			JOIN fleet.unit u ON u.id = t.unit_id
 			LEFT JOIN master.m_customer o ON o.id = t.origin_id
 			LEFT JOIN master.m_customer d ON d.id = t.destination_id
-			WHERE t.status IN ('DISPATCHED', 'AT_ORIGIN', 'ON_ROUTE') 
+			WHERE t.status IN ('DISPATCHED', 'AT_ORIGIN', 'ON_ROUTE', 'RETURNING') 
 			  AND t.deleted_at IS NULL
 		`;
 
@@ -68,8 +67,9 @@ export async function runGeofenceEngine() {
 			return { success: true, message: 'No active trips to monitor.', logs: [] };
 		}
 
-		// 2. Fetch active Rest Areas
+		// 2. Fetch active Rest Areas and Pools
 		const restAreas = await sql`SELECT id, nama_rest_area, polygon_points FROM master.m_rest_area WHERE is_active = true`;
+		const poolsList = await sql`SELECT id, nama_pool, latitude, longitude, COALESCE(geofence_radius, 500) as radius FROM master.m_pool`;
 
 		// 3. Fetch latest GPS coordinates from EasyGo API wrapper
 		const res = await fetch(`${env.FMS_API_URL || 'http://localhost:8081'}/api/fms/live-map`);
@@ -99,15 +99,21 @@ export async function runGeofenceEngine() {
 
 		for (const trip of activeTrips) {
 			const nopolClean = trip.nomor_unit.replace(/\s+/g, '').toUpperCase();
-			const gps = gpsMap.get(nopolClean);
-			if (!gps) continue; 
+			let gps = gpsMap.get(nopolClean);
+			if (!gps) {
+				if (trip.last_lat && trip.last_lon) {
+					gps = { lat: parseFloat(trip.last_lat), lon: parseFloat(trip.last_lon), speed: 0 };
+				} else {
+					continue;
+				}
+			}
 
 			let newDistance = parseFloat(trip.distance_km);
 			let newMaxSpeed = parseInt(trip.max_speed_kmh);
 			let newAvgSpeed = parseInt(trip.avg_speed_kmh);
 			let newStopCount = parseInt(trip.stop_count);
 			
-			if (['DISPATCHED', 'AT_ORIGIN', 'ON_ROUTE'].includes(trip.status)) {
+			if (['DISPATCHED', 'AT_ORIGIN', 'ON_ROUTE', 'RETURNING'].includes(trip.status)) {
 				const currentSpeed = Math.round(gps.speed || 0);
 				let shouldLogPath = false;
 
@@ -300,17 +306,57 @@ export async function runGeofenceEngine() {
 											// Ignore
 										}
 
-										await sql`INSERT INTO fleet.trip_checkpoint (trip_id, event, lat, lon, notes) VALUES (${trip.id}, ${aiStatus}, ${gps.lat}, ${gps.lon}, ${aiNotes})`;
-										logs.push(`[GEOFENCE-DEVIATION-AI] Truk ${trip.nomor_unit} keluar jalur sejauh ${(minDist/1000).toFixed(1)}km! AI: ${aiStatus}`);
-										updatedCount++;
+										await sql`INSERT INTO fleet.trip_checkpoint (trip_id, event, lat, lon, notes, is_anomaly) VALUES (${trip.id}, ${aiStatus}, ${gps.lat}, ${gps.lon}, ${aiNotes}, true)`;
+										logs.push(`[ANOMALY] Truk ${trip.nomor_unit} terdeteksi keluar dari rute resmi (${Math.round(minDist)}m). Event dicatat.`);
 									}
 								}
 							}
 						}
-					} catch (e) {
+					} catch (err) {
+						console.error("Route check error:", err);
 					}
 				}
 			}
+
+			// Rule E: Arriving at Pool -> COMPLETED & CLOSING
+			if (trip.status === 'RETURNING') {
+				let arrivedAtPool = false;
+				let minDistance = Infinity;
+
+				for (const pool of poolsList) {
+					if (pool.latitude && pool.longitude) {
+						const dist = haversine(gps.lat, gps.lon, parseFloat(pool.latitude), parseFloat(pool.longitude));
+						if (dist <= pool.radius) {
+							arrivedAtPool = true;
+							minDistance = dist;
+							break;
+						}
+					}
+				}
+
+				if (arrivedAtPool) {
+					// Update Trip Status
+					await sql`UPDATE fleet.trip SET status = 'COMPLETED', arrive_time = NOW() WHERE id = ${trip.id}`;
+					await sql`INSERT INTO fleet.trip_status_log (trip_id, status) VALUES (${trip.id}, 'COMPLETED')`;
+					await sql`INSERT INTO fleet.trip_checkpoint (trip_id, event, lat, lon, notes) VALUES (${trip.id}, 'COMPLETED', ${gps.lat}, ${gps.lon}, 'Auto-pilot: Kembali ke Pool (Completed)')`;
+					
+					// Auto Update Sales Order to CLOSING
+					try {
+						await sql`
+							UPDATE marketing.sales_order 
+							SET status = 'CLOSING'
+							WHERE assigned_unit_id = ${trip.unit_id}
+							  AND status = 'DISPATCHED'
+						`;
+					} catch (err) {
+						console.error("Auto closing update error:", err);
+					}
+
+					logs.push(`[GEOFENCE-ARRIVE-POOL] Truk ${trip.nomor_unit} telah kembali ke Pool (${minDistance.toFixed(0)}m). Status -> COMPLETED & CLOSING`);
+					updatedCount++;
+				}
+			}
+
 		}
 
 		return { success: true, message: `Geofence check completed. Updated ${updatedCount} trips.`, logs };

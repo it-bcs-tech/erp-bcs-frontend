@@ -45,3 +45,4 @@ query.js
 test_*.js
 scripts/
 tarif_tol.csv
+trigger.js

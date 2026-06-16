@@ -256,8 +256,8 @@
 
 			// Draw Geofence Pools
 			const pools = [
-				{ name: 'Pool Cilegon', lat: -5.9794663, lng: 106.0079733, radiusMeters: 350 },
-				{ name: 'Pool Bogor', lat: -6.4618702, lng: 106.8941709, radiusMeters: 150 }
+				{ name: 'Pool Cilegon', lat: -5.9794663, lng: 106.0079733, radiusMeters: 500 },
+				{ name: 'Pool Bogor', lat: -6.4618702, lng: 106.8941709, radiusMeters: 500 }
 			];
 			pools.forEach(p => {
 				const circle = L.circle([p.lat, p.lng], {

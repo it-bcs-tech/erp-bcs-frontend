@@ -90,8 +90,8 @@ export const load: PageServerLoad = async ({ fetch }) => {
 
 		// Definisi Geofence Pool Resmi
 		const POOLS = [
-			{ id: 'cilegon', name: 'Pool Cilegon', lat: -5.9794663, lng: 106.0079733, radiusKm: 0.35 },
-			{ id: 'bogor', name: 'Pool Bogor', lat: -6.4618702, lng: 106.8941709, radiusKm: 0.15 }
+			{ id: 'cilegon', name: 'Pool Cilegon', lat: -5.9794663, lng: 106.0079733, radiusKm: 0.5 },
+			{ id: 'bogor', name: 'Pool Bogor', lat: -6.4618702, lng: 106.8941709, radiusKm: 0.5 }
 		];
 
 		// 2. Fetch unified GPS data from our Golang Backend

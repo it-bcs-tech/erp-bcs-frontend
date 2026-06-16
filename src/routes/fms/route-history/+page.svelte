@@ -59,6 +59,12 @@
 	let playbackInterval: any;
 	
 	let playbackData = $state<{lat: number, lon: number, speed: number, time: string}[]>([]);
+
+	function formatPlaybackTime(isoString: string) {
+		if (!isoString) return '00:00';
+		const date = new Date(isoString);
+		return date.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Jakarta' }).replace('.', ':');
+	}
 	let restAreaLogs = $state<any[]>([]);
 	let currentPointIndex = $state(0);
 	let currentPlaybackSpeed = $state(0);
@@ -415,7 +421,7 @@
 				<div class="flex-1 flex flex-col gap-2">
 					<div class="flex items-center justify-between text-xs font-medium text-on-surface-variant px-1">
 						<span>Titik Awal</span>
-						<span>{playbackData.length > 0 ? playbackData[currentPointIndex]?.time.split('T')[1].substring(0,5) : '00:00'}</span>
+						<span>{playbackData.length > 0 ? formatPlaybackTime(playbackData[currentPointIndex]?.time) : '00:00'}</span>
 						<span>Tujuan</span>
 					</div>
 					<input 

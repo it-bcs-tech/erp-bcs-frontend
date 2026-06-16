@@ -499,13 +499,20 @@
 									Menunggu Kasir Mencairkan UJO
 								</div>
 							{:else if order.status === 'DISPATCHED'}
-								<form method="POST" action="?/submitClosing" use:enhance={() => { isSubmitting = true; return async ({ update }) => { await update(); isSubmitting = false; } }}>
-									<input type="hidden" name="orderId" value={order.id}>
-									<button type="submit" disabled={isSubmitting} class="px-4 py-2 bg-sky-600 text-white rounded-lg text-xs font-bold shadow-sm hover:bg-sky-700 transition-colors flex items-center gap-2 disabled:opacity-50">
-										<span class="material-symbols-outlined text-[16px]">pin_drop</span>
-										Mark Unit Arrived (Begin Closing)
-									</button>
-								</form>
+								{#if data.user?.role === 'superadmin'}
+									<form method="POST" action="?/submitClosing" use:enhance={() => { isSubmitting = true; return async ({ update }) => { await update(); isSubmitting = false; } }}>
+										<input type="hidden" name="orderId" value={order.id}>
+										<button type="submit" disabled={isSubmitting} class="px-4 py-2 bg-sky-600 text-white rounded-lg text-xs font-bold shadow-sm hover:bg-sky-700 transition-colors flex items-center gap-2 disabled:opacity-50">
+											<span class="material-symbols-outlined text-[16px]">pin_drop</span>
+											Mark Unit Arrived (Begin Closing)
+										</button>
+									</form>
+								{:else}
+									<div class="px-4 py-2 bg-sky-50 text-sky-700 dark:bg-sky-900/20 dark:text-sky-400 border border-sky-200 dark:border-sky-900/50 rounded-lg text-xs font-bold flex items-center gap-2 justify-center w-full shadow-sm">
+										<span class="material-symbols-outlined text-[16px] animate-pulse">local_shipping</span>
+										Truk sedang dalam perjalanan
+									</div>
+								{/if}
 							{:else if order.status === 'CLOSING'}
 								<button onclick={() => openClosingModal(order)} class="px-4 py-2 bg-rose-600 text-white rounded-lg text-xs font-bold shadow-sm hover:bg-rose-700 transition-colors flex items-center gap-2">
 									<span class="material-symbols-outlined text-[16px]">receipt_long</span>

@@ -76,15 +76,21 @@ export const load: PageServerLoad = async () => {
 				COALESCE(d.nama_karyawan, 'No Driver') as driver,
 				t.origin || ' → ' || t.destination as route,
 				t.no_surat_tugas as do,
-				to_char(t.updated_at, 'DD Mon HH24:MI') as "completedAt",
+				to_char(COALESCE(t.arrive_time, t.updated_at, t.created_at), 'DD Mon HH24:MI') as "completedAt",
 				COALESCE(o.estimated_ujo, 0) as ujo
 			FROM fleet.trip t
 			LEFT JOIN fleet.unit u ON u.id = t.unit_id
 			LEFT JOIN master.m_drivers md ON md.id = t.driver_id
 			LEFT JOIN master.m_karyawan d ON d.id = md.karyawan_id
-			LEFT JOIN marketing.sales_order o ON o.assigned_unit_id = t.unit_id
+			LEFT JOIN LATERAL (
+				SELECT estimated_ujo 
+				FROM marketing.sales_order 
+				WHERE assigned_unit_id = t.unit_id 
+				ORDER BY created_at DESC 
+				LIMIT 1
+			) o ON true
 			WHERE t.status = 'COMPLETED'
-			ORDER BY t.updated_at DESC
+			ORDER BY COALESCE(t.arrive_time, t.updated_at, t.created_at) DESC
 			LIMIT 3
 		`;
 

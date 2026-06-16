@@ -48,10 +48,10 @@
 	function getTripIcon(status: string) {
 		switch (status) {
 			case 'AT_ORIGIN':   return 'forklift';
-			case 'ON_ROUTE':  return 'truck';
+			case 'ON_ROUTE':  return 'local_shipping';
 			case 'AT_DESTINATION': return 'forklift';
-			case 'RETURNING': return 'truck';
-			case 'COMPLETED':      return 'check-circle';
+			case 'RETURNING': return 'local_shipping';
+			case 'COMPLETED':      return 'check_circle';
 			case 'CANCELLED': return 'cancel';
 			default:          return 'receipt_long';
 		}
