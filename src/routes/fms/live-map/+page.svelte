@@ -41,6 +41,17 @@
 	let selectedUnit = $derived(displayUnits.find((u: any) => u.id === selectedUnitId) || null);
 	let showInCar = $state(false);
 	let isInitialFlyTo = $state(false);
+	let isFullScreen = $state(false);
+	let isSidebarCollapsed = $state(false);
+
+	$effect(() => {
+		// Invalidate map size when full screen toggled
+		if (isFullScreen !== undefined && map) {
+			setTimeout(() => {
+				map.invalidateSize();
+			}, 350);
+		}
+	});
 	
 	let routeMeta = $state<{dist: string, eta: string} | null>(null);
 	let roadSteps = $state<{currentRoad: string | null, nextRoad: string | null}>({ currentRoad: null, nextRoad: null });
@@ -689,7 +700,7 @@
 				<span class="material-symbols-outlined text-[18px] {isSyncing ? 'animate-spin' : ''}">sync</span>
 				Auto-Pilot Check
 			</button>
-			<div class="flex items-center gap-2 bg-surface-container-lowest border border-surface-container rounded-xl p-1 shadow-sm">
+			<div class="{isFullScreen ? 'fixed top-6 left-6 z-[60] bg-white/30 dark:bg-slate-900/30 backdrop-blur-md hover:bg-white dark:hover:bg-slate-900 shadow-xl transition-all duration-300' : 'bg-surface-container-lowest shadow-sm'} flex items-center gap-2 border border-surface-container rounded-xl p-1">
 				<div class="flex items-center px-3 gap-2 border-r border-surface-container">
 					<span class="material-symbols-outlined text-surface-variant text-sm">search</span>
 					<input type="text" bind:value={searchQuery} placeholder="Search Nopol / Driver / Customer..." class="bg-transparent border-none outline-none text-sm w-56 text-on-surface placeholder:text-surface-variant">
@@ -710,8 +721,13 @@
 
 	<div class="flex-1 flex gap-4 min-h-0">
 		<!-- Map -->
-		<div class="flex-1 rounded-[24px] overflow-hidden shadow-lg border border-surface-container relative">
+		<div class="{isFullScreen ? 'fixed inset-0 z-50 w-screen h-screen rounded-none border-none' : 'flex-1 rounded-[24px] overflow-hidden shadow-lg border border-surface-container relative'} transition-all duration-300">
 			<div bind:this={mapContainer} class="w-full h-full"></div>
+			
+			<button onclick={() => isFullScreen = !isFullScreen} class="absolute top-4 right-4 z-[1000] p-2.5 {isFullScreen ? 'bg-white/30 dark:bg-slate-900/30 hover:bg-white dark:hover:bg-slate-900' : 'bg-surface-container-lowest/90 hover:bg-surface-container-lowest'} backdrop-blur-md rounded-xl shadow-lg border border-surface-container transition-colors text-on-surface" title="Toggle Full Screen">
+				<span class="material-symbols-outlined text-xl">{isFullScreen ? 'fullscreen_exit' : 'fullscreen'}</span>
+			</button>
+
 			<div class="absolute bottom-4 left-4 z-[1000] bg-surface-container-lowest/90 backdrop-blur-md rounded-xl p-4 shadow-lg border border-surface-container">
 				<p class="text-[9px] font-black text-on-surface-variant uppercase tracking-widest mb-3">Unit Status</p>
 				<div class="grid grid-cols-2 gap-x-4 gap-y-2">
@@ -732,18 +748,25 @@
 		</div>
 
 		<!-- Sidebar -->
-		<div class="w-80 flex-shrink-0 bg-surface-container-lowest rounded-[24px] shadow-sm overflow-y-auto flex flex-col border border-surface-container">
-			{#if selectedUnit}
-				<div class="p-6 border-b border-surface-container">
-					<div class="flex items-center gap-3 mb-4">
-						<div class="w-12 h-12 rounded-xl bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center text-blue-600">
-							<span class="material-symbols-outlined text-2xl">local_shipping</span>
+		<div class="{isFullScreen ? `fixed right-6 top-20 ${isSidebarCollapsed ? '' : 'bottom-6'} z-[60] w-96 bg-white/30 dark:bg-slate-900/30 backdrop-blur-md hover:bg-white dark:hover:bg-slate-900 shadow-2xl transition-all duration-300 border border-surface-container/50` : 'w-80 flex-shrink-0 bg-surface-container-lowest shadow-sm border border-surface-container'} rounded-[24px] overflow-hidden flex flex-col transition-all duration-300">
+			{#if isFullScreen}
+				<button onclick={() => isSidebarCollapsed = !isSidebarCollapsed} class="w-full py-2 bg-slate-500/10 hover:bg-slate-500/20 flex justify-center items-center transition-colors border-b border-surface-container/30">
+					<span class="material-symbols-outlined text-on-surface-variant">{isSidebarCollapsed ? 'expand_more' : 'expand_less'}</span>
+				</button>
+			{/if}
+			
+			<div class="{isSidebarCollapsed && isFullScreen ? 'hidden' : 'flex flex-col flex-1 overflow-y-auto'}">
+				{#if selectedUnit}
+					<div class="p-6 border-b border-surface-container">
+						<div class="flex items-center gap-3 mb-4">
+							<div class="w-12 h-12 rounded-xl bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center text-blue-600">
+								<span class="material-symbols-outlined text-2xl">local_shipping</span>
+							</div>
+							<div class="flex-1 min-w-0">
+								<h3 class="text-lg font-black text-on-surface">{selectedUnit.id}</h3>
+								<p class="text-xs text-on-surface-variant font-medium truncate">{selectedUnit.driver}</p>
+							</div>
 						</div>
-						<div class="flex-1 min-w-0">
-							<h3 class="text-lg font-black text-on-surface">{selectedUnit.id}</h3>
-							<p class="text-xs text-on-surface-variant font-medium truncate">{selectedUnit.driver}</p>
-						</div>
-					</div>
 					<div class="flex items-center justify-between gap-2 flex-wrap">
 						<span class="inline-flex items-center gap-1.5 font-bold text-[11px] px-2.5 py-1 rounded-md uppercase tracking-wider border {getStatusBadge(selectedUnit.status)}">
 							<span class="w-1.5 h-1.5 rounded-full {getStatusDot(selectedUnit.status)}"></span> {selectedUnit.status}
@@ -870,10 +893,10 @@
 					{/if}
 				</div>
 			{:else}
-				<div class="flex-1 flex flex-col items-center justify-center p-6 text-center">
-					<span class="material-symbols-outlined text-5xl text-surface-variant mb-4">touch_app</span>
-					<p class="text-sm font-bold text-on-surface mb-1">Select a Unit</p>
-					<p class="text-xs text-on-surface-variant">Click on a truck marker on the map to view its details</p>
+				<div class="p-8 text-center text-on-surface-variant flex-1 flex flex-col justify-center items-center">
+					<span class="material-symbols-outlined text-5xl mb-4 opacity-30">touch_app</span>
+					<h3 class="text-lg font-bold text-on-surface mb-2">Select a Unit</h3>
+					<p class="text-sm">Click on any truck marker on the map to view real-time telemetry, routing, and driver information.</p>
 				</div>
 			{/if}
 
@@ -901,6 +924,7 @@
 						</button>
 					{/each}
 				</div>
+			</div>
 			</div>
 		</div>
 	</div>

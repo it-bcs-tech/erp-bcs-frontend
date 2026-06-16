@@ -59,7 +59,7 @@ export async function runGeofenceEngine() {
 			JOIN fleet.unit u ON u.id = t.unit_id
 			LEFT JOIN master.m_customer o ON o.id = t.origin_id
 			LEFT JOIN master.m_customer d ON d.id = t.destination_id
-			WHERE t.status IN ('DISPATCHED', 'AT_ORIGIN', 'ON_ROUTE', 'RETURNING') 
+			WHERE t.status IN ('DISPATCHED', 'AT_ORIGIN', 'ON_ROUTE', 'AT_DESTINATION', 'RETURNING') 
 			  AND t.deleted_at IS NULL
 		`;
 
@@ -113,7 +113,7 @@ export async function runGeofenceEngine() {
 			let newAvgSpeed = parseInt(trip.avg_speed_kmh);
 			let newStopCount = parseInt(trip.stop_count);
 			
-			if (['DISPATCHED', 'AT_ORIGIN', 'ON_ROUTE', 'RETURNING'].includes(trip.status)) {
+			if (['DISPATCHED', 'AT_ORIGIN', 'ON_ROUTE', 'AT_DESTINATION', 'RETURNING'].includes(trip.status)) {
 				const currentSpeed = Math.round(gps.speed || 0);
 				let shouldLogPath = false;
 
@@ -315,6 +315,27 @@ export async function runGeofenceEngine() {
 					} catch (err) {
 						console.error("Route check error:", err);
 					}
+				}
+			}
+
+			// Rule D2: Leaving Destination -> RETURNING
+			if (trip.status === 'AT_DESTINATION' && trip.d_lat && trip.d_lon) {
+				let isOutside = false;
+				let distance = 0;
+				if (trip.d_polygon && trip.d_polygon.length > 2) {
+					isOutside = !pointInPolygon({lat: gps.lat, lon: gps.lon}, trip.d_polygon);
+				} else {
+					distance = haversine(gps.lat, gps.lon, parseFloat(trip.d_lat), parseFloat(trip.d_lon));
+					isOutside = distance > trip.d_rad;
+				}
+
+				if (isOutside) {
+					await sql`UPDATE fleet.trip SET status = 'RETURNING' WHERE id = ${trip.id}`;
+					await sql`INSERT INTO fleet.trip_status_log (trip_id, status) VALUES (${trip.id}, 'RETURNING')`;
+					await sql`INSERT INTO fleet.trip_checkpoint (trip_id, event, lat, lon, notes) VALUES (${trip.id}, 'RETURNING', ${gps.lat}, ${gps.lon}, 'Auto-pilot: Keluar dari Destination (Returning)')`;
+					logs.push(`[GEOFENCE-LEAVE] Truk ${trip.nomor_unit} telah keluar dari tujuan. Status -> RETURNING`);
+					updatedCount++;
+					continue;
 				}
 			}
 
