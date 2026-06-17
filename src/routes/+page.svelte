@@ -6,6 +6,7 @@
 	
 	const modules = [
 		{ id: 'fms', title: 'FMS', subtitle: 'Fleet Management', icon: 'precision_manufacturing', colorClass: 'bg-blue-50', textClass: 'text-blue-600' },
+		{ id: 'maintenance', title: 'Maintenance', subtitle: 'Workshop & Inspections', icon: 'build_circle', colorClass: 'bg-slate-100', textClass: 'text-slate-700' },
 		{ id: 'ocs', title: 'OCS', subtitle: 'Operations Hub', icon: 'hub', colorClass: 'bg-sky-50', textClass: 'text-sky-600' },
 		{ id: 'hris', title: 'HRIS', subtitle: 'Human Capital', icon: 'groups', colorClass: 'bg-purple-50', textClass: 'text-purple-600' },
 		{ id: 'marketing', title: 'Marketing', subtitle: 'Growth Engine', icon: 'campaign', colorClass: 'bg-rose-50', textClass: 'text-rose-600' },

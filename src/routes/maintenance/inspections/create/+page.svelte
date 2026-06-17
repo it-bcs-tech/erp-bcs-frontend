@@ -42,7 +42,7 @@
 		<nav class="flex items-center text-sm font-medium text-on-surface-variant">
 			<a href="/fms" class="hover:text-primary transition-colors">FMS</a>
 			<span class="material-symbols-outlined text-[16px] mx-1">chevron_right</span>
-			<a href="/fms/maintenance" class="hover:text-primary transition-colors">Maintenance</a>
+			<a href="/maintenance/work-orders" class="hover:text-primary transition-colors">Maintenance</a>
 			<span class="material-symbols-outlined text-[16px] mx-1">chevron_right</span>
 			<span class="text-on-surface font-bold">New Work Order</span>
 		</nav>
@@ -229,7 +229,7 @@
 
 			<div class="pt-6 border-t border-surface-container flex justify-end gap-3">
 				<a 
-					href="/fms/maintenance" 
+					href="/maintenance/work-orders" 
 					class="px-6 py-3 rounded-xl font-bold text-sm text-on-surface-variant hover:bg-surface-container-high transition-colors"
 				>
 					Cancel

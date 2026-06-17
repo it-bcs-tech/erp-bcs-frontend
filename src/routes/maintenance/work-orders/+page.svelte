@@ -54,14 +54,18 @@
 	<!-- Header & Actions -->
 	<header class="mb-8 flex flex-col md:flex-row md:items-end justify-between gap-4">
 		<div>
-			<h1 class="text-3xl font-extrabold text-on-surface tracking-tight mb-2">Fleet Status: Maintenance</h1>
-			<p class="text-on-surface-variant font-medium text-sm">Monitor unit armada yang tidak siap jalan (sedang dalam perbaikan)</p>
+			<h1 class="text-3xl font-extrabold text-on-surface tracking-tight mb-2">Maintenance</h1>
+			<p class="text-on-surface-variant font-medium text-sm">Schedule, track, and manage vehicle service records</p>
 		</div>
 		<div class="flex gap-3">
 			<button class="bg-surface-container-lowest border border-outline-variant/30 text-on-surface px-4 py-2.5 rounded-xl text-sm font-semibold flex items-center gap-2 hover:bg-surface-container-low transition-colors">
 				<span class="material-symbols-outlined text-lg">download</span>
 				Export
 			</button>
+			<a href="/maintenance/inspections/create" class="bg-primary text-on-primary px-4 py-2.5 rounded-xl text-sm font-semibold flex items-center gap-2 hover:bg-primary/90 transition-colors shadow-sm">
+				<span class="material-symbols-outlined text-lg">add</span>
+				New Work Order
+			</a>
 		</div>
 	</header>
 
@@ -132,11 +136,12 @@
 			<table class="w-full text-left border-collapse min-w-[1000px]">
 				<thead>
 					<tr class="border-b border-surface-container sticky top-0 bg-surface-container-lowest z-10">
-							<th class="py-3 px-6 text-left text-xs font-black text-on-surface-variant tracking-wider uppercase border-b border-surface-container">WO Details</th>
-							<th class="py-3 px-6 text-left text-xs font-black text-on-surface-variant tracking-wider uppercase border-b border-surface-container">Vehicle & Mechanic</th>
-							<th class="py-3 px-6 text-left text-xs font-black text-on-surface-variant tracking-wider uppercase border-b border-surface-container">Timeline</th>
-							<th class="py-3 px-6 text-left text-xs font-black text-on-surface-variant tracking-wider uppercase border-b border-surface-container">Priority</th>
-							<th class="py-3 px-6 text-left text-xs font-black text-on-surface-variant tracking-wider uppercase border-b border-surface-container">Status</th>
+						<th class="py-5 px-6 text-[10px] font-black uppercase tracking-widest text-on-surface-variant">Service Info</th>
+						<th class="py-5 px-6 text-[10px] font-black uppercase tracking-widest text-on-surface-variant">Vehicle</th>
+						<th class="py-5 px-6 text-[10px] font-black uppercase tracking-widest text-on-surface-variant">Schedule</th>
+						<th class="py-5 px-6 text-[10px] font-black uppercase tracking-widest text-on-surface-variant">Priority</th>
+						<th class="py-5 px-6 text-[10px] font-black uppercase tracking-widest text-on-surface-variant">Status</th>
+						<th class="py-5 px-6 text-[10px] font-black uppercase tracking-widest text-on-surface-variant text-right">Actions</th>
 					</tr>
 				</thead>
 				<tbody class="divide-y divide-surface-container">
@@ -203,6 +208,16 @@
 										<span class="w-1.5 h-1.5 rounded-full bg-slate-500"></span> {rec.status}
 									</span>
 								{/if}
+							</td>
+							<td class="py-4 px-6 text-right">
+								<div class="flex items-center justify-end gap-2">
+									<a href={`/maintenance/work-orders/${encodeURIComponent(rec.id)}`} class="inline-block p-2 rounded-lg text-blue-600 hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors" title="View Details">
+										<span class="material-symbols-outlined text-[20px]">visibility</span>
+									</a>
+									<button class="p-2 rounded-lg text-on-surface-variant hover:bg-surface-container-high transition-colors" title="More Options">
+										<span class="material-symbols-outlined text-[20px]">more_vert</span>
+									</button>
+								</div>
 							</td>
 						</tr>
 					{/each}

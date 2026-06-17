@@ -59,7 +59,7 @@
 		<nav class="flex items-center text-sm font-medium text-on-surface-variant">
 			<a href="/fms" class="hover:text-primary transition-colors">FMS</a>
 			<span class="material-symbols-outlined text-[16px] mx-1">chevron_right</span>
-			<a href="/fms/maintenance" class="hover:text-primary transition-colors">Maintenance</a>
+			<a href="/maintenance/work-orders" class="hover:text-primary transition-colors">Maintenance</a>
 			<span class="material-symbols-outlined text-[16px] mx-1">chevron_right</span>
 			<span class="text-on-surface font-bold">WO Details</span>
 		</nav>

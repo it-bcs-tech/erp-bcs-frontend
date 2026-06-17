@@ -54,7 +54,11 @@ export const load: PageServerLoad = async ({ params }) => {
 			dnDetails = await sql`
 				SELECT d.*, m.name as material_name
 				FROM fleet.maintenance_dn_detail d
-				LEFT JOIN master.m_materials m ON d.material_id::integer = m.id
+				LEFT JOIN master.m_materials m ON 
+					CASE 
+						WHEN d.material_id ~ '^[0-9]+$' THEN m.id = d.material_id::integer 
+						ELSE m.material_code = d.material_id 
+					END
 				WHERE d.dn_no = ${dnHeader.dn_no}
 			`;
 		}

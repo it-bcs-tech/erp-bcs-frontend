@@ -52,6 +52,7 @@ export const userInitials = derived(authUser, ($user) => {
  */
 export function hasModuleAccess(user: AuthUser | null, moduleId: string): boolean {
 	if (!user) return false;
+	if (['superadmin', 'administrator', 'superhyperadmin'].includes(user.role)) return true;
 	return user.allowedModules.includes(moduleId as ModuleId);
 }
 
@@ -64,6 +65,18 @@ export function getRoleLabel(role: string): string {
 		superadmin: 'Administrator',
 		manager: 'Manager',
 		supervisor: 'Supervisor',
+		inspector: 'Vehicle Inspector',
+		kepala_mekanik: 'Head Mechanic',
+		admin_maintenance: 'Admin Maintenance',
+		kepala_gudang: 'Head Warehouse',
+		admin_warehouse: 'Admin Warehouse',
+		manager_fms: 'Manager FMS',
+		manager_maintenance: 'Manager Maintenance',
+		manager_pms: 'Manager PMS',
+		manager_finance: 'Manager Finance',
+		manager_marketing: 'Manager Marketing',
+		manager_dms: 'Manager DMS',
+		manager_qhse: 'Manager QHSE',
 		hr: 'Human Resources',
 		user: 'User',
 		karyawan: 'Karyawan'
@@ -80,6 +93,18 @@ export function getRoleBadgeColor(role: string): { bg: string; text: string } {
 		superadmin: { bg: 'bg-purple-100', text: 'text-purple-800' },
 		manager: { bg: 'bg-blue-100', text: 'text-blue-800' },
 		supervisor: { bg: 'bg-teal-100', text: 'text-teal-800' },
+		inspector: { bg: 'bg-cyan-100', text: 'text-cyan-800' },
+		kepala_mekanik: { bg: 'bg-indigo-100', text: 'text-indigo-800' },
+		admin_maintenance: { bg: 'bg-indigo-100', text: 'text-indigo-800' },
+		kepala_gudang: { bg: 'bg-orange-100', text: 'text-orange-800' },
+		admin_warehouse: { bg: 'bg-orange-100', text: 'text-orange-800' },
+		manager_fms: { bg: 'bg-blue-100', text: 'text-blue-800' },
+		manager_maintenance: { bg: 'bg-blue-100', text: 'text-blue-800' },
+		manager_pms: { bg: 'bg-blue-100', text: 'text-blue-800' },
+		manager_finance: { bg: 'bg-blue-100', text: 'text-blue-800' },
+		manager_marketing: { bg: 'bg-blue-100', text: 'text-blue-800' },
+		manager_dms: { bg: 'bg-blue-100', text: 'text-blue-800' },
+		manager_qhse: { bg: 'bg-blue-100', text: 'text-blue-800' },
 		hr: { bg: 'bg-rose-100', text: 'text-rose-800' },
 		user: { bg: 'bg-slate-100', text: 'text-slate-700' },
 		karyawan: { bg: 'bg-slate-100', text: 'text-slate-700' }

@@ -37,17 +37,31 @@ export const GET: RequestHandler = async ({ params }) => {
 		`;
 
 		const restAreaLogs = await sql`
-			SELECT r.nama_rest_area, l.enter_time, l.exit_time, l.duration_minutes
+			SELECT r.nama_rest_area, r.polygon_points, l.enter_time, l.exit_time, l.duration_minutes
 			FROM fleet.trip_rest_area_log l
 			JOIN master.m_rest_area r ON r.id = l.rest_area_id
 			WHERE l.trip_id = ${tripId}
 			ORDER BY l.enter_time ASC
 		`;
 
+		const checkpoints = await sql`
+			SELECT event, lat, lon, notes, recorded_at
+			FROM fleet.trip_checkpoint
+			WHERE trip_id = ${tripId} AND lat IS NOT NULL AND lon IS NOT NULL
+			ORDER BY recorded_at ASC
+		`;
+
+		const pools = await sql`
+			SELECT nama_pool, latitude, longitude, geofence_radius
+			FROM master.m_pool
+		`;
+
 		return json({
 			success: true,
 			trip: tripData[0],
 			rest_areas: restAreaLogs,
+			checkpoints: checkpoints,
+			pools: pools,
 			path: paths.map(p => ({
 				lat: parseFloat(p.lat),
 				lon: parseFloat(p.lon),

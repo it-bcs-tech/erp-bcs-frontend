@@ -98,9 +98,9 @@ export const load: PageServerLoad = async ({ url }) => {
 			history: paginated,
 			stats: {
 				totalTrips: allHistory.length,
-				totalDistance: allHistory.reduce((sum: number, h: any) => sum + h.distance, 0),
+				totalDistance: Number(allHistory.reduce((sum: number, h: any) => sum + parseFloat(h.distance || '0'), 0).toFixed(1)),
 				avgSpeed: allHistory.length ? Math.round(allHistory.reduce((sum: number, h: any) => sum + h.avgSpeed, 0) / allHistory.length) : 0,
-				totalFuel: allHistory.reduce((sum: number, h: any) => sum + h.fuelUsed, 0)
+				totalFuel: Number(allHistory.reduce((sum: number, h: any) => sum + parseFloat(h.fuelUsed || '0'), 0).toFixed(1))
 			},
 			meta: { current_page: page, per_page: perPage, total }
 		};

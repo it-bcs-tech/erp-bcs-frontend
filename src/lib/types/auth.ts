@@ -4,7 +4,7 @@
  */
 
 /** ID modul ERP yang tersedia */
-export type ModuleId = 'fms' | 'ocs' | 'hris' | 'marketing' | 'pms' | 'kasir' | 'finance' | 'dms' | 'qhse';
+export type ModuleId = 'fms' | 'maintenance' | 'ocs' | 'hris' | 'marketing' | 'pms' | 'kasir' | 'finance' | 'dms' | 'qhse';
 
 /** Data user yang disimpan setelah login (dikirim via cookie & store) */
 export interface AuthUser {
@@ -21,7 +21,7 @@ export interface AuthUser {
 }
 
 /** Semua modul yang tersedia di ERP */
-export const ALL_MODULES: ModuleId[] = ['fms', 'ocs', 'hris', 'marketing', 'pms', 'kasir', 'finance', 'dms', 'qhse'];
+export const ALL_MODULES: ModuleId[] = ['fms', 'maintenance', 'ocs', 'hris', 'marketing', 'pms', 'kasir', 'finance', 'dms', 'qhse'];
 
 /** Level sequence minimum untuk akses OCS (Supervisor = 4) */
 export const OCS_MIN_LEVEL_SEQUENCE = 4;
@@ -37,6 +37,18 @@ export const ROLE_MODULE_MAP: Record<string, ModuleId[]> = {
 	'operator_fms': ['fms'],
 	'admin_fms': ['fms', 'kasir'],
 	'operator_ocs': ['ocs', 'fms', 'kasir'], // OCS check level tetap berlaku di service
+	'kepala_mekanik': ['maintenance'],
+	'admin_maintenance': ['maintenance'],
+	'inspector': ['maintenance'],
+	'kepala_gudang': ['pms'],
+	'admin_warehouse': ['pms'],
+	'manager_fms': ['fms', 'kasir', 'ocs'],
+	'manager_maintenance': ['maintenance'],
+	'manager_pms': ['pms'],
+	'manager_finance': ['finance', 'kasir'],
+	'manager_marketing': ['marketing', 'pms'],
+	'manager_dms': ['dms'],
+	'manager_qhse': ['qhse'],
 	'staff_finance': ['finance'],
 	'admin_finance': ['finance', 'kasir'],
 	'staff_hr': ['hris'],

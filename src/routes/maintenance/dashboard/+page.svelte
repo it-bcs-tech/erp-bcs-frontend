@@ -47,7 +47,7 @@
 				
 				<div class="flex-1 overflow-y-auto space-y-4 pr-2 custom-scrollbar">
 					{#each openWos as wo}
-						<a href="/fms/maintenance/{encodeURIComponent(wo.wo_no)}" class="block bg-surface border border-outline-variant/30 p-4 rounded-2xl hover:border-primary/50 hover:shadow-md transition-all group">
+						<a href="/maintenance/work-orders/{encodeURIComponent(wo.wo_no)}" class="block bg-surface border border-outline-variant/30 p-4 rounded-2xl hover:border-primary/50 hover:shadow-md transition-all group">
 							<div class="flex justify-between items-start mb-2">
 								<span class="text-xs font-black text-rose-600 bg-rose-50 px-2 py-1 rounded-md">{wo.status}</span>
 								<span class="text-[10px] font-bold text-on-surface-variant">{formatDate(wo.wo_date)}</span>
@@ -85,7 +85,7 @@
 				
 				<div class="flex-1 overflow-y-auto space-y-4 pr-2 custom-scrollbar">
 					{#each prosesWos as wo}
-						<a href="/fms/maintenance/{encodeURIComponent(wo.wo_no)}" class="block bg-surface border border-outline-variant/30 p-4 rounded-2xl hover:border-primary/50 hover:shadow-md transition-all group">
+						<a href="/maintenance/work-orders/{encodeURIComponent(wo.wo_no)}" class="block bg-surface border border-outline-variant/30 p-4 rounded-2xl hover:border-primary/50 hover:shadow-md transition-all group">
 							<div class="flex justify-between items-start mb-2">
 								<span class="text-xs font-black text-blue-600 bg-blue-50 px-2 py-1 rounded-md animate-pulse">{wo.status}</span>
 								<span class="text-[10px] font-bold text-on-surface-variant">{formatDate(wo.wo_date)}</span>
@@ -123,7 +123,7 @@
 				
 				<div class="flex-1 overflow-y-auto space-y-4 pr-2 custom-scrollbar">
 					{#each closedWos as wo}
-						<a href="/fms/maintenance/{encodeURIComponent(wo.wo_no)}" class="block bg-surface border border-outline-variant/30 p-4 rounded-2xl hover:border-primary/50 hover:shadow-md transition-all group opacity-75 hover:opacity-100">
+						<a href="/maintenance/work-orders/{encodeURIComponent(wo.wo_no)}" class="block bg-surface border border-outline-variant/30 p-4 rounded-2xl hover:border-primary/50 hover:shadow-md transition-all group opacity-75 hover:opacity-100">
 							<div class="flex justify-between items-start mb-2">
 								<span class="text-xs font-black text-emerald-600 bg-emerald-50 px-2 py-1 rounded-md">{wo.status}</span>
 								<span class="text-[10px] font-bold text-on-surface-variant">{formatDate(wo.closed_at || wo.wo_date)}</span>

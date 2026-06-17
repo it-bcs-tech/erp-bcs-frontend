@@ -54,7 +54,10 @@ export async function runGeofenceEngine() {
 				COALESCE(t.max_speed_kmh, 0) as max_speed_kmh,
 				COALESCE(t.avg_speed_kmh, 0) as avg_speed_kmh,
 				COALESCE(t.stop_count, 0) as stop_count,
-				t.depart_time
+				t.depart_time,
+				t.current_stop_lat,
+				t.current_stop_lon,
+				t.current_stop_start_time
 			FROM fleet.trip t
 			JOIN fleet.unit u ON u.id = t.unit_id
 			LEFT JOIN master.m_customer o ON o.id = t.origin_id
@@ -115,16 +118,26 @@ export async function runGeofenceEngine() {
 			
 			if (['DISPATCHED', 'AT_ORIGIN', 'ON_ROUTE', 'AT_DESTINATION', 'RETURNING'].includes(trip.status)) {
 				const currentSpeed = Math.round(gps.speed || 0);
-				let shouldLogPath = false;
 
+				// 1. Calculate new distance based on trip.last_lat
 				if (trip.last_lat && trip.last_lon) {
 					const deltaMeters = haversine(parseFloat(trip.last_lat), parseFloat(trip.last_lon), gps.lat, gps.lon);
 					if (deltaMeters > 20 && deltaMeters < 5000) { 
 						newDistance += (deltaMeters / 1000);
+					}
+				}
+				
+				// 2. Smart Logging: Check distance from the last ACTUALLY SAVED point in trip_path
+				let shouldLogPath = false;
+				const lastPathRes = await sql`SELECT lat, lon FROM fleet.trip_path WHERE trip_id = ${trip.id} ORDER BY id DESC LIMIT 1`;
+				
+				if (lastPathRes.length > 0) {
+					const savedDeltaMeters = haversine(parseFloat(lastPathRes[0].lat), parseFloat(lastPathRes[0].lon), gps.lat, gps.lon);
+					if (savedDeltaMeters > 20) {
 						shouldLogPath = true;
 					}
 				} else {
-					shouldLogPath = true; 
+					shouldLogPath = true; // First log
 				}
 				
 				if (currentSpeed > newMaxSpeed) newMaxSpeed = currentSpeed;
@@ -135,7 +148,7 @@ export async function runGeofenceEngine() {
 					newStopCount += 1;
 				}
 
-				if (shouldLogPath || currentSpeed > 0) {
+				if (shouldLogPath) {
 					await sql`
 						INSERT INTO fleet.trip_path (trip_id, lat, lon, speed) 
 						VALUES (${trip.id}, ${gps.lat}, ${gps.lon}, ${currentSpeed})
@@ -144,6 +157,57 @@ export async function runGeofenceEngine() {
 			}
 			
 			const fuelUsed = newDistance / 3.0; 
+
+			// 3. Ad-hoc Stop Detection Logic
+			let newStopLat = trip.current_stop_lat ? parseFloat(trip.current_stop_lat) : null;
+			let newStopLon = trip.current_stop_lon ? parseFloat(trip.current_stop_lon) : null;
+			let newStopStartTime = trip.current_stop_start_time ? new Date(trip.current_stop_start_time).getTime() : null;
+
+			if (!newStopLat || !newStopLon || !newStopStartTime) {
+				newStopLat = gps.lat;
+				newStopLon = gps.lon;
+				newStopStartTime = Date.now();
+			} else {
+				const stopDist = haversine(newStopLat, newStopLon, gps.lat, gps.lon);
+				if (stopDist > 50) { // Moved > 50m
+					const durationMs = Date.now() - newStopStartTime;
+					if (durationMs >= 15 * 60000) { // Stopped for >= 15 minutes
+						let nearPOI = false;
+						if (trip.o_lat && trip.o_lon && haversine(newStopLat, newStopLon, parseFloat(trip.o_lat), parseFloat(trip.o_lon)) < 200) nearPOI = true;
+						if (!nearPOI && trip.d_lat && trip.d_lon && haversine(newStopLat, newStopLon, parseFloat(trip.d_lat), parseFloat(trip.d_lon)) < 200) nearPOI = true;
+						
+						if (!nearPOI) {
+							for (const ra of restAreas) {
+								if (ra.polygon_points && Array.isArray(ra.polygon_points) && ra.polygon_points.length > 0) {
+									const raLat = ra.polygon_points[0].lat;
+									const raLon = ra.polygon_points[0].lng || ra.polygon_points[0].lon;
+									if (raLat && raLon && haversine(newStopLat, newStopLon, raLat, raLon) < 200) { nearPOI = true; break; }
+								}
+							}
+						}
+
+						if (!nearPOI) {
+							for (const pool of poolsList) {
+								if (pool.latitude && pool.longitude && haversine(newStopLat, newStopLon, parseFloat(pool.latitude), parseFloat(pool.longitude)) <= parseFloat(pool.radius)) { nearPOI = true; break; }
+							}
+						}
+
+						if (!nearPOI) {
+							const notes = `Ad-hoc Stop. Durasi: ${Math.round(durationMs/60000)} menit`;
+							await sql`
+								INSERT INTO fleet.trip_checkpoint (trip_id, event, lat, lon, notes, recorded_at)
+								VALUES (${trip.id}, 'STOP', ${newStopLat}, ${newStopLon}, ${notes}, to_timestamp(${newStopStartTime}/1000.0))
+							`;
+							logs.push(`[STOP DETECTED] Truk ${trip.nomor_unit} diam >15m. Logged STOP.`);
+						}
+					}
+					
+					// Reset tracker to new location
+					newStopLat = gps.lat;
+					newStopLon = gps.lon;
+					newStopStartTime = Date.now();
+				}
+			}
 			
 			await sql`
 				UPDATE fleet.trip 
@@ -155,7 +219,10 @@ export async function runGeofenceEngine() {
 					max_speed_kmh = ${newMaxSpeed},
 					avg_speed_kmh = ${newAvgSpeed},
 					stop_count = ${newStopCount},
-					fuel_used_l = ${fuelUsed}
+					fuel_used_l = ${fuelUsed},
+					current_stop_lat = ${newStopLat},
+					current_stop_lon = ${newStopLon},
+					current_stop_start_time = to_timestamp(${newStopStartTime}/1000.0)
 				WHERE id = ${trip.id}
 			`;
 			updatedCount++;

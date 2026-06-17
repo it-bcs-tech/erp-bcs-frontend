@@ -142,7 +142,7 @@ export const actions: Actions = {
 			`;
 
 			// Success! Redirect to the detail page of the newly created WO
-			throw redirect(303, `/fms/maintenance/${encodeURIComponent(newWoNo)}`);
+			throw redirect(303, `/maintenance/work-orders/${encodeURIComponent(newWoNo)}`);
 
 		} catch (err) {
 			console.error("Failed to create WO:", err);
