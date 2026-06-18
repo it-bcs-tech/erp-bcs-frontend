@@ -2,6 +2,8 @@
 	import type { PageData } from './$types';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/stores';
+	import { onMount, onDestroy } from 'svelte';
+	import { browser } from '$app/environment';
 	
 	let { data }: { data: PageData } = $props();
 	let history = $derived(data.history || []);
@@ -69,6 +71,10 @@
 	let currentPointIndex = $state(0);
 	let currentPlaybackSpeed = $state(0);
 	let playbackTripId = $state('');
+	let tripData = $state<any>(null);
+	let checkpointsData = $state<any[]>([]);
+	let poolsData = $state<any[]>([]);
+	let extraMarkers: any[] = [];
 
 	async function openPlayback(tripId: string) {
 		playbackTripId = tripId;
@@ -78,6 +84,10 @@
 		currentPointIndex = 0;
 		isPlaying = false;
 		currentPlaybackSpeed = 0;
+		currentAreaName = "Memuat lokasi...";
+		lastGeocodeLat = 0;
+		lastGeocodeLon = 0;
+		lastGeocodeTime = 0;
 
 		try {
 			const res = await fetch(`/api/fms/trip/${tripId}/path`);
@@ -85,6 +95,16 @@
 			if (resData.success && resData.path.length > 0) {
 				playbackData = resData.path;
 				restAreaLogs = resData.rest_areas || [];
+				tripData = resData.trip;
+				checkpointsData = resData.checkpoints || [];
+				poolsData = resData.pools || [];
+				
+				// Langsung fetch area pertama
+				if (playbackData[0]) {
+					getReverseGeocode(playbackData[0].lat, playbackData[0].lon).then(name => {
+						currentAreaName = name;
+					});
+				}
 			} else {
 				alert("Tidak ada data path tersimpan untuk trip ini.");
 				showPlaybackModal = false;
@@ -97,11 +117,96 @@
 			return;
 		}
 
-		if (!L) {
-			const leaflet = await import('leaflet');
-			L = leaflet.default;
+		initMap();
+	}
+
+	onMount(async () => {
+		if (browser) {
+			L = await import('leaflet');
 			await import('leaflet/dist/leaflet.css');
 		}
+
+		initMap();
+	});
+
+	let geocodeCache: Record<string, string> = {};
+
+	// Helper Haversine
+	function getDistance(lat1: number, lon1: number, lat2: number, lon2: number) {
+		const R = 6371e3;
+		const p1 = lat1 * Math.PI/180;
+		const p2 = lat2 * Math.PI/180;
+		const dp = (lat2-lat1) * Math.PI/180;
+		const dl = (lon2-lon1) * Math.PI/180;
+		const a = Math.sin(dp/2) * Math.sin(dp/2) + Math.cos(p1) * Math.cos(p2) * Math.sin(dl/2) * Math.sin(dl/2);
+		const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+		return R * c;
+	}
+
+	async function getReverseGeocode(lat: number, lon: number): Promise<string> {
+		const key = `${lat.toFixed(3)},${lon.toFixed(3)}`;
+		if (geocodeCache[key]) return geocodeCache[key];
+
+		try {
+			const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&zoom=14&email=it@bcs.com`, {
+				headers: { 
+					'Accept-Language': 'id-ID,id;q=0.9'
+				}
+			});
+			if (res.ok) {
+				const data = await res.json();
+				let name = data.display_name;
+				if (data.address) {
+					name = [data.address.village, data.address.town, data.address.city, data.address.state]
+							.filter(Boolean).join(', ');
+				}
+				geocodeCache[key] = name || 'Daerah tidak diketahui';
+				return geocodeCache[key];
+			}
+		} catch (e) {
+			console.error("Geocode failed", e);
+		}
+		return "Daerah tidak diketahui";
+	}
+
+	function fetchGeocode(popupNode: any, lat: number, lon: number) {
+		const el = popupNode.querySelector('.loading-geocode');
+		if (el) {
+			getReverseGeocode(lat, lon).then(name => {
+				el.innerHTML = `<span class="material-symbols-outlined text-[10px] inline-block align-middle mr-1">location_on</span>${name}`;
+				el.className = "text-[11px] font-medium text-slate-700 mt-1 block leading-tight border-t border-slate-200 pt-1";
+			});
+		}
+	}
+
+	let currentAreaName = $state("Memuat lokasi...");
+	let lastGeocodeTime = 0;
+	let lastGeocodeLat = 0;
+	let lastGeocodeLon = 0;
+
+	// Update area name during playback (debounced to avoid rate limit)
+	$effect(() => {
+		if (playbackData && playbackData.length > 0 && currentPointIndex >= 0) {
+			const p = playbackData[currentPointIndex];
+			if (p) {
+				const distMoved = lastGeocodeLat === 0 ? 9999 : getDistance(p.lat, p.lon, lastGeocodeLat, lastGeocodeLon);
+				// Fetch API jika berpindah lebih dari 500 meter
+				if (distMoved > 500) {
+					const now = Date.now();
+					// Hindari hit beruntun dalam kurang dari 2 detik (anti-spam fallback)
+					if (now - lastGeocodeTime > 2000) {
+						lastGeocodeLat = p.lat;
+						lastGeocodeLon = p.lon;
+						lastGeocodeTime = now;
+						getReverseGeocode(p.lat, p.lon).then(name => currentAreaName = name);
+					}
+				}
+			}
+		}
+	});
+
+	function initMap() {
+		if (!mapContainer || playbackData.length === 0) return;
 
 		// Wait for modal transition to render container
 		setTimeout(() => {
@@ -115,6 +220,8 @@
 
 			if (pathLine) map.removeLayer(pathLine);
 			if (truckMarker) map.removeLayer(truckMarker);
+			extraMarkers.forEach(m => map.removeLayer(m));
+			extraMarkers = [];
 
 			const latlngs = playbackData.map(p => [p.lat, p.lon]);
 			pathLine = L.polyline(latlngs, { color: '#3b82f6', weight: 4, opacity: 0.7 }).addTo(map);
@@ -129,6 +236,209 @@
 			});
 
 			truckMarker = L.marker(latlngs[0], { icon: truckIcon }).addTo(map);
+
+			// Add Origin Marker
+			if (tripData?.origin_lat && tripData?.origin_lon) {
+				const originIcon = L.divIcon({
+					html: `<div style="width: 24px; height: 24px; background: #10b981; border-radius: 50%; display: flex; align-items: center; justify-content: center; border: 2px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.3);"><span class="material-symbols-outlined" style="font-size: 14px; color: white;">home</span></div>`,
+					className: 'origin-marker', iconSize: [24, 24], iconAnchor: [12, 12]
+				});
+				const m = L.marker([tripData.origin_lat, tripData.origin_lon], { icon: originIcon }).addTo(map)
+					.bindPopup(`<b>Origin</b><br>${tripData.origin_name || 'N/A'}<br><span class="text-xs text-gray-500 loading-geocode" data-lat="${tripData.origin_lat}" data-lon="${tripData.origin_lon}">Loading location...</span>`);
+				m.on('popupopen', (e) => fetchGeocode(e.popup._contentNode, tripData.origin_lat, tripData.origin_lon));
+				extraMarkers.push(m);
+			}
+
+			// Add Destination Marker
+			if (tripData?.dest_lat && tripData?.dest_lon) {
+				const destIcon = L.divIcon({
+					html: `<div style="width: 24px; height: 24px; background: #ef4444; border-radius: 50%; display: flex; align-items: center; justify-content: center; border: 2px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.3);"><span class="material-symbols-outlined" style="font-size: 14px; color: white;">flag</span></div>`,
+					className: 'dest-marker', iconSize: [24, 24], iconAnchor: [12, 12]
+				});
+				const m = L.marker([tripData.dest_lat, tripData.dest_lon], { icon: destIcon }).addTo(map)
+					.bindPopup(`<b>Destination</b><br>${tripData.dest_name || 'N/A'}<br><span class="text-xs text-gray-500 loading-geocode" data-lat="${tripData.dest_lat}" data-lon="${tripData.dest_lon}">Loading location...</span>`);
+				m.on('popupopen', (e) => fetchGeocode(e.popup._contentNode, tripData.dest_lat, tripData.dest_lon));
+				extraMarkers.push(m);
+			}
+
+			// Helper Haversine dipindahkan ke atas
+
+			const hasBackendStops = checkpointsData.some(cp => cp.event === 'STOP');
+
+			const aggregatedPoolStops: Record<string, { lat: number, lon: number, mins: number, times: string[] }> = {};
+
+			// Render Checkpoint/Stops Markers
+			if (checkpointsData.length > 0) {
+				checkpointsData.forEach(cp => {
+					if (cp.lat && cp.lon) {
+						const stopIcon = L.divIcon({
+							html: `<div style="width: 20px; height: 20px; background: #ef4444; border-radius: 50%; display: flex; align-items: center; justify-content: center; border: 2px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.3);"><span class="material-symbols-outlined" style="font-size: 12px; color: white;">front_hand</span></div>`,
+							className: 'stop-marker', iconSize: [20, 20], iconAnchor: [10, 10]
+						});
+						const m = L.marker([cp.lat, cp.lon], { icon: stopIcon }).addTo(map)
+							.bindPopup(`<b>${cp.event}</b><br>${cp.notes || ''}<br>${formatPlaybackTime(cp.recorded_at)}<br><span class="text-xs text-gray-500 loading-geocode" data-lat="${cp.lat}" data-lon="${cp.lon}">Loading location...</span>`);
+						m.on('popupopen', (e) => fetchGeocode(e.popup._contentNode, cp.lat, cp.lon));
+						extraMarkers.push(m);
+					}
+				});
+			}
+			
+			if (!hasBackendStops && playbackData.length > 0) {
+				// Fallback Clustering Logic for old trips without checkpoints
+				let i = 0;
+				while (i < playbackData.length) {
+					let startPoint = playbackData[i];
+					let j = i + 1;
+					while (j < playbackData.length) {
+						let p = playbackData[j];
+						let dist = getDistance(startPoint.lat, startPoint.lon, p.lat, p.lon);
+						if (dist > 50) {
+							let startT = new Date(startPoint.time).getTime();
+							let endT = new Date(playbackData[j-1].time).getTime();
+							let mins = (endT - startT) / 60000;
+							if (mins >= 15) {
+								// Cek jarak ke Origin & Dest
+								let distToOrigin = tripData?.origin_lat ? getDistance(startPoint.lat, startPoint.lon, tripData.origin_lat, tripData.origin_lon) : 99999;
+								let distToDest = tripData?.dest_lat ? getDistance(startPoint.lat, startPoint.lon, tripData.dest_lat, tripData.dest_lon) : 99999;
+								
+								// Cek apakah ada di dalam radius Pool mana pun
+								let isInsidePool = false;
+								let poolName = "Pool";
+								for (const pool of poolsData) {
+									if (pool.latitude && pool.longitude) {
+										const d = getDistance(startPoint.lat, startPoint.lon, pool.latitude, pool.longitude);
+										if (d <= (pool.geofence_radius || 200)) {
+											isInsidePool = true;
+											poolName = pool.nama_pool || "Pool";
+											break;
+										}
+									}
+								}
+								
+								// Abaikan jika sedang berada di dalam area Origin / Tujuan (radius 200m)
+								if (distToOrigin > 200 && distToDest > 200) {
+									if (!isInsidePool) {
+										const stopIcon = L.divIcon({
+											html: `<div style="width: 20px; height: 20px; background: #ef4444; border-radius: 50%; display: flex; align-items: center; justify-content: center; border: 2px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.3);"><span class="material-symbols-outlined" style="font-size: 12px; color: white;">front_hand</span></div>`,
+											className: 'stop-marker', iconSize: [20, 20], iconAnchor: [10, 10]
+										});
+										const m = L.marker([startPoint.lat, startPoint.lon], { icon: stopIcon }).addTo(map)
+											.bindPopup(`<b>Stop</b><br>Dur: ${Math.round(mins)} min<br>At: ${formatPlaybackTime(startPoint.time)}<br><span class="text-xs text-gray-500 loading-geocode" data-lat="${startPoint.lat}" data-lon="${startPoint.lon}">Loading location...</span>`);
+										m.on('popupopen', (e) => fetchGeocode(e.popup._contentNode, startPoint.lat, startPoint.lon));
+										extraMarkers.push(m);
+									} else {
+										// Agregasi pin khusus Parkir Pool
+										if (!aggregatedPoolStops[poolName]) {
+											aggregatedPoolStops[poolName] = { lat: startPoint.lat, lon: startPoint.lon, mins: 0, times: [] };
+										}
+										aggregatedPoolStops[poolName].mins += Math.round(mins);
+										aggregatedPoolStops[poolName].times.push(`${formatPlaybackTime(startPoint.time)} - ${formatPlaybackTime(playbackData[j-1].time)}`);
+									}
+								}
+							}
+							break;
+						}
+						j++;
+					}
+					if (j === playbackData.length) {
+						let startT = new Date(startPoint.time).getTime();
+						let endT = new Date(playbackData[j-1].time).getTime();
+						let mins = (endT - startT) / 60000;
+						if (mins >= 15) {
+							let distToOrigin = tripData?.origin_lat ? getDistance(startPoint.lat, startPoint.lon, tripData.origin_lat, tripData.origin_lon) : 99999;
+							let distToDest = tripData?.dest_lat ? getDistance(startPoint.lat, startPoint.lon, tripData.dest_lat, tripData.dest_lon) : 99999;
+							
+							let isInsidePool = false;
+							let poolName = "Pool";
+							for (const pool of poolsData) {
+								if (pool.latitude && pool.longitude) {
+									const d = getDistance(startPoint.lat, startPoint.lon, pool.latitude, pool.longitude);
+									if (d <= (pool.geofence_radius || 200)) {
+										isInsidePool = true;
+										poolName = pool.nama_pool || "Pool";
+										break;
+									}
+								}
+							}
+							
+							if (distToOrigin > 200 && distToDest > 200) {
+								if (!isInsidePool) {
+									const stopIcon = L.divIcon({
+										html: `<div style="width: 20px; height: 20px; background: #ef4444; border-radius: 50%; display: flex; align-items: center; justify-content: center; border: 2px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.3);"><span class="material-symbols-outlined" style="font-size: 12px; color: white;">front_hand</span></div>`,
+										className: 'stop-marker', iconSize: [20, 20], iconAnchor: [10, 10]
+									});
+									const m = L.marker([startPoint.lat, startPoint.lon], { icon: stopIcon }).addTo(map)
+										.bindPopup(`<b>Stop</b><br>Dur: ${Math.round(mins)} min<br>At: ${formatPlaybackTime(startPoint.time)}<br><span class="text-xs text-gray-500 loading-geocode" data-lat="${startPoint.lat}" data-lon="${startPoint.lon}">Loading location...</span>`);
+									m.on('popupopen', (e) => fetchGeocode(e.popup._contentNode, startPoint.lat, startPoint.lon));
+									extraMarkers.push(m);
+								} else {
+									if (!aggregatedPoolStops[poolName]) {
+										aggregatedPoolStops[poolName] = { lat: startPoint.lat, lon: startPoint.lon, mins: 0, times: [] };
+									}
+									aggregatedPoolStops[poolName].mins += Math.round(mins);
+									aggregatedPoolStops[poolName].times.push(`${formatPlaybackTime(startPoint.time)} - ${formatPlaybackTime(playbackData[j-1].time)}`);
+								}
+							}
+						}
+						break;
+					}
+					i = j;
+				}
+			}
+
+			// Render Aggregated Pool Stops
+			Object.entries(aggregatedPoolStops).forEach(([pName, pData]) => {
+				const parkIcon = L.divIcon({
+					html: `<div style="width: 22px; height: 22px; background: #3b82f6; border-radius: 50%; display: flex; align-items: center; justify-content: center; border: 2px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.3);"><span class="material-symbols-outlined" style="font-size: 14px; color: white;">local_parking</span></div>`,
+					className: 'pool-park-marker', iconSize: [22, 22], iconAnchor: [11, 11]
+				});
+				const timesList = pData.times.join('<br> • ');
+				const m = L.marker([pData.lat, pData.lon], { icon: parkIcon }).addTo(map)
+					.bindPopup(`<b>Terparkir di ${pName}</b><br>Total Durasi: ${pData.mins} min<br><br><span class="text-xs text-gray-500">Waktu:</span><br> • ${timesList}<br><br><span class="text-xs text-gray-500 loading-geocode" data-lat="${pData.lat}" data-lon="${pData.lon}">Loading location...</span>`);
+				m.on('popupopen', (e) => fetchGeocode(e.popup._contentNode, pData.lat, pData.lon));
+				extraMarkers.push(m);
+			});
+			// Add Rest Area Logs
+			restAreaLogs.forEach(ra => {
+				const p = ra.polygon_points ? JSON.parse(ra.polygon_points) : null;
+				if (p && p.length > 0) {
+					const lat = parseFloat(p[0].lat);
+					const lon = parseFloat(p[0].lng || p[0].lon);
+					const raIcon = L.divIcon({
+						html: `<div style="width: 20px; height: 20px; background: #f59e0b; border-radius: 50%; display: flex; align-items: center; justify-content: center; border: 2px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.3);"><span class="material-symbols-outlined" style="font-size: 12px; color: white;">local_cafe</span></div>`,
+						className: 'ra-marker', iconSize: [20, 20], iconAnchor: [10, 10]
+					});
+					const m = L.marker([lat, lon], { icon: raIcon }).addTo(map)
+						.bindPopup(`<b>Rest Area</b><br>${ra.nama_rest_area}<br>In: ${formatPlaybackTime(ra.enter_time)}<br>Dur: ${ra.duration_minutes} min<br><span class="text-xs text-gray-500 loading-geocode" data-lat="${lat}" data-lon="${lon}">Loading location...</span>`);
+					m.on('popupopen', (e) => fetchGeocode(e.popup._contentNode, lat, lon));
+					extraMarkers.push(m);
+				}
+			});
+
+			// Add Pools
+			poolsData.forEach((pool: any) => {
+				if (pool.latitude && pool.longitude) {
+					const poolIcon = L.divIcon({
+						html: `<div style="width: 24px; height: 24px; background: #3b82f6; border-radius: 50%; display: flex; align-items: center; justify-content: center; border: 2px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.3);"><span class="material-symbols-outlined" style="font-size: 14px; color: white;">local_parking</span></div>`,
+						className: 'pool-marker', iconSize: [24, 24], iconAnchor: [12, 12]
+					});
+					const m = L.marker([pool.latitude, pool.longitude], { icon: poolIcon }).addTo(map)
+						.bindPopup(`<b>Pool</b><br>${pool.nama_pool}<br><span class="text-xs text-gray-500 loading-geocode" data-lat="${pool.latitude}" data-lon="${pool.longitude}">Loading location...</span>`);
+					m.on('popupopen', (e) => fetchGeocode(e.popup._contentNode, pool.latitude, pool.longitude));
+					extraMarkers.push(m);
+					
+					// Draw Pool Radius
+					const circle = L.circle([pool.latitude, pool.longitude], {
+						color: '#3b82f6',
+						fillColor: '#3b82f6',
+						fillOpacity: 0.1,
+						radius: pool.geofence_radius || 200,
+						weight: 1,
+						dashArray: '4'
+					}).addTo(map);
+					extraMarkers.push(circle);
+				}
+			});
 		}, 300);
 	}
 
@@ -140,6 +450,8 @@
 			map = null;
 			pathLine = null;
 			truckMarker = null;
+			extraMarkers.forEach(m => map.removeLayer(m));
+			extraMarkers = [];
 		}
 	}
 
@@ -383,11 +695,19 @@
 			<div bind:this={mapContainer} class="absolute inset-0 z-0"></div>
 			
 			<!-- Speed Overlay overlay -->
-			<div class="absolute top-4 left-4 z-[400] bg-surface-container-lowest/90 backdrop-blur-md px-4 py-2 rounded-xl shadow-lg border border-surface-container flex items-center gap-3">
-				<span class="material-symbols-outlined text-sky-500">speed</span>
-				<div class="flex flex-col">
-					<span class="text-xs font-semibold text-on-surface-variant uppercase tracking-wider">Kecepatan Saat Ini</span>
-					<span class="text-xl font-bold text-on-surface leading-none mt-1">{currentPlaybackSpeed} <span class="text-sm font-medium text-on-surface-variant">km/h</span></span>
+			<div class="absolute top-4 left-4 z-[400] bg-surface-container-lowest/95 backdrop-blur-md px-4 py-3 rounded-2xl shadow-lg border border-surface-container/50 min-w-[200px]">
+				<div class="flex items-start gap-3">
+					<div class="w-10 h-10 rounded-full bg-sky-50 flex items-center justify-center shrink-0">
+						<span class="material-symbols-outlined text-sky-500">speed</span>
+					</div>
+					<div class="flex flex-col">
+						<span class="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Kecepatan Real-time</span>
+						<span class="text-2xl font-black text-on-surface leading-none mt-1 mb-1">{currentPlaybackSpeed} <span class="text-sm font-semibold text-on-surface-variant">km/h</span></span>
+						<div class="flex items-center gap-1 text-slate-500 mt-0.5" title={currentAreaName}>
+							<span class="material-symbols-outlined text-[12px]">location_on</span>
+							<span class="text-[10px] font-medium truncate w-40">{currentAreaName}</span>
+						</div>
+					</div>
 				</div>
 			</div>
 		</div>

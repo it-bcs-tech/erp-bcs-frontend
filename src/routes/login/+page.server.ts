@@ -8,7 +8,7 @@
 
 import { fail } from '@sveltejs/kit';
 import type { Actions } from './$types';
-import { authenticateUser, AuthError } from '$lib/server/auth';
+import { authenticateUser, AuthError, getAuthUserByEmail } from '$lib/server/auth';
 import { logError } from '$lib/utils/logger';
 import { env } from '$env/dynamic/private';
 
@@ -66,8 +66,29 @@ export const actions = {
 					const json = JSON.parse(jsonStr);
 					if (json.status === 'success' && json.data) {
 						console.log(`✅ [Login] Laravel login SUCCESS for: ${email}`);
+						
 						const userData = json.data.user;
 						userData.authSource = 'laravel';
+						
+						console.log(`🔍 [Login Debug] Raw allowedModules from Laravel:`, JSON.stringify(userData.allowedModules));
+						
+						// Bersihkan prefix 'module.' dari array permissions jika Laravel Spatie mengirimkannya
+						if (Array.isArray(userData.allowedModules)) {
+							userData.allowedModules = userData.allowedModules.map((m: string) => m.replace(/^module\./, ''));
+						} else {
+							console.warn(`⚠️ [Login Debug] allowedModules is NOT an array! Type: ${typeof userData.allowedModules}, Value: ${JSON.stringify(userData.allowedModules)}`);
+							// Jika bukan array, coba parse
+							if (typeof userData.allowedModules === 'string') {
+								try { userData.allowedModules = JSON.parse(userData.allowedModules); } catch {}
+							}
+							if (!Array.isArray(userData.allowedModules)) {
+								userData.allowedModules = [];
+							}
+							userData.allowedModules = userData.allowedModules.map((m: string) => m.replace(/^module\./, ''));
+						}
+						
+						console.log(`✅ [Login Debug] Final allowedModules stored in cookie:`, JSON.stringify(userData.allowedModules));
+						
 						return processLoginSuccess(request, cookies, userData, json.data.token);
 					} else {
 						console.warn(`⚠️ [Login] Laravel returned OK but unexpected structure:`, json.status);

@@ -63,7 +63,7 @@
 		<header class="mb-12 text-center">
 			<h1 class="text-4xl font-extrabold text-primary tracking-tight mb-3">
 				{#if user}
-					Selamat Datang, {user.name.split(' ')[0]}
+					Selamat Datang, {user.name}
 				{:else}
 					Welcome, BCS Logistics
 				{/if}

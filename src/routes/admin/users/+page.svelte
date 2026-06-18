@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
 	import { spawnToast } from '$lib/stores/notifications';
-	import { ALL_MODULES, ROLE_MODULE_MAP, ADMIN_ROLES } from '$lib/types/auth';
+	import { ALL_MODULES, ADMIN_ROLES } from '$lib/types/auth';
 
 	let { data, form } = $props();
 
@@ -27,11 +27,11 @@
 	let editRole = $state('');
 
 	// Define role list
-	const availableRoles = [
-		'superadmin', 'administrator', 'operator_fms', 'admin_fms', 'operator_ocs', 
-		'staff_finance', 'admin_finance', 'staff_hr', 'manager_hr', 
-		'staff_marketing', 'staff_procurement', 'staff_dms', 'staff_qhse', 'user'
-	];
+	const availableRoles = $derived([
+		...ADMIN_ROLES,
+		...Object.keys(data.roleModuleMap || {}),
+		'user'
+	]);
 
 	$effect(() => {
 		if (form) {
@@ -87,8 +87,8 @@
 		
 		if (ADMIN_ROLES.includes(newRole)) {
 			newSelectedModules = ['*'];
-		} else if (ROLE_MODULE_MAP[newRole]) {
-			newSelectedModules = [...ROLE_MODULE_MAP[newRole]];
+		} else if (data.roleModuleMap && data.roleModuleMap[newRole]) {
+			newSelectedModules = [...data.roleModuleMap[newRole]];
 		} else {
 			newSelectedModules = [];
 		}
@@ -101,8 +101,8 @@
 
 		if (ADMIN_ROLES.includes(editRole)) {
 			editSelectedModules = ['*'];
-		} else if (ROLE_MODULE_MAP[editRole]) {
-			editSelectedModules = [...ROLE_MODULE_MAP[editRole]];
+		} else if (data.roleModuleMap && data.roleModuleMap[editRole]) {
+			editSelectedModules = [...data.roleModuleMap[editRole]];
 		} else {
 			editSelectedModules = [];
 		}

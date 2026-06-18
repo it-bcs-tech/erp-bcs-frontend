@@ -13,8 +13,6 @@
 
 import { fail } from '@sveltejs/kit';
 import type { PageServerLoad, Actions } from './$types';
-import sql from '$lib/server/db';
-import bcrypt from 'bcryptjs';
 import { env } from '$env/dynamic/private';
 import { logError } from '$lib/utils/logger';
 
@@ -75,55 +73,23 @@ async function tryLaravelApi(
 	}
 }
 
-function isLaravelDown(result: { ok: boolean; status: number }) {
-	return !result.ok && (result.status === 0 || result.status >= 500);
-}
-
 // ─────────────────────────────────────────────────────────
 // LOAD: GET Users List
 // ─────────────────────────────────────────────────────────
 export const load: PageServerLoad = async ({ cookies }) => {
 	const authToken = cookies.get('auth_token');
+	const { getDynamicRoleModuleMap } = await import('$lib/server/auth');
+	const roleModuleMap = await getDynamicRoleModuleMap();
 
-	// PRIORITAS 1: Laravel API
+	// PRIORITAS TUNGGAL: Laravel API
 	const apiResult = await tryLaravelApi('GET', '/api/v1/admin/users', authToken);
 
 	if (apiResult.ok && apiResult.data) {
-		return { usersList: apiResult.data, dataSource: 'laravel' as const };
+		return { usersList: apiResult.data, dataSource: 'laravel' as const, roleModuleMap };
 	}
 
-	// PRIORITAS 2: Fallback Svelte DB
-	if (isLaravelDown(apiResult)) {
-		console.warn('⚠️ [AdminUsers Fallback] Loading users from Svelte DB.');
-		try {
-			const usersList = await sql`
-				SELECT 
-					eu.id,
-					eu.email,
-					eu.erp_role,
-					eu.allowed_modules,
-					eu.is_active,
-					eu.last_login_at,
-					eu.created_at,
-					mk.id AS karyawan_id,
-					mk.payroll_id AS nik,
-					mk.nama_karyawan,
-					ml.level AS level_name,
-					mt.title AS title_name
-				FROM master.erp_users eu
-				LEFT JOIN master.m_karyawan mk ON mk.id = eu.karyawan_id
-				LEFT JOIN master.m_level ml ON ml.level_code = mk.level
-				LEFT JOIN master.m_title mt ON mt.title_code = mk.title
-				ORDER BY eu.id DESC
-			`;
-			return { usersList, dataSource: 'svelte-db' as const };
-		} catch (error: any) {
-			return { usersList: [], dataSource: 'svelte-db' as const, error: error.message };
-		}
-	}
-
-	// Laravel returned 4xx (auth issue) — return empty with error
-	return { usersList: [], dataSource: 'laravel' as const, error: apiResult.error };
+	// Laravel returned 4xx/5xx — return empty with error
+	return { usersList: [], dataSource: 'laravel' as const, error: apiResult.error || 'Failed to connect to API', roleModuleMap };
 };
 
 // ─────────────────────────────────────────────────────────
@@ -145,7 +111,7 @@ export const actions = {
 
 		const authToken = cookies.get('auth_token');
 
-		// PRIORITAS 1: Laravel API
+		// PRIORITAS TUNGGAL: Laravel API
 		const apiResult = await tryLaravelApi('POST', '/api/v1/admin/users', authToken, {
 			email, password, role,
 			karyawan_id: karyawanId ? Number(karyawanId) : null,
@@ -156,41 +122,8 @@ export const actions = {
 			return { success: true, message: 'User successfully created' };
 		}
 
-		if (!isLaravelDown(apiResult)) {
-			// Laravel rejected (400/401) — teruskan error
-			return fail(apiResult.status, { success: false, message: apiResult.error || 'Failed to create user' });
-		}
-
-		// PRIORITAS 2: Fallback Svelte DB
-		console.warn('⚠️ [AdminUsers Fallback] Creating user via Svelte DB.');
-		try {
-			const [existing] = await sql`SELECT id FROM master.erp_users WHERE email = ${email}`;
-			if (existing) {
-				return fail(400, { success: false, message: 'Email already registered in ERP' });
-			}
-
-			let allowedModules = '[]';
-			try { JSON.parse(customModulesStr); allowedModules = customModulesStr; } catch { allowedModules = '[]'; }
-
-			const salt = await bcrypt.genSalt(10);
-			const hashedPassword = await bcrypt.hash(password, salt);
-
-			await sql`
-				INSERT INTO master.erp_users (
-					karyawan_id, email, password, erp_role, allowed_modules
-				) VALUES (
-					${karyawanId ? Number(karyawanId) : null}, 
-					${email}, 
-					${hashedPassword}, 
-					${role}, 
-					${allowedModules}::jsonb
-				)
-			`;
-
-			return { success: true, message: 'User successfully created' };
-		} catch (error: any) {
-			return fail(500, { success: false, message: error.message });
-		}
+		// Jika error (baik 4xx maupun 5xx), lempar ke client
+		return fail(apiResult.status || 500, { success: false, message: apiResult.error || 'Failed to create user' });
 	},
 
 	// ── UPDATE USER ──
@@ -207,7 +140,7 @@ export const actions = {
 
 		const authToken = cookies.get('auth_token');
 
-		// PRIORITAS 1: Laravel API
+		// PRIORITAS TUNGGAL: Laravel API
 		const apiResult = await tryLaravelApi('PUT', `/api/v1/admin/users/${id}`, authToken, {
 			role,
 			allowed_modules: customModulesStr,
@@ -218,41 +151,7 @@ export const actions = {
 			return { success: true, message: 'User updated successfully' };
 		}
 
-		if (!isLaravelDown(apiResult)) {
-			return fail(apiResult.status, { success: false, message: apiResult.error || 'Failed to update user' });
-		}
-
-		// PRIORITAS 2: Fallback Svelte DB
-		console.warn('⚠️ [AdminUsers Fallback] Updating user via Svelte DB.');
-		try {
-			let allowedModules = '[]';
-			try { JSON.parse(customModulesStr); allowedModules = customModulesStr; } catch { allowedModules = '[]'; }
-
-			if (resetPassword && resetPassword.trim().length > 0) {
-				const salt = await bcrypt.genSalt(10);
-				const hashedPassword = await bcrypt.hash(resetPassword, salt);
-				await sql`
-					UPDATE master.erp_users 
-					SET erp_role = ${role}, 
-					    allowed_modules = ${allowedModules}::jsonb,
-					    password = ${hashedPassword},
-					    updated_at = CURRENT_TIMESTAMP
-					WHERE id = ${Number(id)}
-				`;
-			} else {
-				await sql`
-					UPDATE master.erp_users 
-					SET erp_role = ${role}, 
-					    allowed_modules = ${allowedModules}::jsonb,
-					    updated_at = CURRENT_TIMESTAMP
-					WHERE id = ${Number(id)}
-				`;
-			}
-
-			return { success: true, message: 'User updated successfully' };
-		} catch (error: any) {
-			return fail(500, { success: false, message: error.message });
-		}
+		return fail(apiResult.status || 500, { success: false, message: apiResult.error || 'Failed to update user' });
 	},
 
 	// ── TOGGLE ACTIVE STATUS ──
@@ -267,7 +166,7 @@ export const actions = {
 
 		const authToken = cookies.get('auth_token');
 
-		// PRIORITAS 1: Laravel API
+		// PRIORITAS TUNGGAL: Laravel API
 		const apiResult = await tryLaravelApi('PATCH', `/api/v1/admin/users/${id}/toggle-status`, authToken, {
 			current_status: currentStatus
 		});
@@ -277,26 +176,6 @@ export const actions = {
 			return { success: true, message: `User successfully ${newStatus ? 'activated' : 'deactivated'}` };
 		}
 
-		if (!isLaravelDown(apiResult)) {
-			return fail(apiResult.status, { success: false, message: apiResult.error || 'Failed to toggle status' });
-		}
-
-		// PRIORITAS 2: Fallback Svelte DB
-		console.warn('⚠️ [AdminUsers Fallback] Toggling status via Svelte DB.');
-		try {
-			const newStatus = !currentStatus;
-			await sql`
-				UPDATE master.erp_users 
-				SET is_active = ${newStatus}, updated_at = CURRENT_TIMESTAMP 
-				WHERE id = ${Number(id)}
-			`;
-
-			return { 
-				success: true, 
-				message: `User successfully ${newStatus ? 'activated' : 'deactivated'}` 
-			};
-		} catch (error: any) {
-			return fail(500, { success: false, message: error.message });
-		}
+		return fail(apiResult.status || 500, { success: false, message: apiResult.error || 'Failed to toggle status' });
 	}
 } satisfies Actions;

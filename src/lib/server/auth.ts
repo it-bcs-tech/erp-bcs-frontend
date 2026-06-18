@@ -45,23 +45,48 @@ export async function authenticateUser(
 	email: string,
 	password: string
 ): Promise<{ user: AuthUser; token: string }> {
-	// 1. Cari user di erp_users + join data karyawan
+	// 1. Cari user di erp_users + join data karyawan (diambil dari helper)
+	const authUser = await getAuthUserByEmail(email);
+	if (!authUser) {
+		throw new AuthError('Email tidak terdaftar sebagai pengguna sistem ERP', 'EMAIL_NOT_FOUND');
+	}
+
+	// Butuh query ulang untuk mengecek password dan status aktif
+	const rows = await sql`
+		SELECT password, is_active, karyawan_id, karyawan_aktif 
+		FROM master.erp_users eu
+		LEFT JOIN master.m_karyawan mk ON mk.id = eu.karyawan_id
+		WHERE LOWER(eu.email) = LOWER(${email}) LIMIT 1
+	`;
+	const user = rows[0];
+
+	// 4. Update last_login_at
+	await sql`
+		UPDATE master.erp_users 
+		SET last_login_at = CURRENT_TIMESTAMP 
+		WHERE LOWER(email) = LOWER(${email})
+	`;
+
+	const token = generateSimpleToken(authUser.id);
+
+	return { user: authUser, token };
+}
+
+/**
+ * Helper untuk mengambil dan membangun AuthUser dengan RBAC yang akurat dari database Svelte
+ */
+export async function getAuthUserByEmail(email: string): Promise<AuthUser | null> {
 	const rows = await sql<ErpUserRow[]>`
 		SELECT
 			eu.id,
 			eu.email,
-			eu.password,
 			eu.erp_role,
 			eu.allowed_modules,
-			eu.is_active,
-			eu.karyawan_id,
 			mk.nama_karyawan,
-			mk.level    AS level_code,
 			ml.level    AS level_name,
 			ml.level_sequence,
-			mk.div_id,
 			md.div_name,
-			mk.aktif    AS karyawan_aktif
+			mk.div_id
 		FROM master.erp_users eu
 		LEFT JOIN master.m_karyawan  mk ON mk.id = eu.karyawan_id
 		LEFT JOIN master.m_level     ml ON ml.level_code = mk.level
@@ -71,52 +96,25 @@ export async function authenticateUser(
 	`;
 
 	const user = rows[0];
-	if (!user) {
-		throw new AuthError('Email tidak terdaftar sebagai pengguna sistem ERP', 'EMAIL_NOT_FOUND');
-	}
+	if (!user) return null;
 
-	// 2. Verifikasi password (bcrypt)
-	const isPasswordValid = await bcrypt.compare(password, user.password);
-	if (!isPasswordValid) {
-		throw new AuthError('Password yang Anda masukkan salah', 'INVALID_PASSWORD');
-	}
-
-	// 3. Cek status aktif
-	if (!user.is_active) {
-		throw new AuthError('Akun ERP Anda dinonaktifkan. Hubungi Administrator.', 'ACCOUNT_INACTIVE');
-	}
-	if (user.karyawan_id && user.karyawan_aktif !== 'Y') {
-		throw new AuthError('Status Karyawan Anda tidak aktif.', 'ACCOUNT_INACTIVE');
-	}
-
-	// 4. Resolve module access
 	const role = user.erp_role || 'user';
 	const levelSequence = Number(user.level_sequence) || 0;
 	const divisionCode = user.div_id || '';
 	
-	// Parse JSONB
 	let customModules: string[] = [];
 	try {
-		if (typeof user.allowed_modules === 'string') {
-			customModules = JSON.parse(user.allowed_modules);
-		} else if (Array.isArray(user.allowed_modules)) {
-			customModules = user.allowed_modules;
-		}
+		let parsed = user.allowed_modules;
+		if (typeof parsed === 'string') parsed = JSON.parse(parsed);
+		if (typeof parsed === 'string') parsed = JSON.parse(parsed); // Double parse for JSON string inside JSONB
+		if (Array.isArray(parsed)) customModules = parsed;
 	} catch (e) {
 		customModules = [];
 	}
 
-	const allowedModules = resolveModuleAccess(role, levelSequence, divisionCode, customModules);
+	const allowedModules = await resolveModuleAccess(role, levelSequence, divisionCode, customModules);
 
-	// 5. Update last_login_at
-	await sql`
-		UPDATE master.erp_users 
-		SET last_login_at = CURRENT_TIMESTAMP 
-		WHERE id = ${user.id}
-	`;
-
-	// 6. Build AuthUser
-	const authUser: AuthUser = {
+	return {
 		id: Number(user.id),
 		name: user.nama_karyawan || email.split('@')[0],
 		email: user.email,
@@ -127,10 +125,6 @@ export async function authenticateUser(
 		divisionCode,
 		allowedModules
 	};
-
-	const token = generateSimpleToken(authUser.id);
-
-	return { user: authUser, token };
 }
 
 export async function getUserFromToken(token: string): Promise<AuthUser | null> {
@@ -138,63 +132,20 @@ export async function getUserFromToken(token: string): Promise<AuthUser | null> 
 		const userId = decodeSimpleToken(token);
 		if (!userId) return null;
 
-		const rows = await sql<ErpUserRow[]>`
-			SELECT
-				eu.id,
-				eu.email,
-				eu.password,
-				eu.erp_role,
-				eu.allowed_modules,
-				eu.is_active,
-				eu.karyawan_id,
-				mk.nama_karyawan,
-				mk.level    AS level_code,
-				ml.level    AS level_name,
-				ml.level_sequence,
-				mk.div_id,
-				md.div_name,
-				mk.aktif    AS karyawan_aktif
-			FROM master.erp_users eu
-			LEFT JOIN master.m_karyawan  mk ON mk.id = eu.karyawan_id
-			LEFT JOIN master.m_level     ml ON ml.level_code = mk.level
-			LEFT JOIN master.m_division  md ON md.div_code   = mk.div_id
-			WHERE eu.id = ${userId}
-			LIMIT 1
+		const rows = await sql<{email: string}[]>`
+			SELECT email FROM master.erp_users WHERE id = ${userId} LIMIT 1
 		`;
 
 		const user = rows[0];
-		if (!user || !user.is_active || (user.karyawan_id && user.karyawan_aktif !== 'Y')) {
-			return null;
-		}
+		if (!user) return null;
 
-		const role = user.erp_role || 'user';
-		const levelSequence = Number(user.level_sequence) || 0;
-		const divisionCode = user.div_id || '';
-		
-		let customModules: string[] = [];
 		try {
-			if (typeof user.allowed_modules === 'string') {
-				customModules = JSON.parse(user.allowed_modules);
-			} else if (Array.isArray(user.allowed_modules)) {
-				customModules = user.allowed_modules;
+			const authUser = await getAuthUserByEmail(user.email);
+			if (authUser) {
+				return authUser;
 			}
-		} catch (e) {
-			customModules = [];
-		}
-
-		const allowedModules = resolveModuleAccess(role, levelSequence, divisionCode, customModules);
-
-		return {
-			id: Number(user.id),
-			name: user.nama_karyawan || user.email.split('@')[0],
-			email: user.email,
-			role,
-			level: user.level_name || 'Unknown',
-			levelSequence,
-			division: user.div_name || 'Unknown',
-			divisionCode,
-			allowedModules
-		};
+		} catch {}
+		return null;
 	} catch {
 		return null;
 	}
@@ -204,12 +155,34 @@ export async function getUserFromToken(token: string): Promise<AuthUser | null> 
 // PRIVATE HELPERS
 // ─────────────────────────────────────────────────────────
 
-function resolveModuleAccess(
+export async function getDynamicRoleModuleMap(): Promise<Record<string, ModuleId[]>> {
+	try {
+		const rows = await sql`
+			SELECT r.name as role, array_agg(p.name) as modules
+			FROM master.roles r
+			LEFT JOIN master.role_has_permissions rhp ON rhp.role_id = r.id
+			LEFT JOIN master.permissions p ON p.id = rhp.permission_id
+			WHERE p.name IS NOT NULL AND p.name LIKE 'module.%'
+			GROUP BY r.name
+		`;
+		
+		const map: Record<string, ModuleId[]> = {};
+		for (const row of rows) {
+			map[row.role] = row.modules.map((m: string) => m.replace('module.', '')) as ModuleId[];
+		}
+		return map;
+	} catch (e) {
+		console.error("Error fetching dynamic role map:", e);
+		return ROLE_MODULE_MAP; // Fallback to static if DB fails
+	}
+}
+
+async function resolveModuleAccess(
 	role: string,
 	levelSequence: number,
 	divisionCode: string,
 	customModules: string[]
-): ModuleId[] {
+): Promise<ModuleId[]> {
 	// 1. Jika ada custom override bintang (all access)
 	if (customModules.includes('*') || ADMIN_ROLES.includes(role)) {
 		return [...ALL_MODULES];
@@ -226,7 +199,8 @@ function resolveModuleAccess(
 		});
 	} else {
 		// 3. Fallback ke Role Spesifik
-		const roleModules = ROLE_MODULE_MAP[role];
+		const dynamicMap = await getDynamicRoleModuleMap();
+		const roleModules = dynamicMap[role];
 		if (roleModules) {
 			roleModules.forEach((m) => modules.add(m));
 		} else {

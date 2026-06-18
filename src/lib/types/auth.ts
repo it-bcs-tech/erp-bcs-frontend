@@ -31,7 +31,8 @@ export const ADMIN_ROLES = ['superadmin', 'administrator'];
 
 /**
  * Mapping Role Spesifik ERP → Modul
- * Digunakan jika user tidak memiliki override di kolom allowed_modules
+ * @deprecated Digantikan oleh `getDynamicRoleModuleMap()` yang mengambil dari DB PostgreSQL `master.roles`.
+ * Ini hanya digunakan sebagai Fallback terakhir jika DB down.
  */
 export const ROLE_MODULE_MAP: Record<string, ModuleId[]> = {
 	'operator_fms': ['fms'],

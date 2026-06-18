@@ -46,3 +46,5 @@ test_*.js
 scripts/
 tarif_tol.csv
 trigger.js
+.temp_backend/
+test-auth.ts
