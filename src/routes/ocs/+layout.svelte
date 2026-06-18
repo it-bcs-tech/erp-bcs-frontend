@@ -44,6 +44,10 @@
 				<span class="material-symbols-outlined">person_pin</span>
 				<span class="font-medium text-sm">Assign Driver</span>
 			</a>
+			<a class="flex items-center gap-3 px-4 py-3 rounded-xl transition-transform duration-200 hover:translate-x-1 {$page.url.pathname.includes('/ocs/daily-targets') ? 'bg-surface-container-highest text-sky-600 dark:text-sky-400' : 'text-on-surface-variant hover:bg-surface-container'}" href="/ocs/daily-targets">
+				<span class="material-symbols-outlined">track_changes</span>
+				<span class="font-medium text-sm">Target Harian</span>
+			</a>
 			
 			<!-- Section Divider: Master Data -->
 			<div class="pt-3 pb-1 px-4">

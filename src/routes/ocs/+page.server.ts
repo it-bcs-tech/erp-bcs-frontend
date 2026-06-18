@@ -94,11 +94,43 @@ export const load: PageServerLoad = async () => {
 			LIMIT 3
 		`;
 
+		// Daily Targets
+		const dailyTargets = await sql`
+			SELECT 
+				c.id,
+				p.project_name as project,
+				cust.nama_kustomer as customer,
+				c.daily_target_tonnage as "targetTonnage",
+				c.daily_target_ritase as "targetRitase",
+				(
+					SELECT COALESCE(SUM(o.berat_muatan), 0) 
+					FROM marketing.sales_order o 
+					JOIN fleet.trip t ON t.unit_id = o.assigned_unit_id AND t.status NOT IN ('CANCELED') 
+					WHERE o.contract_id = c.id 
+					  AND date_trunc('day', t.tgl_trip) = date_trunc('day', current_date)
+				) as "achievedTonnage",
+				(
+					SELECT COUNT(t.id) 
+					FROM fleet.trip t
+					JOIN marketing.sales_order o ON o.assigned_unit_id = t.unit_id
+					WHERE o.contract_id = c.id
+					  AND t.status NOT IN ('CANCELED')
+					  AND date_trunc('day', t.tgl_trip) = date_trunc('day', current_date)
+				) as "achievedRitase"
+			FROM marketing.contract c
+			LEFT JOIN master.m_project p ON p.id = c.project_id
+			LEFT JOIN master.m_customer cust ON cust.id = c.customer_id
+			WHERE c.status = 'Active' AND c.daily_target_tonnage > 0
+			ORDER BY c.created_at DESC
+			LIMIT 4
+		`;
+
 		return {
 			summary,
 			pendingDOs: pendingDOs as any[],
 			activeJourneys: activeJourneys as any[],
-			recentCompletions: recentCompletions as any[]
+			recentCompletions: recentCompletions as any[],
+			dailyTargets: dailyTargets as any[]
 		};
 	} catch (error) {
 		console.error("Error loading OCS dashboard:", error);
@@ -106,7 +138,8 @@ export const load: PageServerLoad = async () => {
 			summary: { pendingDispatch: 0, activeJourneys: 0, completedToday: 0, totalUJO: 0 },
 			pendingDOs: [],
 			activeJourneys: [],
-			recentCompletions: []
+			recentCompletions: [],
+			dailyTargets: []
 		};
 	}
 };

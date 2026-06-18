@@ -1,7 +1,11 @@
 <script lang="ts">
 	import type { PageData } from './$types';
 	let { data }: { data: PageData } = $props();
-	let { summary, pendingDOs, activeJourneys, recentCompletions } = $derived(data);
+	let summary = $derived(data.summary);
+	let pendingDOs = $derived(data.pendingDOs || []);
+	let activeJourneys = $derived(data.activeJourneys || []);
+	let recentCompletions = $derived(data.recentCompletions || []);
+	let dailyTargets = $derived(data.dailyTargets || []);
 
 	const formatCurrency = (amount: number) =>
 		new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(amount);
@@ -57,6 +61,53 @@
 			</div>
 		</div>
 	</div>
+
+	<!-- Daily Targets Tracker -->
+	{#if dailyTargets.length > 0}
+		<div class="mb-6 bg-surface-container-lowest rounded-[24px] shadow-sm border border-surface-container overflow-hidden">
+			<div class="px-6 py-4 border-b border-surface-container flex items-center justify-between bg-indigo-50/50 dark:bg-indigo-900/10">
+				<div>
+					<h2 class="text-base font-extrabold text-indigo-700 dark:text-indigo-400 flex items-center gap-2">
+						<span class="material-symbols-outlined">track_changes</span> Target Pengiriman Harian
+					</h2>
+					<p class="text-[10px] font-medium text-on-surface-variant mt-0.5">Pemantauan progres tonase dan ritase terhadap target hari ini</p>
+				</div>
+				<a href="/ocs/daily-targets" class="text-xs font-bold text-indigo-600 hover:underline bg-indigo-500/10 px-3 py-1.5 rounded-lg">Kelola Target</a>
+			</div>
+			<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 divide-y md:divide-y-0 md:divide-x divide-surface-container">
+				{#each dailyTargets as t}
+					<div class="p-5 hover:bg-surface-container-low/50 transition-colors">
+						<p class="text-xs font-bold text-on-surface truncate">{t.project}</p>
+						<p class="text-[10px] text-on-surface-variant truncate mb-3">{t.customer}</p>
+						
+						<div class="space-y-4">
+							<!-- Tonnage Progress -->
+							<div>
+								<div class="flex justify-between text-[10px] font-bold mb-1">
+									<span class="text-emerald-600">{new Intl.NumberFormat('id-ID').format(t.achievedTonnage)} Ton</span>
+									<span class="text-on-surface-variant">Target {new Intl.NumberFormat('id-ID').format(t.targetTonnage)} Ton</span>
+								</div>
+								<div class="h-1.5 w-full bg-surface-container rounded-full overflow-hidden">
+									<div class="h-full bg-emerald-500 rounded-full transition-all duration-500" style="width: {Math.min((t.achievedTonnage/t.targetTonnage)*100, 100)}%"></div>
+								</div>
+							</div>
+
+							<!-- Ritase Progress -->
+							<div>
+								<div class="flex justify-between text-[10px] font-bold mb-1">
+									<span class="text-sky-600">{t.achievedRitase} Rit</span>
+									<span class="text-on-surface-variant">Target {t.targetRitase} Rit</span>
+								</div>
+								<div class="h-1.5 w-full bg-surface-container rounded-full overflow-hidden">
+									<div class="h-full bg-sky-500 rounded-full transition-all duration-500" style="width: {Math.min((t.achievedRitase/t.targetRitase)*100, 100)}%"></div>
+								</div>
+							</div>
+						</div>
+					</div>
+				{/each}
+			</div>
+		</div>
+	{/if}
 
 	<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
 		<!-- Pending DOs (Left col) -->
