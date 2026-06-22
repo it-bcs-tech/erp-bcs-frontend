@@ -54,11 +54,20 @@ export const load: PageServerLoad = async () => {
 				COALESCE(ori.nama_kustomer, '-') as origin,
 				COALESCE(dest.nama_kustomer, '-') as destination,
 				o.id as do,
-				0 as progress, -- Mock progress for now
+				CASE 
+					WHEN t.status = 'DISPATCHED' THEN 10
+					WHEN t.status = 'AT_ORIGIN' THEN 20
+					WHEN t.status = 'ON_ROUTE' THEN 50
+					WHEN t.status = 'AT_DESTINATION' THEN 80
+					WHEN t.status = 'RETURNING' THEN 90
+					WHEN t.status = 'COMPLETED' THEN 100
+					ELSE 0
+				END as progress,
 				COALESCE(o.estimated_ujo, 0) as ujo,
 				COALESCE(o.ujo_payment_status, 'UNPAID') as "ujoStatus"
 			FROM marketing.sales_order o
 			LEFT JOIN fleet.unit u ON u.id = o.assigned_unit_id
+			LEFT JOIN fleet.trip t ON t.unit_id = o.assigned_unit_id AND t.status NOT IN ('COMPLETED', 'CANCELED')
 			LEFT JOIN master.m_drivers md ON md.id = o.assigned_driver_id
 			LEFT JOIN master.m_karyawan d ON d.id = md.karyawan_id
 			LEFT JOIN master.m_customer ori ON ori.id = o.origin_id

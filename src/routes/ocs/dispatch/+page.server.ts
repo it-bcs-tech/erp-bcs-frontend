@@ -80,8 +80,8 @@ export const load: PageServerLoad = async () => {
 			  AND u.id NOT IN (
 			      SELECT assigned_unit_id FROM marketing.sales_order WHERE status NOT IN ('COMPLETED', 'CANCELED') AND assigned_unit_id IS NOT NULL
 			  )
-			  AND u.nomor_unit NOT IN (
-			      SELECT unit_id FROM fleet.work_orders WHERE status IN ('Open', 'Proses') AND unit_id IS NOT NULL
+			  AND REPLACE(u.nomor_unit, ' ', '') NOT IN (
+			      SELECT REPLACE(unit_id, ' ', '') FROM fleet.work_orders WHERE status IN ('Open', 'Proses') AND unit_id IS NOT NULL
 			  )
 			ORDER BY u.current_state ASC, u.nomor_unit ASC
 		`;

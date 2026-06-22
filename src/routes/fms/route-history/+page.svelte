@@ -169,14 +169,24 @@
 		return "Daerah tidak diketahui";
 	}
 
-	function fetchGeocode(popupNode: any, lat: number, lon: number) {
-		const el = popupNode.querySelector('.loading-geocode');
-		if (el) {
-			getReverseGeocode(lat, lon).then(name => {
-				el.innerHTML = `<span class="material-symbols-outlined text-[10px] inline-block align-middle mr-1">location_on</span>${name}`;
-				el.className = "text-[11px] font-medium text-slate-700 mt-1 block leading-tight border-t border-slate-200 pt-1";
-			});
-		}
+	function fetchGeocode(popup: any, lat: number, lon: number) {
+		getReverseGeocode(lat, lon).then(name => {
+			try {
+				// Gunakan popup.setContent() untuk mengganti teks "Loading location..."
+				// Ini adalah cara paling reliable karena tidak bergantung pada internal DOM Leaflet
+				const currentContent = popup.getContent?.() || '';
+				if (typeof currentContent === 'string' && currentContent.includes('Loading location...')) {
+					const locationHtml = `<span class="material-symbols-outlined" style="font-size:10px;vertical-align:middle;margin-right:2px;">location_on</span>${name}`;
+					const newContent = currentContent.replace(
+						/<span[^>]*class="[^"]*loading-geocode[^"]*"[^>]*>Loading location\.\.\.<\/span>/,
+						`<span style="font-size:11px;font-weight:500;color:#334155;display:block;margin-top:4px;padding-top:4px;border-top:1px solid #e2e8f0;line-height:1.3;">${locationHtml}</span>`
+					);
+					popup.setContent(newContent);
+				}
+			} catch (e) {
+				console.error("fetchGeocode error:", e);
+			}
+		});
 	}
 
 	let currentAreaName = $state("Memuat lokasi...");
@@ -245,7 +255,7 @@
 				});
 				const m = L.marker([tripData.origin_lat, tripData.origin_lon], { icon: originIcon }).addTo(map)
 					.bindPopup(`<b>Origin</b><br>${tripData.origin_name || 'N/A'}<br><span class="text-xs text-gray-500 loading-geocode" data-lat="${tripData.origin_lat}" data-lon="${tripData.origin_lon}">Loading location...</span>`);
-				m.on('popupopen', (e) => fetchGeocode(e.popup._contentNode, tripData.origin_lat, tripData.origin_lon));
+				m.on('popupopen', (e) => fetchGeocode(e.popup, tripData.origin_lat, tripData.origin_lon));
 				extraMarkers.push(m);
 			}
 
@@ -257,7 +267,7 @@
 				});
 				const m = L.marker([tripData.dest_lat, tripData.dest_lon], { icon: destIcon }).addTo(map)
 					.bindPopup(`<b>Destination</b><br>${tripData.dest_name || 'N/A'}<br><span class="text-xs text-gray-500 loading-geocode" data-lat="${tripData.dest_lat}" data-lon="${tripData.dest_lon}">Loading location...</span>`);
-				m.on('popupopen', (e) => fetchGeocode(e.popup._contentNode, tripData.dest_lat, tripData.dest_lon));
+				m.on('popupopen', (e) => fetchGeocode(e.popup, tripData.dest_lat, tripData.dest_lon));
 				extraMarkers.push(m);
 			}
 
@@ -277,7 +287,7 @@
 						});
 						const m = L.marker([cp.lat, cp.lon], { icon: stopIcon }).addTo(map)
 							.bindPopup(`<b>${cp.event}</b><br>${cp.notes || ''}<br>${formatPlaybackTime(cp.recorded_at)}<br><span class="text-xs text-gray-500 loading-geocode" data-lat="${cp.lat}" data-lon="${cp.lon}">Loading location...</span>`);
-						m.on('popupopen', (e) => fetchGeocode(e.popup._contentNode, cp.lat, cp.lon));
+						m.on('popupopen', (e) => fetchGeocode(e.popup, cp.lat, cp.lon));
 						extraMarkers.push(m);
 					}
 				});
@@ -324,7 +334,7 @@
 										});
 										const m = L.marker([startPoint.lat, startPoint.lon], { icon: stopIcon }).addTo(map)
 											.bindPopup(`<b>Stop</b><br>Dur: ${Math.round(mins)} min<br>At: ${formatPlaybackTime(startPoint.time)}<br><span class="text-xs text-gray-500 loading-geocode" data-lat="${startPoint.lat}" data-lon="${startPoint.lon}">Loading location...</span>`);
-										m.on('popupopen', (e) => fetchGeocode(e.popup._contentNode, startPoint.lat, startPoint.lon));
+										m.on('popupopen', (e) => fetchGeocode(e.popup, startPoint.lat, startPoint.lon));
 										extraMarkers.push(m);
 									} else {
 										// Agregasi pin khusus Parkir Pool
@@ -369,7 +379,7 @@
 									});
 									const m = L.marker([startPoint.lat, startPoint.lon], { icon: stopIcon }).addTo(map)
 										.bindPopup(`<b>Stop</b><br>Dur: ${Math.round(mins)} min<br>At: ${formatPlaybackTime(startPoint.time)}<br><span class="text-xs text-gray-500 loading-geocode" data-lat="${startPoint.lat}" data-lon="${startPoint.lon}">Loading location...</span>`);
-									m.on('popupopen', (e) => fetchGeocode(e.popup._contentNode, startPoint.lat, startPoint.lon));
+									m.on('popupopen', (e) => fetchGeocode(e.popup, startPoint.lat, startPoint.lon));
 									extraMarkers.push(m);
 								} else {
 									if (!aggregatedPoolStops[poolName]) {
@@ -395,7 +405,7 @@
 				const timesList = pData.times.join('<br> • ');
 				const m = L.marker([pData.lat, pData.lon], { icon: parkIcon }).addTo(map)
 					.bindPopup(`<b>Terparkir di ${pName}</b><br>Total Durasi: ${pData.mins} min<br><br><span class="text-xs text-gray-500">Waktu:</span><br> • ${timesList}<br><br><span class="text-xs text-gray-500 loading-geocode" data-lat="${pData.lat}" data-lon="${pData.lon}">Loading location...</span>`);
-				m.on('popupopen', (e) => fetchGeocode(e.popup._contentNode, pData.lat, pData.lon));
+				m.on('popupopen', (e) => fetchGeocode(e.popup, pData.lat, pData.lon));
 				extraMarkers.push(m);
 			});
 			// Add Rest Area Logs
@@ -410,7 +420,7 @@
 					});
 					const m = L.marker([lat, lon], { icon: raIcon }).addTo(map)
 						.bindPopup(`<b>Rest Area</b><br>${ra.nama_rest_area}<br>In: ${formatPlaybackTime(ra.enter_time)}<br>Dur: ${ra.duration_minutes} min<br><span class="text-xs text-gray-500 loading-geocode" data-lat="${lat}" data-lon="${lon}">Loading location...</span>`);
-					m.on('popupopen', (e) => fetchGeocode(e.popup._contentNode, lat, lon));
+					m.on('popupopen', (e) => fetchGeocode(e.popup, lat, lon));
 					extraMarkers.push(m);
 				}
 			});
@@ -424,7 +434,7 @@
 					});
 					const m = L.marker([pool.latitude, pool.longitude], { icon: poolIcon }).addTo(map)
 						.bindPopup(`<b>Pool</b><br>${pool.nama_pool}<br><span class="text-xs text-gray-500 loading-geocode" data-lat="${pool.latitude}" data-lon="${pool.longitude}">Loading location...</span>`);
-					m.on('popupopen', (e) => fetchGeocode(e.popup._contentNode, pool.latitude, pool.longitude));
+					m.on('popupopen', (e) => fetchGeocode(e.popup, pool.latitude, pool.longitude));
 					extraMarkers.push(m);
 					
 					// Draw Pool Radius
