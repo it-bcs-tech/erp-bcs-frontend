@@ -10,6 +10,42 @@
 
 	let statusFilter = $state($page.url.searchParams.get('status') || 'All');
 
+	// Kalkulator Jarak Bumi (Haversine)
+	function haversine(lat1: number, lon1: number, lat2: number, lon2: number) {
+		const R = 6371e3; // metres
+		const toRad = (val: number) => val * Math.PI / 180;
+		const phi1 = toRad(lat1);
+		const phi2 = toRad(lat2);
+		const deltaPhi = toRad(lat2-lat1);
+		const deltaLambda = toRad(lon2-lon1);
+
+		const a = Math.sin(deltaPhi/2) * Math.sin(deltaPhi/2) +
+				  Math.cos(phi1) * Math.cos(phi2) *
+				  Math.sin(deltaLambda/2) * Math.sin(deltaLambda/2);
+		const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+		return R * c;
+	}
+
+	function checkIsInsideNonDestinationPool(order: any) {
+		if (!order.last_lat || !order.last_lon) return false;
+		if (!data.pools || data.pools.length === 0) return false;
+
+		let isInsideOtherPool = false;
+		for (const p of data.pools) {
+			if (!p.latitude || !p.longitude) continue;
+			const dist = haversine(parseFloat(order.last_lat), parseFloat(order.last_lon), parseFloat(p.latitude), parseFloat(p.longitude));
+			if (dist <= p.radius) {
+				// Cek apakah ini pool tujuannya?
+				if (String(p.id) !== String(order.pool_tujuan_id)) {
+					isInsideOtherPool = true;
+					order.matched_pool_name = p.nama_pool;
+					break;
+				}
+			}
+		}
+		return isInsideOtherPool;
+	}
+
 	// Modal States
 	let showUjoModal = $state(false);
 	let showClosingModal = $state(false);
@@ -499,12 +535,12 @@
 									Menunggu Kasir Mencairkan UJO
 								</div>
 							{:else if order.status === 'DISPATCHED'}
-								{#if data.user?.role === 'superadmin'}
+								{#if (data.user?.role === 'superadmin' || data.user?.role === 'administrator') && checkIsInsideNonDestinationPool(order)}
 									<form method="POST" action="?/submitClosing" use:enhance={() => { isSubmitting = true; return async ({ update }) => { await update(); isSubmitting = false; } }}>
 										<input type="hidden" name="orderId" value={order.id}>
-										<button type="submit" disabled={isSubmitting} class="px-4 py-2 bg-sky-600 text-white rounded-lg text-xs font-bold shadow-sm hover:bg-sky-700 transition-colors flex items-center gap-2 disabled:opacity-50">
+										<button type="submit" disabled={isSubmitting} class="px-4 py-2 bg-rose-600 text-white rounded-lg text-xs font-bold shadow-sm hover:bg-rose-700 transition-colors flex items-center gap-2 disabled:opacity-50 w-full justify-center">
 											<span class="material-symbols-outlined text-[16px]">pin_drop</span>
-											Mark Unit Arrived (Begin Closing)
+											Selesaikan Trip di {order.matched_pool_name}
 										</button>
 									</form>
 								{:else}

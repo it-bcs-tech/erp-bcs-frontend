@@ -88,11 +88,16 @@ export const load: PageServerLoad = async ({ fetch }) => {
 			return diff > 180 ? 360 - diff : diff;
 		}
 
-		// Definisi Geofence Pool Resmi
-		const POOLS = [
-			{ id: 'cilegon', name: 'Pool Cilegon', lat: -5.9794663, lng: 106.0079733, radiusKm: 0.5 },
-			{ id: 'bogor', name: 'Pool Bogor', lat: -6.4618702, lng: 106.8941709, radiusKm: 0.5 }
-		];
+		// 1.5 Ambil Data Geofence Pool Dinamis dari Database
+		const dbPools = await sql`SELECT id, nama_pool, latitude, longitude, COALESCE(geofence_radius, 500) as radius_m FROM master.m_pool`;
+		const POOLS = dbPools.map(p => ({
+			id: String(p.id),
+			name: p.nama_pool,
+			lat: Number(p.latitude),
+			lng: Number(p.longitude),
+			radiusKm: Number(p.radius_m) / 1000,
+			radiusMeters: Number(p.radius_m)
+		}));
 
 		// 2. Fetch unified GPS data from our Golang Backend
 		const res = await fetch(`${env.FMS_API_URL || 'http://localhost:8081'}/api/fms/live-map`);
@@ -246,7 +251,8 @@ export const load: PageServerLoad = async ({ fetch }) => {
 		});
 
 		return {
-			units: mappedUnits
+			units: mappedUnits,
+			pools: POOLS
 		};
 	} catch (error) {
 		console.error("EasyGo API Error:", error);
@@ -254,7 +260,8 @@ export const load: PageServerLoad = async ({ fetch }) => {
 		return {
 			units: [
 				{ id: 'ERROR', driver: '-', status: 'Maintenance', speed: 0, lat: -6.22, lng: 106.85, origin: '-', destination: '-', do: '-', cargo: '-', customer: '-', progress: 0, eta: '-' }
-			]
+			],
+			pools: []
 		};
 	}
 };

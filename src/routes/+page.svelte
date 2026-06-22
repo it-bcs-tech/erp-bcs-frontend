@@ -70,7 +70,11 @@
 			</h1>
 			<p class="text-on-surface-variant font-medium">
 				{#if user}
-					{getRoleLabel(user.role)} — {user.division}
+					{#if user.titleName}
+						{user.titleName} — {user.division}
+					{:else}
+						{getRoleLabel(user.role)} — {user.division}
+					{/if}
 				{:else}
 					Select a module to begin your workspace orchestration
 				{/if}

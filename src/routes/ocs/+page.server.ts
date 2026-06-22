@@ -94,14 +94,15 @@ export const load: PageServerLoad = async () => {
 			LIMIT 3
 		`;
 
-		// Daily Targets
+		// Daily Targets — prioritas dari kalender harian, fallback ke rata-rata kontrak
 		const dailyTargets = await sql`
 			SELECT 
 				c.id,
 				p.project_name as project,
 				cust.nama_kustomer as customer,
-				c.daily_target_tonnage as "targetTonnage",
-				c.daily_target_ritase as "targetRitase",
+				COALESCE(dp.target_tonnage, c.daily_target_tonnage) as "targetTonnage",
+				COALESCE(dp.target_ritase, c.daily_target_ritase) as "targetRitase",
+				dp.notes as "planNotes",
 				(
 					SELECT COALESCE(SUM(o.berat_muatan), 0) 
 					FROM marketing.sales_order o 
@@ -120,7 +121,8 @@ export const load: PageServerLoad = async () => {
 			FROM marketing.contract c
 			LEFT JOIN master.m_project p ON p.id = c.project_id
 			LEFT JOIN master.m_customer cust ON cust.id = c.customer_id
-			WHERE c.status = 'Active' AND c.daily_target_tonnage > 0
+			LEFT JOIN operations.contract_daily_plan dp ON dp.contract_id = c.id AND dp.plan_date = current_date
+			WHERE c.status = 'Active' AND (c.daily_target_tonnage > 0 OR dp.target_tonnage > 0)
 			ORDER BY c.created_at DESC
 			LIMIT 4
 		`;

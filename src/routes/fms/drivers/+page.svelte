@@ -218,7 +218,7 @@
 								</div>
 							</td>
 							<td class="py-4 px-6">
-								{#if drv.assignedVehicle !== '-'}
+								{#if drv.assignedVehicle && drv.assignedVehicle !== '-' && drv.assignedVehicle !== ''}
 									<div class="flex items-center gap-2">
 										<span class="material-symbols-outlined text-[16px] text-blue-500">local_shipping</span>
 										<span class="text-sm font-bold text-on-surface">{drv.assignedVehicle}</span>

@@ -69,6 +69,19 @@ export const actions = {
 						
 						const userData = json.data.user;
 						userData.authSource = 'laravel';
+						userData.titleName = userData.title_name || userData.titleName || userData.title || '';
+						
+						// Jika Laravel tidak mengembalikan title_name, ambil dari database Svelte
+						if (!userData.titleName) {
+							try {
+								const localUser = await getAuthUserByEmail(email);
+								if (localUser && localUser.titleName) {
+									userData.titleName = localUser.titleName;
+								}
+							} catch (err) {
+								console.error("Gagal mengambil titleName lokal:", err);
+							}
+						}
 						
 						console.log(`🔍 [Login Debug] Raw allowedModules from Laravel:`, JSON.stringify(userData.allowedModules));
 						

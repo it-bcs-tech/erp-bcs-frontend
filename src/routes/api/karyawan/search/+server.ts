@@ -31,12 +31,13 @@ export const GET: RequestHandler = async ({ url, cookies }) => {
 				mk.payroll_id AS nik,
 				mk.nama_karyawan,
 				mk.email,
-				mk.title,
+				mt.title AS title_name,
 				ml.level AS level_name,
 				md.div_name
 			FROM master.m_karyawan mk
 			LEFT JOIN master.m_level ml ON ml.level_code = mk.level
 			LEFT JOIN master.m_division md ON md.div_code = mk.div_id
+			LEFT JOIN master.m_title mt ON mt.title_code = mk.title
 			WHERE mk.aktif = 'Y' 
 			  AND (mk.nama_karyawan ILIKE ${searchPattern} OR mk.payroll_id ILIKE ${searchPattern})
 			ORDER BY mk.nama_karyawan ASC

@@ -48,3 +48,5 @@ tarif_tol.csv
 trigger.js
 .temp_backend/
 test-auth.ts
+api_response.json
+scratch-backend/

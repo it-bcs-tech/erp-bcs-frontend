@@ -86,11 +86,13 @@ export async function getAuthUserByEmail(email: string): Promise<AuthUser | null
 			ml.level    AS level_name,
 			ml.level_sequence,
 			md.div_name,
-			mk.div_id
+			mk.div_id,
+			mt.title as title_name
 		FROM master.erp_users eu
 		LEFT JOIN master.m_karyawan  mk ON mk.id = eu.karyawan_id
 		LEFT JOIN master.m_level     ml ON ml.level_code = mk.level
 		LEFT JOIN master.m_division  md ON md.div_code   = mk.div_id
+		LEFT JOIN master.m_title     mt ON mt.title_code = mk.title
 		WHERE LOWER(eu.email) = LOWER(${email})
 		LIMIT 1
 	`;
@@ -123,6 +125,7 @@ export async function getAuthUserByEmail(email: string): Promise<AuthUser | null
 		levelSequence,
 		division: user.div_name || 'Unknown',
 		divisionCode,
+		titleName: user.title_name || '',
 		allowedModules
 	};
 }

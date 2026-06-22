@@ -111,7 +111,8 @@ export const actions: Actions = {
 								destination,
 								cargo,
 								status,
-								created_by
+								created_by,
+								pool_tujuan_id
 							) VALUES (
 								${stNumber},
 								${order.tgl_muat},
@@ -124,7 +125,8 @@ export const actions: Actions = {
 								(SELECT nama_kustomer FROM master.m_customer WHERE id = ${order.destination_id}),
 								${order.jenis_muatan},
 								'DISPATCHED',
-								'Kasir System (Auto)'
+								'Kasir System (Auto)',
+								'ded65e49-e477-47a1-aee8-a373a2485bba' -- Default ke Pool Cilegon
 							)
 							RETURNING id
 						`;

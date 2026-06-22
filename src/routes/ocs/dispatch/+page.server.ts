@@ -24,8 +24,12 @@ export const load: PageServerLoad = async () => {
 				k.nama_karyawan as "assignedDriver",
 				o.status,
 				ori.latitude as origin_lat,
-				dest.latitude as dest_lat
+				dest.latitude as dest_lat,
+				t.last_lat,
+				t.last_lon,
+				t.pool_tujuan_id
 			FROM marketing.sales_order o
+			LEFT JOIN fleet.trip t ON t.unit_id = o.assigned_unit_id AND t.status NOT IN ('COMPLETED', 'CANCELED')
 			LEFT JOIN master.m_customer c ON c.id = o.customer_id
 			LEFT JOIN master.m_customer ori ON ori.id = o.origin_id
 			LEFT JOIN master.m_customer dest ON dest.id = o.destination_id
@@ -171,10 +175,14 @@ export const load: PageServerLoad = async () => {
 
 		console.log("Contract Orders length:", contractOrders.length);
 
+		// Fetch Pool data for dynamic geofencing in UI
+		const poolsResult = await sql`SELECT id, nama_pool, latitude, longitude, COALESCE(geofence_radius, 500) as radius FROM master.m_pool`;
+
 		return {
 			orders: ordersResult as any[],
 			availableUnits: unitsResult as any[],
-			contractOrders
+			contractOrders,
+			pools: poolsResult as any[]
 		};
 	} catch (error) {
 		console.error("Error loading dispatch data:", error);
