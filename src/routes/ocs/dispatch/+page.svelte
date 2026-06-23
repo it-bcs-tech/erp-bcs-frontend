@@ -27,6 +27,7 @@
 	}
 
 	function checkIsInsideNonDestinationPool(order: any) {
+		console.log("Checking order:", order.id, "last_lat:", order.last_lat, "last_lon:", order.last_lon);
 		if (!order.last_lat || !order.last_lon) return false;
 		if (!data.pools || data.pools.length === 0) return false;
 
@@ -34,15 +35,19 @@
 		for (const p of data.pools) {
 			if (!p.latitude || !p.longitude) continue;
 			const dist = haversine(parseFloat(order.last_lat), parseFloat(order.last_lon), parseFloat(p.latitude), parseFloat(p.longitude));
+			console.log(`Dist to ${p.nama_pool}: ${dist} (radius: ${p.radius})`);
 			if (dist <= p.radius) {
 				// Cek apakah ini pool tujuannya?
+				console.log(`Is pool tujuan? p.id=${p.id}, order.pool_tujuan_id=${order.pool_tujuan_id}`);
 				if (String(p.id) !== String(order.pool_tujuan_id)) {
 					isInsideOtherPool = true;
 					order.matched_pool_name = p.nama_pool;
+					console.log("-> TRUE! Matched transit pool:", p.nama_pool);
 					break;
 				}
 			}
 		}
+		console.log("Result:", isInsideOtherPool);
 		return isInsideOtherPool;
 	}
 

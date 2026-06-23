@@ -57,7 +57,8 @@ export async function runGeofenceEngine() {
 				t.depart_time,
 				t.current_stop_lat,
 				t.current_stop_lon,
-				t.current_stop_start_time
+				t.current_stop_start_time,
+				t.pool_tujuan_id
 			FROM fleet.trip t
 			JOIN fleet.unit u ON u.id = t.unit_id
 			LEFT JOIN master.m_customer o ON o.id = t.origin_id
