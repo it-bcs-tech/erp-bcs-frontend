@@ -216,9 +216,10 @@ async function resolveModuleAccess(
 	}
 
 	// 5. Khusus OCS: cek level minimum (Supervisor = sequence 4)
-	if (modules.has('ocs') && levelSequence < OCS_MIN_LEVEL_SEQUENCE) {
-		modules.delete('ocs');
-	}
+	// DINONAKTIFKAN SEMENTARA (Sesuai request untuk testing)
+	// if (modules.has('ocs') && levelSequence < OCS_MIN_LEVEL_SEQUENCE) {
+	// 	modules.delete('ocs');
+	// }
 
 	return Array.from(modules);
 }

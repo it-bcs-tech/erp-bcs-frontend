@@ -24,7 +24,12 @@ export const load: PageServerLoad = async ({ url }) => {
 					(SELECT json_agg(json_build_object('status', sl.status, 'created_at', sl.created_at) ORDER BY sl.created_at ASC)
 					 FROM fleet.trip_status_log sl WHERE sl.trip_id = t.id),
 					'[]'::json
-				) as status_logs
+				) as status_logs,
+				COALESCE(
+					(SELECT json_agg(json_build_object('point', tn.point, 'note', tn.note, 'created_by', tn.created_by, 'created_at', tn.created_at))
+					 FROM fleet.trip_notes tn WHERE tn.trip_id = t.id),
+					'[]'::json
+				) as notes
 			FROM fleet.trip t
 			LEFT JOIN fleet.unit u ON t.unit_id = u.id
 			LEFT JOIN master.m_drivers d ON d.id = t.driver_id
@@ -115,6 +120,10 @@ export const load: PageServerLoad = async ({ url }) => {
 				};
 			};
 
+			const notesList = Array.isArray(t.notes) ? t.notes : [];
+			const notesMap = new Map();
+			notesList.forEach((n: any) => notesMap.set(n.point, n));
+
 			// Generate horizontal timeline history
 			const history = [
 				{ 
@@ -123,7 +132,8 @@ export const load: PageServerLoad = async ({ url }) => {
 					time: createdTime, 
 					completed: completedStatuses['AT_POOL'], 
 					active: t.status === 'SCHEDULED',
-					duration: null
+					duration: null,
+					note: notesMap.get('AT_POOL') || null
 				},
 				{ 
 					step: 'HEADING_ORIGIN', 
@@ -131,7 +141,8 @@ export const load: PageServerLoad = async ({ url }) => {
 					time: logMap.get('DISPATCHED') ? formatTime(logMap.get('DISPATCHED')) : departTime, 
 					completed: completedStatuses['HEADING_ORIGIN'], 
 					active: t.status === 'DISPATCHED',
-					duration: calcDuration('DISPATCHED', 'AT_ORIGIN')
+					duration: calcDuration('DISPATCHED', 'AT_ORIGIN'),
+					note: notesMap.get('HEADING_ORIGIN') || null
 				},
 				{ 
 					step: 'AT_ORIGIN', 
@@ -139,7 +150,8 @@ export const load: PageServerLoad = async ({ url }) => {
 					time: logMap.get('AT_ORIGIN') ? formatTime(logMap.get('AT_ORIGIN')) : null, 
 					completed: completedStatuses['AT_ORIGIN'], 
 					active: t.status === 'AT_ORIGIN',
-					duration: calcDuration('AT_ORIGIN', 'ON_ROUTE')
+					duration: calcDuration('AT_ORIGIN', 'ON_ROUTE'),
+					note: notesMap.get('AT_ORIGIN') || null
 				},
 				{ 
 					step: 'HEADING_DEST', 
@@ -147,7 +159,8 @@ export const load: PageServerLoad = async ({ url }) => {
 					time: logMap.get('ON_ROUTE') ? formatTime(logMap.get('ON_ROUTE')) : null, 
 					completed: completedStatuses['HEADING_DEST'], 
 					active: t.status === 'ON_ROUTE',
-					duration: calcDuration('ON_ROUTE', 'AT_DESTINATION')
+					duration: calcDuration('ON_ROUTE', 'AT_DESTINATION'),
+					note: notesMap.get('HEADING_DEST') || null
 				},
 				{ 
 					step: 'AT_DEST', 
@@ -155,7 +168,8 @@ export const load: PageServerLoad = async ({ url }) => {
 					time: logMap.get('AT_DESTINATION') ? formatTime(logMap.get('AT_DESTINATION')) : null, 
 					completed: completedStatuses['AT_DEST'], 
 					active: t.status === 'AT_DESTINATION',
-					duration: calcDuration('AT_DESTINATION', 'RETURNING')
+					duration: calcDuration('AT_DESTINATION', 'RETURNING'),
+					note: notesMap.get('AT_DEST') || null
 				},
 				{ 
 					step: 'RETURNING', 
@@ -163,12 +177,14 @@ export const load: PageServerLoad = async ({ url }) => {
 					time: logMap.get('RETURNING') ? formatTime(logMap.get('RETURNING')) : null, 
 					completed: completedStatuses['RETURNING'], 
 					active: t.status === 'RETURNING',
-					duration: calcDuration('RETURNING', 'COMPLETED')
+					duration: calcDuration('RETURNING', 'COMPLETED'),
+					note: notesMap.get('RETURNING') || null
 				}
 			];
 
 			return {
 				id: t.id || 'TRP-UNKNOWN',
+				db_id: t.trip_db_id,
 				vehicle: t.vehicle || '-',
 				driver: t.driver || '-',
 				origin: t.origin || '-',
@@ -231,5 +247,46 @@ export const load: PageServerLoad = async ({ url }) => {
 			metrics: { activeTrips: 0, completedToday: 0, scheduled: 0, delayed: 0 }, 
 			meta: { current_page: 1, per_page: 5, total: 0 } 
 		};
+	}
+};
+
+import { fail } from '@sveltejs/kit';
+import type { Actions } from './$types';
+
+export const actions: Actions = {
+	saveNote: async ({ request, cookies }) => {
+		const data = await request.formData();
+		const tripId = data.get('trip_id')?.toString();
+		const point = data.get('point')?.toString();
+		const note = data.get('note')?.toString() || '';
+
+		if (!tripId || !point) {
+			return fail(400, { success: false, message: 'Invalid data' });
+		}
+
+		let createdBy = 'Unknown';
+		const userDataCookie = cookies.get('user_data');
+		if (userDataCookie) {
+			try {
+				const u = JSON.parse(userDataCookie);
+				createdBy = u.name || u.email || 'Unknown';
+			} catch (e) { /* silent */ }
+		}
+
+		try {
+			// UPSERT the note
+			await sql`
+				INSERT INTO fleet.trip_notes (trip_id, point, note, created_by)
+				VALUES (${tripId}, ${point}, ${note}, ${createdBy})
+				ON CONFLICT (trip_id, point) DO UPDATE SET 
+					note = EXCLUDED.note,
+					created_by = EXCLUDED.created_by,
+					updated_at = CURRENT_TIMESTAMP
+			`;
+			return { success: true };
+		} catch (error) {
+			console.error("Failed to save note:", error);
+			return fail(500, { success: false, message: 'Failed to save note' });
+		}
 	}
 };

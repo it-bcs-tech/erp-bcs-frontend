@@ -57,14 +57,15 @@ async function tryLaravelApi(
 		let json: any = {};
 		try { json = JSON.parse(jsonStr); } catch { /* silent */ }
 
-		if (response.ok && json.status === 'success') {
+		if (response.ok && (json.status === 'success' || !json.status || json.message)) {
 			console.log(`✅ [AdminUsers] Laravel ${method} ${endpoint} success`);
-			return { ok: true, status: response.status, data: json.data };
+			return { ok: true, status: response.status, data: json.data || json };
 		} else if (response.status >= 400 && response.status < 500) {
 			// Validation/auth error — JANGAN fallback
 			return { ok: false, status: response.status, error: json.message || json.error || 'Request rejected by Laravel' };
 		} else {
 			// 5xx or bad JSON
+			console.error(`❌ [AdminUsers] 500 Error Raw Response:`, textResponse);
 			return { ok: false, status: response.status };
 		}
 	} catch (error: any) {

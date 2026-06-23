@@ -2,6 +2,7 @@
 	import type { PageData } from './$types';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/stores';
+	import { enhance } from '$app/forms';
 	
 	let { data }: { data: PageData } = $props();
 	
@@ -14,6 +15,8 @@
 	let expandedTripId = $state<string | null>(null);
 	let generatingSummaryFor = $state<string | null>(null);
 	let aiSummaries = $state<Record<string, any>>({});
+	
+	let activeNotePopover = $state<{ tripId: string, dbId: number, point: string, note: string } | null>(null);
 	
 	let searchTimer: ReturnType<typeof setTimeout>;
 
@@ -294,9 +297,14 @@
 														
 														<!-- Event Details -->
 														<div class="mt-4 text-center px-2">
-															<p class="text-xs font-bold {event.active ? 'text-blue-600 dark:text-blue-400' : (event.completed ? 'text-on-surface' : 'text-on-surface-variant/50')}">
+															<button 
+																type="button"
+																onclick={() => activeNotePopover = { tripId: trip.id, dbId: trip.db_id, point: event.step, note: event.note?.note || '' }}
+																class="text-xs font-bold hover:underline hover:underline-offset-4 decoration-on-surface-variant/30 transition-all {event.active ? 'text-blue-600 dark:text-blue-400' : (event.completed ? 'text-on-surface' : 'text-on-surface-variant/50')}"
+																title="Klik untuk tambah/edit catatan"
+															>
 																{event.label}
-															</p>
+															</button>
 															{#if event.time}
 																<p class="text-[10px] {event.active ? 'text-blue-500/80 font-medium' : 'text-on-surface-variant font-medium'} mt-1">
 																	{event.time}
@@ -315,6 +323,80 @@
 																	{event.notes}
 																</p>
 															{/if}
+
+															{#if event.note}
+																<div class="mt-2 text-center w-full max-w-[140px] mx-auto">
+																	<p class="text-[10px] px-2 py-1.5 bg-amber-50/50 border border-amber-200/50 rounded-md text-amber-700 italic truncate" title={event.note.note}>
+																		{event.note.note}
+																	</p>
+																</div>
+															{/if}
+
+															<div class="relative">
+																<!-- Mac-style Popover (Modern) -->
+																{#if activeNotePopover?.tripId === trip.id && activeNotePopover?.point === event.step}
+																	<div class="absolute left-1/2 -translate-x-1/2 top-6 z-50 animate-in fade-in zoom-in-95 duration-200">
+																		<!-- Pointer Caret -->
+																		<div class="absolute left-1/2 -translate-x-1/2 -top-2 w-4 h-4 bg-white/85 dark:bg-slate-900/85 border-t border-l border-white/60 dark:border-white/10 transform rotate-45 z-0" style="backdrop-filter: blur(24px);"></div>
+																		
+																		<!-- Glassmorphism Floating Card -->
+																		<div class="relative w-[300px] bg-white/85 dark:bg-slate-900/85 backdrop-blur-2xl rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.12)] border border-white/60 dark:border-white/10 flex flex-col z-10 text-left">
+																			<div class="relative w-full h-full rounded-2xl overflow-hidden flex flex-col bg-white/40 dark:bg-slate-900/40">
+																				
+																				<!-- Popup Header -->
+																				<div class="px-4 py-3 border-b border-black/5 dark:border-white/5 flex items-center justify-between bg-slate-50/50 dark:bg-slate-800/50">
+																					<div class="flex flex-col">
+																						<span class="text-[9px] font-bold text-sky-500 uppercase tracking-widest leading-none mb-1.5">Catatan Trip</span>
+																						<h4 class="text-[13px] font-bold text-slate-800 dark:text-slate-100 tracking-tight leading-none">
+																							{event.label}
+																						</h4>
+																					</div>
+																					<button type="button" onclick={(e) => { e.stopPropagation(); activeNotePopover = null; }} class="w-6 h-6 rounded-full bg-slate-200/50 hover:bg-slate-300/50 dark:bg-slate-700/50 dark:hover:bg-slate-600/50 flex items-center justify-center text-slate-500 dark:text-slate-400 transition-colors">
+																						<span class="material-symbols-outlined text-[14px]">close</span>
+																					</button>
+																				</div>
+
+																				<!-- Popup Body -->
+																				<div class="p-4">
+																					<form method="POST" action="?/saveNote" use:enhance={() => {
+																						return async ({ result, update }) => {
+																							if (result.type === 'success') {
+																								activeNotePopover = null;
+																								await update();
+																							}
+																						};
+																					}}>
+																						<input type="hidden" name="trip_id" value={activeNotePopover.dbId} />
+																						<input type="hidden" name="point" value={activeNotePopover.point} />
+																						
+																						<div class="mb-4">
+																							<textarea 
+																								name="note" 
+																								class="w-full bg-slate-100/50 dark:bg-slate-800/50 border border-slate-200/50 dark:border-slate-700/50 rounded-xl px-3 py-2 text-sm text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-sky-500/50 transition-shadow resize-none min-h-[80px]"
+																								placeholder="Tuliskan catatan di titik ini..."
+																								bind:value={activeNotePopover.note}
+																								autofocus
+																								onkeydown={(e) => {
+																									if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+																										e.currentTarget.form?.requestSubmit();
+																									}
+																								}}
+																							></textarea>
+																						</div>
+
+																						<div class="flex items-center justify-between">
+																							<span class="text-[9px] font-medium text-slate-400 dark:text-slate-500">Cmd+Enter to save</span>
+																							<button type="submit" class="bg-sky-500 text-white px-4 py-1.5 rounded-xl text-[11px] font-semibold hover:bg-sky-600 active:scale-[0.98] transition-all shadow-sm">
+																								Simpan Catatan
+																							</button>
+																						</div>
+																					</form>
+																				</div>
+																			</div>
+																		</div>
+																	</div>
+																{/if}
+															</div>
 														</div>
 													</div>
 												{/each}
