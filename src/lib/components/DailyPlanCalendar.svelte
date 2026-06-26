@@ -4,28 +4,52 @@
 	let {
 		isOpen = $bindable(false),
 		contract = null,
+		initialMonthStr = '',
 		dailyPlans = [],
 		dispatches = [],
-		onClose = () => {}
+		monthlyTargets = [],
+		onClose = () => {},
+		onOpenMonthlyModal = () => {}
 	} = $props<{
 		isOpen: boolean;
 		contract: any;
+		initialMonthStr?: string;
 		dailyPlans: any[];
 		dispatches: any[];
+		monthlyTargets?: any[];
+		form?: any;
 		onClose?: () => void;
+		onOpenMonthlyModal?: (contract: any, monthStr: string) => void;
 	}>();
 
+	import { untrack } from 'svelte';
+	
 	let currentMonth = $state(new Date());
+	let initializedContractId = $state<string | null>(null);
 	let editingDate = $state<string | null>(null);
 	let editTonnage = $state(0);
 	let editRitase = $state(0);
 	let editUnits = $state(0);
 	let editNotes = $state('');
+	let localError = $state('');
 	let isGenerating = $state(false);
 
 	$effect(() => {
 		if (isOpen && contract?.startDate) {
-			currentMonth = new Date(contract.startDate);
+			untrack(() => {
+				if (initializedContractId !== contract.id) {
+					if (initialMonthStr) {
+						currentMonth = new Date(initialMonthStr + '-01T12:00:00');
+					} else {
+						currentMonth = new Date(contract.startDate);
+					}
+					initializedContractId = contract.id;
+				}
+			});
+		} else if (!isOpen) {
+			untrack(() => {
+				initializedContractId = null;
+			});
 		}
 	});
 
@@ -92,8 +116,42 @@
 	let calendarDays = $derived(getDaysInMonth(currentMonth));
 	let monthLabel = $derived(currentMonth.toLocaleDateString('id-ID', { month: 'long', year: 'numeric' }));
 
-	let totalPlannedTonnage = $derived(dailyPlans.reduce((sum: number, p: any) => sum + Number(p.target_tonnage || 0), 0));
-	let daysWithPlan = $derived(dailyPlans.filter((p: any) => Number(p.target_tonnage) > 0).length);
+	// Filter plans for the CURRENT MONTH only
+	let currentMonthPlans = $derived(dailyPlans.filter((p: any) => {
+		const pDate = new Date(p.plan_date);
+		return pDate.getMonth() === currentMonth.getMonth() && pDate.getFullYear() === currentMonth.getFullYear();
+	}));
+
+	let totalPlannedTonnage = $derived(currentMonthPlans.reduce((sum: number, p: any) => sum + Number(p.target_tonnage || 0), 0));
+
+	// Tentukan target yang akan dibandingkan: target bulanan atau target kontrak
+	let activeTargetTonnage = $derived.by(() => {
+		if (Number(contract?.targetTonnage) === 0 && monthlyTargets && monthlyTargets.length > 0) {
+			// Cari target bulanan yang sesuai dengan currentMonth
+			const currentTarget = monthlyTargets.find((m: any) => {
+				const mDate = new Date(m.target_month);
+				return mDate.getMonth() === currentMonth.getMonth() && mDate.getFullYear() === currentMonth.getFullYear();
+			});
+			if (currentTarget) return Number(currentTarget.target_tonnage);
+		}
+		return Number(contract?.targetTonnage || 0);
+	});
+
+	let daysWithPlan = $derived.by(() => {
+		let days = 0;
+		let accumulated = 0;
+		for (const p of currentMonthPlans) {
+			const tonnage = Number(p.target_tonnage) || 0;
+			if (tonnage > 0) {
+				days++;
+				accumulated += tonnage;
+				if (activeTargetTonnage > 0 && accumulated >= activeTargetTonnage) {
+					break;
+				}
+			}
+		}
+		return days;
+	});
 
 	function prevMonth() { currentMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1); }
 	function nextMonth() { currentMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1); }
@@ -109,6 +167,7 @@
 		editRitase = plan ? Number(plan.target_ritase) : 0;
 		editUnits = plan ? Number(plan.target_units) : 0;
 		editNotes = plan ? (plan.notes || '') : '';
+		localError = '';
 
 		// Calculate popup position based on the clicked cell
 		const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
@@ -183,7 +242,7 @@
 					<span class="material-symbols-outlined">calendar_month</span> Kalender Target Harian
 				</h3>
 				<p class="text-xs text-on-surface-variant mt-1">{contract.project} — {contract.customer}</p>
-				<p class="text-[10px] text-on-surface-variant mt-0.5">Kontrak: {formatNum(contract.targetTonnage)} Ton | {contract.startDate} s/d {contract.endDate}</p>
+				<p class="text-[10px] text-on-surface-variant mt-0.5">Kontrak: {formatNum(activeTargetTonnage)} Ton | {contract.startDate} s/d {contract.endDate}</p>
 			</div>
 			<button onclick={closeCalendar} class="w-8 h-8 rounded-full bg-surface-container hover:bg-surface-container-high flex items-center justify-center text-on-surface-variant transition-colors">
 				<span class="material-symbols-outlined text-lg">close</span>
@@ -193,30 +252,57 @@
 		<div class="p-6 overflow-y-auto flex-1">
 			<!-- Summary + Generate -->
 			<div class="flex flex-wrap items-center justify-between gap-4 mb-6">
+				<!-- Stats Cards -->
 				<div class="flex gap-4">
-					<div class="bg-surface-container-low px-4 py-2 rounded-xl border border-surface-container">
-						<p class="text-[9px] font-bold text-on-surface-variant uppercase tracking-wider">Total Direncanakan</p>
-						<p class="text-lg font-black text-indigo-600">{formatNum(totalPlannedTonnage)} <span class="text-xs font-medium text-on-surface-variant">Ton</span></p>
-					</div>
+					{#if totalPlannedTonnage > activeTargetTonnage}
+						<div class="bg-surface-container-low px-4 py-2 rounded-xl border border-surface-container">
+							<p class="text-[9px] font-bold text-on-surface-variant uppercase tracking-wider">Target Terpenuhi</p>
+							<p class="text-lg font-black text-indigo-600">{formatNum(activeTargetTonnage)} <span class="text-xs font-medium text-on-surface-variant">Ton</span></p>
+						</div>
+						<div class="bg-orange-50 dark:bg-orange-900/20 px-4 py-2 rounded-xl border border-orange-200/50 dark:border-orange-500/30">
+							<p class="text-[9px] font-bold text-orange-600 uppercase tracking-wider">Extra Muatan</p>
+							<p class="text-lg font-black text-orange-600">+{formatNum(totalPlannedTonnage - activeTargetTonnage)} <span class="text-xs font-medium text-orange-600/80">Ton</span></p>
+						</div>
+						<div class="bg-surface-container-low px-4 py-2 rounded-xl border border-surface-container">
+							<p class="text-[9px] font-bold text-on-surface-variant uppercase tracking-wider">Total Keseluruhan</p>
+							<p class="text-lg font-black text-indigo-900 dark:text-indigo-200">{formatNum(totalPlannedTonnage)} <span class="text-xs font-medium text-on-surface-variant">Ton</span></p>
+						</div>
+					{:else}
+						<div class="bg-surface-container-low px-4 py-2 rounded-xl border border-surface-container">
+							<p class="text-[9px] font-bold text-on-surface-variant uppercase tracking-wider">Total Direncanakan</p>
+							<p class="text-lg font-black text-indigo-600">{formatNum(totalPlannedTonnage)} <span class="text-xs font-medium text-on-surface-variant">Ton</span></p>
+						</div>
+						<div class="bg-surface-container-low px-4 py-2 rounded-xl border border-surface-container">
+							<p class="text-[9px] font-bold text-on-surface-variant uppercase tracking-wider">Sisa Belum Direncanakan</p>
+							<p class="text-lg font-black {activeTargetTonnage - totalPlannedTonnage > 0 ? 'text-amber-600' : 'text-emerald-600'}">{formatNum(Math.max(0, activeTargetTonnage - totalPlannedTonnage))} <span class="text-xs font-medium text-on-surface-variant">Ton</span></p>
+						</div>
+					{/if}
 					<div class="bg-surface-container-low px-4 py-2 rounded-xl border border-surface-container">
 						<p class="text-[9px] font-bold text-on-surface-variant uppercase tracking-wider">Hari Terencana</p>
 						<p class="text-lg font-black text-sky-600">{daysWithPlan} <span class="text-xs font-medium text-on-surface-variant">Hari</span></p>
 					</div>
-					<div class="bg-surface-container-low px-4 py-2 rounded-xl border border-surface-container">
-						<p class="text-[9px] font-bold text-on-surface-variant uppercase tracking-wider">Sisa Belum Direncanakan</p>
-						<p class="text-lg font-black {contract.targetTonnage - totalPlannedTonnage > 0 ? 'text-amber-600' : 'text-emerald-600'}">{formatNum(Math.max(0, contract.targetTonnage - totalPlannedTonnage))} <span class="text-xs font-medium text-on-surface-variant">Ton</span></p>
-					</div>
 				</div>
-				<form method="POST" action="?/generatePlan" use:enhance={() => {
-					isGenerating = true;
-					return async ({ update }) => { await update(); isGenerating = false; };
-				}}>
-					<input type="hidden" name="contractId" value={contract.id} />
-					<button type="submit" disabled={isGenerating} class="bg-indigo-600 text-white px-5 py-2.5 rounded-xl text-sm font-semibold shadow-sm hover:bg-indigo-700 transition-colors flex items-center gap-2 disabled:opacity-50">
-						<span class="material-symbols-outlined text-lg">{isGenerating ? 'hourglass_top' : 'auto_fix_high'}</span>
-						{isGenerating ? 'Generating...' : 'Generate Otomatis'}
+				{#if Number(contract?.targetTonnage) > 0}
+					<form method="POST" action="?/generatePlan" use:enhance={() => {
+						isGenerating = true;
+						return async ({ update }) => { await update(); isGenerating = false; };
+					}}>
+						<input type="hidden" name="contractId" value={contract.id} />
+						<button type="submit" disabled={isGenerating} class="bg-indigo-600 text-white px-5 py-2.5 rounded-xl text-sm font-semibold shadow-sm hover:bg-indigo-700 transition-colors flex items-center gap-2 disabled:opacity-50">
+							<span class="material-symbols-outlined text-lg">{isGenerating ? 'hourglass_top' : 'auto_fix_high'}</span>
+							{isGenerating ? 'Generating...' : 'Generate Otomatis'}
+						</button>
+					</form>
+				{:else}
+					<button onclick={() => {
+						// Pass target month string formatted from currentMonth
+						const currentMonthStr = `${currentMonth.getFullYear()}-${String(currentMonth.getMonth() + 1).padStart(2, '0')}`;
+						onOpenMonthlyModal(contract, currentMonthStr);
+					}} class="bg-indigo-50 text-indigo-700 px-5 py-2.5 rounded-xl text-sm font-semibold border border-indigo-200 hover:bg-indigo-100 transition-colors flex items-center gap-2">
+						<span class="material-symbols-outlined text-lg">edit_calendar</span>
+						Set Target Bulanan
 					</button>
-				</form>
+				{/if}
 			</div>
 
 			<!-- Month Navigation -->
@@ -243,16 +329,17 @@
 					{@const inRange = isInContractRange(d)}
 					{@const isCurrMonth = isCurrentMonth(d)}
 					{@const hasPlan = plan && Number(plan.target_tonnage) > 0}
+					{@const isEditable = inRange && activeTargetTonnage > 0}
 					<!-- svelte-ignore a11y_click_events_have_key_events -->
 					<!-- svelte-ignore a11y_no_static_element_interactions -->
 					<div 
 						class="min-h-[72px] rounded-xl border p-1.5 transition-all duration-150
 							{isCurrMonth ? '' : 'opacity-30'}
 							{isToday(d) ? 'ring-2 ring-indigo-500' : ''}
-							{inRange ? 'cursor-pointer hover:shadow-md hover:scale-[1.02]' : 'cursor-default'}
+							{isEditable ? 'cursor-pointer hover:shadow-md hover:scale-[1.02]' : (inRange ? 'cursor-not-allowed opacity-75' : 'cursor-default')}
 							{hasPlan ? 'bg-sky-50 dark:bg-sky-900/10 border-sky-200 dark:border-sky-800' : 'border-surface-container bg-surface-container-low/30'}
 						"
-						onclick={(e) => openEditDay(d, e)}
+						onclick={(e) => { if (isEditable) openEditDay(d, e); }}
 					>
 						<div class="flex items-center justify-between">
 							<p class="text-[11px] font-bold {isToday(d) ? 'text-indigo-600' : 'text-on-surface-variant'}">{d.getDate()}</p>
@@ -322,9 +409,14 @@
 				<div class="w-px h-8 bg-slate-200 dark:bg-slate-700"></div>
 				<div class="flex-1">
 					<p class="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-1">Realisasi</p>
-					<p class="text-sm font-black {realizedTonnage >= editTonnage && editTonnage > 0 ? 'text-emerald-600' : 'text-amber-600'}">
-						{formatNum(realizedTonnage)} <span class="text-[10px] font-medium text-slate-500">Ton</span>
-					</p>
+					<div class="flex items-center gap-2">
+						<p class="text-sm font-black {realizedTonnage >= editTonnage && editTonnage > 0 ? 'text-emerald-600' : 'text-amber-600'}">
+							{formatNum(realizedTonnage)} <span class="text-[10px] font-medium text-slate-500">Ton</span>
+						</p>
+						{#if realizedTonnage > editTonnage && editTonnage > 0}
+							<span class="text-[8px] font-bold bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded uppercase">Tambahan Muatan</span>
+						{/if}
+					</div>
 					<p class="text-[10px] text-slate-500">{realizedRitase} Rit · {realizedUnits} Unit</p>
 				</div>
 			</div>
@@ -333,10 +425,25 @@
 
 			<!-- Edit Target Form -->
 			<form method="POST" action="?/updateDayPlan" use:enhance={() => {
-				return async ({ update }) => { await update(); editingDate = null; };
+				localError = '';
+				return async ({ update, result }) => { 
+					await update(); 
+					if (result.type === 'success' || result.type === 'redirect') {
+						editingDate = null; 
+					} else if (result.type === 'failure') {
+						localError = result.data?.error || 'Terjadi kesalahan.';
+					}
+				};
 			}}>
 				<input type="hidden" name="contractId" value={contract.id} />
 				<input type="hidden" name="planDate" value={editingDate} />
+
+				{#if localError}
+					<div class="mb-4 bg-rose-50 border border-rose-200 rounded-xl p-3 flex items-start gap-2 text-rose-600">
+						<span class="material-symbols-outlined text-[16px] mt-0.5">error</span>
+						<p class="text-xs font-medium leading-tight">{localError}</p>
+					</div>
+				{/if}
 
 				{#if isLocked}
 					<div class="mb-4 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800/50 rounded-xl p-3 flex items-start gap-2">

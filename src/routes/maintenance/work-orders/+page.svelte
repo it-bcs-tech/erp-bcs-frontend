@@ -62,10 +62,6 @@
 				<span class="material-symbols-outlined text-lg">download</span>
 				Export
 			</button>
-			<a href="/maintenance/inspections/create" class="bg-primary text-on-primary px-4 py-2.5 rounded-xl text-sm font-semibold flex items-center gap-2 hover:bg-primary/90 transition-colors shadow-sm">
-				<span class="material-symbols-outlined text-lg">add</span>
-				New Work Order
-			</a>
 		</div>
 	</header>
 

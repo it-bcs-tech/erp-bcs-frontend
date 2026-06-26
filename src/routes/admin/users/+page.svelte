@@ -1,13 +1,15 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
 	import { spawnToast } from '$lib/stores/notifications';
-	import { ALL_MODULES, ADMIN_ROLES } from '$lib/types/auth';
+	import { MODULE_MENUS, ALL_MODULES, ADMIN_ROLES } from '$lib/types/auth';
 
 	let { data, form } = $props();
 
 	// Modals State
 	let showAddModal = $state(false);
 	let showEditModal = $state(false);
+	let activeMenuSelectionModal = $state<string | null>(null);
+	let menuSelectionTarget = $state<'new' | 'edit'>('new');
 	
 	// Live Search State
 	let searchQuery = $state('');
@@ -59,6 +61,7 @@
 	function closeModals() {
 		showAddModal = false;
 		showEditModal = false;
+		activeMenuSelectionModal = null;
 		selectedKaryawan = null;
 		searchQuery = '';
 		searchResults = [];
@@ -137,6 +140,16 @@
 		searchResults = [];
 	}
 
+	function handleModuleClick(mod: string, target: 'new' | 'edit') {
+		if (MODULE_MENUS[mod]) {
+			activeMenuSelectionModal = mod;
+			menuSelectionTarget = target;
+		} else {
+			if (target === 'new') toggleNewModule(mod);
+			else toggleEditModule(mod);
+		}
+	}
+
 	function toggleNewModule(mod: string) {
 		if (newSelectedModules.includes(mod)) {
 			newSelectedModules = newSelectedModules.filter(m => m !== mod);
@@ -151,6 +164,14 @@
 		} else {
 			editSelectedModules = [...editSelectedModules, mod];
 		}
+	}
+	
+	function hasModuleSelected(targetArr: string[], mod: string) {
+		return targetArr.some(m => m === mod || m.startsWith(`${mod}.`));
+	}
+	
+	function isModulePartial(targetArr: string[], mod: string) {
+		return !targetArr.includes(mod) && targetArr.some(m => m.startsWith(`${mod}.`));
 	}
 </script>
 
@@ -365,7 +386,7 @@
 						<div class="grid grid-cols-3 gap-2">
 							<button 
 								type="button" 
-								onclick={() => toggleNewModule('*')}
+								onclick={() => handleModuleClick('*', 'new')}
 								class="px-3 py-2 border rounded-lg text-xs font-bold transition-all text-center {newSelectedModules.includes('*') ? 'bg-primary text-on-primary border-primary' : 'border-slate-300 dark:border-slate-700 text-on-surface-variant hover:bg-surface-container'}"
 							>
 								* (All Modules)
@@ -373,10 +394,13 @@
 							{#each ALL_MODULES as mod}
 								<button 
 									type="button" 
-									onclick={() => toggleNewModule(mod)}
-									class="px-3 py-2 border rounded-lg text-xs font-bold transition-all uppercase {newSelectedModules.includes(mod) ? 'bg-primary-container text-on-primary-container border-primary' : 'border-slate-300 dark:border-slate-700 text-on-surface hover:bg-surface-container'}"
+									onclick={() => handleModuleClick(mod, 'new')}
+									class="relative px-3 py-2 border rounded-lg text-xs font-bold transition-all uppercase {hasModuleSelected(newSelectedModules, mod) ? (isModulePartial(newSelectedModules, mod) ? 'bg-primary-container/50 text-on-primary-container border-primary border-dashed' : 'bg-primary-container text-on-primary-container border-primary') : 'border-slate-300 dark:border-slate-700 text-on-surface hover:bg-surface-container'}"
 								>
 									{mod}
+									{#if MODULE_MENUS[mod]}
+										<span class="absolute top-1 right-1 w-1.5 h-1.5 rounded-full bg-amber-500" title="Has Sub-menus"></span>
+									{/if}
 								</button>
 							{/each}
 						</div>
@@ -440,7 +464,7 @@
 						<div class="grid grid-cols-3 gap-2">
 							<button 
 								type="button" 
-								onclick={() => toggleEditModule('*')}
+								onclick={() => handleModuleClick('*', 'edit')}
 								class="px-3 py-2 border rounded-lg text-xs font-bold transition-all text-center {editSelectedModules.includes('*') ? 'bg-primary text-on-primary border-primary' : 'border-slate-300 dark:border-slate-700 text-on-surface-variant hover:bg-surface-container'}"
 							>
 								* (All Modules)
@@ -448,10 +472,13 @@
 							{#each ALL_MODULES as mod}
 								<button 
 									type="button" 
-									onclick={() => toggleEditModule(mod)}
-									class="px-3 py-2 border rounded-lg text-xs font-bold transition-all uppercase {editSelectedModules.includes(mod) ? 'bg-primary-container text-on-primary-container border-primary' : 'border-slate-300 dark:border-slate-700 text-on-surface hover:bg-surface-container'}"
+									onclick={() => handleModuleClick(mod, 'edit')}
+									class="relative px-3 py-2 border rounded-lg text-xs font-bold transition-all uppercase {hasModuleSelected(editSelectedModules, mod) ? (isModulePartial(editSelectedModules, mod) ? 'bg-primary-container/50 text-on-primary-container border-primary border-dashed' : 'bg-primary-container text-on-primary-container border-primary') : 'border-slate-300 dark:border-slate-700 text-on-surface hover:bg-surface-container'}"
 								>
 									{mod}
+									{#if MODULE_MENUS[mod]}
+										<span class="absolute top-1 right-1 w-1.5 h-1.5 rounded-full bg-amber-500" title="Has Sub-menus"></span>
+									{/if}
 								</button>
 							{/each}
 						</div>
@@ -466,6 +493,69 @@
 						</button>
 					</div>
 				</form>
+			</div>
+		</div>
+	</div>
+{/if}
+
+
+<!-- ======================= -->
+<!-- MENU SELECTION MODAL -->
+<!-- ======================= -->
+{#if activeMenuSelectionModal}
+	{@const menus = MODULE_MENUS[activeMenuSelectionModal]}
+	{@const targetArray = menuSelectionTarget === 'new' ? newSelectedModules : editSelectedModules}
+	
+	<div class="fixed inset-0 bg-black/40 backdrop-blur-sm z-[200] flex items-center justify-center p-4 animate-in fade-in duration-200">
+		<div class="bg-surface-container-lowest rounded-3xl w-full max-w-sm shadow-2xl p-6 border border-surface-container">
+			<h3 class="font-bold text-lg mb-1 uppercase tracking-tight text-on-surface">Hak Akses: {activeMenuSelectionModal}</h3>
+			<p class="text-[10px] text-on-surface-variant mb-4">Pilih menu mana saja yang boleh dibuka oleh user ini.</p>
+			
+			<div class="space-y-1 mb-6">
+				<label class="flex items-center gap-3 px-3 py-2 hover:bg-surface-container rounded-xl cursor-pointer transition-colors border border-transparent {targetArray.includes(activeMenuSelectionModal) ? 'bg-primary-container/30 border-primary/20' : ''}">
+					<input type="checkbox" 
+						checked={targetArray.includes(activeMenuSelectionModal)} 
+						onchange={(e) => {
+							let newArr = [...targetArray.filter(m => m !== activeMenuSelectionModal && !m.startsWith(`${activeMenuSelectionModal}.`))];
+							if (e.currentTarget.checked) {
+								newArr.push(activeMenuSelectionModal!); // full access
+							}
+							if (menuSelectionTarget === 'new') newSelectedModules = newArr;
+							else editSelectedModules = newArr;
+						}}
+						class="w-4 h-4 rounded text-primary focus:ring-primary"
+					>
+					<span class="font-bold text-sm text-on-surface">Full Access (Semua Menu)</span>
+				</label>
+				
+				<div class="h-px bg-surface-container my-3 mx-2"></div>
+				
+				{#each menus as menu}
+					<label class="flex items-center gap-3 px-3 py-2 hover:bg-surface-container rounded-xl cursor-pointer transition-colors {targetArray.includes(activeMenuSelectionModal) ? 'opacity-50' : ''}">
+						<input type="checkbox" 
+							disabled={targetArray.includes(activeMenuSelectionModal)}
+							checked={targetArray.includes(menu.id) || targetArray.includes(activeMenuSelectionModal)}
+							onchange={(e) => {
+								let newArr = [...targetArray];
+								if (e.currentTarget.checked) {
+									newArr.push(menu.id);
+								} else {
+									newArr = newArr.filter(m => m !== menu.id);
+								}
+								if (menuSelectionTarget === 'new') newSelectedModules = newArr;
+								else editSelectedModules = newArr;
+							}}
+							class="w-4 h-4 rounded text-primary focus:ring-primary"
+						>
+						<span class="text-sm font-medium text-on-surface">{menu.name}</span>
+					</label>
+				{/each}
+			</div>
+			
+			<div class="flex justify-end gap-2 border-t border-surface-container pt-4">
+				<button type="button" onclick={() => activeMenuSelectionModal = null} class="bg-primary text-on-primary px-6 py-2.5 rounded-full text-sm font-bold shadow-md hover:shadow-lg active:scale-95 transition-all">
+					Simpan Pilihan
+				</button>
 			</div>
 		</div>
 	</div>

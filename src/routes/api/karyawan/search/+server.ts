@@ -9,7 +9,7 @@ export const GET: RequestHandler = async ({ url, cookies }) => {
 	if (!userDataCookie) return json({ error: 'Unauthorized' }, { status: 401 });
 	
 	try {
-		const user: AuthUser = JSON.parse(userDataCookie);
+		const user: AuthUser = verifyUserData(userDataCookie);
 		if (!ADMIN_ROLES.includes(user.role)) {
 			return json({ error: 'Forbidden' }, { status: 403 });
 		}

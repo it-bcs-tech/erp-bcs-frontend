@@ -78,7 +78,7 @@ export const actions = {
 		const userDataCookie = cookies.get('user_data');
 		if (userDataCookie) {
 			try {
-				const user = JSON.parse(userDataCookie);
+				const user = verifyUserData(userDataCookie);
 				systemUser = user.username || 'system';
 			} catch (e) {}
 		}

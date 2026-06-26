@@ -24,6 +24,24 @@ export interface AuthUser {
 /** Semua modul yang tersedia di ERP */
 export const ALL_MODULES: ModuleId[] = ['fms', 'maintenance', 'ocs', 'hris', 'marketing', 'pms', 'kasir', 'finance', 'dms', 'qhse'];
 
+/** Definisi Sub-menu per modul untuk keperluan Menu-Level RBAC */
+export const MODULE_MENUS: Record<string, { id: string; name: string }[]> = {
+	ocs: [
+		{ id: 'ocs.dashboard', name: 'Dashboard' },
+		{ id: 'ocs.dispatch', name: 'Dispatch' },
+		{ id: 'ocs.ujo', name: 'Uang Jalan (UJO)' },
+		{ id: 'ocs.assign-driver', name: 'Assign Driver' },
+		{ id: 'ocs.daily-targets', name: 'Target Harian' },
+		{ id: 'ocs.rute', name: 'Master Rute (UJO)' }
+	],
+	maintenance: [
+		{ id: 'maintenance.dashboard', name: 'Dashboard Utama' },
+		{ id: 'maintenance.inspections', name: 'Daftar Inspeksi (Mobile)' },
+		{ id: 'maintenance.work-orders', name: 'Work Orders (Mechanic)' }
+	]
+	// Modul lain bisa ditambahkan di sini secara bertahap saat UI menu siap
+};
+
 /** Level sequence minimum untuk akses OCS (Supervisor = 4) */
 export const OCS_MIN_LEVEL_SEQUENCE = 4;
 

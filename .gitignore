@@ -50,3 +50,7 @@ trigger.js
 test-auth.ts
 api_response.json
 scratch-backend/
+check_db.js
+test_db.ts
+fix_join.sh
+create_monthly_targets.ts

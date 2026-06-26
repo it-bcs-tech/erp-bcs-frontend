@@ -8,7 +8,7 @@
 
 import { fail } from '@sveltejs/kit';
 import type { Actions } from './$types';
-import { authenticateUser, AuthError, getAuthUserByEmail } from '$lib/server/auth';
+import { authenticateUser, AuthError, getAuthUserByEmail, signUserData } from '$lib/server/auth';
 import { logError } from '$lib/utils/logger';
 import { env } from '$env/dynamic/private';
 
@@ -173,9 +173,9 @@ function processLoginSuccess(request: Request, cookies: any, user: any, token: s
 		maxAge: 60 * 60 * 24 // 1 hari
 	});
 
-	cookies.set('user_data', JSON.stringify(user), {
+	cookies.set('user_data', signUserData(user), {
 		path: '/',
-		httpOnly: false,
+		httpOnly: true,
 		secure: isSecure,
 		sameSite: 'lax',
 		maxAge: 60 * 60 * 24 // 1 hari

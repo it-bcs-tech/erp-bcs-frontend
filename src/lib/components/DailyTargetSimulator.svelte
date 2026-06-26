@@ -3,10 +3,16 @@
 	let {
 		isOpen = $bindable(false),
 		contract = null,
+        monthlyTargets = [],
+		dynamicTargetTonnage = 0,
+		dynamicTargetMonthStr = '',
 		onApply = () => {}
 	} = $props<{
 		isOpen: boolean;
 		contract: any;
+        monthlyTargets?: any[];
+		dynamicTargetTonnage?: number;
+		dynamicTargetMonthStr?: string;
 		onApply?: (data: { 
 			targetDays: number, 
 			unitCapacity: number, 
@@ -21,22 +27,50 @@
 	let simTargetDays = $state(30);
 	let simUnitCapacity = $state(25);
 	let simTripsPerDay = $state(2);
+    let simTargetTonnage = $state(0);
 
 	$effect(() => {
 		if (isOpen && contract) {
-			simTargetDays = contract.target_days || 30;
+            if (Number(contract.targetTonnage) === 0) {
+				// Use the explicitly passed dynamic variables first if they exist
+				if (dynamicTargetTonnage > 0 && dynamicTargetMonthStr) {
+					simTargetTonnage = dynamicTargetTonnage;
+					const d = new Date(`${dynamicTargetMonthStr}-01`);
+					simTargetDays = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+				} else if (monthlyTargets && monthlyTargets.length > 0) {
+					// fallback
+					const now = new Date();
+					const currentMonthTarget = monthlyTargets.find((m: any) => {
+						const d = new Date(m.target_month);
+						return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth();
+					}) || monthlyTargets[monthlyTargets.length - 1];
+					
+					simTargetTonnage = Number(currentMonthTarget?.target_tonnage || 0);
+					if (currentMonthTarget) {
+						const d = new Date(currentMonthTarget.target_month);
+						simTargetDays = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+					} else {
+						simTargetDays = contract.target_days || 30;
+					}
+				} else {
+					simTargetTonnage = 0;
+					simTargetDays = contract.target_days || 30;
+				}
+            } else {
+                simTargetTonnage = Number(contract.targetTonnage || 0);
+			    simTargetDays = contract.target_days || 30;
+            }
+
 			simUnitCapacity = contract.master_capacity || contract.unit_capacity || 25;
 			simTripsPerDay = contract.trips_per_day || 2;
 		}
 	});
 
 	// Derived AI Calculations
-	let simTargetTonnage = $derived(contract?.targetTonnage || 0);
-	
-	let simTotalRit = $derived(Math.ceil(simTargetTonnage / simUnitCapacity));
-	let simDailyTargetRitase = $derived(Math.ceil(simTotalRit / simTargetDays));
+	let simTotalRit = $derived(simTargetTonnage > 0 ? Math.ceil(simTargetTonnage / simUnitCapacity) : 0);
+	let simDailyTargetRitase = $derived(simTargetDays > 0 ? Math.ceil(simTotalRit / simTargetDays) : 0);
 	let simDailyTargetTonnage = $derived(simDailyTargetRitase * simUnitCapacity);
-	let simUnitsNeededPerDay = $derived(Math.ceil(simDailyTargetRitase / simTripsPerDay));
+	let simUnitsNeededPerDay = $derived(simTripsPerDay > 0 ? Math.ceil(simDailyTargetRitase / simTripsPerDay) : 0);
 
 	const formatCurrency = (amount: number) => {
 		return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(amount);

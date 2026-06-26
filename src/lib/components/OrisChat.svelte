@@ -17,7 +17,7 @@
 		content: string;
 	}
 
-	const CHAT_STORAGE_KEY = 'bcs_chat_history';
+	const CHAT_STORAGE_KEY = 'ocs_chat_history';
 
 	let messages = $state<Message[]>([
 		{
@@ -96,7 +96,7 @@
 
 		try {
 			// Kirim ke endpoint SvelteKit yang meneruskan ke Openclaw
-			const response = await fetch('/api/chat', {
+			const response = await fetch('/api/ocs-chat', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({
@@ -153,13 +153,13 @@
 	<!-- Floating Action Button -->
 	{#if !isOpen}
 		<button
-			class="haris-fab"
+			class="oris-fab"
 			onclick={toggleChat}
-			aria-label="Buka HARIS — Asisten HRIS"
+			aria-label="Buka ORIS — Asisten OCS"
 		>
 			<!-- Pulse ring animation -->
-			<span class="haris-fab-ring"></span>
-			<!-- Female assistant SVG avatar (HARIS) -->
+			<span class="oris-fab-ring"></span>
+			<!-- Female assistant SVG avatar (ORIS) -->
 			<svg viewBox="0 0 56 56" fill="none" xmlns="http://www.w3.org/2000/svg" class="w-11 h-11 relative z-10">
 					<!-- Head -->
 					<circle cx="28" cy="17" r="9" fill="#fde68a" />
@@ -184,7 +184,7 @@
 					<circle cx="36.5" cy="21" r="1.5" fill="#a78bfa"/>
 				</svg>
 			<!-- Online dot -->
-			<span class="haris-online-dot"></span>
+			<span class="oris-online-dot"></span>
 		</button>
 	{/if}
 
@@ -198,7 +198,7 @@
 		<div class="fixed z-50 bg-surface-container-lowest shadow-2xl flex flex-col overflow-hidden border border-outline-variant/30 transition-all duration-300 {isExpanded ? 'inset-4 md:inset-10 lg:inset-x-[15%] lg:inset-y-12 rounded-[32px]' : 'bottom-6 right-6 w-[calc(100%-3rem)] max-w-[380px] h-[600px] max-h-[80vh] rounded-[24px]'}">
 
 			<!-- Header -->
-			<div class="bg-primary p-4 flex items-center justify-between text-on-primary shadow-sm">
+			<div class="bg-sky-600 p-4 flex items-center justify-between text-on-primary shadow-sm">
 				<div class="flex items-center gap-3">
 					<!-- Mini avatar in header -->
 					<div class="w-12 h-12 rounded-full bg-white/15 flex items-center justify-center flex-shrink-0 border border-white/20 overflow-hidden">
@@ -216,7 +216,7 @@
 						</svg>
 					</div>
 					<div>
-						<h3 class="font-extrabold text-sm tracking-wide">HRIS AI Assistant</h3>
+						<h3 class="font-extrabold text-sm tracking-wide">OCS AI Assistant</h3>
 						<div class="flex items-center gap-1.5 mt-0.5">
 							<span class="w-2 h-2 rounded-full {isLoading ? 'bg-yellow-400 animate-pulse' : 'bg-green-400 animate-pulse'}"></span>
 							<span class="text-[10px] font-medium text-white/80 uppercase tracking-wider">
@@ -238,13 +238,13 @@
 			<!-- Conditional Area: Menu atau Chat -->
 			{#if currentView === 'menu'}
 				<div class="flex-1 flex flex-col items-center justify-center p-8 gap-3 bg-surface-container-lowest animate-in fade-in duration-300">
-					<div class="w-16 h-16 rounded-full bg-primary-container flex items-center justify-center text-primary mb-2 border border-primary/20 shadow-sm">
+					<div class="w-16 h-16 rounded-full bg-sky-600-container flex items-center justify-center text-on-primary mb-2 border border-primary/20 shadow-sm">
 						<span class="material-symbols-outlined text-3xl">history</span>
 					</div>
 					<h3 class="text-lg font-bold text-on-surface">Riwayat Tersimpan</h3>
 					<p class="text-sm text-center text-on-surface-variant mb-6">Anda memiliki obrolan yang belum selesai. Ingin melanjutkannya?</p>
 					
-					<button class="w-full py-3 px-4 bg-primary text-on-primary rounded-2xl font-semibold shadow-md hover:bg-primary/90 hover:shadow-lg transition-all flex items-center justify-center gap-2 active:scale-95" onclick={() => currentView = 'chat'}>
+					<button class="w-full py-3 px-4 bg-sky-600 text-on-primary rounded-2xl font-semibold shadow-md hover:bg-sky-600/90 hover:shadow-lg transition-all flex items-center justify-center gap-2 active:scale-95" onclick={() => currentView = 'chat'}>
 						<span class="material-symbols-outlined text-sm">chat</span> Lanjutkan Chat
 					</button>
 					
@@ -258,7 +258,7 @@
 					{#each messages as msg (msg.id)}
 						{#if msg.role === 'assistant'}
 							<div class="flex gap-3 max-w-[85%]">
-								<div class="w-9 h-9 rounded-full bg-primary-container flex-shrink-0 flex items-center justify-center mt-1 border border-primary/10 overflow-hidden">
+								<div class="w-9 h-9 rounded-full bg-sky-600-container flex-shrink-0 flex items-center justify-center mt-1 border border-primary/10 overflow-hidden">
 									<svg viewBox="0 0 56 56" fill="none" class="w-7 h-7">
 										<circle cx="28" cy="17" r="9" fill="#fde68a"/>
 										<path d="M19 17 Q19 8 28 8 Q37 8 37 17" fill="#1f2937"/>
@@ -270,9 +270,9 @@
 									{#if msg.content === '' && isLoading}
 										<!-- Typing indicator -->
 										<div class="flex items-center gap-1.5 py-1">
-											<span class="w-2 h-2 rounded-full bg-primary animate-bounce [animation-delay:0ms]"></span>
-											<span class="w-2 h-2 rounded-full bg-primary animate-bounce [animation-delay:150ms]"></span>
-											<span class="w-2 h-2 rounded-full bg-primary animate-bounce [animation-delay:300ms]"></span>
+											<span class="w-2 h-2 rounded-full bg-sky-600 animate-bounce [animation-delay:0ms]"></span>
+											<span class="w-2 h-2 rounded-full bg-sky-600 animate-bounce [animation-delay:150ms]"></span>
+											<span class="w-2 h-2 rounded-full bg-sky-600 animate-bounce [animation-delay:300ms]"></span>
 										</div>
 									{:else}
 										{@html DOMPurify.sanitize(marked.parse(msg.content) as string)}
@@ -284,7 +284,7 @@
 								<div class="w-8 h-8 rounded-full bg-tertiary-container flex-shrink-0 flex items-center justify-center text-tertiary mt-1 border border-tertiary/10">
 									<span class="material-symbols-outlined text-sm">person</span>
 								</div>
-								<div class="bg-primary text-on-primary p-3 rounded-2xl rounded-tr-sm text-sm shadow-sm leading-relaxed whitespace-pre-wrap">
+								<div class="bg-sky-600 text-on-primary p-3 rounded-2xl rounded-tr-sm text-sm shadow-sm leading-relaxed whitespace-pre-wrap">
 									{msg.content}
 								</div>
 							</div>
@@ -304,7 +304,7 @@
 							disabled={isLoading}
 						/>
 						<button
-							class="w-10 h-10 rounded-full bg-primary text-on-primary flex items-center justify-center flex-shrink-0 hover:bg-primary/90 transition-colors disabled:opacity-40 disabled:cursor-not-allowed shadow-sm"
+							class="w-10 h-10 rounded-full bg-sky-600 text-on-primary flex items-center justify-center flex-shrink-0 hover:bg-sky-600/90 transition-colors disabled:opacity-40 disabled:cursor-not-allowed shadow-sm"
 							onclick={sendMessage}
 							disabled={!inputValue.trim() || isLoading}
 						>
@@ -360,16 +360,16 @@
 		font-weight: 600;
 	}
 
-	/* ── HARIS FAB styling ─────────────────────────────── */
-	.haris-fab {
+	/* ── ORIS FAB styling ─────────────────────────────── */
+	.oris-fab {
 		position: fixed;
 		bottom: 24px;
 		right: 24px;
 		width: 60px;
 		height: 60px;
 		border-radius: 50%;
-		background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
-		box-shadow: 0 8px 24px rgba(124, 58, 237, 0.35);
+		background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%);
+		box-shadow: 0 8px 24px rgba(14, 165, 233, 0.35);
 		display: flex;
 		align-items: center;
 		justify-content: center;
@@ -378,18 +378,18 @@
 		z-index: 50;
 		transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
 	}
-	.haris-fab:hover {
+	.oris-fab:hover {
 		transform: translateY(-4px) scale(1.05);
-		box-shadow: 0 12px 28px rgba(124, 58, 237, 0.45);
+		box-shadow: 0 12px 28px rgba(14, 165, 233, 0.45);
 	}
-	:global(.haris-fab-ring) {
+	:global(.oris-fab-ring) {
 		position: absolute;
 		inset: -4px;
 		border-radius: 50%;
-		border: 2px solid rgba(124, 58, 237, 0.4);
-		animation: haris-pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+		border: 2px solid rgba(14, 165, 233, 0.4);
+		animation: oris-pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 	}
-	:global(.haris-online-dot) {
+	:global(.oris-online-dot) {
 		position: absolute;
 		top: 4px;
 		right: 4px;
@@ -401,7 +401,7 @@
 		box-shadow: 0 0 6px rgba(16, 185, 129, 0.6);
 		z-index: 20;
 	}
-	@keyframes haris-pulse {
+	@keyframes oris-pulse {
 		0%, 100% { transform: scale(1); opacity: 0.5; }
 		50%       { transform: scale(1.1); opacity: 0.15; }
 	}

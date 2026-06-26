@@ -1,8 +1,9 @@
 import { redirect, type Handle } from '@sveltejs/kit';
 import { dev } from '$app/environment';
-import { hasModuleAccess } from '$lib/stores/auth';
+import { hasModuleAccess, hasMenuAccess } from '$lib/stores/auth';
 import type { AuthUser } from '$lib/types/auth';
 import { ADMIN_ROLES } from '$lib/types/auth';
+import { verifyUserData } from '$lib/server/auth';
 
 // ─────────────────────────────────────────────────────────────────
 // DEV_BYPASS: set true untuk skip auth check di development mode
@@ -48,7 +49,13 @@ export const handle: Handle = async ({ event, resolve }) => {
 		const userDataCookie = event.cookies.get('user_data');
 		if (userDataCookie) {
 			try {
-				const user: AuthUser = JSON.parse(userDataCookie);
+				const user: AuthUser | null = verifyUserData(userDataCookie);
+				if (!user) {
+					// Invalid signature
+					event.cookies.delete('auth_token', { path: '/' });
+					event.cookies.delete('user_data', { path: '/' });
+					return redirect(303, '/login');
+				}
 				if (!ADMIN_ROLES.includes(user.role)) {
 					// Tolak akses jika bukan admin
 					return redirect(303, '/?access_denied=system_admin');
@@ -69,9 +76,27 @@ export const handle: Handle = async ({ event, resolve }) => {
 			const userDataCookie = event.cookies.get('user_data');
 			if (userDataCookie) {
 				try {
-					const user: AuthUser = JSON.parse(userDataCookie);
+					const user: AuthUser | null = verifyUserData(userDataCookie);
+					if (!user) {
+						event.cookies.delete('auth_token', { path: '/' });
+						event.cookies.delete('user_data', { path: '/' });
+						return redirect(303, '/login');
+					}
 					if (!hasModuleAccess(user, requestedModule)) {
 						return redirect(303, '/?access_denied=' + requestedModule);
+					}
+
+					// Validasi Sub-menu
+					const pathParts = pathname.split('/').filter(Boolean);
+					if (pathParts.length > 1) {
+						const submenuPart = pathParts[1];
+						// Abaikan validasi SvelteKit internal route
+						if (submenuPart !== '__data.json') {
+							const requestedMenu = `${requestedModule}.${submenuPart}`;
+							if (!hasMenuAccess(user, requestedModule, requestedMenu)) {
+								return redirect(303, `/?access_denied=${requestedMenu}`);
+							}
+						}
 					}
 				} catch {
 					// Cookie corrupt

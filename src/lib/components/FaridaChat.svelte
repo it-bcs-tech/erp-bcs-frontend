@@ -2,6 +2,7 @@
 	import { onMount, tick } from 'svelte';
 	import { browser } from '$app/environment';
 	import { marked } from 'marked';
+	import DOMPurify from 'isomorphic-dompurify';
 
 	// ── State ──────────────────────────────────────────────────────────
 	let isOpen = $state(false);
@@ -277,7 +278,7 @@
 											<span class="w-2 h-2 rounded-full bg-blue-500 animate-bounce [animation-delay:240ms]"></span>
 										</div>
 									{:else}
-										{@html marked.parse(msg.content)}
+										{@html DOMPurify.sanitize(marked.parse(msg.content) as string)}
 									{/if}
 								</div>
 							</div>

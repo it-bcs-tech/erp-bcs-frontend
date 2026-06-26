@@ -23,11 +23,19 @@ export const load: PageServerLoad = async () => {
                 COALESCE(dest.nama_kustomer, mdest.nama_kustomer) as destination,
                 c.start_date as "startDate",
                 c.end_date as "endDate",
-                c.target_tonnage as "targetTonnage",
-                COALESCE(c.delivered_tonnage, 0) as "deliveredTonnage",
-                (SELECT COALESCE(SUM(o.berat_muatan), 0) FROM marketing.sales_order o LEFT JOIN fleet.trip t ON t.unit_id = o.assigned_unit_id AND t.status NOT IN ('COMPLETED', 'CANCELED') WHERE o.contract_id = c.id AND o.status NOT IN ('COMPLETED', 'CANCELED') AND (t.id IS NULL OR t.status IN ('SCHEDULED', 'DISPATCHED'))) as "dispatchedTonnage",
-                (SELECT COALESCE(SUM(o.berat_muatan), 0) FROM marketing.sales_order o JOIN fleet.trip t ON t.unit_id = o.assigned_unit_id AND t.status NOT IN ('COMPLETED', 'CANCELED') WHERE o.contract_id = c.id AND t.status = 'AT_ORIGIN') as "loadingTonnage",
-                (SELECT COALESCE(SUM(o.berat_muatan), 0) FROM marketing.sales_order o JOIN fleet.trip t ON t.unit_id = o.assigned_unit_id AND t.status NOT IN ('COMPLETED', 'CANCELED') WHERE o.contract_id = c.id AND t.status IN ('ON_ROUTE', 'AT_DESTINATION', 'RETURNING')) as "onrouteTonnage",
+                (c.target_tonnage = 0) as "isBorongan",
+                CASE 
+                    WHEN c.target_tonnage > 0 THEN c.target_tonnage
+                    ELSE COALESCE((SELECT target_tonnage FROM operations.contract_monthly_targets WHERE contract_id = c.id AND target_month = date_trunc('month', CURRENT_DATE)::date), 0)
+                END AS "targetTonnage",
+                CASE 
+                    WHEN c.target_tonnage > 0 THEN COALESCE(c.delivered_tonnage, 0)
+                    ELSE COALESCE((SELECT SUM(COALESCE(o.real_weight, o.berat_muatan)) FROM marketing.sales_order o WHERE o.contract_id = c.id AND o.status = 'COMPLETED' AND date_trunc('month', o.tgl_muat) = date_trunc('month', CURRENT_DATE)), 0)
+                END + 
+                (SELECT COALESCE(SUM(o.berat_muatan), 0) FROM marketing.sales_order o JOIN fleet.trip t ON t.unit_id = o.assigned_unit_id AND t.tgl_trip::date = o.tgl_muat::date AND t.status NOT IN ('COMPLETED', 'CANCELED') WHERE o.contract_id = c.id AND t.status = 'RETURNING' AND (c.target_tonnage > 0 OR date_trunc('month', o.tgl_muat) = date_trunc('month', CURRENT_DATE))) as "deliveredTonnage",
+                (SELECT COALESCE(SUM(o.berat_muatan), 0) FROM marketing.sales_order o LEFT JOIN fleet.trip t ON t.unit_id = o.assigned_unit_id AND t.tgl_trip::date = o.tgl_muat::date AND t.status NOT IN ('COMPLETED', 'CANCELED') WHERE o.contract_id = c.id AND o.status NOT IN ('COMPLETED', 'CANCELED') AND (t.id IS NULL OR t.status IN ('SCHEDULED', 'DISPATCHED')) AND (c.target_tonnage > 0 OR date_trunc('month', o.tgl_muat) = date_trunc('month', CURRENT_DATE))) as "dispatchedTonnage",
+                (SELECT COALESCE(SUM(o.berat_muatan), 0) FROM marketing.sales_order o JOIN fleet.trip t ON t.unit_id = o.assigned_unit_id AND t.tgl_trip::date = o.tgl_muat::date AND t.status NOT IN ('COMPLETED', 'CANCELED') WHERE o.contract_id = c.id AND t.status = 'AT_ORIGIN' AND (c.target_tonnage > 0 OR date_trunc('month', o.tgl_muat) = date_trunc('month', CURRENT_DATE))) as "loadingTonnage",
+                (SELECT COALESCE(SUM(o.berat_muatan), 0) FROM marketing.sales_order o JOIN fleet.trip t ON t.unit_id = o.assigned_unit_id AND t.tgl_trip::date = o.tgl_muat::date AND t.status NOT IN ('COMPLETED', 'CANCELED') WHERE o.contract_id = c.id AND t.status IN ('ON_ROUTE', 'AT_DESTINATION') AND (c.target_tonnage > 0 OR date_trunc('month', o.tgl_muat) = date_trunc('month', CURRENT_DATE))) as "onrouteTonnage",
                 c.contract_value as "contractValue",
                 c.max_ujo_percentage as "maxUjoPercentage",
                 c.produk_id,
@@ -104,6 +112,7 @@ export const load: PageServerLoad = async () => {
             
             return {
                 ...c,
+                isBorongan: c.isBorongan,
                 startDate: c.startDate ? new Date(c.startDate).toISOString().split('T')[0] : '',
                 endDate: c.endDate ? new Date(c.endDate).toISOString().split('T')[0] : '',
                 targetTonnage: target,

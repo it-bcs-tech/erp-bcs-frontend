@@ -8,6 +8,8 @@
 
 import sql from '$lib/server/db';
 import bcrypt from 'bcryptjs';
+import crypto from 'crypto';
+import { env } from '$env/dynamic/private';
 import type { AuthUser, ModuleId } from '$lib/types/auth';
 import {
 	ALL_MODULES,
@@ -246,5 +248,39 @@ export class AuthError extends Error {
 		super(message);
 		this.code = code;
 		this.name = 'AuthError';
+	}
+}
+
+// ─────────────────────────────────────────────────────────
+// SECURITY: Cookie Signing Helpers
+// ─────────────────────────────────────────────────────────
+const AUTH_SECRET = env.AUTH_SECRET || 'fallback-secret-bcs-labs-12345';
+
+export function signUserData(data: any): string {
+	const jsonStr = JSON.stringify(data);
+	const hmac = crypto.createHmac('sha256', AUTH_SECRET);
+	hmac.update(jsonStr);
+	const signature = hmac.digest('base64url');
+	return `${jsonStr}.${signature}`;
+}
+
+export function verifyUserData(signedData: string): any | null {
+	try {
+		const lastDotIndex = signedData.lastIndexOf('.');
+		if (lastDotIndex === -1) return null;
+		
+		const jsonStr = signedData.substring(0, lastDotIndex);
+		const signature = signedData.substring(lastDotIndex + 1);
+		
+		const hmac = crypto.createHmac('sha256', AUTH_SECRET);
+		hmac.update(jsonStr);
+		const expectedSignature = hmac.digest('base64url');
+		
+		if (signature === expectedSignature) {
+			return JSON.parse(jsonStr);
+		}
+		return null;
+	} catch (e) {
+		return null;
 	}
 }

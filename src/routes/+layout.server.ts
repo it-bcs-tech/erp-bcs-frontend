@@ -13,7 +13,7 @@
 
 import type { LayoutServerLoad } from './$types';
 import type { AuthUser } from '$lib/types/auth';
-import { getUserFromToken, getAuthUserByEmail } from '$lib/server/auth';
+import { getUserFromToken, getAuthUserByEmail, signUserData, verifyUserData } from '$lib/server/auth';
 
 export const load: LayoutServerLoad = async ({ cookies }) => {
 	let user: AuthUser | null = null;
@@ -25,7 +25,8 @@ export const load: LayoutServerLoad = async ({ cookies }) => {
 	let cookieUser: AuthUser | null = null;
 	if (userDataCookie) {
 		try {
-			cookieUser = JSON.parse(userDataCookie) as AuthUser;
+			cookieUser = verifyUserData(userDataCookie) as AuthUser;
+			if (!cookieUser) throw new Error('Invalid signature');
 		} catch {
 			cookies.delete('user_data', { path: '/' });
 		}
@@ -33,37 +34,29 @@ export const load: LayoutServerLoad = async ({ cookies }) => {
 
 	if (authToken && cookieUser) {
 		try {
-			let freshUser: AuthUser | null = null;
-
-			// Coba decode token internal Svelte dulu
-			if (!authToken.startsWith('eyJ')) {
-				freshUser = await getUserFromToken(authToken);
-			}
-
-			// Jika token Svelte gagal atau token adalah JWT Laravel,
-			// refresh dari DB menggunakan email dari cookie
-			if (!freshUser && cookieUser.email) {
-				freshUser = await getAuthUserByEmail(cookieUser.email);
-			}
-
-			if (freshUser) {
-				// Pertahankan authSource dari cookie lama
-				freshUser.authSource = cookieUser.authSource;
-				user = freshUser;
-
-				// Update cookie dengan data terbaru dari DB
-				cookies.set('user_data', JSON.stringify(user), {
-					path: '/',
-					httpOnly: false,
-					sameSite: 'lax',
-					maxAge: 60 * 60 * 24
-				});
-			} else {
-				// DB tidak menemukan user, pakai cookie lama
+			// Jika auth berasal dari Laravel (via API), kita percayakan 100% pada isi cookie
+			// karena Laravel API sudah mengirimkan payload RBAC / allowedModules yang benar.
+			if (cookieUser.authSource === 'laravel' && authToken.startsWith('eyJ')) {
 				user = cookieUser;
+			} else {
+				// Jika token Svelte internal, baru lakukan validasi ke DB lokal Svelte
+				let freshUser = await getUserFromToken(authToken);
+
+				if (freshUser) {
+					freshUser.authSource = cookieUser.authSource;
+					user = freshUser;
+
+					cookies.set('user_data', signUserData(user), {
+						path: '/',
+						httpOnly: true,
+						sameSite: 'lax',
+						maxAge: 60 * 60 * 24
+					});
+				} else {
+					user = cookieUser;
+				}
 			}
 		} catch {
-			// Jika DB error, fallback ke cookie lama
 			user = cookieUser;
 		}
 	} else if (cookieUser) {

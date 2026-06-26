@@ -1,6 +1,6 @@
 <script lang="ts">
 	let { data } = $props();
-	const { metrics } = data;
+	let metrics = $derived(data.metrics);
 </script>
 
 <svelte:head>
@@ -92,26 +92,19 @@
 		
 		<!-- Abstract Visual Chart representation -->
 		<div class="relative h-64 w-full flex items-end justify-between px-2 gap-4">
-			{#each [
-				{ month: 'Jan', remote: '40%', onsite: '60%' },
-				{ month: 'Feb', remote: '50%', onsite: '70%' },
-				{ month: 'Mar', remote: '45%', onsite: '80%' },
-				{ month: 'Apr', remote: '60%', onsite: '75%' },
-				{ month: 'May', remote: '70%', onsite: '90%' },
-				{ month: 'Jun', remote: '55%', onsite: '65%' }
-			] as data}
+			{#each data.attendanceTrend as trend}
 				<div class="flex flex-col items-center flex-1 gap-3 h-full group/bar cursor-pointer">
 					<div class="w-full flex items-end justify-center gap-1.5 h-full relative">
 						<!-- Remote Bar -->
-						<div class="w-5 bg-primary/40 rounded-t-md transition-all duration-300 group-hover/bar:bg-primary" style="height: {data.remote}"></div>
+						<div class="w-5 bg-primary/40 rounded-t-md transition-all duration-300 group-hover/bar:bg-primary" style="height: {trend.remote}"></div>
 						<!-- Onsite Bar -->
-						<div class="w-5 bg-tertiary/40 rounded-t-md transition-all duration-300 group-hover/bar:bg-tertiary" style="height: {data.onsite}"></div>
+						<div class="w-5 bg-tertiary/40 rounded-t-md transition-all duration-300 group-hover/bar:bg-tertiary" style="height: {trend.onsite}"></div>
 						
 						<div class="absolute -top-10 bg-surface-container-highest text-on-surface px-2 py-1 rounded text-[10px] font-bold opacity-0 group-hover/bar:opacity-100 transition-opacity whitespace-nowrap shadow-sm">
-							Rem: {data.remote} / On: {data.onsite}
+							Rem: {trend.remote} / On: {trend.onsite}
 						</div>
 					</div>
-					<span class="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider group-hover/bar:text-primary transition-colors">{data.month}</span>
+					<span class="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider group-hover/bar:text-primary transition-colors">{trend.month}</span>
 				</div>
 			{/each}
 		</div>
@@ -126,24 +119,20 @@
 				Anniversaries
 			</h3>
 			<div class="space-y-6">
-				<div class="flex items-center gap-4 bg-primary-container/20 p-3 -mx-3 rounded-xl backdrop-blur-sm">
+				{#each data.anniversaries as ann}
+				<div class="flex items-center gap-4 bg-primary-container/20 p-3 -mx-3 rounded-xl backdrop-blur-sm transition-colors hover:bg-primary-container/30">
 					<div class="w-12 h-12 rounded-full border-2 border-primary-container overflow-hidden flex-shrink-0">
-						<img class="w-full h-full object-cover" alt="Sarah Jenkins" src="https://ui-avatars.com/api/?name=Sarah+Jenkins&background=ffd7f1&color=57344f" />
+						<img class="w-full h-full object-cover" alt="{ann.name}" src="https://ui-avatars.com/api/?name={encodeURIComponent(ann.name)}&background=ffd7f1&color=57344f" />
 					</div>
 					<div>
-						<p class="text-sm font-bold">Sarah Jenkins</p>
-						<p class="text-xs text-primary-fixed font-medium mt-0.5">5 Years • Today</p>
+						<p class="text-sm font-bold">{ann.name}</p>
+						<p class="text-xs text-primary-fixed font-medium mt-0.5">{ann.years} Years • This Month</p>
 					</div>
 				</div>
-				<div class="flex items-center gap-4 hover:bg-primary-container/10 p-3 -mx-3 rounded-xl transition-colors">
-					<div class="w-12 h-12 rounded-full border-2 border-primary-container/50 overflow-hidden flex-shrink-0">
-						<img class="w-full h-full object-cover" alt="Robert Chen" src="https://ui-avatars.com/api/?name=Robert+Chen&background=f5dbea&color=57344f" />
-					</div>
-					<div>
-						<p class="text-sm font-bold">Robert Chen</p>
-						<p class="text-xs text-primary-fixed/80 font-medium mt-0.5">2 Years • Tomorrow</p>
-					</div>
-				</div>
+				{/each}
+				{#if data.anniversaries.length === 0}
+				<div class="text-sm text-primary-fixed/80 italic">No anniversaries this month.</div>
+				{/if}
 			</div>
 		</div>
 		<button class="mt-8 bg-surface-container-lowest text-primary py-3 px-6 rounded-xl text-sm font-bold hover:bg-surface-container-lowest/90 transition-all flex items-center justify-center gap-2 shadow-sm relative z-10">
@@ -160,32 +149,26 @@
 			<span class="text-xs font-bold text-primary cursor-pointer hover:underline px-3 py-1.5 rounded-lg hover:bg-primary-container/20 transition-colors">View All</span>
 		</div>
 		<div class="space-y-3">
+			{#each data.birthdays as bday}
 			<div class="flex items-center justify-between p-4 bg-surface-container-low rounded-xl hover:bg-surface-container-high transition-colors cursor-pointer group">
 				<div class="flex items-center gap-4">
-					<div class="w-10 h-10 rounded-full bg-secondary-container flex items-center justify-center text-on-secondary-container font-bold text-xs group-hover:scale-110 transition-transform">AM</div>
+					<div class="w-10 h-10 rounded-full bg-secondary-container flex items-center justify-center text-on-secondary-container font-bold text-xs group-hover:scale-110 transition-transform">
+						{bday.name.split(' ').map((n: string) => n[0]).join('').substring(0,2).toUpperCase()}
+					</div>
 					<div>
-						<p class="text-sm font-bold text-on-surface">Alice Murray</p>
-						<p class="text-[10px] text-on-surface-variant font-medium uppercase tracking-wider mt-0.5">Design Department</p>
+						<p class="text-sm font-bold text-on-surface">{bday.name}</p>
+						<p class="text-[10px] text-on-surface-variant font-medium uppercase tracking-wider mt-0.5">{bday.department || 'Division'}</p>
 					</div>
 				</div>
 				<div class="text-right">
-					<p class="text-xs font-bold text-on-surface">May 24</p>
-					<p class="text-[10px] text-tertiary font-bold mt-0.5">In 3 days</p>
+					<p class="text-xs font-bold text-on-surface">{new Date(bday.birth_date).toLocaleDateString('en-US', {month:'short', day:'numeric'})}</p>
+					<p class="text-[10px] text-tertiary font-bold mt-0.5">This Month</p>
 				</div>
 			</div>
-			<div class="flex items-center justify-between p-4 bg-surface-container-low rounded-xl hover:bg-surface-container-high transition-colors cursor-pointer group">
-				<div class="flex items-center gap-4">
-					<div class="w-10 h-10 rounded-full bg-tertiary-container flex items-center justify-center text-on-tertiary-fixed font-bold text-xs group-hover:scale-110 transition-transform">KD</div>
-					<div>
-						<p class="text-sm font-bold text-on-surface">Kevin Durant</p>
-						<p class="text-[10px] text-on-surface-variant font-medium uppercase tracking-wider mt-0.5">Engineering</p>
-					</div>
-				</div>
-				<div class="text-right">
-					<p class="text-xs font-bold text-on-surface">May 28</p>
-					<p class="text-[10px] text-on-surface-variant font-medium mt-0.5">Next week</p>
-				</div>
-			</div>
+			{/each}
+			{#if data.birthdays.length === 0}
+			<div class="text-sm text-on-surface-variant italic p-4">No upcoming birthdays.</div>
+			{/if}
 		</div>
 	</div>
 
@@ -200,29 +183,21 @@
 			<!-- Timeline Line -->
 			<div class="absolute left-[19px] top-4 bottom-4 w-0.5 bg-outline-variant/20"></div>
 			
+			{#each data.recentActivity as log}
 			<div class="relative flex items-start gap-5 pl-10 group cursor-pointer">
 				<div class="absolute left-[15px] top-1.5 w-2.5 h-2.5 rounded-full bg-tertiary ring-4 ring-surface-container-lowest group-hover:scale-125 transition-transform"></div>
 				<div>
-					<p class="text-sm text-on-surface group-hover:text-primary transition-colors"><span class="font-bold">New Hire:</span> Marcus Thorne joined the Marketing team.</p>
-					<p class="text-[10px] text-on-surface-variant font-medium mt-1">2 hours ago</p>
+					<p class="text-sm text-on-surface group-hover:text-primary transition-colors"><span class="font-bold">{log.log_name || 'Activity'}:</span> {log.description}</p>
+					<p class="text-[10px] text-on-surface-variant font-medium mt-1">{new Date(log.created_at).toLocaleString()}</p>
 				</div>
 			</div>
+			{/each}
 			
-			<div class="relative flex items-start gap-5 pl-10 group cursor-pointer">
-				<div class="absolute left-[15px] top-1.5 w-2.5 h-2.5 rounded-full bg-primary-container ring-4 ring-surface-container-lowest group-hover:scale-125 transition-transform"></div>
-				<div>
-					<p class="text-sm text-on-surface group-hover:text-primary transition-colors"><span class="font-bold">Leave Approved:</span> Elena Gilbert's 5-day vacation.</p>
-					<p class="text-[10px] text-on-surface-variant font-medium mt-1">5 hours ago</p>
-				</div>
+			{#if data.recentActivity.length === 0}
+			<div class="relative flex items-start gap-5 pl-10">
+				<p class="text-sm text-on-surface-variant italic">No recent activity.</p>
 			</div>
-			
-			<div class="relative flex items-start gap-5 pl-10 group cursor-pointer">
-				<div class="absolute left-[15px] top-1.5 w-2.5 h-2.5 rounded-full bg-secondary ring-4 ring-surface-container-lowest group-hover:scale-125 transition-transform"></div>
-				<div>
-					<p class="text-sm text-on-surface group-hover:text-primary transition-colors"><span class="font-bold">Policy Update:</span> New Remote Work guidelines published.</p>
-					<p class="text-[10px] text-on-surface-variant font-medium mt-1">Yesterday</p>
-				</div>
-			</div>
+			{/if}
 		</div>
 	</div>
 </div>

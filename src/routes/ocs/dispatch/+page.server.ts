@@ -29,7 +29,7 @@ export const load: PageServerLoad = async () => {
 				t.last_lon,
 				t.pool_tujuan_id
 			FROM marketing.sales_order o
-			LEFT JOIN fleet.trip t ON t.unit_id = o.assigned_unit_id AND t.status NOT IN ('COMPLETED', 'CANCELED')
+			LEFT JOIN fleet.trip t ON t.unit_id = o.assigned_unit_id AND t.tgl_trip::date = o.tgl_muat::date AND t.status NOT IN ('COMPLETED', 'CANCELED')
 			LEFT JOIN master.m_customer c ON c.id = o.customer_id
 			LEFT JOIN master.m_customer ori ON ori.id = o.origin_id
 			LEFT JOIN master.m_customer dest ON dest.id = o.destination_id
@@ -95,6 +95,8 @@ export const load: PageServerLoad = async () => {
 				(c.contract_value / NULLIF(c.target_tonnage, 0)) as tariff_per_ton,
 				((c.contract_value / NULLIF(c.target_tonnage, 0)) * (c.max_ujo_percentage / 100)) as fixed_ujo,
 				c.project_id,
+				c.produk_id,
+				prod.nama_produk as cargo_type_name,
 				cust.nama_kustomer as customer,
 				COALESCE(ori.nama_kustomer, mori.nama_kustomer) as origin,
 				COALESCE(c.origin_id, mru.origin_id) as origin_id,
@@ -102,13 +104,14 @@ export const load: PageServerLoad = async () => {
 				COALESCE(c.destination_id, mru.destination_id) as destination_id
 			FROM marketing.contract c
 			LEFT JOIN master.m_customer cust ON cust.id = c.customer_id
+			LEFT JOIN master.m_produk prod ON prod.id = c.produk_id
 			LEFT JOIN master.m_customer ori ON ori.id = c.origin_id
 			LEFT JOIN master.m_customer dest ON dest.id = c.destination_id
 			LEFT JOIN master.m_rute_ujo mru ON mru.id = c.master_rute_id
 			LEFT JOIN master.m_customer mori ON mori.id = mru.origin_id
 			LEFT JOIN master.m_customer mdest ON mdest.id = mru.destination_id
 			WHERE c.status = 'Active' 
-			  AND COALESCE(c.delivered_tonnage, 0) < c.target_tonnage
+			  AND (c.target_tonnage = 0 OR COALESCE(c.delivered_tonnage, 0) < c.target_tonnage)
 			  AND (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Jakarta')::date BETWEEN c.start_date AND c.end_date
 			ORDER BY c.created_at ASC
 		`;
@@ -155,7 +158,8 @@ export const load: PageServerLoad = async () => {
 				deliveredTonnage: contract.delivered_tonnage,
 				tariff: contract.tariff_per_ton,
 				fixedUjo: contract.fixed_ujo,
-				cargo: 'Sesuai Kontrak',
+				produk_id: contract.produk_id,
+				cargo: contract.cargo_type_name || 'Menunggu Input Muatan',
 				status: 'READY_TO_DISPATCH',
 				ai_recommended_unit: bestUnit ? bestUnit.id : 'Menunggu Unit',
 				ai_recommended_unit_id: bestUnit ? bestUnit.unitId : '',
@@ -178,11 +182,15 @@ export const load: PageServerLoad = async () => {
 		// Fetch Pool data for dynamic geofencing in UI
 		const poolsResult = await sql`SELECT id, nama_pool, latitude, longitude, COALESCE(geofence_radius, 500) as radius FROM master.m_pool`;
 
+		// Fetch Products for borongan contracts
+		const products = await sql`SELECT id, nama_produk as name FROM master.m_produk ORDER BY nama_produk ASC`;
+
 		return {
 			orders: ordersResult as any[],
 			availableUnits: unitsResult as any[],
 			contractOrders,
-			pools: poolsResult as any[]
+			pools: poolsResult as any[],
+			products: products as any[]
 		};
 	} catch (error) {
 		console.error("Error loading dispatch data:", error);
@@ -196,6 +204,7 @@ export const actions: Actions = {
 		const contractId = data.get('contractId') as string;
 		const unitId = data.get('unitId') as string;
 		const driverId = data.get('driverId') as string;
+		const cargoName = data.get('cargoName') as string || null;
 		
 		if (!contractId || !unitId || !driverId) {
 			return fail(400, { message: 'Data unit/driver tidak lengkap.' });
@@ -213,12 +222,14 @@ export const actions: Actions = {
 						c.target_tonnage,
 						c.contract_value,
 						c.max_ujo_percentage,
-						c.jenis_muatan,
+						c.produk_id,
+						prod.nama_produk as jenis_muatan,
 						COALESCE(mru.total_ujo, ((c.contract_value / NULLIF(c.target_tonnage, 0)) * (c.max_ujo_percentage / 100))) as fixed_ujo,
 						(c.contract_value / NULLIF(c.target_tonnage, 0)) as tariff_per_ton,
 						COALESCE(mru.biaya_tol, 0) as ujo_tol,
 						COALESCE(mru.uang_makan, 0) as ujo_makan
 					FROM marketing.contract c
+					LEFT JOIN master.m_produk prod ON prod.id = c.produk_id
 					LEFT JOIN master.m_rute_ujo mru ON mru.id = c.master_rute_id
 					WHERE c.id = ${contractId}
 				`;
@@ -236,15 +247,15 @@ export const actions: Actions = {
 				const unitData = unitDataResult[0];
 				
 				const realCapacity = 30; // Default capacity as DB doesn't have it
-				const totalRit = Math.ceil(contract.target_tonnage / realCapacity);
+				const totalRit = contract.target_tonnage > 0 ? Math.ceil(contract.target_tonnage / realCapacity) : 1;
 				
 				// Re-calculate UJO if it falls back to percentage
-				let finalEstimatedUjo = contract.fixed_ujo;
-				let finalTariff = contract.contract_value / (totalRit > 0 ? totalRit : 1); // Tariff is exact per trip
+				let finalEstimatedUjo = contract.fixed_ujo || 0;
+				let finalTariff = contract.target_tonnage > 0 ? contract.contract_value / totalRit : 0; // Tariff is exact per trip, or 0 for borongan
 				
 				// We need to know if we used MRU.
 				const mruCheck = await sql`SELECT master_rute_id FROM marketing.contract WHERE id = ${contractId}`;
-				if (!mruCheck[0].master_rute_id) {
+				if (!mruCheck[0].master_rute_id && contract.target_tonnage > 0) {
 					finalEstimatedUjo = finalTariff * (contract.max_ujo_percentage / 100);
 				}
 
@@ -261,6 +272,7 @@ export const actions: Actions = {
 				}
 
 				const doId = `DO-PO-${Date.now().toString().slice(-6)}`;
+				const finalCargo = cargoName || contract.jenis_muatan || 'Muatan Borongan';
 
 				await sql`
 					INSERT INTO marketing.sales_order (
@@ -270,10 +282,53 @@ export const actions: Actions = {
 						assigned_unit_id, assigned_driver_id, status, ujo_payment_status
 					) VALUES (
 						${doId}, ${contractId}, ${contract.customer_id}, ${contract.final_origin_id}, ${contract.final_dest_id},
-						${unitData.tipe_unit_id}, ${contract.jenis_muatan || 'Muatan Kontrak'}, ${realCapacity}, CURRENT_DATE, ${finalEstimatedUjo || 0}, 
-						${contract.ujo_tol}, ${contract.ujo_makan}, ${finalTariff || 0},
+						${unitData.tipe_unit_id}, ${finalCargo}, ${realCapacity}, CURRENT_DATE, ${finalEstimatedUjo}, 
+						${contract.ujo_tol}, ${contract.ujo_makan}, ${finalTariff},
 						${unitId}, ${driverId}, 'READY_TO_DISPATCH', 'UNPAID'
 					)
+				`;
+
+				const stNumber = 'ST-UJO-' + Date.now().toString().slice(-6);
+
+				// 2. Insert into fleet.trip as SCHEDULED
+				const tripResult = await sql`
+					INSERT INTO fleet.trip (
+						no_surat_tugas,
+						tgl_trip,
+						unit_id,
+						driver_id,
+						customer,
+						origin_id,
+						destination_id,
+						origin,
+						destination,
+						cargo,
+						status,
+						created_by,
+						pool_tujuan_id
+					) VALUES (
+						${stNumber},
+						CURRENT_DATE,
+						${unitId},
+						${driverId},
+						(SELECT nama_kustomer FROM master.m_customer WHERE id = ${contract.customer_id}),
+						${contract.final_origin_id},
+						${contract.final_dest_id},
+						(SELECT nama_kustomer FROM master.m_customer WHERE id = ${contract.final_origin_id}),
+						(SELECT nama_kustomer FROM master.m_customer WHERE id = ${contract.final_dest_id}),
+						${finalCargo},
+						'SCHEDULED',
+						'OCS Dispatch',
+						'ded65e49-e477-47a1-aee8-a373a2485bba'
+					)
+					RETURNING id
+				`;
+
+				const tripId = tripResult[0].id;
+
+				await sql`
+					INSERT INTO fleet.trip_status_log (trip_id, status)
+					VALUES (${tripId}, 'SCHEDULED')
 				`;
 
 			});

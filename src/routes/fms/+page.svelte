@@ -242,7 +242,12 @@
 							<h4 class="text-lg sm:text-xl font-bold text-on-surface mb-1">{contract.customer}</h4>
 							<p class="text-xs text-on-surface-variant uppercase tracking-wider font-semibold">{contract.project_category}</p>
 						</div>
-						<span class="text-sm font-black text-on-surface bg-surface-container-low px-3 py-1.5 rounded-lg border border-surface-container shadow-sm">{contract.targetTonnage} T</span>
+						<div class="flex flex-col items-end gap-1">
+							<span class="text-sm font-black text-on-surface bg-surface-container-low px-3 py-1.5 rounded-lg border border-surface-container shadow-sm">{contract.targetTonnage} T</span>
+							{#if contract.isBorongan}
+								<span class="text-[10px] font-bold text-rose-600 bg-rose-50 dark:bg-rose-900/30 px-2 py-0.5 rounded border border-rose-100 dark:border-rose-900/50">Target {new Date().toLocaleString('id-ID', { month: 'long' })}</span>
+							{/if}
+						</div>
 					</div>
 					
 					<!-- The Multi-Color Bar -->

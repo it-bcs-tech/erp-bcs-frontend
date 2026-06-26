@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { page } from '$app/stores';
-	import Chatbot from '$lib/components/Chatbot.svelte';
+	import OrisChat from '$lib/components/OrisChat.svelte';
+	import { authUser, hasMenuAccess } from '$lib/stores/auth';
 	let { children } = $props();
 </script>
 
@@ -22,34 +23,50 @@
 		</div>
 
 		<nav class="flex-1 space-y-1">
+			{#if hasMenuAccess($authUser, 'ocs', 'ocs.dashboard')}
 			<a class="flex items-center gap-3 px-4 py-3 rounded-xl shadow-sm transition-transform duration-200 hover:translate-x-1 {$page.url.pathname === '/ocs' ? 'bg-surface-container-highest text-sky-600 dark:text-sky-400' : 'text-on-surface-variant hover:bg-surface-container'}" href="/ocs">
 				<span class="material-symbols-outlined">space_dashboard</span>
 				<span class="font-medium text-sm">Dashboard</span>
 			</a>
+			{/if}
 
 			<!-- Section Divider: Operations -->
+			{#if hasMenuAccess($authUser, 'ocs', 'ocs.dispatch') || hasMenuAccess($authUser, 'ocs', 'ocs.ujo') || hasMenuAccess($authUser, 'ocs', 'ocs.assign-driver') || hasMenuAccess($authUser, 'ocs', 'ocs.daily-targets')}
 			<div class="pt-3 pb-1 px-4">
 				<p class="text-[9px] font-black text-on-surface-variant/50 uppercase tracking-[0.2em]">Operations</p>
 			</div>
+			{/if}
 
+			{#if hasMenuAccess($authUser, 'ocs', 'ocs.dispatch')}
 			<a class="flex items-center gap-3 px-4 py-3 rounded-xl transition-transform duration-200 hover:translate-x-1 {$page.url.pathname.includes('/ocs/dispatch') ? 'bg-surface-container-highest text-sky-600 dark:text-sky-400' : 'text-on-surface-variant hover:bg-surface-container'}" href="/ocs/dispatch">
 				<span class="material-symbols-outlined">assignment</span>
 				<span class="font-medium text-sm">Dispatch</span>
 			</a>
+			{/if}
+			
+			{#if hasMenuAccess($authUser, 'ocs', 'ocs.ujo')}
 			<a class="flex items-center gap-3 px-4 py-3 rounded-xl transition-transform duration-200 hover:translate-x-1 {$page.url.pathname.includes('/ocs/ujo') ? 'bg-surface-container-highest text-sky-600 dark:text-sky-400' : 'text-on-surface-variant hover:bg-surface-container'}" href="/ocs/ujo">
 				<span class="material-symbols-outlined">payments</span>
 				<span class="font-medium text-sm">UJO (Uang Jalan)</span>
 			</a>
+			{/if}
+			
+			{#if hasMenuAccess($authUser, 'ocs', 'ocs.assign-driver')}
 			<a class="flex items-center gap-3 px-4 py-3 rounded-xl transition-transform duration-200 hover:translate-x-1 {$page.url.pathname.includes('/ocs/assign-driver') ? 'bg-surface-container-highest text-sky-600 dark:text-sky-400' : 'text-on-surface-variant hover:bg-surface-container'}" href="/ocs/assign-driver">
 				<span class="material-symbols-outlined">person_pin</span>
 				<span class="font-medium text-sm">Assign Driver</span>
 			</a>
+			{/if}
+			
+			{#if hasMenuAccess($authUser, 'ocs', 'ocs.daily-targets')}
 			<a class="flex items-center gap-3 px-4 py-3 rounded-xl transition-transform duration-200 hover:translate-x-1 {$page.url.pathname.includes('/ocs/daily-targets') ? 'bg-surface-container-highest text-sky-600 dark:text-sky-400' : 'text-on-surface-variant hover:bg-surface-container'}" href="/ocs/daily-targets">
 				<span class="material-symbols-outlined">track_changes</span>
 				<span class="font-medium text-sm">Target Harian</span>
 			</a>
+			{/if}
 			
 			<!-- Section Divider: Master Data -->
+			{#if hasMenuAccess($authUser, 'ocs', 'ocs.rute')}
 			<div class="pt-3 pb-1 px-4">
 				<p class="text-[9px] font-black text-on-surface-variant/50 uppercase tracking-[0.2em]">Master Data</p>
 			</div>
@@ -58,6 +75,8 @@
 				<span class="material-symbols-outlined">route</span>
 				<span class="font-medium text-sm">Master Rute (UJO)</span>
 			</a>
+			{/if}
+		</nav>
 	</aside>
 
 	<!-- Main Content Canvas -->
@@ -68,5 +87,5 @@
 	</main>
 
 	<!-- AI Assistant Chatbot -->
-	<Chatbot />
+	<OrisChat />
 </div>

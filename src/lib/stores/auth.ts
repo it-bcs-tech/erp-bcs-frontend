@@ -53,6 +53,27 @@ export const userInitials = derived(authUser, ($user) => {
 export function hasModuleAccess(user: AuthUser | null, moduleId: string): boolean {
 	if (!user) return false;
 	if (['superadmin', 'administrator', 'superhyperadmin'].includes(user.role)) return true;
+	// Akses diberikan jika user memiliki full modul ATAU minimal satu menu di dalam modul tersebut
+	return user.allowedModules.some(m => m === moduleId || m.startsWith(`${moduleId}.`));
+}
+
+/**
+ * Cek apakah user punya akses spesifik ke menu tertentu.
+ * Digunakan untuk menyembunyikan/menampilkan link di sidebar (Menu-Level RBAC).
+ */
+export function hasMenuAccess(user: AuthUser | null, moduleId: string, menuId: string): boolean {
+	if (!user) return false;
+	if (['superadmin', 'administrator', 'superhyperadmin'].includes(user.role)) return true;
+	
+	// Cek apakah user memiliki override spesifik (dot notation) untuk modul ini
+	const hasSpecificOverrides = user.allowedModules.some(m => m !== moduleId && m.startsWith(`${moduleId}.`));
+
+	if (hasSpecificOverrides) {
+		// Jika ada override spesifik, kita HANYA mengizinkan menu yang secara eksplisit ada di array
+		return user.allowedModules.includes(menuId as ModuleId);
+	}
+	
+	// Jika tidak ada override spesifik, berikan akses penuh jika modul (base) ada di array
 	return user.allowedModules.includes(moduleId as ModuleId);
 }
 

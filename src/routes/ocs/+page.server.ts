@@ -67,7 +67,7 @@ export const load: PageServerLoad = async () => {
 				COALESCE(o.ujo_payment_status, 'UNPAID') as "ujoStatus"
 			FROM marketing.sales_order o
 			LEFT JOIN fleet.unit u ON u.id = o.assigned_unit_id
-			LEFT JOIN fleet.trip t ON t.unit_id = o.assigned_unit_id AND t.status NOT IN ('COMPLETED', 'CANCELED')
+			LEFT JOIN fleet.trip t ON t.unit_id = o.assigned_unit_id AND t.tgl_trip::date = o.tgl_muat::date AND t.status NOT IN ('COMPLETED', 'CANCELED')
 			LEFT JOIN master.m_drivers md ON md.id = o.assigned_driver_id
 			LEFT JOIN master.m_karyawan d ON d.id = md.karyawan_id
 			LEFT JOIN master.m_customer ori ON ori.id = o.origin_id
@@ -94,16 +94,16 @@ export const load: PageServerLoad = async () => {
 			LEFT JOIN LATERAL (
 				SELECT estimated_ujo 
 				FROM marketing.sales_order 
-				WHERE assigned_unit_id = t.unit_id 
+				WHERE assigned_unit_id = t.unit_id AND tgl_muat::date = t.tgl_trip::date
 				ORDER BY created_at DESC 
 				LIMIT 1
 			) o ON true
 			WHERE t.status = 'COMPLETED'
-			ORDER BY COALESCE(t.arrive_time, t.updated_at, t.created_at) DESC
-			LIMIT 3
+			ORDER BY t.updated_at DESC
+			LIMIT 5
 		`;
 
-		// Daily Targets — prioritas dari kalender harian, fallback ke rata-rata kontrak
+		// Daily Target Progress
 		const dailyTargets = await sql`
 			SELECT 
 				c.id,
@@ -115,14 +115,14 @@ export const load: PageServerLoad = async () => {
 				(
 					SELECT COALESCE(SUM(o.berat_muatan), 0) 
 					FROM marketing.sales_order o 
-					JOIN fleet.trip t ON t.unit_id = o.assigned_unit_id AND t.status NOT IN ('CANCELED') 
+					JOIN fleet.trip t ON t.unit_id = o.assigned_unit_id AND t.tgl_trip::date = o.tgl_muat::date AND t.status NOT IN ('CANCELED') 
 					WHERE o.contract_id = c.id 
 					  AND date_trunc('day', t.tgl_trip) = date_trunc('day', current_date)
 				) as "achievedTonnage",
 				(
 					SELECT COUNT(t.id) 
 					FROM fleet.trip t
-					JOIN marketing.sales_order o ON o.assigned_unit_id = t.unit_id
+					JOIN marketing.sales_order o ON o.assigned_unit_id = t.unit_id AND t.tgl_trip::date = o.tgl_muat::date
 					WHERE o.contract_id = c.id
 					  AND t.status NOT IN ('CANCELED')
 					  AND date_trunc('day', t.tgl_trip) = date_trunc('day', current_date)

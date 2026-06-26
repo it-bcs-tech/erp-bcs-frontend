@@ -94,44 +94,62 @@ export const actions: Actions = {
 							WHERE id = ${orderId}
 						`;
 
-						// Generate ST Number
-						const stNumber = 'ST-' + Date.now().toString().slice(-8);
-
-						// Create Trip
-						const tripResult = await sql`
-							INSERT INTO fleet.trip (
-								no_surat_tugas,
-								tgl_trip,
-								unit_id,
-								driver_id,
-								customer,
-								origin_id,
-								destination_id,
-								origin,
-								destination,
-								cargo,
-								status,
-								created_by,
-								pool_tujuan_id
-							) VALUES (
-								${stNumber},
-								${order.tgl_muat},
-								${order.assigned_unit_id},
-								${order.assigned_driver_id},
-								(SELECT nama_kustomer FROM master.m_customer WHERE id = ${order.customer_id}),
-								${order.origin_id},
-								${order.destination_id},
-								(SELECT nama_kustomer FROM master.m_customer WHERE id = ${order.origin_id}),
-								(SELECT nama_kustomer FROM master.m_customer WHERE id = ${order.destination_id}),
-								${order.jenis_muatan},
-								'DISPATCHED',
-								'Kasir System (Auto)',
-								'ded65e49-e477-47a1-aee8-a373a2485bba' -- Default ke Pool Cilegon
-							)
-							RETURNING id
-						`;
+						let tripId;
 						
-						const tripId = tripResult[0].id;
+						// Try to find an existing SCHEDULED trip for this unit & date
+						const scheduledTrips = await sql`
+							SELECT id FROM fleet.trip 
+							WHERE unit_id = ${order.assigned_unit_id} 
+							  AND tgl_trip::date = ${order.tgl_muat} 
+							  AND status = 'SCHEDULED'
+							LIMIT 1
+						`;
+
+						if (scheduledTrips.length > 0) {
+							// Update existing trip
+							tripId = scheduledTrips[0].id;
+							await sql`
+								UPDATE fleet.trip 
+								SET status = 'DISPATCHED' 
+								WHERE id = ${tripId}
+							`;
+						} else {
+							// Legacy / Fallback: Create new Trip
+							const stNumber = 'ST-' + Date.now().toString().slice(-8);
+							const tripResult = await sql`
+								INSERT INTO fleet.trip (
+									no_surat_tugas,
+									tgl_trip,
+									unit_id,
+									driver_id,
+									customer,
+									origin_id,
+									destination_id,
+									origin,
+									destination,
+									cargo,
+									status,
+									created_by,
+									pool_tujuan_id
+								) VALUES (
+									${stNumber},
+									${order.tgl_muat},
+									${order.assigned_unit_id},
+									${order.assigned_driver_id},
+									(SELECT nama_kustomer FROM master.m_customer WHERE id = ${order.customer_id}),
+									${order.origin_id},
+									${order.destination_id},
+									(SELECT nama_kustomer FROM master.m_customer WHERE id = ${order.origin_id}),
+									(SELECT nama_kustomer FROM master.m_customer WHERE id = ${order.destination_id}),
+									${order.jenis_muatan},
+									'DISPATCHED',
+									'Kasir System (Auto)',
+									'ded65e49-e477-47a1-aee8-a373a2485bba' -- Default ke Pool Cilegon
+								)
+								RETURNING id
+							`;
+							tripId = tripResult[0].id;
+						}
 
 						// Tambahkan log checkpoint awal
 						await sql`

@@ -64,7 +64,7 @@ export const actions: Actions = {
 		const userDataCookie = cookies.get('user_data');
 		if (userDataCookie) {
 			try {
-				const user = JSON.parse(userDataCookie);
+				const user = verifyUserData(userDataCookie);
 				createdBy = user.username || 'system';
 			} catch (e) {}
 		}

@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { page } from '$app/stores';
+	import { authUser, hasMenuAccess } from '$lib/stores/auth';
 	let { children } = $props();
 </script>
 
@@ -20,20 +21,32 @@
 			</div>
 		</div>
 		<nav class="flex-1 space-y-1">
+			{#if hasMenuAccess($authUser, 'maintenance', 'maintenance.dashboard')}
 			<a class="flex items-center gap-3 px-4 py-3 rounded-xl shadow-sm transition-transform duration-200 hover:translate-x-1 {$page.url.pathname.includes('/maintenance/dashboard') ? 'bg-surface-container-highest text-slate-700 dark:text-slate-300 font-bold' : 'text-on-surface-variant hover:bg-surface-container'}" href="/maintenance/dashboard">
 				<span class="material-symbols-outlined">dashboard</span>
 				<span class="font-medium text-sm">Dashboard Mekanik</span>
 			</a>
+			{/if}
 			
+			{#if hasMenuAccess($authUser, 'maintenance', 'maintenance.work-orders') || hasMenuAccess($authUser, 'maintenance', 'maintenance.inspections')}
 			<div class="pt-3 pb-1 px-4">
 				<p class="text-[9px] font-black text-on-surface-variant/50 uppercase tracking-[0.2em]">Operations</p>
 			</div>
+			{/if}
 
+			{#if hasMenuAccess($authUser, 'maintenance', 'maintenance.inspections')}
+			<a class="flex items-center gap-3 px-4 py-3 rounded-xl transition-transform duration-200 hover:translate-x-1 {$page.url.pathname.includes('/maintenance/inspections') ? 'bg-surface-container-highest text-slate-700 dark:text-slate-300 font-bold' : 'text-on-surface-variant hover:bg-surface-container'}" href="/maintenance/inspections">
+				<span class="material-symbols-outlined">assignment_turned_in</span>
+				<span class="font-medium text-sm">Inspections</span>
+			</a>
+			{/if}
 
+			{#if hasMenuAccess($authUser, 'maintenance', 'maintenance.work-orders')}
 			<a class="flex items-center gap-3 px-4 py-3 rounded-xl transition-transform duration-200 hover:translate-x-1 {$page.url.pathname.includes('/maintenance/work-orders') ? 'bg-surface-container-highest text-slate-700 dark:text-slate-300 font-bold' : 'text-on-surface-variant hover:bg-surface-container'}" href="/maintenance/work-orders">
 				<span class="material-symbols-outlined">plumbing</span>
 				<span class="font-medium text-sm">Work Orders</span>
 			</a>
+			{/if}
 		</nav>
 	</aside>
 

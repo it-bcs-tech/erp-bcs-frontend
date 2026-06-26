@@ -4,17 +4,21 @@
 	import { goto } from '$app/navigation';
 	import DailyTargetSimulator from '$lib/components/DailyTargetSimulator.svelte';
 	import DailyPlanCalendar from '$lib/components/DailyPlanCalendar.svelte';
+	import MonthlyTargetModal from '$lib/components/MonthlyTargetModal.svelte';
 
 	let { data, form }: { data: PageData, form: ActionData } = $props();
 	let contracts = $derived(data.contracts || []);
 	let dailyPlans = $derived(data.dailyPlans || []);
 	let dispatches = $derived(data.dispatches || []);
+	let monthlyTargets = $derived(data.monthlyTargets || []);
 	let selectedContractId = $derived(data.selectedContractId);
 
 	let showSimulator = $state(false);
 	let selectedContract = $state<any>(null);
 	let showCalendar = $state(false);
 	let calendarContract = $state<any>(null);
+	let showMonthlyModal = $state(false);
+	let monthlyContract = $state<any>(null);
 
 	// Hidden form binding
 	let formTargetDays = $state(0);
@@ -23,8 +27,17 @@
 	let formDailyTargetTonnage = $state(0);
 	let formDailyTargetRitase = $state(0);
 	let formUnitsNeededPerDay = $state(0);
+	let formTargetMonthStr = $state('');
+	let dynamicTargetTonnage = $state(0);
 	
 	let formElement: HTMLFormElement;
+
+	let simulatorAction = $derived.by(() => {
+		if (selectedContract && Number(selectedContract.targetTonnage) === 0) {
+			return '?/generateDynamicPlan';
+		}
+		return '?/setTarget';
+	});
 
 	// Auto-open calendar if contract selected via URL
 	$effect(() => {
@@ -38,18 +51,46 @@
 	});
 
 	// Re-open calendar after generate/update success
+	let simulatorOpenedFor = $state('');
+	
 	$effect(() => {
 		if (form?.generateSuccess && form?.contractId) {
+			goto(`?contract=${form.contractId}`, { invalidateAll: true });
+		}
+		if (form?.dynamicGenerateSuccess && form?.contractId) {
 			goto(`?contract=${form.contractId}`, { invalidateAll: true });
 		}
 		if (form?.updateSuccess && form?.contractId) {
 			goto(`?contract=${form.contractId}`, { invalidateAll: true });
 		}
+		if (form?.monthlySetSuccess && form?.contractId && contracts.length > 0) {
+			const cacheKey = form.contractId + '_' + form.targetMonthStr;
+			if (simulatorOpenedFor !== cacheKey) {
+				const c = contracts.find((ct: any) => ct.id === form.contractId);
+				if (c) {
+					// Close calendar first so simulator is visible on top
+					showCalendar = false;
+					formTargetMonthStr = form.targetMonthStr;
+					simulatorOpenedFor = cacheKey;
+					openSimulator(c, form.targetMonthStr, form.targetTonnage);
+				}
+			}
+		}
 	});
 
-	function openSimulator(contract: any) {
+	function openSimulator(contract: any, monthStr: string = '', tonnage: number = 0) {
 		selectedContract = contract;
+		formTargetMonthStr = monthStr;
+		dynamicTargetTonnage = tonnage;
 		showSimulator = true;
+	}
+
+	function openMonthlyModal(contract: any, monthStr: string = '') {
+		monthlyContract = contract;
+		if (monthStr) {
+			formTargetMonthStr = monthStr;
+		}
+		showMonthlyModal = true;
 	}
 
 	function openCalendar(contract: any) {
@@ -73,7 +114,7 @@
 
 		setTimeout(() => {
 			if (formElement) formElement.requestSubmit();
-		}, 100);
+		}, 50);
 	}
 
 	const formatNumber = (num: number) => {
@@ -96,14 +137,14 @@
 			{form.error}
 		</div>
 	{/if}
-	{#if form?.success}
+	{#if form?.success || form?.dynamicGenerateSuccess}
 		<div class="mb-6 p-4 rounded-xl bg-emerald-50 text-emerald-600 border border-emerald-200 shadow-sm font-medium">
 			Target rata-rata harian berhasil disimpan.
 		</div>
 	{/if}
 
 	<!-- Hidden Form for Simulator -->
-	<form method="POST" action="?/setTarget" use:enhance bind:this={formElement} class="hidden">
+	<form method="POST" action={simulatorAction} use:enhance bind:this={formElement} class="hidden">
 		<input type="hidden" name="contractId" value={selectedContract?.id} />
 		<input type="hidden" name="targetDays" value={formTargetDays} />
 		<input type="hidden" name="unitCapacity" value={formUnitCapacity} />
@@ -111,6 +152,7 @@
 		<input type="hidden" name="dailyTargetTonnage" value={formDailyTargetTonnage} />
 		<input type="hidden" name="dailyTargetRitase" value={formDailyTargetRitase} />
 		<input type="hidden" name="unitsNeededPerDay" value={formUnitsNeededPerDay} />
+		<input type="hidden" name="targetMonthStr" value={formTargetMonthStr} />
 	</form>
 
 	<div class="space-y-4">
@@ -130,11 +172,23 @@
 						<div class="w-[160px]">
 							<div class="flex justify-between text-[10px] font-bold mb-1">
 								<span class="text-emerald-600">{formatNumber(c.deliveredTonnage)} Ton</span>
-								<span class="text-on-surface-variant">{formatNumber(c.targetTonnage)} Ton</span>
+								<span class="text-on-surface-variant">
+									{#if Number(c.targetTonnage) > 0}
+										{formatNumber(c.targetTonnage)} Ton
+									{:else}
+										Dinamis
+									{/if}
+								</span>
 							</div>
-							<div class="h-1.5 w-full bg-surface-container rounded-full overflow-hidden">
-								<div class="h-full bg-emerald-500 rounded-full" style="width: {Math.min((c.deliveredTonnage/c.targetTonnage)*100, 100)}%"></div>
-							</div>
+							{#if Number(c.targetTonnage) > 0}
+								<div class="h-1.5 w-full bg-surface-container rounded-full overflow-hidden">
+									<div class="h-full bg-emerald-500 rounded-full" style="width: {Math.min((c.deliveredTonnage/c.targetTonnage)*100, 100)}%"></div>
+								</div>
+							{:else}
+								<div class="text-[10px] text-amber-600 bg-amber-50 dark:bg-amber-900/20 px-2 py-0.5 rounded-full inline-block font-medium border border-amber-200 dark:border-amber-900/50">
+									Berbasis Unit/Borongan
+								</div>
+							{/if}
 						</div>
 
 						<!-- Target -->
@@ -158,17 +212,30 @@
 
 					<!-- Right: Actions -->
 					<div class="flex gap-2 flex-shrink-0">
+						{#if Number(c.targetTonnage) > 0}
+							<button 
+								class="px-4 py-2 text-xs font-bold rounded-xl border border-surface-variant/30 hover:bg-surface hover:shadow-sm transition-all text-on-surface-variant hover:text-primary flex items-center gap-2"
+								onclick={() => openSimulator(c)}
+							>
+								<span class="material-symbols-outlined text-[16px]">calculate</span>
+								Kalkulator
+							</button>
+						{:else}
+							<button 
+								class="px-4 py-2 text-xs font-bold rounded-xl border border-amber-200 bg-amber-50 hover:bg-amber-100 hover:shadow-sm transition-all text-amber-700 flex items-center gap-2"
+								onclick={() => openMonthlyModal(c)}
+							>
+								<span class="material-symbols-outlined text-[16px]">calendar_month</span>
+								Target Bulanan
+							</button>
+						{/if}
+
 						<button 
+							class="px-4 py-2 text-xs font-bold rounded-xl bg-primary hover:bg-primary/90 text-white shadow-sm shadow-primary/30 transition-all flex items-center gap-2"
 							onclick={() => openCalendar(c)}
-							class="inline-flex items-center gap-1.5 px-3 py-2 bg-sky-50 dark:bg-sky-900/20 text-sky-600 dark:text-sky-400 font-bold text-xs rounded-xl hover:bg-sky-100 dark:hover:bg-sky-900/40 transition-colors">
+						>
 							<span class="material-symbols-outlined text-[16px]">calendar_month</span>
 							Kalender
-						</button>
-						<button 
-							onclick={() => openSimulator(c)}
-							class="inline-flex items-center gap-1.5 px-3 py-2 bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 font-bold text-xs rounded-xl hover:bg-indigo-100 dark:hover:bg-indigo-900/40 transition-colors">
-							<span class="material-symbols-outlined text-[16px]">calculate</span>
-							{c.daily_target_tonnage > 0 ? 'Edit' : 'Set'}
 						</button>
 					</div>
 				</div>
@@ -180,13 +247,29 @@
 <DailyTargetSimulator 
 	bind:isOpen={showSimulator} 
 	contract={selectedContract} 
+	monthlyTargets={monthlyTargets}
+	dynamicTargetTonnage={dynamicTargetTonnage}
+	dynamicTargetMonthStr={formTargetMonthStr}
 	onApply={handleSimulatorApply} 
 />
 
 <DailyPlanCalendar
 	bind:isOpen={showCalendar}
 	contract={calendarContract}
+	initialMonthStr={formTargetMonthStr}
 	dailyPlans={dailyPlans}
 	dispatches={dispatches}
+	monthlyTargets={monthlyTargets}
+	form={form}
 	onClose={closeCalendar}
+	onOpenMonthlyModal={openMonthlyModal}
+/>
+
+<MonthlyTargetModal
+	bind:isOpen={showMonthlyModal}
+	contract={monthlyContract}
+	initialMonthStr={formTargetMonthStr}
+	onClose={() => {
+		monthlyContract = null;
+	}}
 />

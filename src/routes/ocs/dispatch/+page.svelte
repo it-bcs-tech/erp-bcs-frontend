@@ -7,6 +7,7 @@
 	let { data, form }: { data: PageData, form: ActionData } = $props();
 	let availableUnits = $derived(data.availableUnits || []);
 	let orders = $derived(data.orders || []);
+	let products = $derived(data.products || []);
 
 	let statusFilter = $state($page.url.searchParams.get('status') || 'All');
 
@@ -375,11 +376,21 @@
 														<span class="material-symbols-outlined text-[16px]">search</span> {contractOrder.ai_recommended_unit_id ? 'Tukar Unit Manual' : 'Pilih Unit Manual'}
 													</button>
 													{#if contractOrder.ai_recommended_unit_id}
-														<form method="POST" action="?/createDoFromPo" use:enhance={() => { isSubmitting = true; return async ({ update }) => { await update(); isSubmitting = false; } }}>
+														<form method="POST" action="?/createDoFromPo" use:enhance={() => { isSubmitting = true; return async ({ update }) => { await update(); isSubmitting = false; } }} class="flex items-center gap-2">
 															<input type="hidden" name="contractId" value={contractOrder.contract_id}>
 															<input type="hidden" name="unitId" value={contractOrder.ai_recommended_unit_id}>
 															<input type="hidden" name="driverId" value={contractOrder.ai_recommended_driver_id}>
-															<button type="submit" disabled={isSubmitting} class="bg-blue-600 text-white px-4 py-2 rounded-lg text-xs font-bold hover:bg-blue-700 shadow-sm flex items-center gap-1 transition-colors disabled:opacity-50">
+															
+															{#if !contractOrder.produk_id}
+																<select name="cargoName" required class="bg-surface-container-low border border-surface-container text-xs rounded-lg px-2 py-2 text-on-surface focus:outline-none focus:border-blue-500 max-w-[140px]">
+																	<option value="" disabled selected>Pilih Muatan</option>
+																	{#each products as product}
+																		<option value={product.name}>{product.name}</option>
+																	{/each}
+																</select>
+															{/if}
+
+															<button type="submit" disabled={isSubmitting} class="bg-blue-600 text-white px-4 py-2 rounded-lg text-xs font-bold hover:bg-blue-700 shadow-sm flex items-center gap-1 transition-colors disabled:opacity-50 shrink-0">
 																<span class="material-symbols-outlined text-[16px]">task_alt</span> Approve Dispatch
 															</button>
 														</form>

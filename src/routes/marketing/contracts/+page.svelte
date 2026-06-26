@@ -291,7 +291,7 @@
 							{/if}
 							<div>
 								<p class="text-[10px] uppercase font-bold text-on-surface-variant mb-1">Muatan / Periode</p>
-								<p class="text-sm font-semibold text-on-surface">{contract.jenis_muatan || 'Baja / Kargo'} &bull; {contract.startDate} - {contract.endDate}</p>
+								<p class="text-sm font-semibold text-on-surface">{contract.jenis_muatan || '-'} &bull; {contract.startDate} - {contract.endDate}</p>
 							</div>
 							<div>
 								<p class="text-[10px] uppercase font-bold text-on-surface-variant mb-1">Nilai Kontrak</p>
@@ -312,7 +312,7 @@
 					<!-- Progress Section -->
 					<div class="w-full lg:w-96 bg-surface-container-low p-4 rounded-xl border border-surface-container-high self-center">
 						<p class="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider mb-2 flex items-center justify-between">
-							<span>Live Tonnage Tracker</span>
+							<span>Live Tonnage Tracker {contract.isBorongan ? `(${new Date().toLocaleString('id-ID', { month: 'long' })})` : ''}</span>
 							<span class="text-xs font-black text-on-surface bg-surface-container-highest px-2 py-0.5 rounded">{contract.targetTonnage} Ton</span>
 						</p>
 						
@@ -536,8 +536,8 @@
 
 					<div class="col-span-1 md:col-span-2">
 						<label class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-2">Jenis Muatan (Kargo)</label>
-						<select name="produk_id" bind:value={produkId} required class="w-full bg-surface-container-low border border-surface-container rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-rose-500 transition-all">
-							<option value="" disabled>Select Cargo...</option>
+						<select name="produk_id" bind:value={produkId} class="w-full bg-surface-container-low border border-surface-container rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-rose-500 transition-all">
+							<option value="">Pilih Produk / Jenis Muatan (Boleh Kosong)</option>
 							{#each products as prod}
 								<option value={prod.id}>{prod.name} ({prod.satuan})</option>
 							{/each}
