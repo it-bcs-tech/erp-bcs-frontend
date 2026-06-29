@@ -1,10 +1,6 @@
 import type { PageServerLoad } from './$types';
 import type { Employee } from '$lib/types/hris';
 import { apiFetch } from '$lib/utils/api';
-import postgres from 'postgres';
-import { env } from '$env/dynamic/private';
-
-const sql = postgres(env.DATABASE_URL || 'postgres://bcs_admin:sangatrahasia@103.31.205.199:5433/mybcs_db');
 
 export const load: PageServerLoad = async ({ cookies, url }) => {
 	const authToken = cookies.get('auth_token');
