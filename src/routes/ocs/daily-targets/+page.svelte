@@ -120,6 +120,8 @@
 	const formatNumber = (num: number) => {
 		return new Intl.NumberFormat('id-ID').format(num || 0);
 	};
+	
+	const currentMonthName = new Intl.DateTimeFormat('id-ID', { month: 'long' }).format(new Date());
 </script>
 
 <svelte:head>
@@ -169,42 +171,59 @@
 					<!-- Center: Progress + Target -->
 					<div class="flex items-center gap-6 flex-wrap">
 						<!-- Progress -->
-						<div class="w-[160px]">
-							<div class="flex justify-between text-[10px] font-bold mb-1">
-								<span class="text-emerald-600">{formatNumber(c.deliveredTonnage)} Ton</span>
-								<span class="text-on-surface-variant">
-									{#if Number(c.targetTonnage) > 0}
-										{formatNumber(c.targetTonnage)} Ton
-									{:else}
-										Dinamis
-									{/if}
-								</span>
-							</div>
+						<div class="w-[180px]">
 							{#if Number(c.targetTonnage) > 0}
-								<div class="h-1.5 w-full bg-surface-container rounded-full overflow-hidden">
+								<!-- Fixed Contract Target -->
+								<div class="flex justify-between text-[10px] font-bold mb-1">
+									<span class="text-emerald-600">{formatNumber(c.deliveredTonnage)} Ton</span>
+									<span class="text-on-surface-variant">{formatNumber(c.targetTonnage)} Ton</span>
+								</div>
+								<div class="h-1.5 w-full bg-surface-container rounded-full overflow-hidden mb-1">
 									<div class="h-full bg-emerald-500 rounded-full" style="width: {Math.min((c.deliveredTonnage/c.targetTonnage)*100, 100)}%"></div>
 								</div>
+								<div class="flex justify-between items-center">
+									<span class="text-[9px] font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200">Total Keseluruhan</span>
+									<span class="text-[9px] font-medium text-on-surface-variant">Sisa: {formatNumber(Math.max(0, c.targetTonnage - c.deliveredTonnage))} T</span>
+								</div>
+							{:else if Number(c.current_month_target) > 0}
+								<!-- Monthly Dynamic Target -->
+								<div class="flex justify-between text-[10px] font-bold mb-1">
+									<span class="text-sky-600">{formatNumber(c.current_month_delivered)} Ton</span>
+									<span class="text-on-surface-variant">{formatNumber(c.current_month_target)} Ton</span>
+								</div>
+								<div class="h-1.5 w-full bg-surface-container rounded-full overflow-hidden mb-1">
+									<div class="h-full bg-sky-500 rounded-full" style="width: {Math.min((c.current_month_delivered/c.current_month_target)*100, 100)}%"></div>
+								</div>
+								<div class="flex justify-between items-center">
+									<span class="text-[9px] font-bold text-sky-700 bg-sky-50 px-1.5 py-0.5 rounded border border-sky-200">Bulan {currentMonthName}</span>
+									<span class="text-[9px] font-medium text-on-surface-variant">Sisa: {formatNumber(Math.max(0, c.current_month_target - c.current_month_delivered))} T</span>
+								</div>
 							{:else}
-								<div class="text-[10px] text-amber-600 bg-amber-50 dark:bg-amber-900/20 px-2 py-0.5 rounded-full inline-block font-medium border border-amber-200 dark:border-amber-900/50">
+								<!-- Not set -->
+								<div class="flex justify-between text-[10px] font-bold mb-1">
+									<span class="text-emerald-600">{formatNumber(c.deliveredTonnage)} Ton</span>
+									<span class="text-on-surface-variant">Belum Set</span>
+								</div>
+								<div class="text-[10px] text-amber-600 bg-amber-50 dark:bg-amber-900/20 px-2 py-0.5 rounded-full inline-block font-medium border border-amber-200 dark:border-amber-900/50 mt-0.5">
 									Berbasis Unit/Borongan
 								</div>
 							{/if}
 						</div>
 
 						<!-- Target -->
-						{#if c.daily_target_tonnage > 0}
+						{#if Number(c.today_target_tonnage) > 0 || Number(c.daily_target_tonnage) > 0}
 							<div class="text-center px-3 py-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-100 dark:border-emerald-900/50">
-								<span class="font-black text-emerald-700 dark:text-emerald-400 text-sm">{formatNumber(c.daily_target_tonnage)} Ton</span>
-								<span class="text-[10px] text-emerald-600 ml-1">{c.daily_target_ritase} Rit/Hari</span>
+								<span class="font-black text-emerald-700 dark:text-emerald-400 text-sm">{formatNumber(c.today_target_tonnage || c.daily_target_tonnage)} Ton</span>
+								<span class="text-[10px] text-emerald-600 ml-1">{c.today_target_ritase || c.daily_target_ritase} Rit/Hari</span>
 							</div>
 						{:else}
-							<span class="text-[10px] text-on-surface-variant italic py-1 px-3 bg-surface-container rounded-full">Belum Diatur</span>
+							<span class="text-[10px] text-on-surface-variant italic py-1 px-3 bg-surface-container rounded-full" title="Kalkulasi target harian (Ton/Hari) belum di-set">Target Harian Belum Diatur</span>
 						{/if}
 
 						<!-- Units -->
-						{#if c.units_needed_per_day > 0}
+						{#if Number(c.today_target_units) > 0 || Number(c.units_needed_per_day) > 0}
 							<div class="text-center">
-								<span class="font-black text-indigo-600 dark:text-indigo-400">{c.units_needed_per_day}</span>
+								<span class="font-black text-indigo-600 dark:text-indigo-400">{c.today_target_units || c.units_needed_per_day}</span>
 								<span class="text-[10px] text-on-surface-variant ml-1">Unit/Hari</span>
 							</div>
 						{/if}

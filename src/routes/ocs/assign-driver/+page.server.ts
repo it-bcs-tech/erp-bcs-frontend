@@ -37,7 +37,11 @@ export const load: PageServerLoad = async () => {
 				EXISTS (
 					SELECT 1 FROM fleet.unit_driver_assignment uda 
 					WHERE uda.unit_id = u.id AND uda.is_aktif = true AND uda.posisi = 'SUPIR_UTAMA'
-				) as has_supir_utama
+				) as has_supir_utama,
+				(
+					SELECT count(*) FROM fleet.unit_driver_assignment uda 
+					WHERE uda.unit_id = u.id AND uda.assignment_status IN ('ACTIVE', 'DISABLED')
+				) as total_assigned_drivers
 			FROM fleet.unit u
 			WHERE u.is_active = true
 			ORDER BY u.nomor_unit ASC
@@ -89,6 +93,17 @@ export const actions: Actions = {
 		
 		if (!unitId || !driverId || !posisi) {
 			return fail(400, { error: 'Unit, Driver, and Position are required' });
+		}
+
+		const totalAssignedData = await sql`
+			SELECT count(*) as total_drivers
+			FROM fleet.unit_driver_assignment
+			WHERE unit_id = ${unitId} AND assignment_status IN ('ACTIVE', 'DISABLED')
+		`;
+		const totalDrivers = Number(totalAssignedData[0]?.total_drivers || 0);
+
+		if (totalDrivers >= 2 && posisi !== 'HELPER') {
+			return fail(400, { error: 'Unit ini sudah memiliki 2 sopir terdaftar (aktif/non-aktif). Sopir tambahan harus berposisi sebagai HELPER.' });
 		}
 
 		if (!isException) {

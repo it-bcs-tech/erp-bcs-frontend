@@ -23,6 +23,20 @@
 			)
 	);
 
+	// Pagination State
+	let currentPage = $state(1);
+	let itemsPerPage = $state(10);
+	let totalPages = $derived(Math.max(1, Math.ceil(filteredAssignments.length / itemsPerPage)));
+	let paginatedAssignments = $derived(
+		filteredAssignments.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
+	);
+
+	$effect(() => {
+		if (tableSearch !== undefined) {
+			currentPage = 1;
+		}
+	});
+
 	// Form State
 	let selectedUnitId = $state('');
 	let selectedDriverId = $state('');
@@ -124,14 +138,14 @@
 					</tr>
 				</thead>
 				<tbody class="divide-y divide-surface-container">
-					{#if filteredAssignments.length === 0}
+					{#if paginatedAssignments.length === 0}
 						<tr>
 							<td colspan="6" class="py-12 text-center text-on-surface-variant text-sm font-medium">
 								Tidak ada data penugasan yang sesuai.
 							</td>
 						</tr>
 					{/if}
-					{#each filteredAssignments as item}
+					{#each paginatedAssignments as item}
 						<tr class="hover:bg-surface-container-low/50 transition-colors group">
 							<td class="py-4 px-6">
 								<div class="flex items-center gap-3">
@@ -196,6 +210,24 @@
 				</tbody>
 			</table>
 		</div>
+		
+		<!-- Pagination -->
+		<div class="px-6 py-4 border-t border-surface-container flex items-center justify-between bg-surface-container-lowest">
+			<p class="text-xs text-on-surface-variant font-medium">Total {filteredAssignments.length} data</p>
+			<div class="flex gap-1">
+				<button class="w-8 h-8 rounded-lg flex items-center justify-center text-on-surface-variant hover:bg-surface-container-high disabled:opacity-50 transition-colors" disabled={currentPage <= 1} onclick={() => currentPage = Math.max(1, currentPage - 1)}>
+					<span class="material-symbols-outlined text-lg">chevron_left</span>
+				</button>
+				{#each Array(totalPages) as _, i}
+					<button class="w-8 h-8 rounded-lg flex items-center justify-center font-bold text-sm transition-colors {currentPage === i + 1 ? 'bg-sky-600 text-white' : 'text-on-surface hover:bg-surface-container-high'}" onclick={() => currentPage = i + 1}>
+						{i + 1}
+					</button>
+				{/each}
+				<button class="w-8 h-8 rounded-lg flex items-center justify-center text-on-surface-variant hover:bg-surface-container-high disabled:opacity-50 transition-colors" disabled={currentPage >= totalPages} onclick={() => currentPage = Math.min(totalPages, currentPage + 1)}>
+					<span class="material-symbols-outlined text-lg">chevron_right</span>
+				</button>
+			</div>
+		</div>
 	</div>
 </div>
 
@@ -228,7 +260,16 @@
 								{#each filteredUnits as u}
 									<!-- svelte-ignore a11y_click_events_have_key_events -->
 									<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
-									<li class="px-4 py-3 text-sm text-on-surface cursor-pointer hover:bg-sky-50 dark:hover:bg-sky-900/30 transition-colors border-b border-surface-container last:border-0" onclick={() => { selectedUnitId = u.id; unitSearch = `${u.nomor_unit} (${u.type})`; showUnitDropdown = false; selectedPosisi = u.has_supir_utama ? 'SUPIR_CADANGAN' : 'SUPIR_UTAMA'; }}>
+									<li class="px-4 py-3 text-sm text-on-surface cursor-pointer hover:bg-sky-50 dark:hover:bg-sky-900/30 transition-colors border-b border-surface-container last:border-0" onclick={() => { 
+										selectedUnitId = u.id; 
+										unitSearch = `${u.nomor_unit} (${u.type})`; 
+										showUnitDropdown = false; 
+										if (u.total_assigned_drivers >= 2) {
+											selectedPosisi = 'HELPER';
+										} else {
+											selectedPosisi = u.has_supir_utama ? 'SUPIR_CADANGAN' : 'SUPIR_UTAMA'; 
+										}
+									}}>
 										<span class="font-bold">{u.nomor_unit}</span> 
 										<span class="text-[10px] bg-surface-container-high px-1.5 py-0.5 rounded ml-1 text-on-surface-variant">{u.type}</span>
 									</li>
@@ -259,12 +300,22 @@
 
 					<div>
 						<label class="block text-xs font-bold text-on-surface-variant mb-2">Posisi Sopir</label>
-						<select name="posisi" bind:value={selectedPosisi} required class="w-full bg-surface-container-low border border-surface-container rounded-xl px-4 py-3 text-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-sky-500/50 appearance-none cursor-pointer">
-							<option value="SUPIR_UTAMA">Supir Utama</option>
-							<option value="SUPIR_CADANGAN">Supir Cadangan</option>
-							<option value="KENEK">Kenek</option>
-							<option value="HELPER">Helper</option>
-						</select>
+						{#if (units.find(u => u.id === selectedUnitId)?.total_assigned_drivers || 0) >= 2}
+							<input type="hidden" name="posisi" value="HELPER" />
+							<select disabled class="w-full bg-surface-container-low border border-surface-container rounded-xl px-4 py-3 text-sm text-on-surface opacity-50 cursor-not-allowed appearance-none">
+								<option value="HELPER">Helper (Sopir Bantuan Sementara)</option>
+							</select>
+							<p class="text-[10px] text-amber-600 dark:text-amber-400 mt-1.5 font-medium leading-relaxed">
+								Unit ini sudah memiliki {units.find(u => u.id === selectedUnitId)?.total_assigned_drivers} sopir terdaftar. Penugasan baru otomatis diarahkan sebagai Helper.
+							</p>
+						{:else}
+							<select name="posisi" bind:value={selectedPosisi} required class="w-full bg-surface-container-low border border-surface-container rounded-xl px-4 py-3 text-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-sky-500/50 appearance-none cursor-pointer">
+								<option value="SUPIR_UTAMA">Supir Utama</option>
+								<option value="SUPIR_CADANGAN">Supir Cadangan</option>
+								<option value="KENEK">Kenek</option>
+								<option value="HELPER">Helper</option>
+							</select>
+						{/if}
 					</div>
 
 					<div>

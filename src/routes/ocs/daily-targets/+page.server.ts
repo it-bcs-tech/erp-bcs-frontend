@@ -25,7 +25,44 @@ export const load: PageServerLoad = async ({ url }) => {
                 c.daily_target_ritase,
                 c.units_needed_per_day,
                 COALESCE(tu.kapasitas_tonase, 35) as master_capacity,
-                tu.nama_tipe as unit_type
+                tu.nama_tipe as unit_type,
+                (
+                    SELECT target_tonnage 
+                    FROM operations.contract_monthly_targets 
+                    WHERE contract_id = c.id 
+                    AND EXTRACT(MONTH FROM target_month) = EXTRACT(MONTH FROM CURRENT_DATE)
+                    AND EXTRACT(YEAR FROM target_month) = EXTRACT(YEAR FROM CURRENT_DATE)
+                    LIMIT 1
+                ) as current_month_target,
+                (
+                    SELECT COALESCE(SUM(o.berat_muatan), 0)
+                    FROM marketing.sales_order o
+                    WHERE o.contract_id = c.id 
+                    AND o.status = 'COMPLETED'
+                    AND EXTRACT(MONTH FROM o.tgl_muat) = EXTRACT(MONTH FROM CURRENT_DATE)
+                    AND EXTRACT(YEAR FROM o.tgl_muat) = EXTRACT(YEAR FROM CURRENT_DATE)
+                ) as current_month_delivered,
+                (
+                    SELECT target_tonnage 
+                    FROM operations.contract_daily_plan 
+                    WHERE contract_id = c.id 
+                    AND plan_date = CURRENT_DATE
+                    LIMIT 1
+                ) as today_target_tonnage,
+                (
+                    SELECT target_ritase 
+                    FROM operations.contract_daily_plan 
+                    WHERE contract_id = c.id 
+                    AND plan_date = CURRENT_DATE
+                    LIMIT 1
+                ) as today_target_ritase,
+                (
+                    SELECT target_units 
+                    FROM operations.contract_daily_plan 
+                    WHERE contract_id = c.id 
+                    AND plan_date = CURRENT_DATE
+                    LIMIT 1
+                ) as today_target_units
             FROM marketing.contract c
             LEFT JOIN master.m_customer cust ON cust.id = c.customer_id
             LEFT JOIN master.m_project p ON p.id = c.project_id
