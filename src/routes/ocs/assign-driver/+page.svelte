@@ -149,7 +149,12 @@
 									<div class="w-8 h-8 rounded-full bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 flex items-center justify-center">
 										<span class="material-symbols-outlined text-[16px]">person</span>
 									</div>
-									<span class="text-sm font-bold text-on-surface">{item.driver_name}</span>
+									<div class="flex flex-col">
+										<span class="text-sm font-bold text-on-surface">{item.driver_name}</span>
+										{#if item.assignment_status === 'DISABLED'}
+											<span class="text-[9px] font-bold text-amber-600 bg-amber-100 dark:bg-amber-900/30 px-1.5 py-0.5 rounded w-fit mt-0.5 uppercase tracking-wider">Nonaktif Sementara</span>
+										{/if}
+									</div>
 								</div>
 							</td>
 							<td class="py-4 px-6">
@@ -161,12 +166,30 @@
 								<span class="text-sm font-medium text-on-surface-variant">{formatDate(item.tgl_mulai)}</span>
 							</td>
 							<td class="py-4 px-6 text-right">
-								<form method="POST" action="?/unassignDriver" use:enhance={() => { return async ({ update }) => { await update(); }; }}>
-									<input type="hidden" name="assignmentId" value={item.assignment_id}>
-									<button type="submit" class="p-2 rounded-lg text-rose-600 hover:bg-rose-100 dark:hover:bg-rose-900/30 transition-colors" title="End Assignment">
-										<span class="material-symbols-outlined text-[20px]">person_remove</span>
-									</button>
-								</form>
+								<div class="flex items-center justify-end gap-1">
+									{#if item.assignment_status === 'ACTIVE'}
+										<form method="POST" action="?/disableDriver" use:enhance={() => { return async ({ update }) => { await update(); }; }}>
+											<input type="hidden" name="assignmentId" value={item.assignment_id}>
+											<button type="submit" class="p-2 rounded-lg text-amber-600 hover:bg-amber-100 dark:hover:bg-amber-900/30 transition-colors" title="Nonaktifkan Sementara (Disable)">
+												<span class="material-symbols-outlined text-[20px]">person_off</span>
+											</button>
+										</form>
+									{:else if item.assignment_status === 'DISABLED'}
+										<form method="POST" action="?/enableDriver" use:enhance={() => { return async ({ update }) => { await update(); }; }}>
+											<input type="hidden" name="assignmentId" value={item.assignment_id}>
+											<button type="submit" class="p-2 rounded-lg text-emerald-600 hover:bg-emerald-100 dark:hover:bg-emerald-900/30 transition-colors" title="Aktifkan Kembali (Enable)">
+												<span class="material-symbols-outlined text-[20px]">how_to_reg</span>
+											</button>
+										</form>
+									{/if}
+
+									<form method="POST" action="?/unassignDriver" use:enhance={() => { return async ({ update }) => { await update(); }; }}>
+										<input type="hidden" name="assignmentId" value={item.assignment_id}>
+										<button type="submit" class="p-2 rounded-lg text-rose-600 hover:bg-rose-100 dark:hover:bg-rose-900/30 transition-colors" title="Pemberhentian Permanen (End Assignment)">
+											<span class="material-symbols-outlined text-[20px]">person_remove</span>
+										</button>
+									</form>
+								</div>
 							</td>
 						</tr>
 					{/each}

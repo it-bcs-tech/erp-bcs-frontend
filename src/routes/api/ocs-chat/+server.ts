@@ -12,7 +12,7 @@ import { env } from '$env/dynamic/private';
 
 // URL Python AI Bridge
 // Di Docker: http://ai-bridge:8000 | Di lokal: http://localhost:8083
-const AI_BRIDGE_URL = env.AI_BRIDGE_URL ?? 'http://localhost:8083';
+const AI_BRIDGE_URL = env.AI_BRIDGE_URL ?? 'http://127.0.0.1:8000';
 
 export const POST: RequestHandler = async ({ request }) => {
 	const body = await request.json();

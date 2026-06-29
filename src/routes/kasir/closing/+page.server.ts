@@ -60,13 +60,14 @@ export const actions: Actions = {
 					SET status = 'COMPLETED',
 						closing_payment_status = 'PAID'
 					WHERE id = ${orderId}
-					RETURNING assigned_unit_id, contract_id, COALESCE(real_weight, berat_muatan, 0) as final_weight
+					RETURNING assigned_unit_id, contract_id, tgl_muat, COALESCE(real_weight, berat_muatan, 0) as final_weight
 				`;
 
 				if (orderData.length > 0) {
 					const unitId = orderData[0].assigned_unit_id;
 					const contractId = orderData[0].contract_id;
 					const finalWeight = orderData[0].final_weight;
+					const tglMuat = orderData[0].tgl_muat;
 
 					// 1.b. Update Contract delivered_tonnage if it's a contract order
 					if (contractId) {
@@ -77,11 +78,13 @@ export const actions: Actions = {
 						`;
 					}
 					
-					// 2. Mark corresponding active Trip as COMPLETED
+					// 2. Mark corresponding active Trip as COMPLETED (match by date to avoid completing wrong active trip)
 					await sql`
 						UPDATE fleet.trip 
-						SET status = 'COMPLETED'
-						WHERE unit_id = ${unitId} AND status NOT IN ('COMPLETED', 'CANCELED')
+						SET status = 'COMPLETED', arrive_time = COALESCE(arrive_time, NOW())
+						WHERE unit_id = ${unitId} 
+						  AND tgl_trip::date = ${tglMuat}::date
+						  AND status NOT IN ('COMPLETED', 'CANCELED')
 					`;
 
 					// 3. Mark Unit state back to AT_POOL

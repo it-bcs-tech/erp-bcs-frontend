@@ -432,24 +432,22 @@ export async function runGeofenceEngine() {
 				}
 
 				if (arrivedAtDestinationPool) {
-					// Update Trip Status
-					await sql`UPDATE fleet.trip SET status = 'COMPLETED', arrive_time = NOW() WHERE id = ${trip.id}`;
-					await sql`INSERT INTO fleet.trip_status_log (trip_id, status) VALUES (${trip.id}, 'COMPLETED')`;
-					await sql`INSERT INTO fleet.trip_checkpoint (trip_id, event, lat, lon, notes) VALUES (${trip.id}, 'COMPLETED', ${gps.lat}, ${gps.lon}, 'Auto-pilot: Tiba di Pool Tujuan (${matchedPoolName})')`;
+					// HANYA update Sales Order ke CLOSING. Kasir yang akan mengubah Trip dan SO menjadi COMPLETED.
+					await sql`INSERT INTO fleet.trip_checkpoint (trip_id, event, lat, lon, notes) VALUES (${trip.id}, 'NOTE', ${gps.lat}, ${gps.lon}, 'Auto-pilot: Tiba di Pool Tujuan (${matchedPoolName}). Menunggu Kasir')`;
 					
-					// Auto Update Sales Order to CLOSING
 					try {
 						await sql`
 							UPDATE marketing.sales_order 
 							SET status = 'CLOSING'
 							WHERE assigned_unit_id = ${trip.unit_id}
+							  AND tgl_muat::date = ${trip.tgl_trip}::date
 							  AND status = 'DISPATCHED'
 						`;
 					} catch (err) {
 						console.error("Auto closing update error:", err);
 					}
 
-					logs.push(`[GEOFENCE-ARRIVE-POOL] Truk ${trip.nomor_unit} tiba di Pool Tujuan (${matchedPoolName}, ${minDistance.toFixed(0)}m). Status -> COMPLETED & CLOSING`);
+					logs.push(`[GEOFENCE-ARRIVE-POOL] Truk ${trip.nomor_unit} tiba di Pool Tujuan (${matchedPoolName}, ${minDistance.toFixed(0)}m). SO -> CLOSING`);
 					updatedCount++;
 				}
 			}
