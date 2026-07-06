@@ -6,46 +6,7 @@
 	<title>Finance Dashboard | Architectural ERP</title>
 </svelte:head>
 
-<div class="flex h-[calc(100vh-64px)] overflow-hidden bg-surface relative">
-	<!-- SideNavBar -->
-	<aside class="w-64 flex-shrink-0 h-full bg-surface-container-low flex flex-col p-4 gap-2 z-40 relative">
-		<!-- Add an subtle gradient overlay to avoid pure 1px border as per guideline -->
-		<div class="absolute inset-y-0 right-0 w-[1px] bg-gradient-to-b from-transparent via-surface-variant/30 to-transparent"></div>
-		
-		<div class="px-4 py-6 mb-2">
-			<div class="flex items-center gap-3">
-				<div class="w-10 h-10 bg-primary rounded-xl flex items-center justify-center text-on-primary shadow-sm">
-					<span class="material-symbols-outlined">account_balance</span>
-				</div>
-				<div>
-					<p class="text-sm font-bold text-primary">Finance</p>
-					<p class="text-[10px] text-on-surface-variant uppercase tracking-widest">Global Overview</p>
-				</div>
-			</div>
-		</div>
-		<nav class="flex-1 space-y-1">
-			<a class="flex items-center gap-3 px-4 py-3 bg-surface-container-highest text-primary rounded-xl shadow-sm transition-transform duration-200 hover:translate-x-1" href="/finance">
-				<span class="material-symbols-outlined">dashboard</span>
-				<span class="font-medium text-sm">Dashboard</span>
-			</a>
-			<a class="flex items-center gap-3 px-4 py-3 text-on-surface-variant hover:bg-surface-container rounded-xl transition-transform duration-200 hover:translate-x-1" href="/finance/invoices">
-				<span class="material-symbols-outlined">receipt_long</span>
-				<span class="font-medium text-sm">Invoices</span>
-			</a>
-			<a class="flex items-center gap-3 px-4 py-3 text-on-surface-variant hover:bg-surface-container rounded-xl transition-transform duration-200 hover:translate-x-1" href="/finance/expenses">
-				<span class="material-symbols-outlined">payments</span>
-				<span class="font-medium text-sm">Expenses</span>
-			</a>
-			<a class="flex items-center gap-3 px-4 py-3 text-on-surface-variant hover:bg-surface-container rounded-xl transition-transform duration-200 hover:translate-x-1" href="/finance/reports">
-				<span class="material-symbols-outlined">analytics</span>
-				<span class="font-medium text-sm">Reports</span>
-			</a>
-		</nav>
-	</aside>
-
-	<!-- Main Content Canvas -->
-	<main class="flex-1 h-full overflow-y-auto p-8 bg-surface">
-		<div class="max-w-7xl mx-auto">
+<div class="max-w-7xl mx-auto p-8">
 			<!-- Header Section -->
 			<header class="mb-10 flex justify-between items-end">
 				<div>
@@ -280,10 +241,3 @@
 				</div>
 			</div>
 		</div>
-	</main>
-
-	<!-- Contextual FAB -->
-	<button class="fixed bottom-8 right-8 w-14 h-14 bg-primary text-on-primary rounded-2xl shadow-xl shadow-primary/20 flex items-center justify-center hover:scale-110 hover:-translate-y-1 transition-all duration-300 z-50 group">
-		<span class="material-symbols-outlined text-2xl group-hover:rotate-12 transition-transform">edit</span>
-	</button>
-</div>

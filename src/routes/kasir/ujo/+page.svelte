@@ -136,7 +136,7 @@
 							<td class="py-4 px-6 text-right">
 								{#if req.paymentStatus === 'UNPAID'}
 									<form method="POST" action="?/payUjo" use:enhance={() => { isSubmitting = true; return async ({ update }) => { await update(); } }}>
-										<input type="hidden" name="orderId" value={req.id}>
+										<input type="hidden" name="orderId" value={req.soId}>
 										<button type="submit" disabled={isSubmitting} class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl shadow-sm transition-colors flex items-center gap-2 justify-end w-full disabled:opacity-50">
 											<span class="material-symbols-outlined text-[16px]">payments</span> Cairkan
 										</button>

@@ -11,26 +11,29 @@ export const load: PageServerLoad = async () => {
 		const settlements = await sql`
 			SELECT 
 				o.id,
+				o.id as "soId",
 				COALESCE(k.nama_karyawan, 'No Driver') as driver,
 				u.nomor_unit as unit,
 				o.jenis_muatan as cargo,
 				o.berat_muatan as "estWeight",
-				o.real_weight as "realWeight",
-				o.estimated_ujo as ujo,
-				o.extra_cost as "extraCost",
-				o.extra_cost_desc as desc,
+				t.actual_weight as "realWeight",
+				ca.estimated_ujo as ujo,
+				ca.extra_cost as "extraCost",
+				ca.extra_cost_desc as desc,
 				ori.nama_kustomer as origin,
 				dest.nama_kustomer as destination,
-				o.closing_payment_status as "paymentStatus",
+				ca.extra_cost_payment_status as "paymentStatus",
 				o.tgl_muat as "loadingDate"
-			FROM marketing.sales_order o
+			FROM finance.cash_advance ca
+			JOIN marketing.sales_order o ON o.id = ca.sales_order_id
+			LEFT JOIN fleet.trip t ON t.unit_id = o.assigned_unit_id AND t.tgl_trip::date = o.tgl_muat::date
 			LEFT JOIN fleet.unit u ON u.id = o.assigned_unit_id
 			LEFT JOIN master.m_drivers d ON d.id = o.assigned_driver_id
 			LEFT JOIN master.m_karyawan k ON k.id = d.karyawan_id
 			LEFT JOIN master.m_customer ori ON ori.id = o.origin_id
 			LEFT JOIN master.m_customer dest ON dest.id = o.destination_id
 			WHERE o.status IN ('CLOSING', 'COMPLETED')
-			ORDER BY CASE WHEN o.closing_payment_status = 'UNPAID' THEN 1 ELSE 2 END, o.created_at ASC
+			ORDER BY CASE WHEN ca.extra_cost_payment_status = 'UNPAID' THEN 1 ELSE 2 END, o.created_at ASC
 		`;
 
 		return {
@@ -57,17 +60,24 @@ export const actions: Actions = {
 				// 1. Mark Sales Order as Completed and Paid
 				const orderData = await sql`
 					UPDATE marketing.sales_order 
-					SET status = 'COMPLETED',
-						closing_payment_status = 'PAID'
+					SET status = 'COMPLETED'
 					WHERE id = ${orderId}
-					RETURNING assigned_unit_id, contract_id, tgl_muat, COALESCE(real_weight, berat_muatan, 0) as final_weight
+					RETURNING assigned_unit_id, contract_id, tgl_muat, berat_muatan
+				`;
+
+				await sql`
+					UPDATE finance.cash_advance
+					SET extra_cost_payment_status = 'PAID'
+					WHERE sales_order_id = ${orderId}
 				`;
 
 				if (orderData.length > 0) {
 					const unitId = orderData[0].assigned_unit_id;
 					const contractId = orderData[0].contract_id;
-					const finalWeight = orderData[0].final_weight;
 					const tglMuat = orderData[0].tgl_muat;
+
+					const tripRes = await sql`SELECT actual_weight FROM fleet.trip WHERE unit_id = ${unitId} AND tgl_trip::date = ${tglMuat}::date LIMIT 1`;
+					const finalWeight = tripRes.length > 0 && tripRes[0].actual_weight ? tripRes[0].actual_weight : orderData[0].berat_muatan;
 
 					// 1.b. Update Contract delivered_tonnage if it's a contract order
 					if (contractId) {

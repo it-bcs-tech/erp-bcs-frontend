@@ -1,0 +1,239 @@
+<script lang="ts">
+	import { enhance } from '$app/forms';
+	import SearchableSelect from '$lib/components/SearchableSelect.svelte';
+	
+	let { data } = $props();
+
+	// Format Dropdown Options
+	const vendorOpts = data.vendors.map((v: any) => ({ value: v.id, label: v.name }));
+	const accountOpts = data.accounts.map((a: any) => ({ value: a.id, label: `${a.code} - ${a.name}` }));
+	const taxOpts = data.taxes.map((t: any) => ({ value: t.id, label: `${t.name} (${t.rate}%)`, rate: Number(t.rate) }));
+
+	let formState = $state({
+		partner_id: '',
+		date: new Date().toISOString().split('T')[0],
+		due_date: new Date(new Date().setDate(new Date().getDate() + 30)).toISOString().split('T')[0],
+		reference: '',
+		notes: '',
+		action: 'DRAFT', // or POSTED
+		items: [
+			{ id: crypto.randomUUID(), account_id: '', description: '', qty: 1, price: 0, tax_id: '', tax_amount: 0, total: 0 }
+		]
+	});
+
+	// Totals
+	let subtotal = $derived(formState.items.reduce((sum, item) => sum + (item.qty * item.price), 0));
+	let taxAmount = $derived(formState.items.reduce((sum, item) => sum + item.tax_amount, 0));
+	let grandTotal = $derived(subtotal + taxAmount);
+
+	// Update Line Total
+	function updateLine(index: number) {
+		const item = formState.items[index];
+		const baseTotal = item.qty * item.price;
+		
+		let lineTax = 0;
+		if (item.tax_id) {
+			const tax = taxOpts.find(t => t.value === item.tax_id);
+			if (tax) {
+				lineTax = baseTotal * (tax.rate / 100);
+			}
+		}
+		
+		item.tax_amount = lineTax;
+		item.total = baseTotal + lineTax;
+	}
+
+	function addItem() {
+		formState.items.push({ id: crypto.randomUUID(), account_id: '', description: '', qty: 1, price: 0, tax_id: '', tax_amount: 0, total: 0 });
+	}
+
+	function removeItem(index: number) {
+		if (formState.items.length > 1) {
+			formState.items.splice(index, 1);
+		}
+	}
+
+	const formatCurrency = (val: number) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(val);
+</script>
+
+<svelte:head>
+	<title>Create Vendor Bill | Finance ERP</title>
+</svelte:head>
+
+<div class="w-full px-4 sm:px-6 lg:px-8 py-6">
+	<!-- Header -->
+	<header class="mb-8 flex justify-between items-end">
+		<div>
+			<a href="/finance/vendor-bills" class="text-sm text-primary hover:underline font-bold mb-2 inline-flex items-center gap-1">
+				<span class="material-symbols-outlined text-[16px]">arrow_back</span> Back to Vendor Bills
+			</a>
+			<h1 class="text-3xl font-extrabold text-on-surface tracking-tight mt-1">Buat Tagihan Vendor</h1>
+			<p class="text-on-surface-variant font-medium text-sm mt-1">Rekam tagihan masuk dari supplier/vendor secara manual.</p>
+		</div>
+		<div class="flex gap-3">
+			<button onclick={() => history.back()} class="bg-surface-container-highest text-on-surface px-5 py-2.5 rounded-xl text-sm font-bold flex items-center gap-2 shadow-sm hover:opacity-90 transition-opacity">
+				Batal
+			</button>
+			<form method="POST" action="?/saveBill" use:enhance={() => {
+				formState.action = 'DRAFT';
+				let btn = document.getElementById('btnSaveDraft');
+				if(btn) { btn.innerHTML = 'Menyimpan...'; (btn as HTMLButtonElement).disabled = true; }
+				return async ({ result }) => {
+					if (result.type === 'success' && result.data?.success) {
+						alert(result.data.message);
+						window.location.href = '/finance/vendor-bills';
+					} else {
+						alert(result.data?.message || 'Error occurred');
+					}
+					if(btn) { btn.innerHTML = '<span class="material-symbols-outlined text-lg">save</span> Simpan Draft'; (btn as HTMLButtonElement).disabled = false; }
+				};
+			}}>
+				<input type="hidden" name="payload" value={JSON.stringify({ ...formState, subtotal, tax_amount: taxAmount, total_amount: grandTotal })} />
+				<button id="btnSaveDraft" type="submit" disabled={!formState.partner_id} class="bg-surface-container-high text-on-surface px-5 py-2.5 rounded-xl text-sm font-bold flex items-center gap-2 shadow-sm hover:opacity-90 transition-opacity disabled:opacity-50">
+					<span class="material-symbols-outlined text-lg">save</span> Simpan Draft
+				</button>
+			</form>
+			<form method="POST" action="?/saveBill" use:enhance={() => {
+				const confirmPost = confirm("Apakah Anda yakin ingin mem-POST tagihan ini? Data tidak akan bisa dihapus setelah diposting.");
+				if (!confirmPost) return ({ cancel }) => cancel();
+
+				formState.action = 'POSTED';
+				let btn = document.getElementById('btnPost');
+				if(btn) { btn.innerHTML = 'Memproses...'; (btn as HTMLButtonElement).disabled = true; }
+				return async ({ result }) => {
+					if (result.type === 'success' && result.data?.success) {
+						alert(result.data.message);
+						window.location.href = '/finance/vendor-bills';
+					} else {
+						alert(result.data?.message || 'Error occurred');
+					}
+					if(btn) { btn.innerHTML = '<span class="material-symbols-outlined text-lg">check_circle</span> Confirm & Post'; (btn as HTMLButtonElement).disabled = false; }
+				};
+			}}>
+				<input type="hidden" name="payload" value={JSON.stringify({ ...formState, subtotal, tax_amount: taxAmount, total_amount: grandTotal })} />
+				<button id="btnPost" type="submit" disabled={!formState.partner_id} class="bg-primary text-on-primary px-5 py-2.5 rounded-xl text-sm font-bold flex items-center gap-2 shadow-sm hover:opacity-90 transition-opacity disabled:opacity-50">
+					<span class="material-symbols-outlined text-lg">check_circle</span> Confirm & Post
+				</button>
+			</form>
+		</div>
+	</header>
+
+	<div class="space-y-6">
+		<!-- Header Form -->
+		<div class="bg-surface-container-lowest rounded-3xl p-8 shadow-sm border border-surface-variant/20">
+			<div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+				<div class="space-y-5">
+					<div>
+						<label class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-1">Vendor <span class="text-error">*</span></label>
+						<SearchableSelect options={vendorOpts} bind:value={formState.partner_id} placeholder="-- Pilih Vendor --" />
+					</div>
+					<div>
+						<label class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-1">Catatan</label>
+						<textarea bind:value={formState.notes} rows="2" class="w-full bg-surface-container rounded-xl px-4 py-2.5 text-sm font-medium border-none focus:ring-2 focus:ring-primary outline-none" placeholder="Opsional..."></textarea>
+					</div>
+				</div>
+				<div class="space-y-5">
+					<div class="grid grid-cols-2 gap-4">
+						<div>
+							<label class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-1">Tanggal Tagihan</label>
+							<input type="date" bind:value={formState.date} class="w-full bg-surface-container rounded-xl px-4 py-2.5 text-sm font-medium border-none focus:ring-2 focus:ring-primary outline-none" />
+						</div>
+						<div>
+							<label class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-1">Jatuh Tempo</label>
+							<input type="date" bind:value={formState.due_date} class="w-full bg-surface-container rounded-xl px-4 py-2.5 text-sm font-medium border-none focus:ring-2 focus:ring-primary outline-none" />
+						</div>
+					</div>
+					<div>
+						<label class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-1">Referensi / No. Surat Jalan Vendor</label>
+						<input type="text" bind:value={formState.reference} class="w-full bg-surface-container rounded-xl px-4 py-2.5 text-sm font-medium border-none focus:ring-2 focus:ring-primary outline-none" placeholder="Misal: INV-2026/001" />
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<!-- Lines Form -->
+		<div class="bg-surface-container-lowest rounded-3xl shadow-sm border border-surface-variant/20 overflow-hidden flex flex-col">
+			<div class="p-6 border-b border-surface-container flex justify-between items-center bg-surface-container-low/30">
+				<h2 class="text-lg font-bold text-secondary flex items-center gap-2">
+					<span class="material-symbols-outlined">receipt_long</span> Rincian Biaya
+				</h2>
+			</div>
+			
+			<div class="overflow-x-auto">
+				<table class="w-full text-left">
+					<thead class="bg-surface-container-low/50 border-b border-surface-container text-xs font-black uppercase text-on-surface-variant tracking-wider">
+						<tr>
+							<th class="p-4 w-12 text-center">No</th>
+							<th class="p-4 w-64">Akun Biaya (Expense)</th>
+							<th class="p-4 min-w-[200px]">Deskripsi</th>
+							<th class="p-4 w-24">Qty</th>
+							<th class="p-4 w-40">Harga Satuan</th>
+							<th class="p-4 w-40">Pajak</th>
+							<th class="p-4 w-32 text-right">Total</th>
+							<th class="p-4 w-12"></th>
+						</tr>
+					</thead>
+					<tbody class="divide-y divide-surface-container">
+						{#each formState.items as item, i}
+							<tr class="hover:bg-surface-container-low/20 transition-colors">
+								<td class="p-4 text-center font-bold text-on-surface-variant">{i + 1}</td>
+								<td class="p-4">
+									<SearchableSelect options={accountOpts} bind:value={item.account_id} placeholder="- Akun -" />
+								</td>
+								<td class="p-4">
+									<input type="text" bind:value={item.description} class="w-full bg-surface-container rounded-lg px-3 py-2 text-sm font-medium border-none focus:ring-2 focus:ring-primary outline-none" placeholder="Nama Biaya/Barang" />
+								</td>
+								<td class="p-4">
+									<input type="number" bind:value={item.qty} oninput={() => updateLine(i)} class="w-full bg-surface-container rounded-lg px-3 py-2 text-sm font-medium border-none focus:ring-2 focus:ring-primary outline-none text-center" min="1" step="0.01" />
+								</td>
+								<td class="p-4">
+									<input type="number" bind:value={item.price} oninput={() => updateLine(i)} class="w-full bg-surface-container rounded-lg px-3 py-2 text-sm font-medium border-none focus:ring-2 focus:ring-primary outline-none text-right" min="0" />
+								</td>
+								<td class="p-4">
+									<select bind:value={item.tax_id} onchange={() => updateLine(i)} class="w-full bg-surface-container rounded-lg px-3 py-2 text-sm font-medium border-none focus:ring-2 focus:ring-primary outline-none">
+										<option value="">-- No Tax --</option>
+										{#each taxOpts as t}
+											<option value={t.value}>{t.label}</option>
+										{/each}
+									</select>
+								</td>
+								<td class="p-4 text-right font-black text-on-surface">
+									{formatCurrency(item.total)}
+								</td>
+								<td class="p-4 text-center">
+									<button type="button" onclick={() => removeItem(i)} disabled={formState.items.length === 1} class="w-8 h-8 rounded-full bg-surface-container hover:bg-rose-100 hover:text-rose-700 flex items-center justify-center transition-colors disabled:opacity-30">
+										<span class="material-symbols-outlined text-[18px]">delete</span>
+									</button>
+								</td>
+							</tr>
+						{/each}
+					</tbody>
+				</table>
+			</div>
+			
+			<div class="p-4 border-t border-surface-container bg-surface-container-lowest">
+				<button type="button" onclick={addItem} class="text-sm font-bold text-primary hover:bg-primary/10 px-4 py-2 rounded-xl transition-colors inline-flex items-center gap-1">
+					<span class="material-symbols-outlined text-[18px]">add_circle</span> Tambah Baris
+				</button>
+			</div>
+		</div>
+
+		<!-- Summary & Totals -->
+		<div class="flex justify-end">
+			<div class="w-full max-w-md bg-surface-container-lowest rounded-3xl p-8 shadow-sm border border-surface-variant/20 space-y-4">
+				<div class="flex justify-between items-center text-on-surface-variant font-medium">
+					<span>Subtotal</span>
+					<span class="font-bold text-on-surface">{formatCurrency(subtotal)}</span>
+				</div>
+				<div class="flex justify-between items-center text-on-surface-variant font-medium">
+					<span>Pajak (Tax)</span>
+					<span class="font-bold text-on-surface">{formatCurrency(taxAmount)}</span>
+				</div>
+				<div class="pt-4 border-t border-surface-container flex justify-between items-center">
+					<span class="text-lg font-black text-on-surface">Total Tagihan</span>
+					<span class="text-2xl font-black text-primary">{formatCurrency(grandTotal)}</span>
+				</div>
+			</div>
+		</div>
+	</div>
+</div>

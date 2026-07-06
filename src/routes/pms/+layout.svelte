@@ -59,8 +59,22 @@
 				<span class="font-medium text-sm">Delivery Notes</span>
 			</a>
 
+			<!-- Section: Purchasing / Procurement -->
+			<div class="pt-3 pb-1 px-4 mt-2">
+				<p class="text-[9px] font-black text-on-surface-variant/50 uppercase tracking-[0.2em]">Purchasing</p>
+			</div>
+			
+			<a class="flex items-center gap-3 px-4 py-3 rounded-xl transition-transform duration-200 hover:translate-x-1 {$page.url.pathname.includes('/pms/purchasing/requests') ? 'bg-surface-container-highest text-amber-600 dark:text-amber-400' : 'text-on-surface-variant hover:bg-surface-container'}" href="/pms/purchasing/requests">
+				<span class="material-symbols-outlined">assignment_add</span>
+				<span class="font-medium text-sm">Purchase Request</span>
+			</a>
+			<a class="flex items-center gap-3 px-4 py-3 rounded-xl transition-transform duration-200 hover:translate-x-1 {$page.url.pathname.includes('/pms/purchasing/orders') ? 'bg-surface-container-highest text-amber-600 dark:text-amber-400' : 'text-on-surface-variant hover:bg-surface-container'}" href="/pms/purchasing/orders">
+				<span class="material-symbols-outlined">shopping_cart</span>
+				<span class="font-medium text-sm">Purchase Order</span>
+			</a>
+
 			<!-- Section: Maintenance Schedules -->
-			<div class="pt-3 pb-1 px-4">
+			<div class="pt-3 pb-1 px-4 mt-2">
 				<p class="text-[9px] font-black text-on-surface-variant/50 uppercase tracking-[0.2em]">Jadwal Perawatan</p>
 			</div>
 

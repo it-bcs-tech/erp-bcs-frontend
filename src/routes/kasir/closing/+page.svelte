@@ -120,7 +120,7 @@
 							<td class="py-4 px-6 text-right">
 								{#if item.paymentStatus === 'UNPAID'}
 									<form method="POST" action="?/settleClosing" use:enhance={() => { isSubmitting = true; return async ({ update }) => { await update(); } }}>
-										<input type="hidden" name="orderId" value={item.id}>
+										<input type="hidden" name="orderId" value={item.soId}>
 										<button type="submit" disabled={isSubmitting} class="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold rounded-xl shadow-sm transition-colors flex items-center gap-2 justify-end w-full disabled:opacity-50">
 											<span class="material-symbols-outlined text-[16px]">check_circle</span> Selesaikan Order
 										</button>

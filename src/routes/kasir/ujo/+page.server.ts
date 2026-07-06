@@ -10,26 +10,28 @@ export const load: PageServerLoad = async () => {
 		// Get Unpaid UJO Orders
 		const ujoRequests = await sql`
 			SELECT 
-				o.id,
+				ca.id,
+				o.id as "soId",
 				COALESCE(k.nama_karyawan, 'No Driver') as driver,
 				d.karyawan_id,
 				u.nomor_unit as unit,
-				o.estimated_ujo as amount,
-				o.ujo_makan as "ujoMakan",
-				o.ujo_tol as "ujoTol",
+				ca.estimated_ujo as amount,
+				ca.ujo_makan as "ujoMakan",
+				ca.ujo_tol as "ujoTol",
 				ori.nama_kustomer as origin,
 				dest.nama_kustomer as destination,
 				o.status,
-				o.ujo_payment_status as "paymentStatus",
+				ca.payment_status as "paymentStatus",
 				o.tgl_muat as "loadingDate"
-			FROM marketing.sales_order o
-			LEFT JOIN fleet.unit u ON u.id = o.assigned_unit_id
-			LEFT JOIN master.m_drivers d ON d.id = o.assigned_driver_id
+			FROM finance.cash_advance ca
+			JOIN marketing.sales_order o ON o.id = ca.sales_order_id
+			LEFT JOIN fleet.unit u ON u.id = ca.unit_id
+			LEFT JOIN master.m_drivers d ON d.id = ca.driver_id
 			LEFT JOIN master.m_karyawan k ON k.id = d.karyawan_id
 			LEFT JOIN master.m_customer ori ON ori.id = o.origin_id
 			LEFT JOIN master.m_customer dest ON dest.id = o.destination_id
 			WHERE o.status IN ('READY_TO_DISPATCH', 'DISPATCHED', 'CLOSING', 'COMPLETED')
-			ORDER BY CASE WHEN o.ujo_payment_status = 'UNPAID' THEN 1 ELSE 2 END, o.created_at ASC
+			ORDER BY CASE WHEN ca.payment_status = 'UNPAID' THEN 1 ELSE 2 END, ca.created_at ASC
 		`;
 
 		// Mock Contract UJO Requests (PO)
@@ -71,9 +73,9 @@ export const actions: Actions = {
 			await sql.begin(async (sql) => {
 				// 1. Mark UJO as Paid
 				await sql`
-					UPDATE marketing.sales_order 
-					SET ujo_payment_status = 'PAID'
-					WHERE id = ${orderId}
+					UPDATE finance.cash_advance 
+					SET payment_status = 'PAID'
+					WHERE sales_order_id = ${orderId}
 				`;
 
 				// 2. Fetch the order details to see if it needs auto-dispatching
@@ -96,59 +98,75 @@ export const actions: Actions = {
 
 						let tripId;
 						
-						// Try to find an existing SCHEDULED trip for this unit & date
-						const scheduledTrips = await sql`
-							SELECT id FROM fleet.trip 
-							WHERE unit_id = ${order.assigned_unit_id} 
-							  AND tgl_trip::date = ${order.tgl_muat} 
-							  AND status = 'SCHEDULED'
+						// Get the exact trip_id linked to this order from cash_advance
+						const caData = await sql`
+							SELECT trip_id FROM finance.cash_advance 
+							WHERE sales_order_id = ${orderId} 
 							LIMIT 1
 						`;
 
-						if (scheduledTrips.length > 0) {
-							// Update existing trip
-							tripId = scheduledTrips[0].id;
+						if (caData.length > 0 && caData[0].trip_id) {
+							// Update exact existing trip
+							tripId = caData[0].trip_id;
 							await sql`
 								UPDATE fleet.trip 
 								SET status = 'DISPATCHED' 
 								WHERE id = ${tripId}
 							`;
 						} else {
-							// Legacy / Fallback: Create new Trip
-							const stNumber = 'ST-' + Date.now().toString().slice(-8);
-							const tripResult = await sql`
-								INSERT INTO fleet.trip (
-									no_surat_tugas,
-									tgl_trip,
-									unit_id,
-									driver_id,
-									customer,
-									origin_id,
-									destination_id,
-									origin,
-									destination,
-									cargo,
-									status,
-									created_by,
-									pool_tujuan_id
-								) VALUES (
-									${stNumber},
-									${order.tgl_muat},
-									${order.assigned_unit_id},
-									${order.assigned_driver_id},
-									(SELECT nama_kustomer FROM master.m_customer WHERE id = ${order.customer_id}),
-									${order.origin_id},
-									${order.destination_id},
-									(SELECT nama_kustomer FROM master.m_customer WHERE id = ${order.origin_id}),
-									(SELECT nama_kustomer FROM master.m_customer WHERE id = ${order.destination_id}),
-									${order.jenis_muatan},
-									'DISPATCHED',
-									'Kasir System (Auto)',
-									'ded65e49-e477-47a1-aee8-a373a2485bba' -- Default ke Pool Cilegon
-								)
-								RETURNING id
+							// Fallback: Try to find an existing SCHEDULED trip by date
+							const scheduledTrips = await sql`
+								SELECT id FROM fleet.trip 
+								WHERE unit_id = ${order.assigned_unit_id} 
+								  AND tgl_trip::date = ${order.tgl_muat}::date
+								  AND status = 'SCHEDULED'
+								LIMIT 1
 							`;
-							tripId = tripResult[0].id;
+
+							if (scheduledTrips.length > 0) {
+								tripId = scheduledTrips[0].id;
+								await sql`
+									UPDATE fleet.trip 
+									SET status = 'DISPATCHED' 
+									WHERE id = ${tripId}
+								`;
+							} else {
+								// Legacy / Fallback: Create new Trip
+								const stNumber = 'ST-' + Date.now().toString().slice(-8);
+								const tripResult = await sql`
+									INSERT INTO fleet.trip (
+										no_surat_tugas,
+										tgl_trip,
+										unit_id,
+										driver_id,
+										customer,
+										origin_id,
+										destination_id,
+										origin,
+										destination,
+										cargo,
+										status,
+										created_by,
+										pool_tujuan_id
+									) VALUES (
+										${stNumber},
+										${order.tgl_muat},
+										${order.assigned_unit_id},
+										${order.assigned_driver_id},
+										(SELECT nama_kustomer FROM master.m_customer WHERE id = ${order.customer_id}),
+										${order.origin_id},
+										${order.destination_id},
+										(SELECT nama_kustomer FROM master.m_customer WHERE id = ${order.origin_id}),
+										(SELECT nama_kustomer FROM master.m_customer WHERE id = ${order.destination_id}),
+										${order.jenis_muatan},
+										'DISPATCHED',
+										'Kasir System (Auto)',
+										'ded65e49-e477-47a1-aee8-a373a2485bba' -- Default ke Pool Cilegon
+									)
+									RETURNING id
+								`;
+								tripId = tripResult[0].id;
+							}
 						}
 
 						// Tambahkan log checkpoint awal

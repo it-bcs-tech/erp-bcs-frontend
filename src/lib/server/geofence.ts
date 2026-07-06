@@ -58,7 +58,8 @@ export async function runGeofenceEngine() {
 				t.current_stop_lat,
 				t.current_stop_lon,
 				t.current_stop_start_time,
-				t.pool_tujuan_id
+				t.pool_tujuan_id,
+				t.tgl_trip
 			FROM fleet.trip t
 			JOIN fleet.unit u ON u.id = t.unit_id
 			LEFT JOIN master.m_customer o ON o.id = t.origin_id
@@ -433,7 +434,8 @@ export async function runGeofenceEngine() {
 
 				if (arrivedAtDestinationPool) {
 					// HANYA update Sales Order ke CLOSING. Kasir yang akan mengubah Trip dan SO menjadi COMPLETED.
-					await sql`INSERT INTO fleet.trip_checkpoint (trip_id, event, lat, lon, notes) VALUES (${trip.id}, 'NOTE', ${gps.lat}, ${gps.lon}, 'Auto-pilot: Tiba di Pool Tujuan (${matchedPoolName}). Menunggu Kasir')`;
+					const noteMsg = `Auto-pilot: Tiba di Pool Tujuan (${matchedPoolName}). Menunggu Kasir`;
+					await sql`INSERT INTO fleet.trip_checkpoint (trip_id, event, lat, lon, notes) VALUES (${trip.id}, 'NOTE', ${gps.lat}, ${gps.lon}, ${noteMsg})`;
 					
 					try {
 						await sql`

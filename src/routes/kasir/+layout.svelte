@@ -38,6 +38,10 @@
 				<span class="material-symbols-outlined">assignment_turned_in</span>
 				<span class="font-medium text-sm">Closing Settlement</span>
 			</a>
+			<a class="flex items-center gap-3 px-4 py-3 rounded-xl transition-transform duration-200 hover:translate-x-1 {$page.url.pathname.includes('/kasir/surat-jalan') ? 'bg-surface-container-highest text-emerald-600 dark:text-emerald-400' : 'text-on-surface-variant hover:bg-surface-container'}" href="/kasir/surat-jalan">
+				<span class="material-symbols-outlined">edit_document</span>
+				<span class="font-medium text-sm">Surat Jalan (DN)</span>
+			</a>
 
 			<div class="pt-3 pb-1 px-4">
 				<p class="text-[9px] font-black text-on-surface-variant/50 uppercase tracking-[0.2em]">Keuangan (Coming Soon)</p>

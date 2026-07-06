@@ -30,7 +30,7 @@ export const load: PageServerLoad = async () => {
                 END AS "targetTonnage",
                 CASE 
                     WHEN c.target_tonnage > 0 THEN COALESCE(c.delivered_tonnage, 0)
-                    ELSE COALESCE((SELECT SUM(COALESCE(o.real_weight, o.berat_muatan)) FROM marketing.sales_order o WHERE o.contract_id = c.id AND o.status = 'COMPLETED' AND date_trunc('month', o.tgl_muat) = date_trunc('month', CURRENT_DATE)), 0)
+                    ELSE COALESCE((SELECT SUM(COALESCE(t.actual_weight, o.berat_muatan)) FROM marketing.sales_order o LEFT JOIN fleet.trip t ON t.unit_id = o.assigned_unit_id AND t.tgl_trip::date = o.tgl_muat::date WHERE o.contract_id = c.id AND o.status = 'COMPLETED' AND date_trunc('month', o.tgl_muat) = date_trunc('month', CURRENT_DATE)), 0)
                 END + 
                 (SELECT COALESCE(SUM(o.berat_muatan), 0) FROM marketing.sales_order o JOIN fleet.trip t ON t.unit_id = o.assigned_unit_id AND t.tgl_trip::date = o.tgl_muat::date AND t.status NOT IN ('COMPLETED', 'CANCELED') WHERE o.contract_id = c.id AND t.status = 'RETURNING' AND (c.target_tonnage > 0 OR date_trunc('month', o.tgl_muat) = date_trunc('month', CURRENT_DATE))) as "deliveredTonnage",
                 (SELECT COALESCE(SUM(o.berat_muatan), 0) FROM marketing.sales_order o LEFT JOIN fleet.trip t ON t.unit_id = o.assigned_unit_id AND t.tgl_trip::date = o.tgl_muat::date AND t.status NOT IN ('COMPLETED', 'CANCELED') WHERE o.contract_id = c.id AND o.status NOT IN ('COMPLETED', 'CANCELED') AND (t.id IS NULL OR t.status IN ('SCHEDULED', 'DISPATCHED')) AND (c.target_tonnage > 0 OR date_trunc('month', o.tgl_muat) = date_trunc('month', CURRENT_DATE))) as "dispatchedTonnage",

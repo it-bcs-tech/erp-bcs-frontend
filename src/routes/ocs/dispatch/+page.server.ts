@@ -17,9 +17,9 @@ export const load: PageServerLoad = async () => {
 				o.jenis_muatan as cargo,
 				o.berat_muatan as weight,
 				o.tgl_muat as "loadingDate",
-				o.estimated_ujo as "estimatedUjo",
-				o.ujo_makan as "ujoMakan",
-				o.ujo_tol as "ujoTol",
+				ca.estimated_ujo as "estimatedUjo",
+				ca.ujo_makan as "ujoMakan",
+				ca.ujo_tol as "ujoTol",
 				u.nomor_unit as "assignedUnit",
 				k.nama_karyawan as "assignedDriver",
 				o.status,
@@ -36,6 +36,7 @@ export const load: PageServerLoad = async () => {
 			LEFT JOIN fleet.unit u ON u.id = o.assigned_unit_id
 			LEFT JOIN master.m_drivers d ON d.id = o.assigned_driver_id
 			LEFT JOIN master.m_karyawan k ON k.id = d.karyawan_id
+			LEFT JOIN finance.cash_advance ca ON ca.sales_order_id = o.id
 			WHERE o.status NOT IN ('COMPLETED', 'CANCELED')
 			ORDER BY o.created_at DESC
 		`;
@@ -202,11 +203,28 @@ export const actions: Actions = {
 	createDoFromPo: async ({ request }) => {
 		const data = await request.formData();
 		const contractId = data.get('contractId') as string;
-		const unitId = data.get('unitId') as string;
-		const driverId = data.get('driverId') as string;
 		const cargoName = data.get('cargoName') as string || null;
+		const loadingDate = data.get('loadingDate') as string || null;
+		const unloadingDate = data.get('unloadingDate') as string || null;
 		
-		if (!contractId || !unitId || !driverId) {
+		const unitIdsRaw = data.get('unitIds') as string;
+		let assignments: { unitId: string, driverId: string }[] = [];
+
+		if (unitIdsRaw) {
+			try {
+				const parsed = JSON.parse(unitIdsRaw);
+				assignments = parsed.map((p: string) => ({
+					unitId: p.split('|')[0],
+					driverId: p.split('|')[1] || ''
+				}));
+			} catch(e) {}
+		} else {
+			const unitId = data.get('unitId') as string;
+			const driverId = data.get('driverId') as string;
+			if (unitId && driverId) assignments.push({ unitId, driverId });
+		}
+
+		if (!contractId || assignments.length === 0) {
 			return fail(400, { message: 'Data unit/driver tidak lengkap.' });
 		}
 
@@ -236,28 +254,8 @@ export const actions: Actions = {
 				if (contractData.length === 0) throw new Error('Kontrak tidak ditemukan.');
 				const contract = contractData[0];
 
-				// Get Unit Capacity and Tipe Unit ID
-				const unitDataResult = await sql`
-					SELECT u.id, mu.tipe_unit_id
-					FROM fleet.unit u
-					LEFT JOIN master.m_model_unit mu ON mu.id = u.model_unit_id
-					WHERE u.id = ${unitId}
-				`;
-				if (unitDataResult.length === 0) throw new Error('Unit tidak valid.');
-				const unitData = unitDataResult[0];
-				
-				const realCapacity = 30; // Default capacity as DB doesn't have it
-				const totalRit = contract.target_tonnage > 0 ? Math.ceil(contract.target_tonnage / realCapacity) : 1;
-				
-				// Re-calculate UJO if it falls back to percentage
-				let finalEstimatedUjo = contract.fixed_ujo || 0;
-				let finalTariff = contract.target_tonnage > 0 ? contract.contract_value / totalRit : 0; // Tariff is exact per trip, or 0 for borongan
-				
 				// We need to know if we used MRU.
 				const mruCheck = await sql`SELECT master_rute_id FROM marketing.contract WHERE id = ${contractId}`;
-				if (!mruCheck[0].master_rute_id && contract.target_tonnage > 0) {
-					finalEstimatedUjo = finalTariff * (contract.max_ujo_percentage / 100);
-				}
 
 				// Check coordinates to prevent dispatching un-geocoded contracts
 				const coordinateCheck = await sql`
@@ -271,69 +269,101 @@ export const actions: Actions = {
 					}
 				}
 
-				const doId = `DO-PO-${Date.now().toString().slice(-6)}`;
-				const finalCargo = cargoName || contract.jenis_muatan || 'Muatan Borongan';
+				for (const assignment of assignments) {
+					// Get Unit Capacity and Tipe Unit ID
+					const unitDataResult = await sql`
+						SELECT u.id, mu.tipe_unit_id
+						FROM fleet.unit u
+						LEFT JOIN master.m_model_unit mu ON mu.id = u.model_unit_id
+						WHERE u.id = ${assignment.unitId}
+					`;
+					if (unitDataResult.length === 0) throw new Error(`Unit ${assignment.unitId} tidak valid.`);
+					const unitData = unitDataResult[0];
+					
+					const realCapacity = 30; // Default capacity as DB doesn't have it
+					const totalRit = contract.target_tonnage > 0 ? Math.ceil(contract.target_tonnage / realCapacity) : 1;
+					
+					// Re-calculate UJO if it falls back to percentage
+					let finalEstimatedUjo = contract.fixed_ujo || 0;
+					let finalTariff = contract.target_tonnage > 0 ? contract.contract_value / totalRit : 0; // Tariff is exact per trip, or 0 for borongan
+					
+					if (!mruCheck[0].master_rute_id && contract.target_tonnage > 0) {
+						finalEstimatedUjo = finalTariff * (contract.max_ujo_percentage / 100);
+					}
 
-				await sql`
-					INSERT INTO marketing.sales_order (
-						id, contract_id, customer_id, origin_id, destination_id,
-						tipe_unit_id, jenis_muatan, berat_muatan, tgl_muat, estimated_ujo, 
-						ujo_tol, ujo_makan, tariff,
-						assigned_unit_id, assigned_driver_id, status, ujo_payment_status
-					) VALUES (
-						${doId}, ${contractId}, ${contract.customer_id}, ${contract.final_origin_id}, ${contract.final_dest_id},
-						${unitData.tipe_unit_id}, ${finalCargo}, ${realCapacity}, CURRENT_DATE, ${finalEstimatedUjo}, 
-						${contract.ujo_tol}, ${contract.ujo_makan}, ${finalTariff},
-						${unitId}, ${driverId}, 'READY_TO_DISPATCH', 'UNPAID'
-					)
-				`;
+					const doId = `DO-PO-${Date.now().toString().slice(-6)}-${Math.floor(Math.random() * 1000)}`;
+					const finalCargo = cargoName || contract.jenis_muatan || 'Muatan Borongan';
 
-				const stNumber = 'ST-UJO-' + Date.now().toString().slice(-6);
+					await sql`
+						INSERT INTO marketing.sales_order (
+							id, contract_id, customer_id, origin_id, destination_id,
+							tipe_unit_id, jenis_muatan, berat_muatan, tgl_muat, tgl_bongkar,
+							tariff, assigned_unit_id, assigned_driver_id, status
+						) VALUES (
+							${doId}, ${contractId}, ${contract.customer_id}, ${contract.final_origin_id}, ${contract.final_dest_id},
+							${unitData.tipe_unit_id}, ${finalCargo}, ${realCapacity}, ${loadingDate ? new Date(loadingDate) : sql`NOW()`}, ${unloadingDate ? new Date(unloadingDate) : null},
+							${finalTariff}, ${assignment.unitId}, ${assignment.driverId}, 'READY_TO_DISPATCH'
+						)
+					`;
 
-				// 2. Insert into fleet.trip as SCHEDULED
-				const tripResult = await sql`
-					INSERT INTO fleet.trip (
-						no_surat_tugas,
-						tgl_trip,
-						unit_id,
-						driver_id,
-						customer,
-						origin_id,
-						destination_id,
-						origin,
-						destination,
-						cargo,
-						status,
-						created_by,
-						pool_tujuan_id
-					) VALUES (
-						${stNumber},
-						CURRENT_DATE,
-						${unitId},
-						${driverId},
-						(SELECT nama_kustomer FROM master.m_customer WHERE id = ${contract.customer_id}),
-						${contract.final_origin_id},
-						${contract.final_dest_id},
-						(SELECT nama_kustomer FROM master.m_customer WHERE id = ${contract.final_origin_id}),
-						(SELECT nama_kustomer FROM master.m_customer WHERE id = ${contract.final_dest_id}),
-						${finalCargo},
-						'SCHEDULED',
-						'OCS Dispatch',
-						'ded65e49-e477-47a1-aee8-a373a2485bba'
-					)
-					RETURNING id
-				`;
+					const stNumber = 'ST-UJO-' + Date.now().toString().slice(-6) + '-' + Math.floor(Math.random() * 1000);
 
-				const tripId = tripResult[0].id;
+					// 2. Insert into fleet.trip as SCHEDULED
+					const tripResult = await sql`
+						INSERT INTO fleet.trip (
+							no_surat_tugas,
+							tgl_trip,
+							unit_id,
+							driver_id,
+							customer,
+							origin_id,
+							destination_id,
+							origin,
+							destination,
+							cargo,
+							status,
+							created_by,
+							pool_tujuan_id
+						) VALUES (
+							${stNumber},
+							${loadingDate ? new Date(loadingDate).toISOString().split('T')[0] : sql`CURRENT_DATE`},
+							${assignment.unitId},
+							${assignment.driverId},
+							(SELECT nama_kustomer FROM master.m_customer WHERE id = ${contract.customer_id}),
+							${contract.final_origin_id},
+							${contract.final_dest_id},
+							(SELECT nama_kustomer FROM master.m_customer WHERE id = ${contract.final_origin_id}),
+							(SELECT nama_kustomer FROM master.m_customer WHERE id = ${contract.final_dest_id}),
+							${finalCargo},
+							'SCHEDULED',
+							'OCS Dispatch',
+							'ded65e49-e477-47a1-aee8-a373a2485bba'
+						)
+						RETURNING id
+					`;
 
-				await sql`
-					INSERT INTO fleet.trip_status_log (trip_id, status)
-					VALUES (${tripId}, 'SCHEDULED')
-				`;
+					const tripId = tripResult[0].id;
+
+					await sql`
+						INSERT INTO fleet.trip_status_log (trip_id, status)
+						VALUES (${tripId}, 'SCHEDULED')
+					`;
+
+					// 3. Insert UJO into finance.cash_advance
+					await sql`
+						INSERT INTO finance.cash_advance (
+							trip_id, sales_order_id, unit_id, driver_id,
+							estimated_ujo, ujo_tol, ujo_makan, payment_status
+						) VALUES (
+							${tripId}, ${doId}, ${assignment.unitId}, ${assignment.driverId},
+							${finalEstimatedUjo}, ${contract.ujo_tol}, ${contract.ujo_makan}, 'UNPAID'
+						)
+					`;
+				}
 
 			});
 
-			return { success: true, message: 'Assign Berhasil: Menunggu UJO dicairkan oleh Kasir.' };
+			return { success: true, message: `Assign Berhasil: Menunggu UJO dicairkan oleh Kasir.` };
 		} catch (e: any) {
 			console.error("Create DO from PO error:", e);
 			return fail(500, { error: e.message || 'Gagal generate DO dari Kontrak.' });
@@ -397,16 +427,25 @@ export const actions: Actions = {
 			const dbDriverId = unitData[0].driver_id;
 			const totalUjo = ujoAmount + ujoMakan + ujoTol;
 
-			await sql`
-				UPDATE marketing.sales_order 
-				SET assigned_unit_id = ${dbUnitId},
-					assigned_driver_id = ${dbDriverId},
-					estimated_ujo = ${totalUjo},
-					ujo_makan = ${ujoMakan},
-					ujo_tol = ${ujoTol},
-					status = 'WAITING_TARIFF'
-				WHERE id = ${orderId}
-			`;
+			await sql.begin(async (sql) => {
+				await sql`
+					UPDATE marketing.sales_order 
+					SET assigned_unit_id = ${dbUnitId},
+						assigned_driver_id = ${dbDriverId},
+						status = 'WAITING_TARIFF'
+					WHERE id = ${orderId}
+				`;
+
+				// Attempt to update existing cash_advance, if missing (e.g. from older data) we might need an upsert,
+				// but since createDoFromPo now creates it, we can just update.
+				await sql`
+					UPDATE finance.cash_advance
+					SET estimated_ujo = ${totalUjo},
+						ujo_makan = ${ujoMakan},
+						ujo_tol = ${ujoTol}
+					WHERE sales_order_id = ${orderId}
+				`;
+			});
 			return { success: true, message: 'Berhasil assign Unit dan UJO!' };
 		} catch (e: any) {
 			console.error("Assign UJO error:", e);
@@ -426,14 +465,27 @@ export const actions: Actions = {
 		if (!orderId) return fail(400, { message: 'Order ID kosong.' });
 
 		try {
-			await sql`
-				UPDATE marketing.sales_order 
-				SET status = 'CLOSING',
-					real_weight = ${closeWeight},
-					extra_cost = ${closeCost},
-					extra_cost_desc = ${closeDesc}
-				WHERE id = ${orderId}
-			`;
+			await sql.begin(async (sql) => {
+				await sql`
+					UPDATE marketing.sales_order 
+					SET status = 'CLOSING'
+					WHERE id = ${orderId}
+				`;
+
+				await sql`
+					UPDATE fleet.trip
+					SET actual_weight = ${closeWeight}
+					FROM marketing.sales_order o
+					WHERE o.id = ${orderId} AND fleet.trip.unit_id = o.assigned_unit_id AND fleet.trip.tgl_trip::date = o.tgl_muat::date
+				`;
+
+				await sql`
+					UPDATE finance.cash_advance
+					SET extra_cost = ${closeCost},
+						extra_cost_desc = ${closeDesc}
+					WHERE sales_order_id = ${orderId}
+				`;
+			});
 			return { success: true, message: 'Order masuk antrian Kasir.' };
 		} catch (e: any) {
 			console.error("Submit closing error:", e);

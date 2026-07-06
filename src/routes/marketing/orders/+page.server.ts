@@ -21,7 +21,7 @@ export const load: PageServerLoad = async () => {
 				o.berat_muatan,
 				o.tgl_muat,
 				o.status,
-				o.estimated_ujo,
+				ca.estimated_ujo,
 				o.tariff,
 				r.tarif_customer as recommended_tariff
 			FROM marketing.sales_order o
@@ -31,6 +31,7 @@ export const load: PageServerLoad = async () => {
 			LEFT JOIN master.m_tipe_unit tu ON tu.id = o.tipe_unit_id
 			LEFT JOIN master.m_project p ON p.id = o.project_id
 			LEFT JOIN master.m_rute_ujo r ON r.origin_id = o.origin_id AND r.destination_id = o.destination_id AND r.tipe_unit_id = o.tipe_unit_id
+			LEFT JOIN finance.cash_advance ca ON ca.sales_order_id = o.id
 			ORDER BY o.created_at DESC
 		`;
 

@@ -3,6 +3,8 @@
 	import { goto } from '$app/navigation';
 	import { page } from '$app/stores';
 	import { enhance } from '$app/forms';
+	import SearchableSelect from '$lib/components/SearchableSelect.svelte';
+	import MultiSearchableSelect from '$lib/components/MultiSearchableSelect.svelte';
 	
 	let { data, form }: { data: PageData, form: ActionData } = $props();
 	let availableUnits = $derived(data.availableUnits || []);
@@ -111,6 +113,35 @@
 	let closeWeight = $state('');
 	let closeCost = $state('');
 	let closeDesc = $state('');
+
+	// Manual Dispatch Form State
+	let showManualDispatchModal = $state(false);
+	let manualDispatchOrder = $state<any>(null);
+	let manualDispatchUnitIds = $state<string[]>([]);
+	let manualDispatchCargoName = $state('');
+	let manualDispatchLoadingDate = $state('');
+	let manualDispatchUnloadingDate = $state('');
+
+	// Dropdown Options
+	let unitOpts = $derived(availableUnits.map(u => ({
+		value: `${u.unitId}|${u.driverId}`,
+		label: `${u.id} • ${u.driver} • ${u.brand} ${u.type}`
+	})));
+	let productOpts = $derived(products.map(p => ({ value: p.name, label: p.name })));
+
+	function openManualDispatchModal(order: any) {
+		manualDispatchOrder = order;
+		manualDispatchUnitIds = order.ai_recommended_unit_id ? [`${order.ai_recommended_unit_id}|${order.ai_recommended_driver_id}`] : [];
+		manualDispatchCargoName = '';
+		manualDispatchLoadingDate = '';
+		manualDispatchUnloadingDate = '';
+		showManualDispatchModal = true;
+	}
+
+	function closeManualDispatchModal() {
+		showManualDispatchModal = false;
+		manualDispatchOrder = null;
+	}
 
 	function openUjoModal(order: any) {
 		selectedOrder = order;
@@ -372,7 +403,7 @@
 													</div>
 												</div>
 												<div class="flex items-center gap-2">
-													<button type="button" onclick={() => showSearchBox[contractOrder.id] = !showSearchBox[contractOrder.id]} class="px-3 py-2 {contractOrder.ai_recommended_unit_id ? 'bg-surface-container-high text-on-surface-variant' : 'bg-rose-100 text-rose-700 animate-pulse'} rounded-lg text-xs font-bold hover:bg-surface-container transition-colors flex items-center gap-1">
+													<button type="button" onclick={() => openManualDispatchModal(contractOrder)} class="px-3 py-2 {contractOrder.ai_recommended_unit_id ? 'bg-surface-container-high text-on-surface-variant' : 'bg-rose-100 text-rose-700 animate-pulse'} rounded-lg text-xs font-bold hover:bg-surface-container transition-colors flex items-center gap-1">
 														<span class="material-symbols-outlined text-[16px]">search</span> {contractOrder.ai_recommended_unit_id ? 'Tukar Unit Manual' : 'Pilih Unit Manual'}
 													</button>
 													{#if contractOrder.ai_recommended_unit_id}
@@ -402,25 +433,7 @@
 												</div>
 											</div>
 											
-											{#if showSearchBox[contractOrder.id]}
-												<div class="mt-4 border-t border-surface-container pt-3 w-full">
-													<div class="relative mb-2">
-														<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant text-[18px]">search</span>
-														<input type="text" bind:value={contractSearchQuery[contractOrder.id]} placeholder="Cari unit atau supir..." class="w-full pl-9 pr-4 py-2 rounded-lg bg-surface-container-low border border-surface-container focus:border-blue-500 outline-none text-xs" />
-													</div>
-													<div class="max-h-48 overflow-y-auto pr-2 space-y-2">
-														{#each availableUnits.filter(u => !contractSearchQuery[contractOrder.id] || u.id.toLowerCase().includes(contractSearchQuery[contractOrder.id].toLowerCase()) || u.driver.toLowerCase().includes(contractSearchQuery[contractOrder.id].toLowerCase())) as unit}
-															<div class="flex items-center justify-between p-2 bg-surface-container-lowest border border-surface-container hover:border-blue-300 rounded-lg group cursor-pointer transition-colors" onclick={() => selectManualUnit(contractOrder.id, unit)}>
-																<div>
-																	<p class="text-xs font-bold text-on-surface">{unit.id} <span class="text-[10px] text-on-surface-variant font-normal">({unit.type})</span></p>
-																	<p class="text-[10px] text-on-surface-variant">{unit.driver}</p>
-																</div>
-																<button class="text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity">Pilih</button>
-															</div>
-														{/each}
-													</div>
-												</div>
-											{/if}
+
 
 											{#if contractOrder.alternatives && contractOrder.alternatives.length > 0}
 												<div class="mt-4 border-t border-surface-container pt-3 w-full">
@@ -560,9 +573,19 @@
 										</button>
 									</form>
 								{:else}
-									<div class="px-4 py-2 bg-sky-50 text-sky-700 dark:bg-sky-900/20 dark:text-sky-400 border border-sky-200 dark:border-sky-900/50 rounded-lg text-xs font-bold flex items-center gap-2 justify-center w-full shadow-sm">
-										<span class="material-symbols-outlined text-[16px] animate-pulse">local_shipping</span>
-										Truk sedang dalam perjalanan
+									<div class="flex items-center gap-2 w-full">
+										<div class="px-4 py-2 bg-sky-50 text-sky-700 dark:bg-sky-900/20 dark:text-sky-400 border border-sky-200 dark:border-sky-900/50 rounded-lg text-xs font-bold flex items-center gap-2 justify-center flex-1 shadow-sm">
+											<span class="material-symbols-outlined text-[16px] animate-pulse">local_shipping</span>
+											Truk sedang dalam perjalanan
+										</div>
+										{#if data.user?.role === 'superadmin' || data.user?.role === 'administrator'}
+											<form method="POST" action="?/submitClosing" use:enhance={() => { isSubmitting = true; return async ({ update }) => { await update(); isSubmitting = false; } }}>
+												<input type="hidden" name="orderId" value={order.id}>
+												<button type="submit" disabled={isSubmitting} title="Force Close Trip" class="px-3 py-2 bg-surface-container-high hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-900/30 dark:hover:text-rose-400 text-on-surface-variant rounded-lg text-xs font-bold transition-colors shadow-sm flex items-center justify-center">
+													<span class="material-symbols-outlined text-[16px]">gavel</span>
+												</button>
+											</form>
+										{/if}
 									</div>
 								{/if}
 							{:else if order.status === 'CLOSING'}
@@ -621,6 +644,85 @@
 		</div>
 	</div>
 </div>
+
+<!-- Modal Manual Dispatch -->
+{#if showManualDispatchModal && manualDispatchOrder}
+	<div class="fixed inset-0 z-50 flex items-center justify-center p-4">
+		<div class="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onclick={closeManualDispatchModal}></div>
+		
+		<div class="relative w-full max-w-lg bg-surface-container-lowest rounded-[24px] shadow-2xl flex flex-col overflow-hidden max-h-[90vh]">
+			<div class="p-6 border-b border-surface-container">
+				<div class="flex items-start justify-between">
+					<div>
+						<h3 class="text-xl font-bold text-on-surface">Proses Dispatch</h3>
+						<p class="text-xs text-on-surface-variant mt-1">Order: <span class="font-bold text-on-surface">{manualDispatchOrder.id}</span> • {manualDispatchOrder.customer}</p>
+					</div>
+					<button type="button" onclick={closeManualDispatchModal} class="w-8 h-8 flex items-center justify-center rounded-full bg-surface-container hover:bg-surface-container-high text-on-surface-variant transition-colors">
+						<span class="material-symbols-outlined text-[18px]">close</span>
+					</button>
+				</div>
+			</div>
+			
+			<div class="p-6 overflow-y-auto custom-scrollbar">
+				<form id="formManualDispatch" method="POST" action="?/createDoFromPo" use:enhance={() => { isSubmitting = true; return async ({ update }) => { await update(); isSubmitting = false; closeManualDispatchModal(); } }}>
+					<input type="hidden" name="contractId" value={manualDispatchOrder.contract_id}>
+					<input type="hidden" name="unitIds" value={JSON.stringify(manualDispatchUnitIds)}>
+
+					<div class="space-y-4">
+						{#if !manualDispatchOrder.produk_id}
+							<div>
+								<label class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-2">Pilih Muatan <span class="text-error">*</span></label>
+								<SearchableSelect 
+									options={productOpts} 
+									bind:value={manualDispatchCargoName} 
+									placeholder="-- Cari Muatan --" 
+									required={true}
+								/>
+								<input type="hidden" name="cargoName" value={manualDispatchCargoName}>
+							</div>
+						{/if}
+
+						<div>
+							<label class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-2">Pilih Unit & Sopir <span class="text-error">*</span></label>
+							<MultiSearchableSelect 
+								options={unitOpts} 
+								bind:value={manualDispatchUnitIds} 
+								placeholder="-- Ketik untuk Mencari & Pilih Armada (Bisa lebih dari 1) --"
+							/>
+						</div>
+						
+						<div class="grid grid-cols-2 gap-4">
+							<div>
+								<label class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-2">Waktu Muat (Loading) <span class="text-error">*</span></label>
+								<input type="datetime-local" name="loadingDate" required bind:value={manualDispatchLoadingDate} class="w-full bg-surface-container rounded-xl px-4 py-2.5 text-sm font-medium border-none focus:ring-2 focus:ring-blue-500 outline-none" />
+							</div>
+							<div>
+								<label class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-2">Waktu Bongkar (Unloading)</label>
+								<input type="datetime-local" name="unloadingDate" bind:value={manualDispatchUnloadingDate} class="w-full bg-surface-container rounded-xl px-4 py-2.5 text-sm font-medium border-none focus:ring-2 focus:ring-blue-500 outline-none" />
+							</div>
+						</div>
+						
+					</div>
+				</form>
+			</div>
+			
+			<div class="p-6 border-t border-surface-container bg-surface-container-lowest flex justify-end gap-3">
+				<button type="button" onclick={closeManualDispatchModal} class="px-5 py-2.5 rounded-xl text-sm font-bold text-on-surface-variant hover:bg-surface-container transition-colors">
+					Batal
+				</button>
+				<button type="submit" form="formManualDispatch" disabled={isSubmitting || manualDispatchUnitIds.length === 0 || (!manualDispatchOrder.produk_id && !manualDispatchCargoName) || !manualDispatchLoadingDate} class="px-5 py-2.5 rounded-xl text-sm font-bold bg-blue-600 text-white hover:bg-blue-700 transition-colors disabled:opacity-50 flex items-center gap-2 shadow-sm">
+					{#if isSubmitting}
+						<span class="material-symbols-outlined text-[18px] animate-spin">sync</span>
+						Memproses...
+					{:else}
+						<span class="material-symbols-outlined text-[18px]">task_alt</span>
+						Proses Dispatch ({manualDispatchUnitIds.length} Unit)
+					{/if}
+				</button>
+			</div>
+		</div>
+	</div>
+{/if}
 
 <!-- Modal Pengajuan UJO -->
 {#if showUjoModal && selectedOrder}

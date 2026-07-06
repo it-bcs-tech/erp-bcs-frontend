@@ -18,14 +18,15 @@ export const load: PageServerLoad = async () => {
 
 		const pendingUjoCountResult = await sql`
 			SELECT COUNT(*) as count 
-			FROM marketing.sales_order 
-			WHERE ujo_payment_status = 'UNPAID' AND status IN ('READY_TO_DISPATCH', 'DISPATCHED', 'CLOSING', 'COMPLETED')
+			FROM finance.cash_advance 
+			WHERE payment_status = 'UNPAID'
 		`;
 
 		const pendingDnCountResult = await sql`
 			SELECT COUNT(*) as count 
-			FROM marketing.sales_order 
-			WHERE closing_payment_status = 'UNPAID' AND status = 'CLOSING'
+			FROM finance.cash_advance ca
+			JOIN marketing.sales_order o ON o.id = ca.sales_order_id
+			WHERE ca.extra_cost_payment_status = 'UNPAID' AND o.status = 'CLOSING'
 		`;
 
 		// Pending UJO Requests (Top 5)
@@ -34,16 +35,17 @@ export const load: PageServerLoad = async () => {
 				o.id,
 				COALESCE(k.nama_karyawan, 'No Driver') as driver,
 				u.nomor_unit as unit,
-				o.estimated_ujo as amount,
+				ca.estimated_ujo as amount,
 				ori.nama_kustomer || ' → ' || dest.nama_kustomer as route,
 				o.status
-			FROM marketing.sales_order o
-			LEFT JOIN fleet.unit u ON u.id = o.assigned_unit_id
-			LEFT JOIN master.m_drivers d ON d.id = o.assigned_driver_id
+			FROM finance.cash_advance ca
+			JOIN marketing.sales_order o ON o.id = ca.sales_order_id
+			LEFT JOIN fleet.unit u ON u.id = ca.unit_id
+			LEFT JOIN master.m_drivers d ON d.id = ca.driver_id
 			LEFT JOIN master.m_karyawan k ON k.id = d.karyawan_id
 			LEFT JOIN master.m_customer ori ON ori.id = o.origin_id
 			LEFT JOIN master.m_customer dest ON dest.id = o.destination_id
-			WHERE o.ujo_payment_status = 'UNPAID' AND o.status IN ('READY_TO_DISPATCH', 'DISPATCHED', 'CLOSING', 'COMPLETED')
+			WHERE ca.payment_status = 'UNPAID' AND o.status IN ('READY_TO_DISPATCH', 'DISPATCHED', 'CLOSING', 'COMPLETED')
 			ORDER BY o.created_at ASC
 			LIMIT 5
 		`;
@@ -54,15 +56,16 @@ export const load: PageServerLoad = async () => {
 				o.id,
 				c.nama_kustomer as customer,
 				COALESCE(k.nama_karyawan, 'No Driver') as driver,
-				o.extra_cost as "extraCost",
-				o.extra_cost_desc as desc,
+				ca.extra_cost as "extraCost",
+				ca.extra_cost_desc as desc,
 				'Pending Settlement' as status
-			FROM marketing.sales_order o
+			FROM finance.cash_advance ca
+			JOIN marketing.sales_order o ON o.id = ca.sales_order_id
 			LEFT JOIN master.m_customer c ON c.id = o.customer_id
 			LEFT JOIN fleet.unit u ON u.id = o.assigned_unit_id
 			LEFT JOIN master.m_drivers d ON d.id = o.assigned_driver_id
 			LEFT JOIN master.m_karyawan k ON k.id = d.karyawan_id
-			WHERE o.closing_payment_status = 'UNPAID' AND o.status = 'CLOSING'
+			WHERE ca.extra_cost_payment_status = 'UNPAID' AND o.status = 'CLOSING'
 			ORDER BY o.created_at ASC
 			LIMIT 5
 		`;

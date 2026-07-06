@@ -56,7 +56,7 @@ export const load: PageServerLoad = async ({ url }) => {
 				o.tgl_muat as "loadDate",
 				o.tgl_bongkar as "unloadDate",
 				COALESCE(o.tariff, 0) as tariff,
-				COALESCE(o.estimated_ujo, 0) as ujo,
+				COALESCE(ca.estimated_ujo, 0) as ujo,
 				o.status
 			FROM marketing.sales_order o
 			LEFT JOIN master.m_customer c ON c.id = o.customer_id
@@ -64,6 +64,7 @@ export const load: PageServerLoad = async ({ url }) => {
 			LEFT JOIN master.m_customer dest ON dest.id = o.destination_id
 			LEFT JOIN master.m_tipe_unit tu ON tu.id = o.tipe_unit_id
 			LEFT JOIN master.m_project p ON p.id = o.project_id
+			LEFT JOIN finance.cash_advance ca ON ca.sales_order_id = o.id
 			${whereClause}
 			ORDER BY o.created_at DESC
 		`;

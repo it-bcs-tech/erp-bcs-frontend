@@ -11,10 +11,11 @@ export const load: PageServerLoad = async () => {
 		const activeResult = await sql`SELECT COUNT(*) FROM fleet.trip WHERE status NOT IN ('COMPLETED', 'CANCELED')`;
 		const completedResult = await sql`SELECT COUNT(*) FROM fleet.trip WHERE status = 'COMPLETED' AND tgl_trip = current_date`;
 		const ujoResult = await sql`
-			SELECT SUM(estimated_ujo) as total 
-			FROM marketing.sales_order 
-			WHERE date_trunc('day', created_at) = date_trunc('day', current_date)
-			AND status NOT IN ('CANCELED')
+			SELECT SUM(ca.estimated_ujo) as total 
+			FROM finance.cash_advance ca
+			JOIN marketing.sales_order so ON so.id = ca.sales_order_id
+			WHERE date_trunc('day', ca.created_at) = date_trunc('day', current_date)
+			AND so.status NOT IN ('CANCELED')
 		`;
 
 		const summary = {
@@ -63,9 +64,10 @@ export const load: PageServerLoad = async () => {
 					WHEN t.status = 'COMPLETED' THEN 100
 					ELSE 0
 				END as progress,
-				COALESCE(o.estimated_ujo, 0) as ujo,
-				COALESCE(o.ujo_payment_status, 'UNPAID') as "ujoStatus"
+				COALESCE(ca.estimated_ujo, 0) as ujo,
+				COALESCE(ca.payment_status, 'UNPAID') as "ujoStatus"
 			FROM marketing.sales_order o
+			LEFT JOIN finance.cash_advance ca ON ca.sales_order_id = o.id
 			LEFT JOIN fleet.unit u ON u.id = o.assigned_unit_id
 			LEFT JOIN fleet.trip t ON t.unit_id = o.assigned_unit_id AND t.tgl_trip::date = o.tgl_muat::date AND t.status NOT IN ('COMPLETED', 'CANCELED')
 			LEFT JOIN master.m_drivers md ON md.id = o.assigned_driver_id
@@ -92,10 +94,11 @@ export const load: PageServerLoad = async () => {
 			LEFT JOIN master.m_drivers md ON md.id = t.driver_id
 			LEFT JOIN master.m_karyawan d ON d.id = md.karyawan_id
 			LEFT JOIN LATERAL (
-				SELECT estimated_ujo 
-				FROM marketing.sales_order 
-				WHERE assigned_unit_id = t.unit_id AND tgl_muat::date = t.tgl_trip::date
-				ORDER BY created_at DESC 
+				SELECT ca.estimated_ujo 
+				FROM marketing.sales_order so
+				JOIN finance.cash_advance ca ON ca.sales_order_id = so.id
+				WHERE so.assigned_unit_id = t.unit_id AND so.tgl_muat::date = t.tgl_trip::date
+				ORDER BY so.created_at DESC 
 				LIMIT 1
 			) o ON true
 			WHERE t.status = 'COMPLETED'

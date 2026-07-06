@@ -11,21 +11,22 @@ export const load: PageServerLoad = async ({ url }) => {
 				o.id,
 				COALESCE(k.nama_karyawan, 'No Driver') as driver,
 				u.nomor_unit as unit,
-				o.estimated_ujo as amount,
-				o.ujo_makan as makan,
-				o.ujo_tol as tol,
-				(COALESCE(o.estimated_ujo,0) - COALESCE(o.ujo_makan,0) - COALESCE(o.ujo_tol,0)) as bbm,
+				ca.estimated_ujo as amount,
+				ca.ujo_makan as makan,
+				ca.ujo_tol as tol,
+				(COALESCE(ca.estimated_ujo,0) - COALESCE(ca.ujo_makan,0) - COALESCE(ca.ujo_tol,0)) as bbm,
 				ori.nama_kustomer || ' → ' || dest.nama_kustomer as route,
-				o.ujo_payment_status as status,
+				ca.payment_status as status,
 				o.tgl_muat as "tripDate"
-			FROM marketing.sales_order o
-			LEFT JOIN fleet.unit u ON u.id = o.assigned_unit_id
-			LEFT JOIN master.m_drivers d ON d.id = o.assigned_driver_id
+			FROM finance.cash_advance ca
+			JOIN marketing.sales_order o ON o.id = ca.sales_order_id
+			LEFT JOIN fleet.unit u ON u.id = ca.unit_id
+			LEFT JOIN master.m_drivers d ON d.id = ca.driver_id
 			LEFT JOIN master.m_karyawan k ON k.id = d.karyawan_id
 			LEFT JOIN master.m_customer ori ON ori.id = o.origin_id
 			LEFT JOIN master.m_customer dest ON dest.id = o.destination_id
-			WHERE o.status NOT IN ('CANCELED') AND o.estimated_ujo > 0
-			ORDER BY o.created_at DESC
+			WHERE o.status NOT IN ('CANCELED') AND ca.estimated_ujo > 0
+			ORDER BY ca.created_at DESC
 		`;
 
 		const allUJO = result.map(o => ({
