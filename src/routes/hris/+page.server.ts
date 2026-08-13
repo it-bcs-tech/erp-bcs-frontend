@@ -80,11 +80,20 @@ export const load: PageServerLoad = async ({ cookies }) => {
 		// 4. Recent Activity (from activity_log or leaves)
 		const recentActivity = await sql`
 			SELECT 
-				log_name,
-				description,
-				created_at,
-				event
-			FROM presensi.activity_log
+				'Leave Request' as log_name,
+				u.name || ' requested ' || l.type || ' leave' as description,
+				l.created_at,
+				'leave' as event
+			FROM presensi.leaves l
+			JOIN presensi.users u ON u.id = l.user_id
+			UNION ALL
+			SELECT 
+				'Attendance' as log_name,
+				u.name || ' checked ' || CASE WHEN p.clock_out IS NOT NULL THEN 'out' ELSE 'in' END as description,
+				p.created_at,
+				'presence' as event
+			FROM presensi.presences p
+			JOIN presensi.users u ON u.id = p.user_id
 			ORDER BY created_at DESC
 			LIMIT 4
 		`;

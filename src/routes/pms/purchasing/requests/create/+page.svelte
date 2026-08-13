@@ -14,6 +14,7 @@
 		date: new Date().toISOString().split('T')[0],
 		department: 'Maintenance / Workshop',
 		requested_by: '',
+		created_by: data.userName,
 		notes: '',
 		action: 'DRAFT', // or APPROVED
 		items: [
@@ -105,7 +106,11 @@
 					</div>
 					<div>
 						<label class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-1">Diminta Oleh (Pemohon) <span class="text-error">*</span></label>
-						<input type="text" bind:value={formState.requested_by} class="w-full bg-surface-container rounded-xl px-4 py-2.5 text-sm font-medium border-none focus:ring-2 focus:ring-primary outline-none" placeholder="Nama mekanik / admin..." />
+						<input type="text" bind:value={formState.requested_by} class="w-full bg-surface-container rounded-xl px-4 py-2.5 text-sm font-medium border-none focus:ring-2 focus:ring-primary outline-none" placeholder="Nama mekanik / unit..." />
+					</div>
+					<div>
+						<label class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-1">Dibuat Oleh (Admin) <span class="text-error">*</span></label>
+						<input type="text" bind:value={formState.created_by} readonly class="w-full bg-surface-container-high rounded-xl px-4 py-2.5 text-sm font-medium border-none focus:ring-2 focus:ring-primary outline-none cursor-not-allowed" />
 					</div>
 				</div>
 				<div class="space-y-5">

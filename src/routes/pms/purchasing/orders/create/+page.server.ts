@@ -1,8 +1,16 @@
 import type { PageServerLoad } from './$types';
 import sql from '$lib/server/db';
 import { error } from '@sveltejs/kit';
+import { verifyUserData } from '$lib/server/auth';
 
-export const load: PageServerLoad = async () => {
+export const load: PageServerLoad = async ({ cookies }) => {
+	let userName = '';
+	const userDataCookie = cookies.get('user_data');
+	if (userDataCookie) {
+		const user = verifyUserData(userDataCookie);
+		if (user) userName = user.name;
+	}
+
 	try {
 		// Fetch Vendors
 		const vendors = await sql`
@@ -39,7 +47,8 @@ export const load: PageServerLoad = async () => {
 			vendors,
 			items,
 			taxes,
-			approvedPrs
+			approvedPrs,
+			userName
 		};
 	} catch (err: any) {
 		console.error("Error fetching PO prerequisites:", err);
@@ -78,9 +87,9 @@ export const actions = {
 				// 2. Insert Header
 				const [po] = await sql`
 					INSERT INTO procurement.purchase_order (
-						po_number, date, vendor_id, status, notes, subtotal, tax_amount, total_amount
+						po_number, date, vendor_id, created_by, status, notes, subtotal, tax_amount, total_amount
 					) VALUES (
-						${poNumber}, ${payload.date}, ${payload.vendor_id}, ${payload.action}, ${payload.notes},
+						${poNumber}, ${payload.date}, ${payload.vendor_id}, ${payload.created_by}, ${payload.action}, ${payload.notes},
 						${payload.subtotal}, ${payload.tax_amount}, ${payload.total_amount}
 					) RETURNING id
 				`;

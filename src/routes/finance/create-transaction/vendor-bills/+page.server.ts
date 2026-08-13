@@ -27,10 +27,19 @@ export const load: PageServerLoad = async () => {
 			WHERE is_active = true
 		`;
 
+		// Fetch POs that are ready to be billed (status = DONE)
+		const readyPos = await sql`
+			SELECT id, po_number, vendor_id
+			FROM procurement.purchase_order
+			WHERE status = 'DONE'
+			ORDER BY created_at DESC
+		`;
+
 		return {
 			vendors,
 			accounts,
-			taxes
+			taxes,
+			readyPos
 		};
 	} catch (err: any) {
 		console.error("Error fetching vendor bill prerequisites:", err);
@@ -82,11 +91,20 @@ export const actions = {
 				for (const item of payload.items) {
 					await sql`
 						INSERT INTO finance.invoice_line (
-							invoice_id, account_id, description, quantity, unit_price, tax_id, tax_amount, total
+							invoice_id, account_id, description, quantity, unit_price, tax_id, total
 						) VALUES (
 							${bill.id}, ${item.account_id || null}, ${item.description}, ${item.qty}, ${item.price}, 
-							${item.tax_id || null}, ${item.tax_amount}, ${item.total}
+							${item.tax_id || null}, ${item.total}
 						)
+					`;
+				}
+
+				// 4. Update PO Status to BILLED
+				if (payload.po_id) {
+					await sql`
+						UPDATE procurement.purchase_order
+						SET status = 'BILLED'
+						WHERE id = ${payload.po_id}
 					`;
 				}
 			});

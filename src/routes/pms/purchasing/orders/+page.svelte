@@ -66,6 +66,14 @@
 							</td>
 							<td class="p-5">
 								<div class="flex items-center justify-center gap-2">
+									{#if po.status === 'DRAFT'}
+										<form method="POST" action="?/approvePO" onsubmit={() => confirm('Apakah Anda yakin ingin meng-Confirm PO ini?')}>
+											<input type="hidden" name="id" value={po.id} />
+											<button type="submit" class="w-8 h-8 rounded-full bg-emerald-50 text-emerald-600 hover:bg-emerald-100 flex items-center justify-center transition-colors" title="Confirm PO">
+												<span class="material-symbols-outlined text-[18px]">check</span>
+											</button>
+										</form>
+									{/if}
 									<button class="w-8 h-8 rounded-full bg-surface-container hover:bg-blue-100 hover:text-blue-700 flex items-center justify-center transition-colors" title="Lihat">
 										<span class="material-symbols-outlined text-[18px]">visibility</span>
 									</button>

@@ -29,3 +29,25 @@ export const load: PageServerLoad = async () => {
 		throw error(500, 'Gagal mengambil data Purchase Order');
 	}
 };
+
+export const actions = {
+	approvePO: async ({ request }) => {
+		const data = await request.formData();
+		const id = data.get('id');
+
+		if (!id) {
+			return { success: false, message: 'ID PO tidak valid' };
+		}
+
+		try {
+			await sql`
+				UPDATE procurement.purchase_order
+				SET status = 'CONFIRMED'
+				WHERE id = ${id}
+			`;
+			return { success: true, message: 'PO berhasil di-Confirm!' };
+		} catch (e: any) {
+			return { success: false, message: 'Gagal meng-Confirm PO' };
+		}
+	}
+};

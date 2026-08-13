@@ -1,8 +1,16 @@
 import type { PageServerLoad } from './$types';
 import sql from '$lib/server/db';
 import { error } from '@sveltejs/kit';
+import { verifyUserData } from '$lib/server/auth';
 
-export const load: PageServerLoad = async () => {
+export const load: PageServerLoad = async ({ cookies }) => {
+	let userName = '';
+	const userDataCookie = cookies.get('user_data');
+	if (userDataCookie) {
+		const user = verifyUserData(userDataCookie);
+		if (user) userName = user.name;
+	}
+
 	try {
 		// Fetch items (materials)
 		const items = await sql`
@@ -13,7 +21,8 @@ export const load: PageServerLoad = async () => {
 		`;
 
 		return {
-			items
+			items,
+			userName
 		};
 	} catch (err: any) {
 		console.error("Error fetching PR prerequisites:", err);
@@ -49,9 +58,9 @@ export const actions = {
 				// 2. Insert Header
 				const [pr] = await sql`
 					INSERT INTO procurement.purchase_request (
-						pr_number, date, department, requested_by, status, notes
+						pr_number, date, department, requested_by, created_by, status, notes
 					) VALUES (
-						${prNumber}, ${payload.date}, ${payload.department}, ${payload.requested_by}, ${payload.action}, ${payload.notes}
+						${prNumber}, ${payload.date}, ${payload.department}, ${payload.requested_by}, ${payload.created_by}, ${payload.action}, ${payload.notes}
 					) RETURNING id
 				`;
 

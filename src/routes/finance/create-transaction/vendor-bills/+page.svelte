@@ -15,6 +15,7 @@
 		due_date: new Date(new Date().setDate(new Date().getDate() + 30)).toISOString().split('T')[0],
 		reference: '',
 		notes: '',
+		po_id: '',
 		action: 'DRAFT', // or POSTED
 		items: [
 			{ id: crypto.randomUUID(), account_id: '', description: '', qty: 1, price: 0, tax_id: '', tax_amount: 0, total: 0 }
@@ -54,6 +55,56 @@
 	}
 
 	const formatCurrency = (val: number) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(val);
+
+	// Pull from PO Logic
+	let isLoadingPo = $state(false);
+	let selectedPoId = $state('');
+
+	let availablePos = $derived(
+		formState.partner_id
+			? data.readyPos.filter((po: any) => String(po.vendor_id) === String(formState.partner_id))
+			: []
+	);
+
+	async function fetchPoLines() {
+		if (!selectedPoId) return;
+		isLoadingPo = true;
+		try {
+			const res = await fetch(`/api/pms/purchasing/orders/${selectedPoId}`);
+			const result = await res.json();
+			if (result.success && result.data && result.data.length > 0) {
+				const poItems = result.data.map((item: any) => {
+					return {
+						id: crypto.randomUUID(),
+						account_id: '', // User has to map this manually based on COA
+						description: `${item.item_name} (Part No: ${item.part_no || '-'})`,
+						qty: Number(item.qty_ordered),
+						price: Number(item.unit_price),
+						tax_id: item.tax_id ? String(item.tax_id) : '',
+						tax_amount: Number(item.tax_amount),
+						total: Number(item.total)
+					};
+				});
+
+				// Auto-fill reference
+				const po = availablePos.find((p:any) => String(p.id) === String(selectedPoId));
+				if (po) {
+					formState.reference = po.po_number;
+					formState.po_id = selectedPoId;
+				}
+
+				// Replace lines entirely or append
+				formState.items = poItems;
+			} else {
+				alert('PO tidak memiliki rincian barang atau gagal ditarik.');
+			}
+		} catch (e) {
+			console.error(e);
+			alert('Terjadi kesalahan saat menarik data PO');
+		} finally {
+			isLoadingPo = false;
+		}
+	}
 </script>
 
 <svelte:head>
@@ -144,8 +195,25 @@
 						</div>
 					</div>
 					<div>
-						<label class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-1">Referensi / No. Surat Jalan Vendor</label>
-						<input type="text" bind:value={formState.reference} class="w-full bg-surface-container rounded-xl px-4 py-2.5 text-sm font-medium border-none focus:ring-2 focus:ring-primary outline-none" placeholder="Misal: INV-2026/001" />
+						<label class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-1">
+							Referensi / No. Surat Jalan Vendor {isLoadingPo ? '(Menarik data...)' : ''}
+						</label>
+						{#if formState.partner_id && availablePos.length > 0}
+							<select 
+								bind:value={selectedPoId} 
+								onchange={fetchPoLines}
+								class="w-full bg-surface-container rounded-xl px-4 py-2.5 text-sm font-medium border-none focus:ring-2 focus:ring-primary outline-none mb-2">
+								<option value="">-- Pilih PO (Otomatis Tarik Data) --</option>
+								{#each availablePos as po}
+									<option value={po.id}>{po.po_number}</option>
+								{/each}
+							</select>
+							{#if !selectedPoId}
+								<input type="text" bind:value={formState.reference} class="w-full bg-surface-container rounded-xl px-4 py-2.5 text-sm font-medium border-none focus:ring-2 focus:ring-primary outline-none" placeholder="Atau ketik manual referensi..." />
+							{/if}
+						{:else}
+							<input type="text" bind:value={formState.reference} class="w-full bg-surface-container rounded-xl px-4 py-2.5 text-sm font-medium border-none focus:ring-2 focus:ring-primary outline-none" placeholder="Misal: INV-2026/001" />
+						{/if}
 					</div>
 				</div>
 			</div>

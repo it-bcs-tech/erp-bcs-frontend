@@ -28,3 +28,25 @@ export const load: PageServerLoad = async () => {
 		throw error(500, 'Gagal mengambil data Purchase Request');
 	}
 };
+
+export const actions = {
+	approvePR: async ({ request }) => {
+		const data = await request.formData();
+		const id = data.get('id');
+
+		if (!id) {
+			return { success: false, message: 'ID PR tidak valid' };
+		}
+
+		try {
+			await sql`
+				UPDATE procurement.purchase_request
+				SET status = 'APPROVED'
+				WHERE id = ${id}
+			`;
+			return { success: true, message: 'PR berhasil disetujui!' };
+		} catch (e: any) {
+			return { success: false, message: 'Gagal menyetujui PR' };
+		}
+	}
+};

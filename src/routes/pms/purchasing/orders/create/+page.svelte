@@ -22,6 +22,7 @@
 		vendor_id: '',
 		date: new Date().toISOString().split('T')[0],
 		notes: '',
+		created_by: data.userName,
 		action: 'DRAFT', // or CONFIRMED
 		items: [
 			{ id: crypto.randomUUID(), pr_line_id: '', item_id: '', qty_ordered: 1, unit_price: 0, tax_id: '', tax_amount: 0, total: 0 }
@@ -192,8 +193,12 @@
 				</div>
 				<div class="space-y-5">
 					<div>
+						<label class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-1">Dibuat Oleh (Admin) <span class="text-error">*</span></label>
+						<input type="text" bind:value={formState.created_by} readonly class="w-full bg-surface-container-high rounded-xl px-4 py-2.5 text-sm font-medium border-none focus:ring-2 focus:ring-primary outline-none cursor-not-allowed" />
+					</div>
+					<div>
 						<label class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-1">Catatan Tambahan</label>
-						<textarea bind:value={formState.notes} rows="4" class="w-full bg-surface-container rounded-xl px-4 py-2.5 text-sm font-medium border-none focus:ring-2 focus:ring-primary outline-none" placeholder="Term of Payment, alamat pengiriman, dll..."></textarea>
+						<textarea bind:value={formState.notes} rows="2" class="w-full bg-surface-container rounded-xl px-4 py-2.5 text-sm font-medium border-none focus:ring-2 focus:ring-primary outline-none" placeholder="Term of Payment, alamat pengiriman, dll..."></textarea>
 					</div>
 				</div>
 			</div>
