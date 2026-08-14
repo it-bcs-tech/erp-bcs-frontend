@@ -1,11 +1,20 @@
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
 	import * as THREE from 'three';
+	import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 
-	// Props
-	let { vehicleNumber = 'B 9123 BCS', vehicleModel = 'Hino Ranger Tronton 6x4', status = 'active', onCreateWorkOrder } = $props();
+	// Props with Hybrid 3D support
+	let {
+		vehicleNumber = 'B 9123 BCS',
+		vehicleModel = 'Hino Ranger Tronton 6x4',
+		status = 'active',
+		glbUrl = '', // Optional .glb model asset URL
+		onCreateWorkOrder
+	} = $props();
 
 	let containerEl = $state<HTMLDivElement | null>(null);
+	let isGlbLoaded = $state(false);
+	let glbLoadError = $state<string | null>(null);
 
 	let scene: THREE.Scene;
 	let camera: THREE.PerspectiveCamera;
@@ -94,11 +103,41 @@
 		plane.receiveShadow = true;
 		scene.add(plane);
 
-		// 5. Construct 3D Procedural Truck Model
-		buildTruck3D();
+		// 5. Construct 3D Model (Hybrid: GLTF or Procedural Fallback)
+		if (glbUrl) {
+			loadGLTFModel(glbUrl);
+		} else {
+			buildTruck3D();
+		}
 
 		// Event listeners for dragging / zoom
 		window.addEventListener('resize', onWindowResize);
+	}
+
+	function loadGLTFModel(url: string) {
+		const loader = new GLTFLoader();
+		loader.load(
+			url,
+			(gltf) => {
+				const model = gltf.scene;
+				model.scale.set(1.5, 1.5, 1.5);
+				model.position.set(0, -1.5, 0);
+				model.traverse((child) => {
+					if ((child as THREE.Mesh).isMesh) {
+						child.castShadow = true;
+						child.receiveShadow = true;
+					}
+				});
+				scene.add(model);
+				isGlbLoaded = true;
+			},
+			undefined,
+			(err) => {
+				console.warn('Gagal memuat file .glb asset, menggunakan Procedural 3D Mesh fallback:', err);
+				glbLoadError = 'File .glb tidak dapat diakses. Menggunakan Procedural 3D Mesh.';
+				buildTruck3D();
+			}
+		);
 	}
 
 	function updateCameraPosition() {

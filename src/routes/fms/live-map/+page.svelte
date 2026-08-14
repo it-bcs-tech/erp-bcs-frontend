@@ -964,7 +964,7 @@
 
 			<!-- Modal Body -->
 			<div class="p-6">
-				<Geofence3DMap />
+				<Geofence3DMap units={units} pools={data.pools || []} />
 			</div>
 		</div>
 	</div>

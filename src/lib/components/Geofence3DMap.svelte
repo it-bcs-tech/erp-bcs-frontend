@@ -2,19 +2,76 @@
 	import { onMount, onDestroy } from 'svelte';
 	import * as THREE from 'three';
 
-	// Props
+	// Props - Accepts real EasyGo GPS units and PostgreSQL Geofence pools
 	let {
-		geofences = [
-			{ name: 'Pool Utama BCS Cilegon', radiusMeter: 200, color: 0x10b981, pos: [-4, 0, -2], status: 'Active Pool' },
-			{ name: 'Rest Area KM 68 Tol Merak', radiusMeter: 120, color: 0x38bdf8, pos: [3, 0, 3], status: 'Rest Area' },
-			{ name: 'Kawasan Industri Krakatau Steel', radiusMeter: 250, color: 0xf59e0b, pos: [5, 0, -4], status: 'Loading Zone' }
-		],
-		activeTrucks = [
-			{ nopol: 'B 9123 BCS', driver: 'Ahmad Subagja', speedKmh: 65, pos: [-1, 0, -1] },
-			{ nopol: 'B 9482 BCS', driver: 'Budi Santoso', speedKmh: 42, pos: [2, 0, 1] },
-			{ nopol: 'B 9011 BCS', driver: 'Dedi Kurniawan', speedKmh: 0, pos: [-3.8, 0, -1.8] }
-		]
+		units = [],
+		pools = []
 	} = $props();
+
+	// Calculate center latitude and longitude for 3D coordinate projection
+	let centerLat = $derived.by(() => {
+		if (pools.length > 0) return pools.reduce((acc: number, p: any) => acc + (p.lat || 0), 0) / pools.length;
+		if (units.length > 0) return units.reduce((acc: number, u: any) => acc + (u.lat || 0), 0) / units.length;
+		return -6.2;
+	});
+
+	let centerLng = $derived.by(() => {
+		if (pools.length > 0) return pools.reduce((acc: number, p: any) => acc + (p.lng || 0), 0) / pools.length;
+		if (units.length > 0) return units.reduce((acc: number, u: any) => acc + (u.lng || 0), 0) / units.length;
+		return 106.8;
+	});
+
+	// Convert GPS Lat/Lng to 3D Scene X/Z coordinates
+	function gpsTo3D(lat: number, lng: number): [number, number, number] {
+		const scale = 25; // Scale factor for WebGL viewport
+		const x = (lng - centerLng) * scale;
+		const z = -(lat - centerLat) * scale;
+		// Clamp within grid bounds (-12 to 12)
+		return [
+			Math.max(-12, Math.min(12, x)),
+			0,
+			Math.max(-12, Math.min(12, z))
+		];
+	}
+
+	// Dynamic 3D Geofence Pools
+	let geofences = $derived.by(() => {
+		if (pools.length === 0) {
+			return [
+				{ name: 'Pool Cilegon Utama', radiusMeter: 300, color: 0x10b981, pos: [-4, 0, -2], status: 'Active Pool' },
+				{ name: 'Rest Area KM 68 Tol Merak', radiusMeter: 150, color: 0x38bdf8, pos: [3, 0, 3], status: 'Rest Area' },
+				{ name: 'Kawasan Industri Cilegon', radiusMeter: 250, color: 0xf59e0b, pos: [5, 0, -4], status: 'Loading Zone' }
+			];
+		}
+		return pools.map((p: any, idx: number) => {
+			const colors = [0x10b981, 0x38bdf8, 0xf59e0b, 0x8b5cf6, 0xec4899];
+			return {
+				name: p.name || `Pool ${p.id}`,
+				radiusMeter: p.radiusMeters || 300,
+				color: colors[idx % colors.length],
+				pos: gpsTo3D(p.lat, p.lng),
+				status: 'Pool Geofence'
+			};
+		});
+	});
+
+	// Dynamic 3D Active Trucks from EasyGo GPS API + DB
+	let activeTrucks = $derived.by(() => {
+		if (units.length === 0) {
+			return [
+				{ nopol: 'B 9123 BCS', driver: 'Ahmad Subagja', speedKmh: 65, pos: [-1, 0, -1], status: 'Moving' },
+				{ nopol: 'B 9482 BCS', driver: 'Budi Santoso', speedKmh: 42, pos: [2, 0, 1], status: 'Transit' },
+				{ nopol: 'B 9011 BCS', driver: 'Dedi Kurniawan', speedKmh: 0, pos: [-3.8, 0, -1.8], status: 'Standby' }
+			];
+		}
+		return units.map((u: any) => ({
+			nopol: u.id,
+			driver: u.driver || 'System Assigner',
+			speedKmh: u.speed || 0,
+			pos: gpsTo3D(u.lat, u.lng),
+			status: u.status || 'Active'
+		}));
+	});
 
 	let containerEl = $state<HTMLDivElement | null>(null);
 
