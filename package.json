@@ -43,12 +43,14 @@
 	"dependencies": {
 		"@ai-sdk/openai": "^3.0.63",
 		"@ai-sdk/svelte": "^4.0.176",
+		"@types/three": "^0.185.4",
 		"ai": "^6.0.176",
 		"bcryptjs": "^3.0.3",
 		"csv-parse": "^6.2.1",
 		"isomorphic-dompurify": "^3.3.0",
 		"leaflet": "^1.9.4",
 		"marked": "^18.0.3",
-		"postgres": "^3.4.9"
+		"postgres": "^3.4.9",
+		"three": "^0.185.1"
 	}
 }

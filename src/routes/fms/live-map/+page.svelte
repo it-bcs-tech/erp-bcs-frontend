@@ -3,9 +3,14 @@
 	import { invalidateAll } from '$app/navigation';
 	import { page } from '$app/stores';
 	import type { PageData } from './$types';
+	import Geofence3DMap from '$lib/components/Geofence3DMap.svelte';
+
 	let { data }: { data: PageData } = $props();
 	
 	let units = $derived(data.units || []);
+
+	// 3D Geofence Map state
+	let show3DGeofenceModal = $state(false);
 
 	let searchQuery = $state('');
 	let filterStatus = $state('All');
@@ -721,9 +726,16 @@
 		<div class="{isFullScreen ? 'fixed inset-0 z-50 w-screen h-screen rounded-none border-none' : 'flex-1 rounded-[24px] overflow-hidden shadow-lg border border-surface-container relative'} transition-all duration-300">
 			<div bind:this={mapContainer} class="w-full h-full"></div>
 			
-			<button onclick={() => isFullScreen = !isFullScreen} class="absolute top-4 right-4 z-[1000] p-2.5 {isFullScreen ? 'bg-white/30 dark:bg-slate-900/30 hover:bg-white dark:hover:bg-slate-900' : 'bg-surface-container-lowest/90 hover:bg-surface-container-lowest'} backdrop-blur-md rounded-xl shadow-lg border border-surface-container transition-colors text-on-surface" title="Toggle Full Screen">
-				<span class="material-symbols-outlined text-xl">{isFullScreen ? 'fullscreen_exit' : 'fullscreen'}</span>
-			</button>
+			<div class="absolute top-4 right-4 z-[1000] flex items-center gap-2">
+				<button onclick={() => (show3DGeofenceModal = true)} class="p-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl shadow-lg border border-emerald-500 transition-colors flex items-center gap-1.5 font-bold text-xs" title="Tampilkan 3D Elevated Geofence">
+					<span class="material-symbols-outlined text-lg">view_in_ar</span>
+					<span class="hidden sm:inline">3D Geofence</span>
+				</button>
+
+				<button onclick={() => isFullScreen = !isFullScreen} class="p-2.5 {isFullScreen ? 'bg-white/30 dark:bg-slate-900/30 hover:bg-white dark:hover:bg-slate-900' : 'bg-surface-container-lowest/90 hover:bg-surface-container-lowest'} backdrop-blur-md rounded-xl shadow-lg border border-surface-container transition-colors text-on-surface" title="Toggle Full Screen">
+					<span class="material-symbols-outlined text-xl">{isFullScreen ? 'fullscreen_exit' : 'fullscreen'}</span>
+				</button>
+			</div>
 
 			<div class="absolute bottom-4 left-4 z-[1000] bg-surface-container-lowest/90 backdrop-blur-md rounded-xl p-4 shadow-lg border border-surface-container">
 				<p class="text-[9px] font-black text-on-surface-variant uppercase tracking-widest mb-3">Unit Status</p>
@@ -926,6 +938,37 @@
 		</div>
 	</div>
 </div>
+
+<!-- Modal 3D Geofence Elevation -->
+{#if show3DGeofenceModal}
+	<div class="fixed inset-0 z-[9999] bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4 overflow-y-auto">
+		<div class="bg-slate-900 border border-slate-800 rounded-3xl shadow-2xl w-full max-w-4xl overflow-hidden my-8 animate-in zoom-in-95 duration-200">
+			<!-- Modal Header -->
+			<div class="p-6 border-b border-slate-800 flex items-center justify-between bg-slate-950">
+				<div class="flex items-center gap-3">
+					<div class="w-10 h-10 rounded-2xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold">
+						<span class="material-symbols-outlined text-2xl">view_in_ar</span>
+					</div>
+					<div>
+						<h2 class="text-lg font-black text-white flex items-center gap-2">
+							<span>3D ELEVATED GEOFENCE & LIVE TRUCK TRACKING</span>
+							<span class="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">THREE.JS WEBGL</span>
+						</h2>
+						<p class="text-xs text-slate-400">Visualisasi 3D Tabung Geofence Pool & Marker Kendaraan Bergerak</p>
+					</div>
+				</div>
+				<button onclick={() => (show3DGeofenceModal = false)} class="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition-all cursor-pointer">
+					<span class="material-symbols-outlined text-xl">close</span>
+				</button>
+			</div>
+
+			<!-- Modal Body -->
+			<div class="p-6">
+				<Geofence3DMap />
+			</div>
+		</div>
+	</div>
+{/if}
 
 <style>
 	/* ===== LEAFLET ===== */

@@ -5,6 +5,7 @@
 	import DailyTargetSimulator from '$lib/components/DailyTargetSimulator.svelte';
 	import DailyPlanCalendar from '$lib/components/DailyPlanCalendar.svelte';
 	import MonthlyTargetModal from '$lib/components/MonthlyTargetModal.svelte';
+	import CargoPacking3D from '$lib/components/CargoPacking3D.svelte';
 
 	let { data, form }: { data: PageData, form: ActionData } = $props();
 	let contracts = $derived(data.contracts || []);
@@ -19,6 +20,9 @@
 	let calendarContract = $state<any>(null);
 	let showMonthlyModal = $state(false);
 	let monthlyContract = $state<any>(null);
+
+	// 3D Cargo Packing Modal state
+	let show3DCargoModal = $state(false);
 
 	// Hidden form binding
 	let formTargetDays = $state(0);
@@ -231,6 +235,15 @@
 
 					<!-- Right: Actions -->
 					<div class="flex gap-2 flex-shrink-0">
+						<button
+							class="px-3.5 py-2 text-xs font-bold rounded-xl border border-sky-200 bg-sky-50 dark:bg-sky-950/40 hover:bg-sky-100 transition-all text-sky-700 dark:text-sky-300 flex items-center gap-1.5"
+							onclick={() => (show3DCargoModal = true)}
+							title="Simulasi 3D Cargo Packing Kontainer"
+						>
+							<span class="material-symbols-outlined text-[16px]">view_in_ar</span>
+							<span>Simulasi 3D</span>
+						</button>
+
 						{#if Number(c.targetTonnage) > 0}
 							<button 
 								class="px-4 py-2 text-xs font-bold rounded-xl border border-surface-variant/30 hover:bg-surface hover:shadow-sm transition-all text-on-surface-variant hover:text-primary flex items-center gap-2"
@@ -292,3 +305,34 @@
 		monthlyContract = null;
 	}}
 />
+
+<!-- Modal 3D Cargo Packing -->
+{#if show3DCargoModal}
+	<div class="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4 overflow-y-auto">
+		<div class="bg-slate-900 border border-slate-800 rounded-3xl shadow-2xl w-full max-w-4xl overflow-hidden my-8 animate-in zoom-in-95 duration-200">
+			<!-- Modal Header -->
+			<div class="p-6 border-b border-slate-800 flex items-center justify-between bg-slate-950">
+				<div class="flex items-center gap-3">
+					<div class="w-10 h-10 rounded-2xl bg-sky-500/20 text-sky-400 flex items-center justify-center font-bold">
+						<span class="material-symbols-outlined text-2xl">view_in_ar</span>
+					</div>
+					<div>
+						<h2 class="text-lg font-black text-white flex items-center gap-2">
+							<span>SIMULASI 3D CARGO PACKING KONTAINER</span>
+							<span class="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase bg-sky-500/20 text-sky-400 border border-sky-500/30">THREE.JS WEBGL</span>
+						</h2>
+						<p class="text-xs text-slate-400">Estimasi Efisiensi Ruang Muat Kontainer 40ft High Cube</p>
+					</div>
+				</div>
+				<button onclick={() => (show3DCargoModal = false)} class="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition-all cursor-pointer">
+					<span class="material-symbols-outlined text-xl">close</span>
+				</button>
+			</div>
+
+			<!-- Modal Body -->
+			<div class="p-6">
+				<CargoPacking3D />
+			</div>
+		</div>
+	</div>
+{/if}

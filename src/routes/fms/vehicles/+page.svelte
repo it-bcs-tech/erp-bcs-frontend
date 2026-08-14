@@ -2,12 +2,22 @@
 	import type { PageData } from './$types';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/stores';
+	import TruckTwin3D from '$lib/components/TruckTwin3D.svelte';
 	
 	let { data }: { data: PageData } = $props();
 	
 	let vehicles = $derived(data.vehicles || []);
 	let metrics  = $derived(data.metrics || { total: 0, active: 0, inactive: 0, maintenance: 0 });
 	let meta     = $derived(data.meta);
+
+	// 3D Digital Twin Modal state
+	let show3DTwinModal = $state(false);
+	let selectedVehicleFor3D = $state<any>(null);
+
+	function open3DTwin(vhc: any) {
+		selectedVehicleFor3D = vhc;
+		show3DTwinModal = true;
+	}
 
 	// Filter state — selaras dengan query params di +page.server.ts
 	let searchQuery   = $state($page.url.searchParams.get('search') || '');
@@ -348,11 +358,12 @@
 							<!-- Actions -->
 							<td class="py-4 px-6 text-right">
 								<div class="flex items-center justify-end gap-2">
+									<button onclick={() => open3DTwin(vhc)} class="p-2 rounded-lg text-primary hover:bg-primary/10 transition-colors flex items-center gap-1 font-bold text-xs" title="Inspeksi Digital Twin 3D">
+										<span class="material-symbols-outlined text-[20px]">view_in_ar</span>
+										<span class="hidden sm:inline">3D Twin</span>
+									</button>
 									<button class="p-2 rounded-lg text-blue-600 hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors" title="Lihat Detail">
 										<span class="material-symbols-outlined text-[20px]">visibility</span>
-									</button>
-									<button class="p-2 rounded-lg text-on-surface-variant hover:bg-surface-container-high transition-colors" title="Opsi Lain">
-										<span class="material-symbols-outlined text-[20px]">more_vert</span>
 									</button>
 								</div>
 							</td>
@@ -469,6 +480,42 @@
 						</div>
 					{/if}
 				{/if}
+			</div>
+		</div>
+	</div>
+{/if}
+
+<!-- 3D Digital Twin Modal -->
+{#if show3DTwinModal}
+	<div class="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4 overflow-y-auto">
+		<div class="bg-slate-900 border border-slate-800 rounded-3xl shadow-2xl w-full max-w-4xl overflow-hidden my-8 animate-in zoom-in-95 duration-200">
+			<!-- Modal Header -->
+			<div class="p-6 border-b border-slate-800 flex items-center justify-between bg-slate-950">
+				<div class="flex items-center gap-3">
+					<div class="w-10 h-10 rounded-2xl bg-primary/20 text-primary flex items-center justify-center font-bold">
+						<span class="material-symbols-outlined text-2xl">view_in_ar</span>
+					</div>
+					<div>
+						<h2 class="text-lg font-black text-white flex items-center gap-2">
+							<span>INSPEKSI DIGITAL TWIN 3D</span>
+							<span class="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase bg-sky-500/20 text-sky-400 border border-sky-500/30">THREE.JS WEBGL</span>
+						</h2>
+						<p class="text-xs text-slate-400">
+							{selectedVehicleFor3D?.no_polisi || 'B 9123 BCS'} — {selectedVehicleFor3D?.nama_model || 'Hino Ranger Tronton 6x4'}
+						</p>
+					</div>
+				</div>
+				<button onclick={() => (show3DTwinModal = false)} class="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition-all cursor-pointer">
+					<span class="material-symbols-outlined text-xl">close</span>
+				</button>
+			</div>
+
+			<!-- 3D Canvas Body -->
+			<div class="p-6">
+				<TruckTwin3D
+					vehicleNumber={selectedVehicleFor3D?.no_polisi || 'B 9123 BCS'}
+					vehicleModel={selectedVehicleFor3D?.nama_model || 'Hino Ranger Tronton 6x4'}
+				/>
 			</div>
 		</div>
 	</div>
