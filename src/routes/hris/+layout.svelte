@@ -54,6 +54,10 @@
 				<span class="material-symbols-outlined">account_tree</span>
 				<span class="font-medium text-sm">Org Chart & Hierarchy</span>
 			</a>
+			<a class="flex items-center gap-3 px-4 py-3 rounded-xl transition-transform duration-200 hover:translate-x-1 {$page.url.pathname.includes('/hris/certifications') ? 'bg-surface-container-highest text-primary' : 'text-on-surface-variant hover:bg-surface-container'}" href="/hris/certifications">
+				<span class="material-symbols-outlined">verified</span>
+				<span class="font-medium text-sm">Document Expiry & Certs</span>
+			</a>
 		</nav>
 	</aside>
 
