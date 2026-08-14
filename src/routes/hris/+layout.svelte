@@ -50,6 +50,10 @@
 				<span class="material-symbols-outlined">payments</span>
 				<span class="font-medium text-sm">Payroll & Slips</span>
 			</a>
+			<a class="flex items-center gap-3 px-4 py-3 rounded-xl transition-transform duration-200 hover:translate-x-1 {$page.url.pathname.includes('/hris/org-chart') ? 'bg-surface-container-highest text-primary' : 'text-on-surface-variant hover:bg-surface-container'}" href="/hris/org-chart">
+				<span class="material-symbols-outlined">account_tree</span>
+				<span class="font-medium text-sm">Org Chart & Hierarchy</span>
+			</a>
 		</nav>
 	</aside>
 
