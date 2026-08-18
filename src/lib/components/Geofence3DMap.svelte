@@ -418,6 +418,19 @@
 			rightEdge.position.set(roadWidth / 2 - 0.18, 0.045, 0);
 			roadGroup.add(rightEdge);
 
+			// 5. If GLB Highway model is loaded, place it properly aligned along the corridor
+			if (isGlbHighwayLoaded && glbHighwayModel) {
+				const roadClone = glbHighwayModel.clone();
+				const baseLen = glbHighwayModel.userData.baseLength || 4047;
+				const baseW = glbHighwayModel.userData.baseWidth || 180;
+				const lengthScale = length / Math.max(1, baseLen);
+				const widthScale = 2.0 / Math.max(1, baseW);
+				roadClone.scale.set(lengthScale, widthScale * 1.2, widthScale);
+				roadClone.rotation.y = -Math.PI / 2;
+				roadClone.position.set(0, 0.03, 0);
+				roadGroup.add(roadClone);
+			}
+
 			scene.add(roadGroup);
 			highwayCorridorMeshes.push(roadGroup);
 		});
@@ -491,6 +504,25 @@
 		} catch (_) { /* silent */ }
 	}
 
+	let autoRotate = $state(true);
+
+	function resetCamera() {
+		targetRotation = { x: 0.45, y: -0.35 };
+		cameraDistance = 18;
+	}
+
+	function zoomIn() {
+		cameraDistance = Math.max(8, cameraDistance - 3);
+	}
+
+	function zoomOut() {
+		cameraDistance = Math.min(36, cameraDistance + 3);
+	}
+
+	function toggleAutoRotate() {
+		autoRotate = !autoRotate;
+	}
+
 	function animate() {
 		animationFrameId = requestAnimationFrame(animate);
 
@@ -513,7 +545,7 @@
 		currentRotation.x += (targetRotation.x - currentRotation.x) * 0.08;
 		currentRotation.y += (targetRotation.y - currentRotation.y) * 0.08;
 
-		if (!isDragging) {
+		if (!isDragging && autoRotate) {
 			targetRotation.y += 0.0012;
 		}
 
@@ -555,7 +587,7 @@
 	function onWheel(e: WheelEvent) {
 		e.preventDefault();
 		cameraDistance += e.deltaY * 0.01;
-		cameraDistance = Math.max(8, Math.min(30, cameraDistance));
+		cameraDistance = Math.max(8, Math.min(36, cameraDistance));
 	}
 
 	onMount(() => {
@@ -590,14 +622,14 @@
 			</div>
 		</div>
 
-		<div class="flex items-center gap-2 text-xs font-semibold">
+		<div class="flex items-center gap-2 text-xs font-semibold flex-wrap">
 			<span class="px-3 py-1.5 rounded-xl bg-slate-100 {isGlbParkingLoaded ? 'text-indigo-700' : 'text-slate-700'} border border-slate-200 flex items-center gap-1.5 font-mono">
 				<span class="material-symbols-outlined text-sm">local_parking</span>
 				<span>{isGlbParkingLoaded ? 'GLB Pool Depot' : '3D Pool Parking'}</span>
 			</span>
-			<span class="px-3 py-1.5 rounded-xl bg-slate-100 text-amber-700 border border-slate-200 flex items-center gap-1.5 font-mono">
+			<span class="px-3 py-1.5 rounded-xl bg-slate-100 {isGlbHighwayLoaded ? 'text-blue-700' : 'text-amber-700'} border border-slate-200 flex items-center gap-1.5 font-mono">
 				<span class="material-symbols-outlined text-sm">route</span>
-				<span>3D Highway Spine</span>
+				<span>{isGlbHighwayLoaded ? 'GLB Highway' : '3D Highway Corridor'}</span>
 			</span>
 			<span class="px-3 py-1.5 rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center gap-1.5 font-mono">
 				<span class="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></span>
@@ -606,8 +638,8 @@
 		</div>
 	</div>
 
-	<!-- 3D Canvas (Clean Light Theme) -->
-	<div class="relative w-full h-[450px] rounded-3xl overflow-hidden border border-slate-200 shadow-xl bg-white">
+	<!-- 3D Canvas (Clean Light Theme - Expanded Screen Height) -->
+	<div class="relative w-full h-[580px] md:h-[650px] rounded-3xl overflow-hidden border border-slate-200 shadow-xl bg-white">
 		<div
 			bind:this={containerEl}
 			onmousedown={onMouseDown}
@@ -620,11 +652,44 @@
 			class="w-full h-full cursor-grab active:cursor-grabbing bg-white"
 		></div>
 
+		<!-- Top Right Quick Camera Controls -->
+		<div class="absolute top-4 right-4 flex items-center gap-1.5 p-1.5 rounded-2xl bg-white/90 backdrop-blur-md border border-slate-200 shadow-lg">
+			<button
+				onclick={zoomIn}
+				title="Zoom In"
+				class="w-8 h-8 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 flex items-center justify-center transition-colors cursor-pointer"
+			>
+				<span class="material-symbols-outlined text-base">zoom_in</span>
+			</button>
+			<button
+				onclick={zoomOut}
+				title="Zoom Out"
+				class="w-8 h-8 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 flex items-center justify-center transition-colors cursor-pointer"
+			>
+				<span class="material-symbols-outlined text-base">zoom_out</span>
+			</button>
+			<button
+				onclick={resetCamera}
+				title="Reset View"
+				class="w-8 h-8 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 flex items-center justify-center transition-colors cursor-pointer"
+			>
+				<span class="material-symbols-outlined text-base">restart_alt</span>
+			</button>
+			<button
+				onclick={toggleAutoRotate}
+				title={autoRotate ? 'Pause Rotation' : 'Auto Rotate'}
+				class="px-2.5 h-8 rounded-xl {autoRotate ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-slate-100 text-slate-600'} text-[11px] font-bold flex items-center gap-1 transition-colors cursor-pointer"
+			>
+				<span class="material-symbols-outlined text-sm">{autoRotate ? 'pause' : 'play_arrow'}</span>
+				<span>{autoRotate ? 'Rotasi Aktif' : 'Rotasi Diam'}</span>
+			</button>
+		</div>
+
 		<!-- Camera Controls, Parking & Highway Hint (Light frosted glass badge) -->
 		<div class="absolute bottom-4 left-4 p-2.5 rounded-xl bg-white/90 backdrop-blur-md border border-slate-200 shadow-md text-[11px] font-bold text-slate-700 flex items-center gap-3">
 			<div class="flex items-center gap-1.5">
 				<span class="material-symbols-outlined text-sm text-emerald-600">3d_rotation</span>
-				<span>Rotasi 360° & Zoom</span>
+				<span>Rotasi 360° & Drag Mouse</span>
 			</div>
 			<div class="h-3 w-[1px] bg-slate-300"></div>
 			<div class="flex items-center gap-1.5">
@@ -633,8 +698,8 @@
 			</div>
 			<div class="h-3 w-[1px] bg-slate-300"></div>
 			<div class="flex items-center gap-1.5">
-				<span class="material-symbols-outlined text-sm text-amber-600">edit_road</span>
-				<span>Arterial Highway Corridor</span>
+				<span class="material-symbols-outlined text-sm text-blue-600">edit_road</span>
+				<span>{isGlbHighwayLoaded ? 'GLTF 3D Highway Asset' : 'Procedural Highway'}</span>
 			</div>
 		</div>
 	</div>

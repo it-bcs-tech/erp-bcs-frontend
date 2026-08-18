@@ -1115,10 +1115,10 @@
 	</div>
 </div>
 
-<!-- Modal 3D Geofence Elevation (Clean White Theme) -->
+<!-- Modal 3D Geofence Elevation (Clean White Theme - Expanded View) -->
 {#if show3DGeofenceModal}
-	<div class="fixed inset-0 z-[9999] bg-slate-900/60 backdrop-blur-md flex items-center justify-center p-4 overflow-y-auto">
-		<div class="bg-white border border-slate-200 rounded-3xl shadow-2xl w-full max-w-4xl overflow-hidden my-8 animate-in zoom-in-95 duration-200">
+	<div class="fixed inset-0 z-[9999] bg-slate-900/60 backdrop-blur-md flex items-center justify-center p-2 md:p-4 overflow-y-auto">
+		<div class="bg-white border border-slate-200 rounded-3xl shadow-2xl w-[96vw] max-w-7xl overflow-hidden my-4 md:my-6 animate-in zoom-in-95 duration-200">
 			<!-- Modal Header -->
 			<div class="p-6 border-b border-slate-100 flex items-center justify-between bg-white">
 				<div class="flex items-center gap-3">
