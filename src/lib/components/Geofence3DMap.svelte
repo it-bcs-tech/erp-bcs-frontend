@@ -7,13 +7,18 @@
 	let {
 		units = [],
 		pools = [],
-		highwayGlbUrl = '/models/Highway.glb'
+		highwayGlbUrl = '/models/Highway.glb',
+		parkingGlbUrl = '/models/Parking.glb'
 	} = $props();
 
-	// Highway 3D GLTF state
+	// 3D GLTF Model Assets state
 	let isGlbHighwayLoaded = $state(false);
 	let glbHighwayModel: THREE.Group | null = null;
 	let highwayCorridorMeshes: THREE.Object3D[] = [];
+
+	let isGlbParkingLoaded = $state(false);
+	let glbParkingModel: THREE.Group | null = null;
+	let poolParkingMeshes: THREE.Object3D[] = [];
 
 	// Calculate center latitude and longitude for 3D coordinate projection
 	let centerLat = $derived.by(() => {
@@ -45,9 +50,8 @@
 	let geofences = $derived.by(() => {
 		if (pools.length === 0) {
 			return [
-				{ name: 'Pool Cilegon Utama', radiusMeter: 300, color: 0x10b981, pos: [-4, 0, -2] as [number, number, number], status: 'Active Pool' },
-				{ name: 'Rest Area KM 68 Tol Merak', radiusMeter: 150, color: 0x38bdf8, pos: [3, 0, 3] as [number, number, number], status: 'Rest Area' },
-				{ name: 'Kawasan Industri Cilegon', radiusMeter: 250, color: 0xf59e0b, pos: [5, 0, -4] as [number, number, number], status: 'Loading Zone' }
+				{ name: 'BCS Cilegon Utama', radiusMeter: 350, color: 0x10b981, pos: [-5, 0, -2.5] as [number, number, number], status: 'Active Pool' },
+				{ name: 'BCS Gunung Putri', radiusMeter: 300, color: 0x38bdf8, pos: [5, 0, 2.5] as [number, number, number], status: 'Active Pool' }
 			];
 		}
 		return pools.map((p: any, idx: number) => {
@@ -66,9 +70,9 @@
 	let activeTrucks = $derived.by(() => {
 		if (units.length === 0) {
 			return [
-				{ nopol: 'B 9123 BCS', driver: 'Ahmad Subagja', speedKmh: 65, pos: [-1, 0, -1] as [number, number, number], status: 'Moving' },
-				{ nopol: 'B 9482 BCS', driver: 'Budi Santoso', speedKmh: 42, pos: [2, 0, 1] as [number, number, number], status: 'Transit' },
-				{ nopol: 'B 9011 BCS', driver: 'Dedi Kurniawan', speedKmh: 0, pos: [-3.8, 0, -1.8] as [number, number, number], status: 'Standby' }
+				{ nopol: 'B 9123 BCS', driver: 'Ahmad Subagja', speedKmh: 65, pos: [-1, 0, -0.5] as [number, number, number], status: 'Moving' },
+				{ nopol: 'B 9482 BCS', driver: 'Budi Santoso', speedKmh: 42, pos: [1.5, 0, 0.8] as [number, number, number], status: 'Transit' },
+				{ nopol: 'B 9011 BCS', driver: 'Dedi Kurniawan', speedKmh: 0, pos: [-4.8, 0, -2.3] as [number, number, number], status: 'Standby' }
 			];
 		}
 		return units.map((u: any) => ({
@@ -90,9 +94,9 @@
 	// Orbit rotation
 	let isDragging = false;
 	let previousMousePosition = { x: 0, y: 0 };
-	let targetRotation = { x: 0.5, y: -0.4 };
-	let currentRotation = { x: 0.5, y: -0.4 };
-	let cameraDistance = 16;
+	let targetRotation = { x: 0.45, y: -0.35 };
+	let currentRotation = { x: 0.45, y: -0.35 };
+	let cameraDistance = 18;
 
 	let geofenceCylinders: THREE.Mesh[] = [];
 	let pulsingRings: THREE.Mesh[] = [];
@@ -120,10 +124,10 @@
 		containerEl.appendChild(renderer.domElement);
 
 		// 4. Lights optimized for White Background
-		const ambientLight = new THREE.AmbientLight(0xffffff, 1.1);
+		const ambientLight = new THREE.AmbientLight(0xffffff, 1.15);
 		scene.add(ambientLight);
 
-		const dirLight = new THREE.DirectionalLight(0xffffff, 1.4);
+		const dirLight = new THREE.DirectionalLight(0xffffff, 1.35);
 		dirLight.position.set(15, 25, 15);
 		scene.add(dirLight);
 
@@ -148,30 +152,29 @@
 		gridHelper.position.y = -0.01;
 		scene.add(gridHelper);
 
-		// 5. Build 3D Geofences, Highway Corridors & Truck Markers
+		// 5. Build 3D Geofences, Highway Corridors, Parking Lots & Truck Markers
 		build3DGeofences();
 		buildHighwayCorridors();
+		buildPoolParkingLots();
 		build3DTruckMarkers();
 
 		// 6. Asynchronously load custom .glb highway asset and normalize its bounds
 		const loader = new GLTFLoader();
-		function tryLoadGlb(url: string, fallbackUrl?: string) {
+
+		function tryLoadHighwayGlb(url: string, fallbackUrl?: string) {
 			loader.load(
 				url,
 				(gltf) => {
-					// Normalize GLTF geometry bounds to origin (0, 0, 0)
 					const bbox = new THREE.Box3().setFromObject(gltf.scene);
 					const center = bbox.getCenter(new THREE.Vector3());
 					const size = bbox.getSize(new THREE.Vector3());
 
-					// Create a normalized wrapper group centered at origin
 					const wrapper = new THREE.Group();
 					gltf.scene.position.x = -center.x;
-					gltf.scene.position.y = -bbox.min.y; // Sit on ground
+					gltf.scene.position.y = -bbox.min.y;
 					gltf.scene.position.z = -center.z;
 					wrapper.add(gltf.scene);
 
-					// Store normalized size and model
 					wrapper.userData = { size, baseLength: Math.max(size.x, size.z), baseWidth: Math.min(size.x, size.z) };
 					glbHighwayModel = wrapper;
 					isGlbHighwayLoaded = true;
@@ -180,15 +183,46 @@
 				undefined,
 				() => {
 					if (fallbackUrl) {
-						tryLoadGlb(fallbackUrl);
+						tryLoadHighwayGlb(fallbackUrl);
 					} else {
-						// Seamless fallback to procedural 3D highway mesh
 						isGlbHighwayLoaded = false;
 					}
 				}
 			);
 		}
-		tryLoadGlb(highwayGlbUrl, highwayGlbUrl.includes('Highway.glb') ? '/models/highway.glb' : '/models/Highway.glb');
+		tryLoadHighwayGlb(highwayGlbUrl, highwayGlbUrl.includes('Highway.glb') ? '/models/highway.glb' : '/models/Highway.glb');
+
+		// 7. Asynchronously load custom .glb Parking asset for Pool Depots
+		function tryLoadParkingGlb(url: string, fallbackUrl?: string) {
+			loader.load(
+				url,
+				(gltf) => {
+					const bbox = new THREE.Box3().setFromObject(gltf.scene);
+					const center = bbox.getCenter(new THREE.Vector3());
+					const size = bbox.getSize(new THREE.Vector3());
+
+					const wrapper = new THREE.Group();
+					gltf.scene.position.x = -center.x;
+					gltf.scene.position.y = -bbox.min.y;
+					gltf.scene.position.z = -center.z;
+					wrapper.add(gltf.scene);
+
+					wrapper.userData = { size, maxDim: Math.max(size.x, size.z) };
+					glbParkingModel = wrapper;
+					isGlbParkingLoaded = true;
+					buildPoolParkingLots();
+				},
+				undefined,
+				() => {
+					if (fallbackUrl) {
+						tryLoadParkingGlb(fallbackUrl);
+					} else {
+						isGlbParkingLoaded = false;
+					}
+				}
+			);
+		}
+		tryLoadParkingGlb(parkingGlbUrl, parkingGlbUrl.includes('Parking.glb') ? '/models/parking.glb' : '/models/Parking.glb');
 
 		animate();
 		window.addEventListener('resize', onWindowResize);
@@ -205,12 +239,12 @@
 		geofences.forEach((gf) => {
 			// Elevated Translucent 3D Cylinder
 			const radius = gf.radiusMeter / 80;
-			const height = 3;
+			const height = 2.5;
 			const cylinderGeo = new THREE.CylinderGeometry(radius, radius, height, 32, 1, true);
 			const cylinderMat = new THREE.MeshStandardMaterial({
 				color: gf.color,
 				transparent: true,
-				opacity: 0.28,
+				opacity: 0.22,
 				side: THREE.DoubleSide,
 				roughness: 0.15
 			});
@@ -233,7 +267,7 @@
 			const pulseRingMat = new THREE.MeshBasicMaterial({
 				color: gf.color,
 				transparent: true,
-				opacity: 0.45,
+				opacity: 0.4,
 				side: THREE.DoubleSide
 			});
 			const pulseRing = new THREE.Mesh(pulseRingGeo, pulseRingMat);
@@ -243,6 +277,53 @@
 		});
 	}
 
+	// Build 3D Parking Depot inside each Geofence Pool (BCS Cilegon & BCS Gunung Putri)
+	function buildPoolParkingLots() {
+		if (!scene) return;
+		poolParkingMeshes.forEach((mesh) => scene.remove(mesh));
+		poolParkingMeshes = [];
+
+		geofences.forEach((gf) => {
+			const parkingGroup = new THREE.Group();
+			parkingGroup.position.set(gf.pos[0], 0.02, gf.pos[2]);
+
+			if (isGlbParkingLoaded && glbParkingModel) {
+				// Use loaded Parking.glb 3D model scaled to fit the geofence base
+				const clone = glbParkingModel.clone();
+				const maxDim = glbParkingModel.userData.maxDim || 4;
+				const targetRadius = (gf.radiusMeter / 80) * 1.3;
+				const scale = targetRadius / Math.max(1, maxDim);
+				clone.scale.set(scale, scale, scale);
+				parkingGroup.add(clone);
+			} else {
+				// Procedural 3D Parking Depot Base
+				const r = (gf.radiusMeter / 80) * 0.75;
+				const lotGeo = new THREE.CylinderGeometry(r, r, 0.04, 32);
+				const lotMat = new THREE.MeshStandardMaterial({
+					color: 0x334155,
+					roughness: 0.8,
+					metalness: 0.15
+				});
+				const lotMesh = new THREE.Mesh(lotGeo, lotMat);
+				lotMesh.position.y = 0.02;
+				parkingGroup.add(lotMesh);
+
+				// White parking slot lines
+				const lineGeo = new THREE.BoxGeometry(0.06, 0.01, r * 1.1);
+				const lineMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+				for (let i = -2; i <= 2; i++) {
+					const line = new THREE.Mesh(lineGeo, lineMat);
+					line.position.set(i * (r / 3), 0.045, 0);
+					parkingGroup.add(line);
+				}
+			}
+
+			scene.add(parkingGroup);
+			poolParkingMeshes.push(parkingGroup);
+		});
+	}
+
+	// Build Single Arterial Highway Corridor (Clean, No Cross-Spokes)
 	function buildHighwayCorridors() {
 		if (!scene) return;
 
@@ -250,7 +331,7 @@
 		highwayCorridorMeshes.forEach((mesh) => scene.remove(mesh));
 		highwayCorridorMeshes = [];
 
-		// Connect nodes (Geofence Pools & active routes)
+		// Connect ONLY the Pool Hubs in clean sequence (BCS Cilegon <-> BCS Gunung Putri)
 		const hubs = geofences.map((g) => ({ name: g.name, pos: g.pos }));
 		const connections: Array<[[number, number, number], [number, number, number]]> = [];
 
@@ -258,34 +339,9 @@
 			for (let i = 0; i < hubs.length - 1; i++) {
 				connections.push([hubs[i].pos, hubs[i + 1].pos]);
 			}
-			if (hubs.length > 2) {
-				connections.push([hubs[hubs.length - 1].pos, hubs[0].pos]);
-			}
 		} else {
-			connections.push(
-				[[-4, 0, -2], [0, 0, 0]],
-				[[0, 0, 0], [3, 0, 3]],
-				[[3, 0, 3], [5, 0, -4]]
-			);
+			connections.push([[-5, 0, -2.5], [5, 0, 2.5]]);
 		}
-
-		// Connect active moving trucks to nearest highway hub
-		activeTrucks
-			.filter((t) => t.speedKmh > 0)
-			.forEach((truck) => {
-				if (hubs.length > 0) {
-					let closest = hubs[0];
-					let minDist = Infinity;
-					hubs.forEach((h) => {
-						const dist = Math.hypot(truck.pos[0] - h.pos[0], truck.pos[2] - h.pos[2]);
-						if (dist < minDist) {
-							minDist = dist;
-							closest = h;
-						}
-					});
-					connections.push([truck.pos, closest.pos]);
-				}
-			});
 
 		connections.forEach(([p1, p2]) => {
 			const dx = p2[0] - p1[0];
@@ -297,13 +353,13 @@
 			const midZ = (p1[2] + p2[2]) / 2;
 			const angle = Math.atan2(dx, dz);
 
-			// Always build the high-contrast procedural asphalt road base for rock-solid visibility
+			// Build the single crisp arterial highway
 			const roadGroup = new THREE.Group();
 			roadGroup.position.set(midX, 0.01, midZ);
 			roadGroup.rotation.y = angle;
 
-			// 1. Asphalt Surface (Dark crisp slate contrasting on white)
-			const roadWidth = 1.6;
+			// 1. Wide Multi-Lane Asphalt Surface
+			const roadWidth = 2.0;
 			const roadGeo = new THREE.BoxGeometry(roadWidth, 0.04, length);
 			const roadMat = new THREE.MeshStandardMaterial({
 				color: 0x1e293b,
@@ -315,57 +371,52 @@
 			roadGroup.add(roadMesh);
 
 			// 2. Concrete Guardrails / Road Shoulders
-			const barrierGeo = new THREE.BoxGeometry(0.09, 0.16, length);
+			const barrierGeo = new THREE.BoxGeometry(0.1, 0.18, length);
 			const barrierMat = new THREE.MeshStandardMaterial({
 				color: 0x64748b,
 				roughness: 0.5,
-				metalness: 0.25
+				metalness: 0.3
 			});
 			const leftBarrier = new THREE.Mesh(barrierGeo, barrierMat);
-			leftBarrier.position.set(-roadWidth / 2 + 0.045, 0.09, 0);
+			leftBarrier.position.set(-roadWidth / 2 + 0.05, 0.1, 0);
 			roadGroup.add(leftBarrier);
 
 			const rightBarrier = new THREE.Mesh(barrierGeo, barrierMat);
-			rightBarrier.position.set(roadWidth / 2 - 0.045, 0.09, 0);
+			rightBarrier.position.set(roadWidth / 2 - 0.05, 0.1, 0);
 			roadGroup.add(rightBarrier);
 
-			// 3. Glowing Center Line (Dashed Markings - Amber Gold)
+			// 3. Double Amber Dashed Center Line (Glowing Amber Divider)
 			const numDashes = Math.max(1, Math.floor(length / 0.8));
-			const dashLength = 0.4;
+			const dashLength = 0.45;
 			const dashGap = length / numDashes;
-			const dashGeo = new THREE.BoxGeometry(0.07, 0.01, dashLength);
+			const dashGeo = new THREE.BoxGeometry(0.06, 0.01, dashLength);
 			const dashMat = new THREE.MeshBasicMaterial({
-				color: 0xf59e0b // High-visibility Amber
+				color: 0xf59e0b // Amber Gold
 			});
 
 			for (let d = 0; d < numDashes; d++) {
-				const dashMesh = new THREE.Mesh(dashGeo, dashMat);
+				// Lane 1 divider
+				const dash1 = new THREE.Mesh(dashGeo, dashMat);
 				const offsetZ = -length / 2 + (d + 0.5) * dashGap;
-				dashMesh.position.set(0, 0.045, offsetZ);
-				roadGroup.add(dashMesh);
+				dash1.position.set(-0.06, 0.045, offsetZ);
+				roadGroup.add(dash1);
+
+				// Lane 2 divider
+				const dash2 = new THREE.Mesh(dashGeo, dashMat);
+				dash2.position.set(0.06, 0.045, offsetZ);
+				roadGroup.add(dash2);
 			}
 
-			// 4. White Outer Edge Lines
-			const edgeGeo = new THREE.BoxGeometry(0.04, 0.01, length);
+			// 4. White Outer Edge Boundary Stripes
+			const edgeGeo = new THREE.BoxGeometry(0.05, 0.01, length);
 			const edgeMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.85 });
 			const leftEdge = new THREE.Mesh(edgeGeo, edgeMat);
-			leftEdge.position.set(-roadWidth / 2 + 0.14, 0.045, 0);
+			leftEdge.position.set(-roadWidth / 2 + 0.18, 0.045, 0);
 			roadGroup.add(leftEdge);
 
 			const rightEdge = new THREE.Mesh(edgeGeo, edgeMat);
-			rightEdge.position.set(roadWidth / 2 - 0.14, 0.045, 0);
+			rightEdge.position.set(roadWidth / 2 - 0.18, 0.045, 0);
 			roadGroup.add(rightEdge);
-
-			// 5. If GLB Highway is loaded, also place the custom 3D model on the corridor
-			if (isGlbHighwayLoaded && glbHighwayModel) {
-				const roadClone = glbHighwayModel.clone();
-				const baseLen = glbHighwayModel.userData.baseLength || 10;
-				const baseW = glbHighwayModel.userData.baseWidth || 2;
-				const targetScaleXZ = 1.4 / Math.max(0.1, baseW);
-				roadClone.scale.set(targetScaleXZ, targetScaleXZ, length / Math.max(1, baseLen));
-				roadClone.position.set(0, 0.025, 0);
-				roadGroup.add(roadClone);
-			}
 
 			scene.add(roadGroup);
 			highwayCorridorMeshes.push(roadGroup);
@@ -540,9 +591,13 @@
 		</div>
 
 		<div class="flex items-center gap-2 text-xs font-semibold">
-			<span class="px-3 py-1.5 rounded-xl bg-slate-100 {isGlbHighwayLoaded ? 'text-blue-700' : 'text-amber-700'} border border-slate-200 flex items-center gap-1.5 font-mono">
+			<span class="px-3 py-1.5 rounded-xl bg-slate-100 {isGlbParkingLoaded ? 'text-indigo-700' : 'text-slate-700'} border border-slate-200 flex items-center gap-1.5 font-mono">
+				<span class="material-symbols-outlined text-sm">local_parking</span>
+				<span>{isGlbParkingLoaded ? 'GLB Pool Depot' : '3D Pool Parking'}</span>
+			</span>
+			<span class="px-3 py-1.5 rounded-xl bg-slate-100 text-amber-700 border border-slate-200 flex items-center gap-1.5 font-mono">
 				<span class="material-symbols-outlined text-sm">route</span>
-				<span>{isGlbHighwayLoaded ? 'GLB 3D Highway' : '3D Highway Corridors'}</span>
+				<span>3D Highway Spine</span>
 			</span>
 			<span class="px-3 py-1.5 rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center gap-1.5 font-mono">
 				<span class="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></span>
@@ -565,7 +620,7 @@
 			class="w-full h-full cursor-grab active:cursor-grabbing bg-white"
 		></div>
 
-		<!-- Camera Controls & Highway Hint (Light frosted glass badge) -->
+		<!-- Camera Controls, Parking & Highway Hint (Light frosted glass badge) -->
 		<div class="absolute bottom-4 left-4 p-2.5 rounded-xl bg-white/90 backdrop-blur-md border border-slate-200 shadow-md text-[11px] font-bold text-slate-700 flex items-center gap-3">
 			<div class="flex items-center gap-1.5">
 				<span class="material-symbols-outlined text-sm text-emerald-600">3d_rotation</span>
@@ -573,8 +628,13 @@
 			</div>
 			<div class="h-3 w-[1px] bg-slate-300"></div>
 			<div class="flex items-center gap-1.5">
+				<span class="material-symbols-outlined text-sm text-indigo-600">local_parking</span>
+				<span>{isGlbParkingLoaded ? 'GLTF 3D Parking Depot (Cilegon & Gn. Putri)' : 'Procedural Pool Depot'}</span>
+			</div>
+			<div class="h-3 w-[1px] bg-slate-300"></div>
+			<div class="flex items-center gap-1.5">
 				<span class="material-symbols-outlined text-sm text-amber-600">edit_road</span>
-				<span>{isGlbHighwayLoaded ? 'GLTF Custom Highway Mesh' : 'Procedural 3D Highway Mesh'}</span>
+				<span>Arterial Highway Corridor</span>
 			</div>
 		</div>
 	</div>

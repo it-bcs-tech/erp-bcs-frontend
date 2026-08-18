@@ -1140,7 +1140,7 @@
 
 			<!-- Modal Body -->
 			<div class="p-6 bg-slate-50/50">
-				<Geofence3DMap units={units} pools={data.pools || []} />
+				<Geofence3DMap units={units} pools={data.pools || []} parkingGlbUrl="/models/Parking.glb" highwayGlbUrl="/models/Highway.glb" />
 			</div>
 		</div>
 	</div>
