@@ -2,109 +2,6 @@ import type { PageServerLoad, Actions } from './$types';
 import sql from '$lib/server/db';
 import { fail } from '@sveltejs/kit';
 
-// Helper: Kalkulasi Tarif Efektif Rata-Rata (TER) PPh 21 Bulanan (PP 58/2023)
-function calculatePPh21TER(grossSalary: number, ptkpStatus: string = 'TK/0'): { terCategory: string; terRate: number; taxAmount: number } {
-	// Tentukan Kategori TER
-	let terCategory = 'A';
-	const status = ptkpStatus.toUpperCase().trim();
-	if (['TK/0', 'TK/1', 'K/0'].includes(status)) {
-		terCategory = 'A';
-	} else if (['TK/2', 'TK/3', 'K/1', 'K/2'].includes(status)) {
-		terCategory = 'B';
-	} else if (status === 'K/3') {
-		terCategory = 'C';
-	}
-
-	let rate = 0;
-	if (terCategory === 'A') {
-		if (grossSalary <= 5400000) rate = 0;
-		else if (grossSalary <= 5650000) rate = 0.0025;
-		else if (grossSalary <= 5950000) rate = 0.005;
-		else if (grossSalary <= 6300000) rate = 0.0075;
-		else if (grossSalary <= 6750000) rate = 0.01;
-		else if (grossSalary <= 7500000) rate = 0.0125;
-		else if (grossSalary <= 8550000) rate = 0.015;
-		else if (grossSalary <= 9650000) rate = 0.0175;
-		else if (grossSalary <= 10050000) rate = 0.02;
-		else if (grossSalary <= 10350000) rate = 0.0225;
-		else if (grossSalary <= 10700000) rate = 0.025;
-		else if (grossSalary <= 11050000) rate = 0.03;
-		else if (grossSalary <= 11600000) rate = 0.035;
-		else if (grossSalary <= 12500000) rate = 0.04;
-		else if (grossSalary <= 13750000) rate = 0.05;
-		else rate = 0.06;
-	} else if (terCategory === 'B') {
-		if (grossSalary <= 6200000) rate = 0;
-		else if (grossSalary <= 6500000) rate = 0.0025;
-		else if (grossSalary <= 6850000) rate = 0.005;
-		else if (grossSalary <= 7300000) rate = 0.0075;
-		else if (grossSalary <= 9200000) rate = 0.01;
-		else if (grossSalary <= 10750000) rate = 0.015;
-		else if (grossSalary <= 11250000) rate = 0.02;
-		else if (grossSalary <= 12300000) rate = 0.03;
-		else if (grossSalary <= 13350000) rate = 0.04;
-		else rate = 0.05;
-	} else {
-		// Kategori C
-		if (grossSalary <= 6600000) rate = 0;
-		else if (grossSalary <= 6950000) rate = 0.0025;
-		else if (grossSalary <= 7350000) rate = 0.005;
-		else if (grossSalary <= 7800000) rate = 0.0075;
-		else if (grossSalary <= 9550000) rate = 0.01;
-		else if (grossSalary <= 11150000) rate = 0.015;
-		else if (grossSalary <= 12300000) rate = 0.02;
-		else if (grossSalary <= 13450000) rate = 0.03;
-		else rate = 0.04;
-	}
-
-	return {
-		terCategory,
-		terRate: Number((rate * 100).toFixed(2)),
-		taxAmount: Math.round(grossSalary * rate)
-	};
-}
-
-// Helper: Kalkulasi Rincian BPJS Ketenagakerjaan & BPJS Kesehatan
-function calculateBPJSBreakdown(basicSalary: number) {
-	const jkkRate = 0.0127; // 1.27% (Tingkat Risiko Sedang-Tinggi Transportasi)
-	const jkmRate = 0.003;  // 0.30%
-	const jhtEmpRate = 0.02; // 2% Karyawan
-	const jhtCompRate = 0.037; // 3.7% Perusahaan
-	const jpCap = Math.min(basicSalary, 10042300);
-	const jpEmpRate = 0.01; // 1% Karyawan
-	const jpCompRate = 0.02; // 2% Perusahaan
-
-	const bpjsKesCap = Math.min(basicSalary, 12000000);
-	const bpjsKesEmpRate = 0.01; // 1% Karyawan
-	const bpjsKesCompRate = 0.04; // 4% Perusahaan
-
-	const bpjs_tk_jkk_company = Math.round(basicSalary * jkkRate);
-	const bpjs_tk_jkm_company = Math.round(basicSalary * jkmRate);
-	const bpjs_tk_jht_company = Math.round(basicSalary * jhtCompRate);
-	const bpjs_tk_jp_company = Math.round(jpCap * jpCompRate);
-	const bpjs_kes_company = Math.round(bpjsKesCap * bpjsKesCompRate);
-
-	const bpjs_tk_jht_employee = Math.round(basicSalary * jhtEmpRate);
-	const bpjs_tk_jp_employee = Math.round(jpCap * jpEmpRate);
-	const bpjs_kes_employee = Math.round(bpjsKesCap * bpjsKesEmpRate);
-
-	const total_employee_bpjs = bpjs_tk_jht_employee + bpjs_tk_jp_employee + bpjs_kes_employee;
-	const total_company_bpjs = bpjs_tk_jkk_company + bpjs_tk_jkm_company + bpjs_tk_jht_company + bpjs_tk_jp_company + bpjs_kes_company;
-
-	return {
-		bpjs_tk_jkk_company,
-		bpjs_tk_jkm_company,
-		bpjs_tk_jht_company,
-		bpjs_tk_jp_company,
-		bpjs_kes_company,
-		bpjs_tk_jht_employee,
-		bpjs_tk_jp_employee,
-		bpjs_kes_employee,
-		total_employee_bpjs,
-		total_company_bpjs
-	};
-}
-
 export const load: PageServerLoad = async ({ url }) => {
 	const selectedPeriod = url.searchParams.get('period') || '2026-07-01';
 	const searchQuery = url.searchParams.get('search') || '';
@@ -116,6 +13,7 @@ export const load: PageServerLoad = async ({ url }) => {
 			SELECT 
 				TO_CHAR(period, 'YYYY-MM-DD') as period_key,
 				TO_CHAR(period, 'FMMonth YYYY') as period_label,
+				TO_CHAR(period, 'FMmm - YYYY') as period_code,
 				COUNT(*)::int as total_employees,
 				COALESCE(SUM(gross_salary), 0)::float as total_gross,
 				COALESCE(SUM(total_deductions), 0)::float as total_deductions,
@@ -161,9 +59,10 @@ export const load: PageServerLoad = async ({ url }) => {
 			filterCondition = sql`${filterCondition} AND s.employee_division = ${divisionFilter}`;
 		}
 
-		const rawSalarySlips = await sql`
+		const salarySlips = await sql`
 			SELECT 
 				s.id,
+				s.user_id,
 				s.employee_nik,
 				s.employee_name,
 				s.employee_position,
@@ -171,66 +70,40 @@ export const load: PageServerLoad = async ({ url }) => {
 				s.bank_name,
 				s.account_number,
 				s.basic_salary::float,
+				s.professional_allowance::float,
+				s.performance_allowance::float,
 				s.position_allowance::float,
 				s.meal_allowance::float,
 				s.transport_allowance::float,
-				s.overtime_allowance::float,
+				s.relocation_allowance::float,
+				s.skill_allowance::float,
 				s.other_allowance::float,
+				s.incentive::float,
+				s.communication_allowance::float,
+				s.overtime_allowance::float,
+				s.overtime_hours::float,
+				s.khk_allowance::float,
+				s.khk_count::int,
 				s.gross_salary::float,
+				s.zakat::float,
 				s.tax::float,
 				s.bpjs::float,
+				s.union_fee::float,
 				s.absence_deduction::float,
+				s.absence_days::int,
+				s.cooperative::float,
+				s.bpr_installment::float,
 				s.other_deduction::float,
 				s.total_deductions::float,
 				s.net_salary::float,
-				TO_CHAR(s.period, 'YYYY-MM-DD') as period_date
+				TO_CHAR(s.period, 'YYYY-MM-DD') as period_date,
+				TO_CHAR(s.period, 'FMmm - YYYY') as period_display,
+				s.notes
 			FROM presensi.salary_slips s
 			${filterCondition}
 			ORDER BY s.employee_name ASC
 			LIMIT 100
 		`;
-
-		// Enrich each slip with PTKP status, PPh 21 TER, BPJS Breakdown, and Driver Ritase info
-		const salarySlips = rawSalarySlips.map((s, idx) => {
-			const isDriver = (s.employee_position || '').toLowerCase().includes('driver') ||
-							 (s.employee_division || '').toLowerCase().includes('operasi') ||
-							 (s.employee_division || '').toLowerCase().includes('logistik');
-			
-			// Mocked or deterministic PTKP status based on index for realistic diversity
-			const ptkpOptions = ['TK/0', 'K/0', 'K/1', 'K/2', 'TK/1', 'K/3'];
-			const ptkpStatus = ptkpOptions[idx % ptkpOptions.length];
-
-			// Kalkulasi PPh 21 TER
-			const terInfo = calculatePPh21TER(s.gross_salary, ptkpStatus);
-			
-			// Kalkulasi BPJS
-			const bpjsInfo = calculateBPJSBreakdown(s.basic_salary);
-
-			// Komponen Khusus Driver Logistik
-			const ritase_count = isDriver ? 14 + (idx % 12) : 0;
-			const tonnage_total = isDriver ? ritase_count * 25 : 0;
-			const ritase_allowance = isDriver ? ritase_count * 150000 : 0;
-			const safety_bonus = isDriver ? 350000 : 0;
-			const waiting_fee = isDriver ? 150000 : 0;
-
-			return {
-				...s,
-				isDriver,
-				ptkpStatus,
-				terCategory: terInfo.terCategory,
-				terRate: terInfo.terRate,
-				calculatedTax: terInfo.taxAmount,
-				bpjsDetails: bpjsInfo,
-				logisticsDetails: {
-					ritase_count,
-					tonnage_total,
-					ritase_allowance,
-					safety_bonus,
-					waiting_fee,
-					total_driver_incentive: ritase_allowance + safety_bonus + waiting_fee
-				}
-			};
-		});
 
 		return {
 			selectedPeriod,
@@ -274,4 +147,78 @@ export const load: PageServerLoad = async ({ url }) => {
 		};
 	}
 };
+
+export const actions: Actions = {
+	updateSlip: async ({ request }) => {
+		const formData = await request.formData();
+		const slipId = formData.get('slipId')?.toString();
+		
+		if (!slipId) return fail(400, { message: 'ID Slip Gaji tidak ditemukan' });
+
+		const basic_salary = parseFloat(formData.get('basic_salary')?.toString() || '0');
+		const professional_allowance = parseFloat(formData.get('professional_allowance')?.toString() || '0');
+		const performance_allowance = parseFloat(formData.get('performance_allowance')?.toString() || '0');
+		const position_allowance = parseFloat(formData.get('position_allowance')?.toString() || '0');
+		const meal_allowance = parseFloat(formData.get('meal_allowance')?.toString() || '0');
+		const transport_allowance = parseFloat(formData.get('transport_allowance')?.toString() || '0');
+		const relocation_allowance = parseFloat(formData.get('relocation_allowance')?.toString() || '0');
+		const skill_allowance = parseFloat(formData.get('skill_allowance')?.toString() || '0');
+		const other_allowance = parseFloat(formData.get('other_allowance')?.toString() || '0');
+		const incentive = parseFloat(formData.get('incentive')?.toString() || '0');
+		const communication_allowance = parseFloat(formData.get('communication_allowance')?.toString() || '0');
+		const overtime_allowance = parseFloat(formData.get('overtime_allowance')?.toString() || '0');
+		const khk_allowance = parseFloat(formData.get('khk_allowance')?.toString() || '0');
+
+		const zakat = parseFloat(formData.get('zakat')?.toString() || '0');
+		const tax = parseFloat(formData.get('tax')?.toString() || '0');
+		const bpjs = parseFloat(formData.get('bpjs')?.toString() || '0');
+		const union_fee = parseFloat(formData.get('union_fee')?.toString() || '0');
+		const absence_deduction = parseFloat(formData.get('absence_deduction')?.toString() || '0');
+		const cooperative = parseFloat(formData.get('cooperative')?.toString() || '0');
+		const bpr_installment = parseFloat(formData.get('bpr_installment')?.toString() || '0');
+		const other_deduction = parseFloat(formData.get('other_deduction')?.toString() || '0');
+
+		const gross_salary = basic_salary + professional_allowance + performance_allowance + position_allowance + meal_allowance + transport_allowance + relocation_allowance + skill_allowance + other_allowance + incentive + communication_allowance + overtime_allowance + khk_allowance;
+		const total_deductions = zakat + tax + bpjs + union_fee + absence_deduction + cooperative + bpr_installment + other_deduction;
+		const net_salary = gross_salary - total_deductions;
+
+		try {
+			await sql`
+				UPDATE presensi.salary_slips
+				SET 
+					basic_salary = ${basic_salary},
+					professional_allowance = ${professional_allowance},
+					performance_allowance = ${performance_allowance},
+					position_allowance = ${position_allowance},
+					meal_allowance = ${meal_allowance},
+					transport_allowance = ${transport_allowance},
+					relocation_allowance = ${relocation_allowance},
+					skill_allowance = ${skill_allowance},
+					other_allowance = ${other_allowance},
+					incentive = ${incentive},
+					communication_allowance = ${communication_allowance},
+					overtime_allowance = ${overtime_allowance},
+					khk_allowance = ${khk_allowance},
+					gross_salary = ${gross_salary},
+					zakat = ${zakat},
+					tax = ${tax},
+					bpjs = ${bpjs},
+					union_fee = ${union_fee},
+					absence_deduction = ${absence_deduction},
+					cooperative = ${cooperative},
+					bpr_installment = ${bpr_installment},
+					other_deduction = ${other_deduction},
+					total_deductions = ${total_deductions},
+					net_salary = ${net_salary},
+					updated_at = NOW()
+				WHERE id = ${slipId}
+			`;
+			return { success: true };
+		} catch (e: any) {
+			console.error('Failed to update salary slip:', e);
+			return fail(500, { message: e.message || 'Gagal menyimpan ke database' });
+		}
+	}
+};
+
 
