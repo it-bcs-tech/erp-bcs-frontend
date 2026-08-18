@@ -1,12 +1,19 @@
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
 	import * as THREE from 'three';
+	import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 
 	// Props - Accepts real EasyGo GPS units and PostgreSQL Geofence pools
 	let {
 		units = [],
-		pools = []
+		pools = [],
+		highwayGlbUrl = '/models/Highway.glb'
 	} = $props();
+
+	// Highway 3D GLTF state
+	let isGlbHighwayLoaded = $state(false);
+	let glbHighwayModel: THREE.Group | null = null;
+	let highwayCorridorMeshes: THREE.Object3D[] = [];
 
 	// Calculate center latitude and longitude for 3D coordinate projection
 	let centerLat = $derived.by(() => {
@@ -38,9 +45,9 @@
 	let geofences = $derived.by(() => {
 		if (pools.length === 0) {
 			return [
-				{ name: 'Pool Cilegon Utama', radiusMeter: 300, color: 0x10b981, pos: [-4, 0, -2], status: 'Active Pool' },
-				{ name: 'Rest Area KM 68 Tol Merak', radiusMeter: 150, color: 0x38bdf8, pos: [3, 0, 3], status: 'Rest Area' },
-				{ name: 'Kawasan Industri Cilegon', radiusMeter: 250, color: 0xf59e0b, pos: [5, 0, -4], status: 'Loading Zone' }
+				{ name: 'Pool Cilegon Utama', radiusMeter: 300, color: 0x10b981, pos: [-4, 0, -2] as [number, number, number], status: 'Active Pool' },
+				{ name: 'Rest Area KM 68 Tol Merak', radiusMeter: 150, color: 0x38bdf8, pos: [3, 0, 3] as [number, number, number], status: 'Rest Area' },
+				{ name: 'Kawasan Industri Cilegon', radiusMeter: 250, color: 0xf59e0b, pos: [5, 0, -4] as [number, number, number], status: 'Loading Zone' }
 			];
 		}
 		return pools.map((p: any, idx: number) => {
@@ -59,9 +66,9 @@
 	let activeTrucks = $derived.by(() => {
 		if (units.length === 0) {
 			return [
-				{ nopol: 'B 9123 BCS', driver: 'Ahmad Subagja', speedKmh: 65, pos: [-1, 0, -1], status: 'Moving' },
-				{ nopol: 'B 9482 BCS', driver: 'Budi Santoso', speedKmh: 42, pos: [2, 0, 1], status: 'Transit' },
-				{ nopol: 'B 9011 BCS', driver: 'Dedi Kurniawan', speedKmh: 0, pos: [-3.8, 0, -1.8], status: 'Standby' }
+				{ nopol: 'B 9123 BCS', driver: 'Ahmad Subagja', speedKmh: 65, pos: [-1, 0, -1] as [number, number, number], status: 'Moving' },
+				{ nopol: 'B 9482 BCS', driver: 'Budi Santoso', speedKmh: 42, pos: [2, 0, 1] as [number, number, number], status: 'Transit' },
+				{ nopol: 'B 9011 BCS', driver: 'Dedi Kurniawan', speedKmh: 0, pos: [-3.8, 0, -1.8] as [number, number, number], status: 'Standby' }
 			];
 		}
 		return units.map((u: any) => ({
@@ -125,9 +132,33 @@
 		gridHelper.position.y = -0.01;
 		scene.add(gridHelper);
 
-		// 5. Build 3D Elevated Geofence Cylinders & Truck Markers
+		// 5. Build 3D Geofences, Highway Corridors & Truck Markers
 		build3DGeofences();
+		buildHighwayCorridors();
 		build3DTruckMarkers();
+
+		// 6. Asynchronously try to load custom .glb highway asset if available
+		const loader = new GLTFLoader();
+		function tryLoadGlb(url: string, fallbackUrl?: string) {
+			loader.load(
+				url,
+				(gltf) => {
+					isGlbHighwayLoaded = true;
+					glbHighwayModel = gltf.scene;
+					buildHighwayCorridors();
+				},
+				undefined,
+				() => {
+					if (fallbackUrl) {
+						tryLoadGlb(fallbackUrl);
+					} else {
+						// Seamless fallback to procedural 3D highway mesh
+						isGlbHighwayLoaded = false;
+					}
+				}
+			);
+		}
+		tryLoadGlb(highwayGlbUrl, highwayGlbUrl.includes('Highway.glb') ? '/models/highway.glb' : '/models/Highway.glb');
 
 		animate();
 		window.addEventListener('resize', onWindowResize);
@@ -179,6 +210,134 @@
 			pulseRing.position.set(gf.pos[0], 0.02, gf.pos[2]);
 			scene.add(pulseRing);
 			pulsingRings.push(pulseRing);
+		});
+	}
+
+	function buildHighwayCorridors() {
+		if (!scene) return;
+
+		// Clear previous highway meshes
+		highwayCorridorMeshes.forEach((mesh) => scene.remove(mesh));
+		highwayCorridorMeshes = [];
+
+		// Connect nodes (Geofence Pools & active routes)
+		const hubs = geofences.map((g) => ({ name: g.name, pos: g.pos }));
+		const connections: Array<[[number, number, number], [number, number, number]]> = [];
+
+		if (hubs.length >= 2) {
+			for (let i = 0; i < hubs.length - 1; i++) {
+				connections.push([hubs[i].pos, hubs[i + 1].pos]);
+			}
+			if (hubs.length > 2) {
+				connections.push([hubs[hubs.length - 1].pos, hubs[0].pos]);
+			}
+		} else {
+			connections.push(
+				[[-4, 0, -2], [0, 0, 0]],
+				[[0, 0, 0], [3, 0, 3]],
+				[[3, 0, 3], [5, 0, -4]]
+			);
+		}
+
+		// Connect active moving trucks to nearest highway hub
+		activeTrucks
+			.filter((t) => t.speedKmh > 0)
+			.forEach((truck) => {
+				if (hubs.length > 0) {
+					let closest = hubs[0];
+					let minDist = Infinity;
+					hubs.forEach((h) => {
+						const dist = Math.hypot(truck.pos[0] - h.pos[0], truck.pos[2] - h.pos[2]);
+						if (dist < minDist) {
+							minDist = dist;
+							closest = h;
+						}
+					});
+					connections.push([truck.pos, closest.pos]);
+				}
+			});
+
+		connections.forEach(([p1, p2]) => {
+			const dx = p2[0] - p1[0];
+			const dz = p2[2] - p1[2];
+			const length = Math.hypot(dx, dz);
+			if (length < 0.2) return;
+
+			const midX = (p1[0] + p2[0]) / 2;
+			const midZ = (p1[2] + p2[2]) / 2;
+			const angle = Math.atan2(dx, dz);
+
+			if (isGlbHighwayLoaded && glbHighwayModel) {
+				// Use loaded GLB 3D Highway asset
+				const roadClone = glbHighwayModel.clone();
+				roadClone.position.set(midX, 0.01, midZ);
+				roadClone.rotation.y = angle;
+				roadClone.scale.set(1, 1, Math.max(0.1, length / 10));
+				scene.add(roadClone);
+				highwayCorridorMeshes.push(roadClone);
+			} else {
+				// Procedural 3D Highway Road Mesh (Asphalt + Barriers + Glowing Dashes)
+				const roadGroup = new THREE.Group();
+				roadGroup.position.set(midX, 0.01, midZ);
+				roadGroup.rotation.y = angle;
+
+				// 1. Asphalt Surface
+				const roadWidth = 1.6;
+				const roadGeo = new THREE.BoxGeometry(roadWidth, 0.03, length);
+				const roadMat = new THREE.MeshStandardMaterial({
+					color: 0x1e293b,
+					roughness: 0.85,
+					metalness: 0.15
+				});
+				const roadMesh = new THREE.Mesh(roadGeo, roadMat);
+				roadMesh.position.y = 0.015;
+				roadGroup.add(roadMesh);
+
+				// 2. Concrete Guardrails / Road Shoulders
+				const barrierGeo = new THREE.BoxGeometry(0.08, 0.14, length);
+				const barrierMat = new THREE.MeshStandardMaterial({
+					color: 0x475569,
+					roughness: 0.6,
+					metalness: 0.3
+				});
+				const leftBarrier = new THREE.Mesh(barrierGeo, barrierMat);
+				leftBarrier.position.set(-roadWidth / 2 + 0.04, 0.08, 0);
+				roadGroup.add(leftBarrier);
+
+				const rightBarrier = new THREE.Mesh(barrierGeo, barrierMat);
+				rightBarrier.position.set(roadWidth / 2 - 0.04, 0.08, 0);
+				roadGroup.add(rightBarrier);
+
+				// 3. Glowing Center Line (Dashed Markings)
+				const numDashes = Math.max(1, Math.floor(length / 0.8));
+				const dashLength = 0.4;
+				const dashGap = length / numDashes;
+				const dashGeo = new THREE.BoxGeometry(0.06, 0.01, dashLength);
+				const dashMat = new THREE.MeshBasicMaterial({
+					color: 0xfbbf24 // Amber/Gold Glowing Marking
+				});
+
+				for (let d = 0; d < numDashes; d++) {
+					const dashMesh = new THREE.Mesh(dashGeo, dashMat);
+					const offsetZ = -length / 2 + (d + 0.5) * dashGap;
+					dashMesh.position.set(0, 0.035, offsetZ);
+					roadGroup.add(dashMesh);
+				}
+
+				// 4. White Outer Edge Lines
+				const edgeGeo = new THREE.BoxGeometry(0.04, 0.01, length);
+				const edgeMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.7 });
+				const leftEdge = new THREE.Mesh(edgeGeo, edgeMat);
+				leftEdge.position.set(-roadWidth / 2 + 0.14, 0.035, 0);
+				roadGroup.add(leftEdge);
+
+				const rightEdge = new THREE.Mesh(edgeGeo, edgeMat);
+				rightEdge.position.set(roadWidth / 2 - 0.14, 0.035, 0);
+				roadGroup.add(rightEdge);
+
+				scene.add(roadGroup);
+				highwayCorridorMeshes.push(roadGroup);
+			}
 		});
 	}
 
@@ -350,6 +509,10 @@
 		</div>
 
 		<div class="flex items-center gap-2 text-xs font-semibold text-slate-300">
+			<span class="px-3 py-1.5 rounded-xl bg-slate-800 {isGlbHighwayLoaded ? 'text-cyan-400' : 'text-amber-400'} flex items-center gap-1.5 font-mono">
+				<span class="material-symbols-outlined text-sm">route</span>
+				<span>{isGlbHighwayLoaded ? 'GLB 3D Highway' : '3D Highway Corridors'}</span>
+			</span>
 			<span class="px-3 py-1.5 rounded-xl bg-slate-800 text-emerald-400 flex items-center gap-1.5 font-mono">
 				<span class="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></span>
 				<span>{activeTrucks.length} Armada Terhubung</span>
@@ -371,10 +534,17 @@
 			class="w-full h-full cursor-grab active:cursor-grabbing"
 		></div>
 
-		<!-- Camera Controls Hint -->
-		<div class="absolute bottom-4 left-4 p-2.5 rounded-xl bg-slate-900/80 backdrop-blur-xs border border-slate-800 text-[11px] font-semibold text-slate-300 flex items-center gap-2">
-			<span class="material-symbols-outlined text-sm text-emerald-400">3d_rotation</span>
-			<span>Rotasi Peta 3D 360° Drag & Scroll Zoom</span>
+		<!-- Camera Controls & Highway Hint -->
+		<div class="absolute bottom-4 left-4 p-2.5 rounded-xl bg-slate-900/80 backdrop-blur-xs border border-slate-800 text-[11px] font-semibold text-slate-300 flex items-center gap-3">
+			<div class="flex items-center gap-1.5">
+				<span class="material-symbols-outlined text-sm text-emerald-400">3d_rotation</span>
+				<span>Rotasi 360° & Zoom</span>
+			</div>
+			<div class="h-3 w-[1px] bg-slate-700"></div>
+			<div class="flex items-center gap-1.5">
+				<span class="material-symbols-outlined text-sm text-amber-400">edit_road</span>
+				<span>{isGlbHighwayLoaded ? 'GLTF Custom Highway Mesh' : 'Procedural 3D Highway Mesh'}</span>
+			</div>
 		</div>
 	</div>
 

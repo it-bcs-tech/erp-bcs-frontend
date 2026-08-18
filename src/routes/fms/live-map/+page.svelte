@@ -211,6 +211,8 @@
 	let map: any;
 	let L: any;
 	let mapLayers: any[] = [];
+	let highwayMapLayers: any[] = [];
+	let showHighwayLayer = $state(true);
 	let mapReady = $state(false);
 
 	// ==============================
@@ -557,6 +559,46 @@
 			}
 		}
 	});
+
+	// ==============================
+	// Highway Layer Effect (2D Leaflet)
+	// ==============================
+	$effect(() => {
+		if (mapReady && map && L) {
+			// Clear old highway layers
+			highwayMapLayers.forEach((l) => l.remove());
+			highwayMapLayers = [];
+
+			if (showHighwayLayer) {
+				const poolsList = data.pools || [];
+				if (poolsList.length >= 2) {
+					const coords = poolsList.map((p: any) => [p.lat, p.lng]);
+
+					// Outer Glow Highway Line
+					const glowLine = L.polyline(coords, {
+						color: '#f59e0b',
+						weight: 7,
+						opacity: 0.35,
+						lineCap: 'round',
+						lineJoin: 'round'
+					}).addTo(map);
+					glowLine.bindTooltip('<div class="font-bold text-xs text-amber-600">🛣️ Jalur Tol & Koridor Logistik</div>', { sticky: true });
+					highwayMapLayers.push(glowLine);
+
+					// Center Dashed Highway Line
+					const dashLine = L.polyline(coords, {
+						color: '#fbbf24',
+						weight: 3,
+						opacity: 0.9,
+						dashArray: '10, 10',
+						lineCap: 'round',
+						lineJoin: 'round'
+					}).addTo(map);
+					highwayMapLayers.push(dashLine);
+				}
+			}
+		}
+	});
 </script>
 
 <svelte:head>
@@ -820,12 +862,19 @@
 			<div bind:this={mapContainer} class="w-full h-full"></div>
 			
 			<div class="absolute top-4 right-4 z-[1000] flex items-center gap-2">
-				<button onclick={() => (show3DGeofenceModal = true)} class="p-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl shadow-lg border border-emerald-500 transition-colors flex items-center gap-1.5 font-bold text-xs" title="Tampilkan 3D Elevated Geofence">
+				<button onclick={() => (showHighwayLayer = !showHighwayLayer)} 
+					class="p-2.5 {showHighwayLayer ? 'bg-amber-500/20 text-amber-500 border-amber-500/40 shadow-amber-500/10' : 'bg-surface-container-lowest/90 text-on-surface-variant border-surface-container'} backdrop-blur-md rounded-xl shadow-lg border transition-all flex items-center gap-1.5 font-bold text-xs cursor-pointer" 
+					title="Toggle Highway Layer (Jalur Jalan Tol)">
+					<span class="material-symbols-outlined text-lg">edit_road</span>
+					<span class="hidden sm:inline">Highway Layer</span>
+				</button>
+
+				<button onclick={() => (show3DGeofenceModal = true)} class="p-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl shadow-lg border border-emerald-500 transition-colors flex items-center gap-1.5 font-bold text-xs cursor-pointer" title="Tampilkan 3D Elevated Geofence">
 					<span class="material-symbols-outlined text-lg">view_in_ar</span>
 					<span class="hidden sm:inline">3D Geofence</span>
 				</button>
 
-				<button onclick={() => isFullScreen = !isFullScreen} class="p-2.5 {isFullScreen ? 'bg-white/30 dark:bg-slate-900/30 hover:bg-white dark:hover:bg-slate-900' : 'bg-surface-container-lowest/90 hover:bg-surface-container-lowest'} backdrop-blur-md rounded-xl shadow-lg border border-surface-container transition-colors text-on-surface" title="Toggle Full Screen">
+				<button onclick={() => isFullScreen = !isFullScreen} class="p-2.5 {isFullScreen ? 'bg-white/30 dark:bg-slate-900/30 hover:bg-white dark:hover:bg-slate-900' : 'bg-surface-container-lowest/90 hover:bg-surface-container-lowest'} backdrop-blur-md rounded-xl shadow-lg border border-surface-container transition-colors text-on-surface cursor-pointer" title="Toggle Full Screen">
 					<span class="material-symbols-outlined text-xl">{isFullScreen ? 'fullscreen_exit' : 'fullscreen'}</span>
 				</button>
 			</div>
