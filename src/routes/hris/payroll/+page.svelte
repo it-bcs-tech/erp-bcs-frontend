@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { page } from '$app/stores';
+	import { systemSettings, formatCurrencyPrivacy, formatMaskedText } from '$lib/stores/settings';
 
 	let { data } = $props();
 
@@ -21,11 +22,15 @@
 	let showRejectModal = $state(false);
 
 	function formatRupiah(val: number) {
-		return new Intl.NumberFormat('id-ID', {
-			style: 'currency',
-			currency: 'IDR',
-			maximumFractionDigits: 0
-		}).format(val || 0);
+		return formatCurrencyPrivacy(val, $systemSettings.hideSalaryNominals);
+	}
+
+	function formatNIK(nik: string) {
+		return formatMaskedText(nik, $systemSettings.maskSensitiveInfo);
+	}
+
+	function formatAccount(acc: string) {
+		return formatMaskedText(acc, $systemSettings.maskSensitiveInfo);
 	}
 
 	function handleFilterChange() {
@@ -72,6 +77,7 @@
 	}
 </script>
 
+
 <svelte:head>
 	<title>HRD Payroll & Klaim Reimbursement | ERP BCS</title>
 </svelte:head>
@@ -117,6 +123,22 @@
 		</div>
 	</div>
 
+	<!-- Alert Banner: Mode Presentasi Aktif -->
+	{#if $systemSettings.hideSalaryNominals}
+		<div class="p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-xs text-amber-900 dark:text-amber-200 flex items-center justify-between animate-in fade-in">
+			<div class="flex items-center gap-2">
+				<span class="material-symbols-outlined text-amber-600 text-lg">visibility_off</span>
+				<span>
+					<strong>Mode Presentasi Aktif:</strong> Seluruh nominal rupiah disamarkan menjadi <code class="px-1.5 py-0.5 rounded bg-amber-500/20 font-mono font-bold">Rp ••••••••</code> untuk keamanan layar saat presentasi.
+				</span>
+			</div>
+			<a href="/settings" class="text-amber-700 dark:text-amber-300 font-bold hover:underline inline-flex items-center gap-1">
+				<span>Ubah di Pengaturan</span>
+				<span class="material-symbols-outlined text-xs">arrow_forward</span>
+			</a>
+		</div>
+	{/if}
+
 	<!-- Tab Switcher -->
 	<div class="flex items-center gap-2 border-b border-slate-200 dark:border-slate-800 pb-1">
 		<button
@@ -138,6 +160,7 @@
 			{/if}
 		</button>
 	</div>
+
 
 	<!-- TAB 1: PAYROLL DIRECTORY -->
 	{#if activeMainTab === 'payroll'}
