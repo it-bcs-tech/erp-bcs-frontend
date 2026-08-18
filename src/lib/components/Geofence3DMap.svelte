@@ -182,13 +182,28 @@
 		});
 	}
 
+	// Registry: unit id → THREE.Group for smooth lerp movement
+	const truckGroups = new Map<string, THREE.Group>();
+	// Target world positions per truck
+	const truckTargets = new Map<string, THREE.Vector3>();
+
 	function build3DTruckMarkers() {
+		// Choose color by speed/status
+		const statusColors: Record<string, number> = {
+			Moving: 0x3b82f6,
+			Transit: 0xf59e0b,
+			Loading: 0x6366f1,
+			Available: 0x10b981,
+			Maintenance: 0xf97316,
+		};
+
 		activeTrucks.forEach((truck) => {
 			const group = new THREE.Group();
+			const color = statusColors[truck.status as string] ?? 0x0284c7;
 
 			// Mini 3D Truck Model
 			const cabinGeo = new THREE.BoxGeometry(0.5, 0.5, 0.6);
-			const cabinMat = new THREE.MeshStandardMaterial({ color: 0x0284c7 });
+			const cabinMat = new THREE.MeshStandardMaterial({ color });
 			const cabin = new THREE.Mesh(cabinGeo, cabinMat);
 			cabin.position.set(0, 0.25, 0.4);
 			group.add(cabin);
@@ -199,9 +214,40 @@
 			box.position.set(0, 0.3, -0.4);
 			group.add(box);
 
-			group.position.set(truck.pos[0], 0, truck.pos[2]);
+			// Speed indicator: glowing dot on top
+			const dotGeo = new THREE.SphereGeometry(0.12, 8, 8);
+			const dotMat = new THREE.MeshBasicMaterial({ color: truck.speedKmh > 0 ? 0x10b981 : 0x94a3b8 });
+			const dot = new THREE.Mesh(dotGeo, dotMat);
+			dot.position.set(0, 0.75, 0);
+			group.add(dot);
+
+			const px = truck.pos[0];
+			const pz = truck.pos[2];
+			group.position.set(px, 0, pz);
 			scene.add(group);
+
+			// Register for lerp
+			truckGroups.set(truck.nopol, group);
+			truckTargets.set(truck.nopol, new THREE.Vector3(px, 0, pz));
 		});
+	}
+
+	// Poll /api/fms/live-positions and update 3D truck positions via lerp
+	let pollInterval3D: ReturnType<typeof setInterval>;
+
+	async function poll3DPositions() {
+		try {
+			const res = await fetch('/api/fms/live-positions');
+			if (!res.ok) return;
+			const { positions } = await res.json() as { positions: any[] };
+			for (const pos of positions) {
+				const target = truckTargets.get(pos.id);
+				if (!target) continue;
+				// Convert new GPS to 3D coords
+				const [nx, , nz] = gpsTo3D(pos.lat, pos.lng);
+				target.set(nx, 0, nz);
+			}
+		} catch (_) { /* silent */ }
 	}
 
 	function animate() {
@@ -213,6 +259,14 @@
 			const scale = 1 + Math.sin(time + idx) * 0.2;
 			ring.scale.set(scale, scale, 1);
 		});
+
+		// Smooth lerp truck mesh positions towards their GPS targets
+		const LERP = 0.025; // ~2.5% per frame ≈ smooth 10s transition
+		for (const [id, group] of truckGroups.entries()) {
+			const target = truckTargets.get(id);
+			if (!target) continue;
+			group.position.lerp(target, LERP);
+		}
 
 		// Smooth camera rotation
 		currentRotation.x += (targetRotation.x - currentRotation.x) * 0.08;
@@ -265,10 +319,14 @@
 
 	onMount(() => {
 		init3D();
+		// Start real-time 3D position polling every 10s
+		poll3DPositions();
+		pollInterval3D = setInterval(poll3DPositions, 10000);
 	});
 
 	onDestroy(() => {
 		if (animationFrameId) cancelAnimationFrame(animationFrameId);
+		clearInterval(pollInterval3D);
 		window.removeEventListener('resize', onWindowResize);
 	});
 </script>

@@ -213,6 +213,75 @@
 	let mapLayers: any[] = [];
 	let mapReady = $state(false);
 
+	// ==============================
+	// Real-time Smooth Lerp Tracking
+	// ==============================
+	// Map of unit id → { marker, currentLat, currentLng, targetLat, targetLng, lerpRaf }
+	type MarkerEntry = {
+		marker: any;
+		currentLat: number;
+		currentLng: number;
+		targetLat: number;
+		targetLng: number;
+		lerpRaf?: number;
+	};
+	const liveMarkers = new Map<string, MarkerEntry>();
+
+	// Live units state — updated by client-side polling WITHOUT full page reload
+	let liveUnits = $state<any[]>([]);
+	// Merge server-side units (rich data) with live positions (real-time coords)
+	let mergedUnits = $derived.by(() => {
+		if (liveUnits.length === 0) return units;
+		const liveMap = new Map(liveUnits.map((u: any) => [u.id, u]));
+		return units.map((u: any) => {
+			const live = liveMap.get(u.id);
+			if (!live) return u;
+			return { ...u, lat: live.lat, lng: live.lng, speed: live.speed, direction: live.direction, status: live.status };
+		});
+	});
+
+	// Smooth lerp animation for a single marker
+	function lerpMarker(entry: MarkerEntry) {
+		const LERP_SPEED = 0.04; // ~2.5% per frame = smooth over ~10s
+		const dlat = entry.targetLat - entry.currentLat;
+		const dlng = entry.targetLng - entry.currentLng;
+		if (Math.abs(dlat) < 0.000005 && Math.abs(dlng) < 0.000005) {
+			entry.currentLat = entry.targetLat;
+			entry.currentLng = entry.targetLng;
+			entry.marker.setLatLng([entry.currentLat, entry.currentLng]);
+			return;
+		}
+		entry.currentLat += dlat * LERP_SPEED;
+		entry.currentLng += dlng * LERP_SPEED;
+		entry.marker.setLatLng([entry.currentLat, entry.currentLng]);
+		entry.lerpRaf = requestAnimationFrame(() => lerpMarker(entry));
+	}
+
+	// Fetch fresh GPS positions and smoothly animate all markers
+	async function fetchAndAnimatePositions() {
+		try {
+			const res = await fetch('/api/fms/live-positions');
+			if (!res.ok) return;
+			const { positions } = await res.json() as { positions: any[] };
+
+			// Update liveUnits (triggers mergedUnits reactivity for sidebar)
+			liveUnits = positions;
+
+			// Smoothly animate existing Leaflet markers to new positions
+			for (const pos of positions) {
+				const entry = liveMarkers.get(pos.id);
+				if (!entry) continue;
+				// Cancel previous lerp animation
+				if (entry.lerpRaf) cancelAnimationFrame(entry.lerpRaf);
+				// Set new target
+				entry.targetLat = pos.lat;
+				entry.targetLng = pos.lng;
+				// Start smooth lerp
+				entry.lerpRaf = requestAnimationFrame(() => lerpMarker(entry));
+			}
+		} catch (_) { /* silent fail */ }
+	}
+
 	// Bearing derajat → nama arah kompas
 	function bearingToDirection(deg: number): { label: string; icon: string; color: string } {
 		const d = ((deg % 360) + 360) % 360;
@@ -298,20 +367,35 @@
 				}
 			}
 		}, 300);
-		const interval = setInterval(() => { invalidateAll(); }, 10000);
+
+		// Start real-time smooth-lerp polling every 10s (no full page reload)
+		fetchAndAnimatePositions(); // initial fetch
+		const posInterval = setInterval(fetchAndAnimatePositions, 10000);
+
 		return () => { 
-			clearInterval(interval);
+			clearInterval(posInterval);
 			clearInterval(speedInterval);
+			// Cancel all active lerp animations
+			for (const entry of liveMarkers.values()) {
+				if (entry.lerpRaf) cancelAnimationFrame(entry.lerpRaf);
+			}
 			if (map) map.remove(); 
 		};
 	});
 
 	$effect(() => {
-		if (mapReady && displayUnits) {
+		if (mapReady && mergedUnits) {
+			// Remove old marker layers
 			mapLayers.forEach(l => l.remove());
 			mapLayers = [];
 
-			displayUnits.forEach((unit: any) => {
+			// Cancel any active lerp animations and clear registry
+			for (const entry of liveMarkers.values()) {
+				if (entry.lerpRaf) cancelAnimationFrame(entry.lerpRaf);
+			}
+			liveMarkers.clear();
+
+			mergedUnits.forEach((unit: any) => {
 				const color = getStatusColor(unit.status);
 				const isSelected = unit.id === selectedUnitId;
 				const icon = L.divIcon({
@@ -342,6 +426,15 @@
 					map.flyTo([unit.lat, unit.lng], 13, { animate: true, duration: 0.8 });
 				});
 				mapLayers.push(marker);
+
+				// Register to liveMarkers for smooth lerp animation
+				liveMarkers.set(unit.id, {
+					marker,
+					currentLat: unit.lat,
+					currentLng: unit.lng,
+					targetLat: unit.lat,
+					targetLng: unit.lng
+				});
 			});
 
 			if (selectedUnit) {
