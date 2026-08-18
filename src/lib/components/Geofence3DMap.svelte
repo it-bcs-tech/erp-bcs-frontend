@@ -105,8 +105,8 @@
 
 		// 1. Scene
 		scene = new THREE.Scene();
-		scene.background = new THREE.Color(0x0a0f1d);
-		scene.fog = new THREE.FogExp2(0x0a0f1d, 0.03);
+		scene.background = new THREE.Color(0xffffff); // Clean Crisp White Background
+		scene.fog = new THREE.FogExp2(0xffffff, 0.015);
 
 		// 2. Camera
 		camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 1000);
@@ -119,16 +119,32 @@
 
 		containerEl.appendChild(renderer.domElement);
 
-		// 4. Lights
-		const ambientLight = new THREE.AmbientLight(0xffffff, 0.8);
+		// 4. Lights optimized for White Background
+		const ambientLight = new THREE.AmbientLight(0xffffff, 1.1);
 		scene.add(ambientLight);
 
-		const dirLight = new THREE.DirectionalLight(0xffffff, 1.2);
-		dirLight.position.set(10, 20, 10);
+		const dirLight = new THREE.DirectionalLight(0xffffff, 1.4);
+		dirLight.position.set(15, 25, 15);
 		scene.add(dirLight);
 
+		const fillLight = new THREE.DirectionalLight(0xe2e8f0, 0.6);
+		fillLight.position.set(-15, 20, -15);
+		scene.add(fillLight);
+
+		// Ground Plane Floor (Soft light grey on white for depth)
+		const groundGeo = new THREE.PlaneGeometry(60, 60);
+		const groundMat = new THREE.MeshStandardMaterial({
+			color: 0xf8fafc,
+			roughness: 0.9,
+			metalness: 0.05
+		});
+		const groundMesh = new THREE.Mesh(groundGeo, groundMat);
+		groundMesh.rotation.x = -Math.PI / 2;
+		groundMesh.position.y = -0.02;
+		scene.add(groundMesh);
+
 		// Grid Map Plane
-		const gridHelper = new THREE.GridHelper(30, 30, 0x334155, 0x1e293b);
+		const gridHelper = new THREE.GridHelper(30, 30, 0x94a3b8, 0xe2e8f0);
 		gridHelper.position.y = -0.01;
 		scene.add(gridHelper);
 
@@ -137,14 +153,28 @@
 		buildHighwayCorridors();
 		build3DTruckMarkers();
 
-		// 6. Asynchronously try to load custom .glb highway asset if available
+		// 6. Asynchronously load custom .glb highway asset and normalize its bounds
 		const loader = new GLTFLoader();
 		function tryLoadGlb(url: string, fallbackUrl?: string) {
 			loader.load(
 				url,
 				(gltf) => {
+					// Normalize GLTF geometry bounds to origin (0, 0, 0)
+					const bbox = new THREE.Box3().setFromObject(gltf.scene);
+					const center = bbox.getCenter(new THREE.Vector3());
+					const size = bbox.getSize(new THREE.Vector3());
+
+					// Create a normalized wrapper group centered at origin
+					const wrapper = new THREE.Group();
+					gltf.scene.position.x = -center.x;
+					gltf.scene.position.y = -bbox.min.y; // Sit on ground
+					gltf.scene.position.z = -center.z;
+					wrapper.add(gltf.scene);
+
+					// Store normalized size and model
+					wrapper.userData = { size, baseLength: Math.max(size.x, size.z), baseWidth: Math.min(size.x, size.z) };
+					glbHighwayModel = wrapper;
 					isGlbHighwayLoaded = true;
-					glbHighwayModel = gltf.scene;
 					buildHighwayCorridors();
 				},
 				undefined,
@@ -180,9 +210,9 @@
 			const cylinderMat = new THREE.MeshStandardMaterial({
 				color: gf.color,
 				transparent: true,
-				opacity: 0.35,
+				opacity: 0.28,
 				side: THREE.DoubleSide,
-				roughness: 0.2
+				roughness: 0.15
 			});
 			const cylinder = new THREE.Mesh(cylinderGeo, cylinderMat);
 			cylinder.position.set(gf.pos[0], height / 2, gf.pos[2]);
@@ -203,7 +233,7 @@
 			const pulseRingMat = new THREE.MeshBasicMaterial({
 				color: gf.color,
 				transparent: true,
-				opacity: 0.5,
+				opacity: 0.45,
 				side: THREE.DoubleSide
 			});
 			const pulseRing = new THREE.Mesh(pulseRingGeo, pulseRingMat);
@@ -267,77 +297,78 @@
 			const midZ = (p1[2] + p2[2]) / 2;
 			const angle = Math.atan2(dx, dz);
 
-			if (isGlbHighwayLoaded && glbHighwayModel) {
-				// Use loaded GLB 3D Highway asset
-				const roadClone = glbHighwayModel.clone();
-				roadClone.position.set(midX, 0.01, midZ);
-				roadClone.rotation.y = angle;
-				roadClone.scale.set(1, 1, Math.max(0.1, length / 10));
-				scene.add(roadClone);
-				highwayCorridorMeshes.push(roadClone);
-			} else {
-				// Procedural 3D Highway Road Mesh (Asphalt + Barriers + Glowing Dashes)
-				const roadGroup = new THREE.Group();
-				roadGroup.position.set(midX, 0.01, midZ);
-				roadGroup.rotation.y = angle;
+			// Always build the high-contrast procedural asphalt road base for rock-solid visibility
+			const roadGroup = new THREE.Group();
+			roadGroup.position.set(midX, 0.01, midZ);
+			roadGroup.rotation.y = angle;
 
-				// 1. Asphalt Surface
-				const roadWidth = 1.6;
-				const roadGeo = new THREE.BoxGeometry(roadWidth, 0.03, length);
-				const roadMat = new THREE.MeshStandardMaterial({
-					color: 0x1e293b,
-					roughness: 0.85,
-					metalness: 0.15
-				});
-				const roadMesh = new THREE.Mesh(roadGeo, roadMat);
-				roadMesh.position.y = 0.015;
-				roadGroup.add(roadMesh);
+			// 1. Asphalt Surface (Dark crisp slate contrasting on white)
+			const roadWidth = 1.6;
+			const roadGeo = new THREE.BoxGeometry(roadWidth, 0.04, length);
+			const roadMat = new THREE.MeshStandardMaterial({
+				color: 0x1e293b,
+				roughness: 0.85,
+				metalness: 0.15
+			});
+			const roadMesh = new THREE.Mesh(roadGeo, roadMat);
+			roadMesh.position.y = 0.02;
+			roadGroup.add(roadMesh);
 
-				// 2. Concrete Guardrails / Road Shoulders
-				const barrierGeo = new THREE.BoxGeometry(0.08, 0.14, length);
-				const barrierMat = new THREE.MeshStandardMaterial({
-					color: 0x475569,
-					roughness: 0.6,
-					metalness: 0.3
-				});
-				const leftBarrier = new THREE.Mesh(barrierGeo, barrierMat);
-				leftBarrier.position.set(-roadWidth / 2 + 0.04, 0.08, 0);
-				roadGroup.add(leftBarrier);
+			// 2. Concrete Guardrails / Road Shoulders
+			const barrierGeo = new THREE.BoxGeometry(0.09, 0.16, length);
+			const barrierMat = new THREE.MeshStandardMaterial({
+				color: 0x64748b,
+				roughness: 0.5,
+				metalness: 0.25
+			});
+			const leftBarrier = new THREE.Mesh(barrierGeo, barrierMat);
+			leftBarrier.position.set(-roadWidth / 2 + 0.045, 0.09, 0);
+			roadGroup.add(leftBarrier);
 
-				const rightBarrier = new THREE.Mesh(barrierGeo, barrierMat);
-				rightBarrier.position.set(roadWidth / 2 - 0.04, 0.08, 0);
-				roadGroup.add(rightBarrier);
+			const rightBarrier = new THREE.Mesh(barrierGeo, barrierMat);
+			rightBarrier.position.set(roadWidth / 2 - 0.045, 0.09, 0);
+			roadGroup.add(rightBarrier);
 
-				// 3. Glowing Center Line (Dashed Markings)
-				const numDashes = Math.max(1, Math.floor(length / 0.8));
-				const dashLength = 0.4;
-				const dashGap = length / numDashes;
-				const dashGeo = new THREE.BoxGeometry(0.06, 0.01, dashLength);
-				const dashMat = new THREE.MeshBasicMaterial({
-					color: 0xfbbf24 // Amber/Gold Glowing Marking
-				});
+			// 3. Glowing Center Line (Dashed Markings - Amber Gold)
+			const numDashes = Math.max(1, Math.floor(length / 0.8));
+			const dashLength = 0.4;
+			const dashGap = length / numDashes;
+			const dashGeo = new THREE.BoxGeometry(0.07, 0.01, dashLength);
+			const dashMat = new THREE.MeshBasicMaterial({
+				color: 0xf59e0b // High-visibility Amber
+			});
 
-				for (let d = 0; d < numDashes; d++) {
-					const dashMesh = new THREE.Mesh(dashGeo, dashMat);
-					const offsetZ = -length / 2 + (d + 0.5) * dashGap;
-					dashMesh.position.set(0, 0.035, offsetZ);
-					roadGroup.add(dashMesh);
-				}
-
-				// 4. White Outer Edge Lines
-				const edgeGeo = new THREE.BoxGeometry(0.04, 0.01, length);
-				const edgeMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.7 });
-				const leftEdge = new THREE.Mesh(edgeGeo, edgeMat);
-				leftEdge.position.set(-roadWidth / 2 + 0.14, 0.035, 0);
-				roadGroup.add(leftEdge);
-
-				const rightEdge = new THREE.Mesh(edgeGeo, edgeMat);
-				rightEdge.position.set(roadWidth / 2 - 0.14, 0.035, 0);
-				roadGroup.add(rightEdge);
-
-				scene.add(roadGroup);
-				highwayCorridorMeshes.push(roadGroup);
+			for (let d = 0; d < numDashes; d++) {
+				const dashMesh = new THREE.Mesh(dashGeo, dashMat);
+				const offsetZ = -length / 2 + (d + 0.5) * dashGap;
+				dashMesh.position.set(0, 0.045, offsetZ);
+				roadGroup.add(dashMesh);
 			}
+
+			// 4. White Outer Edge Lines
+			const edgeGeo = new THREE.BoxGeometry(0.04, 0.01, length);
+			const edgeMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.85 });
+			const leftEdge = new THREE.Mesh(edgeGeo, edgeMat);
+			leftEdge.position.set(-roadWidth / 2 + 0.14, 0.045, 0);
+			roadGroup.add(leftEdge);
+
+			const rightEdge = new THREE.Mesh(edgeGeo, edgeMat);
+			rightEdge.position.set(roadWidth / 2 - 0.14, 0.045, 0);
+			roadGroup.add(rightEdge);
+
+			// 5. If GLB Highway is loaded, also place the custom 3D model on the corridor
+			if (isGlbHighwayLoaded && glbHighwayModel) {
+				const roadClone = glbHighwayModel.clone();
+				const baseLen = glbHighwayModel.userData.baseLength || 10;
+				const baseW = glbHighwayModel.userData.baseWidth || 2;
+				const targetScaleXZ = 1.4 / Math.max(0.1, baseW);
+				roadClone.scale.set(targetScaleXZ, targetScaleXZ, length / Math.max(1, baseLen));
+				roadClone.position.set(0, 0.025, 0);
+				roadGroup.add(roadClone);
+			}
+
+			scene.add(roadGroup);
+			highwayCorridorMeshes.push(roadGroup);
 		});
 	}
 
@@ -347,13 +378,13 @@
 	const truckTargets = new Map<string, THREE.Vector3>();
 
 	function build3DTruckMarkers() {
-		// Choose color by speed/status
+		// Choose color by speed/status (high contrast for white background)
 		const statusColors: Record<string, number> = {
-			Moving: 0x3b82f6,
-			Transit: 0xf59e0b,
-			Loading: 0x6366f1,
-			Available: 0x10b981,
-			Maintenance: 0xf97316,
+			Moving: 0x2563eb,
+			Transit: 0xd97706,
+			Loading: 0x4f46e5,
+			Available: 0x059669,
+			Maintenance: 0xe11d48,
 		};
 
 		activeTrucks.forEach((truck) => {
@@ -362,22 +393,22 @@
 
 			// Mini 3D Truck Model
 			const cabinGeo = new THREE.BoxGeometry(0.5, 0.5, 0.6);
-			const cabinMat = new THREE.MeshStandardMaterial({ color });
+			const cabinMat = new THREE.MeshStandardMaterial({ color, roughness: 0.4 });
 			const cabin = new THREE.Mesh(cabinGeo, cabinMat);
 			cabin.position.set(0, 0.25, 0.4);
 			group.add(cabin);
 
 			const boxGeo = new THREE.BoxGeometry(0.55, 0.6, 1.4);
-			const boxMat = new THREE.MeshStandardMaterial({ color: 0x1e293b });
+			const boxMat = new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.6 });
 			const box = new THREE.Mesh(boxGeo, boxMat);
 			box.position.set(0, 0.3, -0.4);
 			group.add(box);
 
 			// Speed indicator: glowing dot on top
-			const dotGeo = new THREE.SphereGeometry(0.12, 8, 8);
-			const dotMat = new THREE.MeshBasicMaterial({ color: truck.speedKmh > 0 ? 0x10b981 : 0x94a3b8 });
+			const dotGeo = new THREE.SphereGeometry(0.13, 12, 12);
+			const dotMat = new THREE.MeshBasicMaterial({ color: truck.speedKmh > 0 ? 0x10b981 : 0x64748b });
 			const dot = new THREE.Mesh(dotGeo, dotMat);
-			dot.position.set(0, 0.75, 0);
+			dot.position.set(0, 0.78, 0);
 			group.add(dot);
 
 			const px = truck.pos[0];
@@ -491,37 +522,37 @@
 </script>
 
 <div class="space-y-4">
-	<!-- Top Bar -->
-	<div class="p-4 rounded-2xl bg-slate-900 border border-slate-800 flex flex-col md:flex-row md:items-center justify-between gap-4 text-white">
+	<!-- Top Bar (Clean Light Modern Theme) -->
+	<div class="p-4 rounded-2xl bg-white border border-slate-200 flex flex-col md:flex-row md:items-center justify-between gap-4 text-slate-800 shadow-xs">
 		<div class="flex items-center gap-3">
-			<div class="w-10 h-10 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold">
+			<div class="w-10 h-10 rounded-xl bg-emerald-500/10 text-emerald-600 flex items-center justify-center font-bold">
 				<span class="material-symbols-outlined text-2xl">radar</span>
 			</div>
 			<div>
-				<h3 class="text-base font-bold flex items-center gap-2">
+				<h3 class="text-base font-black flex items-center gap-2 text-slate-900">
 					<span>3D ELEVATED GEOFENCE & LIVE TRUCK TRACKING</span>
-					<span class="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
-						REAL-TIME WEBGL
+					<span class="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase bg-emerald-50 text-emerald-700 border border-emerald-200">
+						WEBGL 3D
 					</span>
 				</h3>
-				<p class="text-xs text-slate-400">Visualisasi 3D Tabung Geofence Pool & Marker Kendaraan Bergerak</p>
+				<p class="text-xs text-slate-500 font-medium">Visualisasi 3D Tabung Geofence Pool & Marker Kendaraan Bergerak</p>
 			</div>
 		</div>
 
-		<div class="flex items-center gap-2 text-xs font-semibold text-slate-300">
-			<span class="px-3 py-1.5 rounded-xl bg-slate-800 {isGlbHighwayLoaded ? 'text-cyan-400' : 'text-amber-400'} flex items-center gap-1.5 font-mono">
+		<div class="flex items-center gap-2 text-xs font-semibold">
+			<span class="px-3 py-1.5 rounded-xl bg-slate-100 {isGlbHighwayLoaded ? 'text-blue-700' : 'text-amber-700'} border border-slate-200 flex items-center gap-1.5 font-mono">
 				<span class="material-symbols-outlined text-sm">route</span>
 				<span>{isGlbHighwayLoaded ? 'GLB 3D Highway' : '3D Highway Corridors'}</span>
 			</span>
-			<span class="px-3 py-1.5 rounded-xl bg-slate-800 text-emerald-400 flex items-center gap-1.5 font-mono">
+			<span class="px-3 py-1.5 rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center gap-1.5 font-mono">
 				<span class="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></span>
 				<span>{activeTrucks.length} Armada Terhubung</span>
 			</span>
 		</div>
 	</div>
 
-	<!-- 3D Canvas -->
-	<div class="relative w-full h-[450px] rounded-3xl overflow-hidden border border-slate-800 shadow-2xl bg-slate-950">
+	<!-- 3D Canvas (Clean Light Theme) -->
+	<div class="relative w-full h-[450px] rounded-3xl overflow-hidden border border-slate-200 shadow-xl bg-white">
 		<div
 			bind:this={containerEl}
 			onmousedown={onMouseDown}
@@ -531,35 +562,35 @@
 			onwheel={onWheel}
 			role="region"
 			aria-label="3D Elevated Geofence Canvas"
-			class="w-full h-full cursor-grab active:cursor-grabbing"
+			class="w-full h-full cursor-grab active:cursor-grabbing bg-white"
 		></div>
 
-		<!-- Camera Controls & Highway Hint -->
-		<div class="absolute bottom-4 left-4 p-2.5 rounded-xl bg-slate-900/80 backdrop-blur-xs border border-slate-800 text-[11px] font-semibold text-slate-300 flex items-center gap-3">
+		<!-- Camera Controls & Highway Hint (Light frosted glass badge) -->
+		<div class="absolute bottom-4 left-4 p-2.5 rounded-xl bg-white/90 backdrop-blur-md border border-slate-200 shadow-md text-[11px] font-bold text-slate-700 flex items-center gap-3">
 			<div class="flex items-center gap-1.5">
-				<span class="material-symbols-outlined text-sm text-emerald-400">3d_rotation</span>
+				<span class="material-symbols-outlined text-sm text-emerald-600">3d_rotation</span>
 				<span>Rotasi 360° & Zoom</span>
 			</div>
-			<div class="h-3 w-[1px] bg-slate-700"></div>
+			<div class="h-3 w-[1px] bg-slate-300"></div>
 			<div class="flex items-center gap-1.5">
-				<span class="material-symbols-outlined text-sm text-amber-400">edit_road</span>
+				<span class="material-symbols-outlined text-sm text-amber-600">edit_road</span>
 				<span>{isGlbHighwayLoaded ? 'GLTF Custom Highway Mesh' : 'Procedural 3D Highway Mesh'}</span>
 			</div>
 		</div>
 	</div>
 
-	<!-- Geofence & Active Truck Cards -->
+	<!-- Geofence & Active Truck Cards (Light Theme) -->
 	<div class="grid grid-cols-1 md:grid-cols-3 gap-3">
 		{#each geofences as gf}
-			<div class="p-3.5 rounded-2xl bg-slate-900 border border-slate-800 text-xs">
+			<div class="p-3.5 rounded-2xl bg-white border border-slate-200 text-xs shadow-xs">
 				<div class="flex items-center justify-between mb-1">
-					<span class="font-bold text-white flex items-center gap-1.5">
+					<span class="font-black text-slate-900 flex items-center gap-1.5">
 						<span class="w-2.5 h-2.5 rounded-full" style="background-color: #{gf.color.toString(16)}"></span>
 						{gf.name}
 					</span>
-					<span class="px-2 py-0.5 rounded-md bg-slate-800 text-slate-300 font-mono text-[10px]">{gf.status}</span>
+					<span class="px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 font-mono text-[10px] border border-slate-200">{gf.status}</span>
 				</div>
-				<p class="text-[11px] text-slate-400 mt-1">Radius Geofence: <strong class="text-white font-mono">{gf.radiusMeter} Meter</strong></p>
+				<p class="text-[11px] text-slate-500 mt-1 font-medium">Radius Geofence: <strong class="text-slate-800 font-mono">{gf.radiusMeter} Meter</strong></p>
 			</div>
 		{/each}
 	</div>

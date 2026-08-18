@@ -561,8 +561,62 @@
 	});
 
 	// ==============================
-	// Highway Layer Effect (2D Leaflet)
+	// Highway Layer Effect (2D Leaflet - Real Road Routing Curves)
 	// ==============================
+	const highwayRouteCache = new Map<string, [number, number][]>();
+
+	async function drawHighwayCorridor(p1: any, p2: any) {
+		const key = `${p1.lat},${p1.lng}_${p2.lat},${p2.lng}`;
+		let coords = highwayRouteCache.get(key);
+
+		if (!coords) {
+			try {
+				const res = await fetch(`/api/fms/route?startLat=${p1.lat}&startLng=${p1.lng}&endLat=${p2.lat}&endLng=${p2.lng}`);
+				if (res.ok) {
+					const routeData = await res.json();
+					if (routeData.coordinates && routeData.coordinates.length > 1) {
+						coords = routeData.coordinates;
+						highwayRouteCache.set(key, coords!);
+					}
+				}
+			} catch (_) {}
+		}
+
+		if (!coords || coords.length === 0) {
+			// Fallback: smooth interpolated curved waypoints if network fails
+			coords = [
+				[p1.lat, p1.lng],
+				[(p1.lat * 2 + p2.lat) / 3, (p1.lng * 2 + p2.lng) / 3],
+				[(p1.lat + p2.lat * 2) / 3, (p1.lng + p2.lng * 2) / 3],
+				[p2.lat, p2.lng]
+			];
+		}
+
+		if (!showHighwayLayer || !mapReady || !map || !L) return;
+
+		// 1. Outer Glow Highway Polyline
+		const glowLine = L.polyline(coords, {
+			color: '#f59e0b',
+			weight: 8,
+			opacity: 0.38,
+			lineCap: 'round',
+			lineJoin: 'round'
+		}).addTo(map);
+		glowLine.bindTooltip(`<div class="font-bold text-xs text-amber-700">🛣️ Jalur Tol Trans-Jawa (${p1.name || 'Pool'} ➔ ${p2.name || 'Pool'})</div>`, { sticky: true });
+		highwayMapLayers.push(glowLine);
+
+		// 2. Center Dashed Highway Line
+		const dashLine = L.polyline(coords, {
+			color: '#fbbf24',
+			weight: 3.5,
+			opacity: 0.95,
+			dashArray: '10, 12',
+			lineCap: 'round',
+			lineJoin: 'round'
+		}).addTo(map);
+		highwayMapLayers.push(dashLine);
+	}
+
 	$effect(() => {
 		if (mapReady && map && L) {
 			// Clear old highway layers
@@ -572,29 +626,9 @@
 			if (showHighwayLayer) {
 				const poolsList = data.pools || [];
 				if (poolsList.length >= 2) {
-					const coords = poolsList.map((p: any) => [p.lat, p.lng]);
-
-					// Outer Glow Highway Line
-					const glowLine = L.polyline(coords, {
-						color: '#f59e0b',
-						weight: 7,
-						opacity: 0.35,
-						lineCap: 'round',
-						lineJoin: 'round'
-					}).addTo(map);
-					glowLine.bindTooltip('<div class="font-bold text-xs text-amber-600">🛣️ Jalur Tol & Koridor Logistik</div>', { sticky: true });
-					highwayMapLayers.push(glowLine);
-
-					// Center Dashed Highway Line
-					const dashLine = L.polyline(coords, {
-						color: '#fbbf24',
-						weight: 3,
-						opacity: 0.9,
-						dashArray: '10, 10',
-						lineCap: 'round',
-						lineJoin: 'round'
-					}).addTo(map);
-					highwayMapLayers.push(dashLine);
+					for (let i = 0; i < poolsList.length - 1; i++) {
+						drawHighwayCorridor(poolsList[i], poolsList[i + 1]);
+					}
 				}
 			}
 		}
@@ -1081,31 +1115,31 @@
 	</div>
 </div>
 
-<!-- Modal 3D Geofence Elevation -->
+<!-- Modal 3D Geofence Elevation (Clean White Theme) -->
 {#if show3DGeofenceModal}
-	<div class="fixed inset-0 z-[9999] bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4 overflow-y-auto">
-		<div class="bg-slate-900 border border-slate-800 rounded-3xl shadow-2xl w-full max-w-4xl overflow-hidden my-8 animate-in zoom-in-95 duration-200">
+	<div class="fixed inset-0 z-[9999] bg-slate-900/60 backdrop-blur-md flex items-center justify-center p-4 overflow-y-auto">
+		<div class="bg-white border border-slate-200 rounded-3xl shadow-2xl w-full max-w-4xl overflow-hidden my-8 animate-in zoom-in-95 duration-200">
 			<!-- Modal Header -->
-			<div class="p-6 border-b border-slate-800 flex items-center justify-between bg-slate-950">
+			<div class="p-6 border-b border-slate-100 flex items-center justify-between bg-white">
 				<div class="flex items-center gap-3">
-					<div class="w-10 h-10 rounded-2xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold">
+					<div class="w-10 h-10 rounded-2xl bg-emerald-500/10 text-emerald-600 flex items-center justify-center font-bold">
 						<span class="material-symbols-outlined text-2xl">view_in_ar</span>
 					</div>
 					<div>
-						<h2 class="text-lg font-black text-white flex items-center gap-2">
+						<h2 class="text-lg font-black text-slate-900 flex items-center gap-2">
 							<span>3D ELEVATED GEOFENCE & LIVE TRUCK TRACKING</span>
-							<span class="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">THREE.JS WEBGL</span>
+							<span class="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase bg-emerald-50 text-emerald-700 border border-emerald-200">WEBGL 3D</span>
 						</h2>
-						<p class="text-xs text-slate-400">Visualisasi 3D Tabung Geofence Pool & Marker Kendaraan Bergerak</p>
+						<p class="text-xs text-slate-500 font-medium">Visualisasi 3D Tabung Geofence Pool & Marker Kendaraan Bergerak</p>
 					</div>
 				</div>
-				<button onclick={() => (show3DGeofenceModal = false)} class="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition-all cursor-pointer">
+				<button onclick={() => (show3DGeofenceModal = false)} class="p-2 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-all cursor-pointer">
 					<span class="material-symbols-outlined text-xl">close</span>
 				</button>
 			</div>
 
 			<!-- Modal Body -->
-			<div class="p-6">
+			<div class="p-6 bg-slate-50/50">
 				<Geofence3DMap units={units} pools={data.pools || []} />
 			</div>
 		</div>
