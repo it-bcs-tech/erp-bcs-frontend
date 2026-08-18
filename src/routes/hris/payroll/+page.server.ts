@@ -105,6 +105,38 @@ export const load: PageServerLoad = async ({ url }) => {
 			LIMIT 100
 		`;
 
+		// 5. Query data klaim reimbursement dari presensi.reimbursements
+		const reimbursements = await sql`
+			SELECT 
+				id,
+				employee_nik,
+				employee_name,
+				employee_division,
+				claim_type,
+				invoice_number,
+				merchant_name,
+				TO_CHAR(claim_date, 'YYYY-MM-DD') as claim_date,
+				amount::float,
+				approved_amount::float,
+				description,
+				status,
+				approved_by,
+				TO_CHAR(approved_at, 'YYYY-MM-DD HH24:MI') as approved_at,
+				rejection_reason
+			FROM presensi.reimbursements
+			ORDER BY claim_date DESC, id DESC
+			LIMIT 100
+		`;
+
+		const [reimbursementSummary] = await sql`
+			SELECT 
+				COUNT(*)::int as total_claims,
+				COALESCE(SUM(CASE WHEN status = 'Approved' THEN approved_amount ELSE 0 END), 0)::float as total_approved_amount,
+				COUNT(CASE WHEN status = 'Pending' THEN 1 END)::int as pending_claims,
+				COUNT(CASE WHEN status = 'Approved' THEN 1 END)::int as approved_claims
+			FROM presensi.reimbursements
+		`;
+
 		return {
 			selectedPeriod,
 			searchQuery,
@@ -122,10 +154,17 @@ export const load: PageServerLoad = async ({ url }) => {
 				sum_tax: 0,
 				sum_absence_deduction: 0
 			},
-			salarySlips
+			salarySlips,
+			reimbursements,
+			reimbursementSummary: reimbursementSummary || {
+				total_claims: 0,
+				total_approved_amount: 0,
+				pending_claims: 0,
+				approved_claims: 0
+			}
 		};
 	} catch (err: any) {
-		console.error('❌ [HRD Payroll] Error loading salary slips:', err?.message);
+		console.error('❌ [HRD Payroll] Error loading payroll data:', err?.message);
 		return {
 			selectedPeriod,
 			searchQuery: '',
@@ -143,7 +182,14 @@ export const load: PageServerLoad = async ({ url }) => {
 				sum_tax: 0,
 				sum_absence_deduction: 0
 			},
-			salarySlips: []
+			salarySlips: [],
+			reimbursements: [],
+			reimbursementSummary: {
+				total_claims: 0,
+				total_approved_amount: 0,
+				pending_claims: 0,
+				approved_claims: 0
+			}
 		};
 	}
 };
@@ -218,7 +264,87 @@ export const actions: Actions = {
 			console.error('Failed to update salary slip:', e);
 			return fail(500, { message: e.message || 'Gagal menyimpan ke database' });
 		}
+	},
+
+	submitReimbursement: async ({ request }) => {
+		const formData = await request.formData();
+		const employee_nik = formData.get('employee_nik')?.toString() || '';
+		const employee_name = formData.get('employee_name')?.toString() || '';
+		const employee_division = formData.get('employee_division')?.toString() || 'General';
+		const claim_type = formData.get('claim_type')?.toString() || 'Rawat Jalan & Obat';
+		const invoice_number = formData.get('invoice_number')?.toString() || '';
+		const merchant_name = formData.get('merchant_name')?.toString() || '';
+		const claim_date = formData.get('claim_date')?.toString() || new Date().toISOString().split('T')[0];
+		const amount = parseFloat(formData.get('amount')?.toString() || '0');
+		const description = formData.get('description')?.toString() || '';
+
+		if (!employee_name || amount <= 0) {
+			return fail(400, { message: 'Nama karyawan dan nominal klaim valid wajib diisi.' });
+		}
+
+		try {
+			await sql`
+				INSERT INTO presensi.reimbursements 
+				(employee_nik, employee_name, employee_division, claim_type, invoice_number, merchant_name, claim_date, amount, approved_amount, description, status)
+				VALUES 
+				(${employee_nik}, ${employee_name}, ${employee_division}, ${claim_type}, ${invoice_number}, ${merchant_name}, ${claim_date}, ${amount}, ${amount}, ${description}, 'Pending')
+			`;
+			return { success: true };
+		} catch (e: any) {
+			console.error('Failed to submit reimbursement:', e);
+			return fail(500, { message: e.message || 'Gagal menyimpan pengajuan klaim.' });
+		}
+	},
+
+	approveReimbursement: async ({ request }) => {
+		const formData = await request.formData();
+		const claimId = formData.get('claimId')?.toString();
+		const approved_amount = parseFloat(formData.get('approved_amount')?.toString() || '0');
+		const approved_by = formData.get('approved_by')?.toString() || 'HRD Manager';
+
+		if (!claimId) return fail(400, { message: 'ID klaim tidak ditemukan.' });
+
+		try {
+			await sql`
+				UPDATE presensi.reimbursements
+				SET 
+					status = 'Approved',
+					approved_amount = ${approved_amount},
+					approved_by = ${approved_by},
+					approved_at = NOW(),
+					updated_at = NOW()
+				WHERE id = ${claimId}
+			`;
+			return { success: true };
+		} catch (e: any) {
+			console.error('Failed to approve reimbursement:', e);
+			return fail(500, { message: e.message || 'Gagal menyetujui klaim.' });
+		}
+	},
+
+	rejectReimbursement: async ({ request }) => {
+		const formData = await request.formData();
+		const claimId = formData.get('claimId')?.toString();
+		const rejection_reason = formData.get('rejection_reason')?.toString() || 'Dokumen atau kuitansi tidak memenuhi syarat';
+
+		if (!claimId) return fail(400, { message: 'ID klaim tidak ditemukan.' });
+
+		try {
+			await sql`
+				UPDATE presensi.reimbursements
+				SET 
+					status = 'Rejected',
+					rejection_reason = ${rejection_reason},
+					updated_at = NOW()
+				WHERE id = ${claimId}
+			`;
+			return { success: true };
+		} catch (e: any) {
+			console.error('Failed to reject reimbursement:', e);
+			return fail(500, { message: e.message || 'Gagal menolak klaim.' });
+		}
 	}
 };
+
 
 

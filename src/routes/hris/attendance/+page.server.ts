@@ -1,5 +1,6 @@
-import type { PageServerLoad } from './$types';
+import type { PageServerLoad, Actions } from './$types';
 import sql from '$lib/server/db';
+import { fail } from '@sveltejs/kit';
 import { apiFetch } from '$lib/utils/api';
 
 export const load: PageServerLoad = async ({ cookies }) => {
@@ -132,10 +133,132 @@ export const load: PageServerLoad = async ({ cookies }) => {
 		}
 	];
 
+	// 4. Query Overtime Requests & SPKL dari PostgreSQL
+	let overtimeRequests = [];
+	let overtimeSummary = {
+		totalRequests: 0,
+		approvedRequests: 0,
+		pendingRequests: 0,
+		totalHours: 0
+	};
+
+	try {
+		overtimeRequests = await sql`
+			SELECT 
+				o.id,
+				o.user_id,
+				TO_CHAR(o.start_date, 'YYYY-MM-DD') as start_date,
+				TO_CHAR(o.end_date, 'YYYY-MM-DD') as end_date,
+				TO_CHAR(o.start_time, 'HH24:MI') as start_time,
+				TO_CHAR(o.end_time, 'HH24:MI') as end_time,
+				o.description,
+				o.attachment_path,
+				o.status,
+				COALESCE(u.name, 'Karyawan BCS (ID: ' || o.user_id || ')') as employee_name,
+				u.email,
+				TO_CHAR(o.created_at, 'YYYY-MM-DD HH24:MI') as created_at
+			FROM presensi.overtime_requests o
+			LEFT JOIN presensi.users u ON o.user_id = u.id
+			ORDER BY o.id DESC
+			LIMIT 50
+		`;
+
+		const [summary] = await sql`
+			SELECT 
+				COUNT(*)::int as total_requests,
+				COUNT(CASE WHEN status = 'approved' OR status = 'Approved' THEN 1 END)::int as approved_requests,
+				COUNT(CASE WHEN status = 'pending' OR status = 'Pending' THEN 1 END)::int as pending_requests
+			FROM presensi.overtime_requests
+		`;
+
+		if (summary) {
+			overtimeSummary = {
+				totalRequests: summary.total_requests || 0,
+				approvedRequests: summary.approved_requests || 0,
+				pendingRequests: summary.pending_requests || 0,
+				totalHours: (summary.approved_requests || 0) * 3.5
+			};
+		}
+	} catch (e: any) {
+		console.error('Error fetching overtime:', e?.message);
+	}
+
 	return {
 		attendanceLogs,
 		metrics,
-		shiftRoster
+		shiftRoster,
+		overtimeRequests,
+		overtimeSummary
 	};
 };
+
+export const actions: Actions = {
+	submitOvertime: async ({ request }) => {
+		const formData = await request.formData();
+		const user_id = parseInt(formData.get('user_id')?.toString() || '122');
+		const start_date = formData.get('start_date')?.toString() || new Date().toISOString().split('T')[0];
+		const start_time = formData.get('start_time')?.toString() || '17:00';
+		const end_time = formData.get('end_time')?.toString() || '21:00';
+		const description = formData.get('description')?.toString() || '';
+
+		try {
+			await sql`
+				INSERT INTO presensi.overtime_requests 
+				(user_id, start_date, end_date, start_time, end_time, description, status, created_at, updated_at)
+				VALUES 
+				(${user_id}, ${start_date}, ${start_date}, ${start_time}::time, ${end_time}::time, ${description}, 'pending', NOW(), NOW())
+			`;
+			return { success: true };
+		} catch (e: any) {
+			console.error('Failed to submit overtime request:', e);
+			return fail(500, { message: e.message || 'Gagal menyimpan pengajuan lembur.' });
+		}
+	},
+
+	approveOvertime: async ({ request }) => {
+		const formData = await request.formData();
+		const overtimeId = formData.get('overtimeId')?.toString();
+		if (!overtimeId) return fail(400, { message: 'ID lembur tidak ditemukan.' });
+
+		try {
+			await sql`
+				UPDATE presensi.overtime_requests
+				SET 
+					status = 'approved',
+					approved_by = 1,
+					approved_at = NOW(),
+					updated_at = NOW()
+				WHERE id = ${overtimeId}
+			`;
+			return { success: true };
+		} catch (e: any) {
+			console.error('Failed to approve overtime:', e);
+			return fail(500, { message: e.message || 'Gagal menyetujui lembur.' });
+		}
+	},
+
+	rejectOvertime: async ({ request }) => {
+		const formData = await request.formData();
+		const overtimeId = formData.get('overtimeId')?.toString();
+		const rejection_reason = formData.get('rejection_reason')?.toString() || 'Tidak memenuhi kualifikasi SPKL dinas';
+
+		if (!overtimeId) return fail(400, { message: 'ID lembur tidak ditemukan.' });
+
+		try {
+			await sql`
+				UPDATE presensi.overtime_requests
+				SET 
+					status = 'rejected',
+					rejection_reason = ${rejection_reason},
+					updated_at = NOW()
+				WHERE id = ${overtimeId}
+			`;
+			return { success: true };
+		} catch (e: any) {
+			console.error('Failed to reject overtime:', e);
+			return fail(500, { message: e.message || 'Gagal menolak lembur.' });
+		}
+	}
+};
+
 
