@@ -207,8 +207,9 @@
 					<tr>
 						<th class="px-5 py-3.5">Karyawan</th>
 						<th class="px-5 py-3.5">Jabatan / Divisi</th>
+						<th class="px-5 py-3.5">PTKP & TER</th>
 						<th class="px-5 py-3.5">Gaji Pokok</th>
-						<th class="px-5 py-3.5">Gross Salary</th>
+						<th class="px-5 py-3.5">Gross (Pendapatan)</th>
 						<th class="px-5 py-3.5">Potongan</th>
 						<th class="px-5 py-3.5">Net THP</th>
 						<th class="px-5 py-3.5 text-right">Aksi</th>
@@ -217,7 +218,7 @@
 				<tbody class="divide-y divide-slate-200/60 dark:divide-slate-800/60">
 					{#if data.salarySlips.length === 0}
 						<tr>
-							<td colspan="7" class="px-5 py-12 text-center text-on-surface-variant font-medium">
+							<td colspan="8" class="px-5 py-12 text-center text-on-surface-variant font-medium">
 								<span class="material-symbols-outlined text-4xl mb-2 text-slate-300 block">search_off</span>
 								Tidak ada data payroll ditemukan untuk periode/filter ini.
 							</td>
@@ -227,7 +228,12 @@
 							<tr class="hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors">
 								<td class="px-5 py-4">
 									<div>
-										<p class="font-bold text-on-surface">{slip.employee_name}</p>
+										<div class="flex items-center gap-1.5">
+											<p class="font-bold text-on-surface">{slip.employee_name}</p>
+											{#if slip.isDriver}
+												<span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-500/10 text-amber-600 border border-amber-500/20 font-mono">DRIVER</span>
+											{/if}
+										</div>
 										<p class="text-xs text-on-surface-variant font-mono mt-0.5">NIK: {slip.employee_nik}</p>
 									</div>
 								</td>
@@ -237,11 +243,26 @@
 										<p class="text-xs text-on-surface-variant mt-0.5">{slip.employee_division || '-'}</p>
 									</div>
 								</td>
+								<td class="px-5 py-4">
+									<div class="flex flex-col gap-1">
+										<span class="text-xs font-mono font-bold text-on-surface">{slip.ptkpStatus}</span>
+										<span class="px-2 py-0.5 rounded text-[10px] font-extrabold bg-blue-500/10 text-blue-600 border border-blue-500/20 w-fit font-mono">
+											TER {slip.terCategory} ({slip.terRate}%)
+										</span>
+									</div>
+								</td>
 								<td class="px-5 py-4 font-medium text-on-surface">
 									{formatRupiah(slip.basic_salary)}
 								</td>
 								<td class="px-5 py-4 font-semibold text-emerald-600">
-									{formatRupiah(slip.gross_salary)}
+									<div>
+										<span>{formatRupiah(slip.gross_salary)}</span>
+										{#if slip.isDriver && slip.logisticsDetails?.ritase_count > 0}
+											<span class="block text-[11px] text-amber-600 font-normal">
+												🛣️ {slip.logisticsDetails.ritase_count} Ritase ({slip.logisticsDetails.tonnage_total} Ton)
+											</span>
+										{/if}
+									</div>
 								</td>
 								<td class="px-5 py-4 font-medium text-rose-600">
 									-{formatRupiah(slip.total_deductions)}
@@ -269,57 +290,77 @@
 	</div>
 </div>
 
-<!-- Modal Detail Slip Gaji -->
+<!-- Modal Detail Slip Gaji (Format Resmi Standar Industri) -->
 {#if showModal && selectedSlip}
-	<div class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
-		<div class="bg-surface rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xl w-full max-w-2xl overflow-hidden my-8">
-			<!-- Header Modal -->
-			<div class="bg-slate-900 text-white p-6 flex items-center justify-between">
-				<div class="flex items-center gap-3">
-					<div class="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center">
-						<span class="material-symbols-outlined text-2xl">receipt_long</span>
+	<div class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto print:p-0 print:bg-white">
+		<div class="bg-surface rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xl w-full max-w-3xl overflow-hidden my-8 print:my-0 print:border-none print:shadow-none print:w-full">
+			<!-- Header Slip Gaji & Kop Perusahaan -->
+			<div class="bg-slate-900 text-white p-6 flex items-center justify-between print:bg-white print:text-black print:border-b-2 print:border-black">
+				<div class="flex items-center gap-4">
+					<div class="w-12 h-12 rounded-2xl bg-white/10 text-white flex items-center justify-center font-black text-xl border border-white/20 print:bg-slate-100 print:text-black">
+						BCS
 					</div>
 					<div>
-						<h2 class="text-lg font-bold">SLIP GAJI RESMI KARYAWAN</h2>
-						<p class="text-xs text-slate-400">Periode: {selectedSlip.period_date} | PT BCS Logistics</p>
+						<h2 class="text-base font-black tracking-tight print:text-lg">PT BUMI CITRA SENTOSA (BCS LOGISTICS)</h2>
+						<p class="text-xs text-slate-400 print:text-slate-600 font-medium">SLIP GAJI RESMI & BUKTI POTONG KARYAWAN | PERIODE: {selectedSlip.period_date}</p>
 					</div>
 				</div>
-				<button onclick={closeModal} class="text-slate-400 hover:text-white transition-colors cursor-pointer">
+				<button onclick={closeModal} class="text-slate-400 hover:text-white transition-colors cursor-pointer print:hidden">
 					<span class="material-symbols-outlined">close</span>
 				</button>
 			</div>
 
 			<!-- Body Modal -->
-			<div class="p-6 space-y-6">
-				<!-- Informasi Karyawan -->
-				<div class="grid grid-cols-2 gap-4 p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/40 text-xs font-medium">
+			<div class="p-6 space-y-5">
+				<!-- Informasi Profil Karyawan & Status Pajak -->
+				<div class="grid grid-cols-2 md:grid-cols-4 gap-3 p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/40 text-xs font-medium border border-slate-200/60 dark:border-slate-700/60">
 					<div>
-						<span class="text-slate-400 block">Nama Karyawan</span>
+						<span class="text-slate-400 block text-[11px]">Nama Karyawan</span>
 						<span class="text-sm font-bold text-on-surface">{selectedSlip.employee_name}</span>
 					</div>
 					<div>
-						<span class="text-slate-400 block">NIK</span>
+						<span class="text-slate-400 block text-[11px]">NIK / ID</span>
 						<span class="text-sm font-mono font-bold text-on-surface">{selectedSlip.employee_nik}</span>
 					</div>
 					<div>
-						<span class="text-slate-400 block">Jabatan / Divisi</span>
+						<span class="text-slate-400 block text-[11px]">Jabatan / Divisi</span>
 						<span class="text-on-surface font-semibold">{selectedSlip.employee_position} ({selectedSlip.employee_division || 'General'})</span>
 					</div>
 					<div>
-						<span class="text-slate-400 block">Rekening Bank Transfer</span>
-						<span class="text-on-surface font-semibold">{selectedSlip.bank_name || 'BCA'} - {selectedSlip.account_number || '-'}</span>
+						<span class="text-slate-400 block text-[11px]">Status PTKP & TER</span>
+						<span class="text-on-surface font-bold text-blue-600">{selectedSlip.ptkpStatus} • TER {selectedSlip.terCategory} ({selectedSlip.terRate}%)</span>
 					</div>
 				</div>
 
+				<!-- Khusus Driver Logistik: Komponen Ritase & Tonase -->
+				{#if selectedSlip.isDriver}
+					<div class="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-xs text-amber-900 dark:text-amber-200 flex flex-col md:flex-row justify-between items-center gap-3">
+						<div class="flex items-center gap-2">
+							<span class="material-symbols-outlined text-amber-600 text-xl">local_shipping</span>
+							<div>
+								<span class="font-bold block text-sm">Rincian Operasional Ritase Driver</span>
+								<span class="text-[11px] text-amber-700 dark:text-amber-300">Sinkronisasi Surat Jalan FMS & Trip Logistik</span>
+							</div>
+						</div>
+						<div class="flex items-center gap-4 text-xs font-mono font-bold">
+							<span class="px-2.5 py-1 rounded-lg bg-amber-500/20">{selectedSlip.logisticsDetails?.ritase_count} RITASE</span>
+							<span class="px-2.5 py-1 rounded-lg bg-amber-500/20">{selectedSlip.logisticsDetails?.tonnage_total} TON</span>
+							<span class="px-2.5 py-1 rounded-lg bg-amber-500/20 text-amber-700 dark:text-amber-300 font-bold">
+								Insentif: {formatRupiah(selectedSlip.logisticsDetails?.total_driver_incentive)}
+							</span>
+						</div>
+					</div>
+				{/if}
+
 				<!-- Grid Rincian Pendapatan vs Potongan -->
 				<div class="grid grid-cols-1 md:grid-cols-2 gap-6 text-xs">
-					<!-- Rincian Penerimaan -->
+					<!-- Rincian Penerimaan (Earnings) -->
 					<div class="space-y-2 border-r border-slate-200 dark:border-slate-800 pr-0 md:pr-4">
 						<h3 class="font-bold text-emerald-600 uppercase tracking-wider pb-2 border-b border-emerald-500/20 flex justify-between">
-							<span>A. Penerimaan (Gross)</span>
+							<span>A. Penerimaan (Earnings)</span>
 						</h3>
 						<div class="flex justify-between py-1 border-b border-slate-100 dark:border-slate-800">
-							<span class="text-slate-500">Gaji Pokok</span>
+							<span class="text-slate-500">Gaji Pokok (Basic)</span>
 							<span class="font-semibold text-on-surface">{formatRupiah(selectedSlip.basic_salary)}</span>
 						</div>
 						<div class="flex justify-between py-1 border-b border-slate-100 dark:border-slate-800">
@@ -327,46 +368,62 @@
 							<span class="font-semibold text-on-surface">{formatRupiah(selectedSlip.position_allowance)}</span>
 						</div>
 						<div class="flex justify-between py-1 border-b border-slate-100 dark:border-slate-800">
-							<span class="text-slate-500">Tunjangan Makan</span>
-							<span class="font-semibold text-on-surface">{formatRupiah(selectedSlip.meal_allowance)}</span>
+							<span class="text-slate-500">Tunjangan Makan & Transport</span>
+							<span class="font-semibold text-on-surface">{formatRupiah(selectedSlip.meal_allowance + selectedSlip.transport_allowance)}</span>
 						</div>
-						<div class="flex justify-between py-1 border-b border-slate-100 dark:border-slate-800">
-							<span class="text-slate-500">Tunjangan Transport</span>
-							<span class="font-semibold text-on-surface">{formatRupiah(selectedSlip.transport_allowance)}</span>
-						</div>
-						<div class="flex justify-between py-1 border-b border-slate-100 dark:border-slate-800">
-							<span class="text-slate-500">Lembur & Insentif</span>
-							<span class="font-semibold text-on-surface">{formatRupiah(selectedSlip.overtime_allowance)}</span>
-						</div>
-						<div class="flex justify-between py-1 border-b border-slate-100 dark:border-slate-800">
-							<span class="text-slate-500">Tunjangan Lainnya</span>
-							<span class="font-semibold text-on-surface">{formatRupiah(selectedSlip.other_allowance)}</span>
-						</div>
+						{#if selectedSlip.isDriver}
+							<div class="flex justify-between py-1 border-b border-slate-100 dark:border-slate-800 text-amber-700 dark:text-amber-300">
+								<span>Uang Jalan & Ritase ({selectedSlip.logisticsDetails?.ritase_count} Trip)</span>
+								<span class="font-bold">{formatRupiah(selectedSlip.logisticsDetails?.ritase_allowance)}</span>
+							</div>
+							<div class="flex justify-between py-1 border-b border-slate-100 dark:border-slate-800 text-amber-700 dark:text-amber-300">
+								<span>Premi Keselamatan & Bongkar Muat</span>
+								<span class="font-bold">{formatRupiah((selectedSlip.logisticsDetails?.safety_bonus || 0) + (selectedSlip.logisticsDetails?.waiting_fee || 0))}</span>
+							</div>
+						{:else}
+							<div class="flex justify-between py-1 border-b border-slate-100 dark:border-slate-800">
+								<span class="text-slate-500">Lembur (Overtime Depnaker)</span>
+								<span class="font-semibold text-on-surface">{formatRupiah(selectedSlip.overtime_allowance)}</span>
+							</div>
+							<div class="flex justify-between py-1 border-b border-slate-100 dark:border-slate-800">
+								<span class="text-slate-500">Tunjangan Lainnya</span>
+								<span class="font-semibold text-on-surface">{formatRupiah(selectedSlip.other_allowance)}</span>
+							</div>
+						{/if}
 						<div class="flex justify-between pt-2 text-sm font-bold text-emerald-600">
-							<span>Total Penerimaan</span>
+							<span>Total Penerimaan (Gross)</span>
 							<span>{formatRupiah(selectedSlip.gross_salary)}</span>
 						</div>
 					</div>
 
-					<!-- Rincian Potongan -->
+					<!-- Rincian Potongan (Deductions) -->
 					<div class="space-y-2">
 						<h3 class="font-bold text-rose-600 uppercase tracking-wider pb-2 border-b border-rose-500/20 flex justify-between">
 							<span>B. Potongan (Deductions)</span>
 						</h3>
 						<div class="flex justify-between py-1 border-b border-slate-100 dark:border-slate-800">
-							<span class="text-slate-500">BPJS Kes & Ketenagakerjaan</span>
-							<span class="font-semibold text-rose-600">-{formatRupiah(selectedSlip.bpjs)}</span>
+							<div>
+								<span class="text-slate-500 block">Pajak Penghasilan (PPh 21 TER)</span>
+								<span class="text-[10px] text-slate-400">Tarif {selectedSlip.terRate}% dari Gross</span>
+							</div>
+							<span class="font-semibold text-rose-600">-{formatRupiah(selectedSlip.calculatedTax || selectedSlip.tax)}</span>
 						</div>
 						<div class="flex justify-between py-1 border-b border-slate-100 dark:border-slate-800">
-							<span class="text-slate-500">Pajak Penghasilan (PPh 21)</span>
-							<span class="font-semibold text-rose-600">-{formatRupiah(selectedSlip.tax)}</span>
+							<div>
+								<span class="text-slate-500 block">BPJS Ketenagakerjaan (JHT 2% + JP 1%)</span>
+								<span class="text-[10px] text-slate-400">Iuran Karyawan</span>
+							</div>
+							<span class="font-semibold text-rose-600">-{formatRupiah((selectedSlip.bpjsDetails?.bpjs_tk_jht_employee || 0) + (selectedSlip.bpjsDetails?.bpjs_tk_jp_employee || 0))}</span>
 						</div>
 						<div class="flex justify-between py-1 border-b border-slate-100 dark:border-slate-800">
-							<span class="text-slate-500">Potongan Absensi / Alpha</span>
-							<span class="font-semibold text-rose-600">-{formatRupiah(selectedSlip.absence_deduction)}</span>
+							<div>
+								<span class="text-slate-500 block">BPJS Kesehatan (1%)</span>
+								<span class="text-[10px] text-slate-400">Iuran Karyawan</span>
+							</div>
+							<span class="font-semibold text-rose-600">-{formatRupiah(selectedSlip.bpjsDetails?.bpjs_kes_employee || (selectedSlip.bpjs * 0.4))}</span>
 						</div>
 						<div class="flex justify-between py-1 border-b border-slate-100 dark:border-slate-800">
-							<span class="text-slate-500">Pinjaman / Kasbon / Lainnya</span>
+							<span class="text-slate-500">Pinjaman / Kasbon Karyawan</span>
 							<span class="font-semibold text-rose-600">-{formatRupiah(selectedSlip.other_deduction)}</span>
 						</div>
 						<div class="flex justify-between pt-2 text-sm font-bold text-rose-600">
@@ -376,21 +433,48 @@
 					</div>
 				</div>
 
+				<!-- Iuran BPJS Dibayar Perusahaan (Benefit Perusahaan) -->
+				<div class="p-3.5 rounded-2xl bg-blue-50/70 dark:bg-blue-950/30 border border-blue-200/60 dark:border-blue-800/40 text-xs">
+					<div class="flex items-center justify-between text-blue-800 dark:text-blue-200 font-bold mb-1">
+						<span class="flex items-center gap-1.5">
+							<span class="material-symbols-outlined text-sm">health_and_safety</span>
+							<span>Iuran Jaminan Sosial Ditanggung Perusahaan (Company Contribution)</span>
+						</span>
+						<span class="font-mono">{formatRupiah(selectedSlip.bpjsDetails?.total_company_bpjs || 0)}</span>
+					</div>
+					<p class="text-[10px] text-blue-600/80 dark:text-blue-300/70">
+						Termasuk JKK (1.27%), JKM (0.30%), JHT (3.70%), JP (2.00%), dan BPJS Kesehatan (4.00%). Tidak memotong gaji karyawan.
+					</p>
+				</div>
+
 				<!-- Summary THP -->
 				<div class="p-4 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-between">
 					<div>
 						<span class="text-xs font-bold text-primary uppercase tracking-wider block">TAKE HOME PAY (THP) / GAJI BERSIH</span>
-						<span class="text-xs text-on-surface-variant">Diterima via transfer bank pada tanggal pembayaran resmi</span>
+						<span class="text-xs text-on-surface-variant">Transfer Bank: {selectedSlip.bank_name || 'BCA'} • Rek: {selectedSlip.account_number || '-'}</span>
 					</div>
 					<div class="text-right">
 						<span class="text-2xl font-black text-primary">{formatRupiah(selectedSlip.net_salary)}</span>
 					</div>
 				</div>
+
+				<!-- Tanda Tangan & QR Verifikasi Otentik -->
+				<div class="grid grid-cols-2 gap-6 pt-4 border-t border-slate-200 dark:border-slate-800 text-xs">
+					<div class="space-y-1">
+						<p class="text-[11px] text-slate-400">Penerima (Karyawan):</p>
+						<p class="font-bold text-on-surface pt-8">{selectedSlip.employee_name}</p>
+					</div>
+					<div class="text-right space-y-1">
+						<p class="text-[11px] text-slate-400">Cilegon, {selectedSlip.period_date}</p>
+						<p class="font-bold text-on-surface">HRD & Finance PT BCS Logistics</p>
+						<p class="text-[10px] text-emerald-600 font-mono">✅ Valid Digitally Signed</p>
+					</div>
+				</div>
 			</div>
 
 			<!-- Footer Modal -->
-			<div class="p-4 bg-slate-50 dark:bg-slate-800/50 flex justify-between items-center border-t border-slate-200 dark:border-slate-800">
-				<p class="text-[10px] text-slate-400">Dokumen Rahasia & Otentik - Ditandatangani secara elektronik oleh HRD BCS</p>
+			<div class="p-4 bg-slate-50 dark:bg-slate-800/50 flex justify-between items-center border-t border-slate-200 dark:border-slate-800 print:hidden">
+				<p class="text-[10px] text-slate-400">Dokumen Rahasia & Otentik - PT Bumi Citra Sentosa</p>
 				<div class="flex gap-2">
 					<button
 						onclick={closeModal}
@@ -400,13 +484,26 @@
 					</button>
 					<button
 						onclick={() => window.print()}
-						class="px-4 py-2 rounded-xl bg-primary text-on-primary text-xs font-bold hover:bg-primary/90 transition-all inline-flex items-center gap-1 cursor-pointer"
+						class="px-4 py-2 rounded-xl bg-primary text-on-primary text-xs font-bold hover:bg-primary/90 transition-all inline-flex items-center gap-1 cursor-pointer shadow-xs"
 					>
 						<span class="material-symbols-outlined text-sm">print</span>
-						<span>Cetak Slip</span>
+						<span>Cetak Slip Resmi (A4)</span>
 					</button>
 				</div>
 			</div>
 		</div>
 	</div>
 {/if}
+
+<style>
+	@media print {
+		:global(body *) {
+			visibility: hidden;
+		}
+		:global(.print\\:block),
+		:global(.print\\:w-full),
+		:global(.print\\:p-0) {
+			visibility: visible;
+		}
+	}
+</style>
