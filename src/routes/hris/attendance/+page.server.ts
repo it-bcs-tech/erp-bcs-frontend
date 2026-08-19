@@ -2,11 +2,14 @@ import type { PageServerLoad, Actions } from './$types';
 import { fail } from '@sveltejs/kit';
 import { apiFetch } from '$lib/utils/api';
 
-export const load: PageServerLoad = async ({ cookies }) => {
+export const load: PageServerLoad = async ({ cookies, url }) => {
 	const authToken = cookies.get('auth_token');
+	const dateParam = url.searchParams.get('date') || '';
+	const statusParam = url.searchParams.get('status') || '';
+	const searchParam = url.searchParams.get('search') || '';
 
-	// 1. Ambil log presensi, lembur SPKL, dan roster shift dari Laravel API secara paralel
-	let attendanceLogs = [];
+	// 1. Ambil log presensi (dengan limit 100+), lembur SPKL, dan roster shift dari Laravel API secara paralel
+	let attendanceLogs: any[] = [];
 	let metrics = {
 		totalEmployees: 648,
 		presentToday: 602,
@@ -23,10 +26,28 @@ export const load: PageServerLoad = async ({ cookies }) => {
 	};
 
 	try {
+		const attendanceQueryParams = new URLSearchParams();
+		attendanceQueryParams.set('limit', '100');
+		if (dateParam) attendanceQueryParams.set('date', dateParam);
+		if (statusParam && statusParam !== 'All') attendanceQueryParams.set('status', statusParam);
+
+		const overtimeQueryParams = new URLSearchParams();
+		overtimeQueryParams.set('per_page', '100');
+		if (searchParam) overtimeQueryParams.set('search', searchParam);
+
 		const [attendanceRes, overtimeRes, rosterRes] = await Promise.all([
-			apiFetch<any>('/api/v1/hris/attendance', {}, authToken).catch(() => ({ data: null })),
-			apiFetch<any>('/api/v1/hris/attendance/overtimes', {}, authToken).catch(() => ({ data: null })),
-			apiFetch<any>('/api/v1/hris/attendance/roster', {}, authToken).catch(() => ({ data: null }))
+			apiFetch<any>(`/api/v1/hris/attendance?${attendanceQueryParams.toString()}`, {}, authToken).catch((err) => {
+				console.error('❌ [Attendance API Error]:', err?.message);
+				return { data: null };
+			}),
+			apiFetch<any>(`/api/v1/hris/attendance/overtimes?${overtimeQueryParams.toString()}`, {}, authToken).catch((err) => {
+				console.error('❌ [Overtime API Error]:', err?.message);
+				return { data: null };
+			}),
+			apiFetch<any>('/api/v1/hris/attendance/roster', {}, authToken).catch((err) => {
+				console.error('❌ [Roster API Error]:', err?.message);
+				return { data: null };
+			})
 		]);
 
 		// Parse attendance logs & metrics
