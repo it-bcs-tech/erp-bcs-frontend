@@ -4,7 +4,9 @@
 	
 	let { data }: { data: PageData } = $props();
 	
-	const { attendanceLogs, metrics, shiftRoster } = data;
+	let attendanceLogs = $derived(data.attendanceLogs);
+	let metrics = $derived(data.metrics);
+	let shiftRoster = $derived(data.shiftRoster);
 
 	// Ambil daftar lokasi yang tersedia secara dinamis dari data log
 	let availableLocations = $derived.by(() => {
