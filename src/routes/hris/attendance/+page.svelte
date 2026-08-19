@@ -7,6 +7,7 @@
 	let attendanceLogs = $derived(data.attendanceLogs);
 	let metrics = $derived(data.metrics);
 	let shiftRoster = $derived(data.shiftRoster);
+	let paginationMeta = $derived(data.paginationMeta || { current_page: 1, total: 0, per_page: 50 });
 
 	// Ambil daftar lokasi yang tersedia secara dinamis dari data log
 	let availableLocations = $derived.by(() => {
@@ -39,11 +40,14 @@
 
 	const daysOfWeek = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Minggu'];
 
-	function handleFilterChange() {
+	function handleFilterChange(page: number | Event = 1) {
 		const query = new URLSearchParams();
 		if (dateFilter) query.set('date', dateFilter);
 		if (selectedPoolFilter && selectedPoolFilter !== 'All') query.set('pool', selectedPoolFilter);
 		if (searchQuery.trim()) query.set('search', searchQuery.trim());
+		
+		const pageNum = typeof page === 'number' ? page : 1;
+		if (pageNum > 1) query.set('page', pageNum.toString());
 
 		goto(`/hris/attendance?${query.toString()}`, { keepFocus: true, noScroll: true });
 	}
@@ -444,6 +448,42 @@
 					</tbody>
 				</table>
 			</div>
+			
+			<!-- Pagination Controls -->
+			{#if paginationMeta && paginationMeta.total > 0}
+				<div class="px-6 py-4 border-t border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-4 bg-slate-50/50 dark:bg-slate-800/20">
+					<div class="text-sm text-slate-500 dark:text-slate-400">
+						Menampilkan <span class="font-bold text-slate-700 dark:text-slate-200">{(paginationMeta.current_page - 1) * paginationMeta.per_page + 1}</span> 
+						sampai <span class="font-bold text-slate-700 dark:text-slate-200">{Math.min(paginationMeta.current_page * paginationMeta.per_page, paginationMeta.total)}</span> 
+						dari <span class="font-bold text-slate-700 dark:text-slate-200">{paginationMeta.total}</span> total data
+					</div>
+					
+					<div class="flex items-center gap-1.5">
+						<button 
+							type="button"
+							disabled={paginationMeta.current_page <= 1}
+							onclick={() => handleFilterChange(paginationMeta.current_page - 1)}
+							class="w-8 h-8 rounded-lg flex items-center justify-center border border-slate-200 dark:border-slate-700 text-slate-500 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-slate-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+						>
+							<span class="material-symbols-outlined text-sm">chevron_left</span>
+						</button>
+						
+						<!-- Simplified page numbers -->
+						<div class="px-3 text-sm font-bold text-slate-700 dark:text-slate-200">
+							Halaman {paginationMeta.current_page}
+						</div>
+						
+						<button 
+							type="button"
+							disabled={paginationMeta.current_page * paginationMeta.per_page >= paginationMeta.total}
+							onclick={() => handleFilterChange(paginationMeta.current_page + 1)}
+							class="w-8 h-8 rounded-lg flex items-center justify-center border border-slate-200 dark:border-slate-700 text-slate-500 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-slate-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+						>
+							<span class="material-symbols-outlined text-sm">chevron_right</span>
+						</button>
+					</div>
+				</div>
+			{/if}
 		</div>
 	{:else if activeTab === 'roster'}
 		<!-- TAB 2: 24/7 SHIFT ROSTER MATRIX -->

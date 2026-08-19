@@ -28,6 +28,7 @@ export const load: PageServerLoad = async ({ cookies, url }) => {
 	const poolParam = url.searchParams.get('pool') || 'All';
 	const statusParam = url.searchParams.get('status') || '';
 	const searchParam = url.searchParams.get('search') || '';
+	const pageParam = url.searchParams.get('page') || '1';
 
 	// 1. Ambil data presensi riil 100% dari tabel presensi.presences di PostgreSQL via Laravel API
 	let attendanceLogs: any[] = [];
@@ -36,6 +37,11 @@ export const load: PageServerLoad = async ({ cookies, url }) => {
 		presentToday: 0,
 		lateToday: 0,
 		absentToday: 0
+	};
+	let paginationMeta = {
+		current_page: 1,
+		total: 0,
+		per_page: 50
 	};
 	let shiftRoster: any[] = [];
 	let overtimeRequests: any[] = [];
@@ -48,7 +54,8 @@ export const load: PageServerLoad = async ({ cookies, url }) => {
 
 	try {
 		const attendanceQueryParams = new URLSearchParams();
-		attendanceQueryParams.set('limit', '300');
+		attendanceQueryParams.set('limit', '50');
+		attendanceQueryParams.set('page', pageParam);
 		if (dateParam) attendanceQueryParams.set('date', dateParam);
 		if (statusParam && statusParam !== 'All') attendanceQueryParams.set('status', statusParam);
 		if (searchParam) attendanceQueryParams.set('search', searchParam);
@@ -88,6 +95,10 @@ export const load: PageServerLoad = async ({ cookies, url }) => {
 			if (attendanceRes.data.metrics) {
 				metrics = attendanceRes.data.metrics;
 			}
+
+			if ((attendanceRes as any).meta) {
+				paginationMeta = (attendanceRes as any).meta;
+			}
 		}
 
 		// Parse overtime SPKL
@@ -98,14 +109,14 @@ export const load: PageServerLoad = async ({ cookies, url }) => {
 					totalRequests: overtimeRes.data.summary.totalRequests || 0,
 					approvedRequests: overtimeRes.data.summary.approvedRequests || 0,
 					pendingRequests: overtimeRes.data.summary.pendingRequests || 0,
-					totalHours: (overtimeRes.data.summary.approvedRequests || 0) * 3.5
+					totalHours: overtimeRes.data.summary.totalHours || 0
 				};
 			}
 		}
 
 		// Parse shift roster
-		if (rosterRes?.data?.roster && Array.isArray(rosterRes.data.roster) && rosterRes.data.roster.length > 0) {
-			shiftRoster = rosterRes.data.roster;
+		if (rosterRes?.data) {
+			shiftRoster = rosterRes.data || [];
 		}
 	} catch (error: any) {
 		console.error('❌ [HRD Attendance API] Error loading data:', error?.message);
@@ -116,8 +127,10 @@ export const load: PageServerLoad = async ({ cookies, url }) => {
 		poolParam,
 		statusParam,
 		searchParam,
+		pageParam,
 		attendanceLogs,
 		metrics,
+		paginationMeta,
 		shiftRoster,
 		overtimeRequests,
 		overtimeSummary,
