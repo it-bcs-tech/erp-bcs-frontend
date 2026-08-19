@@ -115,8 +115,10 @@ export const load: PageServerLoad = async ({ cookies, url }) => {
 		}
 
 		// Parse shift roster
-		if (rosterRes?.data) {
-			shiftRoster = rosterRes.data || [];
+		if (rosterRes?.data?.roster && Array.isArray(rosterRes.data.roster)) {
+			shiftRoster = rosterRes.data.roster;
+		} else if (Array.isArray(rosterRes?.data)) {
+			shiftRoster = rosterRes.data;
 		}
 	} catch (error: any) {
 		console.error('❌ [HRD Attendance API] Error loading data:', error?.message);
