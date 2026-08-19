@@ -1,5 +1,6 @@
 <script lang="ts">
 	import type { PageData } from './$types';
+	import { goto } from '$app/navigation';
 	
 	let { data }: { data: PageData } = $props();
 	
@@ -17,7 +18,7 @@
 	let activeTab = $state<'logs' | 'roster' | 'overtime'>('logs');
 	let searchQuery = $state(data.searchParam || '');
 	let dateFilter = $state(data.dateParam || '');
-	let selectedPoolFilter = $state('All');
+	let selectedPoolFilter = $state(data.poolParam || 'All');
 
 	// Modal Shift Assignment state
 	let showShiftModal = $state(false);
@@ -35,6 +36,22 @@
 	let otDayType = $state<'workday' | 'holiday'>('workday');
 
 	const daysOfWeek = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Minggu'];
+
+	function handleFilterChange() {
+		const query = new URLSearchParams();
+		if (dateFilter) query.set('date', dateFilter);
+		if (selectedPoolFilter && selectedPoolFilter !== 'All') query.set('pool', selectedPoolFilter);
+		if (searchQuery.trim()) query.set('search', searchQuery.trim());
+
+		goto(`/hris/attendance?${query.toString()}`, { keepFocus: true, noScroll: true });
+	}
+
+	function resetFilters() {
+		dateFilter = '';
+		searchQuery = '';
+		selectedPoolFilter = 'All';
+		goto('/hris/attendance', { keepFocus: true, noScroll: true });
+	}
 
 	// ── REAKTIF FILTERING PRESENSI ──
 	let filteredLogs = $derived.by(() => {
@@ -76,12 +93,6 @@
 			return true;
 		});
 	});
-
-	function resetFilters() {
-		dateFilter = '';
-		searchQuery = '';
-		selectedPoolFilter = 'All';
-	}
 
 	function openShiftEdit(emp: any, dayIdx: number) {
 		selectedEmployeeForShift = emp;
@@ -247,12 +258,13 @@
 					<input 
 						type="date" 
 						bind:value={dateFilter}
+						onchange={handleFilterChange}
 						class="bg-transparent text-on-surface text-sm font-medium focus:outline-none cursor-pointer"
 					/>
 					{#if dateFilter}
 						<button 
 							type="button" 
-							onclick={() => (dateFilter = '')} 
+							onclick={() => { dateFilter = ''; handleFilterChange(); }} 
 							class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 ml-1 cursor-pointer"
 							title="Tampilkan semua tanggal"
 						>
@@ -267,6 +279,7 @@
 					<label class="text-xs font-bold text-on-surface-variant">Lokasi:</label>
 					<select
 						bind:value={selectedPoolFilter}
+						onchange={handleFilterChange}
 						class="bg-transparent text-on-surface text-sm font-medium focus:outline-none cursor-pointer pr-2"
 					>
 						<option value="All">Semua Lokasi / Pool</option>
@@ -285,13 +298,14 @@
 				<input 
 					type="text" 
 					bind:value={searchQuery}
+					onkeydown={(e) => e.key === 'Enter' && handleFilterChange()}
 					placeholder="Cari nama / NIK / lokasi..." 
 					class="w-full bg-surface border border-slate-200 dark:border-slate-800 text-on-surface rounded-xl py-2 pl-10 pr-8 focus:outline-none focus:ring-2 focus:ring-primary/50 text-sm font-medium shadow-xs"
 				/>
 				{#if searchQuery}
 					<button 
 						type="button" 
-						onclick={() => (searchQuery = '')}
+						onclick={() => { searchQuery = ''; handleFilterChange(); }}
 						class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
 					>
 						<span class="material-symbols-outlined text-sm">close</span>
@@ -308,19 +322,19 @@
 					{#if dateFilter}
 						<span class="px-2 py-0.5 rounded-md bg-primary/10 text-primary font-medium flex items-center gap-1">
 							<span>Tanggal: {dateFilter}</span>
-							<button onclick={() => (dateFilter = '')} class="hover:text-primary/70 cursor-pointer">×</button>
+							<button onclick={() => { dateFilter = ''; handleFilterChange(); }} class="hover:text-primary/70 cursor-pointer">×</button>
 						</span>
 					{/if}
 					{#if selectedPoolFilter && selectedPoolFilter !== 'All'}
 						<span class="px-2 py-0.5 rounded-md bg-blue-500/10 text-blue-600 font-medium flex items-center gap-1">
 							<span>Lokasi: {selectedPoolFilter}</span>
-							<button onclick={() => (selectedPoolFilter = 'All')} class="hover:text-blue-800 cursor-pointer">×</button>
+							<button onclick={() => { selectedPoolFilter = 'All'; handleFilterChange(); }} class="hover:text-blue-800 cursor-pointer">×</button>
 						</span>
 					{/if}
 					{#if searchQuery}
 						<span class="px-2 py-0.5 rounded-md bg-amber-500/10 text-amber-600 font-medium flex items-center gap-1">
 							<span>Pencarian: "{searchQuery}"</span>
-							<button onclick={() => (searchQuery = '')} class="hover:text-amber-800 cursor-pointer">×</button>
+							<button onclick={() => { searchQuery = ''; handleFilterChange(); }} class="hover:text-amber-800 cursor-pointer">×</button>
 						</span>
 					{/if}
 					<span class="text-slate-400">({filteredLogs.length} hasil ditemukan)</span>

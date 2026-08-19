@@ -25,10 +25,11 @@ function resolveLocationName(rawLocation?: string): string {
 export const load: PageServerLoad = async ({ cookies, url }) => {
 	const authToken = cookies.get('auth_token');
 	const dateParam = url.searchParams.get('date') || '';
+	const poolParam = url.searchParams.get('pool') || 'All';
 	const statusParam = url.searchParams.get('status') || '';
 	const searchParam = url.searchParams.get('search') || '';
 
-	// 1. Ambil log presensi (dengan limit 200+), lembur SPKL, dan roster shift dari Laravel API secara paralel
+	// 1. Ambil log presensi (dengan limit 300), lembur SPKL, dan roster shift dari Laravel API secara paralel
 	let attendanceLogs: any[] = [];
 	let metrics = {
 		totalEmployees: 648,
@@ -47,7 +48,7 @@ export const load: PageServerLoad = async ({ cookies, url }) => {
 
 	try {
 		const attendanceQueryParams = new URLSearchParams();
-		attendanceQueryParams.set('limit', '200');
+		attendanceQueryParams.set('limit', '300');
 		if (dateParam) attendanceQueryParams.set('date', dateParam);
 		if (statusParam && statusParam !== 'All') attendanceQueryParams.set('status', statusParam);
 
@@ -221,6 +222,7 @@ export const load: PageServerLoad = async ({ cookies, url }) => {
 
 	return {
 		dateParam,
+		poolParam,
 		statusParam,
 		searchParam,
 		attendanceLogs,
