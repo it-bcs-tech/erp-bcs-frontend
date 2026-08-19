@@ -29,13 +29,13 @@ export const load: PageServerLoad = async ({ cookies, url }) => {
 	const statusParam = url.searchParams.get('status') || '';
 	const searchParam = url.searchParams.get('search') || '';
 
-	// 1. Ambil log presensi (dengan limit 300), lembur SPKL, dan roster shift dari Laravel API secara paralel
+	// 1. Ambil data presensi riil 100% dari tabel presensi.presences di PostgreSQL via Laravel API
 	let attendanceLogs: any[] = [];
 	let metrics = {
 		totalEmployees: 648,
-		presentToday: 602,
-		lateToday: 24,
-		absentToday: 22
+		presentToday: 0,
+		lateToday: 0,
+		absentToday: 0
 	};
 	let shiftRoster: any[] = [];
 	let overtimeRequests: any[] = [];
@@ -51,6 +51,7 @@ export const load: PageServerLoad = async ({ cookies, url }) => {
 		attendanceQueryParams.set('limit', '300');
 		if (dateParam) attendanceQueryParams.set('date', dateParam);
 		if (statusParam && statusParam !== 'All') attendanceQueryParams.set('status', statusParam);
+		if (searchParam) attendanceQueryParams.set('search', searchParam);
 
 		const overtimeQueryParams = new URLSearchParams();
 		overtimeQueryParams.set('per_page', '100');
@@ -71,7 +72,7 @@ export const load: PageServerLoad = async ({ cookies, url }) => {
 			})
 		]);
 
-		// Parse attendance logs & metrics
+		// Parse attendance logs & metrics murni dari database PostgreSQL
 		if (attendanceRes?.data) {
 			const rawLogs = attendanceRes.data.logs || attendanceRes.data || [];
 			attendanceLogs = rawLogs.map((log: any) => {
@@ -108,116 +109,6 @@ export const load: PageServerLoad = async ({ cookies, url }) => {
 		}
 	} catch (error: any) {
 		console.error('❌ [HRD Attendance API] Error loading data:', error?.message);
-	}
-
-	// Fallback mock jika database kosong
-	if (!attendanceLogs || attendanceLogs.length === 0) {
-		const today = new Date().toISOString().split('T')[0];
-		attendanceLogs = [
-			{
-				id: 'ATT-1001',
-				employeeName: 'Ahmad Subagja',
-				employeeId: 'EMP-010',
-				department: 'Logistik & Driver',
-				date: today,
-				checkIn: '06:45 WIB',
-				checkOut: '15:10 WIB',
-				status: 'On Time',
-				shift: 'Shift 1 (Pagi)',
-				checkInLocation: 'Pool Cilegon',
-				checkOutLocation: 'Pool Cilegon',
-				avatar: 'https://ui-avatars.com/api/?name=Ahmad+Subagja&background=0284c7&color=fff'
-			},
-			{
-				id: 'ATT-1002',
-				employeeName: 'Budi Santoso',
-				employeeId: 'EMP-012',
-				department: 'Workshop & Mekanik',
-				date: today,
-				checkIn: '14:50 WIB',
-				checkOut: '23:05 WIB',
-				status: 'On Time',
-				shift: 'Shift 2 (Siang)',
-				checkInLocation: 'Pool Cilegon',
-				checkOutLocation: 'Pool Cilegon',
-				avatar: 'https://ui-avatars.com/api/?name=Budi+Santoso&background=10b981&color=fff'
-			},
-			{
-				id: 'ATT-1003',
-				employeeName: 'Dedi Kurniawan',
-				employeeId: 'EMP-015',
-				department: 'OCS Dispatcher',
-				date: today,
-				checkIn: '23:15 WIB',
-				checkOut: '07:05 WIB',
-				status: 'Late',
-				shift: 'Shift 3 (Malam)',
-				checkInLocation: 'Pool Cilegon',
-				checkOutLocation: 'Pool Cilegon',
-				avatar: 'https://ui-avatars.com/api/?name=Dedi+Kurniawan&background=f59e0b&color=fff'
-			},
-			{
-				id: 'ATT-1004',
-				employeeName: 'Hendra Gunawan',
-				employeeId: 'EMP-022',
-				department: 'Operator Pool',
-				date: today,
-				checkIn: '07:00 WIB',
-				checkOut: '15:30 WIB',
-				status: 'On Time',
-				shift: 'Shift 1 (Pagi)',
-				checkInLocation: 'Pool Gunung Putri',
-				checkOutLocation: 'Pool Gunung Putri',
-				avatar: 'https://ui-avatars.com/api/?name=Hendra+Gunawan&background=8b5cf6&color=fff'
-			}
-		];
-	}
-
-	if (!shiftRoster || shiftRoster.length === 0) {
-		shiftRoster = [
-			{
-				employeeId: 'EMP-010',
-				employeeName: 'Ahmad Subagja',
-				department: 'Logistik & Driver',
-				pool: 'Pool Cilegon',
-				schedule: ['S1', 'S1', 'S1', 'S1', 'S1', 'OFF', 'OFF']
-			},
-			{
-				employeeId: 'EMP-012',
-				employeeName: 'Budi Santoso',
-				department: 'Workshop & Mekanik',
-				pool: 'Workshop Cilegon',
-				schedule: ['S2', 'S2', 'S2', 'S2', 'S2', 'OFF', 'OFF']
-			},
-			{
-				employeeId: 'EMP-015',
-				employeeName: 'Dedi Kurniawan',
-				department: 'OCS Dispatcher',
-				pool: 'Control Room',
-				schedule: ['S3', 'S3', 'S3', 'S3', 'S3', 'OFF', 'OFF']
-			},
-			{
-				employeeId: 'EMP-022',
-				employeeName: 'Hendra Gunawan',
-				department: 'Operator Pool',
-				pool: 'Pool Gunung Putri',
-				schedule: ['S1', 'S1', 'S1', 'S1', 'S1', 'OFF', 'OFF']
-			},
-			{
-				employeeId: 'EMP-028',
-				employeeName: 'Fajar Pratama',
-				department: 'Workshop & Mekanik',
-				pool: 'Workshop Gunung Putri',
-				schedule: ['S3', 'S3', 'S3', 'S3', 'OFF', 'OFF', 'S1']
-			},
-			{
-				employeeId: 'EMP-031',
-				employeeName: 'Rudi Hartono',
-				department: 'Logistik & Driver',
-				pool: 'Pool Cilegon',
-				schedule: ['S2', 'S2', 'S2', 'S2', 'S2', 'OFF', 'OFF']
-			}
-		];
 	}
 
 	return {
