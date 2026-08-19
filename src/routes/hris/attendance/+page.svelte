@@ -7,9 +7,32 @@
 
 	const todayStr = new Date().toISOString().split('T')[0];
 
+	// Ambil daftar tanggal yang tersedia dari data riil
+	let availableDates = $derived.by(() => {
+		const set = new Set<string>();
+		(attendanceLogs || []).forEach((log: any) => {
+			if (log.date) set.add(String(log.date).split('T')[0]);
+		});
+		const list = Array.from(set).sort().reverse();
+		return list;
+	});
+
+	// Ambil daftar lokasi yang tersedia secara dinamis
+	let availableLocations = $derived.by(() => {
+		const set = new Set<string>();
+		(attendanceLogs || []).forEach((log: any) => {
+			if (log.checkInLocation && log.checkInLocation !== '-') set.add(log.checkInLocation);
+		});
+		return ['All', ...Array.from(set)];
+	});
+
 	let activeTab = $state<'logs' | 'roster' | 'overtime'>('logs');
 	let searchQuery = $state(data.searchParam || '');
-	let dateFilter = $state(data.dateParam || todayStr);
+	// Default ke tanggal data terkini yang ada di database agar data langsung tampil, atau hari ini
+	let dateFilter = $state(
+		data.dateParam || 
+		(attendanceLogs && attendanceLogs.length > 0 && attendanceLogs[0].date ? String(attendanceLogs[0].date).split('T')[0] : todayStr)
+	);
 	let selectedPoolFilter = $state('All');
 
 	// Modal Shift Assignment state
@@ -32,8 +55,8 @@
 	// ── REAKTIF FILTERING PRESENSI ──
 	let filteredLogs = $derived.by(() => {
 		return (attendanceLogs || []).filter((log: any) => {
-			// 1. Filter Tanggal (jika diisi)
-			if (dateFilter) {
+			// 1. Filter Tanggal
+			if (dateFilter && dateFilter !== 'all') {
 				const logDate = log.date ? String(log.date).split('T')[0] : '';
 				if (logDate && logDate !== dateFilter) {
 					return false;
@@ -60,7 +83,8 @@
 				const shift = (log.shift || '').toLowerCase();
 				const inLoc = (log.checkInLocation || '').toLowerCase();
 				const outLoc = (log.checkOutLocation || '').toLowerCase();
-				if (!name.includes(q) && !empId.includes(q) && !dept.includes(q) && !shift.includes(q) && !inLoc.includes(q) && !outLoc.includes(q)) {
+				const status = (log.status || '').toLowerCase();
+				if (!name.includes(q) && !empId.includes(q) && !dept.includes(q) && !shift.includes(q) && !inLoc.includes(q) && !outLoc.includes(q) && !status.includes(q)) {
 					return false;
 				}
 			}
@@ -77,6 +101,12 @@
 
 	function setTodayFilter() {
 		dateFilter = todayStr;
+	}
+
+	function setLatestDataDate() {
+		if (availableDates.length > 0) {
+			dateFilter = availableDates[0];
+		}
 	}
 
 	function openShiftEdit(emp: any, dayIdx: number) {
@@ -234,102 +264,136 @@
 	<!-- TAB 1: DAILY PRESENCE LOGS -->
 	{#if activeTab === 'logs'}
 		<!-- Filters & Search (Tanggal, Lokasi/Pool, dan Pencarian Teks) -->
-		<div class="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 bg-surface-container-low p-4 rounded-2xl border border-slate-200/60 dark:border-slate-800/60 shadow-xs">
-			<div class="flex flex-wrap items-center gap-3 w-full lg:w-auto">
-				<!-- Filter Tanggal (Default: Hari Ini) -->
-				<div class="flex items-center gap-1.5">
-					<span class="material-symbols-outlined text-slate-400 text-lg">calendar_today</span>
+		<div class="space-y-3 bg-surface-container-low p-4 rounded-2xl border border-slate-200/60 dark:border-slate-800/60 shadow-xs">
+			<div class="flex flex-col lg:flex-row justify-between items-stretch lg:items-center gap-3">
+				<!-- Filter Controls (Tanggal & Lokasi) -->
+				<div class="flex flex-wrap items-center gap-3">
+					<!-- Dropdown / Selector Tanggal -->
+					<div class="flex items-center gap-1.5 bg-surface px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 shadow-2xs">
+						<span class="material-symbols-outlined text-primary text-base">event</span>
+						<label class="text-xs font-bold text-on-surface-variant mr-1">Tanggal:</label>
+						<select
+							bind:value={dateFilter}
+							class="bg-transparent text-on-surface font-semibold text-xs focus:outline-none cursor-pointer"
+						>
+							<option value="">Semua Tanggal</option>
+							{#each availableDates as d}
+								<option value={d}>{d} {d === todayStr ? '(Hari Ini)' : ''}</option>
+							{/each}
+						</select>
+						<input 
+							type="date" 
+							bind:value={dateFilter}
+							class="bg-transparent text-on-surface text-xs focus:outline-none cursor-pointer border-l border-slate-200 dark:border-slate-700 pl-2 ml-1"
+							title="Pilih tanggal khusus dari kalender"
+						/>
+					</div>
+
+					<!-- Quick Date Toggles -->
+					<div class="flex items-center gap-1">
+						{#if availableDates.length > 0 && availableDates[0] !== todayStr}
+							<button
+								type="button"
+								onclick={setLatestDataDate}
+								class="px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer {dateFilter === availableDates[0] ? 'bg-primary text-on-primary shadow-2xs' : 'bg-surface border border-slate-200 dark:border-slate-800 text-on-surface hover:bg-surface-container'}"
+								title="Tampilkan tanggal terkini dengan data ({availableDates[0]})"
+							>
+								Tgl Terkini ({availableDates[0]})
+							</button>
+						{/if}
+						<button
+							type="button"
+							onclick={setTodayFilter}
+							class="px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer {dateFilter === todayStr ? 'bg-primary text-on-primary shadow-2xs' : 'bg-surface border border-slate-200 dark:border-slate-800 text-on-surface hover:bg-surface-container'}"
+							title="Filter Hari Ini ({todayStr})"
+						>
+							Hari Ini
+						</button>
+						<button
+							type="button"
+							onclick={() => (dateFilter = '')}
+							class="px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer {!dateFilter ? 'bg-primary text-on-primary shadow-2xs' : 'bg-surface border border-slate-200 dark:border-slate-800 text-on-surface hover:bg-surface-container'}"
+							title="Tampilkan semua tanggal"
+						>
+							Semua Tanggal
+						</button>
+					</div>
+
+					<!-- Dropdown Lokasi / Pool -->
+					<div class="flex items-center gap-1.5 bg-surface px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 shadow-2xs">
+						<span class="material-symbols-outlined text-primary text-base">location_on</span>
+						<label class="text-xs font-bold text-on-surface-variant mr-1">Lokasi:</label>
+						<select
+							bind:value={selectedPoolFilter}
+							class="bg-transparent text-on-surface font-semibold text-xs focus:outline-none cursor-pointer"
+						>
+							<option value="All">Semua Lokasi / Pool</option>
+							{#each availableLocations as loc}
+								{#if loc !== 'All'}
+									<option value={loc}>{loc}</option>
+								{/if}
+							{/each}
+						</select>
+					</div>
+				</div>
+
+				<!-- Pencarian Teks (Nama, NIK, Departemen) -->
+				<div class="relative w-full lg:w-72 flex-shrink-0">
+					<span class="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-lg">search</span>
 					<input 
-						type="date" 
-						bind:value={dateFilter}
-						class="bg-surface border border-slate-200 dark:border-slate-800 text-on-surface rounded-xl py-2 px-3 focus:outline-none focus:ring-2 focus:ring-primary/50 text-sm font-medium shadow-xs"
+						type="text" 
+						bind:value={searchQuery}
+						placeholder="Cari nama / NIK / lokasi..." 
+						class="w-full bg-surface border border-slate-200 dark:border-slate-800 text-on-surface rounded-full py-2 pl-11 pr-8 focus:outline-none focus:ring-2 focus:ring-primary/50 text-xs font-medium shadow-xs"
 					/>
-				</div>
-
-				<!-- Quick Date Buttons -->
-				<div class="flex items-center gap-1">
-					<button
-						type="button"
-						onclick={setTodayFilter}
-						class="px-2.5 py-1.5 rounded-lg text-xs font-bold transition-colors cursor-pointer {dateFilter === todayStr ? 'bg-primary text-on-primary' : 'bg-surface border border-slate-200 dark:border-slate-800 text-on-surface hover:bg-surface-container'}"
-						title="Filter Hari Ini ({todayStr})"
-					>
-						Hari Ini
-					</button>
-					<button
-						type="button"
-						onclick={() => (dateFilter = '')}
-						class="px-2.5 py-1.5 rounded-lg text-xs font-bold transition-colors cursor-pointer {!dateFilter ? 'bg-primary text-on-primary' : 'bg-surface border border-slate-200 dark:border-slate-800 text-on-surface hover:bg-surface-container'}"
-						title="Tampilkan semua tanggal"
-					>
-						Semua Tanggal
-					</button>
-				</div>
-
-				<!-- Filter Lokasi / Pool -->
-				<div class="flex items-center gap-1.5">
-					<span class="material-symbols-outlined text-slate-400 text-lg">location_on</span>
-					<select
-						bind:value={selectedPoolFilter}
-						class="bg-surface border border-slate-200 dark:border-slate-800 text-on-surface rounded-xl py-2 px-3 focus:outline-none focus:ring-2 focus:ring-primary/50 text-sm font-medium shadow-xs cursor-pointer"
-					>
-						<option value="All">Semua Lokasi / Pool</option>
-						<option value="Pool Cilegon">Pool Cilegon</option>
-						<option value="Pool Gunung Putri">Pool Gunung Putri</option>
-						<option value="Workshop Cilegon">Workshop Cilegon</option>
-						<option value="Workshop Gunung Putri">Workshop Gunung Putri</option>
-						<option value="Control Room">Control Room</option>
-					</select>
+					{#if searchQuery}
+						<button 
+							type="button" 
+							onclick={() => (searchQuery = '')}
+							class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+						>
+							<span class="material-symbols-outlined text-sm">close</span>
+						</button>
+					{/if}
 				</div>
 			</div>
 
-			<!-- Pencarian Teks (Nama, NIK, Departemen) -->
-			<div class="relative w-full lg:w-72 flex-shrink-0">
-				<span class="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-lg">search</span>
-				<input 
-					type="text" 
-					bind:value={searchQuery}
-					placeholder="Cari nama karyawan / NIK / Divisi..." 
-					class="w-full bg-surface border border-slate-200 dark:border-slate-800 text-on-surface rounded-full py-2 pl-11 pr-4 focus:outline-none focus:ring-2 focus:ring-primary/50 text-sm font-medium shadow-xs"
-				/>
-				{#if searchQuery}
+			<!-- Active Filters Summary Bar -->
+			{#if dateFilter || (selectedPoolFilter && selectedPoolFilter !== 'All') || searchQuery}
+				<div class="flex items-center justify-between pt-2 border-t border-slate-200/60 dark:border-slate-800/60 text-xs text-on-surface-variant">
+					<div class="flex items-center gap-2 flex-wrap">
+						<span class="font-bold">Filter Aktif:</span>
+						{#if dateFilter}
+							<span class="px-2 py-0.5 rounded-md bg-primary/10 text-primary font-medium flex items-center gap-1">
+								<span>Tanggal: {dateFilter}</span>
+								<button onclick={() => (dateFilter = '')} class="hover:text-primary/70">×</button>
+							</span>
+						{/if}
+						{#if selectedPoolFilter && selectedPoolFilter !== 'All'}
+							<span class="px-2 py-0.5 rounded-md bg-blue-500/10 text-blue-600 font-medium flex items-center gap-1">
+								<span>Lokasi: {selectedPoolFilter}</span>
+								<button onclick={() => (selectedPoolFilter = 'All')} class="hover:text-blue-800">×</button>
+							</span>
+						{/if}
+						{#if searchQuery}
+							<span class="px-2 py-0.5 rounded-md bg-amber-500/10 text-amber-600 font-medium flex items-center gap-1">
+								<span>Pencarian: "{searchQuery}"</span>
+								<button onclick={() => (searchQuery = '')} class="hover:text-amber-800">×</button>
+							</span>
+						{/if}
+						<span class="text-slate-400">({filteredLogs.length} hasil ditemukan)</span>
+					</div>
 					<button 
 						type="button" 
-						onclick={() => (searchQuery = '')}
-						class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+						onclick={resetFilters} 
+						class="text-primary font-bold hover:underline cursor-pointer flex items-center gap-1 text-xs"
 					>
-						<span class="material-symbols-outlined text-sm">close</span>
+						<span class="material-symbols-outlined text-xs">filter_alt_off</span>
+						<span>Reset Semua Filter</span>
 					</button>
-				{/if}
-			</div>
-		</div>
-
-		<!-- Active Filters Indicator -->
-		{#if dateFilter || (selectedPoolFilter && selectedPoolFilter !== 'All') || searchQuery}
-			<div class="flex items-center justify-between px-2 text-xs text-on-surface-variant">
-				<div class="flex items-center gap-2 flex-wrap">
-					<span class="font-bold">Filter Aktif:</span>
-					{#if dateFilter}
-						<span class="px-2 py-0.5 rounded-md bg-primary/10 text-primary font-medium">Tanggal: {dateFilter}</span>
-					{/if}
-					{#if selectedPoolFilter && selectedPoolFilter !== 'All'}
-						<span class="px-2 py-0.5 rounded-md bg-blue-500/10 text-blue-600 font-medium">Lokasi: {selectedPoolFilter}</span>
-					{/if}
-					{#if searchQuery}
-						<span class="px-2 py-0.5 rounded-md bg-amber-500/10 text-amber-600 font-medium">Pencarian: "{searchQuery}"</span>
-					{/if}
-					<span class="text-slate-400">({filteredLogs.length} hasil)</span>
 				</div>
-				<button 
-					type="button" 
-					onclick={resetFilters} 
-					class="text-primary font-bold hover:underline cursor-pointer flex items-center gap-1"
-				>
-					<span class="material-symbols-outlined text-xs">filter_alt_off</span>
-					<span>Reset Filter</span>
-				</button>
-			</div>
-		{/if}
+			{/if}
+		</div>
 
 		<!-- Data Table -->
 		<div class="bg-surface-container-low rounded-2xl shadow-xs border border-slate-200/60 dark:border-slate-800/60 overflow-hidden">
@@ -402,7 +466,7 @@
 										<p class="font-bold text-base text-on-surface">Tidak ada log presensi yang cocok</p>
 										<p class="text-xs text-slate-400 max-w-md">
 											{#if dateFilter}
-												Tidak ada data log pada tanggal <strong>{dateFilter}</strong> dengan filter yang dipilih.
+												Tidak ada data log pada tanggal <strong>{dateFilter}</strong> dengan filter lokasi <strong>{selectedPoolFilter}</strong>.
 											{:else}
 												Tidak ditemukan hasil untuk kata kunci "{searchQuery}".
 											{/if}

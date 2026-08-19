@@ -2,13 +2,33 @@ import type { PageServerLoad, Actions } from './$types';
 import { fail } from '@sveltejs/kit';
 import { apiFetch } from '$lib/utils/api';
 
+function resolveLocationName(rawLocation?: string): string {
+	if (!rawLocation) return 'Pool Cilegon';
+	if (rawLocation.includes(',')) {
+		const [latStr, lngStr] = rawLocation.split(',').map((s) => s.trim());
+		const lat = parseFloat(latStr);
+		const lng = parseFloat(lngStr);
+		if (lat <= -5.8 && lat >= -6.1 && lng >= 105.8 && lng <= 106.3) {
+			return 'Pool Cilegon';
+		}
+		if (lat <= -6.3 && lat >= -6.6 && lng >= 106.7 && lng <= 107.1) {
+			return 'Pool Gunung Putri';
+		}
+		if (!isNaN(lat) && !isNaN(lng)) {
+			return 'Area Operasional (GPS)';
+		}
+	}
+	if (rawLocation === 'Kantor') return 'Pool Cilegon';
+	return rawLocation;
+}
+
 export const load: PageServerLoad = async ({ cookies, url }) => {
 	const authToken = cookies.get('auth_token');
 	const dateParam = url.searchParams.get('date') || '';
 	const statusParam = url.searchParams.get('status') || '';
 	const searchParam = url.searchParams.get('search') || '';
 
-	// 1. Ambil log presensi (dengan limit 150+), lembur SPKL, dan roster shift dari Laravel API secara paralel
+	// 1. Ambil log presensi (dengan limit 200+), lembur SPKL, dan roster shift dari Laravel API secara paralel
 	let attendanceLogs: any[] = [];
 	let metrics = {
 		totalEmployees: 648,
@@ -27,7 +47,7 @@ export const load: PageServerLoad = async ({ cookies, url }) => {
 
 	try {
 		const attendanceQueryParams = new URLSearchParams();
-		attendanceQueryParams.set('limit', '150');
+		attendanceQueryParams.set('limit', '200');
 		if (dateParam) attendanceQueryParams.set('date', dateParam);
 		if (statusParam && statusParam !== 'All') attendanceQueryParams.set('status', statusParam);
 
@@ -52,7 +72,17 @@ export const load: PageServerLoad = async ({ cookies, url }) => {
 
 		// Parse attendance logs & metrics
 		if (attendanceRes?.data) {
-			attendanceLogs = attendanceRes.data.logs || attendanceRes.data || [];
+			const rawLogs = attendanceRes.data.logs || attendanceRes.data || [];
+			attendanceLogs = rawLogs.map((log: any) => {
+				const inLoc = resolveLocationName(log.checkInLocation);
+				const outLoc = log.checkOutLocation ? resolveLocationName(log.checkOutLocation) : inLoc;
+				return {
+					...log,
+					checkInLocation: inLoc,
+					checkOutLocation: outLoc
+				};
+			});
+
 			if (attendanceRes.data.metrics) {
 				metrics = attendanceRes.data.metrics;
 			}
@@ -93,8 +123,8 @@ export const load: PageServerLoad = async ({ cookies, url }) => {
 				checkOut: '15:10 WIB',
 				status: 'On Time',
 				shift: 'Shift 1 (Pagi)',
-				checkInLocation: 'Pool Cilegon Utama',
-				checkOutLocation: 'Pool Cilegon Utama',
+				checkInLocation: 'Pool Cilegon',
+				checkOutLocation: 'Pool Cilegon',
 				avatar: 'https://ui-avatars.com/api/?name=Ahmad+Subagja&background=0284c7&color=fff'
 			},
 			{
@@ -107,8 +137,8 @@ export const load: PageServerLoad = async ({ cookies, url }) => {
 				checkOut: '23:05 WIB',
 				status: 'On Time',
 				shift: 'Shift 2 (Siang)',
-				checkInLocation: 'Workshop Cilegon',
-				checkOutLocation: 'Workshop Cilegon',
+				checkInLocation: 'Pool Cilegon',
+				checkOutLocation: 'Pool Cilegon',
 				avatar: 'https://ui-avatars.com/api/?name=Budi+Santoso&background=10b981&color=fff'
 			},
 			{
@@ -121,8 +151,8 @@ export const load: PageServerLoad = async ({ cookies, url }) => {
 				checkOut: '07:05 WIB',
 				status: 'Late',
 				shift: 'Shift 3 (Malam)',
-				checkInLocation: 'Control Room Cilegon',
-				checkOutLocation: 'Control Room Cilegon',
+				checkInLocation: 'Pool Cilegon',
+				checkOutLocation: 'Pool Cilegon',
 				avatar: 'https://ui-avatars.com/api/?name=Dedi+Kurniawan&background=f59e0b&color=fff'
 			},
 			{
