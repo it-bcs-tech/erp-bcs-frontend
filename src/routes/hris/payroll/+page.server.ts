@@ -8,36 +8,44 @@ export const load: PageServerLoad = async ({ cookies, url }) => {
 	const searchQuery = url.searchParams.get('search') || '';
 	const divisionFilter = url.searchParams.get('division') || '';
 
-	// Generate daftar periode bulanan standar
+	// Generate daftar periode bulanan riil yang tersedia di sistem
 	const periods = [
-		{ period_key: '2026-08-01', period_label: 'August 2026', period_code: '08 - 2026' },
 		{ period_key: '2026-07-01', period_label: 'July 2026', period_code: '07 - 2026' },
 		{ period_key: '2026-06-01', period_label: 'June 2026', period_code: '06 - 2026' },
 		{ period_key: '2026-05-01', period_label: 'May 2026', period_code: '05 - 2026' },
-		{ period_key: '2026-04-01', period_label: 'April 2026', period_code: '04 - 2026' }
+		{ period_key: '2026-04-01', period_label: 'April 2026', period_code: '04 - 2026' },
+		{ period_key: '2026-03-01', period_label: 'March 2026', period_code: '03 - 2026' }
 	];
 
 	try {
 		const payrollParams = new URLSearchParams();
-		if (selectedPeriod) payrollParams.set('period', selectedPeriod.slice(0, 7)); // YYYY-MM
+		// Kirim format tanggal lengkap YYYY-MM-DD ke Laravel API
+		const formattedPeriod = selectedPeriod.length === 7 ? `${selectedPeriod}-01` : selectedPeriod;
+		if (formattedPeriod) payrollParams.set('period', formattedPeriod);
 		if (searchQuery) payrollParams.set('search', searchQuery);
 		if (divisionFilter) payrollParams.set('division', divisionFilter);
 		payrollParams.set('per_page', '100');
 
 		const [payrollRes, reimbursementRes] = await Promise.all([
-			apiFetch<any>(`/api/v1/hris/payroll?${payrollParams.toString()}`, {}, authToken).catch(() => ({
-				data: {
-					summary: { total_count: 0, total_gross: 0, total_deductions: 0, total_net_thp: 0, avg_salary: 0 },
-					divisions: [],
-					slips: []
-				}
-			})),
-			apiFetch<any>(`/api/v1/hris/payroll/reimbursements?per_page=100`, {}, authToken).catch(() => ({
-				data: {
-					summary: { total_claims: 0, total_approved_amount: 0, pending_claims: 0, rejected_claims: 0 },
-					claims: []
-				}
-			}))
+			apiFetch<any>(`/api/v1/hris/payroll?${payrollParams.toString()}`, {}, authToken).catch((err) => {
+				console.error('❌ [Payroll API Error]:', err?.message);
+				return {
+					data: {
+						summary: { total_count: 0, total_gross: 0, total_deductions: 0, total_net_thp: 0, avg_salary: 0 },
+						divisions: [],
+						slips: []
+					}
+				};
+			}),
+			apiFetch<any>(`/api/v1/hris/payroll/reimbursements?per_page=100`, {}, authToken).catch((err) => {
+				console.error('❌ [Reimbursement API Error]:', err?.message);
+				return {
+					data: {
+						summary: { total_claims: 0, total_approved_amount: 0, pending_claims: 0, rejected_claims: 0 },
+						claims: []
+					}
+				};
+			})
 		]);
 
 		const payrollData = payrollRes?.data || {};
