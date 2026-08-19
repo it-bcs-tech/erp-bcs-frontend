@@ -8,7 +8,7 @@ export const load: PageServerLoad = async ({ cookies, url }) => {
 	const statusParam = url.searchParams.get('status') || '';
 	const searchParam = url.searchParams.get('search') || '';
 
-	// 1. Ambil log presensi (dengan limit 100+), lembur SPKL, dan roster shift dari Laravel API secara paralel
+	// 1. Ambil log presensi (dengan limit 150+), lembur SPKL, dan roster shift dari Laravel API secara paralel
 	let attendanceLogs: any[] = [];
 	let metrics = {
 		totalEmployees: 648,
@@ -27,7 +27,7 @@ export const load: PageServerLoad = async ({ cookies, url }) => {
 
 	try {
 		const attendanceQueryParams = new URLSearchParams();
-		attendanceQueryParams.set('limit', '100');
+		attendanceQueryParams.set('limit', '150');
 		if (dateParam) attendanceQueryParams.set('date', dateParam);
 		if (statusParam && statusParam !== 'All') attendanceQueryParams.set('status', statusParam);
 
@@ -79,15 +79,16 @@ export const load: PageServerLoad = async ({ cookies, url }) => {
 		console.error('❌ [HRD Attendance API] Error loading data:', error?.message);
 	}
 
-	// Fallback UI jika list masih kosong
+	// Fallback mock jika database kosong
 	if (!attendanceLogs || attendanceLogs.length === 0) {
+		const today = new Date().toISOString().split('T')[0];
 		attendanceLogs = [
 			{
 				id: 'ATT-1001',
 				employeeName: 'Ahmad Subagja',
 				employeeId: 'EMP-010',
 				department: 'Logistik & Driver',
-				date: '2026-08-18',
+				date: today,
 				checkIn: '06:45 WIB',
 				checkOut: '15:10 WIB',
 				status: 'On Time',
@@ -101,7 +102,7 @@ export const load: PageServerLoad = async ({ cookies, url }) => {
 				employeeName: 'Budi Santoso',
 				employeeId: 'EMP-012',
 				department: 'Workshop & Mekanik',
-				date: '2026-08-18',
+				date: today,
 				checkIn: '14:50 WIB',
 				checkOut: '23:05 WIB',
 				status: 'On Time',
@@ -115,7 +116,7 @@ export const load: PageServerLoad = async ({ cookies, url }) => {
 				employeeName: 'Dedi Kurniawan',
 				employeeId: 'EMP-015',
 				department: 'OCS Dispatcher',
-				date: '2026-08-18',
+				date: today,
 				checkIn: '23:15 WIB',
 				checkOut: '07:05 WIB',
 				status: 'Late',
@@ -129,7 +130,7 @@ export const load: PageServerLoad = async ({ cookies, url }) => {
 				employeeName: 'Hendra Gunawan',
 				employeeId: 'EMP-022',
 				department: 'Operator Pool',
-				date: '2026-08-18',
+				date: today,
 				checkIn: '07:00 WIB',
 				checkOut: '15:30 WIB',
 				status: 'On Time',
@@ -189,6 +190,9 @@ export const load: PageServerLoad = async ({ cookies, url }) => {
 	}
 
 	return {
+		dateParam,
+		statusParam,
+		searchParam,
 		attendanceLogs,
 		metrics,
 		shiftRoster,

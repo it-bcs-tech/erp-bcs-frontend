@@ -5,9 +5,11 @@
 	
 	const { attendanceLogs, metrics, shiftRoster } = data;
 
+	const todayStr = new Date().toISOString().split('T')[0];
+
 	let activeTab = $state<'logs' | 'roster' | 'overtime'>('logs');
-	let searchQuery = $state('');
-	let dateFilter = $state('2026-08-18');
+	let searchQuery = $state(data.searchParam || '');
+	let dateFilter = $state(data.dateParam || todayStr);
 	let selectedPoolFilter = $state('All');
 
 	// Modal Shift Assignment state
@@ -26,6 +28,56 @@
 	let otDayType = $state<'workday' | 'holiday'>('workday');
 
 	const daysOfWeek = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Minggu'];
+
+	// ── REAKTIF FILTERING PRESENSI ──
+	let filteredLogs = $derived.by(() => {
+		return (attendanceLogs || []).filter((log: any) => {
+			// 1. Filter Tanggal (jika diisi)
+			if (dateFilter) {
+				const logDate = log.date ? String(log.date).split('T')[0] : '';
+				if (logDate && logDate !== dateFilter) {
+					return false;
+				}
+			}
+
+			// 2. Filter Lokasi / Pool
+			if (selectedPoolFilter && selectedPoolFilter !== 'All') {
+				const searchPool = selectedPoolFilter.toLowerCase();
+				const inLoc = (log.checkInLocation || '').toLowerCase();
+				const outLoc = (log.checkOutLocation || '').toLowerCase();
+				const dept = (log.department || '').toLowerCase();
+				if (!inLoc.includes(searchPool) && !outLoc.includes(searchPool) && !dept.includes(searchPool)) {
+					return false;
+				}
+			}
+
+			// 3. Filter Pencarian Teks (Nama Karyawan, NIK / ID, Departemen, Shift, Lokasi)
+			if (searchQuery && searchQuery.trim()) {
+				const q = searchQuery.toLowerCase().trim();
+				const name = (log.employeeName || '').toLowerCase();
+				const empId = (log.employeeId || '').toLowerCase();
+				const dept = (log.department || '').toLowerCase();
+				const shift = (log.shift || '').toLowerCase();
+				const inLoc = (log.checkInLocation || '').toLowerCase();
+				const outLoc = (log.checkOutLocation || '').toLowerCase();
+				if (!name.includes(q) && !empId.includes(q) && !dept.includes(q) && !shift.includes(q) && !inLoc.includes(q) && !outLoc.includes(q)) {
+					return false;
+				}
+			}
+
+			return true;
+		});
+	});
+
+	function resetFilters() {
+		dateFilter = '';
+		searchQuery = '';
+		selectedPoolFilter = 'All';
+	}
+
+	function setTodayFilter() {
+		dateFilter = todayStr;
+	}
 
 	function openShiftEdit(emp: any, dayIdx: number) {
 		selectedEmployeeForShift = emp;
@@ -125,6 +177,7 @@
 		>
 			<span class="material-symbols-outlined text-sm">how_to_reg</span>
 			<span>Log Presensi Harian & GPS</span>
+			<span class="px-2 py-0.5 rounded-full text-[10px] bg-white/20 font-bold font-mono">{filteredLogs.length}</span>
 		</button>
 		<button
 			onclick={() => (activeTab = 'roster')}
@@ -180,35 +233,103 @@
 
 	<!-- TAB 1: DAILY PRESENCE LOGS -->
 	{#if activeTab === 'logs'}
-		<!-- Filters & Search -->
-		<div class="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
-			<div class="flex gap-3">
-				<input 
-					type="date" 
-					bind:value={dateFilter}
-					class="bg-surface-container-low border border-slate-200 dark:border-slate-800 text-on-surface rounded-xl py-2 px-4 focus:outline-none focus:ring-2 focus:ring-primary/50 text-sm font-medium shadow-xs"
-				/>
-				<select
-					bind:value={selectedPoolFilter}
-					class="bg-surface-container-low border border-slate-200 dark:border-slate-800 text-on-surface rounded-xl py-2 px-4 focus:outline-none focus:ring-2 focus:ring-primary/50 text-sm font-medium shadow-xs cursor-pointer"
-				>
-					<option value="All">Semua Lokasi / Pool</option>
-					<option value="Pool Cilegon">Pool Cilegon</option>
-					<option value="Pool Gunung Putri">Pool Gunung Putri</option>
-					<option value="Workshop Cilegon">Workshop Cilegon</option>
-				</select>
+		<!-- Filters & Search (Tanggal, Lokasi/Pool, dan Pencarian Teks) -->
+		<div class="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 bg-surface-container-low p-4 rounded-2xl border border-slate-200/60 dark:border-slate-800/60 shadow-xs">
+			<div class="flex flex-wrap items-center gap-3 w-full lg:w-auto">
+				<!-- Filter Tanggal (Default: Hari Ini) -->
+				<div class="flex items-center gap-1.5">
+					<span class="material-symbols-outlined text-slate-400 text-lg">calendar_today</span>
+					<input 
+						type="date" 
+						bind:value={dateFilter}
+						class="bg-surface border border-slate-200 dark:border-slate-800 text-on-surface rounded-xl py-2 px-3 focus:outline-none focus:ring-2 focus:ring-primary/50 text-sm font-medium shadow-xs"
+					/>
+				</div>
+
+				<!-- Quick Date Buttons -->
+				<div class="flex items-center gap-1">
+					<button
+						type="button"
+						onclick={setTodayFilter}
+						class="px-2.5 py-1.5 rounded-lg text-xs font-bold transition-colors cursor-pointer {dateFilter === todayStr ? 'bg-primary text-on-primary' : 'bg-surface border border-slate-200 dark:border-slate-800 text-on-surface hover:bg-surface-container'}"
+						title="Filter Hari Ini ({todayStr})"
+					>
+						Hari Ini
+					</button>
+					<button
+						type="button"
+						onclick={() => (dateFilter = '')}
+						class="px-2.5 py-1.5 rounded-lg text-xs font-bold transition-colors cursor-pointer {!dateFilter ? 'bg-primary text-on-primary' : 'bg-surface border border-slate-200 dark:border-slate-800 text-on-surface hover:bg-surface-container'}"
+						title="Tampilkan semua tanggal"
+					>
+						Semua Tanggal
+					</button>
+				</div>
+
+				<!-- Filter Lokasi / Pool -->
+				<div class="flex items-center gap-1.5">
+					<span class="material-symbols-outlined text-slate-400 text-lg">location_on</span>
+					<select
+						bind:value={selectedPoolFilter}
+						class="bg-surface border border-slate-200 dark:border-slate-800 text-on-surface rounded-xl py-2 px-3 focus:outline-none focus:ring-2 focus:ring-primary/50 text-sm font-medium shadow-xs cursor-pointer"
+					>
+						<option value="All">Semua Lokasi / Pool</option>
+						<option value="Pool Cilegon">Pool Cilegon</option>
+						<option value="Pool Gunung Putri">Pool Gunung Putri</option>
+						<option value="Workshop Cilegon">Workshop Cilegon</option>
+						<option value="Workshop Gunung Putri">Workshop Gunung Putri</option>
+						<option value="Control Room">Control Room</option>
+					</select>
+				</div>
 			</div>
 
+			<!-- Pencarian Teks (Nama, NIK, Departemen) -->
 			<div class="relative w-full lg:w-72 flex-shrink-0">
 				<span class="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-lg">search</span>
 				<input 
 					type="text" 
 					bind:value={searchQuery}
-					placeholder="Cari nama karyawan / NIK..." 
-					class="w-full bg-surface-container-low border border-slate-200 dark:border-slate-800 text-on-surface rounded-full py-2 pl-11 pr-4 focus:outline-none focus:ring-2 focus:ring-primary/50 text-sm font-medium shadow-xs"
+					placeholder="Cari nama karyawan / NIK / Divisi..." 
+					class="w-full bg-surface border border-slate-200 dark:border-slate-800 text-on-surface rounded-full py-2 pl-11 pr-4 focus:outline-none focus:ring-2 focus:ring-primary/50 text-sm font-medium shadow-xs"
 				/>
+				{#if searchQuery}
+					<button 
+						type="button" 
+						onclick={() => (searchQuery = '')}
+						class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+					>
+						<span class="material-symbols-outlined text-sm">close</span>
+					</button>
+				{/if}
 			</div>
 		</div>
+
+		<!-- Active Filters Indicator -->
+		{#if dateFilter || (selectedPoolFilter && selectedPoolFilter !== 'All') || searchQuery}
+			<div class="flex items-center justify-between px-2 text-xs text-on-surface-variant">
+				<div class="flex items-center gap-2 flex-wrap">
+					<span class="font-bold">Filter Aktif:</span>
+					{#if dateFilter}
+						<span class="px-2 py-0.5 rounded-md bg-primary/10 text-primary font-medium">Tanggal: {dateFilter}</span>
+					{/if}
+					{#if selectedPoolFilter && selectedPoolFilter !== 'All'}
+						<span class="px-2 py-0.5 rounded-md bg-blue-500/10 text-blue-600 font-medium">Lokasi: {selectedPoolFilter}</span>
+					{/if}
+					{#if searchQuery}
+						<span class="px-2 py-0.5 rounded-md bg-amber-500/10 text-amber-600 font-medium">Pencarian: "{searchQuery}"</span>
+					{/if}
+					<span class="text-slate-400">({filteredLogs.length} hasil)</span>
+				</div>
+				<button 
+					type="button" 
+					onclick={resetFilters} 
+					class="text-primary font-bold hover:underline cursor-pointer flex items-center gap-1"
+				>
+					<span class="material-symbols-outlined text-xs">filter_alt_off</span>
+					<span>Reset Filter</span>
+				</button>
+			</div>
+		{/if}
 
 		<!-- Data Table -->
 		<div class="bg-surface-container-low rounded-2xl shadow-xs border border-slate-200/60 dark:border-slate-800/60 overflow-hidden">
@@ -217,6 +338,7 @@
 					<thead>
 						<tr class="border-b border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-800/50">
 							<th class="py-4 px-6 text-xs font-bold uppercase tracking-wider text-on-surface-variant">Karyawan</th>
+							<th class="py-4 px-6 text-xs font-bold uppercase tracking-wider text-on-surface-variant">Tanggal</th>
 							<th class="py-4 px-6 text-xs font-bold uppercase tracking-wider text-on-surface-variant">Shift Ditugaskan</th>
 							<th class="py-4 px-6 text-xs font-bold uppercase tracking-wider text-on-surface-variant">Status</th>
 							<th class="py-4 px-6 text-xs font-bold uppercase tracking-wider text-on-surface-variant">Check In</th>
@@ -225,7 +347,7 @@
 						</tr>
 					</thead>
 					<tbody class="divide-y divide-slate-200/60 dark:divide-slate-800/60 text-sm">
-						{#each attendanceLogs as log}
+						{#each filteredLogs as log}
 							<tr class="hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors">
 								<td class="py-4 px-6">
 									<div class="flex items-center gap-3">
@@ -238,36 +360,66 @@
 										</div>
 									</div>
 								</td>
+								<td class="py-4 px-6 font-mono font-medium text-xs text-on-surface">
+									{log.date || todayStr}
+								</td>
 								<td class="py-4 px-6">
 									<span class="px-2.5 py-1 rounded-md text-xs font-bold font-mono bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
 										{log.shift || 'Shift 1 (Pagi)'}
 									</span>
 								</td>
 								<td class="py-4 px-6">
-									{#if log.status === 'On Time'}
+									{#if log.status === 'On Time' || log.status === 'present' || log.status === 'Tepat Waktu'}
 										<span class="inline-flex items-center gap-1.5 text-emerald-700 dark:text-emerald-300 font-bold text-xs bg-emerald-500/10 px-2.5 py-1 rounded-md border border-emerald-500/20">
 											<span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> On Time
 										</span>
-									{:else if log.status === 'Late'}
+									{:else if log.status === 'Late' || log.status === 'late' || log.status === 'Terlambat'}
 										<span class="inline-flex items-center gap-1.5 text-amber-700 dark:text-amber-300 font-bold text-xs bg-amber-500/10 px-2.5 py-1 rounded-md border border-amber-500/20">
-											<span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span> Late (+15m)
+											<span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span> Late
 										</span>
 									{:else}
 										<span class="inline-flex items-center gap-1.5 text-rose-700 dark:text-rose-300 font-bold text-xs bg-rose-500/10 px-2.5 py-1 rounded-md border border-rose-500/20">
-											<span class="w-1.5 h-1.5 rounded-full bg-rose-500"></span> Absent
+											<span class="w-1.5 h-1.5 rounded-full bg-rose-500"></span> {log.status || 'Absent'}
 										</span>
 									{/if}
 								</td>
-								<td class="py-4 px-6 font-mono font-bold text-on-surface">{log.checkIn}</td>
-								<td class="py-4 px-6 font-mono font-bold text-on-surface">{log.checkOut}</td>
+								<td class="py-4 px-6 font-mono font-bold text-on-surface">{log.checkIn || '-'}</td>
+								<td class="py-4 px-6 font-mono font-bold text-on-surface">{log.checkOut || '-'}</td>
 								<td class="py-4 px-6">
 									<div class="flex items-center gap-1.5 text-xs text-on-surface-variant">
 										<span class="material-symbols-outlined text-sm text-primary">location_on</span>
-										<span>{log.checkInLocation}</span>
+										<span>{log.checkInLocation || 'Pool Cilegon'}</span>
 									</div>
 								</td>
 							</tr>
 						{/each}
+
+						{#if filteredLogs.length === 0}
+							<tr>
+								<td colspan="7" class="py-12 text-center text-on-surface-variant">
+									<div class="flex flex-col items-center justify-center gap-2">
+										<span class="material-symbols-outlined text-5xl text-slate-300 dark:text-slate-600">person_search</span>
+										<p class="font-bold text-base text-on-surface">Tidak ada log presensi yang cocok</p>
+										<p class="text-xs text-slate-400 max-w-md">
+											{#if dateFilter}
+												Tidak ada data log pada tanggal <strong>{dateFilter}</strong> dengan filter yang dipilih.
+											{:else}
+												Tidak ditemukan hasil untuk kata kunci "{searchQuery}".
+											{/if}
+										</p>
+										<div class="flex items-center gap-2 mt-3">
+											<button 
+												type="button"
+												onclick={resetFilters}
+												class="px-4 py-2 rounded-xl bg-primary text-on-primary text-xs font-bold hover:bg-primary/90 transition-all cursor-pointer shadow-xs"
+											>
+												Tampilkan Semua Log Presensi
+											</button>
+										</div>
+									</div>
+								</td>
+							</tr>
+						{/if}
 					</tbody>
 				</table>
 			</div>
@@ -359,87 +511,87 @@
 				</div>
 			</div>
 
-			<!-- Overtime Requests Table -->
-			<div class="bg-surface-container-low rounded-2xl border border-slate-200/60 dark:border-slate-800/60 overflow-hidden shadow-xs">
+			<!-- Overtime Request List -->
+			<div class="bg-surface-container-low rounded-2xl shadow-xs border border-slate-200/60 dark:border-slate-800/60 overflow-hidden">
 				<div class="overflow-x-auto">
-					<table class="w-full text-left text-sm">
-						<thead class="bg-slate-100/70 dark:bg-slate-800/50 text-xs font-bold text-on-surface-variant uppercase tracking-wider border-b border-slate-200/60 dark:border-slate-800/60">
-							<tr>
-								<th class="px-5 py-3.5">Karyawan</th>
-								<th class="px-5 py-3.5">Tanggal Lembur</th>
-								<th class="px-5 py-3.5">Jam & Durasi</th>
-								<th class="px-5 py-3.5">Uraian Tugas Lembur</th>
-								<th class="px-5 py-3.5">Status</th>
-								<th class="px-5 py-3.5 text-right">Aksi & Dokumen</th>
+					<table class="w-full text-left border-collapse min-w-[900px]">
+						<thead>
+							<tr class="border-b border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-800/50">
+								<th class="py-4 px-6 text-xs font-bold uppercase tracking-wider text-on-surface-variant">Karyawan / Mekanik</th>
+								<th class="py-4 px-6 text-xs font-bold uppercase tracking-wider text-on-surface-variant">Tanggal Lembur</th>
+								<th class="py-4 px-6 text-xs font-bold uppercase tracking-wider text-on-surface-variant">Jam & Durasi</th>
+								<th class="py-4 px-6 text-xs font-bold uppercase tracking-wider text-on-surface-variant">Uraian Pekerjaan / Unit</th>
+								<th class="py-4 px-6 text-xs font-bold uppercase tracking-wider text-on-surface-variant">Status</th>
+								<th class="py-4 px-6 text-xs font-bold uppercase tracking-wider text-on-surface-variant text-right">Aksi</th>
 							</tr>
 						</thead>
-						<tbody class="divide-y divide-slate-200/60 dark:divide-slate-800/60">
-							{#if data.overtimeRequests.length === 0}
-								<tr>
-									<td colspan="6" class="px-5 py-12 text-center text-slate-400">Belum ada data lembur aktif tercatat di database.</td>
-								</tr>
-							{:else}
-								{#each data.overtimeRequests as ot}
-									<tr class="hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors">
-										<td class="px-5 py-4">
-											<p class="font-bold text-on-surface">{ot.employee_name}</p>
-											<p class="text-xs text-on-surface-variant font-mono mt-0.5">{ot.email || 'ID: ' + ot.user_id}</p>
-										</td>
-										<td class="px-5 py-4 font-mono text-xs font-semibold text-on-surface">
-											{ot.start_date}
-										</td>
-										<td class="px-5 py-4 font-mono text-xs">
-											<span class="font-bold text-primary">{ot.start_time} - {ot.end_time}</span>
-											<span class="block text-[11px] text-slate-400">Durasi: {calculateEffectiveHours(ot.start_time, ot.end_time).toFixed(1)} Jam</span>
-										</td>
-										<td class="px-5 py-4 text-xs max-w-xs truncate text-on-surface">
-											{ot.description || '-'}
-										</td>
-										<td class="px-5 py-4">
-											{#if ot.status === 'approved' || ot.status === 'Approved'}
-												<span class="px-2.5 py-1 rounded-lg text-xs font-bold bg-emerald-500/10 text-emerald-600 border border-emerald-500/20 inline-flex items-center gap-1">
-													<span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> Disetujui
-												</span>
-											{:else if ot.status === 'rejected' || ot.status === 'Rejected'}
-												<span class="px-2.5 py-1 rounded-lg text-xs font-bold bg-rose-500/10 text-rose-600 border border-rose-500/20 inline-flex items-center gap-1">
-													<span class="w-1.5 h-1.5 rounded-full bg-rose-500"></span> Ditolak
-												</span>
-											{:else}
-												<span class="px-2.5 py-1 rounded-lg text-xs font-bold bg-amber-500/10 text-amber-600 border border-amber-500/20 inline-flex items-center gap-1">
-													<span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span> Menunggu
-												</span>
+						<tbody class="divide-y divide-slate-200/60 dark:divide-slate-800/60 text-sm">
+							{#each data.overtimeRequests as ot}
+								<tr class="hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors">
+									<td class="py-4 px-6">
+										<p class="font-bold text-on-surface">{ot.employee_name || 'Karyawan ID #' + ot.user_id}</p>
+										<p class="text-xs text-on-surface-variant font-mono mt-0.5">{ot.email || 'Staff Operasional'}</p>
+									</td>
+									<td class="py-4 px-6 font-mono text-xs text-on-surface">
+										{ot.start_date}
+									</td>
+									<td class="py-4 px-6">
+										<p class="font-mono font-bold text-xs text-blue-700 dark:text-blue-300">{ot.start_time} - {ot.end_time} WIB</p>
+										<p class="text-[11px] text-slate-400 mt-0.5">{calculateEffectiveHours(ot.start_time, ot.end_time).toFixed(1)} Jam Efektif</p>
+									</td>
+									<td class="py-4 px-6 max-w-xs">
+										<p class="text-xs font-medium line-clamp-2 text-on-surface">{ot.description || 'Pekerjaan perbaikan unit dan operasional'}</p>
+									</td>
+									<td class="py-4 px-6">
+										{#if ot.status === 'approved' || ot.status === 'Approved'}
+											<span class="inline-flex items-center gap-1.5 text-emerald-700 dark:text-emerald-300 font-bold text-xs bg-emerald-500/10 px-2.5 py-1 rounded-md border border-emerald-500/20">
+												<span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> Approved
+											</span>
+										{:else if ot.status === 'pending' || ot.status === 'Pending'}
+											<span class="inline-flex items-center gap-1.5 text-amber-700 dark:text-amber-300 font-bold text-xs bg-amber-500/10 px-2.5 py-1 rounded-md border border-amber-500/20">
+												<span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span> Pending HRD
+											</span>
+										{:else}
+											<span class="inline-flex items-center gap-1.5 text-rose-700 dark:text-rose-300 font-bold text-xs bg-rose-500/10 px-2.5 py-1 rounded-md border border-rose-500/20">
+												<span class="w-1.5 h-1.5 rounded-full bg-rose-500"></span> Ditolak
+											</span>
+										{/if}
+									</td>
+									<td class="py-4 px-6 text-right">
+										<div class="flex items-center justify-end gap-1.5">
+											<button
+												onclick={() => openPrintSPKL(ot)}
+												class="p-2 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 transition-colors cursor-pointer"
+												title="Cetak SPKL Resmi (A4)"
+											>
+												<span class="material-symbols-outlined text-lg">print</span>
+											</button>
+											
+											{#if ot.status === 'pending' || ot.status === 'Pending'}
+												<form method="POST" action="?/approveOvertime" class="inline">
+													<input type="hidden" name="overtimeId" value={ot.id} />
+													<button
+														type="submit"
+														class="px-3 py-1 rounded-lg bg-emerald-600 text-white text-xs font-bold hover:bg-emerald-700 transition-colors shadow-2xs cursor-pointer"
+													>
+														Setujui
+													</button>
+												</form>
+												<form method="POST" action="?/rejectOvertime" class="inline">
+													<input type="hidden" name="overtimeId" value={ot.id} />
+													<input type="hidden" name="rejection_reason" value="Tidak memenuhi kualifikasi SPKL dinas" />
+													<button
+														type="submit"
+														class="px-3 py-1 rounded-lg bg-rose-50 text-rose-600 dark:bg-rose-950/40 dark:text-rose-300 text-xs font-bold hover:bg-rose-100 transition-colors border border-rose-200 dark:border-rose-800 cursor-pointer"
+													>
+														Tolak
+													</button>
+												</form>
 											{/if}
-										</td>
-										<td class="px-5 py-4 text-right">
-											<div class="flex justify-end items-center gap-1.5">
-												<button
-													onclick={() => openPrintSPKL(ot)}
-													class="px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 text-xs font-bold text-primary hover:bg-slate-100 dark:hover:bg-slate-800 transition-all inline-flex items-center gap-1 cursor-pointer"
-													title="Cetak Dokumen SPKL"
-												>
-													<span class="material-symbols-outlined text-sm">print</span>
-													<span>SPKL</span>
-												</button>
-
-												{#if ot.status === 'pending' || ot.status === 'Pending'}
-													<form method="POST" action="?/approveOvertime">
-														<input type="hidden" name="overtimeId" value={ot.id} />
-														<button type="submit" class="px-2.5 py-1.5 rounded-lg bg-emerald-600 text-white text-xs font-bold hover:bg-emerald-700 cursor-pointer shadow-2xs">
-															Setujui
-														</button>
-													</form>
-													<form method="POST" action="?/rejectOvertime">
-														<input type="hidden" name="overtimeId" value={ot.id} />
-														<button type="submit" class="px-2.5 py-1.5 rounded-lg bg-rose-600 text-white text-xs font-bold hover:bg-rose-700 cursor-pointer shadow-2xs">
-															Tolak
-														</button>
-													</form>
-												{/if}
-											</div>
-										</td>
-									</tr>
-								{/each}
-							{/if}
+										</div>
+									</td>
+								</tr>
+							{/each}
 						</tbody>
 					</table>
 				</div>
@@ -448,41 +600,43 @@
 	{/if}
 </div>
 
-<!-- MODAL FORM BUAT SPKL BARU -->
+<!-- MODAL PENGAJUAN SPKL LEMBUR BARU -->
 {#if showOvertimeModal}
 	<div class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
 		<div class="bg-surface rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xl w-full max-w-lg overflow-hidden p-6 space-y-4 animate-in zoom-in-95 duration-150">
 			<div class="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800">
-				<div class="flex items-center gap-2.5">
-					<div class="w-9 h-9 rounded-xl bg-primary/10 text-primary flex items-center justify-center font-bold">
-						<span class="material-symbols-outlined text-xl">alarm_on</span>
+				<div class="flex items-center gap-2">
+					<div class="w-8 h-8 rounded-xl bg-primary/10 text-primary flex items-center justify-center font-bold">
+						<span class="material-symbols-outlined text-base">post_add</span>
 					</div>
-					<div>
-						<h3 class="font-bold text-sm text-on-surface">Penerbitan Surat Perintah Kerja Lembur (SPKL)</h3>
-						<p class="text-[11px] text-on-surface-variant">Standar formula Depnaker PP No. 35/2021</p>
-					</div>
+					<h3 class="font-bold text-sm text-on-surface">Penerbitan SPKL Lembur Baru</h3>
 				</div>
 				<button onclick={() => (showOvertimeModal = false)} class="text-slate-400 hover:text-slate-600 cursor-pointer">
 					<span class="material-symbols-outlined text-lg">close</span>
 				</button>
 			</div>
 
-			<form method="POST" action="?/submitOvertime" class="space-y-3 text-xs">
+			<form method="POST" action="?/submitOvertime" class="space-y-4 text-xs">
 				<div>
-					<label class="font-bold text-on-surface block mb-1">User ID / Karyawan</label>
-					<input type="number" name="user_id" value="122" required class="w-full px-3 py-2 rounded-xl bg-surface-container-low border border-slate-200 dark:border-slate-800 font-mono" />
+					<label class="font-bold text-on-surface block mb-1">Pilih Karyawan / Staf</label>
+					<select name="user_id" class="w-full px-3 py-2 rounded-xl bg-surface-container-low border border-slate-200 dark:border-slate-800">
+						<option value="122">Ahmad Subagja (EMP-010) - Driver Trailer</option>
+						<option value="141">Budi Santoso (EMP-012) - Senior Mekanik</option>
+						<option value="150">Taufik Abdul Gani (EMP-018) - Bengkel Workshop</option>
+						<option value="178">Ahmad Rofiqi (EMP-025) - Operator Pool</option>
+					</select>
 				</div>
 
 				<div class="grid grid-cols-2 gap-3">
 					<div>
 						<label class="font-bold text-on-surface block mb-1">Tanggal Lembur</label>
-						<input type="date" name="start_date" value="2026-08-18" required class="w-full px-3 py-2 rounded-xl bg-surface-container-low border border-slate-200 dark:border-slate-800" />
+						<input type="date" name="start_date" value={todayStr} class="w-full px-3 py-2 rounded-xl bg-surface-container-low border border-slate-200 dark:border-slate-800" />
 					</div>
 					<div>
 						<label class="font-bold text-on-surface block mb-1">Tipe Hari</label>
-						<select bind:value={otDayType} class="w-full px-3 py-2 rounded-xl bg-surface-container-low border border-slate-200 dark:border-slate-800 font-semibold cursor-pointer">
-							<option value="workday">Hari Kerja Biasa (1.5x / 2.0x)</option>
-							<option value="holiday">Hari Libur / Day-Off (2x / 3x / 4x)</option>
+						<select bind:value={otDayType} class="w-full px-3 py-2 rounded-xl bg-surface-container-low border border-slate-200 dark:border-slate-800">
+							<option value="workday">Hari Kerja Reguler</option>
+							<option value="holiday">Hari Libur / Tanggal Merah</option>
 						</select>
 					</div>
 				</div>
@@ -490,11 +644,11 @@
 				<div class="grid grid-cols-2 gap-3">
 					<div>
 						<label class="font-bold text-on-surface block mb-1">Jam Mulai</label>
-						<input type="time" name="start_time" bind:value={otStartTime} required class="w-full px-3 py-2 rounded-xl bg-surface-container-low border border-slate-200 dark:border-slate-800 font-mono" />
+						<input type="time" name="start_time" bind:value={otStartTime} class="w-full px-3 py-2 rounded-xl bg-surface-container-low border border-slate-200 dark:border-slate-800 font-mono" />
 					</div>
 					<div>
 						<label class="font-bold text-on-surface block mb-1">Jam Selesai</label>
-						<input type="time" name="end_time" bind:value={otEndTime} required class="w-full px-3 py-2 rounded-xl bg-surface-container-low border border-slate-200 dark:border-slate-800 font-mono" />
+						<input type="time" name="end_time" bind:value={otEndTime} class="w-full px-3 py-2 rounded-xl bg-surface-container-low border border-slate-200 dark:border-slate-800 font-mono" />
 					</div>
 				</div>
 
@@ -632,7 +786,6 @@
 					</div>
 					<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/10 text-amber-600 font-mono">S1</span>
 				</label>
-
 
 				<label class="flex items-center justify-between p-3 rounded-xl border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/50 cursor-pointer {selectedShiftType === 'S2' ? 'border-primary bg-primary/5' : ''}">
 					<div class="flex items-center gap-2.5">
