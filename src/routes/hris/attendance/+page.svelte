@@ -25,6 +25,7 @@
 
 	// Modal Shift Assignment state
 	let showShiftModal = $state(false);
+	let showUploadRosterModal = $state(false);
 	let selectedEmployeeForShift = $state<any>(null);
 	let selectedShiftType = $state('S1');
 	let selectedDayIndex = $state(0);
@@ -489,15 +490,26 @@
 		<!-- TAB 2: 24/7 SHIFT ROSTER MATRIX -->
 		<div class="space-y-4">
 			<!-- Shift Legend Bar -->
-			<div class="p-4 rounded-2xl bg-surface-container-low border border-slate-200/60 dark:border-slate-800/60 flex flex-wrap items-center justify-between gap-3 text-xs">
-				<div class="flex items-center gap-2">
-					<span class="font-bold text-on-surface">Keterangan Shift:</span>
-					<span class="px-2.5 py-1 rounded-lg border font-mono font-bold bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/30">S1: Pagi (07:00 - 15:00)</span>
-					<span class="px-2.5 py-1 rounded-lg border font-mono font-bold bg-blue-500/15 text-blue-700 dark:text-blue-300 border-blue-500/30">S2: Siang (15:00 - 23:00)</span>
-					<span class="px-2.5 py-1 rounded-lg border font-mono font-bold bg-purple-500/15 text-purple-700 dark:text-purple-300 border-purple-500/30">S3: Malam (23:00 - 07:00)</span>
-					<span class="px-2.5 py-1 rounded-lg border font-mono font-bold bg-slate-500/15 text-slate-600 dark:text-slate-400 border-slate-500/30">OFF: Libur Roster</span>
+			<div class="p-4 rounded-2xl bg-surface-container-low border border-slate-200/60 dark:border-slate-800/60 flex flex-wrap items-center justify-between gap-4 text-xs">
+				<div class="flex flex-col gap-2">
+					<div class="flex items-center gap-2 flex-wrap">
+						<span class="font-bold text-on-surface">Keterangan Shift:</span>
+						<span class="px-2.5 py-1 rounded-lg border font-mono font-bold bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/30">S1: Pagi (07:00 - 15:00)</span>
+						<span class="px-2.5 py-1 rounded-lg border font-mono font-bold bg-blue-500/15 text-blue-700 dark:text-blue-300 border-blue-500/30">S2: Siang (15:00 - 23:00)</span>
+						<span class="px-2.5 py-1 rounded-lg border font-mono font-bold bg-purple-500/15 text-purple-700 dark:text-purple-300 border-purple-500/30">S3: Malam (23:00 - 07:00)</span>
+						<span class="px-2.5 py-1 rounded-lg border font-mono font-bold bg-slate-500/15 text-slate-600 dark:text-slate-400 border-slate-500/30">OFF: Libur Roster</span>
+					</div>
+					<p class="text-slate-400 text-[11px]">*Klik kotak shift pada jadwal untuk mengubah penugasan shift karyawan secara individual.</p>
 				</div>
-				<p class="text-slate-400 text-[11px]">*Klik kotak shift pada jadwal untuk mengubah penugasan shift karyawan.</p>
+				
+				<button 
+					type="button"
+					onclick={() => showUploadRosterModal = true}
+					class="px-4 py-2 bg-primary text-on-primary rounded-xl font-bold flex items-center gap-2 hover:bg-primary/90 transition-colors shadow-sm"
+				>
+					<span class="material-symbols-outlined text-sm">upload_file</span>
+					Upload Roster (Excel)
+				</button>
 			</div>
 
 			<!-- Roster Grid Table -->
@@ -894,6 +906,67 @@
 					class="px-4 py-2 rounded-xl bg-primary text-on-primary text-xs font-bold hover:bg-primary/90 cursor-pointer shadow-xs"
 				>
 					Simpan Perubahan
+				</button>
+			</div>
+		</div>
+	</div>
+{/if}
+
+<!-- MODAL UPLOAD ROSTER (EXCEL/CSV) -->
+{#if showUploadRosterModal}
+	<div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
+		<div class="bg-surface w-full max-w-lg rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden">
+			<!-- Header -->
+			<div class="px-6 py-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between bg-slate-50/50 dark:bg-slate-800/30">
+				<h2 class="text-lg font-black text-on-surface flex items-center gap-2">
+					<span class="material-symbols-outlined text-primary">upload_file</span>
+					Upload Data Roster
+				</h2>
+				<button onclick={() => (showUploadRosterModal = false)} class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer">
+					<span class="material-symbols-outlined">close</span>
+				</button>
+			</div>
+
+			<!-- Body -->
+			<div class="p-6 space-y-6">
+				<!-- Alert Info -->
+				<div class="p-4 bg-blue-50 dark:bg-blue-900/20 text-blue-800 dark:text-blue-300 rounded-2xl text-sm border border-blue-200 dark:border-blue-800/50">
+					<p class="font-bold mb-1">Ketentuan Upload:</p>
+					<ul class="list-disc ml-5 space-y-1 text-xs opacity-90">
+						<li>File harus berformat <b>.xlsx</b> atau <b>.csv</b></li>
+						<li>Kolom wajib: ID Karyawan, Nama, dan kolom jadwal harian (S1, S2, S3, OFF).</li>
+						<li>Data yang di-upload akan <b>menimpa (overwrite)</b> jadwal sebelumnya untuk karyawan yang bersangkutan di minggu yang sama.</li>
+					</ul>
+				</div>
+
+				<!-- Drag and Drop Area Mockup -->
+				<div class="border-2 border-dashed border-slate-300 dark:border-slate-700 rounded-3xl p-8 flex flex-col items-center justify-center text-center bg-slate-50/50 dark:bg-slate-800/20 hover:bg-slate-100 dark:hover:bg-slate-800/40 transition-colors cursor-pointer group">
+					<div class="w-16 h-16 bg-primary/10 text-primary rounded-full flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+						<span class="material-symbols-outlined text-3xl">cloud_upload</span>
+					</div>
+					<h3 class="font-bold text-on-surface mb-1">Klik atau Drag & Drop File</h3>
+					<p class="text-xs text-slate-500 dark:text-slate-400">Maksimal ukuran file: 5MB</p>
+					
+					<!-- Simulated Progress/Status (Hidden by default in mockup) -->
+					<!-- <div class="w-full mt-4 bg-slate-200 rounded-full h-1.5 dark:bg-slate-700 overflow-hidden">
+						<div class="bg-primary h-1.5 rounded-full" style="width: 45%"></div>
+					</div> -->
+				</div>
+				
+				<div class="flex items-center justify-between text-xs">
+					<a href="#" class="text-primary font-bold hover:underline flex items-center gap-1">
+						<span class="material-symbols-outlined text-[14px]">download</span> Download Template Excel
+					</a>
+				</div>
+			</div>
+
+			<!-- Footer -->
+			<div class="px-6 py-4 bg-slate-50/50 dark:bg-slate-800/30 border-t border-slate-200 dark:border-slate-800 flex items-center justify-end gap-3">
+				<button type="button" onclick={() => (showUploadRosterModal = false)} class="px-5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-sm font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer transition-colors">
+					Batal
+				</button>
+				<button type="button" class="px-5 py-2.5 rounded-xl bg-primary text-on-primary text-sm font-bold hover:bg-primary/90 cursor-not-allowed opacity-50 flex items-center gap-2 transition-colors" title="Fitur upload masih dalam pengembangan Backend">
+					Mulai Proses Upload
 				</button>
 			</div>
 		</div>

@@ -115,10 +115,13 @@ export const load: PageServerLoad = async ({ cookies, url }) => {
 		}
 
 		// Parse shift roster
-		if (rosterRes?.data?.roster && Array.isArray(rosterRes.data.roster)) {
-			shiftRoster = rosterRes.data.roster;
-		} else if (Array.isArray(rosterRes?.data)) {
+		if (rosterRes?.data?.roster) {
+			const rosterData = rosterRes.data.roster;
+			shiftRoster = Array.isArray(rosterData) ? rosterData : Object.values(rosterData);
+		} else if (rosterRes?.data && Array.isArray(rosterRes.data)) {
 			shiftRoster = rosterRes.data;
+		} else if (rosterRes?.data && typeof rosterRes.data === 'object') {
+			shiftRoster = Object.values(rosterRes.data);
 		}
 	} catch (error: any) {
 		console.error('❌ [HRD Attendance API] Error loading data:', error?.message);
