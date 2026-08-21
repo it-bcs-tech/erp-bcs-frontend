@@ -84,14 +84,26 @@ export const load: PageServerLoad = async ({ url }) => {
 			LEFT JOIN master.m_directorat dr ON dr.dir_code = k.dir_id
 			${filterCondition}
 			ORDER BY k.nama_karyawan ASC
-			LIMIT 300
+			LIMIT 1500
 		`;
 
-		// Transform karyawan dengan atasan_titles
+		// Helper helper untuk menentukan tier level jabatan
+		function getTierLevel(titleName: string, titleCode: string): number {
+			const upper = (titleName || '').toUpperCase();
+			if (upper.includes('PRESIDENT DIRECTOR') || upper.includes('DIRUT') || titleCode === 'JB_363') return 1;
+			if (upper.includes('DIRECTOR') || upper.includes('DIREKTUR') || upper.includes('GENERAL MANAGER') || upper.includes(' GM')) return 2;
+			if (upper.includes('MANAGER') || upper.includes('HEAD') || upper.includes('CHIEF')) return 3;
+			if (upper.includes('SUPERVISOR') || upper.includes('SPV') || upper.includes('FOREMAN') || upper.includes('COORDINATOR') || upper.includes('LEADER') || upper.includes('DANRU')) return 4;
+			return 5; // Staff / Officer / Operator / Driver / Helper / etc.
+		}
+
+		// Transform karyawan dengan atasan_titles & tier level
 		const employeesWithAtasan = employees.map((emp: any) => {
 			const atasanTitleCodes = atasanByBawahanMap.get(emp.title_code) || [];
+			const tier = getTierLevel(emp.title_name, emp.title_code);
 			return {
 				...emp,
+				tier,
 				atasan_title_codes: atasanTitleCodes
 			};
 		});
