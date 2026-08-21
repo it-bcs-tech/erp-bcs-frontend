@@ -87,14 +87,26 @@ export const load: PageServerLoad = async ({ url }) => {
 			LIMIT 1500
 		`;
 
-		// Helper helper untuk menentukan tier level jabatan
+		// Helper untuk menentukan tier level jabatan secara presisi
 		function getTierLevel(titleName: string, titleCode: string): number {
 			const upper = (titleName || '').toUpperCase();
+			// Tier 1: Direktur Utama / President Director
 			if (upper.includes('PRESIDENT DIRECTOR') || upper.includes('DIRUT') || titleCode === 'JB_363') return 1;
-			if (upper.includes('DIRECTOR') || upper.includes('DIREKTUR') || upper.includes('GENERAL MANAGER') || upper.includes(' GM')) return 2;
-			if (upper.includes('MANAGER') || upper.includes('HEAD') || upper.includes('CHIEF')) return 3;
-			if (upper.includes('SUPERVISOR') || upper.includes('SPV') || upper.includes('FOREMAN') || upper.includes('COORDINATOR') || upper.includes('LEADER') || upper.includes('DANRU')) return 4;
-			return 5; // Staff / Officer / Operator / Driver / Helper / etc.
+			
+			// Tier 2: Direktur Bagian (BOD)
+			if ((upper.includes('DIRECTOR') || upper.includes('DIREKTUR')) && !upper.includes('GENERAL MANAGER') && !upper.includes(' GM')) return 2;
+			
+			// Tier 3: General Manager (GM)
+			if (upper.includes('GENERAL MANAGER') || upper.includes(' GM')) return 3;
+			
+			// Tier 4: Manager, Head of Dept, Chief
+			if (upper.includes('MANAGER') || upper.includes('HEAD') || upper.includes('CHIEF') || upper.includes('ACT. MANAGER')) return 4;
+			
+			// Tier 5: Supervisor, Foreman, Coordinator, Leader, Danru
+			if (upper.includes('SUPERVISOR') || upper.includes('SPV') || upper.includes('FOREMAN') || upper.includes('COORDINATOR') || upper.includes('LEADER') || upper.includes('DANRU')) return 5;
+			
+			// Tier 6: Staff, Officer, Operator, Driver, Helper, Mechanic, dll.
+			return 6;
 		}
 
 		// Transform karyawan dengan atasan_titles & tier level

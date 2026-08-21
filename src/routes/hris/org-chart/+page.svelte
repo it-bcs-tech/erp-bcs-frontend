@@ -17,6 +17,7 @@
 
 	// Expanded managers state for on-demand subordinate tree expansion
 	let expandedManagers = $state<Record<string, boolean>>({});
+	let managerSearchQueries = $state<Record<string, string>>({});
 
 	// Zoom and Pan canvas state
 	let zoomLevel = $state(1);
@@ -31,7 +32,12 @@
 	function expandAllManagers() {
 		const newMap: Record<string, boolean> = {};
 		orgTree.directors.forEach((dir: any) => {
-			dir.managers.forEach((mgr: any) => {
+			(dir.generalManagers || []).forEach((gm: any) => {
+				(gm.managers || []).forEach((mgr: any) => {
+					newMap[mgr.id.toString()] = true;
+				});
+			});
+			(dir.directManagers || []).forEach((mgr: any) => {
 				newMap[mgr.id.toString()] = true;
 			});
 		});
@@ -114,7 +120,7 @@
 		selectedDiv ? data.departments.filter((d: any) => d.div_code === selectedDiv) : data.departments
 	);
 
-	// ── MEMBANGUN STRUKTUR POHON ORGANISASI ──
+	// ── MEMBANGUN STRUKTUR POHON 4-TIER ORGANISASI (DIRUT -> DIREKTUR -> GM -> MANAGER) ──
 	let orgTree = $derived.by(() => {
 		const allEmps = data.employees || [];
 		if (allEmps.length === 0) return { root: null, directors: [], totalEmployees: 0 };
@@ -125,14 +131,17 @@
 			root = allEmps.find((e: any) => (e.title_name || '').toUpperCase().includes('PRESIDENT DIRECTOR') || e.title_code === 'JB_363') || allEmps[0];
 		}
 
-		// 2. Ambil Directors / GMs (Tier 2)
+		// 2. Ambil Directors (Tier 2 - Direktur Bagian)
 		const directorsList = allEmps.filter((e: any) => e.tier === 2 && e.id !== root?.id);
 
-		// 3. Ambil Managers (Tier 3)
-		const managersList = allEmps.filter((e: any) => e.tier === 3);
+		// 3. Ambil General Managers (Tier 3 - GMs)
+		const gmList = allEmps.filter((e: any) => e.tier === 3);
 
-		// 4. Ambil Supervisors (Tier 4) & Staff/Officers (Tier 5)
-		const subordinatesList = allEmps.filter((e: any) => e.tier >= 4);
+		// 4. Ambil Managers & Dept Heads (Tier 4)
+		const managersList = allEmps.filter((e: any) => e.tier === 4);
+
+		// 5. Ambil Subordinates (Tier 5 Supervisors & Tier 6 Staff)
+		const subordinatesList = allEmps.filter((e: any) => e.tier >= 5);
 
 		// Map title_bawahan -> list of title_atasan
 		const atasanByBawahanMap = new Map<string, string[]>();
@@ -172,9 +181,9 @@
 
 			const allTeam = Array.from(combinedTeamMap.values());
 
-			// Pisahkan menjadi Tier 4 (Supervisors/Foreman) dan Tier 5 (Officers/Staff/Operators)
-			const supervisors = allTeam.filter((m: any) => m.tier === 4);
-			const directStaff = allTeam.filter((m: any) => m.tier >= 5);
+			// Pisahkan menjadi Tier 5 (Supervisors/Foreman) dan Tier 6 (Officers/Staff/Operators)
+			const supervisors = allTeam.filter((m: any) => m.tier === 5);
+			const directStaff = allTeam.filter((m: any) => m.tier >= 6);
 
 			// Susun bawahan di bawah tiap supervisor
 			const supervisorsWithStaff = supervisors.map((spv: any) => {
@@ -188,33 +197,77 @@
 			return {
 				totalCount: allTeam.length,
 				supervisors: supervisorsWithStaff,
-				directStaff: directStaff
+				directStaff: directStaff,
+				allTeam: allTeam
 			};
 		}
 
-		// Pasangkan Managers ke Directors terkait
+		// Pasangkan Managers ke GM atau Director terkait
 		const assignedManagerIds = new Set<number>();
-		const directorsWithManagers = directorsList.map((dir: any) => {
-			const dirManagers = managersList.filter((mgr: any) => {
-				const isDirectSub = (mgr.atasan_title_codes || []).includes(dir.title_code);
-				const isSameDir = (mgr.dir_id && mgr.dir_id === dir.dir_id) || (mgr.div_id && mgr.div_id === dir.div_id);
+		const assignedGmIds = new Set<number>();
+
+		// Helper memasangkan managers ke GM
+		function getManagersForGm(gm: any) {
+			const gmManagers = managersList.filter((mgr: any) => {
+				const isDirectSub = (mgr.atasan_title_codes || []).includes(gm.title_code);
+				const isSameDiv = (mgr.div_id && mgr.div_id === gm.div_id) || (mgr.dir_id && mgr.dir_id === gm.dir_id);
+				return isDirectSub || isSameDiv;
+			});
+
+			gmManagers.forEach((m: any) => assignedManagerIds.add(m.id));
+
+			return gmManagers.map((mgr: any) => ({
+				...mgr,
+				subordinatesInfo: getSubordinatesForManager(mgr)
+			}));
+		}
+
+		// Susun struktur per Direktur (Tier 2)
+		const directorsHierarchy = directorsList.map((dir: any) => {
+			// Cari GM di bawah Direktur ini
+			const dirGms = gmList.filter((gm: any) => {
+				const isDirectSub = (gm.atasan_title_codes || []).includes(dir.title_code);
+				const isSameDir = (gm.dir_id && gm.dir_id === dir.dir_id);
 				return isDirectSub || isSameDir;
 			});
 
-			dirManagers.forEach((m: any) => assignedManagerIds.add(m.id));
+			dirGms.forEach((gm: any) => assignedGmIds.add(gm.id));
 
-			const managersWithSubTree = dirManagers.map((mgr: any) => ({
+			const gmsWithManagers = dirGms.map((gm: any) => ({
+				...gm,
+				managers: getManagersForGm(gm)
+			}));
+
+			// Cari Manager yang langsung lapor ke Direktur (tanpa GM)
+			const directManagers = managersList.filter((mgr: any) => {
+				if (assignedManagerIds.has(mgr.id)) return false;
+				const isDirectSub = (mgr.atasan_title_codes || []).includes(dir.title_code);
+				const isSameDir = (mgr.dir_id && mgr.dir_id === dir.dir_id);
+				return isDirectSub || isSameDir;
+			});
+
+			directManagers.forEach((m: any) => assignedManagerIds.add(m.id));
+
+			const directManagersWithSubTree = directManagers.map((mgr: any) => ({
 				...mgr,
 				subordinatesInfo: getSubordinatesForManager(mgr)
 			}));
 
 			return {
 				...dir,
-				managers: managersWithSubTree
+				generalManagers: gmsWithManagers,
+				directManagers: directManagersWithSubTree
 			};
 		});
 
-		// Managers yang belum masuk ke Direktur tertentu
+		// GM / Manager yang lapor langsung ke Direktur Utama / Corporate Support
+		const unassignedGms = gmList
+			.filter((gm: any) => !assignedGmIds.has(gm.id))
+			.map((gm: any) => ({
+				...gm,
+				managers: getManagersForGm(gm)
+			}));
+
 		const unassignedManagers = managersList
 			.filter((mgr: any) => !assignedManagerIds.has(mgr.id))
 			.map((mgr: any) => ({
@@ -222,8 +275,8 @@
 				subordinatesInfo: getSubordinatesForManager(mgr)
 			}));
 
-		if (unassignedManagers.length > 0) {
-			directorsWithManagers.push({
+		if (unassignedGms.length > 0 || unassignedManagers.length > 0) {
+			directorsHierarchy.push({
 				id: 999999,
 				nama_karyawan: 'Unit Khusus & Pendukung Direksi',
 				payroll_id: 'EXECUTIVE-UNIT',
@@ -232,13 +285,14 @@
 				dir_name: 'Direksi & SPI',
 				div_name: 'Corporate Affairs',
 				tier: 2,
-				managers: unassignedManagers
+				generalManagers: unassignedGms,
+				directManagers: unassignedManagers
 			});
 		}
 
 		return {
 			root,
-			directors: directorsWithManagers,
+			directors: directorsHierarchy,
 			totalEmployees: allEmps.length
 		};
 	});
@@ -535,186 +589,460 @@
 											</div>
 										</div>
 
-										<!-- Connecting Line from Director to Managers -->
-										{#if director.managers && director.managers.length > 0}
+										<!-- Connecting Line from Director to GM & Managers -->
+										{#if (director.generalManagers && director.generalManagers.length > 0) || (director.directManagers && director.directManagers.length > 0)}
 											<div class="w-0.5 h-8 bg-slate-300 dark:bg-slate-700"></div>
 
-											<!-- ═══════════════════════════════════════════ -->
-											<!-- LEVEL 3: MANAGERS & DIV HEADS (PER DIREKTUR) -->
-											<!-- ═══════════════════════════════════════════ -->
-											<div class="relative flex justify-center">
-												<!-- Horizontal branch line for Managers -->
-												{#if director.managers.length > 1}
-													<div class="absolute top-0 left-12 right-12 h-0.5 bg-slate-300 dark:bg-slate-700"></div>
-												{/if}
+											<div class="flex flex-col items-center gap-8 pt-0">
+												<!-- ═══════════════════════════════════════════ -->
+												<!-- LEVEL 3: GENERAL MANAGERS (GM) JIKA ADA     -->
+												<!-- ═══════════════════════════════════════════ -->
+												{#if director.generalManagers && director.generalManagers.length > 0}
+													<div class="relative flex justify-center">
+														{#if director.generalManagers.length > 1}
+															<div class="absolute top-0 left-12 right-12 h-0.5 bg-slate-300 dark:bg-slate-700"></div>
+														{/if}
 
-												<div class="flex flex-wrap items-start justify-center gap-6 pt-0">
-													{#each director.managers as mgr}
-														{@const isExpanded = expandedManagers[mgr.id.toString()]}
-														{@const subInfo = mgr.subordinatesInfo || { totalCount: 0, supervisors: [], directStaff: [] }}
+														<div class="flex flex-wrap items-start justify-center gap-8 pt-0">
+															{#each director.generalManagers as gm}
+																<div class="flex flex-col items-center relative">
+																	<div class="w-0.5 h-6 bg-slate-300 dark:bg-slate-700"></div>
 
-														<div class="flex flex-col items-center relative">
-															<!-- Vertical drop line into Manager card -->
-															<div class="w-0.5 h-6 bg-slate-300 dark:bg-slate-700"></div>
+																	<!-- GM Card -->
+																	<div class="w-68 p-3.5 rounded-3xl bg-gradient-to-b from-indigo-500/10 via-surface to-surface border-2 border-indigo-500/40 shadow-md relative z-10 transition-all hover:scale-105 hover:shadow-lg">
+																		<div class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-indigo-500/15 text-indigo-600 dark:text-indigo-300 border border-indigo-500/25 font-black text-[8px] tracking-wider uppercase mb-2">
+																			<span class="material-symbols-outlined text-[10px]">corporate_fare</span>
+																			<span>GENERAL MANAGER</span>
+																		</div>
 
-															<!-- Manager Card -->
-															<div class="w-64 p-3.5 rounded-3xl bg-surface border-2 {isExpanded ? 'border-purple-500 ring-2 ring-purple-500/20 shadow-xl' : 'border-purple-500/30 hover:border-purple-500/70 shadow-md'} transition-all relative z-10">
-																<!-- Level Badge -->
-																<div class="flex items-center justify-between mb-2">
-																	<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-purple-500/15 text-purple-600 dark:text-purple-300 border border-purple-500/20 font-bold text-[8px] tracking-wider uppercase">
-																		<span class="material-symbols-outlined text-[10px]">manage_accounts</span>
-																		MANAGER
-																	</span>
+																		<div class="flex items-center gap-2.5">
+																			<div class="w-10 h-10 rounded-xl bg-indigo-500/15 text-indigo-600 dark:text-indigo-300 flex items-center justify-center font-black text-sm shrink-0 border border-indigo-500/30 overflow-hidden">
+																				{#if gm.foto}
+																					<img src={gm.foto} alt={gm.nama_karyawan} class="w-full h-full object-cover" />
+																				{:else}
+																					{gm.nama_karyawan ? gm.nama_karyawan.charAt(0) : 'G'}
+																				{/if}
+																			</div>
 
-																	<button
-																		onclick={() => openEditModal(mgr)}
-																		class="text-slate-400 hover:text-primary transition-colors p-1"
-																		title="Atur Atasan"
-																	>
-																		<span class="material-symbols-outlined text-xs">edit</span>
-																	</button>
-																</div>
+																			<div class="min-w-0 flex-1">
+																				<h4 class="font-bold text-xs text-on-surface truncate" title={gm.nama_karyawan}>
+																					{gm.nama_karyawan}
+																				</h4>
+																				<p class="text-[11px] font-bold text-indigo-600 dark:text-indigo-400 truncate mt-0.5" title={gm.title_name}>
+																					{gm.title_name}
+																				</p>
+																				<p class="text-[9px] text-slate-400 font-mono mt-0.5">
+																					{gm.payroll_id}
+																				</p>
+																			</div>
+																		</div>
 
-																<div class="flex items-center gap-2.5">
-																	<div class="w-10 h-10 rounded-xl bg-purple-500/15 text-purple-600 dark:text-purple-300 flex items-center justify-center font-black text-sm shrink-0 border border-purple-500/30 overflow-hidden">
-																		{#if mgr.foto}
-																			<img src={mgr.foto} alt={mgr.nama_karyawan} class="w-full h-full object-cover" />
-																		{:else}
-																			{mgr.nama_karyawan ? mgr.nama_karyawan.charAt(0) : 'M'}
-																		{/if}
+																		<div class="mt-2.5 pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-[10px] text-slate-400 font-semibold">
+																			<span>{gm.div_name || 'Divisi GM'}</span>
+																			<span class="px-2 py-0.5 rounded-md bg-indigo-500/10 text-indigo-600 dark:text-indigo-300 font-bold font-mono">
+																				{gm.managers.length} Manager
+																			</span>
+																		</div>
 																	</div>
 
-																	<div class="min-w-0 flex-1">
-																		<h4 class="font-bold text-xs text-on-surface truncate" title={mgr.nama_karyawan}>
-																			{mgr.nama_karyawan}
-																		</h4>
-																		<p class="text-[11px] font-bold text-purple-600 dark:text-purple-400 truncate mt-0.5" title={mgr.title_name}>
-																			{mgr.title_name}
-																		</p>
-																		<p class="text-[9px] text-slate-400 font-mono mt-0.5">
-																			{mgr.payroll_id}
-																		</p>
-																	</div>
-																</div>
+																	<!-- Connecting Line from GM to Managers under GM -->
+																	{#if gm.managers && gm.managers.length > 0}
+																		<div class="w-0.5 h-6 bg-slate-300 dark:bg-slate-700"></div>
 
-																<!-- Expand / Collapse Subordinates Button -->
-																<div class="mt-3 pt-2 border-t border-slate-100 dark:border-slate-800">
-																	<button
-																		onclick={() => toggleManagerExpand(mgr.id.toString())}
-																		class="w-full py-1.5 px-2.5 rounded-xl font-bold text-[11px] transition-all flex items-center justify-between cursor-pointer {isExpanded ? 'bg-purple-600 text-white shadow-xs' : 'bg-purple-500/10 text-purple-700 dark:text-purple-300 hover:bg-purple-500/20'}"
-																	>
-																		<div class="flex items-center gap-1">
-																			<span class="material-symbols-outlined text-xs">groups</span>
-																			<span>{subInfo.totalCount} Personel Tim</span>
-																		</div>
-																		<span class="material-symbols-outlined text-xs transition-transform {isExpanded ? 'rotate-180' : ''}">
-																			expand_more
-																		</span>
-																	</button>
-																</div>
-															</div>
+																		<div class="relative flex justify-center">
+																			{#if gm.managers.length > 1}
+																				<div class="absolute top-0 left-10 right-10 h-0.5 bg-slate-300 dark:bg-slate-700"></div>
+																			{/if}
 
-															<!-- ═══════════════════════════════════════════ -->
-															<!-- LEVEL 4+: SUBORDINATES HIERARCHY TREE        -->
-															<!-- (Hanya muncul saat tombol Manager diklik)    -->
-															<!-- ═══════════════════════════════════════════ -->
-															{#if isExpanded}
-																<div class="flex flex-col items-center pt-0 animate-in fade-in slide-in-from-top-4 duration-200">
-																	<!-- Vertical line from Manager to Subordinates -->
-																	<div class="w-0.5 h-6 bg-purple-400 dark:bg-purple-600"></div>
+																			<div class="flex flex-wrap items-start justify-center gap-6 pt-0">
+																				{#each gm.managers as mgr}
+																					{@const isExpanded = expandedManagers[mgr.id.toString()]}
+																					{@const subInfo = mgr.subordinatesInfo || { totalCount: 0, supervisors: [], directStaff: [], allTeam: [] }}
+																					{@const searchQueryMgr = (managerSearchQueries[mgr.id.toString()] || '').toLowerCase()}
+																					{@const filteredSupervisors = subInfo.supervisors.filter((s: any) => !searchQueryMgr || s.nama_karyawan.toLowerCase().includes(searchQueryMgr) || s.title_name.toLowerCase().includes(searchQueryMgr))}
+																					{@const filteredStaff = subInfo.directStaff.filter((s: any) => !searchQueryMgr || s.nama_karyawan.toLowerCase().includes(searchQueryMgr) || s.title_name.toLowerCase().includes(searchQueryMgr) || s.payroll_id.toLowerCase().includes(searchQueryMgr))}
 
-																	{#if subInfo.totalCount === 0}
-																		<div class="p-3 rounded-2xl bg-surface border border-slate-200 dark:border-slate-800 text-center text-xs text-slate-400 font-medium shadow-sm">
-																			Belum ada staf/bawahan yang terdaftar.
-																		</div>
-																	{:else}
-																		<!-- Sub-Tree Container -->
-																		<div class="p-4 rounded-3xl bg-surface-container/60 border border-purple-500/30 shadow-lg space-y-4 max-w-2xl">
-																			<!-- 1. Supervisors Level (Tier 4) -->
-																			{#if subInfo.supervisors.length > 0}
-																				<div class="space-y-3">
-																					<div class="text-[10px] font-black uppercase text-emerald-600 dark:text-emerald-400 tracking-wider flex items-center gap-1">
-																						<span class="material-symbols-outlined text-xs">verified_user</span>
-																						<span>Supervisor & Koordinator ({subInfo.supervisors.length})</span>
-																					</div>
+																					<div class="flex flex-col items-center relative">
+																						<div class="w-0.5 h-6 bg-slate-300 dark:bg-slate-700"></div>
 
-																					<div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-																						{#each subInfo.supervisors as spv}
-																							<div class="p-3 rounded-2xl bg-surface border border-emerald-500/30 shadow-xs space-y-2">
-																								<div class="flex items-center gap-2">
-																									<div class="w-8 h-8 rounded-lg bg-emerald-500/15 text-emerald-600 flex items-center justify-center font-bold text-xs shrink-0">
-																										{spv.nama_karyawan ? spv.nama_karyawan.charAt(0) : 'S'}
-																									</div>
-																									<div class="min-w-0 flex-1">
-																										<p class="font-bold text-xs text-on-surface truncate">{spv.nama_karyawan}</p>
-																										<p class="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold truncate">{spv.title_name}</p>
-																									</div>
-																									<button onclick={() => openEditModal(spv)} class="text-slate-400 hover:text-primary">
-																										<span class="material-symbols-outlined text-xs">edit</span>
-																									</button>
+																						<!-- Manager Card -->
+																						<div class="w-64 p-3.5 rounded-3xl bg-surface border-2 {isExpanded ? 'border-purple-500 ring-2 ring-purple-500/20 shadow-xl' : 'border-purple-500/30 hover:border-purple-500/70 shadow-md'} transition-all relative z-10">
+																							<div class="flex items-center justify-between mb-2">
+																								<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-purple-500/15 text-purple-600 dark:text-purple-300 border border-purple-500/20 font-bold text-[8px] tracking-wider uppercase">
+																									<span class="material-symbols-outlined text-[10px]">manage_accounts</span>
+																									MANAGER
+																								</span>
+
+																								<button
+																									onclick={() => openEditModal(mgr)}
+																									class="text-slate-400 hover:text-primary transition-colors p-1"
+																									title="Atur Atasan"
+																								>
+																									<span class="material-symbols-outlined text-xs">edit</span>
+																								</button>
+																							</div>
+
+																							<div class="flex items-center gap-2.5">
+																								<div class="w-10 h-10 rounded-xl bg-purple-500/15 text-purple-600 dark:text-purple-300 flex items-center justify-center font-black text-sm shrink-0 border border-purple-500/30 overflow-hidden">
+																									{#if mgr.foto}
+																										<img src={mgr.foto} alt={mgr.nama_karyawan} class="w-full h-full object-cover" />
+																									{:else}
+																										{mgr.nama_karyawan ? mgr.nama_karyawan.charAt(0) : 'M'}
+																									{/if}
 																								</div>
 
-																								<!-- Sub-staff under this supervisor -->
-																								{#if spv.staff && spv.staff.length > 0}
-																									<div class="pl-3 border-l-2 border-emerald-500/30 space-y-1.5 pt-1">
-																										<p class="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Anggota Langsung ({spv.staff.length}):</p>
-																										<div class="flex flex-wrap gap-1">
-																											{#each spv.staff as stf}
-																												<span
-																													class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-[10px] font-medium text-on-surface border border-slate-200/80 dark:border-slate-700"
-																													title="{stf.nama_karyawan} ({stf.title_name} - NIK: {stf.payroll_id})"
-																												>
-																													<span class="truncate max-w-[120px]">{stf.nama_karyawan}</span>
-																												</span>
-																											{/each}
+																								<div class="min-w-0 flex-1">
+																									<h4 class="font-bold text-xs text-on-surface truncate" title={mgr.nama_karyawan}>
+																										{mgr.nama_karyawan}
+																									</h4>
+																									<p class="text-[11px] font-bold text-purple-600 dark:text-purple-400 truncate mt-0.5" title={mgr.title_name}>
+																										{mgr.title_name}
+																									</p>
+																									<p class="text-[9px] text-slate-400 font-mono mt-0.5">
+																										{mgr.payroll_id}
+																									</p>
+																								</div>
+																							</div>
+
+																							<!-- Expand / Collapse Subordinates Button -->
+																							<div class="mt-3 pt-2 border-t border-slate-100 dark:border-slate-800">
+																								<button
+																									onclick={() => toggleManagerExpand(mgr.id.toString())}
+																									class="w-full py-1.5 px-2.5 rounded-xl font-bold text-[11px] transition-all flex items-center justify-between cursor-pointer {isExpanded ? 'bg-purple-600 text-white shadow-xs' : 'bg-purple-500/10 text-purple-700 dark:text-purple-300 hover:bg-purple-500/20'}"
+																								>
+																									<div class="flex items-center gap-1">
+																										<span class="material-symbols-outlined text-xs">groups</span>
+																										<span>{subInfo.totalCount} Personel Staf</span>
+																									</div>
+																									<span class="material-symbols-outlined text-xs transition-transform {isExpanded ? 'rotate-180' : ''}">
+																										expand_more
+																									</span>
+																								</button>
+																							</div>
+																						</div>
+
+																						<!-- LEVEL 5+: EXPANDED SUBORDINATES -->
+																						{#if isExpanded}
+																							<div class="flex flex-col items-center pt-0 animate-in fade-in slide-in-from-top-4 duration-200">
+																								<div class="w-0.5 h-6 bg-purple-400 dark:bg-purple-600"></div>
+
+																								{#if subInfo.totalCount === 0}
+																									<div class="p-3 rounded-2xl bg-surface border border-slate-200 dark:border-slate-800 text-center text-xs text-slate-400 font-medium shadow-sm">
+																										Belum ada staf/bawahan yang terdaftar.
+																									</div>
+																								{:else}
+																									<div class="p-4 rounded-3xl bg-surface-container/80 border border-purple-500/30 shadow-xl space-y-3.5 w-80 sm:w-96 max-w-lg">
+																										<div class="flex items-center justify-between border-b border-slate-200/60 dark:border-slate-700/60 pb-2.5">
+																											<div class="flex items-center gap-1.5 text-xs font-black text-on-surface">
+																												<span class="material-symbols-outlined text-purple-600 text-sm">badge</span>
+																												<span>Tim {mgr.dept_name || mgr.title_name}</span>
+																											</div>
+																											<span class="px-2 py-0.5 rounded-full bg-purple-500/15 text-purple-600 dark:text-purple-300 font-mono font-bold text-[10px]">
+																												{subInfo.totalCount} Staf
+																											</span>
 																										</div>
+
+																										<!-- Mini Search in Manager Team -->
+																										{#if subInfo.totalCount > 6}
+																											<div class="relative">
+																												<span class="material-symbols-outlined absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 text-xs">search</span>
+																												<input
+																													type="text"
+																													placeholder="Cari nama / jabatan staf..."
+																													bind:value={managerSearchQueries[mgr.id.toString()]}
+																													class="w-full bg-surface border border-slate-200 dark:border-slate-700 rounded-xl py-1 pl-7 pr-3 text-[11px] font-medium placeholder:text-slate-400"
+																												/>
+																											</div>
+																										{/if}
+
+																										<!-- 1. Supervisors Level (Tier 5) -->
+																										{#if filteredSupervisors.length > 0}
+																											<div class="space-y-2">
+																												<p class="text-[9px] font-black uppercase text-emerald-600 dark:text-emerald-400 tracking-wider flex items-center gap-1">
+																													<span class="material-symbols-outlined text-xs">verified_user</span>
+																													<span>Supervisor & Koordinator ({filteredSupervisors.length})</span>
+																												</p>
+
+																												<div class="space-y-2">
+																													{#each filteredSupervisors as spv}
+																														<div class="p-2.5 rounded-2xl bg-surface border border-emerald-500/30 shadow-2xs space-y-1.5">
+																															<div class="flex items-center gap-2">
+																																<div class="w-7 h-7 rounded-lg bg-emerald-500/15 text-emerald-600 flex items-center justify-center font-bold text-xs shrink-0">
+																																	{spv.nama_karyawan ? spv.nama_karyawan.charAt(0) : 'S'}
+																																</div>
+																																<div class="min-w-0 flex-1">
+																																	<p class="font-bold text-xs text-on-surface truncate">{spv.nama_karyawan}</p>
+																																	<p class="text-[9px] text-emerald-600 dark:text-emerald-400 font-bold truncate">{spv.title_name}</p>
+																																</div>
+																																<button onclick={() => openEditModal(spv)} class="text-slate-400 hover:text-primary p-1">
+																																	<span class="material-symbols-outlined text-xs">edit</span>
+																																</button>
+																															</div>
+
+																															{#if spv.staff && spv.staff.length > 0}
+																																<div class="pl-2.5 border-l-2 border-emerald-500/30 space-y-1 pt-1">
+																																	<p class="text-[8px] font-bold text-slate-400 uppercase">Staf Langsung ({spv.staff.length}):</p>
+																																	<div class="flex flex-wrap gap-1">
+																																		{#each spv.staff as stf}
+																																			<span
+																																				class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-[10px] font-medium text-on-surface border border-slate-200/80 dark:border-slate-700"
+																																				title="{stf.nama_karyawan} ({stf.title_name} - NIK: {stf.payroll_id})"
+																																			>
+																																				<span class="truncate max-w-[110px]">{stf.nama_karyawan}</span>
+																																			</span>
+																																		{/each}
+																																	</div>
+																																</div>
+																															{/if}
+																														</div>
+																													{/each}
+																												</div>
+																											</div>
+																										{/if}
+
+																										<!-- 2. Direct Staff / Officers / Drivers / Helpers (Tier 6) -->
+																										{#if filteredStaff.length > 0}
+																											<div class="space-y-1.5 pt-1.5 border-t border-slate-200/60 dark:border-slate-700/60">
+																												<p class="text-[9px] font-black uppercase text-slate-500 dark:text-slate-400 tracking-wider flex items-center gap-1">
+																													<span class="material-symbols-outlined text-xs">badge</span>
+																													<span>Staff, Officer, Driver & Helper ({filteredStaff.length})</span>
+																												</p>
+
+																												<div class="flex flex-wrap gap-1 max-h-52 overflow-y-auto p-0.5 pr-1">
+																													{#each filteredStaff as stf}
+																														<div
+																															class="inline-flex items-center gap-1.5 px-2 py-1 rounded-xl bg-surface border border-slate-200 dark:border-slate-700/80 text-[10px] shadow-2xs hover:border-primary transition-all group"
+																														>
+																															<div class="w-4 h-4 rounded-md bg-slate-100 dark:bg-slate-800 flex items-center justify-center font-bold text-[8px] text-slate-600 dark:text-slate-300">
+																																{stf.nama_karyawan ? stf.nama_karyawan.charAt(0) : 'O'}
+																															</div>
+																															<div class="flex flex-col">
+																																<span class="font-bold text-on-surface leading-none truncate max-w-[110px]">{stf.nama_karyawan}</span>
+																																<span class="text-[8px] text-slate-400 leading-tight truncate max-w-[110px]">{stf.title_name}</span>
+																															</div>
+																															<button
+																																onclick={() => openEditModal(stf)}
+																																class="opacity-0 group-hover:opacity-100 text-slate-400 hover:text-primary transition-opacity ml-0.5"
+																																title="Atur Atasan"
+																															>
+																																<span class="material-symbols-outlined text-[10px]">edit</span>
+																															</button>
+																														</div>
+																													{/each}
+																												</div>
+																											</div>
+																										{/if}
 																									</div>
 																								{/if}
 																							</div>
-																						{/each}
+																						{/if}
 																					</div>
+																				{/each}
+																			</div>
+																		</div>
+																	{/if}
+																</div>
+															{/each}
+														</div>
+													</div>
+												{/if}
+
+												<!-- ═══════════════════════════════════════════ -->
+												<!-- LEVEL 4: MANAGERS LANGSUNG DI BAWAH DIREKTUR -->
+												<!-- ═══════════════════════════════════════════ -->
+												{#if director.directManagers && director.directManagers.length > 0}
+													<div class="relative flex justify-center">
+														{#if director.directManagers.length > 1}
+															<div class="absolute top-0 left-10 right-10 h-0.5 bg-slate-300 dark:bg-slate-700"></div>
+														{/if}
+
+														<div class="flex flex-wrap items-start justify-center gap-6 pt-0">
+															{#each director.directManagers as mgr}
+																{@const isExpanded = expandedManagers[mgr.id.toString()]}
+																{@const subInfo = mgr.subordinatesInfo || { totalCount: 0, supervisors: [], directStaff: [], allTeam: [] }}
+																{@const searchQueryMgr = (managerSearchQueries[mgr.id.toString()] || '').toLowerCase()}
+																{@const filteredSupervisors = subInfo.supervisors.filter((s: any) => !searchQueryMgr || s.nama_karyawan.toLowerCase().includes(searchQueryMgr) || s.title_name.toLowerCase().includes(searchQueryMgr))}
+																{@const filteredStaff = subInfo.directStaff.filter((s: any) => !searchQueryMgr || s.nama_karyawan.toLowerCase().includes(searchQueryMgr) || s.title_name.toLowerCase().includes(searchQueryMgr) || s.payroll_id.toLowerCase().includes(searchQueryMgr))}
+
+																<div class="flex flex-col items-center relative">
+																	<div class="w-0.5 h-6 bg-slate-300 dark:bg-slate-700"></div>
+
+																	<!-- Manager Card -->
+																	<div class="w-64 p-3.5 rounded-3xl bg-surface border-2 {isExpanded ? 'border-purple-500 ring-2 ring-purple-500/20 shadow-xl' : 'border-purple-500/30 hover:border-purple-500/70 shadow-md'} transition-all relative z-10">
+																		<div class="flex items-center justify-between mb-2">
+																			<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-purple-500/15 text-purple-600 dark:text-purple-300 border border-purple-500/20 font-bold text-[8px] tracking-wider uppercase">
+																				<span class="material-symbols-outlined text-[10px]">manage_accounts</span>
+																				MANAGER
+																			</span>
+
+																			<button
+																				onclick={() => openEditModal(mgr)}
+																				class="text-slate-400 hover:text-primary transition-colors p-1"
+																				title="Atur Atasan"
+																			>
+																				<span class="material-symbols-outlined text-xs">edit</span>
+																			</button>
+																		</div>
+
+																		<div class="flex items-center gap-2.5">
+																			<div class="w-10 h-10 rounded-xl bg-purple-500/15 text-purple-600 dark:text-purple-300 flex items-center justify-center font-black text-sm shrink-0 border border-purple-500/30 overflow-hidden">
+																				{#if mgr.foto}
+																					<img src={mgr.foto} alt={mgr.nama_karyawan} class="w-full h-full object-cover" />
+																				{:else}
+																					{mgr.nama_karyawan ? mgr.nama_karyawan.charAt(0) : 'M'}
+																				{/if}
+																			</div>
+
+																			<div class="min-w-0 flex-1">
+																				<h4 class="font-bold text-xs text-on-surface truncate" title={mgr.nama_karyawan}>
+																					{mgr.nama_karyawan}
+																				</h4>
+																				<p class="text-[11px] font-bold text-purple-600 dark:text-purple-400 truncate mt-0.5" title={mgr.title_name}>
+																					{mgr.title_name}
+																				</p>
+																				<p class="text-[9px] text-slate-400 font-mono mt-0.5">
+																					{mgr.payroll_id}
+																				</p>
+																			</div>
+																		</div>
+
+																		<!-- Expand / Collapse Subordinates Button -->
+																		<div class="mt-3 pt-2 border-t border-slate-100 dark:border-slate-800">
+																			<button
+																				onclick={() => toggleManagerExpand(mgr.id.toString())}
+																				class="w-full py-1.5 px-2.5 rounded-xl font-bold text-[11px] transition-all flex items-center justify-between cursor-pointer {isExpanded ? 'bg-purple-600 text-white shadow-xs' : 'bg-purple-500/10 text-purple-700 dark:text-purple-300 hover:bg-purple-500/20'}"
+																			>
+																				<div class="flex items-center gap-1">
+																					<span class="material-symbols-outlined text-xs">groups</span>
+																					<span>{subInfo.totalCount} Personel Staf</span>
 																				</div>
-																			{/if}
+																				<span class="material-symbols-outlined text-xs transition-transform {isExpanded ? 'rotate-180' : ''}">
+																					expand_more
+																				</span>
+																			</button>
+																		</div>
+																	</div>
 
-																			<!-- 2. Direct Staff / Officers / Helpers (Tier 5) -->
-																			{#if subInfo.directStaff.length > 0}
-																				<div class="space-y-2 pt-2 border-t border-slate-200/60 dark:border-slate-700/60">
-																					<div class="text-[10px] font-black uppercase text-slate-500 dark:text-slate-400 tracking-wider flex items-center gap-1">
-																						<span class="material-symbols-outlined text-xs">badge</span>
-																						<span>Officers, Staff, Operator & Driver ({subInfo.directStaff.length})</span>
+																	<!-- LEVEL 5+: EXPANDED SUBORDINATES -->
+																	{#if isExpanded}
+																		<div class="flex flex-col items-center pt-0 animate-in fade-in slide-in-from-top-4 duration-200">
+																			<div class="w-0.5 h-6 bg-purple-400 dark:bg-purple-600"></div>
+
+																			{#if subInfo.totalCount === 0}
+																				<div class="p-3 rounded-2xl bg-surface border border-slate-200 dark:border-slate-800 text-center text-xs text-slate-400 font-medium shadow-sm">
+																					Belum ada staf/bawahan yang terdaftar.
+																				</div>
+																			{:else}
+																				<div class="p-4 rounded-3xl bg-surface-container/80 border border-purple-500/30 shadow-xl space-y-3.5 w-80 sm:w-96 max-w-lg">
+																					<div class="flex items-center justify-between border-b border-slate-200/60 dark:border-slate-700/60 pb-2.5">
+																						<div class="flex items-center gap-1.5 text-xs font-black text-on-surface">
+																							<span class="material-symbols-outlined text-purple-600 text-sm">badge</span>
+																							<span>Tim {mgr.dept_name || mgr.title_name}</span>
+																						</div>
+																						<span class="px-2 py-0.5 rounded-full bg-purple-500/15 text-purple-600 dark:text-purple-300 font-mono font-bold text-[10px]">
+																							{subInfo.totalCount} Staf
+																						</span>
 																					</div>
 
-																					<div class="flex flex-wrap gap-1.5 max-h-56 overflow-y-auto p-1 pr-2">
-																						{#each subInfo.directStaff as stf}
-																							<div
-																								class="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-surface border border-slate-200 dark:border-slate-700/80 text-[11px] shadow-2xs hover:border-primary transition-all group"
-																							>
-																								<div class="w-5 h-5 rounded-md bg-slate-100 dark:bg-slate-800 flex items-center justify-center font-bold text-[9px] text-slate-600 dark:text-slate-300">
-																									{stf.nama_karyawan ? stf.nama_karyawan.charAt(0) : 'O'}
-																								</div>
-																								<div class="flex flex-col">
-																									<span class="font-bold text-on-surface leading-none">{stf.nama_karyawan}</span>
-																									<span class="text-[9px] text-slate-400 leading-tight">{stf.title_name}</span>
-																								</div>
-																								<button
-																									onclick={() => openEditModal(stf)}
-																									class="opacity-0 group-hover:opacity-100 text-slate-400 hover:text-primary transition-opacity ml-1"
-																									title="Atur Atasan"
-																								>
-																									<span class="material-symbols-outlined text-[11px]">edit</span>
-																								</button>
+																					<!-- Mini Search in Manager Team -->
+																					{#if subInfo.totalCount > 6}
+																						<div class="relative">
+																							<span class="material-symbols-outlined absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 text-xs">search</span>
+																							<input
+																								type="text"
+																								placeholder="Cari nama / jabatan staf..."
+																								bind:value={managerSearchQueries[mgr.id.toString()]}
+																								class="w-full bg-surface border border-slate-200 dark:border-slate-700 rounded-xl py-1 pl-7 pr-3 text-[11px] font-medium placeholder:text-slate-400"
+																							/>
+																						</div>
+																					{/if}
+
+																					<!-- 1. Supervisors Level (Tier 5) -->
+																					{#if filteredSupervisors.length > 0}
+																						<div class="space-y-2">
+																							<p class="text-[9px] font-black uppercase text-emerald-600 dark:text-emerald-400 tracking-wider flex items-center gap-1">
+																								<span class="material-symbols-outlined text-xs">verified_user</span>
+																								<span>Supervisor & Koordinator ({filteredSupervisors.length})</span>
+																							</p>
+
+																							<div class="space-y-2">
+																								{#each filteredSupervisors as spv}
+																									<div class="p-2.5 rounded-2xl bg-surface border border-emerald-500/30 shadow-2xs space-y-1.5">
+																										<div class="flex items-center gap-2">
+																											<div class="w-7 h-7 rounded-lg bg-emerald-500/15 text-emerald-600 flex items-center justify-center font-bold text-xs shrink-0">
+																												{spv.nama_karyawan ? spv.nama_karyawan.charAt(0) : 'S'}
+																											</div>
+																											<div class="min-w-0 flex-1">
+																												<p class="font-bold text-xs text-on-surface truncate">{spv.nama_karyawan}</p>
+																												<p class="text-[9px] text-emerald-600 dark:text-emerald-400 font-bold truncate">{spv.title_name}</p>
+																											</div>
+																											<button onclick={() => openEditModal(spv)} class="text-slate-400 hover:text-primary p-1">
+																												<span class="material-symbols-outlined text-xs">edit</span>
+																											</button>
+																										</div>
+
+																										{#if spv.staff && spv.staff.length > 0}
+																											<div class="pl-2.5 border-l-2 border-emerald-500/30 space-y-1 pt-1">
+																												<p class="text-[8px] font-bold text-slate-400 uppercase">Staf Langsung ({spv.staff.length}):</p>
+																												<div class="flex flex-wrap gap-1">
+																													{#each spv.staff as stf}
+																														<span
+																															class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-[10px] font-medium text-on-surface border border-slate-200/80 dark:border-slate-700"
+																															title="{stf.nama_karyawan} ({stf.title_name} - NIK: {stf.payroll_id})"
+																														>
+																															<span class="truncate max-w-[110px]">{stf.nama_karyawan}</span>
+																														</span>
+																													{/each}
+																												</div>
+																											</div>
+																										{/if}
+																									</div>
+																								{/each}
 																							</div>
-																						{/each}
-																					</div>
+																						</div>
+																					{/if}
+
+																					<!-- 2. Direct Staff / Officers / Drivers / Helpers (Tier 6) -->
+																					{#if filteredStaff.length > 0}
+																						<div class="space-y-1.5 pt-1.5 border-t border-slate-200/60 dark:border-slate-700/60">
+																							<p class="text-[9px] font-black uppercase text-slate-500 dark:text-slate-400 tracking-wider flex items-center gap-1">
+																								<span class="material-symbols-outlined text-xs">badge</span>
+																								<span>Staff, Officer, Driver & Helper ({filteredStaff.length})</span>
+																							</p>
+
+																							<div class="flex flex-wrap gap-1 max-h-52 overflow-y-auto p-0.5 pr-1">
+																								{#each filteredStaff as stf}
+																									<div
+																										class="inline-flex items-center gap-1.5 px-2 py-1 rounded-xl bg-surface border border-slate-200 dark:border-slate-700/80 text-[10px] shadow-2xs hover:border-primary transition-all group"
+																									>
+																										<div class="w-4 h-4 rounded-md bg-slate-100 dark:bg-slate-800 flex items-center justify-center font-bold text-[8px] text-slate-600 dark:text-slate-300">
+																											{stf.nama_karyawan ? stf.nama_karyawan.charAt(0) : 'O'}
+																										</div>
+																										<div class="flex flex-col">
+																											<span class="font-bold text-on-surface leading-none truncate max-w-[110px]">{stf.nama_karyawan}</span>
+																											<span class="text-[8px] text-slate-400 leading-tight truncate max-w-[110px]">{stf.title_name}</span>
+																										</div>
+																										<button
+																											onclick={() => openEditModal(stf)}
+																											class="opacity-0 group-hover:opacity-100 text-slate-400 hover:text-primary transition-opacity ml-0.5"
+																											title="Atur Atasan"
+																										>
+																											<span class="material-symbols-outlined text-[10px]">edit</span>
+																										</button>
+																									</div>
+																								{/each}
+																							</div>
+																						</div>
+																					{/if}
 																				</div>
 																			{/if}
 																		</div>
 																	{/if}
 																</div>
-															{/if}
+															{/each}
 														</div>
-													{/each}
-												</div>
+													</div>
+												{/if}
 											</div>
 										{/if}
 									</div>
