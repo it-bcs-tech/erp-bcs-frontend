@@ -584,7 +584,7 @@
 											<div class="mt-3 pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-[10px] text-slate-400 font-semibold">
 												<span class="truncate">{director.dir_name || director.div_name || 'Direktorat'}</span>
 												<span class="px-2 py-0.5 rounded-md bg-blue-500/10 text-blue-600 dark:text-blue-300 font-bold font-mono">
-													{director.managers.length} Dept/Div
+													{(director.generalManagers?.length || 0) + (director.directManagers?.length || 0)} Dept/Div
 												</span>
 											</div>
 										</div>
@@ -640,7 +640,7 @@
 																		<div class="mt-2.5 pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-[10px] text-slate-400 font-semibold">
 																			<span>{gm.div_name || 'Divisi GM'}</span>
 																			<span class="px-2 py-0.5 rounded-md bg-indigo-500/10 text-indigo-600 dark:text-indigo-300 font-bold font-mono">
-																				{gm.managers.length} Manager
+																				{gm.managers?.length || 0} Manager
 																			</span>
 																		</div>
 																	</div>
@@ -650,7 +650,7 @@
 																		<div class="w-0.5 h-6 bg-slate-300 dark:bg-slate-700"></div>
 
 																		<div class="relative flex justify-center">
-																			{#if gm.managers.length > 1}
+																			{#if (gm.managers?.length || 0) > 1}
 																				<div class="absolute top-0 left-10 right-10 h-0.5 bg-slate-300 dark:bg-slate-700"></div>
 																			{/if}
 
@@ -852,7 +852,7 @@
 												<!-- ═══════════════════════════════════════════ -->
 												{#if director.directManagers && director.directManagers.length > 0}
 													<div class="relative flex justify-center">
-														{#if director.directManagers.length > 1}
+														{#if (director.directManagers?.length || 0) > 1}
 															<div class="absolute top-0 left-10 right-10 h-0.5 bg-slate-300 dark:bg-slate-700"></div>
 														{/if}
 
