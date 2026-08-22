@@ -4,13 +4,20 @@
 </script>
 
 <svelte:head>
-	<title>HRIS Dashboard | Architectural ERP</title>
+	<title>People & HR Overview | HRIS Dashboard</title>
 </svelte:head>
 
 <!-- Header Section -->
-<header class="mb-10">
-	<h1 class="text-3xl font-extrabold text-on-surface tracking-tight mb-2">People Overview</h1>
-	<p class="text-on-surface-variant font-medium text-sm">Strategic Human Resources Intelligence Dashboard</p>
+<header class="mb-8 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+	<div>
+		<div class="flex items-center gap-2.5">
+			<span class="material-symbols-outlined text-primary text-2xl">dashboard</span>
+			<h1 class="text-2xl font-black text-on-surface tracking-tight">People & HR Overview</h1>
+		</div>
+		<p class="text-on-surface-variant font-medium text-sm mt-0.5">
+			Ringkasan Eksekutif Sumber Daya Manusia & Analisis Metrik Kehadiran Karyawan
+		</p>
+	</div>
 </header>
 
 <!-- Metrics Grid -->

@@ -70,34 +70,35 @@
 	<!-- Header & Actions -->
 	<header class="mb-8 flex flex-col md:flex-row md:items-end justify-between gap-4">
 		<div>
-			<h1 class="text-3xl font-extrabold text-on-surface tracking-tight mb-2">Employee Directory</h1>
-			<p class="text-on-surface-variant font-medium text-sm">Manage, view, and organize company personnel</p>
+			<div class="flex items-center gap-2.5">
+				<span class="material-symbols-outlined text-primary text-2xl">badge</span>
+				<h1 class="text-2xl font-black text-on-surface tracking-tight">Employee Directory</h1>
+			</div>
+			<p class="text-on-surface-variant font-medium text-sm mt-0.5">
+				Kelola Direktori Karyawan, Data Jabatan, Departemen & Profil Personel Perusahaan
+			</p>
 		</div>
-		<div class="flex gap-3">
-			<button class="bg-surface-container-lowest border border-outline-variant/30 text-on-surface px-4 py-2.5 rounded-xl text-sm font-semibold flex items-center gap-2 hover:bg-surface-container-low transition-colors">
-				<span class="material-symbols-outlined text-lg">filter_list</span>
-				Filter
-			</button>
+		<div class="flex gap-2.5">
 			<button 
-				class="bg-primary text-on-primary px-5 py-2.5 rounded-xl text-sm font-semibold shadow-sm flex items-center gap-2 hover:bg-primary/90 transition-colors"
+				class="bg-primary text-on-primary px-4 py-2.5 rounded-xl text-sm font-bold shadow-xs flex items-center gap-2 hover:bg-primary/90 transition-colors cursor-pointer"
 				onclick={() => isAddModalOpen = true}
 			>
 				<span class="material-symbols-outlined text-lg">person_add</span>
-				New Employee
+				<span>Tambah Karyawan Baru</span>
 			</button>
 		</div>
 	</header>
 
 	<!-- Search and Tabs -->
-	<div class="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 mb-8">
-		<!-- Tabs -->
-		<div class="flex gap-2 overflow-x-auto pb-2 lg:pb-0 hide-scrollbar max-w-full">
+	<div class="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 mb-6">
+		<!-- Tabs (Segmented Control) -->
+		<div class="inline-flex p-1 rounded-2xl bg-surface-container border border-slate-200 dark:border-slate-800 overflow-x-auto max-w-full">
 			{#each filters as filter}
 				<button 
-					class="px-4 py-2 rounded-full text-sm font-bold whitespace-nowrap transition-colors {activeFilter === filter ? 'bg-secondary-container text-on-secondary-container' : 'text-on-surface-variant hover:bg-surface-container'}"
+					class="px-3.5 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all cursor-pointer {activeFilter === filter ? 'bg-surface text-primary shadow-xs' : 'text-on-surface-variant hover:text-on-surface'}"
 					onclick={() => handleFilterClick(filter)}
 				>
-					{filter}
+					{filter === 'All' ? 'Semua Dept (All)' : filter}
 				</button>
 			{/each}
 		</div>

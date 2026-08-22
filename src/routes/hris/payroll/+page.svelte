@@ -79,23 +79,23 @@
 
 
 <svelte:head>
-	<title>HRD Payroll & Klaim Reimbursement | ERP BCS</title>
+	<title>Payroll & Salary Slips | ERP BCS</title>
 </svelte:head>
 
 <div class="space-y-6">
 	<!-- Top Bar / Header -->
 	<div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
 		<div>
-			<div class="flex items-center gap-2">
+			<div class="flex items-center gap-2.5">
 				<span class="material-symbols-outlined text-primary text-2xl">payments</span>
-				<h1 class="text-2xl font-black text-on-surface tracking-tight">HRD Payroll & Klaim Benefit</h1>
+				<h1 class="text-2xl font-black text-on-surface tracking-tight">Payroll & Salary Slips</h1>
 			</div>
 			<p class="text-sm text-on-surface-variant font-medium mt-0.5">
-				Pengelolaan Gaji Karyawan, Slip Gaji PT. Buana Centra Swakarsa & Reimbursement Medis
+				Pengelolaan Gaji Karyawan, Slip Gaji PT BCS & Klaim Reimbursement Benefit
 			</p>
 		</div>
 
-		<div class="flex items-center gap-3">
+		<div class="flex items-center gap-2.5">
 			<a
 				href="/hris/payroll/loans"
 				class="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-surface-container-low text-on-surface font-semibold text-sm hover:bg-surface-container transition-all"
@@ -139,22 +139,22 @@
 		</div>
 	{/if}
 
-	<!-- Tab Switcher -->
-	<div class="flex items-center gap-2 border-b border-slate-200 dark:border-slate-800 pb-1">
+	<!-- Tab Switcher (Segmented Control) -->
+	<div class="inline-flex p-1 rounded-2xl bg-surface-container border border-slate-200 dark:border-slate-800 flex-wrap gap-1">
 		<button
 			onclick={() => (activeMainTab = 'payroll')}
-			class="px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer {activeMainTab === 'payroll' ? 'bg-primary text-on-primary shadow-xs' : 'text-on-surface-variant hover:bg-surface-container'}"
+			class="px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer {activeMainTab === 'payroll' ? 'bg-surface text-primary shadow-xs' : 'text-on-surface-variant hover:text-on-surface'}"
 		>
 			<span class="material-symbols-outlined text-sm">receipt_long</span>
 			<span>Slip Gaji & Direktori Payroll</span>
-			<span class="px-2 py-0.5 rounded-full text-[10px] bg-white/20 font-bold font-mono">{data.summary.total_count}</span>
+			<span class="px-2 py-0.5 rounded-full text-[10px] {activeMainTab === 'payroll' ? 'bg-primary/10 text-primary' : 'bg-surface-container-high text-on-surface-variant'} font-bold font-mono">{data.summary.total_count}</span>
 		</button>
 		<button
 			onclick={() => (activeMainTab = 'reimbursement')}
-			class="px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer {activeMainTab === 'reimbursement' ? 'bg-primary text-on-primary shadow-xs' : 'text-on-surface-variant hover:bg-surface-container'}"
+			class="px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer {activeMainTab === 'reimbursement' ? 'bg-surface text-primary shadow-xs' : 'text-on-surface-variant hover:text-on-surface'}"
 		>
 			<span class="material-symbols-outlined text-sm">medical_services</span>
-			<span>Klaim Reimbursement (Medis, Kacamata & Operasional)</span>
+			<span>Klaim Reimbursement (Medis & Operasional)</span>
 			{#if data.reimbursementSummary.pending_claims > 0}
 				<span class="px-2 py-0.5 rounded-full text-[10px] bg-amber-500 text-white font-bold font-mono">{data.reimbursementSummary.pending_claims} Pending</span>
 			{/if}

@@ -63,8 +63,13 @@
 	<!-- Header & Actions -->
 	<header class="mb-8 flex flex-col md:flex-row md:items-end justify-between gap-4">
 		<div>
-			<h1 class="text-3xl font-extrabold text-on-surface tracking-tight mb-2">Leave Management</h1>
-			<p class="text-on-surface-variant font-medium text-sm">Manage employee leave requests, sickness, and permissions</p>
+			<div class="flex items-center gap-2.5">
+				<span class="material-symbols-outlined text-primary text-2xl">pending_actions</span>
+				<h1 class="text-2xl font-black text-on-surface tracking-tight">Leave & Absence Management</h1>
+			</div>
+			<p class="text-on-surface-variant font-medium text-sm mt-0.5">
+				Pengajuan Cuti, Izin, Sakit & Monitoring Kuota Saldo Cuti Tahunan Karyawan
+			</p>
 		</div>
 	</header>
 

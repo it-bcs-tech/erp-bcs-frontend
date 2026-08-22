@@ -63,19 +63,19 @@
 </script>
 
 <svelte:head>
-	<title>Lifecycle & Disciplinary | HRIS BCS</title>
+	<title>Employee Lifecycle & Actions | HRIS BCS</title>
 </svelte:head>
 
 <div class="flex flex-col h-full space-y-6">
 	<!-- Header & Actions -->
 	<header class="flex flex-col md:flex-row md:items-end justify-between gap-4">
 		<div>
-			<div class="flex items-center gap-2">
+			<div class="flex items-center gap-2.5">
 				<span class="material-symbols-outlined text-primary text-2xl">manage_accounts</span>
-				<h1 class="text-2xl font-black text-on-surface tracking-tight">Lifecycle & Dokumen Resmi HRD</h1>
+				<h1 class="text-2xl font-black text-on-surface tracking-tight">Employee Lifecycle & Actions</h1>
 			</div>
 			<p class="text-on-surface-variant font-medium text-sm mt-0.5">
-				Kelola Mutasi, Promosi, Surat Peringatan (SP), Terminasi & Cetak Dokumen Legal BCS
+				Manajemen Mutasi, Promosi, Surat Peringatan (SP), Terminasi & Cetak Dokumen Legal BCS
 			</p>
 		</div>
 		<div class="flex gap-2.5 items-center">
@@ -120,11 +120,11 @@
 		</div>
 	</div>
 
-	<!-- Tabs -->
-	<div class="flex gap-2 overflow-x-auto pb-1 border-b border-slate-200 dark:border-slate-800">
+	<!-- Tabs (Segmented Control) -->
+	<div class="inline-flex p-1 rounded-2xl bg-surface-container border border-slate-200 dark:border-slate-800 overflow-x-auto max-w-full">
 		{#each tabs as tab}
 			<button 
-				class="px-4 py-2.5 text-xs font-bold whitespace-nowrap rounded-xl transition-all cursor-pointer {activeTab === tab ? 'bg-primary text-on-primary shadow-xs' : 'text-on-surface-variant hover:bg-surface-container'}"
+				class="px-4 py-2 text-xs font-bold whitespace-nowrap rounded-xl transition-all cursor-pointer {activeTab === tab ? 'bg-surface text-primary shadow-xs' : 'text-on-surface-variant hover:text-on-surface'}"
 				onclick={() => activeTab = tab}
 			>
 				{tab}

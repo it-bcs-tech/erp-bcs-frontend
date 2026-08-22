@@ -321,7 +321,7 @@
 	<!-- Top Header -->
 	<div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
 		<div>
-			<div class="flex items-center gap-2">
+			<div class="flex items-center gap-2.5">
 				<span class="material-symbols-outlined text-primary text-2xl">account_tree</span>
 				<h1 class="text-2xl font-black text-on-surface tracking-tight">Org Chart & Hierarchy</h1>
 			</div>

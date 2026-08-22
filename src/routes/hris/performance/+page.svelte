@@ -16,80 +16,81 @@
 </script>
 
 <svelte:head>
-	<title>Performance & Training | HRIS Dashboard</title>
+	<title>Performance & KPI Reviews | HRIS Dashboard</title>
 </svelte:head>
 
 <div class="flex flex-col h-full">
 	<!-- Header & Actions -->
 	<header class="mb-8 flex flex-col md:flex-row md:items-end justify-between gap-4">
 		<div>
-			<h1 class="text-3xl font-extrabold text-on-surface tracking-tight mb-2">Performance & Training</h1>
-			<p class="text-on-surface-variant font-medium text-sm">Track employee KPIs and manage educational programs</p>
+			<div class="flex items-center gap-2.5">
+				<span class="material-symbols-outlined text-primary text-2xl">assessment</span>
+				<h1 class="text-2xl font-black text-on-surface tracking-tight">Performance & KPI Reviews</h1>
+			</div>
+			<p class="text-on-surface-variant font-medium text-sm mt-0.5">
+				Evaluasi Penilaian Kinerja Karyawan, Pencapaian KPI & Program Pelatihan SDM
+			</p>
 		</div>
-		<div class="flex gap-3 items-center">
+		<div class="flex gap-2.5 items-center">
 			<span class="inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full {dataSource === 'laravel' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}">
 				<span class="w-1.5 h-1.5 rounded-full {dataSource === 'laravel' ? 'bg-emerald-500' : 'bg-amber-500'}"></span>
 				{dataSource === 'laravel' ? 'Laravel API' : 'Svelte Fallback'}
 			</span>
-			<button class="bg-surface-container-lowest border border-outline-variant/30 text-on-surface px-4 py-2.5 rounded-xl text-sm font-semibold flex items-center gap-2 hover:bg-surface-container-low transition-colors">
-				<span class="material-symbols-outlined text-lg">assessment</span>
-				KPI Report
+			<button 
+				class="bg-primary text-on-primary px-4 py-2.5 rounded-xl text-sm font-bold shadow-xs flex items-center gap-2 hover:bg-primary/90 transition-colors cursor-pointer"
+				onclick={() => { isAddModalOpen = true; addModalTab = 'kpi'; }}
+			>
+				<span class="material-symbols-outlined text-lg">add</span>
+				<span>Tambah Penilaian KPI</span>
 			</button>
-            <button 
-                class="bg-primary text-on-primary px-5 py-2.5 rounded-xl text-sm font-semibold shadow-sm flex items-center gap-2 hover:bg-primary/90 transition-colors"
-                onclick={() => { isAddModalOpen = true; addModalTab = 'kpi'; }}
-            >
-                <span class="material-symbols-outlined text-lg">add</span>
-                Add Entry
-            </button>
 		</div>
 	</header>
 
 	<!-- Metrics Cards -->
 	<div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
 		<div class="bg-surface-container-lowest p-5 rounded-2xl border border-primary/20 shadow-sm flex items-center justify-between">
-            <div>
-                <p class="text-xs font-bold text-primary uppercase tracking-wider mb-1">Company Avg KPI</p>
-                <div class="flex items-end gap-2">
-                    <h3 class="text-3xl font-black text-on-surface">{metrics.avgKpiScore}</h3>
-                    <span class="text-sm font-bold text-on-surface-variant mb-1">/ 100</span>
-                </div>
-            </div>
-            <div class="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center text-primary">
-                <span class="material-symbols-outlined text-2xl">trending_up</span>
-            </div>
+			<div>
+				<p class="text-xs font-bold text-primary uppercase tracking-wider mb-1">Company Avg KPI</p>
+				<div class="flex items-end gap-2">
+					<h3 class="text-3xl font-black text-on-surface">{metrics.avgKpiScore}</h3>
+					<span class="text-sm font-bold text-on-surface-variant mb-1">/ 100</span>
+				</div>
+			</div>
+			<div class="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center text-primary">
+				<span class="material-symbols-outlined text-2xl">trending_up</span>
+			</div>
 		</div>
 		<div class="bg-surface-container-lowest p-5 rounded-2xl border border-surface-container shadow-sm flex items-center justify-between">
 			<div>
-                <p class="text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-1">Evaluated Employees</p>
-                <h3 class="text-3xl font-black text-on-surface">{metrics.totalEvaluated}</h3>
-            </div>
-            <div class="w-12 h-12 rounded-full bg-surface-variant/10 flex items-center justify-center text-on-surface-variant">
-                <span class="material-symbols-outlined text-2xl">fact_check</span>
-            </div>
+				<p class="text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-1">Evaluated Employees</p>
+				<h3 class="text-3xl font-black text-on-surface">{metrics.totalEvaluated}</h3>
+			</div>
+			<div class="w-12 h-12 rounded-full bg-surface-variant/10 flex items-center justify-center text-on-surface-variant">
+				<span class="material-symbols-outlined text-2xl">fact_check</span>
+			</div>
 		</div>
 		<div class="bg-surface-container-lowest p-5 rounded-2xl border border-tertiary/20 shadow-sm flex items-center justify-between">
 			<div>
-                <p class="text-xs font-bold text-tertiary uppercase tracking-wider mb-1">Upcoming Trainings</p>
-                <h3 class="text-3xl font-black text-on-surface">{metrics.upcomingTrainings}</h3>
-            </div>
-            <div class="w-12 h-12 rounded-full bg-tertiary/10 flex items-center justify-center text-tertiary">
-                <span class="material-symbols-outlined text-2xl">school</span>
-            </div>
+				<p class="text-xs font-bold text-tertiary uppercase tracking-wider mb-1">Upcoming Trainings</p>
+				<h3 class="text-3xl font-black text-on-surface">{metrics.upcomingTrainings}</h3>
+			</div>
+			<div class="w-12 h-12 rounded-full bg-tertiary/10 flex items-center justify-center text-tertiary">
+				<span class="material-symbols-outlined text-2xl">school</span>
+			</div>
 		</div>
 	</div>
 
-	<!-- Tabs -->
-	<div class="flex gap-2 overflow-x-auto pb-2 lg:pb-0 mb-6 border-b border-surface-container">
-        {#each tabs as tab}
-            <button 
-                class="px-5 py-3 text-sm font-bold whitespace-nowrap transition-colors border-b-2 {activeTab === tab ? 'border-primary text-primary' : 'border-transparent text-on-surface-variant hover:text-on-surface hover:border-outline-variant/50'}"
-                onclick={() => activeTab = tab}
-            >
-                {tab}
-            </button>
-        {/each}
-    </div>
+	<!-- Tabs (Segmented Control) -->
+	<div class="inline-flex p-1 rounded-2xl bg-surface-container border border-slate-200 dark:border-slate-800 mb-6 max-w-full">
+		{#each tabs as tab}
+			<button 
+				class="px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all cursor-pointer {activeTab === tab ? 'bg-surface text-primary shadow-xs' : 'text-on-surface-variant hover:text-on-surface'}"
+				onclick={() => activeTab = tab}
+			>
+				{tab}
+			</button>
+		{/each}
+	</div>
 
 	<!-- Content Area -->
 	<div class="bg-surface-container-lowest rounded-[24px] shadow-sm flex-1 overflow-hidden flex flex-col">

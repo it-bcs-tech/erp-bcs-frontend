@@ -60,19 +60,19 @@
 </script>
 
 <svelte:head>
-	<title>Tracking Sertifikasi & Expiry Dokumen | ERP BCS</title>
+	<title>Document Expiry & Certifications | ERP BCS</title>
 </svelte:head>
 
 <div class="space-y-6">
 	<!-- Top Bar -->
 	<div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
 		<div>
-			<div class="flex items-center gap-2">
+			<div class="flex items-center gap-2.5">
 				<span class="material-symbols-outlined text-primary text-2xl">verified</span>
-				<h1 class="text-2xl font-black text-on-surface tracking-tight">Tracking Sertifikasi & Expiry Dokumen</h1>
+				<h1 class="text-2xl font-black text-on-surface tracking-tight">Document Expiry & Certifications</h1>
 			</div>
 			<p class="text-sm text-on-surface-variant font-medium mt-0.5">
-				Peringatan Dini Masa Berlaku SIM Driver, Sertifikasi K3, Kontrak PKWT & SIO Operator
+				Peringatan Dini Masa Berlaku SIM Driver, Sertifikasi K3 & Kontrak Kerja PKWT
 			</p>
 		</div>
 	</div>
@@ -148,11 +148,11 @@
 		</button>
 	</div>
 
-	<!-- 4 Category Tabs -->
-	<div class="flex items-center gap-2 border-b border-slate-200 dark:border-slate-800 overflow-x-auto pb-1">
+	<!-- 4 Category Tabs (Segmented Control) -->
+	<div class="inline-flex p-1 rounded-2xl bg-surface-container border border-slate-200 dark:border-slate-800 overflow-x-auto max-w-full">
 		<button
 			onclick={() => handleCategoryChange('sim')}
-			class="px-5 py-2.5 rounded-xl font-bold text-xs transition-all cursor-pointer flex items-center gap-2 whitespace-nowrap {activeCategory === 'sim' ? 'bg-primary text-on-primary shadow-xs' : 'text-on-surface-variant hover:bg-surface-container'}"
+			class="px-4 py-2 rounded-xl font-bold text-xs transition-all cursor-pointer flex items-center gap-2 whitespace-nowrap {activeCategory === 'sim' ? 'bg-surface text-primary shadow-xs' : 'text-on-surface-variant hover:text-on-surface'}"
 		>
 			<span class="material-symbols-outlined text-sm">badge</span>
 			<span>SIM Driver (A/B1/B2)</span>
@@ -160,7 +160,7 @@
 
 		<button
 			onclick={() => handleCategoryChange('contract')}
-			class="px-5 py-2.5 rounded-xl font-bold text-xs transition-all cursor-pointer flex items-center gap-2 whitespace-nowrap {activeCategory === 'contract' ? 'bg-primary text-on-primary shadow-xs' : 'text-on-surface-variant hover:bg-surface-container'}"
+			class="px-4 py-2 rounded-xl font-bold text-xs transition-all cursor-pointer flex items-center gap-2 whitespace-nowrap {activeCategory === 'contract' ? 'bg-surface text-primary shadow-xs' : 'text-on-surface-variant hover:text-on-surface'}"
 		>
 			<span class="material-symbols-outlined text-sm">assignment</span>
 			<span>Kontrak Kerja PKWT</span>
@@ -168,7 +168,7 @@
 
 		<button
 			onclick={() => handleCategoryChange('k3')}
-			class="px-5 py-2.5 rounded-xl font-bold text-xs transition-all cursor-pointer flex items-center gap-2 whitespace-nowrap {activeCategory === 'k3' ? 'bg-primary text-on-primary shadow-xs' : 'text-on-surface-variant hover:bg-surface-container'}"
+			class="px-4 py-2 rounded-xl font-bold text-xs transition-all cursor-pointer flex items-center gap-2 whitespace-nowrap {activeCategory === 'k3' ? 'bg-surface text-primary shadow-xs' : 'text-on-surface-variant hover:text-on-surface'}"
 		>
 			<span class="material-symbols-outlined text-sm">health_and_safety</span>
 			<span>Sertifikat K3 & Training</span>

@@ -155,19 +155,19 @@
 </script>
 
 <svelte:head>
-	<title>Presensi, Roster Shift & Lembur SPKL | HRIS BCS</title>
+	<title>Attendance & Shift Rosters | HRIS BCS</title>
 </svelte:head>
 
 <div class="space-y-6">
 	<!-- Header & Actions -->
 	<header class="flex flex-col md:flex-row md:items-end justify-between gap-4">
 		<div>
-			<div class="flex items-center gap-2">
+			<div class="flex items-center gap-2.5">
 				<span class="material-symbols-outlined text-primary text-2xl">more_time</span>
-				<h1 class="text-2xl font-black text-on-surface tracking-tight">Presensi, Roster 24/7 & Lembur SPKL</h1>
+				<h1 class="text-2xl font-black text-on-surface tracking-tight">Attendance & Shift Rosters</h1>
 			</div>
 			<p class="text-on-surface-variant font-medium text-sm mt-0.5">
-				Monitoring Kehadiran, Penjadwalan Roster Pool & Surat Perintah Kerja Lembur (SPKL)
+				Monitoring Presensi Harian GPS, Penjadwalan Roster Pool 24/7 & Lembur SPKL
 			</p>
 		</div>
 		<div class="flex gap-2">
@@ -191,19 +191,19 @@
 		</div>
 	</header>
 
-	<!-- Tab Switcher -->
-	<div class="flex items-center gap-2 border-b border-slate-200 dark:border-slate-800 pb-1">
+	<!-- Tab Switcher (Segmented Control) -->
+	<div class="inline-flex p-1 rounded-2xl bg-surface-container border border-slate-200 dark:border-slate-800 flex-wrap gap-1">
 		<button
 			onclick={() => (activeTab = 'logs')}
-			class="px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer {activeTab === 'logs' ? 'bg-primary text-on-primary shadow-xs' : 'text-on-surface-variant hover:bg-surface-container'}"
+			class="px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer {activeTab === 'logs' ? 'bg-surface text-primary shadow-xs' : 'text-on-surface-variant hover:text-on-surface'}"
 		>
 			<span class="material-symbols-outlined text-sm">how_to_reg</span>
 			<span>Log Presensi Harian & GPS</span>
-			<span class="px-2 py-0.5 rounded-full text-[10px] bg-white/20 font-bold font-mono">{filteredLogs.length}</span>
+			<span class="px-2 py-0.5 rounded-full text-[10px] {activeTab === 'logs' ? 'bg-primary/10 text-primary' : 'bg-surface-container-high text-on-surface-variant'} font-bold font-mono">{filteredLogs.length}</span>
 		</button>
 		<button
 			onclick={() => (activeTab = 'roster')}
-			class="px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer {activeTab === 'roster' ? 'bg-primary text-on-primary shadow-xs' : 'text-on-surface-variant hover:bg-surface-container'}"
+			class="px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer {activeTab === 'roster' ? 'bg-surface text-primary shadow-xs' : 'text-on-surface-variant hover:text-on-surface'}"
 		>
 			<span class="material-symbols-outlined text-sm">schedule</span>
 			<span>Jadwal Roster Shift 24/7 (Pool & Workshop)</span>
@@ -211,7 +211,7 @@
 		</button>
 		<button
 			onclick={() => (activeTab = 'overtime')}
-			class="px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer {activeTab === 'overtime' ? 'bg-primary text-on-primary shadow-xs' : 'text-on-surface-variant hover:bg-surface-container'}"
+			class="px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer {activeTab === 'overtime' ? 'bg-surface text-primary shadow-xs' : 'text-on-surface-variant hover:text-on-surface'}"
 		>
 			<span class="material-symbols-outlined text-sm">alarm_on</span>
 			<span>Lembur & SPKL Depnaker</span>
