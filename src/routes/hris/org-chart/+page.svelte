@@ -15,8 +15,8 @@
 	let showModal = $state(false);
 	let selectedNewAtasanTitle = $state('');
 
-	// Expanded managers state for on-demand subordinate tree expansion
-	let expandedManagers = $state<Record<string, boolean>>({});
+	// Expanded nodes state for true progressive drilldown hierarchy (key: employee ID string)
+	let expandedNodes = $state<Record<string, boolean>>({});
 	let managerSearchQueries = $state<Record<string, string>>({});
 
 	// Zoom and Pan canvas state
@@ -25,27 +25,42 @@
 	let isPanning = $state(false);
 	let panStart = $state({ x: 0, y: 0 });
 
-	function toggleManagerExpand(managerId: string) {
-		expandedManagers[managerId] = !expandedManagers[managerId];
+	function isExpanded(id: string | number | undefined): boolean {
+		if (!id) return false;
+		return !!expandedNodes[id.toString()];
 	}
 
-	function expandAllManagers() {
+	function toggleNode(id: string | number | undefined) {
+		if (!id) return;
+		const key = id.toString();
+		expandedNodes[key] = !expandedNodes[key];
+	}
+
+	function expandAll() {
 		const newMap: Record<string, boolean> = {};
 		orgTree.directors.forEach((dir: any) => {
+			newMap[dir.id.toString()] = true;
 			(dir.generalManagers || []).forEach((gm: any) => {
+				newMap[gm.id.toString()] = true;
 				(gm.managers || []).forEach((mgr: any) => {
 					newMap[mgr.id.toString()] = true;
+					(mgr.subordinatesInfo?.supervisors || []).forEach((spv: any) => {
+						newMap[spv.id.toString()] = true;
+					});
 				});
 			});
 			(dir.directManagers || []).forEach((mgr: any) => {
 				newMap[mgr.id.toString()] = true;
+				(mgr.subordinatesInfo?.supervisors || []).forEach((spv: any) => {
+					newMap[spv.id.toString()] = true;
+				});
 			});
 		});
-		expandedManagers = newMap;
+		expandedNodes = newMap;
 	}
 
-	function collapseAllManagers() {
-		expandedManagers = {};
+	function collapseAll() {
+		expandedNodes = {};
 	}
 
 	// Zoom and Pan controls
@@ -418,16 +433,16 @@
 				<!-- Expand / Collapse All Quick Actions -->
 				<div class="flex items-center gap-1 p-1 rounded-2xl bg-surface/90 backdrop-blur-md border border-slate-200/80 dark:border-slate-700/80 shadow-md">
 					<button
-						onclick={expandAllManagers}
-						title="Buka Semua Tim Manager"
+						onclick={expandAll}
+						title="Buka Semua Level Hirarki"
 						class="px-2.5 py-1 rounded-xl text-[11px] font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors flex items-center gap-1 cursor-pointer"
 					>
 						<span class="material-symbols-outlined text-sm">unfold_more</span>
 						<span class="hidden sm:inline">Buka Semua</span>
 					</button>
 					<button
-						onclick={collapseAllManagers}
-						title="Tutup Semua Tim Manager (Tampilan Top Level)"
+						onclick={collapseAll}
+						title="Tutup Semua (Kembali ke Tampilan Awal)"
 						class="px-2.5 py-1 rounded-xl text-[11px] font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors flex items-center gap-1 cursor-pointer"
 					>
 						<span class="material-symbols-outlined text-sm">unfold_less</span>
@@ -547,16 +562,29 @@
 
 							<div class="flex flex-wrap items-start justify-center gap-8 lg:gap-12 pt-0">
 								{#each orgTree.directors as director}
+									{@const dirExpanded = isExpanded(director.id)}
+									{@const totalDirectSubs = (director.generalManagers?.length || 0) + (director.directManagers?.length || 0)}
+
 									<div class="flex flex-col items-center relative">
 										<!-- Vertical drop line into Director card -->
 										<div class="w-0.5 h-8 bg-slate-300 dark:bg-slate-700"></div>
 
 										<!-- Director Card -->
-										<div class="w-72 p-4 rounded-3xl bg-gradient-to-b from-blue-500/10 via-surface to-surface border-2 border-blue-500/40 shadow-lg relative z-10 transition-all hover:scale-105 hover:shadow-xl">
+										<div class="w-72 p-4 rounded-3xl bg-gradient-to-b from-blue-500/10 via-surface to-surface border-2 {dirExpanded ? 'border-blue-500 ring-2 ring-blue-500/20 shadow-xl' : 'border-blue-500/40 hover:border-blue-500/70 shadow-lg'} relative z-10 transition-all">
 											<!-- Level Badge -->
-											<div class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-blue-500/20 text-blue-600 dark:text-blue-300 border border-blue-500/30 font-extrabold text-[9px] tracking-wider uppercase mb-2.5">
-												<span class="material-symbols-outlined text-xs">shield_person</span>
-												<span>DIREKTORAT / GM</span>
+											<div class="flex items-center justify-between mb-2">
+												<span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-blue-500/20 text-blue-600 dark:text-blue-300 border border-blue-500/30 font-extrabold text-[9px] tracking-wider uppercase">
+													<span class="material-symbols-outlined text-xs">shield_person</span>
+													<span>DIREKTUR BAGIAN</span>
+												</span>
+
+												<button
+													onclick={() => openEditModal(director)}
+													class="text-slate-400 hover:text-primary transition-colors p-1"
+													title="Atur Atasan"
+												>
+													<span class="material-symbols-outlined text-xs">edit</span>
+												</button>
 											</div>
 
 											<div class="flex items-center gap-3">
@@ -581,38 +609,69 @@
 												</div>
 											</div>
 
-											<div class="mt-3 pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-[10px] text-slate-400 font-semibold">
+											<div class="mt-2.5 pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-[10px] text-slate-400 font-semibold">
 												<span class="truncate">{director.dir_name || director.div_name || 'Direktorat'}</span>
 												<span class="px-2 py-0.5 rounded-md bg-blue-500/10 text-blue-600 dark:text-blue-300 font-bold font-mono">
-													{(director.generalManagers?.length || 0) + (director.directManagers?.length || 0)} Dept/Div
+													{totalDirectSubs} Unit / Bagian
 												</span>
 											</div>
+
+											<!-- Toggle Subordinates Button -->
+											{#if totalDirectSubs > 0}
+												<div class="mt-2.5 pt-2 border-t border-slate-100 dark:border-slate-800">
+													<button
+														onclick={() => toggleNode(director.id)}
+														class="w-full py-1.5 px-3 rounded-xl font-bold text-[11px] transition-all flex items-center justify-between cursor-pointer {dirExpanded ? 'bg-blue-600 text-white shadow-xs' : 'bg-blue-500/10 text-blue-700 dark:text-blue-300 hover:bg-blue-500/20'}"
+													>
+														<div class="flex items-center gap-1.5">
+															<span class="material-symbols-outlined text-xs">{dirExpanded ? 'remove_circle' : 'add_circle'}</span>
+															<span>{dirExpanded ? 'Tutup Bawah' : `Buka ${totalDirectSubs} GM / Manager`}</span>
+														</div>
+														<span class="material-symbols-outlined text-xs transition-transform {dirExpanded ? 'rotate-180' : ''}">
+															expand_more
+														</span>
+													</button>
+												</div>
+											{/if}
 										</div>
 
 										<!-- Connecting Line from Director to GM & Managers -->
-										{#if (director.generalManagers && director.generalManagers.length > 0) || (director.directManagers && director.directManagers.length > 0)}
-											<div class="w-0.5 h-8 bg-slate-300 dark:bg-slate-700"></div>
+										{#if dirExpanded && totalDirectSubs > 0}
+											<div class="w-0.5 h-8 bg-blue-400 dark:bg-blue-600 animate-in fade-in duration-200"></div>
 
-											<div class="flex flex-col items-center gap-8 pt-0">
+											<div class="flex flex-col items-center gap-8 pt-0 animate-in fade-in slide-in-from-top-4 duration-200">
 												<!-- ═══════════════════════════════════════════ -->
-												<!-- LEVEL 3: GENERAL MANAGERS (GM) JIKA ADA     -->
+												<!-- LEVEL 3: GENERAL MANAGERS (GM)              -->
 												<!-- ═══════════════════════════════════════════ -->
 												{#if director.generalManagers && director.generalManagers.length > 0}
 													<div class="relative flex justify-center">
-														{#if director.generalManagers.length > 1}
+														{#if (director.generalManagers?.length || 0) > 1}
 															<div class="absolute top-0 left-12 right-12 h-0.5 bg-slate-300 dark:bg-slate-700"></div>
 														{/if}
 
 														<div class="flex flex-wrap items-start justify-center gap-8 pt-0">
 															{#each director.generalManagers as gm}
+																{@const gmExpanded = isExpanded(gm.id)}
+																{@const gmManagersCount = gm.managers?.length || 0}
+
 																<div class="flex flex-col items-center relative">
 																	<div class="w-0.5 h-6 bg-slate-300 dark:bg-slate-700"></div>
 
 																	<!-- GM Card -->
-																	<div class="w-68 p-3.5 rounded-3xl bg-gradient-to-b from-indigo-500/10 via-surface to-surface border-2 border-indigo-500/40 shadow-md relative z-10 transition-all hover:scale-105 hover:shadow-lg">
-																		<div class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-indigo-500/15 text-indigo-600 dark:text-indigo-300 border border-indigo-500/25 font-black text-[8px] tracking-wider uppercase mb-2">
-																			<span class="material-symbols-outlined text-[10px]">corporate_fare</span>
-																			<span>GENERAL MANAGER</span>
+																	<div class="w-68 p-3.5 rounded-3xl bg-gradient-to-b from-indigo-500/10 via-surface to-surface border-2 {gmExpanded ? 'border-indigo-500 ring-2 ring-indigo-500/20 shadow-xl' : 'border-indigo-500/40 hover:border-indigo-500/70 shadow-md'} relative z-10 transition-all">
+																		<div class="flex items-center justify-between mb-2">
+																			<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-indigo-500/15 text-indigo-600 dark:text-indigo-300 border border-indigo-500/25 font-black text-[8px] tracking-wider uppercase">
+																				<span class="material-symbols-outlined text-[10px]">corporate_fare</span>
+																				<span>GENERAL MANAGER</span>
+																			</span>
+
+																			<button
+																				onclick={() => openEditModal(gm)}
+																				class="text-slate-400 hover:text-primary transition-colors p-1"
+																				title="Atur Atasan"
+																			>
+																				<span class="material-symbols-outlined text-xs">edit</span>
+																			</button>
 																		</div>
 
 																		<div class="flex items-center gap-2.5">
@@ -640,23 +699,41 @@
 																		<div class="mt-2.5 pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-[10px] text-slate-400 font-semibold">
 																			<span>{gm.div_name || 'Divisi GM'}</span>
 																			<span class="px-2 py-0.5 rounded-md bg-indigo-500/10 text-indigo-600 dark:text-indigo-300 font-bold font-mono">
-																				{gm.managers?.length || 0} Manager
+																				{gmManagersCount} Manager
 																			</span>
 																		</div>
+
+																		<!-- Toggle Managers Button -->
+																		{#if gmManagersCount > 0}
+																			<div class="mt-2.5 pt-2 border-t border-slate-100 dark:border-slate-800">
+																				<button
+																					onclick={() => toggleNode(gm.id)}
+																					class="w-full py-1.5 px-3 rounded-xl font-bold text-[11px] transition-all flex items-center justify-between cursor-pointer {gmExpanded ? 'bg-indigo-600 text-white shadow-xs' : 'bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-500/20'}"
+																				>
+																					<div class="flex items-center gap-1.5">
+																						<span class="material-symbols-outlined text-xs">{gmExpanded ? 'remove_circle' : 'add_circle'}</span>
+																						<span>{gmExpanded ? 'Tutup Manager' : `Buka ${gmManagersCount} Manager`}</span>
+																					</div>
+																					<span class="material-symbols-outlined text-xs transition-transform {gmExpanded ? 'rotate-180' : ''}">
+																						expand_more
+																					</span>
+																				</button>
+																			</div>
+																		{/if}
 																	</div>
 
 																	<!-- Connecting Line from GM to Managers under GM -->
-																	{#if gm.managers && gm.managers.length > 0}
-																		<div class="w-0.5 h-6 bg-slate-300 dark:bg-slate-700"></div>
+																	{#if gmExpanded && gmManagersCount > 0}
+																		<div class="w-0.5 h-6 bg-indigo-400 dark:bg-indigo-600 animate-in fade-in duration-200"></div>
 
-																		<div class="relative flex justify-center">
-																			{#if (gm.managers?.length || 0) > 1}
+																		<div class="relative flex justify-center animate-in fade-in slide-in-from-top-3 duration-200">
+																			{#if gmManagersCount > 1}
 																				<div class="absolute top-0 left-10 right-10 h-0.5 bg-slate-300 dark:bg-slate-700"></div>
 																			{/if}
 
 																			<div class="flex flex-wrap items-start justify-center gap-6 pt-0">
 																				{#each gm.managers as mgr}
-																					{@const isExpanded = expandedManagers[mgr.id.toString()]}
+																					{@const mgrExpanded = isExpanded(mgr.id)}
 																					{@const subInfo = mgr.subordinatesInfo || { totalCount: 0, supervisors: [], directStaff: [], allTeam: [] }}
 																					{@const searchQueryMgr = (managerSearchQueries[mgr.id.toString()] || '').toLowerCase()}
 																					{@const filteredSupervisors = subInfo.supervisors.filter((s: any) => !searchQueryMgr || s.nama_karyawan.toLowerCase().includes(searchQueryMgr) || s.title_name.toLowerCase().includes(searchQueryMgr))}
@@ -666,7 +743,7 @@
 																						<div class="w-0.5 h-6 bg-slate-300 dark:bg-slate-700"></div>
 
 																						<!-- Manager Card -->
-																						<div class="w-64 p-3.5 rounded-3xl bg-surface border-2 {isExpanded ? 'border-purple-500 ring-2 ring-purple-500/20 shadow-xl' : 'border-purple-500/30 hover:border-purple-500/70 shadow-md'} transition-all relative z-10">
+																						<div class="w-64 p-3.5 rounded-3xl bg-surface border-2 {mgrExpanded ? 'border-purple-500 ring-2 ring-purple-500/20 shadow-xl' : 'border-purple-500/30 hover:border-purple-500/70 shadow-md'} transition-all relative z-10">
 																							<div class="flex items-center justify-between mb-2">
 																								<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-purple-500/15 text-purple-600 dark:text-purple-300 border border-purple-500/20 font-bold text-[8px] tracking-wider uppercase">
 																									<span class="material-symbols-outlined text-[10px]">manage_accounts</span>
@@ -707,22 +784,22 @@
 																							<!-- Expand / Collapse Subordinates Button -->
 																							<div class="mt-3 pt-2 border-t border-slate-100 dark:border-slate-800">
 																								<button
-																									onclick={() => toggleManagerExpand(mgr.id.toString())}
-																									class="w-full py-1.5 px-2.5 rounded-xl font-bold text-[11px] transition-all flex items-center justify-between cursor-pointer {isExpanded ? 'bg-purple-600 text-white shadow-xs' : 'bg-purple-500/10 text-purple-700 dark:text-purple-300 hover:bg-purple-500/20'}"
+																									onclick={() => toggleNode(mgr.id)}
+																									class="w-full py-1.5 px-2.5 rounded-xl font-bold text-[11px] transition-all flex items-center justify-between cursor-pointer {mgrExpanded ? 'bg-purple-600 text-white shadow-xs' : 'bg-purple-500/10 text-purple-700 dark:text-purple-300 hover:bg-purple-500/20'}"
 																								>
 																									<div class="flex items-center gap-1">
-																										<span class="material-symbols-outlined text-xs">groups</span>
-																										<span>{subInfo.totalCount} Personel Staf</span>
+																										<span class="material-symbols-outlined text-xs">{mgrExpanded ? 'remove_circle' : 'add_circle'}</span>
+																										<span>{mgrExpanded ? 'Tutup Tim' : `Buka ${subInfo.totalCount} Personel`}</span>
 																									</div>
-																									<span class="material-symbols-outlined text-xs transition-transform {isExpanded ? 'rotate-180' : ''}">
+																									<span class="material-symbols-outlined text-xs transition-transform {mgrExpanded ? 'rotate-180' : ''}">
 																										expand_more
 																									</span>
 																								</button>
 																							</div>
 																						</div>
 
-																						<!-- LEVEL 5+: EXPANDED SUBORDINATES -->
-																						{#if isExpanded}
+																						<!-- LEVEL 5+: EXPANDED SUBORDINATES (SUPERVISOR & STAFF) -->
+																						{#if mgrExpanded}
 																							<div class="flex flex-col items-center pt-0 animate-in fade-in slide-in-from-top-4 duration-200">
 																								<div class="w-0.5 h-6 bg-purple-400 dark:bg-purple-600"></div>
 
@@ -765,7 +842,10 @@
 
 																												<div class="space-y-2">
 																													{#each filteredSupervisors as spv}
-																														<div class="p-2.5 rounded-2xl bg-surface border border-emerald-500/30 shadow-2xs space-y-1.5">
+																														{@const spvExpanded = isExpanded(spv.id)}
+																														{@const spvStaffCount = spv.staff?.length || 0}
+
+																														<div class="p-2.5 rounded-2xl bg-surface border {spvExpanded ? 'border-emerald-500 ring-1 ring-emerald-500/30 shadow-xs' : 'border-emerald-500/30'} space-y-1.5 transition-all">
 																															<div class="flex items-center gap-2">
 																																<div class="w-7 h-7 rounded-lg bg-emerald-500/15 text-emerald-600 flex items-center justify-center font-bold text-xs shrink-0">
 																																	{spv.nama_karyawan ? spv.nama_karyawan.charAt(0) : 'S'}
@@ -779,19 +859,30 @@
 																																</button>
 																															</div>
 
-																															{#if spv.staff && spv.staff.length > 0}
-																																<div class="pl-2.5 border-l-2 border-emerald-500/30 space-y-1 pt-1">
-																																	<p class="text-[8px] font-bold text-slate-400 uppercase">Staf Langsung ({spv.staff.length}):</p>
-																																	<div class="flex flex-wrap gap-1">
-																																		{#each spv.staff as stf}
-																																			<span
-																																				class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-[10px] font-medium text-on-surface border border-slate-200/80 dark:border-slate-700"
-																																				title="{stf.nama_karyawan} ({stf.title_name} - NIK: {stf.payroll_id})"
-																																			>
-																																				<span class="truncate max-w-[110px]">{stf.nama_karyawan}</span>
-																																			</span>
-																																		{/each}
-																																	</div>
+																															{#if spvStaffCount > 0}
+																																<div class="pt-1">
+																																	<button
+																																		onclick={() => toggleNode(spv.id)}
+																																		class="w-full py-1 px-2 rounded-lg text-[9px] font-bold transition-all flex items-center justify-between cursor-pointer {spvExpanded ? 'bg-emerald-600 text-white' : 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/20'}"
+																																	>
+																																		<span>{spvExpanded ? 'Sembunyikan Staf' : `Buka ${spvStaffCount} Staf Langsung`}</span>
+																																		<span class="material-symbols-outlined text-[10px] transition-transform {spvExpanded ? 'rotate-180' : ''}">expand_more</span>
+																																	</button>
+
+																																	{#if spvExpanded}
+																																		<div class="pl-2 border-l-2 border-emerald-500/30 space-y-1 pt-1.5 mt-1 animate-in fade-in duration-150">
+																																			<div class="flex flex-wrap gap-1">
+																																				{#each spv.staff as stf}
+																																					<span
+																																						class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-[10px] font-medium text-on-surface border border-slate-200/80 dark:border-slate-700"
+																																						title="{stf.nama_karyawan} ({stf.title_name} - NIK: {stf.payroll_id})"
+																																					>
+																																						<span class="truncate max-w-[110px]">{stf.nama_karyawan}</span>
+																																					</span>
+																																				{/each}
+																																			</div>
+																																		</div>
+																																	{/if}
 																																</div>
 																															{/if}
 																														</div>
@@ -858,7 +949,7 @@
 
 														<div class="flex flex-wrap items-start justify-center gap-6 pt-0">
 															{#each director.directManagers as mgr}
-																{@const isExpanded = expandedManagers[mgr.id.toString()]}
+																{@const mgrExpanded = isExpanded(mgr.id)}
 																{@const subInfo = mgr.subordinatesInfo || { totalCount: 0, supervisors: [], directStaff: [], allTeam: [] }}
 																{@const searchQueryMgr = (managerSearchQueries[mgr.id.toString()] || '').toLowerCase()}
 																{@const filteredSupervisors = subInfo.supervisors.filter((s: any) => !searchQueryMgr || s.nama_karyawan.toLowerCase().includes(searchQueryMgr) || s.title_name.toLowerCase().includes(searchQueryMgr))}
@@ -868,7 +959,7 @@
 																	<div class="w-0.5 h-6 bg-slate-300 dark:bg-slate-700"></div>
 
 																	<!-- Manager Card -->
-																	<div class="w-64 p-3.5 rounded-3xl bg-surface border-2 {isExpanded ? 'border-purple-500 ring-2 ring-purple-500/20 shadow-xl' : 'border-purple-500/30 hover:border-purple-500/70 shadow-md'} transition-all relative z-10">
+																	<div class="w-64 p-3.5 rounded-3xl bg-surface border-2 {mgrExpanded ? 'border-purple-500 ring-2 ring-purple-500/20 shadow-xl' : 'border-purple-500/30 hover:border-purple-500/70 shadow-md'} transition-all relative z-10">
 																		<div class="flex items-center justify-between mb-2">
 																			<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-purple-500/15 text-purple-600 dark:text-purple-300 border border-purple-500/20 font-bold text-[8px] tracking-wider uppercase">
 																				<span class="material-symbols-outlined text-[10px]">manage_accounts</span>
@@ -909,22 +1000,22 @@
 																		<!-- Expand / Collapse Subordinates Button -->
 																		<div class="mt-3 pt-2 border-t border-slate-100 dark:border-slate-800">
 																			<button
-																				onclick={() => toggleManagerExpand(mgr.id.toString())}
-																				class="w-full py-1.5 px-2.5 rounded-xl font-bold text-[11px] transition-all flex items-center justify-between cursor-pointer {isExpanded ? 'bg-purple-600 text-white shadow-xs' : 'bg-purple-500/10 text-purple-700 dark:text-purple-300 hover:bg-purple-500/20'}"
+																				onclick={() => toggleNode(mgr.id)}
+																				class="w-full py-1.5 px-2.5 rounded-xl font-bold text-[11px] transition-all flex items-center justify-between cursor-pointer {mgrExpanded ? 'bg-purple-600 text-white shadow-xs' : 'bg-purple-500/10 text-purple-700 dark:text-purple-300 hover:bg-purple-500/20'}"
 																			>
 																				<div class="flex items-center gap-1">
-																					<span class="material-symbols-outlined text-xs">groups</span>
-																					<span>{subInfo.totalCount} Personel Staf</span>
+																					<span class="material-symbols-outlined text-xs">{mgrExpanded ? 'remove_circle' : 'add_circle'}</span>
+																					<span>{mgrExpanded ? 'Tutup Tim' : `Buka ${subInfo.totalCount} Personel`}</span>
 																				</div>
-																				<span class="material-symbols-outlined text-xs transition-transform {isExpanded ? 'rotate-180' : ''}">
+																				<span class="material-symbols-outlined text-xs transition-transform {mgrExpanded ? 'rotate-180' : ''}">
 																					expand_more
 																				</span>
 																			</button>
 																		</div>
 																	</div>
 
-																	<!-- LEVEL 5+: EXPANDED SUBORDINATES -->
-																	{#if isExpanded}
+																	<!-- LEVEL 5+: EXPANDED SUBORDINATES (SUPERVISOR & STAFF) -->
+																	{#if mgrExpanded}
 																		<div class="flex flex-col items-center pt-0 animate-in fade-in slide-in-from-top-4 duration-200">
 																			<div class="w-0.5 h-6 bg-purple-400 dark:bg-purple-600"></div>
 
@@ -967,7 +1058,10 @@
 
 																							<div class="space-y-2">
 																								{#each filteredSupervisors as spv}
-																									<div class="p-2.5 rounded-2xl bg-surface border border-emerald-500/30 shadow-2xs space-y-1.5">
+																									{@const spvExpanded = isExpanded(spv.id)}
+																									{@const spvStaffCount = spv.staff?.length || 0}
+
+																									<div class="p-2.5 rounded-2xl bg-surface border {spvExpanded ? 'border-emerald-500 ring-1 ring-emerald-500/30 shadow-xs' : 'border-emerald-500/30'} space-y-1.5 transition-all">
 																										<div class="flex items-center gap-2">
 																											<div class="w-7 h-7 rounded-lg bg-emerald-500/15 text-emerald-600 flex items-center justify-center font-bold text-xs shrink-0">
 																												{spv.nama_karyawan ? spv.nama_karyawan.charAt(0) : 'S'}
@@ -981,19 +1075,30 @@
 																											</button>
 																										</div>
 
-																										{#if spv.staff && spv.staff.length > 0}
-																											<div class="pl-2.5 border-l-2 border-emerald-500/30 space-y-1 pt-1">
-																												<p class="text-[8px] font-bold text-slate-400 uppercase">Staf Langsung ({spv.staff.length}):</p>
-																												<div class="flex flex-wrap gap-1">
-																													{#each spv.staff as stf}
-																														<span
-																															class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-[10px] font-medium text-on-surface border border-slate-200/80 dark:border-slate-700"
-																															title="{stf.nama_karyawan} ({stf.title_name} - NIK: {stf.payroll_id})"
-																														>
-																															<span class="truncate max-w-[110px]">{stf.nama_karyawan}</span>
-																														</span>
-																													{/each}
-																												</div>
+																										{#if spvStaffCount > 0}
+																											<div class="pt-1">
+																												<button
+																													onclick={() => toggleNode(spv.id)}
+																													class="w-full py-1 px-2 rounded-lg text-[9px] font-bold transition-all flex items-center justify-between cursor-pointer {spvExpanded ? 'bg-emerald-600 text-white' : 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/20'}"
+																												>
+																													<span>{spvExpanded ? 'Sembunyikan Staf' : `Buka ${spvStaffCount} Staf Langsung`}</span>
+																													<span class="material-symbols-outlined text-[10px] transition-transform {spvExpanded ? 'rotate-180' : ''}">expand_more</span>
+																												</button>
+
+																												{#if spvExpanded}
+																													<div class="pl-2 border-l-2 border-emerald-500/30 space-y-1 pt-1.5 mt-1 animate-in fade-in duration-150">
+																														<div class="flex flex-wrap gap-1">
+																															{#each spv.staff as stf}
+																																<span
+																																	class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-[10px] font-medium text-on-surface border border-slate-200/80 dark:border-slate-700"
+																																	title="{stf.nama_karyawan} ({stf.title_name} - NIK: {stf.payroll_id})"
+																																>
+																																	<span class="truncate max-w-[110px]">{stf.nama_karyawan}</span>
+																																</span>
+																															{/each}
+																														</div>
+																													</div>
+																												{/if}
 																											</div>
 																										{/if}
 																									</div>
