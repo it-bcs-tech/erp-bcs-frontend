@@ -5,14 +5,38 @@
 	const { kpiRecords, trainingPrograms, metrics, dataSource } = data;
 
 	let activeTab = $state('KPI Evaluations');
-    const tabs = ['KPI Evaluations', 'Training Programs'];
+	const tabs = ['KPI Evaluations', 'Training Programs'];
+	let searchQuery = $state('');
 
-    // Modal State
-    let isAddModalOpen = $state(false);
-    let addModalTab = $state<'kpi'|'training'>('kpi');
-    let kpiType = $state<'PERSONAL'|'DEPARTMENT'>('PERSONAL');
-    
-    const masterData = data.masterData;
+	let filteredKpiRecords = $derived(
+		(kpiRecords || []).filter((kpi: any) => {
+			if (!searchQuery.trim()) return true;
+			const q = searchQuery.toLowerCase();
+			const name = (kpi.employeeName || '').toLowerCase();
+			const empId = (kpi.employeeId || '').toLowerCase();
+			const dept = (kpi.department || '').toLowerCase();
+			const period = (kpi.period || '').toLowerCase();
+			return name.includes(q) || empId.includes(q) || dept.includes(q) || period.includes(q);
+		})
+	);
+
+	let filteredTrainingPrograms = $derived(
+		(trainingPrograms || []).filter((tp: any) => {
+			if (!searchQuery.trim()) return true;
+			const q = searchQuery.toLowerCase();
+			const title = (tp.title || '').toLowerCase();
+			const provider = (tp.provider || '').toLowerCase();
+			const dept = (tp.targetDepartment || '').toLowerCase();
+			return title.includes(q) || provider.includes(q) || dept.includes(q);
+		})
+	);
+
+	// Modal State
+	let isAddModalOpen = $state(false);
+	let addModalTab = $state<'kpi'|'training'>('kpi');
+	let kpiType = $state<'PERSONAL'|'DEPARTMENT'>('PERSONAL');
+	
+	const masterData = data.masterData;
 </script>
 
 <svelte:head>
@@ -80,16 +104,30 @@
 		</div>
 	</div>
 
-	<!-- Tabs (Segmented Control) -->
-	<div class="inline-flex p-1 rounded-2xl bg-surface-container border border-slate-200 dark:border-slate-800 mb-6 max-w-full">
-		{#each tabs as tab}
-			<button 
-				class="px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all cursor-pointer {activeTab === tab ? 'bg-surface text-primary shadow-xs' : 'text-on-surface-variant hover:text-on-surface'}"
-				onclick={() => activeTab = tab}
-			>
-				{tab}
-			</button>
-		{/each}
+	<!-- Unified Filter & Search Bar -->
+	<div class="p-4 rounded-2xl bg-surface-container-low border border-slate-200/60 dark:border-slate-800/60 flex flex-col md:flex-row gap-4 items-center justify-between shadow-xs mb-6">
+		<!-- Tabs (Segmented Control) -->
+		<div class="inline-flex p-1 rounded-2xl bg-surface-container border border-slate-200 dark:border-slate-800 overflow-x-auto max-w-full">
+			{#each tabs as tab}
+				<button 
+					class="px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all cursor-pointer {activeTab === tab ? 'bg-surface text-primary shadow-xs' : 'text-on-surface-variant hover:text-on-surface'}"
+					onclick={() => activeTab = tab}
+				>
+					{tab}
+				</button>
+			{/each}
+		</div>
+
+		<!-- Search Input -->
+		<div class="relative w-full md:w-80 flex-shrink-0">
+			<span class="material-symbols-outlined absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-lg">search</span>
+			<input 
+				type="text" 
+				bind:value={searchQuery}
+				placeholder="Cari karyawan, departemen, program..." 
+				class="w-full bg-surface border border-slate-200 dark:border-slate-700 text-on-surface rounded-xl py-2 pl-10 pr-4 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-primary/40"
+			/>
+		</div>
 	</div>
 
 	<!-- Content Area -->
@@ -107,7 +145,7 @@
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-surface-container">
-                        {#each kpiRecords as kpi}
+                        {#each filteredKpiRecords as kpi}
                             <tr class="group hover:bg-surface-container-low transition-colors">
                                 <td class="py-4 px-6">
                                     <div class="flex items-center gap-2 mb-0.5">
@@ -135,17 +173,17 @@
                                             {kpi.grade}
                                         </div>
                                         <div>
-                                            <p class="text-sm font-black text-on-surface">{kpi.score} <span class="text-xs font-bold text-on-surface-variant">/ 100</span></p>
+                                            <p class="text-sm font-black text-on-surface">{kpi.finalScore} / 100</p>
+                                            <p class="text-[10px] font-medium text-on-surface-variant mt-0.5">{kpi.notes}</p>
                                         </div>
                                     </div>
                                 </td>
                                 <td class="py-4 px-6">
-                                    <span class="text-sm font-medium text-on-surface-variant">{kpi.evaluator}</span>
+                                    <p class="text-sm font-medium text-on-surface">{kpi.evaluatedBy}</p>
+                                    <p class="text-[10px] text-on-surface-variant">{kpi.evaluatedAt}</p>
                                 </td>
                                 <td class="py-4 px-6 text-right">
-                                    <button class="p-2 rounded-lg text-primary hover:bg-primary-container/20 transition-colors">
-                                        <span class="material-symbols-outlined text-[20px]">open_in_new</span>
-                                    </button>
+                                    <button class="text-xs font-bold text-primary hover:underline">Review</button>
                                 </td>
                             </tr>
                         {/each}
@@ -157,15 +195,15 @@
                 <table class="w-full text-left border-collapse min-w-[900px]">
                     <thead>
                         <tr class="border-b border-surface-container sticky top-0 bg-surface-container-lowest z-10">
-                            <th class="py-5 px-6 text-[10px] font-black uppercase tracking-widest text-on-surface-variant">Training Program</th>
+                            <th class="py-5 px-6 text-[10px] font-black uppercase tracking-widest text-on-surface-variant">Program Title</th>
                             <th class="py-5 px-6 text-[10px] font-black uppercase tracking-widest text-on-surface-variant">Date</th>
                             <th class="py-5 px-6 text-[10px] font-black uppercase tracking-widest text-on-surface-variant">Participants</th>
                             <th class="py-5 px-6 text-[10px] font-black uppercase tracking-widest text-on-surface-variant">Status</th>
-                            <th class="py-5 px-6 text-[10px] font-black uppercase tracking-widest text-on-surface-variant text-right">Action</th>
+                            <th class="py-5 px-6 text-[10px] font-black uppercase tracking-widest text-on-surface-variant text-right">Actions</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-surface-container">
-                        {#each trainingPrograms as trn}
+                        {#each filteredTrainingPrograms as trn}
                             <tr class="group hover:bg-surface-container-low transition-colors">
                                 <td class="py-4 px-6">
                                     <p class="text-sm font-bold text-on-surface">{trn.title}</p>

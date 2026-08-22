@@ -106,29 +106,33 @@
 		</div>
 	</div>
 
-	<!-- Filters & Search -->
-	<div class="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 mb-6">
-		<div class="flex gap-3">
+	<!-- Unified Filter & Search Bar -->
+	<div class="p-4 rounded-2xl bg-surface-container-low border border-slate-200/60 dark:border-slate-800/60 flex flex-col md:flex-row gap-4 items-center justify-between shadow-xs mb-6">
+		<div class="flex items-center gap-3 w-full md:w-auto">
+			<div class="flex items-center gap-2">
+				<span class="material-symbols-outlined text-slate-400 text-sm">filter_alt</span>
+				<span class="text-xs font-bold text-on-surface-variant">Filter Status:</span>
+			</div>
 			<select 
 				bind:value={statusFilter} 
 				onchange={handleStatusChange}
-				class="bg-surface-container-lowest border border-outline-variant/30 text-on-surface rounded-xl py-2 px-4 focus:outline-none focus:ring-2 focus:ring-primary/50 text-sm font-medium shadow-sm appearance-none cursor-pointer"
+				class="bg-surface border border-slate-200 dark:border-slate-700 text-on-surface rounded-xl py-2 px-3 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-primary/40 cursor-pointer"
 			>
-				<option value="All">All Status</option>
-				<option value="Pending">Pending</option>
-				<option value="Approved">Approved</option>
-				<option value="Rejected">Rejected</option>
+				<option value="All">Semua Status (All)</option>
+				<option value="Pending">Menunggu (Pending)</option>
+				<option value="Approved">Disetujui (Approved)</option>
+				<option value="Rejected">Ditolak (Rejected)</option>
 			</select>
 		</div>
 
-		<div class="relative w-full lg:w-72 flex-shrink-0">
-			<span class="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-on-surface-variant text-lg">search</span>
+		<div class="relative w-full md:w-80 flex-shrink-0">
+			<span class="material-symbols-outlined absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-lg">search</span>
 			<input 
 				type="text" 
 				bind:value={searchQuery}
 				oninput={handleSearchInput}
-				placeholder="Search employee..." 
-				class="w-full bg-surface-container-lowest border border-outline-variant/30 text-on-surface rounded-full py-2 pl-11 pr-4 focus:outline-none focus:ring-2 focus:ring-primary/50 text-sm font-medium shadow-sm"
+				placeholder="Cari nama karyawan, jenis cuti..." 
+				class="w-full bg-surface border border-slate-200 dark:border-slate-700 text-on-surface rounded-xl py-2 pl-10 pr-4 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-primary/40"
 			/>
 		</div>
 	</div>

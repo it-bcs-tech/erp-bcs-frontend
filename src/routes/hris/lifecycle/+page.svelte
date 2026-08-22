@@ -6,12 +6,28 @@
 
 	let activeTab = $state('All Actions');
 	const tabs = ['All Actions', 'Mutations & Promotions', 'Warning Letters (SP)', 'Terminations'];
+	let searchQuery = $state('');
 
 	let filteredActions = $derived(
-		activeTab === 'All Actions' ? actions :
-		activeTab === 'Mutations & Promotions' ? actions.filter((a: Record<string, any>) => a.type.includes('Mutation') || a.type.includes('Promotion')) :
-		activeTab === 'Warning Letters (SP)' ? actions.filter((a: Record<string, any>) => a.type.includes('Warning')) :
-		actions.filter((a: Record<string, any>) => a.type.includes('Termination'))
+		actions.filter((a: Record<string, any>) => {
+			// Tab Filter
+			if (activeTab === 'Mutations & Promotions' && !a.type.includes('Mutation') && !a.type.includes('Promotion')) return false;
+			if (activeTab === 'Warning Letters (SP)' && !a.type.includes('Warning')) return false;
+			if (activeTab === 'Terminations' && !a.type.includes('Termination')) return false;
+
+			// Search Query Filter
+			if (searchQuery.trim()) {
+				const q = searchQuery.toLowerCase();
+				const name = (a.employee_name || '').toLowerCase();
+				const docId = (a.id || '').toLowerCase();
+				const reason = (a.reason || '').toLowerCase();
+				const type = (a.type || '').toLowerCase();
+				if (!name.includes(q) && !docId.includes(q) && !reason.includes(q) && !type.includes(q)) {
+					return false;
+				}
+			}
+			return true;
+		})
 	);
 
 	// Pagination State
@@ -20,6 +36,7 @@
 
 	$effect(() => {
 		activeTab;
+		searchQuery;
 		currentPage = 1;
 	});
 
@@ -120,16 +137,30 @@
 		</div>
 	</div>
 
-	<!-- Tabs (Segmented Control) -->
-	<div class="inline-flex p-1 rounded-2xl bg-surface-container border border-slate-200 dark:border-slate-800 overflow-x-auto max-w-full">
-		{#each tabs as tab}
-			<button 
-				class="px-4 py-2 text-xs font-bold whitespace-nowrap rounded-xl transition-all cursor-pointer {activeTab === tab ? 'bg-surface text-primary shadow-xs' : 'text-on-surface-variant hover:text-on-surface'}"
-				onclick={() => activeTab = tab}
-			>
-				{tab}
-			</button>
-		{/each}
+	<!-- Unified Filter & Search Bar -->
+	<div class="p-4 rounded-2xl bg-surface-container-low border border-slate-200/60 dark:border-slate-800/60 flex flex-col md:flex-row gap-4 items-center justify-between shadow-xs">
+		<!-- Tabs (Segmented Control) -->
+		<div class="inline-flex p-1 rounded-2xl bg-surface-container border border-slate-200 dark:border-slate-800 overflow-x-auto max-w-full">
+			{#each tabs as tab}
+				<button 
+					class="px-4 py-2 text-xs font-bold whitespace-nowrap rounded-xl transition-all cursor-pointer {activeTab === tab ? 'bg-surface text-primary shadow-xs' : 'text-on-surface-variant hover:text-on-surface'}"
+					onclick={() => activeTab = tab}
+				>
+					{tab}
+				</button>
+			{/each}
+		</div>
+
+		<!-- Search Input -->
+		<div class="relative w-full md:w-80 flex-shrink-0">
+			<span class="material-symbols-outlined absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-lg">search</span>
+			<input 
+				type="text" 
+				bind:value={searchQuery}
+				placeholder="Cari nama karyawan, no. SK/SP..." 
+				class="w-full bg-surface border border-slate-200 dark:border-slate-700 text-on-surface rounded-xl py-2 pl-10 pr-4 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-primary/40"
+			/>
+		</div>
 	</div>
 
 	<!-- Data Table -->

@@ -89,8 +89,8 @@
 		</div>
 	</header>
 
-	<!-- Search and Tabs -->
-	<div class="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 mb-6">
+	<!-- Unified Filter & Search Bar -->
+	<div class="p-4 rounded-2xl bg-surface-container-low border border-slate-200/60 dark:border-slate-800/60 flex flex-col md:flex-row gap-4 items-center justify-between shadow-xs mb-6">
 		<!-- Tabs (Segmented Control) -->
 		<div class="inline-flex p-1 rounded-2xl bg-surface-container border border-slate-200 dark:border-slate-800 overflow-x-auto max-w-full">
 			{#each filters as filter}
@@ -98,20 +98,20 @@
 					class="px-3.5 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all cursor-pointer {activeFilter === filter ? 'bg-surface text-primary shadow-xs' : 'text-on-surface-variant hover:text-on-surface'}"
 					onclick={() => handleFilterClick(filter)}
 				>
-					{filter === 'All' ? 'Semua Dept (All)' : filter}
+					{filter === 'All' ? 'Semua Dept' : filter}
 				</button>
 			{/each}
 		</div>
 
-		<!-- Search -->
-		<div class="relative w-full lg:w-72 flex-shrink-0">
-			<span class="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-on-surface-variant text-lg">search</span>
+		<!-- Search Input -->
+		<div class="relative w-full md:w-80 flex-shrink-0">
+			<span class="material-symbols-outlined absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-lg">search</span>
 			<input 
 				type="text" 
 				bind:value={searchQuery}
 				oninput={handleSearchInput}
-				placeholder="Search by name, role, or ID..." 
-				class="w-full bg-surface-container-lowest border border-outline-variant/30 text-on-surface rounded-full py-2.5 pl-11 pr-4 focus:outline-none focus:ring-2 focus:ring-primary/50 text-sm font-medium"
+				placeholder="Cari nama, jabatan, NIK..." 
+				class="w-full bg-surface border border-slate-200 dark:border-slate-700 text-on-surface rounded-xl py-2 pl-10 pr-4 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-primary/40"
 			/>
 		</div>
 	</div>
