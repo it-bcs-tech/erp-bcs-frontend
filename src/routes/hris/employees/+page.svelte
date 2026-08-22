@@ -7,12 +7,12 @@
 	
 	// Data berasal dari +page.server.ts
 	let employees = $derived(data.employees || []);
+	let directorates = $derived(data.directorates || []);
 	let meta = $derived(data.meta);
 
 	// State yang sinkron dengan URL
 	let searchQuery = $state($page.url.searchParams.get('search') || '');
-	let activeFilter = $state($page.url.searchParams.get('department') || 'All');
-	const filters = ['All', 'Engineering', 'Design', 'Management', 'Marketing', 'Product'];
+	let activeFilter = $state($page.url.searchParams.get('directorate') || $page.url.searchParams.get('department') || 'All');
 	
 	let searchTimer: ReturnType<typeof setTimeout>;
 
@@ -25,8 +25,9 @@
 		}
 		
 		if (activeFilter && activeFilter !== 'All') {
-			url.searchParams.set('department', activeFilter);
+			url.searchParams.set('directorate', activeFilter);
 		} else {
+			url.searchParams.delete('directorate');
 			url.searchParams.delete('department');
 		}
 		
@@ -49,10 +50,10 @@
 	let isAddModalOpen = $state(false);
 
 	// Pagination Compute
-	let totalPages = $derived(Math.max(1, Math.ceil((meta?.total || 0) / (meta?.per_page || 5))));
+	let totalPages = $derived(Math.max(1, Math.ceil((meta?.total || 0) / (meta?.per_page || 10))));
 	let currentPage = $derived(meta?.current_page || 1);
-	let startItem = $derived(meta?.total === 0 ? 0 : ((currentPage - 1) * (meta?.per_page || 5)) + 1);
-	let endItem = $derived(Math.min(currentPage * (meta?.per_page || 5), meta?.total || 0));
+	let startItem = $derived(meta?.total === 0 ? 0 : ((currentPage - 1) * (meta?.per_page || 10)) + 1);
+	let endItem = $derived(Math.min(currentPage * (meta?.per_page || 10), meta?.total || 0));
 
 	function goToPage(page: number) {
 		if (page < 1 || page > totalPages) return;
@@ -75,7 +76,7 @@
 				<h1 class="text-2xl font-black text-on-surface tracking-tight">Employee Directory</h1>
 			</div>
 			<p class="text-on-surface-variant font-medium text-sm mt-0.5">
-				Kelola Direktori Karyawan, Data Jabatan, Departemen & Profil Personel Perusahaan
+				Kelola Direktori Karyawan, Data Jabatan, Direktorat & Profil Personel Perusahaan
 			</p>
 		</div>
 		<div class="flex gap-2.5">
@@ -91,14 +92,20 @@
 
 	<!-- Unified Filter & Search Bar -->
 	<div class="p-4 rounded-2xl bg-surface-container-low border border-slate-200/60 dark:border-slate-800/60 flex flex-col md:flex-row gap-4 items-center justify-between shadow-xs mb-6">
-		<!-- Tabs (Segmented Control) -->
+		<!-- Tabs (Segmented Control berdasarkan Direktorat) -->
 		<div class="inline-flex p-1 rounded-2xl bg-surface-container border border-slate-200 dark:border-slate-800 overflow-x-auto max-w-full">
-			{#each filters as filter}
+			<button 
+				class="px-3.5 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all cursor-pointer {activeFilter === 'All' ? 'bg-surface text-primary shadow-xs' : 'text-on-surface-variant hover:text-on-surface'}"
+				onclick={() => handleFilterClick('All')}
+			>
+				Semua Direktorat (All)
+			</button>
+			{#each directorates as dir}
 				<button 
-					class="px-3.5 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all cursor-pointer {activeFilter === filter ? 'bg-surface text-primary shadow-xs' : 'text-on-surface-variant hover:text-on-surface'}"
-					onclick={() => handleFilterClick(filter)}
+					class="px-3.5 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all cursor-pointer {activeFilter === dir.dir_code || activeFilter === dir.dir_name ? 'bg-surface text-primary shadow-xs' : 'text-on-surface-variant hover:text-on-surface'}"
+					onclick={() => handleFilterClick(dir.dir_code)}
 				>
-					{filter === 'All' ? 'Semua Dept' : filter}
+					{dir.dir_name}
 				</button>
 			{/each}
 		</div>
@@ -139,24 +146,31 @@
 									</div>
 									<div>
 										<p class="text-sm font-bold text-on-surface group-hover:text-primary transition-colors">{emp.name}</p>
-										<p class="text-xs text-on-surface-variant font-medium mt-0.5">{emp.id}</p>
+										<p class="text-xs text-on-surface-variant font-mono font-medium mt-0.5">{emp.payroll_id || emp.id}</p>
 									</div>
 								</a>
 							</td>
 							<td class="py-4 px-6">
 								<p class="text-sm font-bold text-on-surface">{emp.role}</p>
-								<div class="inline-flex items-center gap-1.5 mt-1 px-2.5 py-0.5 rounded-md bg-surface-container-high text-on-surface-variant text-[10px] font-bold uppercase tracking-wider">
-									{emp.department}
+								<div class="flex items-center gap-1.5 mt-1 flex-wrap">
+									<span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md bg-blue-500/10 text-blue-600 dark:text-blue-300 text-[10px] font-bold uppercase tracking-wider">
+										{emp.directorate || 'Operations'}
+									</span>
+									{#if emp.department && emp.department !== emp.directorate}
+										<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-surface-container-high text-on-surface-variant text-[10px] font-medium">
+											{emp.department}
+										</span>
+									{/if}
 								</div>
 							</td>
 							<td class="py-4 px-6">
 								{#if emp.status === 'Active'}
-									<span class="inline-flex items-center gap-2 text-green-700 font-bold text-xs bg-green-500/20 px-3 py-1.5 rounded-full">
-										<span class="w-1.5 h-1.5 rounded-full bg-green-600"></span> Active
+									<span class="inline-flex items-center gap-2 text-emerald-700 dark:text-emerald-300 font-bold text-xs bg-emerald-500/15 px-3 py-1 rounded-full">
+										<span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> Active
 									</span>
 								{:else}
-									<span class="inline-flex items-center gap-2 text-error font-bold text-xs bg-error-container/30 px-3 py-1.5 rounded-full">
-										<span class="w-1.5 h-1.5 rounded-full bg-error"></span> On Leave
+									<span class="inline-flex items-center gap-2 text-amber-700 dark:text-amber-300 font-bold text-xs bg-amber-500/15 px-3 py-1 rounded-full">
+										<span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span> On Leave
 									</span>
 								{/if}
 							</td>
