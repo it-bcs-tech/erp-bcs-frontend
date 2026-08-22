@@ -255,39 +255,45 @@
 
 	<!-- TAB 1: DAILY PRESENCE LOGS -->
 	{#if activeTab === 'logs'}
-		<!-- Filters & Search Sederhana (Tanggal, Lokasi/Pool, dan Pencarian Teks) -->
-		<div class="flex flex-col md:flex-row md:items-center justify-between gap-3 bg-surface-container-low p-4 rounded-2xl border border-slate-200/60 dark:border-slate-800/60 shadow-xs">
-			<div class="flex flex-wrap items-center gap-3">
-				<!-- Filter Tanggal Sederhana -->
-				<div class="flex items-center gap-2 bg-surface px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-800 shadow-2xs">
-					<span class="material-symbols-outlined text-primary text-lg">calendar_today</span>
-					<label class="text-xs font-bold text-on-surface-variant">Tanggal:</label>
-					<input 
-						type="date" 
-						bind:value={dateFilter}
-						onchange={handleFilterChange}
-						class="bg-transparent text-on-surface text-sm font-medium focus:outline-none cursor-pointer"
-					/>
-					{#if dateFilter}
-						<button 
-							type="button" 
-							onclick={() => { dateFilter = ''; handleFilterChange(); }} 
-							class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 ml-1 cursor-pointer"
-							title="Tampilkan semua tanggal"
-						>
-							<span class="material-symbols-outlined text-sm">close</span>
-						</button>
-					{/if}
+		<!-- Filters & Search Bar (Tanggal, Lokasi/Pool, dan Pencarian Teks) -->
+		<div class="p-4 rounded-2xl bg-surface-container-low border border-slate-200/60 dark:border-slate-800/60 flex flex-col md:flex-row gap-4 items-center justify-between shadow-xs">
+			<div class="flex flex-wrap items-center gap-4 w-full md:w-auto">
+				<!-- Filter Tanggal -->
+				<div class="flex items-center gap-2">
+					<div class="flex items-center gap-1.5 text-xs font-bold text-on-surface-variant">
+						<span class="material-symbols-outlined text-slate-400 text-sm">calendar_today</span>
+						<span>Tanggal:</span>
+					</div>
+					<div class="relative flex items-center">
+						<input 
+							type="date" 
+							bind:value={dateFilter}
+							onchange={handleFilterChange}
+							class="bg-surface border border-slate-200 dark:border-slate-700 text-on-surface rounded-xl py-1.5 px-3 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-primary/40 cursor-pointer shadow-2xs"
+						/>
+						{#if dateFilter}
+							<button 
+								type="button" 
+								onclick={() => { dateFilter = ''; handleFilterChange(); }} 
+								class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 ml-1.5 cursor-pointer"
+								title="Reset tanggal"
+							>
+								<span class="material-symbols-outlined text-xs">close</span>
+							</button>
+						{/if}
+					</div>
 				</div>
 
 				<!-- Filter Lokasi / Pool -->
-				<div class="flex items-center gap-2 bg-surface px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-800 shadow-2xs">
-					<span class="material-symbols-outlined text-primary text-lg">location_on</span>
-					<label class="text-xs font-bold text-on-surface-variant">Lokasi:</label>
+				<div class="flex items-center gap-2">
+					<div class="flex items-center gap-1.5 text-xs font-bold text-on-surface-variant">
+						<span class="material-symbols-outlined text-slate-400 text-sm">location_on</span>
+						<span>Lokasi:</span>
+					</div>
 					<select
 						bind:value={selectedPoolFilter}
 						onchange={handleFilterChange}
-						class="bg-transparent text-on-surface text-sm font-medium focus:outline-none cursor-pointer pr-2"
+						class="bg-surface border border-slate-200 dark:border-slate-700 text-on-surface rounded-xl py-1.5 px-3 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-primary/40 cursor-pointer shadow-2xs"
 					>
 						<option value="All">Semua Lokasi / Pool</option>
 						{#each availableLocations as loc}
@@ -300,20 +306,20 @@
 			</div>
 
 			<!-- Pencarian Teks (Nama, NIK, Departemen) -->
-			<div class="relative w-full md:w-72 flex-shrink-0">
+			<div class="relative w-full md:w-80 flex-shrink-0">
 				<span class="material-symbols-outlined absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-lg">search</span>
 				<input 
 					type="text" 
 					bind:value={searchQuery}
 					onkeydown={(e) => e.key === 'Enter' && handleFilterChange()}
-					placeholder="Cari nama / NIK / lokasi..." 
-					class="w-full bg-surface border border-slate-200 dark:border-slate-800 text-on-surface rounded-xl py-2 pl-10 pr-8 focus:outline-none focus:ring-2 focus:ring-primary/50 text-sm font-medium shadow-xs"
+					placeholder="Cari nama, NIK, shift, lokasi..." 
+					class="w-full bg-surface border border-slate-200 dark:border-slate-700 text-on-surface rounded-xl py-2 pl-10 pr-8 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-primary/40 shadow-2xs"
 				/>
 				{#if searchQuery}
 					<button 
 						type="button" 
-						onclick={() => { searchQuery = ''; handleFilterChange(); }}
-						class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+						onclick={() => { searchQuery = ''; handleFilterChange(); }} 
+						class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
 					>
 						<span class="material-symbols-outlined text-sm">close</span>
 					</button>
