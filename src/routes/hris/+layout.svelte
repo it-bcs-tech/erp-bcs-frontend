@@ -26,6 +26,10 @@
 				<span class="material-symbols-outlined">dashboard</span>
 				<span class="font-medium text-sm">Overview</span>
 			</a>
+			<a class="flex items-center gap-3 px-4 py-3 rounded-xl transition-transform duration-200 hover:translate-x-1 {$page.url.pathname.includes('/hris/recruitment') ? 'bg-surface-container-highest text-primary' : 'text-on-surface-variant hover:bg-surface-container'}" href="/hris/recruitment">
+				<span class="material-symbols-outlined">person_search</span>
+				<span class="font-medium text-sm">Recruitment & ATS</span>
+			</a>
 			<a class="flex items-center gap-3 px-4 py-3 rounded-xl transition-transform duration-200 hover:translate-x-1 {$page.url.pathname.includes('/hris/employees') ? 'bg-surface-container-highest text-primary' : 'text-on-surface-variant hover:bg-surface-container'}" href="/hris/employees">
 				<span class="material-symbols-outlined">badge</span>
 				<span class="font-medium text-sm">Employees</span>

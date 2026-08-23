@@ -49,6 +49,29 @@
 	let assignedDivision = $state('Logistik & Operasional Armada');
 	let successToast = $state(false);
 
+	let searchQuery = $state('');
+	let activeRoleFilter = $state('All');
+	const roleFilters = ['All', 'Driver', 'Mekanik', 'Dispatcher'];
+
+	let filteredPipeline = $derived(
+		pipeline.map(col => {
+			const filteredCandidates = col.candidates.filter(c => {
+				const matchesSearch = !searchQuery.trim() || 
+					c.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
+					c.role.toLowerCase().includes(searchQuery.toLowerCase()) ||
+					c.status.toLowerCase().includes(searchQuery.toLowerCase());
+				
+				const matchesRole = activeRoleFilter === 'All' || c.role.toLowerCase().includes(activeRoleFilter.toLowerCase());
+				return matchesSearch && matchesRole;
+			});
+			return {
+				...col,
+				count: filteredCandidates.length,
+				candidates: filteredCandidates
+			};
+		})
+	);
+
 	function openOnboardModal(candidate: any) {
 		selectedCandidateForOnboard = candidate;
 		assignedNik = `EMP-2026-${Math.floor(100 + Math.random() * 900)}`;
@@ -83,7 +106,7 @@
 	<!-- Header & Actions -->
 	<header class="flex flex-col md:flex-row md:items-end justify-between gap-4 flex-shrink-0">
 		<div>
-			<div class="flex items-center gap-2">
+			<div class="flex items-center gap-2.5">
 				<span class="material-symbols-outlined text-primary text-2xl">person_search</span>
 				<h1 class="text-2xl font-black text-on-surface tracking-tight">Recruitment Pipeline & ATS</h1>
 			</div>
@@ -91,7 +114,7 @@
 				Tracking Pelamar, Uji SIM B2/Mekanik, Offering, & Auto-Onboard Karyawan BCS
 			</p>
 		</div>
-		<div class="flex gap-2">
+		<div class="flex gap-2.5">
 			<button class="bg-surface-container-low border border-slate-200 dark:border-slate-800 text-on-surface px-4 py-2.5 rounded-xl text-sm font-semibold flex items-center gap-2 hover:bg-surface-container transition-colors shadow-xs">
 				<span class="material-symbols-outlined text-lg">work</span>
 				<span>Lowongan Aktif (5)</span>
@@ -103,10 +126,36 @@
 		</div>
 	</header>
 
+	<!-- Unified Filter & Search Bar -->
+	<div class="p-4 rounded-2xl bg-surface-container-low border border-slate-200/60 dark:border-slate-800/60 flex flex-col md:flex-row gap-4 items-center justify-between shadow-xs flex-shrink-0">
+		<!-- Tabs (Segmented Control Kategori Posisi) -->
+		<div class="inline-flex p-1 rounded-2xl bg-surface-container border border-slate-200 dark:border-slate-800 overflow-x-auto max-w-full">
+			{#each roleFilters as rf}
+				<button 
+					class="px-3.5 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all cursor-pointer {activeRoleFilter === rf ? 'bg-surface text-primary shadow-xs' : 'text-on-surface-variant hover:text-on-surface'}"
+					onclick={() => activeRoleFilter = rf}
+				>
+					{rf === 'All' ? 'Semua Posisi' : rf}
+				</button>
+			{/each}
+		</div>
+
+		<!-- Search Input -->
+		<div class="relative w-full md:w-80 flex-shrink-0">
+			<span class="material-symbols-outlined absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-lg">search</span>
+			<input 
+				type="text" 
+				bind:value={searchQuery}
+				placeholder="Cari kandidat, sertifikasi, SIM..." 
+				class="w-full bg-surface border border-slate-200 dark:border-slate-700 text-on-surface rounded-xl py-2 pl-10 pr-4 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-primary/40"
+			/>
+		</div>
+	</div>
+
 	<!-- Kanban Board -->
 	<div class="flex-1 overflow-x-auto overflow-y-hidden pb-4 hide-scrollbar">
 		<div class="flex h-full gap-5 min-w-max px-1">
-			{#each pipeline as column}
+			{#each filteredPipeline as column}
 				<!-- Column -->
 				<div class="w-80 flex flex-col h-full bg-surface-container-low/70 rounded-3xl border border-slate-200/60 dark:border-slate-800/60 shadow-xs">
 					<!-- Column Header -->
