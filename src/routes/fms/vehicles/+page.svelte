@@ -24,6 +24,7 @@
 	let selectedVehicle = $state<any | null>(null);
 	let telematicsDetail = $state<any | null>(null);
 	let fuelSensorDetail = $state<{ logs: any[], anomalies: any[] } | null>(null);
+	let tiresDetail = $state<any[]>([]);
 	let isLoadingTelematics = $state(false);
 
 	async function openVehicleDetail(vhc: any) {
@@ -31,19 +32,22 @@
 		showVehicleDrawer = true;
 		telematicsDetail = null;
 		fuelSensorDetail = null;
+		tiresDetail = [];
 		isLoadingTelematics = true;
 
 		try {
 			const unitId = vhc.nomor_unit || vhc.id;
-			const [telRes, fuelRes] = await Promise.all([
+			const [telRes, fuelRes, tiresRes] = await Promise.all([
 				fetch(`/api/fms/telematics/live?unitId=${encodeURIComponent(unitId)}`).then(r => r.json()).catch(() => null),
-				fetch(`/api/fms/telematics/fuel-sensor/${encodeURIComponent(unitId)}`).then(r => r.json()).catch(() => null)
+				fetch(`/api/fms/telematics/fuel-sensor/${encodeURIComponent(unitId)}`).then(r => r.json()).catch(() => null),
+				fetch(`/api/fms/tires/vehicle/${encodeURIComponent(unitId)}`).then(r => r.json()).catch(() => null)
 			]);
 
 			if (telRes?.success) telematicsDetail = telRes.data;
 			if (fuelRes?.success) fuelSensorDetail = fuelRes.data;
+			if (tiresRes?.success && tiresRes.data) tiresDetail = tiresRes.data.positions || [];
 		} catch (e) {
-			console.error("Failed to load vehicle telematics", e);
+			console.error("Failed to load vehicle telematics/tires", e);
 		} finally {
 			isLoadingTelematics = false;
 		}
@@ -711,6 +715,45 @@
 									<span class="material-symbols-outlined text-base">check_circle</span>
 									<span>Profil konsumsi solar normal (Tidak ada anomali drop 24 jam terakhir)</span>
 								</div>
+							</div>
+						{/if}
+					</div>
+
+					<!-- Section: Tire Management System (TMS) — Status Ban Terpasang -->
+					<div class="p-5 rounded-2xl bg-surface border border-slate-200/60 dark:border-slate-800/60 space-y-3">
+						<div class="flex items-center justify-between border-b border-slate-200/60 dark:border-slate-800/60 pb-3">
+							<div class="flex items-center gap-2">
+								<span class="material-symbols-outlined text-blue-600 text-lg">tire_repair</span>
+								<h3 class="text-xs font-black text-on-surface uppercase tracking-wider">Status Ban Terpasang (TMS)</h3>
+							</div>
+							<a href="/fms/tires?unit={selectedVehicle.nomor_unit || selectedVehicle.id}" class="text-[11px] font-bold text-blue-600 hover:underline">Kelola & Rotasi</a>
+						</div>
+
+						{#if tiresDetail && tiresDetail.length > 0}
+							<div class="space-y-2">
+								<div class="grid grid-cols-2 gap-2">
+									{#each tiresDetail.slice(0, 6) as tire}
+										<div class="p-2.5 rounded-xl bg-surface-container-low border border-slate-200/60 dark:border-slate-800/60">
+											<div class="flex justify-between items-center text-[10px]">
+												<span class="font-black text-blue-600">{tire.position_code}</span>
+												<span class="font-bold font-mono {Number(tire.current_tread_depth_mm) < 4.0 ? 'text-rose-600' : 'text-emerald-600'}">
+													{tire.current_tread_depth_mm || '—'} mm
+												</span>
+											</div>
+											<p class="text-[11px] font-bold text-on-surface truncate mt-1">{tire.brand || '—'}</p>
+											<p class="text-[9px] text-on-surface-variant font-mono truncate">{tire.serial_number || '—'}</p>
+										</div>
+									{/each}
+								</div>
+								{#if tiresDetail.length > 6}
+									<p class="text-[10px] text-center text-on-surface-variant font-medium pt-1">
+										+ {tiresDetail.length - 6} roda lainnya terpasang pada unit ini
+									</p>
+								{/if}
+							</div>
+						{:else}
+							<div class="py-3 text-center text-on-surface-variant">
+								<p class="text-xs font-medium">Memuat data ban...</p>
 							</div>
 						{/if}
 					</div>
