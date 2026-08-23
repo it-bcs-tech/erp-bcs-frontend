@@ -166,75 +166,81 @@
 	<title>Master Rute & UJO | Marketing</title>
 </svelte:head>
 
-<div class="flex flex-col h-full">
-	<header class="mb-8 flex flex-col md:flex-row md:items-end justify-between gap-4">
+<div class="flex flex-col h-full space-y-6">
+	<!-- Header & Actions -->
+	<header class="flex flex-col md:flex-row md:items-end justify-between gap-4 flex-shrink-0">
 		<div>
-			<h1 class="text-3xl font-extrabold text-on-surface tracking-tight mb-2">Master Rute & Harga (UJO)</h1>
-			<p class="text-on-surface-variant font-medium text-sm">Kelola katalog biaya operasional dan tarif berdasarkan rute dan tipe unit</p>
+			<div class="flex items-center gap-2.5">
+				<span class="material-symbols-outlined text-blue-600 dark:text-blue-400 text-2xl">route</span>
+				<h1 class="text-2xl font-black text-on-surface tracking-tight">Master Rute & Standar Biaya (UJO)</h1>
+			</div>
+			<p class="text-on-surface-variant font-medium text-sm mt-0.5">
+				Kelola katalog jarak rute, estimasi konsumsi BBM solar, rincian biaya gerbang tol, dan perhitungan dasar UJO
+			</p>
 		</div>
-		<button onclick={() => { resetForm(); showModal = true; }} class="bg-sky-600 text-white px-5 py-2.5 rounded-xl text-sm font-semibold shadow-sm flex items-center gap-2 hover:bg-sky-700 transition-colors">
+		<button onclick={() => { resetForm(); showModal = true; }} class="bg-blue-600 text-white px-4 py-2.5 rounded-xl text-sm font-bold shadow-xs flex items-center gap-2 hover:bg-blue-700 transition-colors cursor-pointer">
 			<span class="material-symbols-outlined text-lg">add_road</span>
-			Tambah Rute UJO
+			<span>Tambah Rute UJO</span>
 		</button>
 	</header>
 
 	{#if form?.error || form?.message}
-		<div class="mb-6 p-4 rounded-xl border {form.error ? 'bg-sky-50 border-sky-200 text-sky-700' : 'bg-emerald-50 border-emerald-200 text-emerald-700'} flex items-center gap-3">
+		<div class="p-4 rounded-xl border {form.error ? 'bg-rose-50 border-rose-200 text-rose-700' : 'bg-emerald-50 border-emerald-200 text-emerald-700'} flex items-center gap-3 shadow-xs">
 			<span class="material-symbols-outlined">{form.error ? 'error' : 'check_circle'}</span>
-			<p class="text-sm font-bold">{form.error || form.message}</p>
+			<p class="text-xs font-bold">{form.error || form.message}</p>
 		</div>
 	{/if}
 
-	<div class="bg-surface-container-lowest rounded-[24px] shadow-sm border border-surface-container overflow-hidden flex-1">
+	<div class="rounded-2xl bg-surface-container-low border border-slate-200/60 dark:border-slate-800/60 overflow-hidden shadow-xs flex-1">
 		<div class="overflow-x-auto">
-			<table class="w-full text-left text-sm">
-				<thead class="bg-surface-container-low text-on-surface-variant">
+			<table class="w-full text-left text-sm min-w-[900px]">
+				<thead class="bg-slate-100/70 dark:bg-slate-800/50 text-xs font-bold text-on-surface-variant uppercase tracking-wider border-b border-slate-200/60 dark:border-slate-800/60">
 					<tr>
-						<th class="px-6 py-4 font-black uppercase tracking-wider text-[10px]">Rute (Origin &rarr; Dest)</th>
-						<th class="px-6 py-4 font-black uppercase tracking-wider text-[10px]">Tipe Unit</th>
-						<th class="px-6 py-4 font-black uppercase tracking-wider text-[10px]">Est. Jarak</th>
-						<th class="px-6 py-4 font-black uppercase tracking-wider text-[10px]">Total Biaya Solar</th>
-						<th class="px-6 py-4 font-black uppercase tracking-wider text-[10px]">Total Biaya Tol</th>
-						<th class="px-6 py-4 font-black uppercase tracking-wider text-[10px] text-sky-600">Total Pokok UJO</th>
-						<th class="px-6 py-4 font-black uppercase tracking-wider text-[10px] text-emerald-600">Tarif Customer</th>
+						<th class="py-3.5 px-5">Rute (Origin &rarr; Dest)</th>
+						<th class="py-3.5 px-5">Tipe Unit</th>
+						<th class="py-3.5 px-5">Est. Jarak</th>
+						<th class="py-3.5 px-5">Total Biaya Solar</th>
+						<th class="py-3.5 px-5">Total Biaya Tol</th>
+						<th class="py-3.5 px-5 text-blue-600">Total Pokok UJO</th>
+						<th class="py-3.5 px-5 text-emerald-600">Tarif Customer</th>
 					</tr>
 				</thead>
-				<tbody class="divide-y divide-surface-container">
+				<tbody class="divide-y divide-slate-200/60 dark:divide-slate-800/60">
 					{#if data.ruteList.length === 0}
 						<tr>
-							<td colspan="7" class="px-6 py-12 text-center text-on-surface-variant">
-								<span class="material-symbols-outlined text-4xl mb-2 opacity-50">route</span>
-								<p class="font-medium">Belum ada Master Rute yang dibuat.</p>
+							<td colspan="7" class="py-16 text-center text-on-surface-variant">
+								<span class="material-symbols-outlined text-4xl mb-2 opacity-50 block">route</span>
+								<p class="font-bold text-on-surface">Belum ada Master Rute yang dibuat.</p>
 							</td>
 						</tr>
 					{:else}
 						{#each data.ruteList as r}
-							<tr class="hover:bg-surface-container-low/50 transition-colors group cursor-pointer">
-								<td class="px-6 py-4">
+							<tr class="hover:bg-surface-container transition-colors group cursor-pointer">
+								<td class="py-4 px-5">
 									<div class="font-bold text-on-surface">{r.origin_name} &rarr;</div>
-									<div class="font-bold text-on-surface">{r.destination_name}</div>
+									<div class="font-bold text-on-surface text-xs text-on-surface-variant mt-0.5">{r.destination_name}</div>
 								</td>
-								<td class="px-6 py-4">
-									<span class="px-2.5 py-1 rounded-md bg-surface-container text-[11px] font-bold text-on-surface-variant uppercase tracking-wide">
+								<td class="py-4 px-5">
+									<span class="px-2.5 py-1 rounded-md bg-surface-container-high text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">
 										{r.tipe_unit_name}
 									</span>
 								</td>
-								<td class="px-6 py-4 font-medium text-on-surface-variant">
+								<td class="py-4 px-5 font-medium text-on-surface">
 									{parseFloat(r.jarak_km).toFixed(1)} KM
-									<div class="text-[10px] text-on-surface-variant/70 mt-0.5">~{parseFloat(r.liter_solar).toFixed(1)} L</div>
+									<div class="text-[10px] text-on-surface-variant mt-0.5 font-mono">~{parseFloat(r.liter_solar).toFixed(1)} L</div>
 								</td>
-								<td class="px-6 py-4 font-medium text-on-surface-variant">
+								<td class="py-4 px-5 font-medium text-on-surface">
 									{formatCurrency(parseFloat(r.biaya_solar))}
 								</td>
-								<td class="px-6 py-4 font-medium text-on-surface-variant">
+								<td class="py-4 px-5 font-medium text-on-surface">
 									{formatCurrency(parseFloat(r.biaya_tol))}
 								</td>
-								<td class="px-6 py-4">
-									<div class="font-black text-sky-600 dark:text-sky-400 bg-sky-50 dark:bg-sky-900/20 px-3 py-1.5 rounded-lg inline-block">
+								<td class="py-4 px-5">
+									<div class="font-black text-blue-600 dark:text-blue-400 bg-blue-500/10 px-3 py-1.5 rounded-lg inline-block border border-blue-500/20">
 										{formatCurrency(parseFloat(r.total_ujo))}
 									</div>
 								</td>
-								<td class="px-6 py-4">
+								<td class="py-4 px-5">
 									<div class="font-black text-emerald-600 dark:text-emerald-400">
 										{r.tarif_customer ? formatCurrency(parseFloat(r.tarif_customer)) : '-'}
 									</div>

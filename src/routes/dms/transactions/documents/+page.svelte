@@ -52,118 +52,127 @@
 	<title>All Documents | DMS | ERP BCS</title>
 </svelte:head>
 
-<div class="px-6 py-8 w-full mx-auto">
-	<header class="mb-8 flex justify-between items-end">
+<div class="flex flex-col h-full space-y-6">
+	<!-- Header -->
+	<header class="flex flex-col md:flex-row md:items-end justify-between gap-4 flex-shrink-0">
 		<div>
-			<h1 class="text-3xl font-extrabold text-on-surface tracking-tight">All Documents</h1>
-			<p class="text-sm font-medium text-on-surface-variant mt-1">Manage Contracts, Licenses, and Asset Certificates in one central repository.</p>
+			<div class="flex items-center gap-2.5">
+				<span class="material-symbols-outlined text-indigo-600 dark:text-indigo-400 text-2xl">folder_shared</span>
+				<h1 class="text-2xl font-black text-on-surface tracking-tight">Daftar Dokumen & Berkas Legal</h1>
+			</div>
+			<p class="text-on-surface-variant font-medium text-sm mt-0.5">
+				Kelola seluruh kontrak kerjasama, lisensi izin operasi, sertifikat aset, dan notarisasi perusahaan
+			</p>
 		</div>
 		<div class="flex gap-3">
-			<a href="/dms/transactions/documents/create" class="bg-primary text-on-primary px-4 py-2.5 rounded-xl text-sm font-bold flex items-center gap-2 shadow-sm hover:opacity-90 transition-opacity">
-				<span class="material-symbols-outlined text-[18px]">add</span>
-				New Document
+			<a href="/dms/transactions/documents/create" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2.5 rounded-xl text-sm font-bold shadow-xs flex items-center gap-2 transition-colors">
+				<span class="material-symbols-outlined text-lg">add</span>
+				<span>Tambah Dokumen</span>
 			</a>
 		</div>
 	</header>
 
-	<!-- Search & Filters -->
-	<form method="GET" data-sveltekit-keepfocus data-sveltekit-replacestate class="bg-surface-container-lowest rounded-t-3xl p-4 border border-b-0 border-surface-variant/20 flex gap-4">
-		<!-- Keep existing page/limit params if any -->
-		<input type="hidden" name="limit" value={data.pagination.limit} />
-		<div class="relative flex-1 max-w-md">
-			<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant">search</span>
-			<input type="text" name="q" value={q} placeholder="Search document number or title... (Press Enter)" class="w-full bg-surface-container rounded-xl py-2 pl-10 pr-4 text-sm outline-none focus:ring-2 focus:ring-primary border border-transparent">
-		</div>
-		<select name="type" onchange={handleFilterChange} class="bg-surface-container rounded-xl py-2 px-4 text-sm font-medium outline-none border border-transparent focus:ring-2 focus:ring-primary">
-			<option value="" selected={type === ''}>All Types</option>
-			{#each data.docTypes as dt}
-				<option value={dt.code} selected={type === dt.code}>{dt.name}</option>
-			{/each}
-		</select>
-		<select name="status" onchange={handleFilterChange} class="bg-surface-container rounded-xl py-2 px-4 text-sm font-medium outline-none border border-transparent focus:ring-2 focus:ring-primary">
-			<option value="" selected={status === ''}>All Statuses</option>
-			<option value="ACTIVE" selected={status === 'ACTIVE'}>Active</option>
-			<option value="EXPIRED" selected={status === 'EXPIRED'}>Expired</option>
-			<option value="REVOKED" selected={status === 'REVOKED'}>Revoked</option>
-			<option value="FINISHED" selected={status === 'FINISHED'}>Finished</option>
-			<option value="INACTIVE" selected={status === 'INACTIVE'}>Inactive</option>
-		</select>
-	</form>
+	<!-- Table Container with Filter Header -->
+	<div class="rounded-2xl bg-surface-container-low border border-slate-200/60 dark:border-slate-800/60 overflow-hidden shadow-xs flex-1 flex flex-col">
+		<!-- Search & Filters Bar -->
+		<form method="GET" data-sveltekit-keepfocus data-sveltekit-replacestate class="p-4 border-b border-slate-200/60 dark:border-slate-800/60 bg-slate-50/50 dark:bg-slate-800/30 flex flex-col sm:flex-row gap-3">
+			<!-- Keep existing page/limit params if any -->
+			<input type="hidden" name="limit" value={data.pagination.limit} />
+			<div class="relative flex-1">
+				<span class="material-symbols-outlined absolute left-3.5 top-1/2 -translate-y-1/2 text-on-surface-variant text-lg">search</span>
+				<input type="text" name="q" value={q} placeholder="Cari nomor dokumen atau judul berkas..." class="w-full bg-surface border border-slate-200 dark:border-slate-800 rounded-xl py-2 pl-10 pr-4 text-xs font-medium text-on-surface focus:outline-none focus:ring-2 focus:ring-indigo-500/50 shadow-xs">
+			</div>
+			<select name="type" onchange={handleFilterChange} class="bg-surface border border-slate-200 dark:border-slate-800 rounded-xl py-2 px-3 text-xs font-bold text-on-surface focus:outline-none focus:ring-2 focus:ring-indigo-500/50 shadow-xs cursor-pointer">
+				<option value="" selected={type === ''}>Semua Tipe Dokumen</option>
+				{#each data.docTypes as dt}
+					<option value={dt.code} selected={type === dt.code}>{dt.name}</option>
+				{/each}
+			</select>
+			<select name="status" onchange={handleFilterChange} class="bg-surface border border-slate-200 dark:border-slate-800 rounded-xl py-2 px-3 text-xs font-bold text-on-surface focus:outline-none focus:ring-2 focus:ring-indigo-500/50 shadow-xs cursor-pointer">
+				<option value="" selected={status === ''}>Semua Status</option>
+				<option value="ACTIVE" selected={status === 'ACTIVE'}>Active</option>
+				<option value="EXPIRED" selected={status === 'EXPIRED'}>Expired</option>
+				<option value="REVOKED" selected={status === 'REVOKED'}>Revoked</option>
+				<option value="FINISHED" selected={status === 'FINISHED'}>Finished</option>
+				<option value="INACTIVE" selected={status === 'INACTIVE'}>Inactive</option>
+			</select>
+		</form>
 
-	<!-- Table -->
-	<div class="bg-surface-container-lowest border border-surface-variant/20 rounded-b-3xl overflow-hidden shadow-sm flex flex-col">
-		<div class="overflow-x-auto">
-		<table class="w-full text-left border-collapse">
-			<thead>
-				<tr class="bg-surface-container-low text-on-surface-variant text-xs uppercase tracking-wider font-bold border-b border-surface-variant/20">
-					<th class="p-4">Doc Number</th>
-					<th class="p-4">Type</th>
-					<th class="p-4">Title / Partner</th>
-					<th class="p-4 text-center">Issue Date</th>
-					<th class="p-4 text-center">Expiry Date</th>
-					<th class="p-4 text-center">Status</th>
-					<th class="p-4 text-right">Actions</th>
-				</tr>
-			</thead>
-			<tbody class="text-sm font-medium divide-y divide-surface-variant/10">
-				{#if data.documents.length === 0}
+		<!-- Table -->
+		<div class="overflow-x-auto flex-1">
+			<table class="w-full text-left text-sm min-w-[900px]">
+				<thead class="bg-slate-100/70 dark:bg-slate-800/50 text-xs font-bold text-on-surface-variant uppercase tracking-wider border-b border-slate-200/60 dark:border-slate-800/60">
 					<tr>
-						<td colspan="7" class="p-8 text-center text-on-surface-variant">
-							<span class="material-symbols-outlined text-4xl mb-2 opacity-50">folder_off</span>
-							<p>No documents found.</p>
-						</td>
+						<th class="py-3.5 px-5">Nomor Dokumen</th>
+						<th class="py-3.5 px-5">Kategori Tipe</th>
+						<th class="py-3.5 px-5">Judul & Mitra / Klien</th>
+						<th class="py-3.5 px-5 text-center">Tgl Terbit</th>
+						<th class="py-3.5 px-5 text-center">Tgl Expired</th>
+						<th class="py-3.5 px-5 text-center">Status</th>
+						<th class="py-3.5 px-5 text-right">Aksi</th>
 					</tr>
-				{:else}
-					{#each data.documents as doc}
-						<tr class="hover:bg-surface-container-low/50 transition-colors group">
-							<td class="p-4 font-bold text-primary">{doc.doc_number || '-'}</td>
-							<td class="p-4">
-								<span class="bg-surface-container px-2.5 py-1 rounded-md text-xs font-bold text-on-surface">
-									{doc.type_name || 'N/A'}
-								</span>
-							</td>
-							<td class="p-4">
-								<p class="text-on-surface font-bold">{doc.title}</p>
-								{#if doc.partner_name}
-									<p class="text-xs text-on-surface-variant mt-0.5">{doc.partner_name}</p>
-								{/if}
-							</td>
-							<td class="p-4 text-center text-on-surface-variant">{formatDate(doc.issue_date)}</td>
-							<td class="p-4 text-center text-on-surface-variant">{formatDate(doc.expiry_date)}</td>
-							<td class="p-4 text-center">
-								<span class="px-3 py-1 rounded-full text-xs font-extrabold tracking-wider border {getStatusBadge(doc.status)}">
-									{doc.status}
-								</span>
-							</td>
-							<td class="p-4 text-right whitespace-nowrap">
-								<a href="/dms/transactions/documents/{doc.id}" class="inline-block p-2 text-primary hover:bg-primary/10 rounded-lg transition-colors" title="View Details">
-									<span class="material-symbols-outlined text-sm">visibility</span>
-								</a>
-								<a href="/dms/transactions/documents/{doc.id}/edit" class="inline-block p-2 text-on-surface-variant hover:bg-surface-container rounded-lg transition-colors" title="Edit">
-									<span class="material-symbols-outlined text-sm">edit</span>
-								</a>
-								<form method="POST" action="?/delete" use:enhance={() => {
-									return async ({ result, update }) => {
-										if (result.type === 'success' && result.data?.success) {
-											update();
-										} else {
-											alert(result.data?.message || 'Error occurred while deleting.');
-										}
-									};
-								}} class="inline-block" onsubmit={(e) => {
-									if (!confirm('Are you sure you want to delete this document?')) e.preventDefault();
-								}}>
-									<input type="hidden" name="id" value={doc.id} />
-									<button type="submit" class="p-2 text-error hover:bg-error/10 rounded-lg transition-colors" title="Delete">
-										<span class="material-symbols-outlined text-sm">delete</span>
-									</button>
-								</form>
+				</thead>
+				<tbody class="divide-y divide-slate-200/60 dark:divide-slate-800/60">
+					{#if data.documents.length === 0}
+						<tr>
+							<td colspan="7" class="py-16 text-center text-on-surface-variant font-medium">
+								<span class="material-symbols-outlined text-4xl text-on-surface-variant/40 block mb-2">folder_off</span>
+								<p class="font-bold text-on-surface">Tidak ada dokumen ditemukan.</p>
 							</td>
 						</tr>
-					{/each}
-				{/if}
-			</tbody>
-		</table>
+					{:else}
+						{#each data.documents as doc}
+							<tr class="hover:bg-surface-container transition-colors group">
+								<td class="py-4 px-5 font-bold text-on-surface font-mono">{doc.doc_number || '-'}</td>
+								<td class="py-4 px-5">
+									<span class="bg-surface-container-high px-2 py-0.5 rounded text-[10px] font-bold text-on-surface uppercase">
+										{doc.type_name || 'N/A'}
+									</span>
+								</td>
+								<td class="py-4 px-5">
+									<p class="text-on-surface font-bold text-sm">{doc.title}</p>
+									{#if doc.partner_name}
+										<p class="text-xs text-on-surface-variant mt-0.5">{doc.partner_name}</p>
+									{/if}
+								</td>
+								<td class="py-4 px-5 text-center text-xs text-on-surface-variant font-medium">{formatDate(doc.issue_date)}</td>
+								<td class="py-4 px-5 text-center text-xs text-on-surface-variant font-medium">{formatDate(doc.expiry_date)}</td>
+								<td class="py-4 px-5 text-center">
+									<span class="px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider border {getStatusBadge(doc.status)}">
+										{doc.status}
+									</span>
+								</td>
+								<td class="py-4 px-5 text-right whitespace-nowrap">
+									<div class="flex items-center justify-end gap-1">
+										<a href="/dms/transactions/documents/{doc.id}" class="p-1.5 text-on-surface-variant hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 rounded-lg transition-colors" title="Lihat Detail">
+											<span class="material-symbols-outlined text-lg">visibility</span>
+										</a>
+										<a href="/dms/transactions/documents/{doc.id}/edit" class="p-1.5 text-on-surface-variant hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 rounded-lg transition-colors" title="Edit">
+											<span class="material-symbols-outlined text-lg">edit</span>
+										</a>
+										<form method="POST" action="?/delete" use:enhance={() => {
+											return async ({ result, update }) => {
+												if (result.type === 'success' && result.data?.success) {
+													update();
+												} else {
+													alert(result.data?.message || 'Error occurred while deleting.');
+												}
+											};
+										}} class="inline-block" onsubmit={(e) => {
+											if (!confirm('Apakah Anda yakin ingin menghapus dokumen ini?')) e.preventDefault();
+										}}>
+											<input type="hidden" name="id" value={doc.id} />
+											<button type="submit" class="p-1.5 text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-900/30 rounded-lg transition-colors cursor-pointer" title="Hapus">
+												<span class="material-symbols-outlined text-lg">delete</span>
+											</button>
+										</form>
+									</div>
+								</td>
+							</tr>
+						{/each}
+					{/if}
+				</tbody>
+			</table>
 		</div>
 	<!-- Pagination Footer -->
 	<div class="px-6 py-4 border-t border-surface-container flex items-center justify-between bg-surface-container-lowest rounded-b-3xl">

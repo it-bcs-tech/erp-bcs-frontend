@@ -28,39 +28,43 @@
 	<title>Closing Settlement | Kasir</title>
 </svelte:head>
 
-<div class="flex flex-col h-full">
-	<header class="mb-8 flex flex-col md:flex-row md:items-end justify-between gap-4">
+<div class="flex flex-col h-full space-y-6">
+	<!-- Header -->
+	<header class="flex flex-col md:flex-row md:items-end justify-between gap-4 flex-shrink-0">
 		<div>
-			<a href="/kasir" class="text-xs font-bold text-rose-600 hover:underline flex items-center gap-1 mb-2">
-				<span class="material-symbols-outlined text-[14px]">arrow_back</span> Kembali ke Dashboard
-			</a>
-			<h1 class="text-3xl font-extrabold text-on-surface tracking-tight mb-2">Closing Settlement</h1>
-			<p class="text-on-surface-variant font-medium text-sm">Validasi biaya ekstra dan kembalian UJO dari lapangan.</p>
+			<div class="flex items-center gap-2.5">
+				<span class="material-symbols-outlined text-amber-600 dark:text-amber-400 text-2xl">assignment_turned_in</span>
+				<h1 class="text-2xl font-black text-on-surface tracking-tight">Closing Ritase & Biaya Kasir</h1>
+			</div>
+			<p class="text-on-surface-variant font-medium text-sm mt-0.5">
+				Validasi biaya ekstra pengiriman, pengembalian sisa UJO supir, dan penutupan buku ritase DO
+			</p>
 		</div>
 		
-		<div class="flex bg-surface-container-low p-1 rounded-xl">
-			<button class="px-4 py-2 rounded-lg text-sm font-bold transition-colors {filterStatus === 'UNPAID' ? 'bg-white shadow-sm text-rose-700' : 'text-on-surface-variant hover:text-on-surface'}" onclick={() => filterStatus = 'UNPAID'}>
-				Pending Approval
+		<div class="inline-flex p-1 rounded-2xl bg-surface-container border border-slate-200 dark:border-slate-800">
+			<button class="px-3.5 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all {filterStatus === 'UNPAID' ? 'bg-amber-600 text-white shadow-xs' : 'text-on-surface hover:bg-surface-container-high'}" onclick={() => filterStatus = 'UNPAID'}>
+				Menunggu Closing
 			</button>
-			<button class="px-4 py-2 rounded-lg text-sm font-bold transition-colors {filterStatus === 'PAID' ? 'bg-white shadow-sm text-emerald-700' : 'text-on-surface-variant hover:text-on-surface'}" onclick={() => filterStatus = 'PAID'}>
+			<button class="px-3.5 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all {filterStatus === 'PAID' ? 'bg-emerald-600 text-white shadow-xs' : 'text-on-surface hover:bg-surface-container-high'}" onclick={() => filterStatus = 'PAID'}>
 				Sudah Selesai
 			</button>
 		</div>
 	</header>
 
-	<div class="bg-surface-container-lowest rounded-[24px] shadow-sm border border-surface-container flex-1 overflow-hidden flex flex-col">
-		<div class="overflow-x-auto">
-			<table class="w-full text-left border-collapse min-w-[800px]">
-				<thead>
-					<tr class="border-b border-surface-container bg-surface-container-low/50">
-						<th class="py-4 px-6 text-[10px] font-black uppercase tracking-widest text-on-surface-variant">DO / Unit</th>
-						<th class="py-4 px-6 text-[10px] font-black uppercase tracking-widest text-on-surface-variant">Rute & Muatan</th>
-						<th class="py-4 px-6 text-[10px] font-black uppercase tracking-widest text-on-surface-variant text-right">Rekap Biaya</th>
-						<th class="py-4 px-6 text-[10px] font-black uppercase tracking-widest text-on-surface-variant text-center">Status</th>
-						<th class="py-4 px-6 text-[10px] font-black uppercase tracking-widest text-on-surface-variant text-right">Aksi</th>
+	<!-- Table Container -->
+	<div class="rounded-2xl bg-surface-container-low border border-slate-200/60 dark:border-slate-800/60 overflow-hidden shadow-xs flex-1 flex flex-col">
+		<div class="overflow-x-auto flex-1">
+			<table class="w-full text-left text-sm min-w-[800px]">
+				<thead class="bg-slate-100/70 dark:bg-slate-800/50 text-xs font-bold text-on-surface-variant uppercase tracking-wider border-b border-slate-200/60 dark:border-slate-800/60">
+					<tr>
+						<th class="py-3.5 px-5">Nomor DO & Armada</th>
+						<th class="py-3.5 px-5">Rute & Tonase</th>
+						<th class="py-3.5 px-5 text-right">Rekap UJO & Biaya Ekstra</th>
+						<th class="py-3.5 px-5 text-center">Status</th>
+						<th class="py-3.5 px-5 text-right">Aksi Kasir</th>
 					</tr>
 				</thead>
-				<tbody class="divide-y divide-surface-container">
+				<tbody class="divide-y divide-slate-200/60 dark:divide-slate-800/60">
 					{#if filteredSettlements.length === 0}
 						<tr>
 							<td colspan="5" class="py-8 text-center text-sm font-medium text-on-surface-variant">

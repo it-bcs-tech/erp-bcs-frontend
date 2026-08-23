@@ -244,111 +244,139 @@
 	<title>Customers | Marketing</title>
 </svelte:head>
 
-<div class="flex flex-col h-full">
+<div class="flex flex-col h-full space-y-6">
 	<!-- Header & Actions -->
-	<header class="mb-6 flex flex-col md:flex-row md:items-end justify-between gap-4">
+	<header class="flex flex-col md:flex-row md:items-end justify-between gap-4 flex-shrink-0">
 		<div>
-			<h1 class="text-3xl font-extrabold text-on-surface tracking-tight mb-2">Customer Management</h1>
-			<p class="text-on-surface-variant font-medium text-sm">Manage client profiles, contracts, and payment terms</p>
+			<div class="flex items-center gap-2.5">
+				<span class="material-symbols-outlined text-rose-600 dark:text-rose-400 text-2xl">group</span>
+				<h1 class="text-2xl font-black text-on-surface tracking-tight">Master Pelanggan & Klien</h1>
+			</div>
+			<p class="text-on-surface-variant font-medium text-sm mt-0.5">
+				Manajemen direktori pelanggan korporat & retail, koordinat lokasi GPS muat/bongkar, dan ketentuan termin pembayaran
+			</p>
 		</div>
 		<div class="flex gap-3">
-			<button class="bg-surface-container-lowest border border-outline-variant/30 text-on-surface px-4 py-2.5 rounded-xl text-sm font-semibold flex items-center gap-2 hover:bg-surface-container-low transition-colors">
+			<button class="bg-surface-container-high hover:bg-surface-container-highest border border-slate-200/60 dark:border-slate-800/60 text-on-surface px-4 py-2.5 rounded-xl text-sm font-bold shadow-xs flex items-center gap-2 transition-colors cursor-pointer">
 				<span class="material-symbols-outlined text-lg">download</span>
-				Export
+				<span>Export</span>
 			</button>
-			<button onclick={openAddModal} class="bg-rose-600 text-white px-5 py-2.5 rounded-xl text-sm font-semibold shadow-sm flex items-center gap-2 hover:bg-rose-700 transition-colors">
+			<button onclick={openAddModal} class="bg-rose-600 hover:bg-rose-700 text-white px-4 py-2.5 rounded-xl text-sm font-bold shadow-xs flex items-center gap-2 transition-colors cursor-pointer">
 				<span class="material-symbols-outlined text-lg">person_add</span>
-				Add Customer
+				<span>Tambah Klien Baru</span>
 			</button>
 		</div>
 	</header>
 
 	{#if form?.error}
-		<div class="mb-6 p-4 bg-rose-50 text-rose-700 border border-rose-200 rounded-xl text-sm font-medium">
+		<div class="p-4 bg-rose-50 text-rose-700 border border-rose-200 rounded-xl text-xs font-medium shadow-xs">
 			{form.error}
 		</div>
 	{/if}
 	
 	{#if form?.success}
-		<div class="mb-6 p-4 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-xl text-sm font-medium">
+		<div class="p-4 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-xl text-xs font-medium shadow-xs">
 			{form.message}
 		</div>
 	{/if}
 
-	<!-- Metrics Cards -->
-	<div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-		<div class="bg-surface-container-lowest p-5 rounded-2xl border border-surface-container shadow-sm">
-			<p class="text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-2">Total Customers</p>
-			<div class="flex items-end justify-between">
-				<h3 class="text-3xl font-black text-on-surface">{metrics.total}</h3>
-				<span class="material-symbols-outlined text-3xl text-surface-variant">groups</span>
+	<!-- Metrics Cards (Bento) -->
+	<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+		<div class="p-5 rounded-2xl bg-surface-container-low border border-slate-200/60 dark:border-slate-800/60 shadow-xs">
+			<div class="flex items-center justify-between">
+				<div>
+					<p class="text-xs font-bold text-on-surface-variant uppercase tracking-wider">Total Customers</p>
+					<h3 class="text-3xl font-black text-on-surface mt-1">{metrics.total}</h3>
+				</div>
+				<div class="w-12 h-12 rounded-xl bg-rose-500/10 text-rose-600 flex items-center justify-center font-bold">
+					<span class="material-symbols-outlined text-2xl">groups</span>
+				</div>
 			</div>
+			<p class="text-xs text-rose-600 font-medium mt-2">Seluruh mitra terdaftar</p>
 		</div>
-		<div class="bg-surface-container-lowest p-5 rounded-2xl border border-emerald-500/20 shadow-sm">
-			<p class="text-xs font-bold text-emerald-600 uppercase tracking-wider mb-2">Active</p>
-			<div class="flex items-end justify-between">
-				<h3 class="text-3xl font-black text-emerald-600">{metrics.active}</h3>
-				<span class="material-symbols-outlined text-3xl text-emerald-500/50">check_circle</span>
+
+		<div class="p-5 rounded-2xl bg-surface-container-low border border-slate-200/60 dark:border-slate-800/60 shadow-xs">
+			<div class="flex items-center justify-between">
+				<div>
+					<p class="text-xs font-bold text-on-surface-variant uppercase tracking-wider">Pelanggan Aktif</p>
+					<h3 class="text-3xl font-black text-emerald-600 mt-1">{metrics.active}</h3>
+				</div>
+				<div class="w-12 h-12 rounded-xl bg-emerald-500/10 text-emerald-600 flex items-center justify-center font-bold">
+					<span class="material-symbols-outlined text-2xl">check_circle</span>
+				</div>
 			</div>
+			<p class="text-xs text-emerald-600 font-medium mt-2">Dengan kontrak berjalan</p>
 		</div>
-		<div class="bg-surface-container-lowest p-5 rounded-2xl border border-blue-500/20 shadow-sm">
-			<p class="text-xs font-bold text-blue-600 uppercase tracking-wider mb-2">Corporate</p>
-			<div class="flex items-end justify-between">
-				<h3 class="text-3xl font-black text-blue-600">{metrics.corporate}</h3>
-				<span class="material-symbols-outlined text-3xl text-blue-500/50">domain</span>
+
+		<div class="p-5 rounded-2xl bg-surface-container-low border border-slate-200/60 dark:border-slate-800/60 shadow-xs">
+			<div class="flex items-center justify-between">
+				<div>
+					<p class="text-xs font-bold text-on-surface-variant uppercase tracking-wider">Klien Corporate</p>
+					<h3 class="text-3xl font-black text-blue-600 mt-1">{metrics.corporate}</h3>
+				</div>
+				<div class="w-12 h-12 rounded-xl bg-blue-500/10 text-blue-600 flex items-center justify-center font-bold">
+					<span class="material-symbols-outlined text-2xl">domain</span>
+				</div>
 			</div>
+			<p class="text-xs text-blue-600 font-medium mt-2">Enterprise / B2B</p>
 		</div>
-		<div class="bg-surface-container-lowest p-5 rounded-2xl border border-amber-500/20 shadow-sm">
-			<p class="text-xs font-bold text-amber-600 uppercase tracking-wider mb-2">SME / Retail</p>
-			<div class="flex items-end justify-between">
-				<h3 class="text-3xl font-black text-amber-600">{metrics.sme}</h3>
-				<span class="material-symbols-outlined text-3xl text-amber-500/50">storefront</span>
+
+		<div class="p-5 rounded-2xl bg-surface-container-low border border-slate-200/60 dark:border-slate-800/60 shadow-xs">
+			<div class="flex items-center justify-between">
+				<div>
+					<p class="text-xs font-bold text-on-surface-variant uppercase tracking-wider">SME / Retail</p>
+					<h3 class="text-3xl font-black text-amber-600 mt-1">{metrics.sme}</h3>
+				</div>
+				<div class="w-12 h-12 rounded-xl bg-amber-500/10 text-amber-600 flex items-center justify-center font-bold">
+					<span class="material-symbols-outlined text-2xl">storefront</span>
+				</div>
 			</div>
+			<p class="text-xs text-amber-600 font-medium mt-2">Pengiriman reguler & ritel</p>
 		</div>
 	</div>
 
-	<!-- Filters & Search -->
-	<div class="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 mb-6">
-		<div class="flex gap-3">
-			<select bind:value={typeFilter} onchange={handleFilterChange}
-				class="bg-surface-container-lowest border border-outline-variant/30 text-on-surface rounded-xl py-2 px-4 focus:outline-none focus:ring-2 focus:ring-rose-500/50 text-sm font-medium shadow-sm appearance-none cursor-pointer">
-				<option value="All">All Types</option>
-				<option value="Corporate">Corporate</option>
-				<option value="SME">SME</option>
-			</select>
-			<select bind:value={tierFilter} onchange={handleFilterChange}
-				class="bg-surface-container-lowest border border-outline-variant/30 text-on-surface rounded-xl py-2 px-4 focus:outline-none focus:ring-2 focus:ring-rose-500/50 text-sm font-medium shadow-sm appearance-none cursor-pointer">
-				<option value="All">All Tiers</option>
-				<option value="Platinum">Platinum</option>
-				<option value="Gold">Gold</option>
-				<option value="Silver">Silver</option>
-				<option value="Standard">Standard</option>
-			</select>
+	<!-- Unified Filter Bar -->
+	<div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+		<!-- Segmented Control Type Tabs -->
+		<div class="inline-flex p-1 rounded-2xl bg-surface-container border border-slate-200 dark:border-slate-800">
+			{#each ['All', 'Corporate', 'SME'] as type}
+				<button 
+					class="px-3.5 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all {typeFilter === type ? 'bg-rose-600 text-white shadow-xs' : 'text-on-surface hover:bg-surface-container-high'}"
+					onclick={() => { typeFilter = type; handleFilterChange(); }}>
+					{type === 'All' ? 'Semua Tipe' : type}
+				</button>
+			{/each}
 		</div>
-		<div class="relative w-full lg:w-72 flex-shrink-0">
-			<span class="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-on-surface-variant text-lg">search</span>
-			<input type="text" bind:value={searchQuery} oninput={handleSearchInput}
-				placeholder="Search customer or contact..." 
-				class="w-full bg-surface-container-lowest border border-outline-variant/30 text-on-surface rounded-full py-2.5 pl-11 pr-4 focus:outline-none focus:ring-2 focus:ring-rose-500/50 text-sm font-medium shadow-sm" />
+
+		<!-- Search Input -->
+		<div class="relative w-full md:w-72">
+			<span class="material-symbols-outlined absolute left-3.5 top-1/2 -translate-y-1/2 text-on-surface-variant text-lg">search</span>
+			<input 
+				type="text" 
+				bind:value={searchQuery} 
+				oninput={handleSearchInput}
+				placeholder="Cari customer, kontak person..." 
+				class="w-full bg-surface-container-low border border-slate-200 dark:border-slate-800 text-on-surface rounded-xl py-2 pl-10 pr-4 focus:outline-none focus:ring-2 focus:ring-rose-500/50 text-xs font-medium shadow-xs" 
+			/>
 		</div>
 	</div>
 
-	<!-- Data Table -->
-	<div class="bg-surface-container-lowest rounded-[24px] shadow-sm flex-1 overflow-hidden flex flex-col">
+	<!-- Data Table Container -->
+	<div class="rounded-2xl bg-surface-container-low border border-slate-200/60 dark:border-slate-800/60 overflow-hidden shadow-xs flex-1 flex flex-col">
 		<div class="overflow-x-auto flex-1">
-			<table class="w-full text-left border-collapse min-w-[1100px]">
-				<thead>
-					<tr class="border-b border-surface-container sticky top-0 bg-surface-container-lowest z-10">
-						<th class="py-5 px-6 text-[10px] font-black uppercase tracking-widest text-on-surface-variant">Customer</th>
-						<th class="py-5 px-6 text-[10px] font-black uppercase tracking-widest text-on-surface-variant">Address & Location</th>
-						<th class="py-5 px-6 text-[10px] font-black uppercase tracking-widest text-on-surface-variant">Contact Person</th>
-						<th class="py-5 px-6 text-[10px] font-black uppercase tracking-widest text-on-surface-variant">Terms & Tier</th>
-						<th class="py-5 px-6 text-[10px] font-black uppercase tracking-widest text-on-surface-variant">Performance</th>
-						<th class="py-5 px-6 text-[10px] font-black uppercase tracking-widest text-on-surface-variant">Status</th>
-						<th class="py-5 px-6 text-[10px] font-black uppercase tracking-widest text-on-surface-variant text-right">Actions</th>
+			<table class="w-full text-left text-sm min-w-[1100px]">
+				<thead class="bg-slate-100/70 dark:bg-slate-800/50 text-xs font-bold text-on-surface-variant uppercase tracking-wider border-b border-slate-200/60 dark:border-slate-800/60">
+					<tr>
+						<th class="py-3.5 px-5">Nama Customer</th>
+						<th class="py-3.5 px-5">Alamat & Lokasi GPS</th>
+						<th class="py-3.5 px-5">Kontak Person</th>
+						<th class="py-3.5 px-5">Termin & Tier</th>
+						<th class="py-3.5 px-5">Performa Order</th>
+						<th class="py-3.5 px-5">Status</th>
+						<th class="py-3.5 px-5 text-right">Aksi</th>
 					</tr>
 				</thead>
-				<tbody class="divide-y divide-surface-container">
+				<tbody class="divide-y divide-slate-200/60 dark:divide-slate-800/60">
 					{#if paginatedCustomers.length === 0}
 						<tr>
 							<td colspan="6" class="py-12 text-center text-on-surface-variant font-medium">Tidak ada customer ditemukan.</td>

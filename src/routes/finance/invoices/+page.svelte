@@ -62,100 +62,100 @@
 	}
 </script>
 
-<div class="max-w-7xl mx-auto space-y-6">
+<div class="flex flex-col h-full space-y-6">
 	<!-- Header -->
-	<div class="flex flex-col md:flex-row md:items-end justify-between gap-4">
+	<header class="flex flex-col md:flex-row md:items-end justify-between gap-4 flex-shrink-0">
 		<div>
-			<h1 class="text-3xl font-black text-on-surface tracking-tight mb-1">Daftar Invoice</h1>
-			<p class="text-sm font-medium text-on-surface-variant">Kelola penagihan piutang kustomer dan pantau status pembayarannya.</p>
+			<div class="flex items-center gap-2.5">
+				<span class="material-symbols-outlined text-amber-600 dark:text-amber-400 text-2xl">receipt_long</span>
+				<h1 class="text-2xl font-black text-on-surface tracking-tight">Daftar Tagihan & Invoice Piutang</h1>
+			</div>
+			<p class="text-on-surface-variant font-medium text-sm mt-0.5">
+				Kelola penagihan piutang kustomer, verifikasi dokumen invoice logistik, dan pantau status pelunasannya
+			</p>
 		</div>
 		<div class="flex gap-3">
-			<a href="/finance/create-transaction/customer-invoices" class="px-5 py-2.5 bg-blue-600 text-white rounded-xl text-sm font-bold shadow-sm hover:bg-blue-700 transition-colors flex items-center gap-2">
-				<span class="material-symbols-outlined text-[18px]">add</span>
-				Buat Invoice Baru
+			<a href="/finance/create-transaction/customer-invoices" class="bg-amber-600 hover:bg-amber-700 text-white px-4 py-2.5 rounded-xl text-sm font-bold shadow-xs flex items-center gap-2 transition-colors">
+				<span class="material-symbols-outlined text-lg">add</span>
+				<span>Buat Invoice Baru</span>
 			</a>
 		</div>
-	</div>
+	</header>
 
-	<!-- Metrics Overview -->
-	<div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-		<div class="bg-surface-container-lowest border border-surface-container rounded-[24px] p-6 shadow-sm flex flex-col justify-between relative overflow-hidden group">
-			<div class="absolute -right-6 -top-6 w-24 h-24 bg-rose-500/10 rounded-full blur-2xl group-hover:bg-rose-500/20 transition-all"></div>
-			<div class="flex items-center justify-between mb-4 relative z-10">
-				<div class="w-10 h-10 rounded-xl bg-rose-100 dark:bg-rose-900/40 flex items-center justify-center border border-rose-200 dark:border-rose-800">
-					<span class="material-symbols-outlined text-rose-600 dark:text-rose-400 text-[20px]">warning</span>
+	<!-- Metrics Overview (Bento) -->
+	<div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+		<div class="p-5 rounded-2xl bg-surface-container-low border border-slate-200/60 dark:border-slate-800/60 shadow-xs">
+			<div class="flex items-center justify-between">
+				<div>
+					<p class="text-xs font-bold text-rose-600 uppercase tracking-wider">Total Jatuh Tempo</p>
+					<h3 class="text-2xl font-black text-rose-600 mt-1 font-mono">{formatCurrency(data.metrics.totalOverdue)}</h3>
 				</div>
-				<span class="text-[10px] font-black uppercase tracking-wider text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-900/20 px-2 py-1 rounded-lg">JATUH TEMPO</span>
+				<div class="w-12 h-12 rounded-xl bg-rose-500/10 text-rose-600 flex items-center justify-center font-bold">
+					<span class="material-symbols-outlined text-2xl">warning</span>
+				</div>
 			</div>
-			<div class="relative z-10">
-				<h3 class="text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-1">Total Jatuh Tempo</h3>
-				<div class="text-2xl font-black text-on-surface">{formatCurrency(data.metrics.totalOverdue)}</div>
-			</div>
+			<p class="text-xs text-rose-600 font-medium mt-2">Memerlukan follow-up penagihan</p>
 		</div>
 
-		<div class="bg-surface-container-lowest border border-surface-container rounded-[24px] p-6 shadow-sm flex flex-col justify-between relative overflow-hidden group">
-			<div class="absolute -right-6 -top-6 w-24 h-24 bg-amber-500/10 rounded-full blur-2xl group-hover:bg-amber-500/20 transition-all"></div>
-			<div class="flex items-center justify-between mb-4 relative z-10">
-				<div class="w-10 h-10 rounded-xl bg-amber-100 dark:bg-amber-900/40 flex items-center justify-center border border-amber-200 dark:border-amber-800">
-					<span class="material-symbols-outlined text-amber-600 dark:text-amber-400 text-[20px]">account_balance_wallet</span>
+		<div class="p-5 rounded-2xl bg-surface-container-low border border-slate-200/60 dark:border-slate-800/60 shadow-xs">
+			<div class="flex items-center justify-between">
+				<div>
+					<p class="text-xs font-bold text-amber-600 uppercase tracking-wider">Total Piutang Berjalan</p>
+					<h3 class="text-2xl font-black text-amber-600 mt-1 font-mono">{formatCurrency(data.metrics.totalUnpaid)}</h3>
 				</div>
-				<span class="text-[10px] font-black uppercase tracking-wider text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 px-2 py-1 rounded-lg">BELUM LUNAS</span>
+				<div class="w-12 h-12 rounded-xl bg-amber-500/10 text-amber-600 flex items-center justify-center font-bold">
+					<span class="material-symbols-outlined text-2xl">account_balance_wallet</span>
+				</div>
 			</div>
-			<div class="relative z-10">
-				<h3 class="text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-1">Total Piutang</h3>
-				<div class="text-2xl font-black text-on-surface">{formatCurrency(data.metrics.totalUnpaid)}</div>
-			</div>
+			<p class="text-xs text-amber-600 font-medium mt-2">Belum terbayar penuh</p>
 		</div>
 
-		<div class="bg-surface-container-lowest border border-surface-container rounded-[24px] p-6 shadow-sm flex flex-col justify-between relative overflow-hidden group">
-			<div class="absolute -right-6 -top-6 w-24 h-24 bg-emerald-500/10 rounded-full blur-2xl group-hover:bg-emerald-500/20 transition-all"></div>
-			<div class="flex items-center justify-between mb-4 relative z-10">
-				<div class="w-10 h-10 rounded-xl bg-emerald-100 dark:bg-emerald-900/40 flex items-center justify-center border border-emerald-200 dark:border-emerald-800">
-					<span class="material-symbols-outlined text-emerald-600 dark:text-emerald-400 text-[20px]">trending_up</span>
+		<div class="p-5 rounded-2xl bg-surface-container-low border border-slate-200/60 dark:border-slate-800/60 shadow-xs">
+			<div class="flex items-center justify-between">
+				<div>
+					<p class="text-xs font-bold text-emerald-600 uppercase tracking-wider">Tagihan Bulan Ini</p>
+					<h3 class="text-2xl font-black text-emerald-600 mt-1 font-mono">{formatCurrency(data.metrics.totalThisMonth)}</h3>
 				</div>
-				<span class="text-[10px] font-black uppercase tracking-wider text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/20 px-2 py-1 rounded-lg">BULAN INI</span>
+				<div class="w-12 h-12 rounded-xl bg-emerald-500/10 text-emerald-600 flex items-center justify-center font-bold">
+					<span class="material-symbols-outlined text-2xl">trending_up</span>
+				</div>
 			</div>
-			<div class="relative z-10">
-				<h3 class="text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-1">Total Tagihan (Bulan Ini)</h3>
-				<div class="text-2xl font-black text-on-surface">{formatCurrency(data.metrics.totalThisMonth)}</div>
-			</div>
+			<p class="text-xs text-emerald-600 font-medium mt-2">Total invoice terbit bulan ini</p>
 		</div>
 	</div>
 
 	<!-- Filter & Table Section -->
-	<div class="bg-surface-container-lowest border border-surface-container rounded-[24px] overflow-hidden shadow-sm">
+	<div class="rounded-2xl bg-surface-container-low border border-slate-200/60 dark:border-slate-800/60 overflow-hidden shadow-xs flex-1 flex flex-col">
 		<!-- Filter Bar -->
-		<div class="p-4 border-b border-surface-container bg-surface-container-low/30 flex flex-col sm:flex-row items-center gap-4 justify-between">
-			<div class="flex items-center gap-2 w-full sm:w-auto">
-				<span class="material-symbols-outlined text-on-surface-variant text-[20px]">filter_alt</span>
-				<span class="text-sm font-bold text-on-surface-variant uppercase tracking-wider">Filter Periode</span>
+		<div class="p-4 border-b border-slate-200/60 dark:border-slate-800/60 bg-slate-50/50 dark:bg-slate-800/30 flex flex-col sm:flex-row items-center gap-3 justify-between">
+			<div class="flex items-center gap-2">
+				<span class="material-symbols-outlined text-on-surface-variant text-lg">filter_alt</span>
+				<span class="text-xs font-bold text-on-surface-variant uppercase tracking-wider">Filter Rentang Tanggal</span>
 			</div>
 			
-			<div class="flex flex-col sm:flex-row items-center gap-3 w-full sm:w-auto">
-				<div class="flex items-center gap-2">
-					<input type="date" bind:value={startDate} class="bg-surface-container-lowest border border-surface-container rounded-xl px-3 py-2 text-sm font-medium text-on-surface focus:outline-none focus:ring-2 focus:ring-blue-500/50" />
-					<span class="text-on-surface-variant text-sm font-medium">s/d</span>
-					<input type="date" bind:value={endDate} class="bg-surface-container-lowest border border-surface-container rounded-xl px-3 py-2 text-sm font-medium text-on-surface focus:outline-none focus:ring-2 focus:ring-blue-500/50" />
-				</div>
-				<button onclick={filterByDate} class="w-full sm:w-auto px-4 py-2 bg-surface-container hover:bg-surface-container-high text-on-surface font-bold text-sm rounded-xl transition-colors">Terapkan</button>
+			<div class="flex items-center gap-2">
+				<input type="date" bind:value={startDate} class="bg-surface border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-1.5 text-xs font-medium text-on-surface focus:outline-none focus:ring-2 focus:ring-amber-500/50" />
+				<span class="text-on-surface-variant text-xs font-medium">s/d</span>
+				<input type="date" bind:value={endDate} class="bg-surface border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-1.5 text-xs font-medium text-on-surface focus:outline-none focus:ring-2 focus:ring-amber-500/50" />
+				<button onclick={filterByDate} class="px-3.5 py-1.5 bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs rounded-xl shadow-xs transition-colors cursor-pointer">Terapkan</button>
 			</div>
 		</div>
 
 		<!-- Table -->
-		<div class="overflow-x-auto">
-			<table class="w-full text-left border-collapse">
-				<thead>
-					<tr class="bg-surface-container-low/50 border-b border-surface-container">
-						<th class="py-4 px-6 text-xs font-black uppercase tracking-wider text-on-surface-variant">Tanggal</th>
-						<th class="py-4 px-6 text-xs font-black uppercase tracking-wider text-on-surface-variant">No. Dokumen</th>
-						<th class="py-4 px-6 text-xs font-black uppercase tracking-wider text-on-surface-variant">Kustomer</th>
-						<th class="py-4 px-6 text-xs font-black uppercase tracking-wider text-on-surface-variant text-right">Total Tagihan</th>
-						<th class="py-4 px-6 text-xs font-black uppercase tracking-wider text-on-surface-variant">Jatuh Tempo</th>
-						<th class="py-4 px-6 text-xs font-black uppercase tracking-wider text-on-surface-variant">Status</th>
-						<th class="py-4 px-6 text-xs font-black uppercase tracking-wider text-on-surface-variant text-center">Aksi</th>
+		<div class="overflow-x-auto flex-1">
+			<table class="w-full text-left text-sm min-w-[900px]">
+				<thead class="bg-slate-100/70 dark:bg-slate-800/50 text-xs font-bold text-on-surface-variant uppercase tracking-wider border-b border-slate-200/60 dark:border-slate-800/60">
+					<tr>
+						<th class="py-3.5 px-5">Tanggal</th>
+						<th class="py-3.5 px-5">No. Invoice</th>
+						<th class="py-3.5 px-5">Kustomer</th>
+						<th class="py-3.5 px-5 text-right">Total Tagihan</th>
+						<th class="py-3.5 px-5">Jatuh Tempo</th>
+						<th class="py-3.5 px-5 text-center">Status</th>
+						<th class="py-3.5 px-5 text-center">Aksi</th>
 					</tr>
 				</thead>
-				<tbody class="divide-y divide-surface-container">
+				<tbody class="divide-y divide-slate-200/60 dark:divide-slate-800/60">
 					{#if data.invoices.length === 0}
 						<tr>
 							<td colspan="7" class="py-12 text-center">

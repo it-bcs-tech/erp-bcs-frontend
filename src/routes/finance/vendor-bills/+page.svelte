@@ -19,71 +19,73 @@
 	<title>Vendor Bills | Finance ERP</title>
 </svelte:head>
 
-<div class="max-w-7xl mx-auto space-y-6">
+<div class="flex flex-col h-full space-y-6">
 	<!-- Page Header -->
-	<header class="flex justify-between items-end border-b border-surface-container pb-6">
+	<header class="flex flex-col md:flex-row md:items-end justify-between gap-4 flex-shrink-0">
 		<div>
-			<h1 class="text-3xl font-extrabold text-on-surface tracking-tight mb-2 flex items-center gap-2">
-				<span class="material-symbols-outlined text-4xl text-primary">shopping_cart_checkout</span>
-				Vendor Bills
-			</h1>
-			<p class="text-on-surface-variant font-medium">Kelola tagihan dari Pemasok / Vendor.</p>
+			<div class="flex items-center gap-2.5">
+				<span class="material-symbols-outlined text-amber-600 dark:text-amber-400 text-2xl">shopping_cart_checkout</span>
+				<h1 class="text-2xl font-black text-on-surface tracking-tight">Tagihan Pemasok & Vendor Bills</h1>
+			</div>
+			<p class="text-on-surface-variant font-medium text-sm mt-0.5">
+				Kelola tagihan dari pemasok/vendor, monitoring jatuh tempo hutang dagang, dan status pencairan
+			</p>
 		</div>
 		<div class="flex gap-3">
-			<a href="/finance/create-transaction/vendor-bills" class="bg-primary text-on-primary px-5 py-2.5 rounded-xl text-sm font-bold flex items-center gap-2 hover:opacity-90 transition-opacity shadow-sm">
-				<span class="material-symbols-outlined text-[18px]">add</span> Buat Bill Baru
+			<a href="/finance/create-transaction/vendor-bills" class="bg-amber-600 hover:bg-amber-700 text-white px-4 py-2.5 rounded-xl text-sm font-bold shadow-xs flex items-center gap-2 transition-colors">
+				<span class="material-symbols-outlined text-lg">add</span>
+				<span>Buat Bill Baru</span>
 			</a>
 		</div>
 	</header>
 
-	<!-- Table -->
-	<div class="bg-surface-container-lowest rounded-3xl shadow-sm border border-surface-container overflow-hidden">
-		<div class="overflow-x-auto">
-			<table class="w-full text-left">
-				<thead class="bg-surface-container-low/50 border-b border-surface-container text-xs font-black uppercase text-on-surface-variant tracking-wider">
+	<!-- Table Container -->
+	<div class="rounded-2xl bg-surface-container-low border border-slate-200/60 dark:border-slate-800/60 overflow-hidden shadow-xs flex-1 flex flex-col">
+		<div class="overflow-x-auto flex-1">
+			<table class="w-full text-left text-sm min-w-[900px]">
+				<thead class="bg-slate-100/70 dark:bg-slate-800/50 text-xs font-bold text-on-surface-variant uppercase tracking-wider border-b border-slate-200/60 dark:border-slate-800/60">
 					<tr>
-						<th class="p-5">No. Bill</th>
-						<th class="p-5">Tanggal</th>
-						<th class="p-5">Jatuh Tempo</th>
-						<th class="p-5">Vendor</th>
-						<th class="p-5 text-right">Total Tagihan</th>
-						<th class="p-5 text-right">Sudah Dibayar</th>
-						<th class="p-5 text-right">Sisa Tagihan</th>
-						<th class="p-5 text-center">Status</th>
-						<th class="p-5 text-center">Aksi</th>
+						<th class="py-3.5 px-5">No. Bill</th>
+						<th class="py-3.5 px-5">Tanggal</th>
+						<th class="py-3.5 px-5">Jatuh Tempo</th>
+						<th class="py-3.5 px-5">Vendor</th>
+						<th class="py-3.5 px-5 text-right">Total Tagihan</th>
+						<th class="py-3.5 px-5 text-right">Sudah Dibayar</th>
+						<th class="py-3.5 px-5 text-right">Sisa Tagihan</th>
+						<th class="py-3.5 px-5 text-center">Status</th>
+						<th class="py-3.5 px-5 text-center">Aksi</th>
 					</tr>
 				</thead>
-				<tbody class="divide-y divide-surface-container text-sm">
-					{#each data.bills as bill}
-						<tr class="hover:bg-surface-container-low/30 transition-colors">
-							<td class="p-5 font-bold text-primary">{bill.bill_number}</td>
-							<td class="p-5 font-medium text-on-surface-variant">{formatDate(bill.date)}</td>
-							<td class="p-5 font-medium text-on-surface-variant">{formatDate(bill.due_date)}</td>
-							<td class="p-5 font-bold text-on-surface">{bill.vendor_name}</td>
-							<td class="p-5 font-black text-on-surface text-right">{formatCurrency(Number(bill.total_amount))}</td>
-							<td class="p-5 font-medium text-emerald-600 dark:text-emerald-400 text-right">{formatCurrency(Number(bill.paid_amount))}</td>
-							<td class="p-5 font-black text-rose-600 dark:text-rose-400 text-right">{formatCurrency(Number(bill.total_amount) - Number(bill.paid_amount))}</td>
-							<td class="p-5 text-center">
-								<span class="inline-flex items-center px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider border {getStatusBadge(bill.status)}">
-									{bill.status}
-								</span>
-							</td>
-							<td class="p-5">
-								<div class="flex items-center justify-center gap-2">
-									<button class="w-8 h-8 rounded-full bg-surface-container hover:bg-blue-100 hover:text-blue-700 flex items-center justify-center transition-colors" title="Lihat">
-										<span class="material-symbols-outlined text-[18px]">visibility</span>
-									</button>
-								</div>
-							</td>
-						</tr>
-					{/each}
-					{#if data.bills.length === 0}
+				<tbody class="divide-y divide-slate-200/60 dark:divide-slate-800/60">
+					{#if !data.bills || data.bills.length === 0}
 						<tr>
-							<td colspan="9" class="p-12 text-center text-on-surface-variant font-medium">
-								Belum ada Vendor Bills.
+							<td colspan="9" class="py-16 text-center text-on-surface-variant font-medium">
+								<span class="material-symbols-outlined text-4xl text-on-surface-variant/40 block mb-2">shopping_cart_checkout</span>
+								<p class="font-bold text-on-surface">Belum ada data Vendor Bills yang terdaftar.</p>
 							</td>
 						</tr>
 					{/if}
+					{#each data.bills as bill}
+						<tr class="hover:bg-surface-container transition-colors">
+							<td class="py-4 px-5 font-bold text-on-surface font-mono">{bill.bill_number}</td>
+							<td class="py-4 px-5 text-xs text-on-surface-variant font-medium">{formatDate(bill.date)}</td>
+							<td class="py-4 px-5 text-xs text-on-surface-variant font-medium">{formatDate(bill.due_date)}</td>
+							<td class="py-4 px-5 font-bold text-on-surface">{bill.vendor_name}</td>
+							<td class="py-4 px-5 font-black text-on-surface text-right font-mono">{formatCurrency(Number(bill.total_amount))}</td>
+							<td class="py-4 px-5 font-bold text-emerald-600 text-right font-mono">{formatCurrency(Number(bill.paid_amount))}</td>
+							<td class="py-4 px-5 font-black text-rose-600 text-right font-mono">{formatCurrency(Number(bill.total_amount) - Number(bill.paid_amount))}</td>
+							<td class="py-4 px-5 text-center">
+								<span class="inline-flex items-center px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider border {getStatusBadge(bill.status)}">
+									{bill.status}
+								</span>
+							</td>
+							<td class="py-4 px-5 text-center">
+								<button class="p-1.5 rounded-lg text-on-surface-variant hover:text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-900/30 transition-colors cursor-pointer" title="Lihat">
+									<span class="material-symbols-outlined text-lg">visibility</span>
+								</button>
+							</td>
+						</tr>
+					{/each}
 				</tbody>
 			</table>
 		</div>

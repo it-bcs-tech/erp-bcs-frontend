@@ -61,96 +61,96 @@
 	<title>Warehouse Delivery Notes | PMS</title>
 </svelte:head>
 
-<div class="flex flex-col h-full max-w-7xl mx-auto space-y-6">
-	<!-- Header -->
-	<div class="bg-surface-container-lowest rounded-[32px] p-8 shadow-sm">
-		<div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
-			<div>
-				<p class="text-sm font-black tracking-widest text-on-surface-variant uppercase mb-2">Inventory Management</p>
-				<h1 class="text-3xl font-black text-on-surface tracking-tight mb-2 flex items-center gap-3">
-					<span class="material-symbols-outlined text-emerald-600 text-4xl">inventory_2</span>
-					Delivery Notes (Material Requests)
-				</h1>
-				<p class="text-sm font-medium text-on-surface-variant">Review and issue spareparts requested by mechanics for maintenance work orders.</p>
+<div class="flex flex-col h-full space-y-6">
+	<!-- Header & Actions -->
+	<header class="flex flex-col md:flex-row md:items-end justify-between gap-4 flex-shrink-0">
+		<div>
+			<div class="flex items-center gap-2.5">
+				<span class="material-symbols-outlined text-emerald-600 dark:text-emerald-400 text-2xl">local_shipping</span>
+				<h1 class="text-2xl font-black text-on-surface tracking-tight">Delivery Notes & Pengeluaran Material</h1>
 			</div>
-			
-			<div class="flex bg-surface-container p-1 rounded-2xl">
-				<button 
-					class="px-6 py-2.5 rounded-xl text-sm font-bold transition-all {activeTab === 'pending' ? 'bg-surface-container-lowest text-emerald-600 shadow-sm' : 'text-on-surface-variant hover:text-on-surface'}"
-					onclick={() => activeTab = 'pending'}
-				>
-					Pending ({pendingDNs.length})
-				</button>
-				<button 
-					class="px-6 py-2.5 rounded-xl text-sm font-bold transition-all {activeTab === 'issued' ? 'bg-surface-container-lowest text-emerald-600 shadow-sm' : 'text-on-surface-variant hover:text-on-surface'}"
-					onclick={() => activeTab = 'issued'}
-				>
-					Issued ({issuedDNs.length})
-				</button>
-			</div>
+			<p class="text-on-surface-variant font-medium text-sm mt-0.5">
+				Validasi dan serah terima pengeluaran sparepart gudang berdasarkan Work Order (WO) dari tim mekanik
+			</p>
 		</div>
-	</div>
+		
+		<!-- Segmented Control Tabs -->
+		<div class="inline-flex p-1 rounded-2xl bg-surface-container border border-slate-200 dark:border-slate-800">
+			<button 
+				class="px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all {activeTab === 'pending' ? 'bg-emerald-600 text-white shadow-xs' : 'text-on-surface hover:bg-surface-container-high'}"
+				onclick={() => activeTab = 'pending'}
+			>
+				Menunggu Pengeluaran ({pendingDNs.length})
+			</button>
+			<button 
+				class="px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all {activeTab === 'issued' ? 'bg-emerald-600 text-white shadow-xs' : 'text-on-surface hover:bg-surface-container-high'}"
+				onclick={() => activeTab = 'issued'}
+			>
+				Sudah Dikeluarkan ({issuedDNs.length})
+			</button>
+		</div>
+	</header>
 
-	<!-- List -->
-	<div class="bg-surface-container-lowest rounded-[32px] p-6 shadow-sm flex-1">
+	<!-- List Cards Container -->
+	<div class="flex-1">
 		{#if activeTab === 'pending'}
 			{#if pendingDNs.length === 0}
-				<div class="text-center py-16 text-on-surface-variant">
-					<span class="material-symbols-outlined text-6xl opacity-50 mb-4">check_circle</span>
-					<h3 class="text-xl font-bold text-on-surface mb-2">All clear!</h3>
-					<p class="text-sm">There are no pending material requests.</p>
+				<div class="rounded-2xl bg-surface-container-low border border-slate-200/60 dark:border-slate-800/60 shadow-xs text-center py-16 text-on-surface-variant">
+					<span class="material-symbols-outlined text-5xl opacity-40 mb-3 block text-emerald-600">check_circle</span>
+					<h3 class="text-base font-bold text-on-surface mb-1">Semua Permintaan Selesai!</h3>
+					<p class="text-xs font-medium text-on-surface-variant">Tidak ada material request yang menunggu pengeluaran.</p>
 				</div>
 			{:else}
 				<div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
 					{#each pendingDNs as dn}
-						<div class="border border-outline-variant/30 rounded-2xl p-5 hover:border-emerald-500/50 hover:shadow-md transition-all flex flex-col justify-between">
+						<div class="rounded-2xl bg-surface-container-low border border-slate-200/60 dark:border-slate-800/60 shadow-xs p-5 hover:border-emerald-500/40 transition-all flex flex-col justify-between">
 							<div>
-								<div class="flex justify-between items-start mb-4">
+								<div class="flex justify-between items-start mb-3">
 									<div>
-										<h3 class="text-lg font-black text-on-surface">{dn.dn_no}</h3>
-										<p class="text-xs font-bold text-on-surface-variant mt-1 flex items-center gap-1">
-											<span class="material-symbols-outlined text-[14px]">calendar_today</span> {formatDate(dn.created_at)}
+										<h3 class="text-base font-bold text-on-surface font-mono">{dn.dn_no}</h3>
+										<p class="text-xs text-on-surface-variant font-medium mt-0.5 flex items-center gap-1">
+											<span class="material-symbols-outlined text-sm">calendar_today</span> {formatDate(dn.created_at)}
 										</p>
 									</div>
-									<span class="bg-amber-100 text-amber-700 font-bold px-3 py-1 rounded-full text-xs">Pending</span>
+									<span class="bg-amber-500/10 text-amber-600 border border-amber-500/20 font-bold px-2.5 py-1 rounded-md text-[10px] uppercase tracking-wider">Menunggu</span>
 								</div>
 								
-								<div class="grid grid-cols-2 gap-4 mb-4">
-									<div class="bg-surface-container-low p-3 rounded-xl">
-										<p class="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant mb-1">Target Unit</p>
-										<p class="text-sm font-bold text-on-surface">{dn.unit_id || '-'}</p>
+								<div class="grid grid-cols-2 gap-3 mb-4">
+									<div class="bg-surface p-3 rounded-xl border border-slate-200/60 dark:border-slate-800/60">
+										<p class="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant mb-0.5">Unit Tujuan</p>
+										<p class="text-sm font-bold text-on-surface font-mono">{dn.unit_id || '-'}</p>
 									</div>
-									<div class="bg-surface-container-low p-3 rounded-xl">
-										<p class="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant mb-1">Work Order</p>
-										<p class="text-sm font-bold text-on-surface">{dn.wo_no || '-'}</p>
+									<div class="bg-surface p-3 rounded-xl border border-slate-200/60 dark:border-slate-800/60">
+										<p class="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant mb-0.5">Nomor WO</p>
+										<p class="text-sm font-bold text-emerald-600 font-mono">{dn.wo_no || '-'}</p>
 									</div>
 								</div>
 								
 								{#if dn.note}
-									<div class="mb-4">
-										<p class="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant mb-1">Note</p>
-										<p class="text-sm italic text-on-surface-variant">"{dn.note}"</p>
+									<div class="mb-4 bg-surface p-3 rounded-xl border border-slate-200/60 dark:border-slate-800/60">
+										<p class="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant mb-0.5">Catatan Mekanik</p>
+										<p class="text-xs italic text-on-surface-variant">"{dn.note}"</p>
 									</div>
 								{/if}
 
-								<div class="space-y-2 mb-4">
-									<p class="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant">Requested Items ({dn.details.length})</p>
+								<div class="space-y-2 mb-4 bg-surface p-3 rounded-xl border border-slate-200/60 dark:border-slate-800/60">
+									<p class="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant">Daftar Item Diminta ({dn.details.length})</p>
 									{#each dn.details as item}
-										<div class="flex justify-between text-sm">
-											<span class="font-medium text-on-surface">{item.material_name} ({item.material_code})</span>
+										<div class="flex justify-between text-xs">
+											<span class="font-medium text-on-surface">{item.material_name} <span class="text-on-surface-variant font-mono text-[11px]">({item.material_code})</span></span>
 											<span class="font-bold text-emerald-600">{item.qty_request}x</span>
 										</div>
 									{/each}
 								</div>
 							</div>
 
-							<div class="pt-4 border-t border-surface-container mt-auto">
+							<div class="pt-3 border-t border-slate-200/60 dark:border-slate-800/60 mt-auto">
 								<button 
 									onclick={() => openIssueModal(dn)}
-									class="w-full py-2.5 rounded-xl bg-emerald-600 text-white font-bold text-sm hover:bg-emerald-700 transition-colors flex justify-center items-center gap-2 shadow-sm"
+									class="w-full py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-xs transition-colors flex justify-center items-center gap-2 cursor-pointer"
 								>
-									<span class="material-symbols-outlined text-[18px]">outbox</span>
-									Review & Issue Items
+									<span class="material-symbols-outlined text-base">outbox</span>
+									<span>Proses Pengeluaran Barang</span>
 								</button>
 							</div>
 						</div>
@@ -159,34 +159,34 @@
 			{/if}
 		{:else}
 			{#if issuedDNs.length === 0}
-				<div class="text-center py-16 text-on-surface-variant">
-					<span class="material-symbols-outlined text-6xl opacity-50 mb-4">history</span>
-					<p class="text-sm font-medium">No issued delivery notes history found.</p>
+				<div class="rounded-2xl bg-surface-container-low border border-slate-200/60 dark:border-slate-800/60 shadow-xs text-center py-16 text-on-surface-variant">
+					<span class="material-symbols-outlined text-5xl opacity-40 mb-3 block">history</span>
+					<p class="text-xs font-medium">Belum ada riwayat pengeluaran barang material.</p>
 				</div>
 			{:else}
 				<div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
 					{#each issuedDNs as dn}
-						<div class="border border-outline-variant/30 rounded-2xl p-5 bg-surface-container-lowest opacity-80 hover:opacity-100 transition-opacity">
-							<div class="flex justify-between items-start mb-4">
+						<div class="rounded-2xl bg-surface-container-low border border-slate-200/60 dark:border-slate-800/60 shadow-xs p-5 hover:border-emerald-500/40 transition-all">
+							<div class="flex justify-between items-start mb-3">
 								<div>
-									<h3 class="text-lg font-black text-on-surface">{dn.dn_no}</h3>
-									<p class="text-xs font-bold text-on-surface-variant mt-1 flex items-center gap-1">
-										<span class="material-symbols-outlined text-[14px]">calendar_today</span> Issued: {formatDate(dn.updated_at)}
+									<h3 class="text-base font-bold text-on-surface font-mono">{dn.dn_no}</h3>
+									<p class="text-xs text-on-surface-variant font-medium mt-0.5 flex items-center gap-1">
+										<span class="material-symbols-outlined text-sm">calendar_today</span> Dikeluarkan: {formatDate(dn.updated_at)}
 									</p>
 								</div>
-								<span class="bg-emerald-100 text-emerald-700 font-bold px-3 py-1 rounded-full text-xs">Issued</span>
+								<span class="bg-emerald-500/10 text-emerald-600 border border-emerald-500/20 font-bold px-2.5 py-1 rounded-md text-[10px] uppercase tracking-wider">Selesai</span>
 							</div>
 							
-							<div class="flex gap-4 mb-4 text-sm">
-								<div><span class="text-on-surface-variant">WO:</span> <span class="font-bold">{dn.wo_no}</span></div>
-								<div><span class="text-on-surface-variant">Picked by:</span> <span class="font-bold">{dn.picker_name || dn.picked_by}</span></div>
+							<div class="flex gap-4 mb-3 text-xs bg-surface p-3 rounded-xl border border-slate-200/60 dark:border-slate-800/60">
+								<div><span class="text-on-surface-variant">WO:</span> <span class="font-bold text-emerald-600 font-mono">{dn.wo_no}</span></div>
+								<div><span class="text-on-surface-variant">Pengambil:</span> <span class="font-bold text-on-surface">{dn.picker_name || dn.picked_by}</span></div>
 							</div>
 
-							<div class="space-y-2 pt-3 border-t border-surface-container">
+							<div class="space-y-2 bg-surface p-3 rounded-xl border border-slate-200/60 dark:border-slate-800/60">
 								{#each dn.details as item}
-									<div class="flex justify-between text-sm">
+									<div class="flex justify-between text-xs">
 										<span class="font-medium text-on-surface">{item.material_name}</span>
-										<span class="font-bold text-emerald-600">{item.qty_actual}x <span class="text-xs font-normal text-on-surface-variant">({formatCurrency(item.total)})</span></span>
+										<span class="font-bold text-emerald-600">{item.qty_actual}x <span class="font-normal text-on-surface-variant font-mono">({formatCurrency(item.total)})</span></span>
 									</div>
 								{/each}
 							</div>

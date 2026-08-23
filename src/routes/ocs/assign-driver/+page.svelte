@@ -92,107 +92,118 @@
 	<title>Assign Driver | OCS</title>
 </svelte:head>
 
-<div class="flex flex-col h-full">
+<div class="flex flex-col h-full space-y-6">
 	<!-- Header & Actions -->
-	<header class="mb-8 flex flex-col md:flex-row md:items-end justify-between gap-4">
+	<header class="flex flex-col md:flex-row md:items-end justify-between gap-4 flex-shrink-0">
 		<div>
-			<h1 class="text-3xl font-extrabold text-on-surface tracking-tight mb-2">Driver Assignment</h1>
-			<p class="text-on-surface-variant font-medium text-sm">Kelola pasangan Supir dan Unit Kendaraan secara real-time</p>
+			<div class="flex items-center gap-2.5">
+				<span class="material-symbols-outlined text-blue-600 dark:text-blue-400 text-2xl">person_pin</span>
+				<h1 class="text-2xl font-black text-on-surface tracking-tight">Driver Assignment & Penugasan</h1>
+			</div>
+			<p class="text-on-surface-variant font-medium text-sm mt-0.5">
+				Kelola pasangan Supir Utama / Cadangan dan unit kendaraan operasional secara real-time
+			</p>
 		</div>
 		<div class="flex flex-col md:flex-row gap-3">
 			<div class="relative w-full md:w-64">
-				<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant/50 text-lg">search</span>
-				<input type="text" bind:value={tableSearch} placeholder="Cari unit atau sopir..." class="w-full pl-10 pr-4 py-2.5 bg-surface-container-lowest border border-surface-container rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-sky-500/50">
+				<span class="material-symbols-outlined absolute left-3.5 top-1/2 -translate-y-1/2 text-on-surface-variant text-lg">search</span>
+				<input 
+					type="text" 
+					bind:value={tableSearch} 
+					placeholder="Cari unit atau sopir..." 
+					class="w-full bg-surface-container-low border border-slate-200 dark:border-slate-800 text-on-surface rounded-xl py-2 pl-10 pr-4 focus:outline-none focus:ring-2 focus:ring-blue-500/50 text-xs font-medium shadow-xs"
+				/>
 			</div>
-			<button onclick={openModal} class="bg-sky-600 text-white px-5 py-2.5 rounded-xl text-sm font-semibold shadow-sm flex items-center justify-center gap-2 hover:bg-sky-700 transition-colors whitespace-nowrap">
+			<button onclick={openModal} class="bg-blue-600 text-white px-4 py-2.5 rounded-xl text-sm font-bold shadow-xs flex items-center justify-center gap-2 hover:bg-blue-700 transition-colors whitespace-nowrap cursor-pointer">
 				<span class="material-symbols-outlined text-lg">person_add</span>
-				Assign New Driver
+				<span>Tugaskan Driver Baru</span>
 			</button>
 		</div>
 	</header>
 
 	{#if form?.error}
-		<div class="mb-6 p-4 bg-rose-50 text-rose-700 border border-rose-200 rounded-xl text-sm font-medium">
+		<div class="p-4 bg-rose-50 text-rose-700 border border-rose-200 rounded-xl text-xs font-medium shadow-xs">
 			{form.error}
 		</div>
 	{/if}
 	
 	{#if form?.success}
-		<div class="mb-6 p-4 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-xl text-sm font-medium">
+		<div class="p-4 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-xl text-xs font-medium shadow-xs">
 			{form.message}
 		</div>
 	{/if}
 
 	<!-- Active Assignments List -->
-	<div class="bg-surface-container-lowest rounded-[24px] shadow-sm border border-surface-container flex-1 overflow-hidden flex flex-col">
+	<div class="rounded-2xl bg-surface-container-low border border-slate-200/60 dark:border-slate-800/60 overflow-hidden shadow-xs flex-1 flex flex-col">
 		<div class="overflow-x-auto flex-1">
-			<table class="w-full text-left border-collapse">
-				<thead>
-					<tr class="border-b border-surface-container sticky top-0 bg-surface-container-lowest z-10">
-						<th class="py-5 px-6 text-[10px] font-black uppercase tracking-widest text-on-surface-variant">Unit Kendaraan</th>
-						<th class="py-5 px-6 text-[10px] font-black uppercase tracking-widest text-on-surface-variant">Tipe Unit</th>
-						<th class="py-5 px-6 text-[10px] font-black uppercase tracking-widest text-on-surface-variant">Nama Sopir</th>
-						<th class="py-5 px-6 text-[10px] font-black uppercase tracking-widest text-on-surface-variant">Posisi</th>
-						<th class="py-5 px-6 text-[10px] font-black uppercase tracking-widest text-on-surface-variant">Tanggal Mulai</th>
-						<th class="py-5 px-6 text-[10px] font-black uppercase tracking-widest text-on-surface-variant text-right">Actions</th>
+			<table class="w-full text-left text-sm min-w-[900px]">
+				<thead class="bg-slate-100/70 dark:bg-slate-800/50 text-xs font-bold text-on-surface-variant uppercase tracking-wider border-b border-slate-200/60 dark:border-slate-800/60">
+					<tr>
+						<th class="py-3.5 px-5">Unit Kendaraan</th>
+						<th class="py-3.5 px-5">Tipe Unit</th>
+						<th class="py-3.5 px-5">Nama Sopir</th>
+						<th class="py-3.5 px-5">Posisi</th>
+						<th class="py-3.5 px-5">Tanggal Mulai</th>
+						<th class="py-3.5 px-5 text-right">Aksi</th>
 					</tr>
 				</thead>
-				<tbody class="divide-y divide-surface-container">
+				<tbody class="divide-y divide-slate-200/60 dark:divide-slate-800/60">
 					{#if paginatedAssignments.length === 0}
 						<tr>
-							<td colspan="6" class="py-12 text-center text-on-surface-variant text-sm font-medium">
-								Tidak ada data penugasan yang sesuai.
+							<td colspan="6" class="py-16 text-center text-on-surface-variant text-sm font-medium">
+								<span class="material-symbols-outlined text-4xl text-on-surface-variant/40 block mb-2">person_off</span>
+								<p class="font-bold text-on-surface">Tidak ada data penugasan yang sesuai</p>
 							</td>
 						</tr>
 					{/if}
 					{#each paginatedAssignments as item}
-						<tr class="hover:bg-surface-container-low/50 transition-colors group">
-							<td class="py-4 px-6">
+						<tr class="hover:bg-surface-container transition-colors group">
+							<td class="py-4 px-5">
 								<div class="flex items-center gap-3">
-									<div class="w-10 h-10 rounded-xl bg-sky-100 dark:bg-sky-900/30 text-sky-600 flex items-center justify-center">
-										<span class="material-symbols-outlined text-[20px]">local_shipping</span>
+									<div class="w-9 h-9 rounded-xl bg-blue-500/10 text-blue-600 flex items-center justify-center font-bold flex-shrink-0">
+										<span class="material-symbols-outlined text-lg">local_shipping</span>
 									</div>
-									<span class="text-sm font-black text-on-surface">{item.nomor_unit}</span>
+									<span class="text-sm font-bold text-on-surface">{item.nomor_unit}</span>
 								</div>
 							</td>
-							<td class="py-4 px-6">
-								<span class="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider bg-surface-container px-2.5 py-1 rounded-md">{item.unit_type}</span>
+							<td class="py-4 px-5">
+								<span class="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider bg-surface-container-high px-2.5 py-1 rounded-md">{item.unit_type}</span>
 							</td>
-							<td class="py-4 px-6">
+							<td class="py-4 px-5">
 								<div class="flex items-center gap-3">
-									<div class="w-8 h-8 rounded-full bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 flex items-center justify-center">
-										<span class="material-symbols-outlined text-[16px]">person</span>
+									<div class="w-8 h-8 rounded-full bg-indigo-500/10 text-indigo-600 flex items-center justify-center font-bold flex-shrink-0">
+										<span class="material-symbols-outlined text-base">person</span>
 									</div>
 									<div class="flex flex-col">
 										<span class="text-sm font-bold text-on-surface">{item.driver_name}</span>
 										{#if item.assignment_status === 'DISABLED'}
-											<span class="text-[9px] font-bold text-amber-600 bg-amber-100 dark:bg-amber-900/30 px-1.5 py-0.5 rounded w-fit mt-0.5 uppercase tracking-wider">Nonaktif Sementara</span>
+											<span class="text-[9px] font-bold text-amber-600 bg-amber-500/10 px-1.5 py-0.5 rounded w-fit mt-0.5 uppercase tracking-wider">Nonaktif Sementara</span>
 										{/if}
 									</div>
 								</div>
 							</td>
-							<td class="py-4 px-6">
-								<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider {item.posisi === 'SUPIR_UTAMA' ? 'bg-emerald-100 text-emerald-700 border border-emerald-200' : 'bg-amber-100 text-amber-700 border border-amber-200'}">
+							<td class="py-4 px-5">
+								<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider {item.posisi === 'SUPIR_UTAMA' ? 'bg-emerald-500/10 text-emerald-600 border border-emerald-500/20' : 'bg-amber-500/10 text-amber-600 border border-amber-500/20'}">
 									{item.posisi.replace('_', ' ')}
 								</span>
 							</td>
-							<td class="py-4 px-6">
-								<span class="text-sm font-medium text-on-surface-variant">{formatDate(item.tgl_mulai)}</span>
+							<td class="py-4 px-5">
+								<span class="text-xs font-medium text-on-surface-variant">{formatDate(item.tgl_mulai)}</span>
 							</td>
-							<td class="py-4 px-6 text-right">
+							<td class="py-4 px-5 text-right">
 								<div class="flex items-center justify-end gap-1">
 									{#if item.assignment_status === 'ACTIVE'}
 										<form method="POST" action="?/disableDriver" use:enhance={() => { return async ({ update }) => { await update(); }; }}>
 											<input type="hidden" name="assignmentId" value={item.assignment_id}>
 											<button type="submit" class="p-2 rounded-lg text-amber-600 hover:bg-amber-100 dark:hover:bg-amber-900/30 transition-colors" title="Nonaktifkan Sementara (Disable)">
-												<span class="material-symbols-outlined text-[20px]">person_off</span>
+												<span class="material-symbols-outlined text-lg">person_off</span>
 											</button>
 										</form>
 									{:else if item.assignment_status === 'DISABLED'}
 										<form method="POST" action="?/enableDriver" use:enhance={() => { return async ({ update }) => { await update(); }; }}>
 											<input type="hidden" name="assignmentId" value={item.assignment_id}>
 											<button type="submit" class="p-2 rounded-lg text-emerald-600 hover:bg-emerald-100 dark:hover:bg-emerald-900/30 transition-colors" title="Aktifkan Kembali (Enable)">
-												<span class="material-symbols-outlined text-[20px]">how_to_reg</span>
+												<span class="material-symbols-outlined text-lg">how_to_reg</span>
 											</button>
 										</form>
 									{/if}
@@ -200,7 +211,7 @@
 									<form method="POST" action="?/unassignDriver" use:enhance={() => { return async ({ update }) => { await update(); }; }}>
 										<input type="hidden" name="assignmentId" value={item.assignment_id}>
 										<button type="submit" class="p-2 rounded-lg text-rose-600 hover:bg-rose-100 dark:hover:bg-rose-900/30 transition-colors" title="Pemberhentian Permanen (End Assignment)">
-											<span class="material-symbols-outlined text-[20px]">person_remove</span>
+											<span class="material-symbols-outlined text-lg">person_remove</span>
 										</button>
 									</form>
 								</div>
@@ -211,19 +222,19 @@
 			</table>
 		</div>
 		
-		<!-- Pagination -->
-		<div class="px-6 py-4 border-t border-surface-container flex items-center justify-between bg-surface-container-lowest">
-			<p class="text-xs text-on-surface-variant font-medium">Total {filteredAssignments.length} data</p>
+		<!-- Pagination Footer -->
+		<div class="px-5 py-3.5 border-t border-slate-200/60 dark:border-slate-800/60 flex items-center justify-between bg-surface-container-low">
+			<p class="text-xs text-on-surface-variant font-medium">Total <span class="font-bold text-on-surface">{filteredAssignments.length}</span> data penugasan</p>
 			<div class="flex gap-1">
-				<button class="w-8 h-8 rounded-lg flex items-center justify-center text-on-surface-variant hover:bg-surface-container-high disabled:opacity-50 transition-colors" disabled={currentPage <= 1} onclick={() => currentPage = Math.max(1, currentPage - 1)}>
+				<button class="w-8 h-8 rounded-lg flex items-center justify-center text-on-surface-variant hover:bg-surface-container-high disabled:opacity-40 transition-colors" disabled={currentPage <= 1} onclick={() => currentPage = Math.max(1, currentPage - 1)}>
 					<span class="material-symbols-outlined text-lg">chevron_left</span>
 				</button>
 				{#each Array(totalPages) as _, i}
-					<button class="w-8 h-8 rounded-lg flex items-center justify-center font-bold text-sm transition-colors {currentPage === i + 1 ? 'bg-sky-600 text-white' : 'text-on-surface hover:bg-surface-container-high'}" onclick={() => currentPage = i + 1}>
+					<button class="w-8 h-8 rounded-lg flex items-center justify-center font-bold text-xs shadow-xs transition-colors {currentPage === i + 1 ? 'bg-blue-600 text-white' : 'text-on-surface hover:bg-surface-container-high'}" onclick={() => currentPage = i + 1}>
 						{i + 1}
 					</button>
 				{/each}
-				<button class="w-8 h-8 rounded-lg flex items-center justify-center text-on-surface-variant hover:bg-surface-container-high disabled:opacity-50 transition-colors" disabled={currentPage >= totalPages} onclick={() => currentPage = Math.min(totalPages, currentPage + 1)}>
+				<button class="w-8 h-8 rounded-lg flex items-center justify-center text-on-surface-variant hover:bg-surface-container-high disabled:opacity-40 transition-colors" disabled={currentPage >= totalPages} onclick={() => currentPage = Math.min(totalPages, currentPage + 1)}>
 					<span class="material-symbols-outlined text-lg">chevron_right</span>
 				</button>
 			</div>

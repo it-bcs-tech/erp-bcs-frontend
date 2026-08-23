@@ -50,97 +50,99 @@
 	<title>Maintenance | FMS Dashboard</title>
 </svelte:head>
 
-<div class="flex flex-col h-full">
+<div class="flex flex-col h-full space-y-6">
 	<!-- Header & Actions -->
-	<header class="mb-8 flex flex-col md:flex-row md:items-end justify-between gap-4">
+	<header class="flex flex-col md:flex-row md:items-end justify-between gap-4 flex-shrink-0">
 		<div>
-			<h1 class="text-3xl font-extrabold text-on-surface tracking-tight mb-2">Maintenance</h1>
-			<p class="text-on-surface-variant font-medium text-sm">Schedule, track, and manage vehicle service records</p>
+			<div class="flex items-center gap-2.5">
+				<span class="material-symbols-outlined text-sky-600 dark:text-sky-400 text-2xl">engineering</span>
+				<h1 class="text-2xl font-black text-on-surface tracking-tight">Perawatan & Work Orders (SPK)</h1>
+			</div>
+			<p class="text-on-surface-variant font-medium text-sm mt-0.5">
+				Jadwalkan servis berkala, catat perbaikan kerusakan armada, dan evaluasi riwayat perawatan kendaraan
+			</p>
 		</div>
 		<div class="flex gap-3">
-			<button class="bg-surface-container-lowest border border-outline-variant/30 text-on-surface px-4 py-2.5 rounded-xl text-sm font-semibold flex items-center gap-2 hover:bg-surface-container-low transition-colors">
-				<span class="material-symbols-outlined text-lg">download</span>
-				Export
-			</button>
+			<a href="/maintenance/work-orders/create" class="bg-sky-600 hover:bg-sky-700 text-white px-4 py-2.5 rounded-xl text-sm font-bold shadow-xs flex items-center gap-2 transition-colors">
+				<span class="material-symbols-outlined text-lg">add</span>
+				<span>Buat SPK / WO</span>
+			</a>
 		</div>
 	</header>
 
-	<!-- Metrics Cards -->
-	<div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-		<div class="bg-surface-container-lowest p-5 rounded-2xl border border-rose-500/20 shadow-sm relative overflow-hidden group">
-			<div class="absolute inset-0 bg-rose-500/5 opacity-0 group-hover:opacity-100 transition-opacity"></div>
-			<p class="text-xs font-bold text-rose-600 uppercase tracking-wider mb-2 relative z-10">Overdue</p>
-			<div class="flex items-end justify-between relative z-10">
-				<h3 class="text-3xl font-black text-rose-600">{metrics.overdue}</h3>
-				<span class="material-symbols-outlined text-3xl text-rose-500/50">error</span>
+	<!-- Metrics Cards (Bento) -->
+	<div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+		<div class="p-5 rounded-2xl bg-surface-container-low border border-slate-200/60 dark:border-slate-800/60 shadow-xs">
+			<p class="text-xs font-bold text-rose-600 uppercase tracking-wider mb-1">Overdue (Terlewat)</p>
+			<div class="flex items-end justify-between">
+				<h3 class="text-3xl font-black text-rose-600 font-mono">{metrics.overdue}</h3>
+				<span class="material-symbols-outlined text-3xl text-rose-500/40">error</span>
 			</div>
 		</div>
-		<div class="bg-surface-container-lowest p-5 rounded-2xl border border-blue-500/20 shadow-sm">
-			<p class="text-xs font-bold text-blue-600 uppercase tracking-wider mb-2">In Progress</p>
+		<div class="p-5 rounded-2xl bg-surface-container-low border border-slate-200/60 dark:border-slate-800/60 shadow-xs">
+			<p class="text-xs font-bold text-sky-600 uppercase tracking-wider mb-1">Sedang Dikerjakan</p>
 			<div class="flex items-end justify-between">
-				<h3 class="text-3xl font-black text-blue-600">{metrics.inProgress}</h3>
-				<span class="material-symbols-outlined text-3xl text-blue-500/50">autorenew</span>
+				<h3 class="text-3xl font-black text-sky-600 font-mono">{metrics.inProgress}</h3>
+				<span class="material-symbols-outlined text-3xl text-sky-500/40">autorenew</span>
 			</div>
 		</div>
-		<div class="bg-surface-container-lowest p-5 rounded-2xl border border-amber-500/20 shadow-sm">
-			<p class="text-xs font-bold text-amber-600 uppercase tracking-wider mb-2">Scheduled</p>
+		<div class="p-5 rounded-2xl bg-surface-container-low border border-slate-200/60 dark:border-slate-800/60 shadow-xs">
+			<p class="text-xs font-bold text-amber-600 uppercase tracking-wider mb-1">Terjadwal</p>
 			<div class="flex items-end justify-between">
-				<h3 class="text-3xl font-black text-amber-600">{metrics.scheduled}</h3>
-				<span class="material-symbols-outlined text-3xl text-amber-500/50">event</span>
+				<h3 class="text-3xl font-black text-amber-600 font-mono">{metrics.scheduled}</h3>
+				<span class="material-symbols-outlined text-3xl text-amber-500/40">event</span>
 			</div>
 		</div>
-		<div class="bg-surface-container-lowest p-5 rounded-2xl border border-emerald-500/20 shadow-sm">
-			<p class="text-xs font-bold text-emerald-600 uppercase tracking-wider mb-2">Completed This Month</p>
+		<div class="p-5 rounded-2xl bg-surface-container-low border border-slate-200/60 dark:border-slate-800/60 shadow-xs">
+			<p class="text-xs font-bold text-emerald-600 uppercase tracking-wider mb-1">Selesai Bulan Ini</p>
 			<div class="flex items-end justify-between">
-				<h3 class="text-3xl font-black text-emerald-600">{metrics.completedThisMonth}</h3>
-				<span class="material-symbols-outlined text-3xl text-emerald-500/50">task_alt</span>
+				<h3 class="text-3xl font-black text-emerald-600 font-mono">{metrics.completedThisMonth}</h3>
+				<span class="material-symbols-outlined text-3xl text-emerald-500/40">task_alt</span>
 			</div>
 		</div>
 	</div>
 
-	<!-- Filters & Search -->
-	<div class="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 mb-6">
-		<div class="flex gap-3">
-			<select 
-				bind:value={statusFilter} 
-				onchange={handleStatusChange}
-				class="bg-surface-container-lowest border border-outline-variant/30 text-on-surface rounded-xl py-2 px-4 focus:outline-none focus:ring-2 focus:ring-blue-500/50 text-sm font-medium shadow-sm appearance-none cursor-pointer"
-			>
-				<option value="All">All Status</option>
-				<option value="Overdue">Overdue</option>
-				<option value="In Progress">In Progress</option>
-				<option value="Scheduled">Scheduled</option>
-				<option value="Completed">Completed</option>
-			</select>
+	<!-- Table Container with Filter Header -->
+	<div class="rounded-2xl bg-surface-container-low border border-slate-200/60 dark:border-slate-800/60 overflow-hidden shadow-xs flex-1 flex flex-col">
+		<!-- Filters & Search Bar -->
+		<div class="p-4 border-b border-slate-200/60 dark:border-slate-800/60 bg-slate-50/50 dark:bg-slate-800/30 flex flex-col sm:flex-row items-center justify-between gap-3">
+			<div class="inline-flex p-1 rounded-2xl bg-surface-container border border-slate-200 dark:border-slate-800 overflow-x-auto max-w-full">
+				{#each ['All', 'Overdue', 'In Progress', 'Scheduled', 'Completed'] as st}
+					<button
+						onclick={() => { statusFilter = st; handleStatusChange(); }}
+						class="px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all {statusFilter === st ? 'bg-sky-600 text-white shadow-xs' : 'text-on-surface hover:bg-surface-container-high'}"
+					>
+						{st === 'All' ? 'Semua Status' : st}
+					</button>
+				{/each}
+			</div>
+
+			<div class="relative w-full sm:w-72 flex-shrink-0">
+				<span class="material-symbols-outlined absolute left-3.5 top-1/2 -translate-y-1/2 text-on-surface-variant text-base">search</span>
+				<input 
+					type="text" 
+					bind:value={searchQuery}
+					oninput={handleSearchInput}
+					placeholder="Cari armada, jenis servis..." 
+					class="w-full bg-surface border border-slate-200 dark:border-slate-800 text-on-surface rounded-xl py-2 pl-9 pr-4 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-sky-500/50 shadow-xs"
+				/>
+			</div>
 		</div>
 
-		<div class="relative w-full lg:w-72 flex-shrink-0">
-			<span class="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-on-surface-variant text-lg">search</span>
-			<input 
-				type="text" 
-				bind:value={searchQuery}
-				oninput={handleSearchInput}
-				placeholder="Search vehicle, service type..." 
-				class="w-full bg-surface-container-lowest border border-outline-variant/30 text-on-surface rounded-full py-2.5 pl-11 pr-4 focus:outline-none focus:ring-2 focus:ring-blue-500/50 text-sm font-medium shadow-sm"
-			/>
-		</div>
-	</div>
-
-	<!-- Data Table -->
-	<div class="bg-surface-container-lowest rounded-[24px] shadow-sm flex-1 overflow-hidden flex flex-col">
+		<!-- Data Table -->
 		<div class="overflow-x-auto flex-1">
-			<table class="w-full text-left border-collapse min-w-[1000px]">
-				<thead>
-					<tr class="border-b border-surface-container sticky top-0 bg-surface-container-lowest z-10">
-						<th class="py-5 px-6 text-[10px] font-black uppercase tracking-widest text-on-surface-variant">Service Info</th>
-						<th class="py-5 px-6 text-[10px] font-black uppercase tracking-widest text-on-surface-variant">Vehicle</th>
-						<th class="py-5 px-6 text-[10px] font-black uppercase tracking-widest text-on-surface-variant">Schedule</th>
-						<th class="py-5 px-6 text-[10px] font-black uppercase tracking-widest text-on-surface-variant">Priority</th>
-						<th class="py-5 px-6 text-[10px] font-black uppercase tracking-widest text-on-surface-variant">Status</th>
-						<th class="py-5 px-6 text-[10px] font-black uppercase tracking-widest text-on-surface-variant text-right">Actions</th>
+			<table class="w-full text-left text-sm min-w-[900px]">
+				<thead class="bg-slate-100/70 dark:bg-slate-800/50 text-xs font-bold text-on-surface-variant uppercase tracking-wider border-b border-slate-200/60 dark:border-slate-800/60">
+					<tr>
+						<th class="py-3.5 px-5">Informasi Servis (WO)</th>
+						<th class="py-3.5 px-5">Kendaraan & Montir</th>
+						<th class="py-3.5 px-5">Jadwal & Biaya</th>
+						<th class="py-3.5 px-5">Prioritas</th>
+						<th class="py-3.5 px-5 text-center">Status</th>
+						<th class="py-3.5 px-5 text-right">Aksi</th>
 					</tr>
 				</thead>
-				<tbody class="divide-y divide-surface-container">
+				<tbody class="divide-y divide-slate-200/60 dark:divide-slate-800/60">
 					{#each records as rec}
 						<tr class="group hover:bg-surface-container-low transition-colors">
 							<td class="py-4 px-6">

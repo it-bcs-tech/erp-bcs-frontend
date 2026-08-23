@@ -132,19 +132,35 @@
 	<title>Target Harian Kontrak | OCS Dashboard</title>
 </svelte:head>
 
-<div class="flex flex-col h-full">
-	<header class="mb-8">
-		<h1 class="text-3xl font-extrabold text-on-surface tracking-tight mb-2">Target Harian Kontrak</h1>
-		<p class="text-on-surface-variant font-medium text-sm">Pecah total kontrak menjadi target ritase harian dan kalkulasi kebutuhan armada</p>
+<div class="flex flex-col h-full space-y-6">
+	<!-- Header & Actions -->
+	<header class="flex flex-col md:flex-row md:items-end justify-between gap-4 flex-shrink-0">
+		<div>
+			<div class="flex items-center gap-2.5">
+				<span class="material-symbols-outlined text-blue-600 dark:text-blue-400 text-2xl">track_changes</span>
+				<h1 class="text-2xl font-black text-on-surface tracking-tight">Target Harian & Perencanaan Ritase</h1>
+			</div>
+			<p class="text-on-surface-variant font-medium text-sm mt-0.5">
+				Pecah total target kontrak menjadi ritase harian, estimasi unit armada, dan simulasi jadwal pengiriman
+			</p>
+		</div>
+		<button
+			class="px-4 py-2.5 text-xs font-bold rounded-xl border border-blue-500/20 bg-blue-500/10 hover:bg-blue-500/20 transition-all text-blue-600 dark:text-blue-400 flex items-center gap-2 shadow-xs cursor-pointer"
+			onclick={() => (show3DCargoModal = true)}
+			title="Simulasi 3D Cargo Packing Kontainer"
+		>
+			<span class="material-symbols-outlined text-base">view_in_ar</span>
+			<span>Simulasi 3D Kontainer</span>
+		</button>
 	</header>
 
 	{#if form?.error}
-		<div class="mb-6 p-4 rounded-xl bg-rose-50 text-rose-600 border border-rose-200 shadow-sm font-medium">
+		<div class="p-4 rounded-xl bg-rose-50 text-rose-600 border border-rose-200 shadow-xs font-medium text-xs">
 			{form.error}
 		</div>
 	{/if}
 	{#if form?.success || form?.dynamicGenerateSuccess}
-		<div class="mb-6 p-4 rounded-xl bg-emerald-50 text-emerald-600 border border-emerald-200 shadow-sm font-medium">
+		<div class="p-4 rounded-xl bg-emerald-50 text-emerald-600 border border-emerald-200 shadow-xs font-medium text-xs">
 			Target rata-rata harian berhasil disimpan.
 		</div>
 	{/if}
@@ -163,12 +179,15 @@
 
 	<div class="space-y-4">
 		{#each contracts as c}
-			<div class="bg-surface-container-lowest rounded-2xl shadow-sm border border-surface-container p-5 hover:shadow-md transition-shadow">
-				<div class="flex flex-wrap items-start justify-between gap-4">
+			<div class="rounded-2xl bg-surface-container-low border border-slate-200/60 dark:border-slate-800/60 p-5 shadow-xs hover:border-blue-500/30 transition-all">
+				<div class="flex flex-wrap items-center justify-between gap-4">
 					<!-- Left: Contract Info -->
-					<div class="flex-1 min-w-[200px]">
-						<p class="font-bold text-on-surface text-sm">{c.project}</p>
-						<p class="text-xs text-on-surface-variant mt-0.5">{c.customer}</p>
+					<div class="flex-1 min-w-[220px]">
+						<div class="flex items-center gap-2">
+							<span class="material-symbols-outlined text-blue-600 text-lg">contract</span>
+							<p class="font-bold text-on-surface text-sm">{c.project}</p>
+						</div>
+						<p class="text-xs text-on-surface-variant font-medium mt-1">{c.customer}</p>
 						<p class="text-[10px] text-on-surface-variant/70 mt-0.5">{c.startDate} → {c.endDate}</p>
 					</div>
 
@@ -182,24 +201,24 @@
 									<span class="text-emerald-600">{formatNumber(c.deliveredTonnage)} Ton</span>
 									<span class="text-on-surface-variant">{formatNumber(c.targetTonnage)} Ton</span>
 								</div>
-								<div class="h-1.5 w-full bg-surface-container rounded-full overflow-hidden mb-1">
+								<div class="h-1.5 w-full bg-surface-container-highest rounded-full overflow-hidden mb-1">
 									<div class="h-full bg-emerald-500 rounded-full" style="width: {Math.min((c.deliveredTonnage/c.targetTonnage)*100, 100)}%"></div>
 								</div>
 								<div class="flex justify-between items-center">
-									<span class="text-[9px] font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200">Total Keseluruhan</span>
+									<span class="text-[9px] font-bold text-emerald-700 bg-emerald-100 dark:bg-emerald-900/30 px-1.5 py-0.5 rounded-md">Total Keseluruhan</span>
 									<span class="text-[9px] font-medium text-on-surface-variant">Sisa: {formatNumber(Math.max(0, c.targetTonnage - c.deliveredTonnage))} T</span>
 								</div>
 							{:else if Number(c.current_month_target) > 0}
 								<!-- Monthly Dynamic Target -->
 								<div class="flex justify-between text-[10px] font-bold mb-1">
-									<span class="text-sky-600">{formatNumber(c.current_month_delivered)} Ton</span>
+									<span class="text-blue-600">{formatNumber(c.current_month_delivered)} Ton</span>
 									<span class="text-on-surface-variant">{formatNumber(c.current_month_target)} Ton</span>
 								</div>
-								<div class="h-1.5 w-full bg-surface-container rounded-full overflow-hidden mb-1">
-									<div class="h-full bg-sky-500 rounded-full" style="width: {Math.min((c.current_month_delivered/c.current_month_target)*100, 100)}%"></div>
+								<div class="h-1.5 w-full bg-surface-container-highest rounded-full overflow-hidden mb-1">
+									<div class="h-full bg-blue-500 rounded-full" style="width: {Math.min((c.current_month_delivered/c.current_month_target)*100, 100)}%"></div>
 								</div>
 								<div class="flex justify-between items-center">
-									<span class="text-[9px] font-bold text-sky-700 bg-sky-50 px-1.5 py-0.5 rounded border border-sky-200">Bulan {currentMonthName}</span>
+									<span class="text-[9px] font-bold text-blue-700 bg-blue-100 dark:bg-blue-900/30 px-1.5 py-0.5 rounded-md">Bulan {currentMonthName}</span>
 									<span class="text-[9px] font-medium text-on-surface-variant">Sisa: {formatNumber(Math.max(0, c.current_month_target - c.current_month_delivered))} T</span>
 								</div>
 							{:else}
@@ -208,7 +227,7 @@
 									<span class="text-emerald-600">{formatNumber(c.deliveredTonnage)} Ton</span>
 									<span class="text-on-surface-variant">Belum Set</span>
 								</div>
-								<div class="text-[10px] text-amber-600 bg-amber-50 dark:bg-amber-900/20 px-2 py-0.5 rounded-full inline-block font-medium border border-amber-200 dark:border-amber-900/50 mt-0.5">
+								<div class="text-[10px] text-amber-600 bg-amber-50 dark:bg-amber-900/20 px-2 py-0.5 rounded-md inline-block font-medium border border-amber-200 dark:border-amber-900/50 mt-0.5">
 									Berbasis Unit/Borongan
 								</div>
 							{/if}
@@ -216,58 +235,49 @@
 
 						<!-- Target -->
 						{#if Number(c.today_target_tonnage) > 0 || Number(c.daily_target_tonnage) > 0}
-							<div class="text-center px-3 py-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-100 dark:border-emerald-900/50">
-								<span class="font-black text-emerald-700 dark:text-emerald-400 text-sm">{formatNumber(c.today_target_tonnage || c.daily_target_tonnage)} Ton</span>
-								<span class="text-[10px] text-emerald-600 ml-1">{c.today_target_ritase || c.daily_target_ritase} Rit/Hari</span>
+							<div class="text-center px-3 py-2 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
+								<p class="font-black text-emerald-700 dark:text-emerald-400 text-sm">{formatNumber(c.today_target_tonnage || c.daily_target_tonnage)} Ton</p>
+								<p class="text-[10px] font-bold text-emerald-600 mt-0.5">{c.today_target_ritase || c.daily_target_ritase} Rit/Hari</p>
 							</div>
 						{:else}
-							<span class="text-[10px] text-on-surface-variant italic py-1 px-3 bg-surface-container rounded-full" title="Kalkulasi target harian (Ton/Hari) belum di-set">Target Harian Belum Diatur</span>
+							<span class="text-[10px] text-on-surface-variant italic py-1.5 px-3 bg-surface-container rounded-xl">Target Harian Belum Diatur</span>
 						{/if}
 
 						<!-- Units -->
 						{#if Number(c.today_target_units) > 0 || Number(c.units_needed_per_day) > 0}
-							<div class="text-center">
-								<span class="font-black text-indigo-600 dark:text-indigo-400">{c.today_target_units || c.units_needed_per_day}</span>
-								<span class="text-[10px] text-on-surface-variant ml-1">Unit/Hari</span>
+							<div class="text-center px-3 py-2 rounded-xl bg-indigo-500/10 border border-indigo-500/20">
+								<p class="font-black text-indigo-600 dark:text-indigo-400 text-sm">{c.today_target_units || c.units_needed_per_day}</p>
+								<p class="text-[10px] font-bold text-indigo-600 mt-0.5">Unit/Hari</p>
 							</div>
 						{/if}
 					</div>
 
 					<!-- Right: Actions -->
-					<div class="flex gap-2 flex-shrink-0">
-						<button
-							class="px-3.5 py-2 text-xs font-bold rounded-xl border border-sky-200 bg-sky-50 dark:bg-sky-950/40 hover:bg-sky-100 transition-all text-sky-700 dark:text-sky-300 flex items-center gap-1.5"
-							onclick={() => (show3DCargoModal = true)}
-							title="Simulasi 3D Cargo Packing Kontainer"
-						>
-							<span class="material-symbols-outlined text-[16px]">view_in_ar</span>
-							<span>Simulasi 3D</span>
-						</button>
-
+					<div class="flex items-center gap-2 flex-shrink-0">
 						{#if Number(c.targetTonnage) > 0}
 							<button 
-								class="px-4 py-2 text-xs font-bold rounded-xl border border-surface-variant/30 hover:bg-surface hover:shadow-sm transition-all text-on-surface-variant hover:text-primary flex items-center gap-2"
+								class="px-3.5 py-2 text-xs font-bold rounded-xl border border-slate-200 dark:border-slate-800 bg-surface-container hover:bg-surface-container-high transition-all text-on-surface flex items-center gap-1.5 cursor-pointer"
 								onclick={() => openSimulator(c)}
 							>
 								<span class="material-symbols-outlined text-[16px]">calculate</span>
-								Kalkulator
+								<span>Kalkulator</span>
 							</button>
 						{:else}
 							<button 
-								class="px-4 py-2 text-xs font-bold rounded-xl border border-amber-200 bg-amber-50 hover:bg-amber-100 hover:shadow-sm transition-all text-amber-700 flex items-center gap-2"
+								class="px-3.5 py-2 text-xs font-bold rounded-xl border border-amber-500/20 bg-amber-500/10 hover:bg-amber-500/20 transition-all text-amber-700 dark:text-amber-300 flex items-center gap-1.5 cursor-pointer"
 								onclick={() => openMonthlyModal(c)}
 							>
 								<span class="material-symbols-outlined text-[16px]">calendar_month</span>
-								Target Bulanan
+								<span>Target Bulanan</span>
 							</button>
 						{/if}
 
 						<button 
-							class="px-4 py-2 text-xs font-bold rounded-xl bg-primary hover:bg-primary/90 text-white shadow-sm shadow-primary/30 transition-all flex items-center gap-2"
+							class="px-4 py-2 text-xs font-bold rounded-xl bg-blue-600 hover:bg-blue-700 text-white shadow-xs transition-all flex items-center gap-1.5 cursor-pointer"
 							onclick={() => openCalendar(c)}
 						>
 							<span class="material-symbols-outlined text-[16px]">calendar_month</span>
-							Kalender
+							<span>Kalender Target</span>
 						</button>
 					</div>
 				</div>

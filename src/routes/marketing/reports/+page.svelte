@@ -49,115 +49,135 @@
 	<title>Reports | Marketing</title>
 </svelte:head>
 
-<div class="flex flex-col h-full">
-	<header class="mb-8 flex flex-col md:flex-row md:items-end justify-between gap-4">
+<div class="flex flex-col h-full space-y-6">
+	<!-- Header & Actions -->
+	<header class="flex flex-col md:flex-row md:items-end justify-between gap-4 flex-shrink-0">
 		<div>
-			<h1 class="text-3xl font-extrabold text-on-surface tracking-tight mb-2">Marketing Reports</h1>
-			<p class="text-on-surface-variant font-medium text-sm">Analyze sales performance, revenue, and margins.</p>
+			<div class="flex items-center gap-2.5">
+				<span class="material-symbols-outlined text-rose-600 dark:text-rose-400 text-2xl">assessment</span>
+				<h1 class="text-2xl font-black text-on-surface tracking-tight">Laporan Marketing & Pendapatan</h1>
+			</div>
+			<p class="text-on-surface-variant font-medium text-sm mt-0.5">
+				Analitik performa penjualan, rincian omzet Delivery Order, perbandingan biaya UJO, dan profit margin
+			</p>
 		</div>
 		<div class="flex gap-3">
-			<button class="bg-emerald-600 text-white px-5 py-2.5 rounded-xl text-sm font-semibold shadow-sm flex items-center gap-2 hover:bg-emerald-700 transition-colors">
+			<button class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2.5 rounded-xl text-sm font-bold shadow-xs flex items-center gap-2 transition-colors cursor-pointer">
 				<span class="material-symbols-outlined text-lg">download</span>
-				Export CSV
+				<span>Export CSV</span>
 			</button>
 		</div>
 	</header>
 
-	<!-- Filters -->
-	<div class="bg-surface-container-lowest p-6 rounded-[24px] shadow-sm mb-8">
-		<h3 class="text-sm font-bold text-on-surface mb-4">Filter Reports</h3>
-		<div class="grid grid-cols-1 md:grid-cols-5 gap-4">
+	<!-- Filter Card -->
+	<div class="rounded-2xl bg-surface-container-low border border-slate-200/60 dark:border-slate-800/60 p-5 shadow-xs">
+		<h3 class="text-xs font-bold text-on-surface uppercase tracking-wider mb-3">Filter Parameter Laporan</h3>
+		<div class="grid grid-cols-1 md:grid-cols-5 gap-3">
 			<div>
-				<label class="block text-xs font-bold text-on-surface-variant mb-1">Search</label>
-				<input type="text" bind:value={search} placeholder="DO or Customer..." class="w-full bg-surface-container-low border border-surface-container rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-rose-500/50">
+				<label class="block text-[11px] font-bold text-on-surface-variant mb-1">Pencarian</label>
+				<input type="text" bind:value={search} placeholder="DO atau Customer..." class="w-full bg-surface border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-rose-500/50">
 			</div>
 			<div>
-				<label class="block text-xs font-bold text-on-surface-variant mb-1">Unit Bisnis / Project</label>
-				<select bind:value={projectIdFilter} class="w-full bg-surface-container-low border border-surface-container rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-rose-500/50">
-					<option value="All">All Projects</option>
+				<label class="block text-[11px] font-bold text-on-surface-variant mb-1">Unit Bisnis / Proyek</label>
+				<select bind:value={projectIdFilter} class="w-full bg-surface border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-rose-500/50">
+					<option value="All">Semua Proyek</option>
 					{#each data.projects as p}
 						<option value={p.id}>{p.project_name}</option>
 					{/each}
 				</select>
 			</div>
 			<div>
-				<label class="block text-xs font-bold text-on-surface-variant mb-1">Status</label>
-				<select bind:value={statusFilter} class="w-full bg-surface-container-low border border-surface-container rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-rose-500/50">
-					<option value="All">All Status</option>
+				<label class="block text-[11px] font-bold text-on-surface-variant mb-1">Status Order</label>
+				<select bind:value={statusFilter} class="w-full bg-surface border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-rose-500/50">
+					<option value="All">Semua Status</option>
 					<option value="COMPLETED">Completed</option>
 					<option value="READY_TO_DISPATCH">Ready / Confirmed</option>
 					<option value="WAITING_UJO">Pending UJO</option>
-					<option value="WAITING_TARIFF">Pending Tariff</option>
+					<option value="WAITING_TARIFF">Pending Tarif</option>
 				</select>
 			</div>
 			<div>
-				<label class="block text-xs font-bold text-on-surface-variant mb-1">Start Date</label>
-				<input type="date" bind:value={startDate} class="w-full bg-surface-container-low border border-surface-container rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-rose-500/50">
+				<label class="block text-[11px] font-bold text-on-surface-variant mb-1">Tanggal Mulai</label>
+				<input type="date" bind:value={startDate} class="w-full bg-surface border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-rose-500/50">
 			</div>
 			<div>
-				<label class="block text-xs font-bold text-on-surface-variant mb-1">End Date</label>
-				<input type="date" bind:value={endDate} class="w-full bg-surface-container-low border border-surface-container rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-rose-500/50">
+				<label class="block text-[11px] font-bold text-on-surface-variant mb-1">Tanggal Akhir</label>
+				<input type="date" bind:value={endDate} class="w-full bg-surface border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-rose-500/50">
 			</div>
 		</div>
-		<div class="flex justify-end gap-3 mt-4">
-			<button onclick={clearFilters} class="px-4 py-2 text-sm font-bold text-on-surface-variant hover:bg-surface-container rounded-lg transition-colors">Clear</button>
-			<button onclick={applyFilters} class="px-4 py-2 text-sm font-bold bg-rose-600 text-white rounded-lg shadow-sm hover:bg-rose-700 transition-colors">Apply Filters</button>
+		<div class="flex justify-end gap-2 mt-4 pt-3 border-t border-slate-200/60 dark:border-slate-800/60">
+			<button onclick={clearFilters} class="px-3.5 py-1.5 text-xs font-bold text-on-surface-variant hover:bg-surface-container rounded-xl transition-colors cursor-pointer">Reset Filter</button>
+			<button onclick={applyFilters} class="px-4 py-1.5 text-xs font-bold bg-rose-600 hover:bg-rose-700 text-white rounded-xl shadow-xs transition-colors cursor-pointer">Terapkan Filter</button>
 		</div>
 	</div>
 
-	<!-- Summary Cards -->
-	<div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-		<div class="bg-surface-container-lowest p-5 rounded-2xl border border-surface-container shadow-sm">
-			<p class="text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-2">Total Orders</p>
-			<h3 class="text-3xl font-black text-on-surface">{data.summary.totalOrders}</h3>
+	<!-- Summary Cards (Bento) -->
+	<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+		<div class="p-5 rounded-2xl bg-surface-container-low border border-slate-200/60 dark:border-slate-800/60 shadow-xs">
+			<p class="text-xs font-bold text-on-surface-variant uppercase tracking-wider">Total Orders</p>
+			<h3 class="text-3xl font-black text-on-surface mt-1">{data.summary.totalOrders}</h3>
 		</div>
-		<div class="bg-surface-container-lowest p-5 rounded-2xl border border-emerald-500/20 shadow-sm">
-			<p class="text-xs font-bold text-emerald-600 uppercase tracking-wider mb-2">Total Revenue</p>
-			<h3 class="text-2xl font-black text-emerald-600">{formatCurrency(data.summary.totalRevenue)}</h3>
+		<div class="p-5 rounded-2xl bg-surface-container-low border border-slate-200/60 dark:border-slate-800/60 shadow-xs">
+			<p class="text-xs font-bold text-emerald-600 uppercase tracking-wider">Total Revenue</p>
+			<h3 class="text-2xl font-black text-emerald-600 mt-1">{formatCurrency(data.summary.totalRevenue)}</h3>
 		</div>
-		<div class="bg-surface-container-lowest p-5 rounded-2xl border border-amber-500/20 shadow-sm">
-			<p class="text-xs font-bold text-amber-600 uppercase tracking-wider mb-2">Est. Cost (UJO)</p>
-			<h3 class="text-2xl font-black text-amber-600">{formatCurrency(data.summary.totalUjo)}</h3>
+		<div class="p-5 rounded-2xl bg-surface-container-low border border-slate-200/60 dark:border-slate-800/60 shadow-xs">
+			<p class="text-xs font-bold text-amber-600 uppercase tracking-wider">Total Cost (UJO)</p>
+			<h3 class="text-2xl font-black text-amber-600 mt-1">{formatCurrency(data.summary.totalUjo)}</h3>
 		</div>
-		<div class="bg-surface-container-lowest p-5 rounded-2xl border border-blue-500/20 shadow-sm">
-			<p class="text-xs font-bold text-blue-600 uppercase tracking-wider mb-2">Est. Margin</p>
-			<h3 class="text-2xl font-black text-blue-600">{formatCurrency(data.summary.margin)}</h3>
+		<div class="p-5 rounded-2xl bg-surface-container-low border border-slate-200/60 dark:border-slate-800/60 shadow-xs">
+			<p class="text-xs font-bold text-blue-600 uppercase tracking-wider">Gross Margin</p>
+			<h3 class="text-2xl font-black text-blue-600 mt-1">{formatCurrency(data.summary.margin)}</h3>
 		</div>
 	</div>
 
-	<!-- Data Table -->
-	<div class="bg-surface-container-lowest rounded-[24px] shadow-sm flex-1 overflow-hidden flex flex-col">
+	<!-- Report Table -->
+	<div class="rounded-2xl bg-surface-container-low border border-slate-200/60 dark:border-slate-800/60 overflow-hidden shadow-xs flex-1 flex flex-col">
 		<div class="overflow-x-auto flex-1">
-			<table class="w-full text-left border-collapse min-w-[1200px]">
-				<thead>
-					<tr class="border-b border-surface-container bg-surface-container-lowest">
-						<th class="py-4 px-6 text-[10px] font-black uppercase text-on-surface-variant">Order ID</th>
-						<th class="py-4 px-6 text-[10px] font-black uppercase text-on-surface-variant">Date</th>
-						<th class="py-4 px-6 text-[10px] font-black uppercase text-on-surface-variant">Customer</th>
-						<th class="py-4 px-6 text-[10px] font-black uppercase text-on-surface-variant">Route & Cargo</th>
-						<th class="py-4 px-6 text-[10px] font-black uppercase text-on-surface-variant">Tariff</th>
-						<th class="py-4 px-6 text-[10px] font-black uppercase text-on-surface-variant">Est. UJO</th>
-						<th class="py-4 px-6 text-[10px] font-black uppercase text-on-surface-variant">Status</th>
+			<table class="w-full text-left text-sm min-w-[1000px]">
+				<thead class="bg-slate-100/70 dark:bg-slate-800/50 text-xs font-bold text-on-surface-variant uppercase tracking-wider border-b border-slate-200/60 dark:border-slate-800/60">
+					<tr>
+						<th class="py-3.5 px-5">No. DO & Tanggal</th>
+						<th class="py-3.5 px-5">Customer</th>
+						<th class="py-3.5 px-5">Rute Perjalanan</th>
+						<th class="py-3.5 px-5">Tarif Kontrak</th>
+						<th class="py-3.5 px-5">Biaya UJO</th>
+						<th class="py-3.5 px-5">Margin Profit</th>
+						<th class="py-3.5 px-5 text-center">Status</th>
 					</tr>
 				</thead>
-				<tbody class="divide-y divide-surface-container">
+				<tbody class="divide-y divide-slate-200/60 dark:divide-slate-800/60">
 					{#if data.reports.length === 0}
 						<tr>
-							<td colspan="7" class="py-12 text-center text-on-surface-variant font-medium">Data tidak ditemukan dengan filter yang dipilih.</td>
+							<td colspan="7" class="py-16 text-center text-on-surface-variant font-medium">
+								<span class="material-symbols-outlined text-4xl text-on-surface-variant/40 block mb-2">assessment</span>
+								<p class="font-bold text-on-surface">Tidak ada data transaksi yang sesuai filter.</p>
+							</td>
 						</tr>
 					{/if}
 					{#each data.reports as row}
-						<tr class="hover:bg-surface-container-low transition-colors">
-							<td class="py-3 px-6 text-sm font-bold">{row.orderId}</td>
-							<td class="py-3 px-6 text-sm">{row.loadDate ? new Date(row.loadDate).toLocaleDateString('id-ID') : '-'}</td>
-							<td class="py-3 px-6 text-sm font-bold">{row.customer}</td>
-							<td class="py-3 px-6">
-								<p class="text-sm font-bold">{row.origin} → {row.destination}</p>
-								<p class="text-[10px] text-on-surface-variant uppercase mt-0.5">{row.cargoType} • {row.vehicle}</p>
+						<tr class="hover:bg-surface-container transition-colors">
+							<td class="py-4 px-5">
+								<p class="text-sm font-bold text-on-surface font-mono">{row.orderId}</p>
+								<p class="text-[10px] text-on-surface-variant mt-0.5">{row.loadDate ? new Date(row.loadDate).toLocaleDateString('id-ID') : '-'}</p>
 							</td>
-							<td class="py-3 px-6 text-sm font-bold text-emerald-600">{formatCurrency(parseFloat(row.tariff))}</td>
-							<td class="py-3 px-6 text-sm font-medium text-amber-600">{formatCurrency(parseFloat(row.ujo))}</td>
-							<td class="py-3 px-6 text-xs font-bold">{row.status}</td>
+							<td class="py-4 px-5 font-bold text-on-surface">{row.customer}</td>
+							<td class="py-4 px-5">
+								<div class="flex items-center gap-1 text-xs font-bold text-on-surface">
+									<span>{row.origin}</span>
+									<span class="text-rose-500">→</span>
+									<span>{row.destination}</span>
+								</div>
+								<p class="text-[10px] text-on-surface-variant font-medium mt-0.5">{row.cargoType} • {row.vehicle} ({row.weight ? row.weight + ' Ton' : '-'})</p>
+							</td>
+							<td class="py-4 px-5 font-bold text-emerald-600 font-mono">{formatCurrency(parseFloat(row.tariff))}</td>
+							<td class="py-4 px-5 font-medium text-amber-600 font-mono">{formatCurrency(parseFloat(row.ujo))}</td>
+							<td class="py-4 px-5 font-black text-blue-600 font-mono">{formatCurrency(parseFloat(row.tariff) - parseFloat(row.ujo))}</td>
+							<td class="py-4 px-5 text-center">
+								<span class="inline-flex items-center px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider border {row.status === 'COMPLETED' ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20' : 'bg-slate-500/10 text-slate-600 border-slate-500/20'}">
+									{row.status}
+								</span>
+							</td>
 						</tr>
 					{/each}
 				</tbody>

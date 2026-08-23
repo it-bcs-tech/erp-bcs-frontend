@@ -69,41 +69,41 @@
 	<title>Create Transaction | Finance ERP</title>
 </svelte:head>
 
-<div class="max-w-7xl mx-auto p-8">
-	<header class="mb-10 border-b border-surface-variant/30 pb-6 flex items-end justify-between">
+<div class="flex flex-col h-full space-y-6">
+	<!-- Header Section -->
+	<header class="flex flex-col md:flex-row md:items-end justify-between gap-4 flex-shrink-0">
 		<div>
-			<div class="flex items-center gap-3 text-primary mb-2">
-				<span class="material-symbols-outlined text-3xl">account_balance</span>
-				<h1 class="text-3xl font-extrabold tracking-tight">Finance Operations</h1>
+			<div class="flex items-center gap-2.5">
+				<span class="material-symbols-outlined text-amber-600 dark:text-amber-400 text-2xl">account_balance</span>
+				<h1 class="text-2xl font-black text-on-surface tracking-tight">Pusat Transaksi Keuangan</h1>
 			</div>
-			<p class="text-on-surface-variant font-medium">Standardized financial flows: Sales, Purchases, Accounting, and Cash.</p>
+			<p class="text-on-surface-variant font-medium text-sm mt-0.5">
+				Akses cepat entri transaksi Piutang, Hutang Vendor, Jurnal Umum Buku Besar, dan Manajemen Kas/Bank
+			</p>
 		</div>
 	</header>
 
 	<!-- Bento Grid Layout -->
 	<div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
 		{#each modules as mod}
-			<div class="group relative overflow-hidden bg-surface-container-lowest rounded-3xl p-6 shadow-sm hover:shadow-md transition-all duration-300 border border-surface-variant/20 {mod.borderHover} flex flex-col h-full">
-				<!-- Background Glow -->
-				<div class="absolute -right-16 -top-16 w-48 h-48 rounded-full blur-3xl transition-colors duration-500 pointer-events-none {mod.bgGlow}"></div>
-				
+			<div class="group relative overflow-hidden rounded-2xl bg-surface-container-low border border-slate-200/60 dark:border-slate-800/60 p-6 shadow-xs hover:border-amber-500/30 transition-all flex flex-col justify-between">
 				<!-- Header section -->
-				<div class="flex items-center gap-4 mb-4 relative z-10">
-					<div class="w-14 h-14 rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform duration-300 shadow-sm {mod.iconBg}">
+				<div class="flex items-center gap-4 mb-4">
+					<div class="w-12 h-12 rounded-xl bg-amber-500/10 text-amber-600 flex items-center justify-center font-bold flex-shrink-0">
 						<span class="material-symbols-outlined text-2xl">{mod.icon}</span>
 					</div>
 					<div>
-						<h2 class="text-xl font-bold text-on-surface">{mod.title}</h2>
+						<h2 class="text-base font-bold text-on-surface">{mod.title}</h2>
 						<p class="text-xs text-on-surface-variant mt-0.5">{mod.description}</p>
 					</div>
 				</div>
 
 				<!-- Action Links -->
-				<div class="mt-auto space-y-2 relative z-10 pt-4">
+				<div class="space-y-2 pt-2">
 					{#each mod.links as link}
-						<a href={link.path} class="flex items-center justify-between p-3 rounded-xl bg-surface-container text-on-surface transition-colors duration-200 group/link {mod.linkHover}">
-							<span class="font-semibold text-sm">{link.label}</span>
-							<span class="material-symbols-outlined text-sm opacity-0 -translate-x-2 group-hover/link:opacity-100 group-hover/link:translate-x-0 transition-all duration-200">arrow_forward</span>
+						<a href={link.path} class="flex items-center justify-between p-3 rounded-xl bg-surface hover:bg-surface-container-high border border-slate-200/60 dark:border-slate-800/60 text-on-surface transition-colors group/link">
+							<span class="font-bold text-xs">{link.label}</span>
+							<span class="material-symbols-outlined text-sm text-amber-600 group-hover/link:translate-x-1 transition-transform">arrow_forward</span>
 						</a>
 					{/each}
 				</div>

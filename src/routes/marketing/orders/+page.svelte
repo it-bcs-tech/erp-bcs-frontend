@@ -204,151 +204,164 @@
 	<title>Orders / DO | Marketing</title>
 </svelte:head>
 
-<div class="flex flex-col h-full">
+<div class="flex flex-col h-full space-y-6">
 	<!-- Header & Actions -->
-	<header class="mb-8 flex flex-col md:flex-row md:items-end justify-between gap-4">
+	<header class="flex flex-col md:flex-row md:items-end justify-between gap-4 flex-shrink-0">
 		<div>
-			<h1 class="text-3xl font-extrabold text-on-surface tracking-tight mb-2">Orders / Delivery Orders</h1>
-			<p class="text-on-surface-variant font-medium text-sm">Create and manage delivery orders, assign routes, and track shipments</p>
+			<div class="flex items-center gap-2.5">
+				<span class="material-symbols-outlined text-rose-600 dark:text-rose-400 text-2xl">receipt_long</span>
+				<h1 class="text-2xl font-black text-on-surface tracking-tight">Orders / Delivery Orders (DO)</h1>
+			</div>
+			<p class="text-on-surface-variant font-medium text-sm mt-0.5">
+				Pembuatan dan monitoring Delivery Order klien, verifikasi tarif, penentuan UJO rute, dan tracking pengiriman
+			</p>
 		</div>
 		<div class="flex gap-3">
-			<button class="bg-surface-container-lowest border border-outline-variant/30 text-on-surface px-4 py-2.5 rounded-xl text-sm font-semibold flex items-center gap-2 hover:bg-surface-container-low transition-colors">
+			<button class="bg-surface-container-high hover:bg-surface-container-highest border border-slate-200/60 dark:border-slate-800/60 text-on-surface px-4 py-2.5 rounded-xl text-sm font-bold shadow-xs flex items-center gap-2 transition-colors cursor-pointer">
 				<span class="material-symbols-outlined text-lg">download</span>
-				Export
+				<span>Export Data</span>
 			</button>
-			<button onclick={openNewOrder} class="bg-rose-600 text-white px-5 py-2.5 rounded-xl text-sm font-semibold shadow-sm flex items-center gap-2 hover:bg-rose-700 transition-colors">
+			<button onclick={openNewOrder} class="bg-rose-600 hover:bg-rose-700 text-white px-4 py-2.5 rounded-xl text-sm font-bold shadow-xs flex items-center gap-2 transition-colors cursor-pointer">
 				<span class="material-symbols-outlined text-lg">note_add</span>
-				New Order
+				<span>Buat DO Baru</span>
 			</button>
 		</div>
 	</header>
 
 	{#if form?.error}
-		<div class="mb-6 p-4 bg-rose-50 text-rose-700 border border-rose-200 rounded-xl text-sm font-medium">
+		<div class="p-4 bg-rose-50 text-rose-700 border border-rose-200 rounded-xl text-xs font-medium shadow-xs">
 			{form.error}
 		</div>
 	{/if}
 	
 	{#if form?.success}
-		<div class="mb-6 p-4 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-xl text-sm font-medium">
+		<div class="p-4 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-xl text-xs font-medium shadow-xs">
 			{form.message}
 		</div>
 	{/if}
 
-	<!-- Metrics Cards -->
-	<div class="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
-		<div class="bg-surface-container-lowest p-4 rounded-2xl border border-surface-container shadow-sm text-center">
-			<p class="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider mb-1">Total</p>
+	<!-- Metrics Cards (Bento) -->
+	<div class="grid grid-cols-2 sm:grid-cols-5 gap-3">
+		<div class="p-4 rounded-2xl bg-surface-container-low border border-slate-200/60 dark:border-slate-800/60 shadow-xs text-center cursor-pointer" onclick={() => handleStatusClick('All')}>
+			<p class="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider mb-0.5">Total Orders</p>
 			<h3 class="text-2xl font-black text-on-surface">{metrics.totalOrders}</h3>
 		</div>
-		<div class="bg-surface-container-lowest p-4 rounded-2xl border border-amber-500/20 shadow-sm text-center">
-			<p class="text-[10px] font-bold text-amber-600 uppercase tracking-wider mb-1">Pending</p>
+		<div class="p-4 rounded-2xl bg-surface-container-low border border-slate-200/60 dark:border-slate-800/60 shadow-xs text-center cursor-pointer hover:border-amber-500/30 transition-all" onclick={() => handleStatusClick('WAITING_UJO')}>
+			<p class="text-[10px] font-bold text-amber-600 uppercase tracking-wider mb-0.5">Menunggu UJO/Tarif</p>
 			<h3 class="text-2xl font-black text-amber-600">{metrics.pending}</h3>
 		</div>
-		<div class="bg-surface-container-lowest p-4 rounded-2xl border border-blue-500/20 shadow-sm text-center">
-			<p class="text-[10px] font-bold text-blue-600 uppercase tracking-wider mb-1">Confirmed</p>
+		<div class="p-4 rounded-2xl bg-surface-container-low border border-slate-200/60 dark:border-slate-800/60 shadow-xs text-center cursor-pointer hover:border-blue-500/30 transition-all" onclick={() => handleStatusClick('READY_TO_DISPATCH')}>
+			<p class="text-[10px] font-bold text-blue-600 uppercase tracking-wider mb-0.5">Siap Dispatch</p>
 			<h3 class="text-2xl font-black text-blue-600">{metrics.confirmed}</h3>
 		</div>
-		<div class="bg-surface-container-lowest p-4 rounded-2xl border border-indigo-500/20 shadow-sm text-center">
-			<p class="text-[10px] font-bold text-indigo-600 uppercase tracking-wider mb-1">In Transit</p>
+		<div class="p-4 rounded-2xl bg-surface-container-low border border-slate-200/60 dark:border-slate-800/60 shadow-xs text-center cursor-pointer hover:border-indigo-500/30 transition-all" onclick={() => handleStatusClick('DISPATCHED')}>
+			<p class="text-[10px] font-bold text-indigo-600 uppercase tracking-wider mb-0.5">Dalam Perjalanan</p>
 			<h3 class="text-2xl font-black text-indigo-600">{metrics.inTransit}</h3>
 		</div>
-		<div class="bg-surface-container-lowest p-4 rounded-2xl border border-emerald-500/20 shadow-sm text-center">
-			<p class="text-[10px] font-bold text-emerald-600 uppercase tracking-wider mb-1">Completed</p>
+		<div class="p-4 rounded-2xl bg-surface-container-low border border-slate-200/60 dark:border-slate-800/60 shadow-xs text-center cursor-pointer hover:border-emerald-500/30 transition-all" onclick={() => handleStatusClick('COMPLETED')}>
+			<p class="text-[10px] font-bold text-emerald-600 uppercase tracking-wider mb-0.5">Selesai Bongkar</p>
 			<h3 class="text-2xl font-black text-emerald-600">{metrics.completed}</h3>
 		</div>
 	</div>
 
-	<!-- Search and Tabs -->
-	<div class="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 mb-6">
-		<div class="flex gap-2 overflow-x-auto pb-2 lg:pb-0 hide-scrollbar max-w-full">
+	<!-- Unified Filter Bar -->
+	<div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+		<!-- Segmented Control Status Tabs -->
+		<div class="inline-flex p-1 rounded-2xl bg-surface-container border border-slate-200 dark:border-slate-800 overflow-x-auto max-w-full">
 			{#each statusTabs as tab}
 				<button 
-					class="px-4 py-2 rounded-full text-sm font-bold whitespace-nowrap transition-colors {statusFilter === tab ? 'bg-rose-100 text-rose-700 dark:bg-rose-900/50 dark:text-rose-300' : 'text-on-surface-variant hover:bg-surface-container'}"
+					class="px-3.5 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all {statusFilter === tab ? 'bg-rose-600 text-white shadow-xs' : 'text-on-surface hover:bg-surface-container-high'}"
 					onclick={() => handleStatusClick(tab)}>
 					{tabLabels[tab]}
 				</button>
 			{/each}
 		</div>
-		<div class="relative w-full lg:w-72 flex-shrink-0">
-			<span class="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-on-surface-variant text-lg">search</span>
-			<input type="text" bind:value={searchQuery} oninput={handleSearchInput}
-				placeholder="Search DO, customer, route..." 
-				class="w-full bg-surface-container-lowest border border-outline-variant/30 text-on-surface rounded-full py-2.5 pl-11 pr-4 focus:outline-none focus:ring-2 focus:ring-rose-500/50 text-sm font-medium shadow-sm" />
+
+		<!-- Search Box -->
+		<div class="relative w-full md:w-72">
+			<span class="material-symbols-outlined absolute left-3.5 top-1/2 -translate-y-1/2 text-on-surface-variant text-lg">search</span>
+			<input 
+				type="text" 
+				bind:value={searchQuery} 
+				oninput={handleSearchInput}
+				placeholder="Cari DO, customer, rute..." 
+				class="w-full bg-surface-container-low border border-slate-200 dark:border-slate-800 text-on-surface rounded-xl py-2 pl-10 pr-4 focus:outline-none focus:ring-2 focus:ring-rose-500/50 text-xs font-medium shadow-xs" 
+			/>
 		</div>
 	</div>
 
-	<!-- Data Table -->
-	<div class="bg-surface-container-lowest rounded-[24px] shadow-sm flex-1 overflow-hidden flex flex-col">
+	<!-- Data Table Container -->
+	<div class="rounded-2xl bg-surface-container-low border border-slate-200/60 dark:border-slate-800/60 overflow-hidden shadow-xs flex-1 flex flex-col">
 		<div class="overflow-x-auto flex-1">
-			<table class="w-full text-left border-collapse min-w-[1200px]">
-				<thead>
-					<tr class="border-b border-surface-container sticky top-0 bg-surface-container-lowest z-10">
-						<th class="py-5 px-6 text-[10px] font-black uppercase tracking-widest text-on-surface-variant">Order Info</th>
-						<th class="py-5 px-6 text-[10px] font-black uppercase tracking-widest text-on-surface-variant">Customer</th>
-						<th class="py-5 px-6 text-[10px] font-black uppercase tracking-widest text-on-surface-variant">Route & Cargo</th>
-						<th class="py-5 px-6 text-[10px] font-black uppercase tracking-widest text-on-surface-variant">Schedule</th>
-						<th class="py-5 px-6 text-[10px] font-black uppercase tracking-widest text-on-surface-variant">Tariff</th>
-						<th class="py-5 px-6 text-[10px] font-black uppercase tracking-widest text-on-surface-variant">Status</th>
-						<th class="py-5 px-6 text-[10px] font-black uppercase tracking-widest text-on-surface-variant text-right">Actions</th>
+			<table class="w-full text-left text-sm min-w-[1200px]">
+				<thead class="bg-slate-100/70 dark:bg-slate-800/50 text-xs font-bold text-on-surface-variant uppercase tracking-wider border-b border-slate-200/60 dark:border-slate-800/60">
+					<tr>
+						<th class="py-3.5 px-5">Nomor DO & Info</th>
+						<th class="py-3.5 px-5">Nama Customer</th>
+						<th class="py-3.5 px-5">Rute & Muatan</th>
+						<th class="py-3.5 px-5">Jadwal Muat</th>
+						<th class="py-3.5 px-5">Tarif Kontrak</th>
+						<th class="py-3.5 px-5">Status Order</th>
+						<th class="py-3.5 px-5 text-right">Aksi</th>
 					</tr>
 				</thead>
-				<tbody class="divide-y divide-surface-container">
+				<tbody class="divide-y divide-slate-200/60 dark:divide-slate-800/60">
 					{#if paginatedOrders.length === 0}
 						<tr>
-							<td colspan="7" class="py-12 text-center text-on-surface-variant font-medium">Belum ada order.</td>
+							<td colspan="7" class="py-16 text-center text-on-surface-variant font-medium">
+								<span class="material-symbols-outlined text-4xl text-on-surface-variant/40 block mb-2">receipt_long</span>
+								<p class="font-bold text-on-surface">Belum ada order yang sesuai.</p>
+							</td>
 						</tr>
 					{/if}
 					{#each paginatedOrders as order}
-						<tr class="group hover:bg-surface-container-low transition-colors">
-							<td class="py-4 px-6">
-								<div class="flex flex-col gap-1">
-									<span class="text-sm font-bold text-on-surface">{order.id}</span>
-									<span class="text-[10px] font-medium text-on-surface-variant/70">{new Date(order.created_at).toLocaleString('id-ID')}</span>
+						<tr class="hover:bg-surface-container transition-colors">
+							<td class="py-4 px-5">
+								<div class="flex flex-col">
+									<span class="text-sm font-bold text-on-surface font-mono">{order.id}</span>
+									<span class="text-[10px] text-on-surface-variant mt-0.5">{new Date(order.created_at).toLocaleDateString('id-ID')}</span>
 								</div>
 							</td>
-							<td class="py-4 px-6">
+							<td class="py-4 px-5">
 								<p class="text-sm font-bold text-on-surface">{order.customer_name}</p>
 							</td>
-							<td class="py-4 px-6">
-								<div class="flex flex-col gap-1">
+							<td class="py-4 px-5">
+								<div class="flex flex-col gap-0.5">
 									<div class="flex items-center gap-1.5">
-										<span class="material-symbols-outlined text-[14px] text-rose-500">route</span>
-										<span class="text-sm font-bold text-on-surface">{order.origin_name} → {order.destination_name}</span>
+										<span class="material-symbols-outlined text-sm text-rose-500">route</span>
+										<span class="text-xs font-bold text-on-surface">{order.origin_name} → {order.destination_name}</span>
 									</div>
 									<div class="flex items-center gap-2 mt-0.5">
-										<span class="text-[10px] font-bold text-on-surface-variant bg-surface-container px-1.5 py-0.5 rounded">{order.jenis_muatan}</span>
+										<span class="text-[10px] font-bold text-on-surface-variant bg-surface-container-high px-1.5 py-0.5 rounded">{order.jenis_muatan}</span>
 										<span class="text-[10px] font-medium text-on-surface-variant">{order.berat_muatan ? order.berat_muatan + ' Ton' : '-'}</span>
 									</div>
 								</div>
 							</td>
-							<td class="py-4 px-6">
-								<div class="flex flex-col gap-1">
-									<span class="text-[11px] font-medium text-on-surface-variant flex items-center gap-1">
-										<span class="material-symbols-outlined text-[14px]">calendar_today</span>
-										Load: {order.tgl_muat ? new Date(order.tgl_muat).toLocaleDateString('id-ID') : '-'}
-									</span>
-								</div>
+							<td class="py-4 px-5">
+								<span class="text-xs text-on-surface-variant font-medium flex items-center gap-1">
+									<span class="material-symbols-outlined text-sm">calendar_today</span>
+									{order.tgl_muat ? new Date(order.tgl_muat).toLocaleDateString('id-ID') : '-'}
+								</span>
 							</td>
-							<td class="py-4 px-6">
-								<span class="text-sm font-black text-rose-600 dark:text-rose-400">{order.tariff ? formatCurrency(Number(order.tariff)) : '-'}</span>
+							<td class="py-4 px-5">
+								<span class="text-sm font-black text-rose-600 dark:text-rose-400 font-mono">{order.tariff ? formatCurrency(Number(order.tariff)) : '-'}</span>
 								<p class="text-[10px] font-medium text-on-surface-variant mt-0.5">{order.vehicle_type}</p>
 							</td>
-							<td class="py-4 px-6">
-								<span class="inline-flex items-center gap-1.5 font-bold text-[11px] px-2.5 py-1 rounded-md uppercase tracking-wider border {getStatusBadge(order.status)}">
+							<td class="py-4 px-5">
+								<span class="inline-flex items-center gap-1.5 font-bold text-[10px] px-2.5 py-1 rounded-md uppercase tracking-wider border {getStatusBadge(order.status)}">
 									<span class="w-1.5 h-1.5 rounded-full {getStatusDot(order.status)}"></span> {tabLabels[order.status]}
 								</span>
 							</td>
-							<td class="py-4 px-6 text-right">
-								<div class="flex items-center justify-end gap-2">
+							<td class="py-4 px-5 text-right">
+								<div class="flex items-center justify-end gap-1.5">
 									{#if order.status === 'WAITING_TARIFF'}
-										<button onclick={() => openTariffModal(order)} class="px-3 py-1.5 bg-purple-600 text-white rounded-lg text-xs font-bold hover:bg-purple-700 transition-colors shadow-sm whitespace-nowrap">
-											Input Tariff
+										<button onclick={() => openTariffModal(order)} class="px-2.5 py-1.5 bg-purple-600 text-white rounded-lg text-xs font-bold hover:bg-purple-700 transition-colors shadow-xs whitespace-nowrap cursor-pointer">
+											Input Tarif
 										</button>
 									{/if}
 									{#if ['WAITING_UJO', 'WAITING_TARIFF', 'WAITING_CUSTOMER'].includes(order.status)}
 										<button onclick={() => openEditOrder(order)} class="p-2 rounded-lg text-on-surface-variant hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-900/30 transition-colors" title="Edit Order">
-											<span class="material-symbols-outlined text-[20px]">edit</span>
+											<span class="material-symbols-outlined text-lg">edit</span>
 										</button>
 									{/if}
 								</div>

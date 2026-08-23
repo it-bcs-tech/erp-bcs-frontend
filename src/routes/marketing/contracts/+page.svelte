@@ -210,37 +210,42 @@
 	<title>Master Kontrak (PO) | Marketing Dashboard</title>
 </svelte:head>
 
-<div class="flex flex-col h-full">
+<div class="flex flex-col h-full space-y-6">
 	<!-- Header -->
-	<header class="mb-8 flex flex-col md:flex-row md:items-end justify-between gap-4">
+	<header class="flex flex-col md:flex-row md:items-end justify-between gap-4 flex-shrink-0">
 		<div>
-			<h1 class="text-3xl font-extrabold text-on-surface tracking-tight mb-2">Master Contracts (PO)</h1>
-			<p class="text-on-surface-variant font-medium text-sm">Manage monthly contracts, tonnage targets, tariffs, and fixed UJO</p>
+			<div class="flex items-center gap-2.5">
+				<span class="material-symbols-outlined text-rose-600 dark:text-rose-400 text-2xl">handshake</span>
+				<h1 class="text-2xl font-black text-on-surface tracking-tight">Master Kontrak & PO Klien</h1>
+			</div>
+			<p class="text-on-surface-variant font-medium text-sm mt-0.5">
+				Pengelolaan kontrak bulanan klien, target tonase pengiriman, parameter tarif, batas UJO, dan perpanjangan masa berlaku
+			</p>
 		</div>
 		<div class="flex gap-3">
 			<button 
 				onclick={openSimulator}
-				class="bg-indigo-600 text-white px-5 py-2.5 rounded-xl text-sm font-semibold shadow-sm flex items-center gap-2 hover:bg-indigo-700 transition-colors">
+				class="bg-surface-container-high hover:bg-surface-container-highest text-on-surface border border-slate-200/60 dark:border-slate-800/60 px-4 py-2.5 rounded-xl text-sm font-bold shadow-xs flex items-center gap-2 transition-colors cursor-pointer">
 				<span class="material-symbols-outlined text-lg">calculate</span>
-				Simulasi Kontrak
+				<span>Simulasi Kontrak</span>
 			</button>
 			<button 
 				onclick={openCreateModal}
-				class="bg-rose-600 text-white px-5 py-2.5 rounded-xl text-sm font-semibold shadow-sm flex items-center gap-2 hover:bg-rose-700 transition-colors">
+				class="bg-rose-600 hover:bg-rose-700 text-white px-4 py-2.5 rounded-xl text-sm font-bold shadow-xs flex items-center gap-2 transition-colors cursor-pointer">
 				<span class="material-symbols-outlined text-lg">add_circle</span>
-				Create New Contract
+				<span>Buat Kontrak Baru</span>
 			</button>
 		</div>
 	</header>
 
 	{#if expiringContractsCount > 0}
-		<div class="mb-6 p-4 rounded-xl bg-rose-50 dark:bg-rose-900/20 border border-rose-200 dark:border-rose-900/50 flex items-start gap-4 shadow-sm animate-in fade-in slide-in-from-top-4">
-			<div class="p-2 bg-rose-100 dark:bg-rose-900/50 rounded-lg text-rose-600 dark:text-rose-400">
-				<span class="material-symbols-outlined text-[24px]">warning</span>
+		<div class="p-4 rounded-xl bg-rose-500/10 border border-rose-500/20 flex items-start gap-3 shadow-xs">
+			<div class="p-2 bg-rose-500/20 rounded-lg text-rose-600">
+				<span class="material-symbols-outlined text-xl">warning</span>
 			</div>
 			<div>
-				<h3 class="text-sm font-bold text-rose-800 dark:text-rose-300">Perhatian: {expiringContractsCount} Kontrak Membutuhkan Perpanjangan</h3>
-				<p class="text-xs text-rose-600 dark:text-rose-400 mt-1 font-medium">Terdapat kontrak yang masa berlakunya akan/sudah habis, atau target tonasenya hampir tercapai. Segera perbarui untuk menghindari kendala dispatch di OCS.</p>
+				<h3 class="text-xs font-bold text-rose-700 dark:text-rose-300">Perhatian: {expiringContractsCount} Kontrak Membutuhkan Perpanjangan Segera</h3>
+				<p class="text-xs text-rose-600 dark:text-rose-400 mt-0.5 font-medium">Terdapat kontrak yang masa berlakunya hampir habis atau target tonasenya mendekati limit. Segera perbarui untuk kelancaran dispatch DO.</p>
 			</div>
 		</div>
 	{/if}
@@ -248,13 +253,14 @@
 	<!-- Contracts List -->
 	<div class="grid grid-cols-1 gap-4">
 		{#if contracts.length === 0}
-			<div class="bg-surface-container p-8 rounded-2xl text-center border border-dashed border-surface-container-high">
-				<p class="text-on-surface-variant font-medium">No contracts found. Click 'Create New Contract' to get started.</p>
+			<div class="rounded-2xl bg-surface-container-low border border-slate-200/60 dark:border-slate-800/60 p-12 text-center shadow-xs">
+				<span class="material-symbols-outlined text-4xl text-on-surface-variant/40 block mb-2">contract</span>
+				<p class="font-bold text-on-surface text-sm">Belum ada kontrak klien yang terdaftar.</p>
 			</div>
 		{/if}
 
 		{#each contracts as contract}
-			<div class="bg-surface-container-lowest p-6 rounded-2xl border border-surface-container shadow-sm hover:shadow-md transition-shadow relative overflow-hidden">
+			<div class="rounded-2xl bg-surface-container-low border border-slate-200/60 dark:border-slate-800/60 p-6 shadow-xs hover:border-rose-500/30 transition-all relative overflow-hidden">
 				
 				<div class="flex flex-col lg:flex-row gap-6 justify-between">
 					

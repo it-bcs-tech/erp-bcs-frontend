@@ -51,59 +51,73 @@
 	<title>Inspections | Maintenance</title>
 </svelte:head>
 
-<div class="flex flex-col h-full bg-surface relative min-h-screen">
+<div class="flex flex-col h-full space-y-6">
 	<!-- Header -->
-	<header class="p-6 lg:p-8 bg-surface border-b border-surface-container sticky top-0 z-30">
-		<div class="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-4">
-			<div>
-				<h1 class="text-2xl md:text-3xl font-extrabold text-on-surface tracking-tight mb-1">Inspections</h1>
-				<p class="text-sm font-medium text-on-surface-variant">Catat temuan & buat Work Order dari lapangan</p>
+	<header class="flex flex-col md:flex-row md:items-end justify-between gap-4 flex-shrink-0">
+		<div>
+			<div class="flex items-center gap-2.5">
+				<span class="material-symbols-outlined text-sky-600 dark:text-sky-400 text-2xl">fact_check</span>
+				<h1 class="text-2xl font-black text-on-surface tracking-tight">Inspeksi Kelayakan Armada</h1>
 			</div>
-			<a href="/maintenance/inspections/create" class="bg-primary text-on-primary px-5 py-2.5 rounded-xl text-sm font-bold shadow-sm hover:shadow-md hover:scale-[1.02] active:scale-95 transition-all flex items-center gap-2 self-start md:self-auto">
-				<span class="material-symbols-outlined text-[18px]">add</span>
-				<span>New Work Order</span>
-			</a>
+			<p class="text-on-surface-variant font-medium text-sm mt-0.5">
+				Pencatatan hasil cek fisik kendaraan, temuan kerusakan supir di lapangan, dan penerbitan WO
+			</p>
 		</div>
-		
-		<!-- Search & Filter Bar -->
-		<div class="flex flex-col md:flex-row gap-3">
-			<div class="relative flex-1 max-w-2xl">
-				<span class="absolute left-3 top-2.5 material-symbols-outlined text-on-surface-variant/50 text-[20px]">search</span>
-				<input 
-					type="text" 
-					placeholder="Cari No Unit / WO..." 
-					class="w-full bg-surface-container-lowest border border-outline-variant/30 text-on-surface rounded-xl pl-10 pr-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 placeholder:text-on-surface-variant/50 font-medium transition-all"
-					bind:value={searchQuery}
-					onkeydown={(e) => e.key === 'Enter' && applyFilters()}
-				/>
-			</div>
-			<select 
-				bind:value={statusFilter}
-				onchange={applyFilters}
-				class="bg-surface-container-lowest border border-outline-variant/30 text-on-surface rounded-xl px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 font-bold transition-all min-w-[150px]"
-			>
-				<option value="All">Semua Status</option>
-				<option value="Open">Open</option>
-				<option value="In Progress">Progress</option>
-				<option value="Closed">Closed</option>
-			</select>
+		<div class="flex gap-3">
+			<a href="/maintenance/inspections/create" class="bg-sky-600 hover:bg-sky-700 text-white px-4 py-2.5 rounded-xl text-sm font-bold shadow-xs flex items-center gap-2 transition-colors">
+				<span class="material-symbols-outlined text-lg">add</span>
+				<span>Catat Temuan Baru</span>
+			</a>
 		</div>
 	</header>
 
-	<!-- Metrics Quick View -->
-	<div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-4 gap-4 p-6 lg:px-8">
-		<div class="bg-surface-container-lowest p-4 lg:p-5 rounded-2xl border border-surface-container shadow-sm flex flex-col justify-between">
-			<p class="text-[10px] lg:text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-2">Total Inspections</p>
-			<h3 class="text-2xl lg:text-3xl font-black text-on-surface">{meta.total}</h3>
+	<!-- Metrics Quick View (Bento) -->
+	<div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+		<div class="p-5 rounded-2xl bg-surface-container-low border border-slate-200/60 dark:border-slate-800/60 shadow-xs">
+			<p class="text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-1">Total Inspeksi</p>
+			<div class="flex items-end justify-between">
+				<h3 class="text-3xl font-black text-on-surface font-mono">{meta.total}</h3>
+				<span class="material-symbols-outlined text-3xl text-on-surface-variant/40">fact_check</span>
+			</div>
 		</div>
-		<div class="bg-amber-50 dark:bg-amber-900/10 p-4 lg:p-5 rounded-2xl border border-amber-200/50 shadow-sm flex flex-col justify-between">
-			<p class="text-[10px] lg:text-xs font-bold text-amber-700 dark:text-amber-400 uppercase tracking-wider mb-2">Open Issues</p>
-			<h3 class="text-2xl lg:text-3xl font-black text-amber-700 dark:text-amber-400">{meta.total - metrics.completedThisMonth}</h3>
+		<div class="p-5 rounded-2xl bg-surface-container-low border border-slate-200/60 dark:border-slate-800/60 shadow-xs">
+			<p class="text-xs font-bold text-amber-600 uppercase tracking-wider mb-1">Temuan Terbuka (Open)</p>
+			<div class="flex items-end justify-between">
+				<h3 class="text-3xl font-black text-amber-600 font-mono">{meta.total - metrics.completedThisMonth}</h3>
+				<span class="material-symbols-outlined text-3xl text-amber-500/40">warning</span>
+			</div>
 		</div>
-		<div class="bg-rose-50 dark:bg-rose-900/10 p-4 lg:p-5 rounded-2xl border border-rose-200/50 shadow-sm flex flex-col justify-between">
-			<p class="text-[10px] lg:text-xs font-bold text-rose-700 dark:text-rose-400 uppercase tracking-wider mb-2">Overdue</p>
-			<h3 class="text-2xl lg:text-3xl font-black text-rose-700 dark:text-rose-400">{metrics.overdue}</h3>
+		<div class="p-5 rounded-2xl bg-surface-container-low border border-slate-200/60 dark:border-slate-800/60 shadow-xs">
+			<p class="text-xs font-bold text-rose-600 uppercase tracking-wider mb-1">Overdue (Terlewat)</p>
+			<div class="flex items-end justify-between">
+				<h3 class="text-3xl font-black text-rose-600 font-mono">{metrics.overdue}</h3>
+				<span class="material-symbols-outlined text-3xl text-rose-500/40">error</span>
+			</div>
 		</div>
+	</div>
+
+	<!-- Search & Filter Bar -->
+	<div class="rounded-2xl bg-surface-container-low border border-slate-200/60 dark:border-slate-800/60 p-4 shadow-xs flex flex-col sm:flex-row gap-3">
+		<div class="relative flex-1">
+			<span class="absolute left-3.5 top-1/2 -translate-y-1/2 material-symbols-outlined text-on-surface-variant text-base">search</span>
+			<input 
+				type="text" 
+				placeholder="Cari nomor unit / ID inspeksi..." 
+				class="w-full bg-surface border border-slate-200 dark:border-slate-800 text-on-surface rounded-xl pl-9 pr-4 py-2 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-sky-500/50 shadow-xs"
+				bind:value={searchQuery}
+				onkeydown={(e) => e.key === 'Enter' && applyFilters()}
+			/>
+		</div>
+		<select 
+			bind:value={statusFilter}
+			onchange={applyFilters}
+			class="bg-surface border border-slate-200 dark:border-slate-800 text-on-surface rounded-xl px-3 py-2 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-sky-500/50 shadow-xs min-w-[150px] cursor-pointer"
+		>
+			<option value="All">Semua Status</option>
+			<option value="Open">Open</option>
+			<option value="In Progress">Progress</option>
+			<option value="Closed">Closed</option>
+		</select>
 	</div>
 
 	<!-- Cards List -->

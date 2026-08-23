@@ -40,78 +40,83 @@
 	<title>Daftar Pembayaran | Finance ERP</title>
 </svelte:head>
 
-<div class="max-w-7xl mx-auto p-8 space-y-8">
+<div class="flex flex-col h-full space-y-6">
 	<!-- Header -->
-	<header class="flex justify-between items-end border-b border-surface-container pb-6">
+	<header class="flex flex-col md:flex-row md:items-end justify-between gap-4 flex-shrink-0">
 		<div>
-			<h1 class="text-3xl font-extrabold text-on-surface tracking-tight mb-2">Riwayat Pembayaran</h1>
-			<p class="text-on-surface-variant font-medium">Daftar transaksi penerimaan dan pengeluaran kas.</p>
+			<div class="flex items-center gap-2.5">
+				<span class="material-symbols-outlined text-amber-600 dark:text-amber-400 text-2xl">payments</span>
+				<h1 class="text-2xl font-black text-on-surface tracking-tight">Riwayat Pembayaran Kas & Bank</h1>
+			</div>
+			<p class="text-on-surface-variant font-medium text-sm mt-0.5">
+				Pencatatan dan verifikasi transaksi penerimaan pelunasan invoice serta pengeluaran kas operasional
+			</p>
 		</div>
 		<div class="flex gap-3">
-			<a href="/finance/create-transaction/receive-payments" class="bg-primary hover:bg-primary/90 text-on-primary px-5 py-2.5 rounded-xl text-sm font-bold flex items-center gap-2 transition-colors shadow-sm">
-				<span class="material-symbols-outlined text-[18px]">add</span> Terima Pembayaran
+			<a href="/finance/create-transaction/receive-payments" class="bg-amber-600 hover:bg-amber-700 text-white px-4 py-2.5 rounded-xl text-sm font-bold shadow-xs flex items-center gap-2 transition-colors">
+				<span class="material-symbols-outlined text-lg">add</span>
+				<span>Terima Pembayaran</span>
 			</a>
 		</div>
 	</header>
 
-	<!-- Table -->
-	<div class="bg-surface-container-lowest rounded-3xl shadow-sm border border-surface-container overflow-hidden">
-		<div class="overflow-x-auto">
-			<table class="w-full text-left">
-				<thead class="bg-surface-container-low/50 border-b border-surface-container text-xs font-black uppercase text-on-surface-variant tracking-wider">
+	<!-- Table Container -->
+	<div class="rounded-2xl bg-surface-container-low border border-slate-200/60 dark:border-slate-800/60 overflow-hidden shadow-xs flex-1 flex flex-col">
+		<div class="overflow-x-auto flex-1">
+			<table class="w-full text-left text-sm min-w-[900px]">
+				<thead class="bg-slate-100/70 dark:bg-slate-800/50 text-xs font-bold text-on-surface-variant uppercase tracking-wider border-b border-slate-200/60 dark:border-slate-800/60">
 					<tr>
-						<th class="p-5">Tanggal</th>
-						<th class="p-5">No. Transaksi</th>
-						<th class="p-5">Tipe</th>
-						<th class="p-5">Kustomer/Vendor</th>
-						<th class="p-5">Ke Akun Kas/Bank</th>
-						<th class="p-5 text-right">Jumlah</th>
-						<th class="p-5 text-center">Status</th>
-						<th class="p-5 text-center">Aksi</th>
+						<th class="py-3.5 px-5">Tanggal</th>
+						<th class="py-3.5 px-5">No. Transaksi</th>
+						<th class="py-3.5 px-5">Tipe Arus Kas</th>
+						<th class="py-3.5 px-5">Kustomer / Vendor</th>
+						<th class="py-3.5 px-5">Akun Kas/Bank</th>
+						<th class="py-3.5 px-5 text-right">Jumlah Transaksi</th>
+						<th class="py-3.5 px-5 text-center">Status</th>
+						<th class="py-3.5 px-5 text-center">Aksi</th>
 					</tr>
 				</thead>
-				<tbody class="divide-y divide-surface-container text-sm">
+				<tbody class="divide-y divide-slate-200/60 dark:divide-slate-800/60">
+					{#if !data.payments || data.payments.length === 0}
+						<tr>
+							<td colspan="8" class="py-16 text-center text-on-surface-variant font-medium">
+								<span class="material-symbols-outlined text-4xl text-on-surface-variant/40 block mb-2">payments</span>
+								<p class="font-bold text-on-surface">Belum ada riwayat transaksi pembayaran.</p>
+							</td>
+						</tr>
+					{/if}
 					{#each data.payments as payment}
-						<tr class="hover:bg-surface-container-low/30 transition-colors">
-							<td class="p-5 font-medium text-on-surface-variant">{formatDate(payment.date)}</td>
-							<td class="p-5 font-bold text-on-surface">{payment.payment_number}</td>
-							<td class="p-5">
+						<tr class="hover:bg-surface-container transition-colors">
+							<td class="py-4 px-5 text-xs text-on-surface-variant font-medium">{formatDate(payment.date)}</td>
+							<td class="py-4 px-5 font-bold text-on-surface font-mono">{payment.payment_number}</td>
+							<td class="py-4 px-5">
 								{#if payment.type === 'RECEIVE'}
-									<span class="text-emerald-600 font-bold flex items-center gap-1 text-xs uppercase tracking-wider"><span class="material-symbols-outlined text-[16px]">arrow_downward</span> Masuk</span>
+									<span class="text-emerald-600 font-bold flex items-center gap-1 text-xs uppercase tracking-wider"><span class="material-symbols-outlined text-sm">arrow_downward</span> Masuk</span>
 								{:else}
-									<span class="text-rose-600 font-bold flex items-center gap-1 text-xs uppercase tracking-wider"><span class="material-symbols-outlined text-[16px]">arrow_upward</span> Keluar</span>
+									<span class="text-rose-600 font-bold flex items-center gap-1 text-xs uppercase tracking-wider"><span class="material-symbols-outlined text-sm">arrow_upward</span> Keluar</span>
 								{/if}
 							</td>
-							<td class="p-5 font-bold text-on-surface-variant">{payment.partner_name || '-'}</td>
-							<td class="p-5 text-on-surface-variant font-medium">{payment.account_name || '-'}</td>
-							<td class="p-5 font-black text-on-surface text-right">{formatCurrency(Number(payment.amount))}</td>
-							<td class="p-5 text-center">
+							<td class="py-4 px-5 font-bold text-on-surface">{payment.partner_name || '-'}</td>
+							<td class="py-4 px-5 text-xs text-on-surface-variant font-medium">{payment.account_name || '-'}</td>
+							<td class="py-4 px-5 font-black text-on-surface text-right font-mono">{formatCurrency(Number(payment.amount))}</td>
+							<td class="py-4 px-5 text-center">
 								{#if payment.status === 'POSTED'}
-									<span class="inline-flex items-center px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider border bg-emerald-100 text-emerald-700 border-emerald-200">
+									<span class="inline-flex items-center px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider bg-emerald-500/10 text-emerald-600 border border-emerald-500/20">
 										POSTED
 									</span>
 								{:else}
-									<span class="inline-flex items-center px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider border bg-rose-100 text-rose-700 border-rose-200">
+									<span class="inline-flex items-center px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider bg-rose-500/10 text-rose-600 border border-rose-500/20">
 										CANCELLED
 									</span>
 								{/if}
 							</td>
-							<td class="p-5">
-								<div class="flex items-center justify-center">
-									<button onclick={() => openDetail(payment.id)} class="w-8 h-8 rounded-full bg-surface-container hover:bg-blue-100 hover:text-blue-700 flex items-center justify-center transition-colors" title="Lihat Detail">
-										<span class="material-symbols-outlined text-[18px]">visibility</span>
-									</button>
-								</div>
+							<td class="py-4 px-5 text-center">
+								<button onclick={() => openDetail(payment.id)} class="p-1.5 rounded-lg text-on-surface-variant hover:text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-900/30 transition-colors cursor-pointer" title="Lihat Detail">
+									<span class="material-symbols-outlined text-lg">visibility</span>
+								</button>
 							</td>
 						</tr>
 					{/each}
-					{#if data.payments.length === 0}
-						<tr>
-							<td colspan="8" class="p-12 text-center text-on-surface-variant font-medium">
-								Belum ada transaksi pembayaran.
-							</td>
-						</tr>
-					{/if}
 				</tbody>
 			</table>
 		</div>

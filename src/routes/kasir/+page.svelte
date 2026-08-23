@@ -11,96 +11,106 @@
 	<title>Kasir Dashboard | ERP BCS</title>
 </svelte:head>
 
-<div class="flex flex-col h-full pb-8">
-	<header class="mb-8 flex flex-col md:flex-row md:items-end justify-between gap-4">
+<div class="flex flex-col h-full space-y-6">
+	<!-- Header -->
+	<header class="flex flex-col md:flex-row md:items-end justify-between gap-4 flex-shrink-0">
 		<div>
-			<h1 class="text-3xl font-extrabold text-on-surface tracking-tight mb-2">Dashboard Kasir</h1>
-			<p class="text-on-surface-variant font-medium text-sm flex items-center gap-2">
-				<span class="material-symbols-outlined text-[18px]">calendar_today</span>
-				{today}
+			<div class="flex items-center gap-2.5">
+				<span class="material-symbols-outlined text-amber-600 dark:text-amber-400 text-2xl">point_of_sale</span>
+				<h1 class="text-2xl font-black text-on-surface tracking-tight">Dashboard Operasional Kasir</h1>
+			</div>
+			<p class="text-on-surface-variant font-medium text-sm mt-0.5 flex items-center gap-1.5">
+				<span class="material-symbols-outlined text-base">calendar_today</span>
+				<span>{today} • Manajemen pencairan UJO supir, klaim ritase surat jalan, dan closing kasir</span>
 			</p>
 		</div>
 		<div class="flex items-center gap-3">
-			<button class="bg-surface-container-high hover:bg-surface-container-highest text-on-surface px-4 py-2 rounded-xl text-sm font-bold shadow-sm flex items-center gap-2 transition-colors">
-				<span class="material-symbols-outlined text-[18px]">receipt_long</span> Input Pengeluaran
-			</button>
+			<a href="/kasir/ujo" class="bg-amber-600 hover:bg-amber-700 text-white px-4 py-2.5 rounded-xl text-sm font-bold shadow-xs flex items-center gap-2 transition-colors">
+				<span class="material-symbols-outlined text-lg">payments</span>
+				<span>Proses UJO</span>
+			</a>
 		</div>
 	</header>
 
-	<!-- Summary Cards -->
-	<div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-		<div class="bg-surface-container-lowest p-5 rounded-2xl border border-surface-container shadow-sm">
-			<p class="text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-2">Total UJO Cair (All Time)</p>
+	<!-- Summary Cards (Bento) -->
+	<div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+		<div class="p-5 rounded-2xl bg-surface-container-low border border-slate-200/60 dark:border-slate-800/60 shadow-xs">
+			<p class="text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-1">Total UJO Cair</p>
 			<div class="flex items-end justify-between">
-				<h3 class="text-xl font-black text-rose-600">{formatCurrency(cashSummary.cashOut)}</h3>
+				<h3 class="text-xl font-black text-rose-600 font-mono">{formatCurrency(cashSummary.cashOut)}</h3>
 				<span class="material-symbols-outlined text-2xl text-rose-500/50">arrow_downward</span>
 			</div>
 		</div>
-		<div class="bg-surface-container-lowest p-5 rounded-2xl border border-surface-container shadow-sm">
-			<p class="text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-2">Net Cash (Simulasi)</p>
+
+		<div class="p-5 rounded-2xl bg-surface-container-low border border-slate-200/60 dark:border-slate-800/60 shadow-xs">
+			<p class="text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-1">Net Cash Kasir</p>
 			<div class="flex items-end justify-between">
-				<h3 class="text-xl font-black {cashSummary.netCash >= 0 ? 'text-emerald-600' : 'text-rose-600'}">{formatCurrency(cashSummary.netCash)}</h3>
+				<h3 class="text-xl font-black {cashSummary.netCash >= 0 ? 'text-emerald-600' : 'text-rose-600'} font-mono">{formatCurrency(cashSummary.netCash)}</h3>
 				<span class="material-symbols-outlined text-2xl {cashSummary.netCash >= 0 ? 'text-emerald-500/50' : 'text-rose-500/50'}">account_balance</span>
 			</div>
 		</div>
-		<div class="bg-surface-container-lowest p-5 rounded-2xl border border-indigo-500/20 shadow-sm relative overflow-hidden group hover:border-indigo-500/40 transition-colors">
-			<div class="absolute inset-0 bg-gradient-to-br from-indigo-500/5 to-transparent"></div>
-			<p class="text-xs font-bold text-indigo-600 uppercase tracking-wider mb-2 relative z-10">Antrean UJO (Baru)</p>
-			<div class="flex items-end justify-between relative z-10">
-				<h3 class="text-3xl font-black text-indigo-600">{cashSummary.pendingUjo}</h3>
-				<span class="material-symbols-outlined text-3xl text-indigo-500/30">payments</span>
+
+		<div class="p-5 rounded-2xl bg-surface-container-low border border-amber-500/20 shadow-xs flex flex-col justify-between">
+			<div>
+				<p class="text-xs font-bold text-amber-600 uppercase tracking-wider mb-1">Antrean UJO (Baru)</p>
+				<div class="flex items-end justify-between">
+					<h3 class="text-3xl font-black text-amber-600 font-mono">{cashSummary.pendingUjo}</h3>
+					<span class="material-symbols-outlined text-3xl text-amber-500/40">payments</span>
+				</div>
 			</div>
-			<a href="/kasir/ujo" class="relative z-10 text-[10px] font-bold text-indigo-600 mt-2 flex items-center gap-1 hover:underline">
-				Proses UJO <span class="material-symbols-outlined text-[12px]">arrow_forward</span>
+			<a href="/kasir/ujo" class="text-xs font-bold text-amber-600 mt-2 flex items-center gap-1 hover:underline">
+				<span>Proses Pencairan</span>
+				<span class="material-symbols-outlined text-sm">arrow_forward</span>
 			</a>
 		</div>
-		<div class="bg-surface-container-lowest p-5 rounded-2xl border border-rose-500/20 shadow-sm relative overflow-hidden group hover:border-rose-500/40 transition-colors">
-			<div class="absolute inset-0 bg-gradient-to-br from-rose-500/5 to-transparent"></div>
-			<p class="text-xs font-bold text-rose-600 uppercase tracking-wider mb-2 relative z-10">Antrean Settlement (Closing)</p>
-			<div class="flex items-end justify-between relative z-10">
-				<h3 class="text-3xl font-black text-rose-600">{cashSummary.pendingDn}</h3>
-				<span class="material-symbols-outlined text-3xl text-rose-500/30">assignment_return</span>
+
+		<div class="p-5 rounded-2xl bg-surface-container-low border border-rose-500/20 shadow-xs flex flex-col justify-between">
+			<div>
+				<p class="text-xs font-bold text-rose-600 uppercase tracking-wider mb-1">Antrean Settlement</p>
+				<div class="flex items-end justify-between">
+					<h3 class="text-3xl font-black text-rose-600 font-mono">{cashSummary.pendingDn}</h3>
+					<span class="material-symbols-outlined text-3xl text-rose-500/40">assignment_return</span>
+				</div>
 			</div>
-			<a href="/kasir/closing" class="relative z-10 text-[10px] font-bold text-rose-600 mt-2 flex items-center gap-1 hover:underline">
-				Proses Closing <span class="material-symbols-outlined text-[12px]">arrow_forward</span>
+			<a href="/kasir/closing" class="text-xs font-bold text-rose-600 mt-2 flex items-center gap-1 hover:underline">
+				<span>Proses Closing</span>
+				<span class="material-symbols-outlined text-sm">arrow_forward</span>
 			</a>
 		</div>
 	</div>
 
-	<div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
-		<!-- Left Column -->
-		<div class="space-y-8">
-			
-			<!-- Pending UJO Approval -->
-			<div class="bg-surface-container-lowest rounded-[24px] shadow-sm flex flex-col overflow-hidden border border-surface-container">
-				<div class="px-6 py-5 border-b border-surface-container flex items-center justify-between bg-indigo-50/50 dark:bg-indigo-900/10">
-					<h2 class="text-base font-extrabold text-indigo-700 dark:text-indigo-400 flex items-center gap-2">
-						<span class="material-symbols-outlined text-[20px]">payments</span>
-						Menunggu Pencairan UJO
+	<div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+		<!-- Left Column: Pending UJO Approval -->
+		<div class="space-y-6">
+			<div class="rounded-2xl bg-surface-container-low border border-slate-200/60 dark:border-slate-800/60 shadow-xs flex flex-col overflow-hidden">
+				<div class="px-5 py-4 border-b border-slate-200/60 dark:border-slate-800/60 flex items-center justify-between bg-slate-50/50 dark:bg-slate-800/30">
+					<h2 class="text-sm font-bold text-on-surface flex items-center gap-2">
+						<span class="material-symbols-outlined text-amber-600 text-lg">payments</span>
+						<span>Menunggu Pencairan UJO</span>
 					</h2>
-					<a href="/kasir/ujo" class="text-xs font-bold text-indigo-600 hover:underline">Lihat Semua</a>
+					<a href="/kasir/ujo" class="text-xs font-bold text-amber-600 hover:underline">Lihat Semua</a>
 				</div>
 				<div class="p-4 space-y-3">
 					{#if pendingUjoRequests.length === 0}
-						<p class="text-center text-sm font-medium text-on-surface-variant py-4">Tidak ada UJO pending.</p>
+						<p class="text-center text-xs font-medium text-on-surface-variant py-4">Tidak ada permohonan UJO yang pending.</p>
 					{/if}
 					{#each pendingUjoRequests as req}
-						<div class="flex items-center justify-between p-4 rounded-xl bg-surface-container-low hover:bg-surface-container-high transition-colors group">
-							<div class="flex items-center gap-4">
-								<div class="w-10 h-10 rounded-full bg-indigo-100 dark:bg-indigo-900/30 flex items-center justify-center text-indigo-600">
-									<span class="material-symbols-outlined text-[20px]">account_circle</span>
+						<div class="flex items-center justify-between p-3.5 rounded-xl bg-surface border border-slate-200/60 dark:border-slate-800/60 hover:bg-surface-container-high transition-colors">
+							<div class="flex items-center gap-3">
+								<div class="w-9 h-9 rounded-xl bg-amber-500/10 text-amber-600 flex items-center justify-center font-bold flex-shrink-0">
+									<span class="material-symbols-outlined text-lg">person</span>
 								</div>
 								<div>
 									<p class="text-sm font-bold text-on-surface">{req.driver}</p>
-									<p class="text-[10px] font-medium text-on-surface-variant flex items-center gap-1">
-										<span class="material-symbols-outlined text-[12px]">local_shipping</span> {req.unit} · {req.route}
+									<p class="text-[11px] text-on-surface-variant flex items-center gap-1 mt-0.5">
+										<span class="material-symbols-outlined text-xs">local_shipping</span> {req.unit} · {req.route}
 									</p>
-									<p class="text-[10px] font-bold text-indigo-600">{req.id}</p>
+									<p class="text-[10px] font-mono text-amber-600">{req.id}</p>
 								</div>
 							</div>
 							<div class="text-right">
-								<p class="text-sm font-black text-on-surface mb-1">{formatCurrency(req.amount)}</p>
-								<a href="/kasir/ujo" class="inline-block px-3 py-1 bg-indigo-600 text-white text-[10px] font-bold rounded-md hover:bg-indigo-700 transition-colors shadow-sm">
+								<p class="text-sm font-black text-on-surface mb-1 font-mono">{formatCurrency(req.amount)}</p>
+								<a href="/kasir/ujo" class="inline-block px-3 py-1 bg-amber-600 text-white text-xs font-bold rounded-lg hover:bg-amber-700 transition-colors shadow-xs">
 									Cairkan
 								</a>
 							</div>
@@ -110,31 +120,31 @@
 			</div>
 
 			<!-- Pending DN Settlements -->
-			<div class="bg-surface-container-lowest rounded-[24px] shadow-sm flex flex-col overflow-hidden border border-surface-container">
-				<div class="px-6 py-5 border-b border-surface-container flex items-center justify-between bg-rose-50/50 dark:bg-rose-900/10">
-					<h2 class="text-base font-extrabold text-rose-700 dark:text-rose-400 flex items-center gap-2">
-						<span class="material-symbols-outlined text-[20px]">assignment_turned_in</span>
-						Penyelesaian Ritase (Closing)
+			<div class="rounded-2xl bg-surface-container-low border border-slate-200/60 dark:border-slate-800/60 shadow-xs flex flex-col overflow-hidden">
+				<div class="px-5 py-4 border-b border-slate-200/60 dark:border-slate-800/60 flex items-center justify-between bg-slate-50/50 dark:bg-slate-800/30">
+					<h2 class="text-sm font-bold text-on-surface flex items-center gap-2">
+						<span class="material-symbols-outlined text-rose-600 text-lg">assignment_turned_in</span>
+						<span>Penyelesaian Ritase (Closing Kasir)</span>
 					</h2>
 					<a href="/kasir/closing" class="text-xs font-bold text-rose-600 hover:underline">Lihat Semua</a>
 				</div>
 				<div class="p-4 space-y-3">
 					{#if pendingDNSettlements.length === 0}
-						<p class="text-center text-sm font-medium text-on-surface-variant py-4">Tidak ada order yang sedang Closing.</p>
+						<p class="text-center text-xs font-medium text-on-surface-variant py-4">Tidak ada order yang sedang Closing.</p>
 					{/if}
 					{#each pendingDNSettlements as settle}
-						<div class="flex items-center justify-between p-4 rounded-xl bg-surface-container-low hover:bg-surface-container-high transition-colors">
+						<div class="flex items-center justify-between p-3.5 rounded-xl bg-surface border border-slate-200/60 dark:border-slate-800/60 hover:bg-surface-container-high transition-colors">
 							<div>
-								<div class="flex items-center gap-2 mb-1">
-									<p class="text-sm font-bold text-on-surface">{settle.id}</p>
-									<span class="text-[9px] font-bold uppercase px-1.5 py-0.5 rounded bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400 border border-rose-200 dark:border-rose-800">Extra Cost</span>
+								<div class="flex items-center gap-2 mb-0.5">
+									<p class="text-sm font-bold text-on-surface font-mono">{settle.id}</p>
+									<span class="text-[9px] font-bold uppercase px-1.5 py-0.5 rounded bg-rose-500/10 text-rose-600 border border-rose-500/20">Extra Cost</span>
 								</div>
-								<p class="text-[11px] text-on-surface-variant mb-0.5">{settle.customer} · {settle.driver}</p>
-								<p class="text-[10px] font-medium text-on-surface-variant italic">"{settle.desc || '-'}"</p>
+								<p class="text-xs text-on-surface-variant">{settle.customer} · {settle.driver}</p>
+								<p class="text-[10px] text-on-surface-variant italic">"{settle.desc || '-'}"</p>
 							</div>
 							<div class="text-right">
-								<p class="text-sm font-black text-rose-600">{formatCurrency(settle.extraCost)}</p>
-								<a href="/kasir/closing" class="inline-block mt-2 px-3 py-1 bg-surface-container-high text-on-surface text-[10px] font-bold rounded-md hover:bg-rose-600 hover:text-white transition-colors shadow-sm">
+								<p class="text-sm font-black text-rose-600 font-mono">{formatCurrency(settle.extraCost)}</p>
+								<a href="/kasir/closing" class="inline-block mt-1.5 px-3 py-1 bg-surface-container-high text-on-surface text-xs font-bold rounded-lg hover:bg-rose-600 hover:text-white transition-colors shadow-xs">
 									Selesaikan
 								</a>
 							</div>
@@ -142,14 +152,12 @@
 					{/each}
 				</div>
 			</div>
-
 		</div>
 
-		<!-- Right Column -->
-		<div class="space-y-8">
-			<!-- Visual Placeholder for Chart -->
-			<div class="bg-surface-container-lowest rounded-[24px] shadow-sm p-6 border border-surface-container">
-				<h2 class="text-base font-extrabold text-on-surface mb-6">Arus Kas Mingguan</h2>
+		<!-- Right Column: Chart -->
+		<div class="space-y-6">
+			<div class="rounded-2xl bg-surface-container-low border border-slate-200/60 dark:border-slate-800/60 shadow-xs p-6">
+				<h2 class="text-base font-bold text-on-surface mb-6">Arus Kas Mingguan</h2>
 				<div class="h-48 flex items-end justify-between gap-2">
 					{#each weeklyChart as w}
 						<div class="w-full flex flex-col items-center gap-2 group">
@@ -171,27 +179,15 @@
 						</div>
 					{/each}
 				</div>
-				<div class="flex justify-center gap-6 mt-6 pt-4 border-t border-surface-container">
+				<div class="flex justify-center gap-6 mt-6 pt-4 border-t border-slate-200/60 dark:border-slate-800/60">
 					<div class="flex items-center gap-2">
-						<span class="w-3 h-3 rounded bg-emerald-400"></span>
-						<span class="text-[10px] font-bold text-on-surface-variant">Pemasukan</span>
+						<span class="w-2.5 h-2.5 rounded-full bg-emerald-400"></span>
+						<span class="text-xs font-bold text-on-surface-variant">Pemasukan</span>
 					</div>
 					<div class="flex items-center gap-2">
-						<span class="w-3 h-3 rounded bg-rose-400"></span>
-						<span class="text-[10px] font-bold text-on-surface-variant">Pengeluaran</span>
+						<span class="w-2.5 h-2.5 rounded-full bg-rose-400"></span>
+						<span class="text-xs font-bold text-on-surface-variant">Pengeluaran</span>
 					</div>
-				</div>
-			</div>
-			
-			<div class="bg-surface-container-lowest rounded-[24px] shadow-sm flex flex-col overflow-hidden border border-surface-container opacity-50 grayscale pointer-events-none">
-				<div class="px-6 py-5 border-b border-surface-container flex items-center justify-between">
-					<h2 class="text-base font-extrabold text-on-surface flex items-center gap-2">
-						<span class="material-symbols-outlined text-[20px] text-surface-variant">lock</span>
-						Riwayat Transaksi Umum (TBD)
-					</h2>
-				</div>
-				<div class="p-6 text-center text-sm font-medium text-on-surface-variant">
-					Fitur transaksi keuangan umum belum terintegrasi di prototipe ini.
 				</div>
 			</div>
 		</div>

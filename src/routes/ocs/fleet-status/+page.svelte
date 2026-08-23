@@ -75,23 +75,29 @@
 	<title>Fleet Status | OCS</title>
 </svelte:head>
 
-<div class="flex flex-col h-full">
-	<header class="mb-8 flex flex-col md:flex-row md:items-end justify-between gap-4">
+<div class="flex flex-col h-full space-y-6">
+	<!-- Header & Actions -->
+	<header class="flex flex-col md:flex-row md:items-end justify-between gap-4 flex-shrink-0">
 		<div>
-			<h1 class="text-3xl font-extrabold text-on-surface tracking-tight mb-2">Fleet Status</h1>
-			<p class="text-on-surface-variant font-medium text-sm">Unit availability, location tracking, and operational readiness</p>
+			<div class="flex items-center gap-2.5">
+				<span class="material-symbols-outlined text-blue-600 dark:text-blue-400 text-2xl">local_shipping</span>
+				<h1 class="text-2xl font-black text-on-surface tracking-tight">Live Fleet Status & Kesiapan Armada</h1>
+			</div>
+			<p class="text-on-surface-variant font-medium text-sm mt-0.5">
+				Pemantauan ketersediaan unit, status pergerakan live GPS, dan kesiapan operasional seluruh armada
+			</p>
 		</div>
-		<div class="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
+		<div class="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 font-bold text-xs">
 			<span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-			<span class="text-[10px] font-bold text-emerald-600 uppercase tracking-wider">Live Data</span>
+			<span>GPS Live Telemetry</span>
 		</div>
 	</header>
 
-	<!-- Status Summary Cards -->
-	<div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-8">
+	<!-- Status Summary Cards (Bento) -->
+	<div class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3">
 		{#each [
 			{ label: 'Available', count: summary.available, color: 'emerald', icon: 'check_circle' },
-			{ label: 'Moving', count: summary.moving, color: 'sky', icon: 'local_shipping' },
+			{ label: 'Moving', count: summary.moving, color: 'blue', icon: 'local_shipping' },
 			{ label: 'Transit', count: summary.transit, color: 'amber', icon: 'pause_circle' },
 			{ label: 'Loading', count: summary.loading, color: 'indigo', icon: 'forklift' },
 			{ label: 'Maintenance', count: summary.maintenance, color: 'orange', icon: 'build' },
@@ -99,7 +105,8 @@
 			{ label: 'Accident', count: summary.accident, color: 'red', icon: 'car_crash' },
 			{ label: 'Total', count: summary.total, color: 'slate', icon: 'grid_view' },
 		] as item}
-			<div class="bg-surface-container-lowest p-4 rounded-2xl border border-{item.color}-500/20 shadow-sm hover:scale-[1.02] transition-transform duration-300 cursor-pointer text-center">
+			<div class="p-4 rounded-2xl bg-surface-container-low border border-slate-200/60 dark:border-slate-800/60 shadow-xs hover:border-blue-500/30 transition-all cursor-pointer text-center"
+				onclick={() => handleStatusClick(item.label === 'Total' ? 'All' : item.label)}>
 				<span class="material-symbols-outlined text-xl text-{item.color}-500 mb-1 block">{item.icon}</span>
 				<p class="text-xl font-black text-on-surface">{item.count}</p>
 				<p class="text-[9px] font-bold text-on-surface-variant uppercase tracking-widest mt-0.5">{item.label}</p>
@@ -107,88 +114,96 @@
 		{/each}
 	</div>
 
-	<!-- Filters -->
-	<div class="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 mb-6">
-		<div class="flex gap-2 overflow-x-auto pb-2 lg:pb-0 hide-scrollbar max-w-full">
+	<!-- Unified Filter Bar -->
+	<div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+		<!-- Segmented Control Status Tabs -->
+		<div class="inline-flex p-1 rounded-2xl bg-surface-container border border-slate-200 dark:border-slate-800 overflow-x-auto max-w-full">
 			{#each statusTabs as tab}
 				<button 
-					class="px-3 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-colors {statusFilter === tab ? 'bg-sky-100 text-sky-700 dark:bg-sky-900/50 dark:text-sky-300' : 'text-on-surface-variant hover:bg-surface-container'}"
+					class="px-3.5 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all {statusFilter === tab ? 'bg-blue-600 text-white shadow-xs' : 'text-on-surface hover:bg-surface-container-high'}"
 					onclick={() => handleStatusClick(tab)}>
 					{tab}
 				</button>
 			{/each}
 		</div>
-		<div class="relative w-full lg:w-72 flex-shrink-0">
-			<span class="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-on-surface-variant text-lg">search</span>
-			<input type="text" bind:value={searchQuery} oninput={handleSearchInput}
-				placeholder="Search unit, driver, location..." 
-				class="w-full bg-surface-container-lowest border border-outline-variant/30 text-on-surface rounded-full py-2.5 pl-11 pr-4 focus:outline-none focus:ring-2 focus:ring-sky-500/50 text-sm font-medium shadow-sm" />
+
+		<!-- Search Input -->
+		<div class="relative w-full md:w-72">
+			<span class="material-symbols-outlined absolute left-3.5 top-1/2 -translate-y-1/2 text-on-surface-variant text-lg">search</span>
+			<input 
+				type="text" 
+				bind:value={searchQuery} 
+				oninput={handleSearchInput}
+				placeholder="Cari nomor unit, driver, lokasi..." 
+				class="w-full bg-surface-container-low border border-slate-200 dark:border-slate-800 text-on-surface rounded-xl py-2 pl-10 pr-4 focus:outline-none focus:ring-2 focus:ring-blue-500/50 text-xs font-medium shadow-xs" 
+			/>
 		</div>
 	</div>
 
 	<!-- Unit Cards Grid -->
-	<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
+	<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
 		{#each units as unit}
-			<div class="bg-surface-container-lowest rounded-2xl p-5 shadow-sm border border-surface-container hover:shadow-md hover:scale-[1.01] transition-all duration-200 cursor-pointer group">
+			<div class="rounded-2xl bg-surface-container-low p-5 shadow-xs border border-slate-200/60 dark:border-slate-800/60 hover:border-blue-500/30 transition-all cursor-pointer group">
 				<div class="flex items-start justify-between mb-4">
 					<div class="flex items-center gap-3">
-						<div class="w-11 h-11 rounded-xl bg-sky-100 dark:bg-sky-900/30 flex items-center justify-center text-sky-600 dark:text-sky-400 group-hover:scale-110 transition-transform">
+						<div class="w-11 h-11 rounded-xl bg-blue-500/10 text-blue-600 flex items-center justify-center font-bold flex-shrink-0">
 							<span class="material-symbols-outlined text-xl">local_shipping</span>
 						</div>
 						<div>
-							<p class="text-sm font-black text-on-surface">{unit.id}</p>
-							<p class="text-[10px] text-on-surface-variant font-medium">{unit.brand}</p>
+							<p class="text-sm font-bold text-on-surface">{unit.id}</p>
+							<p class="text-[11px] text-on-surface-variant font-medium mt-0.5">{unit.brand}</p>
 						</div>
 					</div>
-					<span class="inline-flex items-center gap-1.5 font-bold text-[10px] px-2 py-0.5 rounded-md uppercase tracking-wider border {getStatusBadge(unit.status)}">
+					<span class="inline-flex items-center gap-1.5 font-bold text-[10px] px-2.5 py-1 rounded-md uppercase tracking-wider border {getStatusBadge(unit.status)}">
 						<span class="w-1.5 h-1.5 rounded-full {getStatusDot(unit.status)}"></span> {unit.status}
 					</span>
 				</div>
 				
-				<div class="space-y-2">
+				<div class="space-y-2 text-xs">
 					<div class="flex items-center gap-2">
-						<span class="material-symbols-outlined text-[14px] text-on-surface-variant/50">person</span>
-						<span class="text-xs font-medium text-on-surface">{unit.driver !== '-' ? unit.driver : 'No Driver Assigned'}</span>
+						<span class="material-symbols-outlined text-slate-400 text-sm">person</span>
+						<span class="font-medium text-on-surface">{unit.driver !== '-' ? unit.driver : 'Belum Ada Driver'}</span>
 					</div>
 					<div class="flex items-center gap-2">
-						<span class="material-symbols-outlined text-[14px] text-on-surface-variant/50">location_on</span>
-						<span class="text-xs font-medium text-on-surface">{unit.location}</span>
+						<span class="material-symbols-outlined text-slate-400 text-sm">location_on</span>
+						<span class="font-medium text-on-surface truncate">{unit.location}</span>
 					</div>
 					{#if unit.speed > 0}
 						<div class="flex items-center gap-2">
-							<span class="material-symbols-outlined text-[14px] text-sky-500">speed</span>
-							<span class="text-xs font-bold text-sky-600">{unit.speed} km/h</span>
+							<span class="material-symbols-outlined text-blue-500 text-sm">speed</span>
+							<span class="font-bold text-blue-600">{unit.speed} km/h</span>
 						</div>
 					{/if}
 					{#if unit.do !== '-'}
 						<div class="flex items-center gap-2">
-							<span class="material-symbols-outlined text-[14px] text-on-surface-variant/50">receipt_long</span>
-							<span class="text-xs font-bold text-sky-600">{unit.do}</span>
+							<span class="material-symbols-outlined text-slate-400 text-sm">receipt_long</span>
+							<span class="font-bold text-blue-600 font-mono">{unit.do}</span>
 						</div>
 					{/if}
 				</div>
 
-				<div class="mt-4 pt-3 border-t border-surface-container/50 flex items-center justify-between">
-					<span class="text-[10px] text-on-surface-variant font-medium">Updated {unit.lastUpdate}</span>
-					<button class="p-1.5 rounded-lg text-sky-600 hover:bg-sky-100 dark:hover:bg-sky-900/30 transition-colors opacity-0 group-hover:opacity-100" title="Track Unit">
-						<span class="material-symbols-outlined text-[18px]">gps_fixed</span>
-					</button>
+				<div class="mt-4 pt-3 border-t border-slate-200/60 dark:border-slate-800/60 flex items-center justify-between">
+					<span class="text-[10px] text-on-surface-variant font-medium">Update: {unit.lastUpdate}</span>
+					<a href="/fms/live-map?unit={encodeURIComponent(unit.id)}" class="p-1.5 rounded-lg text-blue-600 hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors flex items-center gap-1 text-[11px] font-bold" title="Lacak di Live Map">
+						<span class="material-symbols-outlined text-base">gps_fixed</span>
+						<span>Lacak</span>
+					</a>
 				</div>
 			</div>
 		{/each}
 	</div>
 
 	<!-- Pagination -->
-	<div class="flex items-center justify-center gap-1">
-		<button class="w-8 h-8 rounded-lg flex items-center justify-center text-on-surface-variant hover:bg-surface-container-high disabled:opacity-50 transition-colors" disabled={currentPage <= 1} onclick={() => goToPage(currentPage - 1)}>
+	<div class="flex items-center justify-center gap-1 py-4">
+		<button class="w-8 h-8 rounded-lg flex items-center justify-center text-on-surface-variant hover:bg-surface-container-high disabled:opacity-40 transition-colors" disabled={currentPage <= 1} onclick={() => goToPage(currentPage - 1)}>
 			<span class="material-symbols-outlined text-lg">chevron_left</span>
 		</button>
 		{#each Array(totalPages) as _, i}
-			<button class="w-8 h-8 rounded-lg flex items-center justify-center font-bold text-sm shadow-sm transition-colors {currentPage === i + 1 ? 'bg-sky-600 text-white' : 'text-on-surface hover:bg-surface-container-high'}" onclick={() => goToPage(i + 1)}>
+			<button class="w-8 h-8 rounded-lg flex items-center justify-center font-bold text-xs shadow-xs transition-colors {currentPage === i + 1 ? 'bg-blue-600 text-white' : 'text-on-surface hover:bg-surface-container-high'}" onclick={() => goToPage(i + 1)}>
 				{i + 1}
 			</button>
 		{/each}
-		<button class="w-8 h-8 rounded-lg flex items-center justify-center text-on-surface-variant hover:bg-surface-container-high disabled:opacity-50 transition-colors" disabled={currentPage >= totalPages} onclick={() => goToPage(currentPage + 1)}>
+		<button class="w-8 h-8 rounded-lg flex items-center justify-center text-on-surface-variant hover:bg-surface-container-high disabled:opacity-40 transition-colors" disabled={currentPage >= totalPages} onclick={() => goToPage(currentPage + 1)}>
 			<span class="material-symbols-outlined text-lg">chevron_right</span>
 		</button>
 	</div>

@@ -142,22 +142,27 @@
 	<title>Sales Pipeline | Marketing</title>
 </svelte:head>
 
-<div class="flex flex-col h-full overflow-hidden">
+<div class="flex flex-col h-full space-y-6">
 	<!-- Header & Actions -->
-	<header class="mb-6 flex flex-col md:flex-row md:items-end justify-between gap-4 shrink-0">
+	<header class="flex flex-col md:flex-row md:items-end justify-between gap-4 flex-shrink-0">
 		<div>
-			<h1 class="text-3xl font-extrabold text-on-surface tracking-tight mb-2">Sales Pipeline</h1>
-			<p class="text-on-surface-variant font-medium text-sm">Track and manage your prospect deals through the sales cycle.</p>
+			<div class="flex items-center gap-2.5">
+				<span class="material-symbols-outlined text-rose-600 dark:text-rose-400 text-2xl">insights</span>
+				<h1 class="text-2xl font-black text-on-surface tracking-tight">Sales Pipeline & CRM Leads</h1>
+			</div>
+			<p class="text-on-surface-variant font-medium text-sm mt-0.5">
+				Tahapan konversi peluang bisnis dari prospek awal, penawaran harga, negosiasi margin, hingga penandatanganan kontrak
+			</p>
 		</div>
-		<div class="flex items-center gap-4">
+		<div class="flex items-center gap-3">
 			{#if errorMessage}
-				<div class="bg-rose-100 text-rose-700 px-4 py-2 rounded-lg text-xs font-bold animate-pulse">
+				<div class="bg-rose-500/10 text-rose-600 border border-rose-500/20 px-3.5 py-2 rounded-xl text-xs font-bold shadow-xs">
 					{errorMessage}
 				</div>
 			{/if}
-			<button onclick={() => showNewDealModal = true} class="bg-rose-600 text-white px-5 py-2.5 rounded-xl text-sm font-semibold shadow-sm flex items-center gap-2 hover:bg-rose-700 transition-colors">
+			<button onclick={() => showNewDealModal = true} class="bg-rose-600 hover:bg-rose-700 text-white px-4 py-2.5 rounded-xl text-sm font-bold shadow-xs flex items-center gap-2 transition-colors cursor-pointer">
 				<span class="material-symbols-outlined text-lg">add_circle</span>
-				New Deal
+				<span>Deal / Prospek Baru</span>
 			</button>
 		</div>
 	</header>
@@ -166,21 +171,21 @@
 	<div class="flex-1 flex gap-4 overflow-x-auto pb-4 hide-scrollbar">
 		{#each stages as stage}
 			<div 
-				class="flex-shrink-0 w-80 flex flex-col rounded-2xl border {stage.color} overflow-hidden"
+				class="flex-shrink-0 w-80 flex flex-col rounded-2xl bg-surface-container-low border border-slate-200/60 dark:border-slate-800/60 shadow-xs overflow-hidden"
 				ondragover={handleDragOver}
 				ondrop={(e) => handleDrop(e, stage.id)}
 				role="region"
 				aria-label="{stage.label} Column"
 			>
 				<!-- Column Header -->
-				<div class="p-4 border-b {stage.color.split(' ')[2]}">
+				<div class="p-4 border-b border-slate-200/60 dark:border-slate-800/60 bg-slate-100/70 dark:bg-slate-800/50">
 					<div class="flex items-center justify-between mb-1">
-						<h3 class="font-black {stage.textColor} uppercase tracking-wider text-sm">{stage.label}</h3>
-						<span class="bg-white/50 dark:bg-black/20 px-2 py-0.5 rounded-full text-xs font-bold {stage.textColor}">
+						<h3 class="font-bold {stage.textColor} uppercase tracking-wider text-xs">{stage.label}</h3>
+						<span class="bg-surface px-2.5 py-0.5 rounded-full text-xs font-bold {stage.textColor} border border-slate-200/60 dark:border-slate-800/60">
 							{deals.filter((d: any) => d.stage === stage.id).length}
 						</span>
 					</div>
-					<p class="text-[10px] font-bold opacity-70 {stage.textColor}">
+					<p class="text-xs font-bold text-on-surface">
 						{formatCurrency(deals.filter((d: any) => d.stage === stage.id).reduce((sum: number, d: any) => sum + Number(d.estimated_value), 0))}
 					</p>
 				</div>
@@ -193,11 +198,11 @@
 							draggable="true"
 							ondragstart={(e) => handleDragStart(e, deal.id)}
 							onclick={() => { detailDeal = deal; showDetailModal = true; }}
-							class="bg-surface-container-lowest border border-surface-container rounded-xl p-4 shadow-sm cursor-grab active:cursor-grabbing hover:border-rose-300 transition-colors group relative"
+							class="bg-surface rounded-xl p-4 shadow-xs border border-slate-200/60 dark:border-slate-800/60 cursor-grab active:cursor-grabbing hover:border-rose-500/40 transition-colors group relative"
 						>
 							<div class="flex justify-between items-start mb-2">
 								<h4 class="font-bold text-sm text-on-surface group-hover:text-rose-600 transition-colors">{deal.company_name}</h4>
-								<span class="text-[9px] font-black uppercase text-on-surface-variant bg-surface-container px-1.5 py-0.5 rounded">
+								<span class="text-[10px] font-bold uppercase text-on-surface-variant bg-surface-container-high px-2 py-0.5 rounded">
 									{deal.project_category}
 								</span>
 							</div>

@@ -313,53 +313,82 @@
 	<title>Dispatch | OCS</title>
 </svelte:head>
 
-<div class="flex flex-col h-full">
-	<header class="mb-8 flex flex-col md:flex-row md:items-end justify-between gap-4">
+<div class="flex flex-col h-full space-y-6">
+	<!-- Header & Actions -->
+	<header class="flex flex-col md:flex-row md:items-end justify-between gap-4 flex-shrink-0">
 		<div>
-			<h1 class="text-3xl font-extrabold text-on-surface tracking-tight mb-2">Dispatch Center</h1>
-			<p class="text-on-surface-variant font-medium text-sm">Assign available units to incoming delivery orders from Marketing</p>
+			<div class="flex items-center gap-2.5">
+				<span class="material-symbols-outlined text-blue-600 dark:text-blue-400 text-2xl">local_shipping</span>
+				<h1 class="text-2xl font-black text-on-surface tracking-tight">Dispatch Center & Surat Jalan</h1>
+			</div>
+			<p class="text-on-surface-variant font-medium text-sm mt-0.5">
+				Penugasan unit armada, approval dispatch otomatis dari kontrak, dan monitoring status Surat Jalan
+			</p>
 		</div>
-		<button class="bg-sky-600 text-white px-5 py-2.5 rounded-xl text-sm font-semibold shadow-sm flex items-center gap-2 hover:bg-sky-700 transition-colors">
+		<button class="bg-blue-600 text-white px-4 py-2.5 rounded-xl text-sm font-bold shadow-xs flex items-center gap-2 hover:bg-blue-700 transition-colors">
 			<span class="material-symbols-outlined text-lg">auto_fix_high</span>
-			Auto-Assign
+			<span>Auto-Assign AI</span>
 		</button>
 	</header>
 
-	<!-- Summary Cards -->
-	<div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-		<div class="bg-surface-container-lowest p-5 rounded-2xl border border-surface-container shadow-sm">
-			<p class="text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-2">New Orders</p>
-			<div class="flex items-end justify-between">
-				<h3 class="text-3xl font-black text-on-surface">{summary.newOrder}</h3>
-				<span class="material-symbols-outlined text-3xl text-surface-variant">new_releases</span>
+	<!-- Summary Cards (Bento) -->
+	<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+		<div class="p-5 rounded-2xl bg-surface-container-low border border-slate-200/60 dark:border-slate-800/60 shadow-xs">
+			<div class="flex items-center justify-between">
+				<div>
+					<p class="text-xs font-bold text-on-surface-variant uppercase tracking-wider">New Orders</p>
+					<h3 class="text-2xl font-black text-on-surface mt-1">{summary.newOrder}</h3>
+				</div>
+				<div class="w-12 h-12 rounded-xl bg-slate-500/10 text-slate-600 dark:text-slate-400 flex items-center justify-center">
+					<span class="material-symbols-outlined text-2xl">new_releases</span>
+				</div>
 			</div>
+			<p class="text-xs text-on-surface-variant mt-2">Order baru masuk</p>
 		</div>
-		<div class="bg-surface-container-lowest p-5 rounded-2xl border border-amber-500/20 shadow-sm">
-			<p class="text-xs font-bold text-amber-600 uppercase tracking-wider mb-2">Ready to Dispatch</p>
-			<div class="flex items-end justify-between">
-				<h3 class="text-3xl font-black text-amber-600">{summary.ready}</h3>
-				<span class="material-symbols-outlined text-3xl text-amber-500/50">hourglass_top</span>
+
+		<div class="p-5 rounded-2xl bg-surface-container-low border border-slate-200/60 dark:border-slate-800/60 shadow-xs">
+			<div class="flex items-center justify-between">
+				<div>
+					<p class="text-xs font-bold text-on-surface-variant uppercase tracking-wider">Ready to Dispatch</p>
+					<h3 class="text-2xl font-black text-amber-600 mt-1">{summary.ready}</h3>
+				</div>
+				<div class="w-12 h-12 rounded-xl bg-amber-500/10 text-amber-600 flex items-center justify-center">
+					<span class="material-symbols-outlined text-2xl">hourglass_top</span>
+				</div>
 			</div>
+			<p class="text-xs text-amber-600 font-medium mt-2">Menunggu pencairan kasir</p>
 		</div>
-		<div class="bg-surface-container-lowest p-5 rounded-2xl border border-rose-500/20 shadow-sm">
-			<p class="text-xs font-bold text-rose-600 uppercase tracking-wider mb-2">Needs Closing</p>
-			<div class="flex items-end justify-between">
-				<h3 class="text-3xl font-black text-rose-600">{summary.closing}</h3>
-				<span class="material-symbols-outlined text-3xl text-rose-500/50">assignment_return</span>
+
+		<div class="p-5 rounded-2xl bg-surface-container-low border border-slate-200/60 dark:border-slate-800/60 shadow-xs">
+			<div class="flex items-center justify-between">
+				<div>
+					<p class="text-xs font-bold text-on-surface-variant uppercase tracking-wider">Needs Closing</p>
+					<h3 class="text-2xl font-black text-rose-600 mt-1">{summary.closing}</h3>
+				</div>
+				<div class="w-12 h-12 rounded-xl bg-rose-500/10 text-rose-600 flex items-center justify-center">
+					<span class="material-symbols-outlined text-2xl">assignment_return</span>
+				</div>
 			</div>
+			<p class="text-xs text-rose-600 font-medium mt-2">Menunggu penyelesaian rute</p>
 		</div>
-		<div class="bg-surface-container-lowest p-5 rounded-2xl border border-emerald-500/20 shadow-sm">
-			<p class="text-xs font-bold text-emerald-600 uppercase tracking-wider mb-2">Units Available</p>
-			<div class="flex items-end justify-between">
-				<h3 class="text-3xl font-black text-emerald-600">{summary.availableUnits}</h3>
-				<span class="material-symbols-outlined text-3xl text-emerald-500/50">check_circle</span>
+
+		<div class="p-5 rounded-2xl bg-surface-container-low border border-slate-200/60 dark:border-slate-800/60 shadow-xs">
+			<div class="flex items-center justify-between">
+				<div>
+					<p class="text-xs font-bold text-on-surface-variant uppercase tracking-wider">Units Available</p>
+					<h3 class="text-2xl font-black text-emerald-600 mt-1">{summary.availableUnits}</h3>
+				</div>
+				<div class="w-12 h-12 rounded-xl bg-emerald-500/10 text-emerald-600 flex items-center justify-center">
+					<span class="material-symbols-outlined text-2xl">check_circle</span>
+				</div>
 			</div>
+			<p class="text-xs text-emerald-600 font-medium mt-2">Armada siap ditugaskan</p>
 		</div>
 	</div>
 
-	<div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+	<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
 		<!-- Orders List -->
-		<div class="lg:col-span-2">
+		<div class="lg:col-span-2 space-y-4">
 			<!-- AI Contract Auto-Dispatch Section -->
 			{#if localContractOrders && localContractOrders.length > 0}
 				<div class="mb-6 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-2xl p-1 shadow-lg">
@@ -465,10 +494,10 @@
 					</div>
 				</div>
 			{/if}
-			<!-- Status Tabs -->
-			<div class="flex gap-2 mb-4 overflow-x-auto pb-2">
+			<!-- Status Filter Segmented Control Tabs -->
+			<div class="inline-flex p-1 rounded-2xl bg-surface-container border border-slate-200 dark:border-slate-800 overflow-x-auto max-w-full">
 				{#each ['All', 'New Order', 'Waiting Marketing', 'Ready to Dispatch', 'Dispatched', 'Closing'] as tab}
-					<button class="px-4 py-2 rounded-full text-sm font-bold whitespace-nowrap transition-colors {statusFilter === tab ? 'bg-sky-100 text-sky-700 dark:bg-sky-900/50 dark:text-sky-300' : 'text-on-surface-variant hover:bg-surface-container'}"
+					<button class="px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all {statusFilter === tab ? 'bg-blue-600 text-white shadow-xs' : 'text-on-surface hover:bg-surface-container-high'}"
 						onclick={() => handleStatusClick(tab)}>
 						{tab}
 					</button>
@@ -477,18 +506,22 @@
 
 			<div class="space-y-3">
 				{#if filteredOrders.length === 0}
-					<p class="p-6 text-center text-sm font-medium text-on-surface-variant bg-surface-container-low border border-surface-container rounded-2xl shadow-sm">Tidak ada order yang cocok.</p>
+					<div class="p-12 text-center text-sm font-medium text-on-surface-variant bg-surface-container-low border border-slate-200/60 dark:border-slate-800/60 rounded-2xl shadow-xs">
+						<span class="material-symbols-outlined text-4xl text-on-surface-variant/40 block mb-2">assignment_late</span>
+						<p class="font-bold text-on-surface">Tidak ada surat jalan yang cocok</p>
+						<p class="text-xs text-on-surface-variant/70 mt-0.5">Coba ganti filter status di atas</p>
+					</div>
 				{/if}
 				{#each filteredOrders as order}
-					<div class="bg-surface-container-lowest rounded-2xl p-5 shadow-sm border border-surface-container hover:shadow-md transition-all">
+					<div class="rounded-2xl bg-surface-container-low p-5 shadow-xs border border-slate-200/60 dark:border-slate-800/60 hover:border-blue-500/30 transition-all">
 						<div class="flex items-start justify-between mb-3">
 							<div class="flex items-center gap-3">
-								<div class="w-10 h-10 rounded-xl {order.status === 'DISPATCHED' ? 'bg-sky-100 dark:bg-sky-900/30 text-sky-600' : order.status === 'CLOSING' ? 'bg-rose-100 dark:bg-rose-900/30 text-rose-600' : 'bg-amber-100 dark:bg-amber-900/30 text-amber-600'} flex items-center justify-center">
+								<div class="w-10 h-10 rounded-xl {order.status === 'DISPATCHED' ? 'bg-blue-500/10 text-blue-600' : order.status === 'CLOSING' ? 'bg-rose-500/10 text-rose-600' : 'bg-amber-500/10 text-amber-600'} flex items-center justify-center font-bold">
 									<span class="material-symbols-outlined text-[20px]">{order.status === 'DISPATCHED' ? 'local_shipping' : order.status === 'CLOSING' ? 'assignment_return' : 'pending_actions'}</span>
 								</div>
 								<div>
-									<p class="text-sm font-black text-on-surface">{order.id}</p>
-									<p class="text-xs text-on-surface-variant font-medium">{order.customer}</p>
+									<p class="text-sm font-bold text-on-surface font-mono">{order.id}</p>
+									<p class="text-xs text-on-surface-variant font-medium mt-0.5">{order.customer}</p>
 								</div>
 							</div>
 							
@@ -601,26 +634,26 @@
 		</div>
 
 		<!-- Available Units Panel -->
-		<div class="bg-surface-container-lowest rounded-[24px] p-6 shadow-sm border border-surface-container h-fit sticky top-8">
-			<h3 class="text-lg font-bold text-on-surface tracking-tight mb-4 flex items-center gap-2">
-				<span class="material-symbols-outlined text-emerald-500">check_circle</span>
-				Available Units
+		<div class="rounded-2xl bg-surface-container-low p-5 shadow-xs border border-slate-200/60 dark:border-slate-800/60 h-fit sticky top-8">
+			<h3 class="text-sm font-bold text-on-surface uppercase tracking-wider mb-4 flex items-center gap-2">
+				<span class="material-symbols-outlined text-emerald-500 text-lg">check_circle</span>
+				<span>Armada Siap (Available)</span>
 			</h3>
-			<div class="space-y-3 max-h-[600px] overflow-y-auto pr-2">
+			<div class="space-y-3 max-h-[600px] overflow-y-auto pr-1">
 				{#each availableUnits as unit}
-					<div class="p-4 rounded-xl bg-surface-container-low hover:bg-surface-container-high transition-colors cursor-pointer group border border-transparent hover:border-sky-500/20">
+					<div class="p-3.5 rounded-xl bg-surface hover:bg-surface-container-high transition-colors cursor-pointer group border border-slate-200/60 dark:border-slate-800/60">
 						<div class="flex items-center justify-between mb-2">
 							<div class="flex items-center gap-3">
-								<div class="w-9 h-9 rounded-lg bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center text-emerald-600 dark:text-emerald-400 group-hover:scale-110 transition-transform">
-									<span class="material-symbols-outlined text-[18px]">local_shipping</span>
+								<div class="w-9 h-9 rounded-xl bg-emerald-500/10 text-emerald-600 flex items-center justify-center font-bold">
+									<span class="material-symbols-outlined text-lg">local_shipping</span>
 								</div>
 								<div>
-									<p class="text-sm font-black text-on-surface">{unit.id}</p>
-									<p class="text-[10px] text-on-surface-variant font-medium">{unit.brand}</p>
+									<p class="text-sm font-bold text-on-surface">{unit.id}</p>
+									<p class="text-[11px] text-on-surface-variant font-medium">{unit.brand}</p>
 								</div>
 							</div>
 							{#if unit.current_state !== 'STANDBY'}
-								<span class="px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider bg-sky-100 text-sky-700 border border-sky-200">
+								<span class="px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-blue-500/10 text-blue-600 border border-blue-500/20">
 									{unit.current_state}
 								</span>
 							{/if}
