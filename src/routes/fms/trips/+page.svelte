@@ -17,6 +17,15 @@
 	let aiSummaries = $state<Record<string, any>>({});
 	
 	let activeNotePopover = $state<{ tripId: string, dbId: number, point: string, note: string } | null>(null);
+
+	// Trip Detail Drawer state
+	let showTripDrawer = $state(false);
+	let selectedTrip = $state<any | null>(null);
+
+	function openTripDetail(trip: any) {
+		selectedTrip = trip;
+		showTripDrawer = true;
+	}
 	
 	let searchTimer: ReturnType<typeof setTimeout>;
 
@@ -286,15 +295,21 @@
 									<!-- svelte-ignore a11y_click_events_have_key_events -->
 									<!-- svelte-ignore a11y_no_static_element_interactions -->
 									<div 
-										class="p-2 rounded-lg text-blue-600 hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors cursor-pointer flex items-center gap-1.5 text-xs font-bold"
+										class="p-2 rounded-lg text-blue-600 hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors cursor-pointer flex items-center gap-1 text-xs font-bold"
 										title="Track Live di Peta"
 										onclick={(e) => { e.stopPropagation(); goto(`/fms/live-map?unit=${encodeURIComponent(trip.vehicle)}`); }}
 									>
-										<span class="material-symbols-outlined text-[20px]">my_location</span>
-										<span class="hidden lg:inline">Track Live</span>
+										<span class="material-symbols-outlined text-[18px]">my_location</span>
+										<span class="hidden lg:inline">Live</span>
 									</div>
-									<button class="p-2 rounded-lg text-on-surface-variant hover:bg-surface-container-high transition-colors" title="More Options">
-										<span class="material-symbols-outlined text-[20px]">more_vert</span>
+
+									<button 
+										class="p-2 rounded-lg text-blue-600 hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors cursor-pointer flex items-center gap-1 text-xs font-bold"
+										title="Buka Detail Trip"
+										onclick={(e) => { e.stopPropagation(); openTripDetail(trip); }}
+									>
+										<span class="material-symbols-outlined text-[18px]">visibility</span>
+										<span class="hidden lg:inline">Detail</span>
 									</button>
 								</div>
 							</td>
@@ -515,3 +530,159 @@
 		</div>
 	</div>
 </div>
+
+<!-- Slide-over Trip Detail Drawer -->
+{#if showTripDrawer && selectedTrip}
+	<div class="fixed inset-0 z-50 overflow-hidden">
+		<!-- Backdrop overlay -->
+		<div 
+			class="absolute inset-0 bg-slate-900/50 backdrop-blur-xs transition-opacity duration-300"
+			onclick={() => showTripDrawer = false}
+		></div>
+
+		<div class="fixed inset-y-0 right-0 max-w-full flex pl-10">
+			<div class="w-screen max-w-xl bg-surface-container-low border-l border-slate-200 dark:border-slate-800 shadow-2xl flex flex-col justify-between animate-in slide-in-from-right duration-300">
+				
+				<!-- Drawer Header -->
+				<div class="p-6 border-b border-slate-200/60 dark:border-slate-800/60 flex items-start justify-between bg-surface">
+					<div class="flex items-center gap-3.5">
+						<div class="w-12 h-12 rounded-2xl bg-blue-500/10 text-blue-600 flex items-center justify-center font-bold flex-shrink-0">
+							<span class="material-symbols-outlined text-2xl">route</span>
+						</div>
+						<div>
+							<div class="flex items-center gap-2">
+								<h2 class="text-xl font-black text-on-surface tracking-tight font-mono">{selectedTrip.id}</h2>
+								{#if selectedTrip.status === 'In Transit'}
+									<span class="inline-flex items-center gap-1.5 text-blue-600 text-[10px] font-bold bg-blue-500/10 px-2 py-0.5 rounded-md border border-blue-500/20">
+										<span class="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse"></span> In Transit
+									</span>
+								{:else if selectedTrip.status === 'Completed'}
+									<span class="inline-flex items-center gap-1.5 text-emerald-600 text-[10px] font-bold bg-emerald-500/10 px-2 py-0.5 rounded-md border border-emerald-500/20">
+										<span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> Completed
+									</span>
+								{:else}
+									<span class="inline-flex items-center gap-1.5 text-amber-600 text-[10px] font-bold bg-amber-500/10 px-2 py-0.5 rounded-md border border-amber-500/20">
+										<span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span> Scheduled
+									</span>
+								{/if}
+							</div>
+							<p class="text-xs text-on-surface-variant font-medium mt-0.5">
+								Unit {selectedTrip.vehicle} · Driver: {selectedTrip.driver}
+							</p>
+						</div>
+					</div>
+
+					<button 
+						onclick={() => showTripDrawer = false}
+						class="w-8 h-8 rounded-xl bg-surface-container hover:bg-surface-container-high flex items-center justify-center text-on-surface-variant transition-colors cursor-pointer"
+					>
+						<span class="material-symbols-outlined text-lg">close</span>
+					</button>
+				</div>
+
+				<!-- Drawer Scrollable Content -->
+				<div class="flex-1 overflow-y-auto p-6 space-y-6">
+					<!-- Route Card -->
+					<div class="p-5 rounded-2xl bg-surface border border-slate-200/60 dark:border-slate-800/60 space-y-4">
+						<div class="flex items-center justify-between border-b border-slate-200/60 dark:border-slate-800/60 pb-3">
+							<span class="text-xs font-black text-on-surface uppercase tracking-wider">Rute & Muatan Kargo</span>
+							<span class="text-xs font-bold text-blue-600">{selectedTrip.distance}</span>
+						</div>
+
+						<div class="space-y-3">
+							<div class="flex items-start gap-3">
+								<div class="w-7 h-7 rounded-lg bg-emerald-500/10 text-emerald-600 flex items-center justify-center font-bold flex-shrink-0 mt-0.5">
+									<span class="material-symbols-outlined text-base">trip_origin</span>
+								</div>
+								<div>
+									<p class="text-[10px] font-bold text-on-surface-variant uppercase">Titik Asal (Origin)</p>
+									<p class="text-sm font-bold text-on-surface mt-0.5">{selectedTrip.origin}</p>
+								</div>
+							</div>
+
+							<div class="border-l-2 border-dashed border-slate-300 dark:border-slate-700 ml-3.5 h-4"></div>
+
+							<div class="flex items-start gap-3">
+								<div class="w-7 h-7 rounded-lg bg-rose-500/10 text-rose-600 flex items-center justify-center font-bold flex-shrink-0 mt-0.5">
+									<span class="material-symbols-outlined text-base">location_on</span>
+								</div>
+								<div>
+									<p class="text-[10px] font-bold text-on-surface-variant uppercase">Titik Tujuan (Destination)</p>
+									<p class="text-sm font-bold text-on-surface mt-0.5">{selectedTrip.destination}</p>
+								</div>
+							</div>
+						</div>
+
+						<div class="pt-3 border-t border-slate-200/60 dark:border-slate-800/60 flex items-center justify-between text-xs">
+							<div>
+								<span class="text-on-surface-variant">Muatan: </span>
+								<span class="font-bold text-on-surface">{selectedTrip.cargo || 'Logistik Umum'}</span>
+							</div>
+							<div>
+								<span class="text-on-surface-variant">ETA: </span>
+								<span class="font-bold text-on-surface">{selectedTrip.eta}</span>
+							</div>
+						</div>
+					</div>
+
+					<!-- Milestones Timeline -->
+					<div class="p-5 rounded-2xl bg-surface border border-slate-200/60 dark:border-slate-800/60 space-y-4">
+						<div class="flex items-center justify-between border-b border-slate-200/60 dark:border-slate-800/60 pb-3">
+							<span class="text-xs font-black text-on-surface uppercase tracking-wider">Milestones Perjalanan</span>
+							<span class="text-xs font-bold text-on-surface-variant">Progress {selectedTrip.progress}%</span>
+						</div>
+
+						{#if selectedTrip.history && selectedTrip.history.length > 0}
+							<div class="space-y-4">
+								{#each selectedTrip.history as event, idx}
+									<div class="flex items-start gap-3">
+										<div class="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5 {event.completed ? 'bg-blue-600 text-white' : 'bg-slate-200 dark:bg-slate-800 text-on-surface-variant'}">
+											{#if event.completed}
+												<span class="material-symbols-outlined text-sm">check</span>
+											{:else}
+												<span class="text-xs font-bold">{idx + 1}</span>
+											{/if}
+										</div>
+										<div class="flex-1 min-w-0">
+											<div class="flex items-center justify-between">
+												<p class="text-xs font-bold {event.completed ? 'text-on-surface' : 'text-on-surface-variant'}">{event.label}</p>
+												<span class="text-[10px] font-mono text-on-surface-variant">{event.time || '—'}</span>
+											</div>
+											{#if event.note}
+												<p class="text-[11px] text-amber-700 bg-amber-50 dark:bg-amber-900/20 p-2 rounded-lg mt-1 border border-amber-200/50">
+													{event.note.note}
+												</p>
+											{/if}
+										</div>
+									</div>
+								{/each}
+							</div>
+						{:else}
+							<p class="text-xs text-on-surface-variant italic py-2 text-center">Belum ada riwayat milestone tercatat</p>
+						{/if}
+					</div>
+				</div>
+
+				<!-- Drawer Footer Actions -->
+				<div class="p-5 border-t border-slate-200/60 dark:border-slate-800/60 bg-surface flex items-center justify-between gap-3">
+					<a 
+						href="/fms/route-history?search={encodeURIComponent(selectedTrip.vehicle)}"
+						class="flex-1 py-2.5 px-4 rounded-xl bg-surface-container hover:bg-surface-container-high text-on-surface text-xs font-bold transition-colors flex items-center justify-center gap-2"
+					>
+						<span class="material-symbols-outlined text-base">history</span>
+						<span>Playback Rute</span>
+					</a>
+
+					<a 
+						href="/fms/live-map?unit={encodeURIComponent(selectedTrip.vehicle)}"
+						class="flex-1 py-2.5 px-4 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold transition-colors flex items-center justify-center gap-2 shadow-xs"
+					>
+						<span class="material-symbols-outlined text-base">my_location</span>
+						<span>Track Live GPS</span>
+					</a>
+				</div>
+
+			</div>
+		</div>
+	</div>
+{/if}

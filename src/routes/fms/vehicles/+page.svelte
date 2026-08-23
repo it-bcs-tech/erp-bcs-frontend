@@ -19,6 +19,15 @@
 		show3DTwinModal = true;
 	}
 
+	// Slide-over Vehicle Detail Drawer state
+	let showVehicleDrawer = $state(false);
+	let selectedVehicle = $state<any | null>(null);
+
+	function openVehicleDetail(vhc: any) {
+		selectedVehicle = vhc;
+		showVehicleDrawer = true;
+	}
+
 	// Filter state — selaras dengan query params di +page.server.ts
 	let searchQuery   = $state($page.url.searchParams.get('search') || '');
 	let activeFilter  = $state($page.url.searchParams.get('business_unit') || 'All');
@@ -312,7 +321,10 @@
 				<tbody class="divide-y divide-slate-200/60 dark:divide-slate-800/60">
 					{#each vehicles as vhc (vhc.id)}
 						{@const buColor = getBuColor(vhc.business_unit)}
-						<tr class="group hover:bg-surface-container-low transition-colors">
+						<tr 
+							class="group hover:bg-surface-container-low transition-colors cursor-pointer"
+							onclick={() => openVehicleDetail(vhc)}
+						>
 							<!-- Unit Info -->
 							<td class="py-4 px-6">
 								<div class="flex items-center gap-4">
@@ -383,11 +395,19 @@
 							<!-- Actions -->
 							<td class="py-4 px-6 text-right">
 								<div class="flex items-center justify-end gap-2">
-									<button onclick={() => open3DTwin(vhc)} class="p-2 rounded-lg text-primary hover:bg-primary/10 transition-colors flex items-center gap-1 font-bold text-xs" title="Inspeksi Digital Twin 3D">
+									<button 
+										onclick={(e) => { e.stopPropagation(); open3DTwin(vhc); }} 
+										class="p-2 rounded-lg text-primary hover:bg-primary/10 transition-colors flex items-center gap-1 font-bold text-xs cursor-pointer" 
+										title="Inspeksi Digital Twin 3D"
+									>
 										<span class="material-symbols-outlined text-[20px]">view_in_ar</span>
 										<span class="hidden sm:inline">3D Twin</span>
 									</button>
-									<button class="p-2 rounded-lg text-blue-600 hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors" title="Lihat Detail">
+									<button 
+										onclick={(e) => { e.stopPropagation(); openVehicleDetail(vhc); }} 
+										class="p-2 rounded-lg text-blue-600 hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors cursor-pointer" 
+										title="Lihat Detail Unit"
+									>
 										<span class="material-symbols-outlined text-[20px]">visibility</span>
 									</button>
 								</div>
@@ -541,6 +561,193 @@
 					vehicleNumber={selectedVehicleFor3D?.no_polisi || 'B 9123 BCS'}
 					vehicleModel={selectedVehicleFor3D?.nama_model || 'Hino Ranger Tronton 6x4'}
 				/>
+			</div>
+		</div>
+	</div>
+{/if}
+
+<!-- Slide-over Vehicle Detail Drawer -->
+{#if showVehicleDrawer && selectedVehicle}
+	<div class="fixed inset-0 z-50 overflow-hidden">
+		<!-- Backdrop overlay -->
+		<div 
+			class="absolute inset-0 bg-slate-900/50 backdrop-blur-xs transition-opacity duration-300"
+			onclick={() => showVehicleDrawer = false}
+		></div>
+
+		<div class="fixed inset-y-0 right-0 max-w-full flex pl-10">
+			<div class="w-screen max-w-xl bg-surface-container-low border-l border-slate-200 dark:border-slate-800 shadow-2xl flex flex-col justify-between animate-in slide-in-from-right duration-300">
+				
+				<!-- Drawer Header -->
+				<div class="p-6 border-b border-slate-200/60 dark:border-slate-800/60 flex items-start justify-between bg-surface">
+					<div class="flex items-center gap-3.5">
+						<div class="w-12 h-12 rounded-2xl bg-blue-500/10 text-blue-600 flex items-center justify-center font-bold flex-shrink-0">
+							<span class="material-symbols-outlined text-2xl">{getVehicleIcon(selectedVehicle.nama_tipe)}</span>
+						</div>
+						<div>
+							<div class="flex items-center gap-2">
+								<h2 class="text-xl font-black text-on-surface tracking-tight">{selectedVehicle.nomor_unit}</h2>
+								{#if selectedVehicle.grade}
+									{@const gc = getGradeColor(selectedVehicle.grade)}
+									<span class="px-2 py-0.5 rounded-md bg-{gc}-100 text-{gc}-700 dark:bg-{gc}-900/30 dark:text-{gc}-300 text-[10px] font-extrabold uppercase">
+										Grade {selectedVehicle.grade}
+									</span>
+								{/if}
+								{#if selectedVehicle.is_active}
+									<span class="inline-flex items-center gap-1.5 text-emerald-600 text-[10px] font-bold bg-emerald-500/10 px-2 py-0.5 rounded-md border border-emerald-500/20">
+										<span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span> Aktif
+									</span>
+								{:else}
+									<span class="inline-flex items-center gap-1.5 text-slate-500 text-[10px] font-bold bg-slate-500/10 px-2 py-0.5 rounded-md border border-slate-500/20">
+										<span class="w-1.5 h-1.5 rounded-full bg-slate-400"></span> Nonaktif
+									</span>
+								{/if}
+							</div>
+							<p class="text-xs text-on-surface-variant font-medium mt-0.5">
+								{selectedVehicle.nama_produk || '—'} {selectedVehicle.nama_model || '—'} {selectedVehicle.tahun ? `(${selectedVehicle.tahun})` : ''}
+							</p>
+						</div>
+					</div>
+
+					<button 
+						onclick={() => showVehicleDrawer = false}
+						class="w-8 h-8 rounded-xl bg-surface-container hover:bg-surface-container-high flex items-center justify-center text-on-surface-variant transition-colors cursor-pointer"
+					>
+						<span class="material-symbols-outlined text-lg">close</span>
+					</button>
+				</div>
+
+				<!-- Drawer Scrollable Content -->
+				<div class="flex-1 overflow-y-auto p-6 space-y-6">
+					<!-- Quick Info Grid -->
+					<div class="grid grid-cols-2 gap-3">
+						<div class="p-4 rounded-xl bg-surface border border-slate-200/60 dark:border-slate-800/60">
+							<p class="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Business Unit</p>
+							<p class="text-sm font-bold text-on-surface mt-1">{buLabel[selectedVehicle.business_unit] ?? selectedVehicle.business_unit}</p>
+						</div>
+						<div class="p-4 rounded-xl bg-surface border border-slate-200/60 dark:border-slate-800/60">
+							<p class="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Asset Group</p>
+							<p class="text-sm font-bold text-on-surface mt-1">{assetGroupLabel[selectedVehicle.asset_group] ?? selectedVehicle.asset_group}</p>
+						</div>
+						<div class="p-4 rounded-xl bg-surface border border-slate-200/60 dark:border-slate-800/60">
+							<p class="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">No. Lambung</p>
+							<p class="text-sm font-bold text-on-surface mt-1 font-mono">{selectedVehicle.no_lambung || '—'}</p>
+						</div>
+						<div class="p-4 rounded-xl bg-surface border border-slate-200/60 dark:border-slate-800/60">
+							<p class="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Konfigurasi Gandar</p>
+							<p class="text-sm font-bold text-on-surface mt-1">{selectedVehicle.axle_config || '—'}</p>
+						</div>
+					</div>
+
+					<!-- Section: Driver Utama & Penugasan -->
+					<div class="p-5 rounded-2xl bg-surface border border-slate-200/60 dark:border-slate-800/60 space-y-3">
+						<div class="flex items-center justify-between border-b border-slate-200/60 dark:border-slate-800/60 pb-3">
+							<div class="flex items-center gap-2">
+								<span class="material-symbols-outlined text-blue-600 text-lg">badge</span>
+								<h3 class="text-xs font-black text-on-surface uppercase tracking-wider">Driver Utama Ditugaskan</h3>
+							</div>
+							<a href="/fms/drivers" class="text-[11px] font-bold text-blue-600 hover:underline">Kelola Driver</a>
+						</div>
+
+						{#if selectedVehicle.driver_utama?.nama}
+							<div class="flex items-center justify-between pt-1">
+								<div class="flex items-center gap-3">
+									<div class="w-10 h-10 rounded-xl bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center text-blue-600 dark:text-blue-400 font-bold">
+										<span class="material-symbols-outlined text-lg">person</span>
+									</div>
+									<div>
+										<p class="text-sm font-bold text-on-surface">{selectedVehicle.driver_utama.nama}</p>
+										<p class="text-xs text-on-surface-variant mt-0.5">{selectedVehicle.driver_utama.no_hp || 'Tidak ada nomor telepon'}</p>
+									</div>
+								</div>
+								{#if selectedVehicle.driver_utama.no_hp}
+									<a href="tel:{selectedVehicle.driver_utama.no_hp}" class="p-2 rounded-xl bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/20 transition-colors" title="Hubungi Driver">
+										<span class="material-symbols-outlined text-lg">call</span>
+									</a>
+								{/if}
+							</div>
+						{:else}
+							<div class="py-4 text-center text-on-surface-variant">
+								<span class="material-symbols-outlined text-3xl text-on-surface-variant/40 block mb-1">person_off</span>
+								<p class="text-xs font-medium">Belum ada supir utama yang ditugaskan ke unit ini</p>
+							</div>
+						{/if}
+					</div>
+
+					<!-- Section: Legalitas & Dokumen Kendaraan -->
+					<div class="p-5 rounded-2xl bg-surface border border-slate-200/60 dark:border-slate-800/60 space-y-3">
+						<div class="flex items-center justify-between border-b border-slate-200/60 dark:border-slate-800/60 pb-3">
+							<div class="flex items-center gap-2">
+								<span class="material-symbols-outlined text-blue-600 text-lg">description</span>
+								<h3 class="text-xs font-black text-on-surface uppercase tracking-wider">Legalitas & Dokumen</h3>
+							</div>
+							<a href="/fms/documents" class="text-[11px] font-bold text-blue-600 hover:underline">Semua Dokumen</a>
+						</div>
+
+						<div class="grid grid-cols-2 gap-3 pt-1 text-xs">
+							<div>
+								<p class="text-[10px] text-on-surface-variant font-medium uppercase">No. Rangka</p>
+								<p class="font-bold text-on-surface font-mono mt-0.5">{selectedVehicle.no_rangka || '—'}</p>
+							</div>
+							<div>
+								<p class="text-[10px] text-on-surface-variant font-medium uppercase">No. Mesin</p>
+								<p class="font-bold text-on-surface font-mono mt-0.5">{selectedVehicle.no_mesin || '—'}</p>
+							</div>
+							<div>
+								<p class="text-[10px] text-on-surface-variant font-medium uppercase">No. BPKB</p>
+								<p class="font-bold text-on-surface font-mono mt-0.5">{selectedVehicle.no_bpkb || '—'}</p>
+							</div>
+							<div>
+								<p class="text-[10px] text-on-surface-variant font-medium uppercase">No. Uji KIR</p>
+								<p class="font-bold text-on-surface font-mono mt-0.5">{selectedVehicle.no_kir || '—'}</p>
+							</div>
+							<div>
+								<p class="text-[10px] text-on-surface-variant font-medium uppercase">Jadwal Servis Preventif</p>
+								<p class="font-bold text-on-surface mt-0.5">{selectedVehicle.tgl_maintenance_prevent || '—'}</p>
+							</div>
+							<div>
+								<p class="text-[10px] text-on-surface-variant font-medium uppercase">Asuransi Expired</p>
+								<p class="font-bold text-on-surface mt-0.5">{selectedVehicle.expire_date_asuransi || '—'}</p>
+							</div>
+						</div>
+					</div>
+
+					<!-- Section: Area Proyek Operasional -->
+					<div class="p-5 rounded-2xl bg-surface border border-slate-200/60 dark:border-slate-800/60 space-y-2">
+						<div class="flex items-center gap-2">
+							<span class="material-symbols-outlined text-blue-600 text-lg">location_on</span>
+							<h3 class="text-xs font-black text-on-surface uppercase tracking-wider">Penugasan Area Proyek</h3>
+						</div>
+						<div class="flex items-center justify-between pt-1">
+							<div>
+								<p class="text-sm font-bold text-on-surface">{selectedVehicle.project_area || 'Area Default / Pool Pusat'}</p>
+								{#if selectedVehicle.no_proyek}
+									<p class="text-xs text-on-surface-variant mt-0.5">No. Proyek: {selectedVehicle.no_proyek}</p>
+								{/if}
+							</div>
+						</div>
+					</div>
+				</div>
+
+				<!-- Drawer Footer Actions -->
+				<div class="p-5 border-t border-slate-200/60 dark:border-slate-800/60 bg-surface flex items-center justify-between gap-3">
+					<button 
+						onclick={() => { showVehicleDrawer = false; open3DTwin(selectedVehicle); }}
+						class="flex-1 py-2.5 px-4 rounded-xl bg-surface-container hover:bg-surface-container-high text-on-surface text-xs font-bold transition-colors flex items-center justify-center gap-2 cursor-pointer"
+					>
+						<span class="material-symbols-outlined text-base">view_in_ar</span>
+						<span>Digital Twin 3D</span>
+					</button>
+
+					<a 
+						href="/fms/live-map"
+						class="flex-1 py-2.5 px-4 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold transition-colors flex items-center justify-center gap-2 shadow-xs"
+					>
+						<span class="material-symbols-outlined text-base">map</span>
+						<span>Live GPS Map</span>
+					</a>
+				</div>
+
 			</div>
 		</div>
 	</div>
