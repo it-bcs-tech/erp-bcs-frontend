@@ -127,7 +127,7 @@
 	<title>Rest Area Geofence | FMS</title>
 </svelte:head>
 
-<div class="relative w-full h-[calc(100vh-6rem)] rounded-3xl overflow-hidden shadow-sm border border-surface-container bg-surface-container-lowest">
+<div class="relative w-full h-[calc(100vh-6rem)] rounded-3xl overflow-hidden shadow-xs border border-slate-200/60 dark:border-slate-800/60 bg-surface-container-low">
 	
 	<!-- FULLSCREEN MAP -->
 	<div bind:this={mapContainer} class="absolute inset-0 z-0 bg-surface-container-low"></div>
@@ -135,13 +135,13 @@
 	<!-- SEARCH BAR (Floating Top Left) -->
 	<div class="absolute top-6 left-6 z-[400] w-96 flex flex-col gap-4">
 		<!-- Search Input -->
-		<form onsubmit={searchLocation} class="relative w-full shadow-lg rounded-2xl bg-surface-container-lowest border border-surface-container overflow-hidden flex items-center">
-			<span class="material-symbols-outlined text-on-surface-variant ml-4">search</span>
+		<form onsubmit={searchLocation} class="relative w-full shadow-lg rounded-2xl bg-surface/90 backdrop-blur-md border border-slate-200/60 dark:border-slate-800/60 overflow-hidden flex items-center">
+			<span class="material-symbols-outlined text-slate-400 ml-4">search</span>
 			<input 
 				type="text" 
 				bind:value={searchQuery}
 				placeholder="Cari jalan tol atau rest area..." 
-				class="w-full bg-transparent text-on-surface py-3.5 px-3 focus:outline-none text-sm font-medium"
+				class="w-full bg-transparent text-on-surface py-3 px-3 focus:outline-none text-xs font-medium placeholder:text-slate-400"
 			/>
 			{#if isSearching}
 				<span class="material-symbols-outlined text-blue-500 animate-spin mr-4">refresh</span>
@@ -149,13 +149,15 @@
 		</form>
 
 		<!-- SIDEBAR (Floating Panel) -->
-		<div class="bg-surface-container-lowest/95 backdrop-blur-md rounded-2xl shadow-xl border border-surface-container/50 flex flex-col overflow-hidden max-h-[calc(100vh-14rem)] transition-all duration-300 opacity-60 hover:opacity-100">
-			<div class="p-4 border-b border-surface-container/50 flex justify-between items-center bg-surface-container-low/30 cursor-pointer hover:bg-surface-container-low/50 transition-colors" onclick={() => showList = !showList}>
-				<div class="flex items-center gap-2">
-					<span class="material-symbols-outlined text-on-surface-variant transition-transform duration-300 {showList ? 'rotate-180' : ''}">expand_more</span>
+		<div class="bg-surface/95 backdrop-blur-md rounded-2xl shadow-xl border border-slate-200/60 dark:border-slate-800/60 flex flex-col overflow-hidden max-h-[calc(100vh-14rem)] transition-all duration-300">
+			<div class="p-4 border-b border-slate-200/60 dark:border-slate-800/60 flex justify-between items-center bg-surface-container-low/50 cursor-pointer hover:bg-surface-container-low transition-colors" onclick={() => showList = !showList}>
+				<div class="flex items-center gap-2.5">
+					<div class="w-8 h-8 rounded-xl bg-blue-500/10 text-blue-600 flex items-center justify-center font-bold">
+						<span class="material-symbols-outlined text-lg">local_cafe</span>
+					</div>
 					<div>
-						<h2 class="font-black text-on-surface text-lg leading-tight select-none">Rest Area</h2>
-						<p class="text-[10px] text-on-surface-variant font-bold uppercase tracking-wider select-none">Geofence Master Data</p>
+						<h2 class="font-bold text-on-surface text-sm leading-tight select-none">Rest Area POI</h2>
+						<p class="text-[10px] text-on-surface-variant font-medium select-none">Geofence Master Data</p>
 					</div>
 				</div>
 				<button 
@@ -164,7 +166,7 @@
 						if (isAdding) resetForm();
 						else { isAdding = true; showList = true; }
 					}}
-					class="px-3 py-1.5 text-xs font-bold rounded-xl shadow-sm transition-all {isAdding ? 'bg-amber-100 text-amber-700' : 'bg-blue-600 text-white hover:bg-blue-700 hover:scale-105'}"
+					class="px-3 py-1.5 text-xs font-bold rounded-xl shadow-xs transition-all cursor-pointer {isAdding ? 'bg-amber-100 text-amber-700' : 'bg-blue-600 text-white hover:bg-blue-700'}"
 				>
 					{isAdding ? 'Batal' : '+ Tambah'}
 				</button>
