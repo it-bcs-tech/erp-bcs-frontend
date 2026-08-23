@@ -54,115 +54,143 @@
 	<title>Fuel Management | FMS Dashboard</title>
 </svelte:head>
 
-<div class="flex flex-col h-full">
+<div class="flex flex-col h-full space-y-6">
 	<!-- Header & Actions -->
-	<header class="mb-8 flex flex-col md:flex-row md:items-end justify-between gap-4">
+	<header class="flex flex-col md:flex-row md:items-end justify-between gap-4 flex-shrink-0">
 		<div>
-			<h1 class="text-3xl font-extrabold text-on-surface tracking-tight mb-2">Fuel Management</h1>
-			<p class="text-on-surface-variant font-medium text-sm">Monitor fuel consumption, costs, and refueling logs</p>
+			<div class="flex items-center gap-2.5">
+				<span class="material-symbols-outlined text-blue-600 dark:text-blue-400 text-2xl">local_gas_station</span>
+				<h1 class="text-2xl font-black text-on-surface tracking-tight">Fuel Management & Bahan Bakar</h1>
+			</div>
+			<p class="text-on-surface-variant font-medium text-sm mt-0.5">
+				Monitoring konsumsi BBM, efisiensi rasio km/liter armada, dan rekonsiliasi pengisian SPBU
+			</p>
 		</div>
-		<div class="flex gap-3">
-			<button class="bg-surface-container-lowest border border-outline-variant/30 text-on-surface px-4 py-2.5 rounded-xl text-sm font-semibold flex items-center gap-2 hover:bg-surface-container-low transition-colors">
+		<div class="flex gap-2.5">
+			<button class="bg-surface-container-low border border-slate-200 dark:border-slate-800 text-on-surface px-4 py-2.5 rounded-xl text-sm font-semibold flex items-center gap-2 hover:bg-surface-container transition-colors shadow-xs">
 				<span class="material-symbols-outlined text-lg">download</span>
-				Export
+				<span>Export</span>
 			</button>
-			<button class="bg-blue-600 text-white px-5 py-2.5 rounded-xl text-sm font-semibold shadow-sm flex items-center gap-2 hover:bg-blue-700 transition-colors">
+			<button class="bg-blue-600 text-white px-4 py-2.5 rounded-xl text-sm font-bold shadow-xs flex items-center gap-2 hover:bg-blue-700 transition-colors cursor-pointer">
 				<span class="material-symbols-outlined text-lg">local_gas_station</span>
-				Log Fuel
+				<span>Catat Pengisian BBM</span>
 			</button>
 		</div>
 	</header>
 
-	<!-- Metrics Cards -->
-	<div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-		<div class="bg-surface-container-lowest p-5 rounded-2xl border border-surface-container shadow-sm">
-			<p class="text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-2">Total Fuel Cost (This Month)</p>
-			<div class="flex items-end justify-between">
-				<h3 class="text-2xl font-black text-rose-600">{formatCurrency(metrics.totalCost)}</h3>
-				<span class="material-symbols-outlined text-3xl text-rose-500/50">payments</span>
+	<!-- Metrics Cards (Bento) -->
+	<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+		<div class="p-5 rounded-2xl bg-surface-container-low border border-slate-200/60 dark:border-slate-800/60 shadow-xs">
+			<div class="flex items-center justify-between">
+				<div>
+					<p class="text-xs font-bold text-on-surface-variant uppercase tracking-wider">Total Biaya BBM</p>
+					<h3 class="text-2xl font-black text-rose-600 mt-1">{formatCurrency(metrics.totalCost)}</h3>
+				</div>
+				<div class="w-12 h-12 rounded-xl bg-rose-500/10 text-rose-600 flex items-center justify-center">
+					<span class="material-symbols-outlined text-2xl">payments</span>
+				</div>
 			</div>
+			<p class="text-xs text-on-surface-variant mt-2">Berdasarkan voucher & struk</p>
 		</div>
-		<div class="bg-surface-container-lowest p-5 rounded-2xl border border-blue-500/20 shadow-sm relative overflow-hidden group">
-			<div class="absolute inset-0 bg-blue-500/5 opacity-0 group-hover:opacity-100 transition-opacity"></div>
-			<p class="text-xs font-bold text-blue-600 uppercase tracking-wider mb-2 relative z-10">Total Liters Consumed</p>
-			<div class="flex items-end justify-between relative z-10">
-				<h3 class="text-3xl font-black text-blue-600">{metrics.totalLiters} L</h3>
-				<span class="material-symbols-outlined text-3xl text-blue-500/50">water_drop</span>
+
+		<div class="p-5 rounded-2xl bg-surface-container-low border border-slate-200/60 dark:border-slate-800/60 shadow-xs">
+			<div class="flex items-center justify-between">
+				<div>
+					<p class="text-xs font-bold text-on-surface-variant uppercase tracking-wider">Total Konsumsi BBM</p>
+					<h3 class="text-2xl font-black text-blue-600 mt-1">{metrics.totalLiters} L</h3>
+				</div>
+				<div class="w-12 h-12 rounded-xl bg-blue-500/10 text-blue-600 flex items-center justify-center">
+					<span class="material-symbols-outlined text-2xl">water_drop</span>
+				</div>
 			</div>
+			<p class="text-xs text-blue-600 font-medium mt-2">Volume BBM terpakai</p>
 		</div>
-		<div class="bg-surface-container-lowest p-5 rounded-2xl border border-amber-500/20 shadow-sm">
-			<p class="text-xs font-bold text-amber-600 uppercase tracking-wider mb-2">Avg. Cost Per Liter</p>
-			<div class="flex items-end justify-between">
-				<h3 class="text-3xl font-black text-amber-600">{formatCurrency(metrics.avgCostPerLiter)}</h3>
-				<span class="material-symbols-outlined text-3xl text-amber-500/50">price_change</span>
+
+		<div class="p-5 rounded-2xl bg-surface-container-low border border-slate-200/60 dark:border-slate-800/60 shadow-xs">
+			<div class="flex items-center justify-between">
+				<div>
+					<p class="text-xs font-bold text-on-surface-variant uppercase tracking-wider">Rata-rata Harga / Liter</p>
+					<h3 class="text-2xl font-black text-amber-600 mt-1">{formatCurrency(metrics.avgCostPerLiter)}</h3>
+				</div>
+				<div class="w-12 h-12 rounded-xl bg-amber-500/10 text-amber-600 flex items-center justify-center">
+					<span class="material-symbols-outlined text-2xl">price_change</span>
+				</div>
 			</div>
+			<p class="text-xs text-amber-600 font-medium mt-2">Solar & Dexlite mix</p>
 		</div>
-		<div class="bg-surface-container-lowest p-5 rounded-2xl border border-emerald-500/20 shadow-sm">
-			<p class="text-xs font-bold text-emerald-600 uppercase tracking-wider mb-2">Refueling Events</p>
-			<div class="flex items-end justify-between">
-				<h3 class="text-3xl font-black text-emerald-600">{metrics.fillUpsThisMonth}</h3>
-				<span class="material-symbols-outlined text-3xl text-emerald-500/50">ev_station</span>
+
+		<div class="p-5 rounded-2xl bg-surface-container-low border border-slate-200/60 dark:border-slate-800/60 shadow-xs">
+			<div class="flex items-center justify-between">
+				<div>
+					<p class="text-xs font-bold text-on-surface-variant uppercase tracking-wider">Frekuensi Pengisian</p>
+					<h3 class="text-2xl font-black text-emerald-600 mt-1">{metrics.fillUpsThisMonth} Transaksi</h3>
+				</div>
+				<div class="w-12 h-12 rounded-xl bg-emerald-500/10 text-emerald-600 flex items-center justify-center">
+					<span class="material-symbols-outlined text-2xl">ev_station</span>
+				</div>
 			</div>
+			<p class="text-xs text-emerald-600 font-medium mt-2">Refueling log bulan ini</p>
 		</div>
 	</div>
 
-	<!-- Filters & Search -->
-	<div class="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 mb-6">
-		<div class="flex gap-3">
-			<select 
-				bind:value={fuelFilter} 
-				onchange={handleFuelChange}
-				class="bg-surface-container-lowest border border-outline-variant/30 text-on-surface rounded-xl py-2 px-4 focus:outline-none focus:ring-2 focus:ring-blue-500/50 text-sm font-medium shadow-sm appearance-none cursor-pointer"
-			>
-				<option value="All">All Fuel Types</option>
-				<option value="Solar">Solar</option>
-				<option value="Pertamax">Pertamax</option>
-				<option value="Pertalite">Pertalite</option>
-				<option value="Dexlite">Dexlite</option>
-			</select>
+	<!-- Unified Filter & Search Bar -->
+	<div class="p-4 rounded-2xl bg-surface-container-low border border-slate-200/60 dark:border-slate-800/60 flex flex-col md:flex-row gap-4 items-center justify-between shadow-xs">
+		<!-- Tabs (Segmented Control Jenis BBM) -->
+		<div class="inline-flex p-1 rounded-2xl bg-surface-container border border-slate-200 dark:border-slate-800 overflow-x-auto max-w-full">
+			{#each ['All', 'Solar', 'Pertamax', 'Pertalite', 'Dexlite'] as ft}
+				<button
+					class="px-3.5 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all cursor-pointer {fuelFilter === ft
+						? 'bg-surface text-blue-600 dark:text-blue-400 shadow-xs'
+						: 'text-on-surface-variant hover:text-on-surface'}"
+					onclick={() => { fuelFilter = ft; handleFuelChange(); }}
+				>
+					{ft === 'All' ? 'Semua Jenis BBM' : ft}
+				</button>
+			{/each}
 		</div>
 
-		<div class="relative w-full lg:w-72 flex-shrink-0">
-			<span class="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-on-surface-variant text-lg">search</span>
+		<!-- Search Input -->
+		<div class="relative w-full md:w-80 flex-shrink-0">
+			<span class="material-symbols-outlined absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-lg">search</span>
 			<input 
 				type="text" 
 				bind:value={searchQuery}
 				oninput={handleSearchInput}
-				placeholder="Search vehicle, driver, station..." 
-				class="w-full bg-surface-container-lowest border border-outline-variant/30 text-on-surface rounded-full py-2.5 pl-11 pr-4 focus:outline-none focus:ring-2 focus:ring-blue-500/50 text-sm font-medium shadow-sm"
+				placeholder="Cari nopol unit, driver, SPBU..." 
+				class="w-full bg-surface border border-slate-200 dark:border-slate-700 text-on-surface rounded-xl py-2 pl-10 pr-4 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/40 placeholder:text-slate-400"
 			/>
 		</div>
 	</div>
 
 	<!-- Data Table -->
-	<div class="bg-surface-container-lowest rounded-[24px] shadow-sm flex-1 overflow-hidden flex flex-col">
+	<div class="rounded-2xl bg-surface-container-low border border-slate-200/60 dark:border-slate-800/60 overflow-hidden shadow-xs flex-1 flex flex-col">
 		<div class="overflow-x-auto flex-1">
-			<table class="w-full text-left border-collapse min-w-[1000px]">
-				<thead>
-					<tr class="border-b border-surface-container sticky top-0 bg-surface-container-lowest z-10">
-						<th class="py-5 px-6 text-[10px] font-black uppercase tracking-widest text-on-surface-variant">Log ID / Date</th>
-						<th class="py-5 px-6 text-[10px] font-black uppercase tracking-widest text-on-surface-variant">Vehicle & Driver</th>
-						<th class="py-5 px-6 text-[10px] font-black uppercase tracking-widest text-on-surface-variant">Station & Odometer</th>
-						<th class="py-5 px-6 text-[10px] font-black uppercase tracking-widest text-on-surface-variant">Fuel Details</th>
-						<th class="py-5 px-6 text-[10px] font-black uppercase tracking-widest text-on-surface-variant">Total Cost</th>
-						<th class="py-5 px-6 text-[10px] font-black uppercase tracking-widest text-on-surface-variant text-right">Actions</th>
+			<table class="w-full text-left text-sm min-w-[1000px]">
+				<thead class="bg-slate-100/70 dark:bg-slate-800/50 text-xs font-bold text-on-surface-variant uppercase tracking-wider border-b border-slate-200/60 dark:border-slate-800/60">
+					<tr>
+						<th class="py-3.5 px-5">ID Log / Tanggal</th>
+						<th class="py-3.5 px-5">Unit & Driver</th>
+						<th class="py-3.5 px-5">SPBU & Odometer</th>
+						<th class="py-3.5 px-5">Detail BBM</th>
+						<th class="py-3.5 px-5">Total Biaya</th>
+						<th class="py-3.5 px-5 text-right">Aksi</th>
 					</tr>
 				</thead>
-				<tbody class="divide-y divide-surface-container">
+				<tbody class="divide-y divide-slate-200/60 dark:divide-slate-800/60">
 					{#each logs as log}
 						<tr class="group hover:bg-surface-container-low transition-colors">
-							<td class="py-4 px-6">
-								<div class="flex flex-col gap-1">
-									<span class="text-[10px] font-black tracking-widest uppercase text-on-surface-variant/70">{log.id}</span>
+							<td class="py-3.5 px-5">
+								<div class="flex flex-col gap-0.5">
+									<span class="text-[10px] font-black tracking-widest uppercase text-on-surface-variant/70 font-mono">{log.id}</span>
 									<span class="text-sm font-bold text-on-surface">{log.date}</span>
 									{#if log.tripId !== '-'}
 										<span class="text-[10px] font-medium text-blue-600 bg-blue-500/10 px-1.5 py-0.5 rounded w-fit mt-0.5">{log.tripId}</span>
 									{/if}
 								</div>
 							</td>
-							<td class="py-4 px-6">
+							<td class="py-3.5 px-5">
 								<div class="flex items-center gap-3">
-									<div class="w-9 h-9 rounded-lg bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center text-blue-600 dark:text-blue-400 flex-shrink-0">
+									<div class="w-9 h-9 rounded-xl bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center text-blue-600 dark:text-blue-400 flex-shrink-0">
 										<span class="material-symbols-outlined text-[18px]">local_shipping</span>
 									</div>
 									<div>
@@ -171,65 +199,72 @@
 									</div>
 								</div>
 							</td>
-							<td class="py-4 px-6">
+							<td class="py-3.5 px-5">
 								<div class="flex flex-col gap-1">
 									<span class="text-sm font-bold text-on-surface flex items-center gap-1.5">
 										<span class="material-symbols-outlined text-[14px] text-amber-500">ev_station</span>
 										{log.station}
 									</span>
-									<span class="text-[11px] font-medium text-on-surface-variant flex items-center gap-1.5">
-										<span class="material-symbols-outlined text-[14px]">speed</span>
-										{log.odometer.toLocaleString('id-ID')} km
+									<span class="text-[11px] font-medium text-on-surface-variant flex items-center gap-1.5 font-mono">
+										<span class="material-symbols-outlined text-[14px] text-slate-400">speed</span>
+										{log.odometer.toLocaleString('id-ID')} KM
 									</span>
 								</div>
 							</td>
-							<td class="py-4 px-6">
+							<td class="py-3.5 px-5">
 								<div class="flex flex-col gap-1">
-									<div class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md bg-surface-container-high text-on-surface-variant text-[10px] font-bold uppercase tracking-wider w-fit">
-										{log.fuelType}
+									<div class="flex items-center gap-2">
+										<span class="inline-flex items-center px-2 py-0.5 rounded-md bg-surface-container-high text-on-surface-variant text-[10px] font-bold uppercase tracking-wider">
+											{log.fuelType}
+										</span>
+										<span class="text-xs font-black text-on-surface font-mono">{log.liters} L</span>
 									</div>
-									<span class="text-sm font-bold text-on-surface">{log.liters} Liters</span>
-									<span class="text-[11px] font-medium text-on-surface-variant">{formatCurrency(log.pricePerLiter)} / L</span>
+									<span class="text-[11px] font-medium text-on-surface-variant">@{formatCurrency(log.pricePerLiter)}/L</span>
 								</div>
 							</td>
-							<td class="py-4 px-6">
-								<span class="text-sm font-black text-rose-600 dark:text-rose-400">{formatCurrency(log.totalCost)}</span>
+							<td class="py-3.5 px-5">
+								<span class="text-sm font-black text-on-surface font-mono">{formatCurrency(log.totalCost)}</span>
 							</td>
-							<td class="py-4 px-6 text-right">
-								<div class="flex items-center justify-end gap-2">
-									<button class="p-2 rounded-lg text-blue-600 hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors" title="View Receipt">
-										<span class="material-symbols-outlined text-[20px]">receipt_long</span>
-									</button>
-									<button class="p-2 rounded-lg text-on-surface-variant hover:bg-surface-container-high transition-colors" title="More Options">
-										<span class="material-symbols-outlined text-[20px]">more_vert</span>
-									</button>
-								</div>
+							<td class="py-3.5 px-5 text-right">
+								<button class="p-2 rounded-lg text-blue-600 hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors cursor-pointer" title="Lihat Detail Log">
+									<span class="material-symbols-outlined text-[20px]">receipt_long</span>
+								</button>
+							</td>
+						</tr>
+					{:else}
+						<tr>
+							<td colspan="6" class="py-20 text-center">
+								<span class="material-symbols-outlined text-5xl text-on-surface-variant/30 block mb-3">local_gas_station</span>
+								<p class="text-on-surface-variant font-semibold">Tidak ada log pengisian BBM</p>
+								<p class="text-xs text-on-surface-variant/60 mt-1">Coba ubah filter atau kata kunci pencarian</p>
 							</td>
 						</tr>
 					{/each}
 				</tbody>
 			</table>
 		</div>
-		
+
 		<!-- Pagination Footer -->
-		<div class="px-6 py-4 border-t border-surface-container flex items-center justify-between bg-surface-container-lowest">
-			<p class="text-xs text-on-surface-variant font-medium">Showing {startItem} to {endItem} of {meta?.total || 0} entries</p>
+		<div class="px-5 py-3.5 border-t border-slate-200/60 dark:border-slate-800/60 flex items-center justify-between bg-surface-container-low">
+			<p class="text-xs text-on-surface-variant font-medium">
+				Menampilkan <span class="font-bold text-on-surface">{startItem}–{endItem}</span> dari <span class="font-bold text-on-surface">{meta?.total || 0}</span> log pengisian
+			</p>
 			<div class="flex gap-1">
 				<button 
-					class="w-8 h-8 rounded-lg flex items-center justify-center text-on-surface-variant hover:bg-surface-container-high disabled:opacity-50 transition-colors" 
+					class="w-8 h-8 rounded-lg flex items-center justify-center text-on-surface-variant hover:bg-surface-container-high disabled:opacity-40 transition-colors" 
 					disabled={currentPage <= 1}
 					onclick={() => goToPage(currentPage - 1)}>
 					<span class="material-symbols-outlined text-lg">chevron_left</span>
 				</button>
 				{#each Array(totalPages) as _, i}
 					<button 
-						class="w-8 h-8 rounded-lg flex items-center justify-center font-bold text-sm shadow-sm transition-colors {currentPage === i + 1 ? 'bg-blue-600 text-white' : 'text-on-surface hover:bg-surface-container-high'}"
+						class="w-8 h-8 rounded-lg flex items-center justify-center font-bold text-xs shadow-xs transition-colors {currentPage === i + 1 ? 'bg-blue-600 text-white' : 'text-on-surface hover:bg-surface-container-high'}"
 						onclick={() => goToPage(i + 1)}>
 						{i + 1}
 					</button>
 				{/each}
 				<button 
-					class="w-8 h-8 rounded-lg flex items-center justify-center text-on-surface-variant hover:bg-surface-container-high disabled:opacity-50 transition-colors"
+					class="w-8 h-8 rounded-lg flex items-center justify-center text-on-surface-variant hover:bg-surface-container-high disabled:opacity-40 transition-colors" 
 					disabled={currentPage >= totalPages}
 					onclick={() => goToPage(currentPage + 1)}>
 					<span class="material-symbols-outlined text-lg">chevron_right</span>

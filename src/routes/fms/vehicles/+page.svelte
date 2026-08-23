@@ -153,138 +153,163 @@
 	<meta name="description" content="Kelola dan pantau seluruh armada kendaraan BCS" />
 </svelte:head>
 
-<div class="flex flex-col h-full">
+<div class="flex flex-col h-full space-y-6">
 	<!-- Header -->
-	<header class="mb-6 flex flex-col md:flex-row md:items-end justify-between gap-4">
+	<header class="flex flex-col md:flex-row md:items-end justify-between gap-4 flex-shrink-0">
 		<div>
-			<h1 class="text-3xl font-extrabold text-on-surface tracking-tight mb-1">Fleet Roster</h1>
-			<p class="text-on-surface-variant font-medium text-sm">Kelola dan pantau armada kendaraan operasional</p>
+			<div class="flex items-center gap-2.5">
+				<span class="material-symbols-outlined text-blue-600 dark:text-blue-400 text-2xl">local_shipping</span>
+				<h1 class="text-2xl font-black text-on-surface tracking-tight">Fleet Roster & Kendaraan</h1>
+			</div>
+			<p class="text-on-surface-variant font-medium text-sm mt-0.5">
+				Kelola dan pantau seluruh armada kendaraan operasional PT BCS Logistics
+			</p>
 		</div>
-		<div class="flex gap-3">
-			<button class="bg-surface-container-lowest border border-outline-variant/30 text-on-surface px-4 py-2.5 rounded-xl text-sm font-semibold flex items-center gap-2 hover:bg-surface-container-low transition-colors">
+		<div class="flex gap-2.5">
+			<button class="bg-surface-container-low border border-slate-200 dark:border-slate-800 text-on-surface px-4 py-2.5 rounded-xl text-sm font-semibold flex items-center gap-2 hover:bg-surface-container transition-colors shadow-xs">
 				<span class="material-symbols-outlined text-lg">download</span>
-				Export
+				<span>Export</span>
 			</button>
-			<button onclick={analyzeMaintenance} class="bg-orange-50 text-orange-700 border border-orange-200 px-4 py-2.5 rounded-xl text-sm font-bold shadow-sm flex items-center gap-2 hover:bg-orange-100 transition-colors dark:bg-orange-900/30 dark:text-orange-400 dark:border-orange-800/50">
+			<button onclick={analyzeMaintenance} class="bg-blue-600 text-white px-4 py-2.5 rounded-xl text-sm font-bold shadow-xs flex items-center gap-2 hover:bg-blue-700 transition-colors cursor-pointer">
 				<span class="material-symbols-outlined text-lg">smart_toy</span>
-				AI Maintenance
+				<span>AI Maintenance</span>
 			</button>
 		</div>
 	</header>
 
-	<!-- Metrics Cards -->
-	<div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-		<div class="bg-surface-container-lowest rounded-2xl p-5 border border-outline-variant/20 shadow-sm">
-			<div class="flex items-center justify-between mb-3">
-				<span class="text-xs font-black uppercase tracking-widest text-on-surface-variant">Total Unit</span>
-				<span class="material-symbols-outlined text-blue-500 text-xl">directions_bus</span>
+	<!-- Metrics Cards (Bento) -->
+	<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+		<div class="p-5 rounded-2xl bg-surface-container-low border border-slate-200/60 dark:border-slate-800/60 shadow-xs">
+			<div class="flex items-center justify-between">
+				<div>
+					<p class="text-xs font-bold text-on-surface-variant uppercase tracking-wider">Total Unit</p>
+					<h3 class="text-2xl font-black text-on-surface mt-1">{metrics.total}</h3>
+				</div>
+				<div class="w-12 h-12 rounded-xl bg-blue-500/10 text-blue-600 flex items-center justify-center">
+					<span class="material-symbols-outlined text-2xl">local_shipping</span>
+				</div>
 			</div>
-			<p class="text-3xl font-extrabold text-on-surface">{metrics.total}</p>
-			<p class="text-xs text-on-surface-variant mt-1 font-medium">Semua armada</p>
+			<p class="text-xs text-on-surface-variant mt-2">Semua armada terdaftar</p>
 		</div>
-		<div class="bg-surface-container-lowest rounded-2xl p-5 border border-outline-variant/20 shadow-sm">
-			<div class="flex items-center justify-between mb-3">
-				<span class="text-xs font-black uppercase tracking-widest text-on-surface-variant">Aktif</span>
-				<span class="material-symbols-outlined text-emerald-500 text-xl">check_circle</span>
+
+		<div class="p-5 rounded-2xl bg-surface-container-low border border-slate-200/60 dark:border-slate-800/60 shadow-xs">
+			<div class="flex items-center justify-between">
+				<div>
+					<p class="text-xs font-bold text-on-surface-variant uppercase tracking-wider">Aktif</p>
+					<h3 class="text-2xl font-black text-emerald-600 mt-1">{metrics.active}</h3>
+				</div>
+				<div class="w-12 h-12 rounded-xl bg-emerald-500/10 text-emerald-600 flex items-center justify-center">
+					<span class="material-symbols-outlined text-2xl">check_circle</span>
+				</div>
 			</div>
-			<p class="text-3xl font-extrabold text-emerald-600">{metrics.active}</p>
-			<p class="text-xs text-on-surface-variant mt-1 font-medium">Beroperasi</p>
+			<p class="text-xs text-emerald-600 font-medium mt-2">Siap beroperasi</p>
 		</div>
-		<div class="bg-surface-container-lowest rounded-2xl p-5 border border-outline-variant/20 shadow-sm">
-			<div class="flex items-center justify-between mb-3">
-				<span class="text-xs font-black uppercase tracking-widest text-on-surface-variant">Tidak Aktif</span>
-				<span class="material-symbols-outlined text-rose-500 text-xl">cancel</span>
+
+		<div class="p-5 rounded-2xl bg-surface-container-low border border-slate-200/60 dark:border-slate-800/60 shadow-xs">
+			<div class="flex items-center justify-between">
+				<div>
+					<p class="text-xs font-bold text-on-surface-variant uppercase tracking-wider">Tidak Aktif</p>
+					<h3 class="text-2xl font-black text-rose-600 mt-1">{metrics.inactive}</h3>
+				</div>
+				<div class="w-12 h-12 rounded-xl bg-rose-500/10 text-rose-600 flex items-center justify-center">
+					<span class="material-symbols-outlined text-2xl">cancel</span>
+				</div>
 			</div>
-			<p class="text-3xl font-extrabold text-rose-600">{metrics.inactive}</p>
-			<p class="text-xs text-on-surface-variant mt-1 font-medium">Non-operasional</p>
+			<p class="text-xs text-rose-600 font-medium mt-2">Non-operasional / Standby</p>
 		</div>
-		<div class="bg-surface-container-lowest rounded-2xl p-5 border border-outline-variant/20 shadow-sm">
-			<div class="flex items-center justify-between mb-3">
-				<span class="text-xs font-black uppercase tracking-widest text-on-surface-variant">Maintenance</span>
-				<span class="material-symbols-outlined text-amber-500 text-xl">build</span>
+
+		<div class="p-5 rounded-2xl bg-surface-container-low border border-slate-200/60 dark:border-slate-800/60 shadow-xs">
+			<div class="flex items-center justify-between">
+				<div>
+					<p class="text-xs font-bold text-on-surface-variant uppercase tracking-wider">Maintenance</p>
+					<h3 class="text-2xl font-black text-amber-600 mt-1">{metrics.maintenance}</h3>
+				</div>
+				<div class="w-12 h-12 rounded-xl bg-amber-500/10 text-amber-600 flex items-center justify-center">
+					<span class="material-symbols-outlined text-2xl">build</span>
+				</div>
 			</div>
-			<p class="text-3xl font-extrabold text-amber-600">{metrics.maintenance}</p>
-			<p class="text-xs text-on-surface-variant mt-1 font-medium">Dalam servis</p>
+			<p class="text-xs text-amber-600 font-medium mt-2">Dalam perbaikan / bengkel</p>
 		</div>
 	</div>
 
-	<!-- Filters & Search -->
-	<div class="flex flex-col gap-4 mb-6">
-		<!-- Main Row: Asset Group Tabs -->
-		<div class="flex border-b border-outline-variant/30 overflow-x-auto hide-scrollbar">
-			{#each assetGroupFilters as ag}
-				<button
-					class="px-5 py-3 text-sm font-bold whitespace-nowrap border-b-2 transition-all {activeAssetGroup === ag
-						? 'border-blue-600 text-blue-600 dark:border-blue-400 dark:text-blue-400'
-						: 'border-transparent text-on-surface-variant hover:text-on-surface hover:bg-surface-container-lowest'}"
-					onclick={() => handleAssetGroupClick(ag)}
-				>
-					{ag === 'All' ? 'Semua Kategori' : assetGroupLabel[ag] ?? ag}
-				</button>
-			{/each}
+	<!-- Unified Filter & Search Bar -->
+	<div class="p-4 rounded-2xl bg-surface-container-low border border-slate-200/60 dark:border-slate-800/60 flex flex-col gap-4 shadow-xs">
+		<!-- Baris 1: Asset Group Tabs & Search -->
+		<div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+			<div class="inline-flex p-1 rounded-2xl bg-surface-container border border-slate-200 dark:border-slate-800 overflow-x-auto max-w-full">
+				{#each assetGroupFilters as ag}
+					<button
+						class="px-3.5 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all cursor-pointer {activeAssetGroup === ag
+							? 'bg-surface text-blue-600 dark:text-blue-400 shadow-xs'
+							: 'text-on-surface-variant hover:text-on-surface'}"
+						onclick={() => handleAssetGroupClick(ag)}
+					>
+						{ag === 'All' ? 'Semua Kategori' : assetGroupLabel[ag] ?? ag}
+					</button>
+				{/each}
+			</div>
+
+			<!-- Search Input -->
+			<div class="relative w-full lg:w-80 flex-shrink-0">
+				<span class="material-symbols-outlined absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-lg">search</span>
+				<input
+					type="text"
+					id="vehicles-search"
+					bind:value={searchQuery}
+					oninput={handleSearchInput}
+					placeholder="Cari nomor unit, no lambung..."
+					class="w-full bg-surface border border-slate-200 dark:border-slate-700 text-on-surface rounded-xl py-2 pl-10 pr-4 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/40 placeholder:text-slate-400"
+				/>
+			</div>
 		</div>
 
-		<!-- Second Row: BU, Status, Search -->
-		<div class="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-3">
-			<div class="flex flex-wrap gap-2">
+		<!-- Baris 2: BU & Status Filters (Segmented Controls) -->
+		<div class="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-slate-200/60 dark:border-slate-800/60">
 			<!-- Business Unit Filter -->
-			{#each buFilters as filter}
-				<button
-					class="px-4 py-2 rounded-full text-sm font-bold whitespace-nowrap transition-colors {activeFilter === filter
-						? 'bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300'
-						: 'text-on-surface-variant hover:bg-surface-container'}"
-					onclick={() => handleFilterClick(filter)}
-				>
-					{filter === 'All' ? 'Semua BU' : buLabel[filter] ?? filter}
-				</button>
-			{/each}
-
-			<!-- Divider -->
-			<span class="w-px h-8 bg-outline-variant/30 self-center"></span>
+			<div class="inline-flex p-1 rounded-2xl bg-surface-container border border-slate-200 dark:border-slate-800 overflow-x-auto">
+				{#each buFilters as filter}
+					<button
+						class="px-3 py-1 rounded-xl text-xs font-bold whitespace-nowrap transition-all cursor-pointer {activeFilter === filter
+							? 'bg-surface text-blue-600 dark:text-blue-400 shadow-xs'
+							: 'text-on-surface-variant hover:text-on-surface'}"
+						onclick={() => handleFilterClick(filter)}
+					>
+						{filter === 'All' ? 'Semua BU' : buLabel[filter] ?? filter}
+					</button>
+				{/each}
+			</div>
 
 			<!-- Status Filter -->
-			{#each statusFilters as st}
-				<button
-					class="px-4 py-2 rounded-full text-sm font-bold whitespace-nowrap transition-colors {activeStatus === st
-						? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-300'
-						: 'text-on-surface-variant hover:bg-surface-container'}"
-					onclick={() => handleStatusClick(st)}
-				>
-					{st === 'All' ? 'Semua Status' : st === 'ACTIVE' ? 'Aktif' : 'Tidak Aktif'}
-				</button>
-			{/each}
-		</div>
-
-		<!-- Search -->
-		<div class="relative w-full lg:w-72 flex-shrink-0">
-			<span class="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-on-surface-variant text-lg">search</span>
-			<input
-				type="text"
-				id="vehicles-search"
-				bind:value={searchQuery}
-				oninput={handleSearchInput}
-				placeholder="Cari nomor unit, lambung..."
-				class="w-full bg-surface-container-lowest border border-outline-variant/30 text-on-surface rounded-full py-2.5 pl-11 pr-4 focus:outline-none focus:ring-2 focus:ring-blue-500/50 text-sm font-medium"
-			/>
+			<div class="inline-flex p-1 rounded-2xl bg-surface-container border border-slate-200 dark:border-slate-800 overflow-x-auto">
+				{#each statusFilters as st}
+					<button
+						class="px-3 py-1 rounded-xl text-xs font-bold whitespace-nowrap transition-all cursor-pointer {activeStatus === st
+							? 'bg-surface text-blue-600 dark:text-blue-400 shadow-xs'
+							: 'text-on-surface-variant hover:text-on-surface'}"
+						onclick={() => handleStatusClick(st)}
+					>
+						{st === 'All' ? 'Semua Status' : st === 'ACTIVE' ? 'Aktif' : 'Tidak Aktif'}
+					</button>
+				{/each}
+			</div>
 		</div>
 	</div>
-</div>
 
-	<!-- Table -->
-	<div class="bg-surface-container-lowest rounded-[24px] shadow-sm flex-1 overflow-hidden flex flex-col">
+	<!-- Table Container -->
+	<div class="rounded-2xl bg-surface-container-low border border-slate-200/60 dark:border-slate-800/60 overflow-hidden shadow-xs flex-1 flex flex-col">
 		<div class="overflow-x-auto flex-1">
-			<table class="w-full text-left border-collapse">
-				<thead>
-					<tr class="border-b border-surface-container sticky top-0 bg-surface-container-lowest z-10">
-						<th class="py-5 px-6 text-[10px] font-black uppercase tracking-widest text-on-surface-variant">Unit Info</th>
-						<th class="py-5 px-6 text-[10px] font-black uppercase tracking-widest text-on-surface-variant">Tipe & Spek</th>
-						<th class="py-5 px-6 text-[10px] font-black uppercase tracking-widest text-on-surface-variant">Driver Utama</th>
-						<th class="py-5 px-6 text-[10px] font-black uppercase tracking-widest text-on-surface-variant">Grade</th>
-						<th class="py-5 px-6 text-[10px] font-black uppercase tracking-widest text-on-surface-variant">Status</th>
-						<th class="py-5 px-6 text-[10px] font-black uppercase tracking-widest text-on-surface-variant text-right">Aksi</th>
+			<table class="w-full text-left text-sm">
+				<thead class="bg-slate-100/70 dark:bg-slate-800/50 text-xs font-bold text-on-surface-variant uppercase tracking-wider border-b border-slate-200/60 dark:border-slate-800/60">
+					<tr>
+						<th class="py-3.5 px-5">Unit Info</th>
+						<th class="py-3.5 px-5">Tipe & Spek</th>
+						<th class="py-3.5 px-5">Driver Utama</th>
+						<th class="py-3.5 px-5">Grade</th>
+						<th class="py-3.5 px-5">Status</th>
+						<th class="py-3.5 px-5 text-right">Aksi</th>
 					</tr>
 				</thead>
-				<tbody class="divide-y divide-surface-container">
+				<tbody class="divide-y divide-slate-200/60 dark:divide-slate-800/60">
 					{#each vehicles as vhc (vhc.id)}
 						{@const buColor = getBuColor(vhc.business_unit)}
 						<tr class="group hover:bg-surface-container-low transition-colors">
@@ -382,9 +407,9 @@
 		</div>
 
 		<!-- Pagination Footer -->
-		<div class="px-6 py-4 border-t border-surface-container flex items-center justify-between bg-surface-container-lowest">
+		<div class="px-5 py-3.5 border-t border-slate-200/60 dark:border-slate-800/60 flex items-center justify-between bg-surface-container-low">
 			<p class="text-xs text-on-surface-variant font-medium">
-				Menampilkan {startItem}–{endItem} dari {meta?.total || 0} unit
+				Menampilkan <span class="font-bold text-on-surface">{startItem}–{endItem}</span> dari <span class="font-bold text-on-surface">{meta?.total || 0}</span> unit
 			</p>
 			<div class="flex gap-1">
 				<button
@@ -397,7 +422,7 @@
 
 				{#each pageNumbers() as p}
 					<button
-						class="w-8 h-8 rounded-lg flex items-center justify-center font-bold text-sm transition-colors {currentPage === p ? 'bg-blue-600 text-white shadow-sm' : 'text-on-surface hover:bg-surface-container-high'}"
+						class="w-8 h-8 rounded-lg flex items-center justify-center font-bold text-xs transition-colors {currentPage === p ? 'bg-blue-600 text-white shadow-xs' : 'text-on-surface hover:bg-surface-container-high'}"
 						onclick={() => goToPage(p)}
 					>
 						{p}
