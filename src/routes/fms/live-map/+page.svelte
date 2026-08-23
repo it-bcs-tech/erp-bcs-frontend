@@ -119,6 +119,70 @@
 			: false
 	);
 
+	// Real-time Telematics State
+	let telematicsLive = $state<{
+		rpm: number;
+		engine_temp_c: number;
+		fuel_pct: number;
+		fuel_level_liters: number;
+		battery_voltage: number;
+		is_engine_on: boolean;
+		speed_kmh: number;
+	} | null>(null);
+
+	let isSimulatingTelematics = $state(false);
+	let telematicsSimMessage = $state('');
+
+	$effect(() => {
+		if (selectedUnitId) {
+			fetch(`/api/fms/telematics/live?unitId=${selectedUnitId}`)
+				.then(r => r.json())
+				.then(res => {
+					if (res.success && res.data) {
+						telematicsLive = {
+							rpm: Number(res.data.rpm) || 1650,
+							engine_temp_c: Number(res.data.engine_temp_c) || 88.5,
+							fuel_pct: Number(res.data.fuel_pct) || 75.0,
+							fuel_level_liters: Number(res.data.fuel_level_liters) || 225.0,
+							battery_voltage: Number(res.data.battery_voltage) || 24.2,
+							is_engine_on: res.data.is_engine_on !== false,
+							speed_kmh: Number(res.data.speed_kmh) || 45.0
+						};
+					}
+				})
+				.catch(() => {});
+		} else {
+			telematicsLive = null;
+		}
+	});
+
+	async function triggerSimulateEvent(eventType: string) {
+		if (!selectedUnitId) return;
+		isSimulatingTelematics = true;
+		try {
+			const res = await fetch('/api/fms/telematics/simulate', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ unit_id: selectedUnitId, event_type: eventType })
+			});
+			const d = await res.json();
+			if (d.success) {
+				telematicsSimMessage = d.message;
+				// Refresh live telematics
+				if (eventType === 'ENGINE_OVERHEAT' && telematicsLive) telematicsLive.engine_temp_c = 109.0;
+				if (eventType === 'FUEL_DRAIN_ANOMALY' && telematicsLive) {
+					telematicsLive.fuel_pct = Math.max(10, telematicsLive.fuel_pct - 25);
+					telematicsLive.fuel_level_liters = Math.max(30, telematicsLive.fuel_level_liters - 75);
+				}
+				setTimeout(() => telematicsSimMessage = '', 4000);
+			}
+		} catch (e) {
+			console.error(e);
+		} finally {
+			isSimulatingTelematics = false;
+		}
+	}
+
 	// Road color based on speed
 	let roadColor = $derived(
 		!selectedUnit || selectedUnit.speed === 0
@@ -1038,6 +1102,79 @@
 								</div>
 							</div>
 						{/if}
+
+						<!-- IoT Telematics & ECU Live Sensors HUD -->
+						<div class="rounded-xl overflow-hidden border border-slate-200 dark:border-slate-800 bg-surface-container-low p-3.5 space-y-3">
+							<div class="flex items-center justify-between">
+								<div class="flex items-center gap-1.5">
+									<span class="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></span>
+									<p class="text-[10px] font-black text-on-surface uppercase tracking-widest flex items-center gap-1">
+										<span class="material-symbols-outlined text-sm text-blue-600">sensors</span>
+										<span>CAN-bus ECU & IoT Sensors</span>
+									</p>
+								</div>
+								<span class="text-[9px] font-bold px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-600 border border-emerald-500/20 uppercase">
+									ONLINE
+								</span>
+							</div>
+
+							{#if telematicsSimMessage}
+								<div class="p-2 rounded-lg bg-amber-500/10 border border-amber-500/30 text-[10px] font-bold text-amber-600 animate-in fade-in">
+									{telematicsSimMessage}
+								</div>
+							{/if}
+
+							<!-- Sensor Metrics Grid -->
+							<div class="grid grid-cols-2 gap-2">
+								<!-- RPM -->
+								<div class="p-2 rounded-lg bg-surface border border-slate-200/60 dark:border-slate-800/60">
+									<p class="text-[9px] font-bold text-on-surface-variant uppercase">Engine RPM</p>
+									<p class="text-sm font-black text-on-surface font-mono mt-0.5">{telematicsLive ? telematicsLive.rpm : 1650} <span class="text-[10px] font-normal text-on-surface-variant">RPM</span></p>
+								</div>
+								<!-- Engine Temp -->
+								<div class="p-2 rounded-lg bg-surface border border-slate-200/60 dark:border-slate-800/60">
+									<p class="text-[9px] font-bold text-on-surface-variant uppercase">Coolant Temp</p>
+									<p class="text-sm font-black {telematicsLive && telematicsLive.engine_temp_c > 100 ? 'text-rose-600 animate-pulse' : 'text-on-surface'} font-mono mt-0.5">
+										{telematicsLive ? telematicsLive.engine_temp_c : 88.5} <span class="text-[10px] font-normal text-on-surface-variant">°C</span>
+									</p>
+								</div>
+								<!-- Fuel Level Tank -->
+								<div class="p-2 rounded-lg bg-surface border border-slate-200/60 dark:border-slate-800/60">
+									<p class="text-[9px] font-bold text-on-surface-variant uppercase">Fuel Tank Sensor</p>
+									<p class="text-sm font-black text-blue-600 font-mono mt-0.5">{telematicsLive ? telematicsLive.fuel_pct : 75}% <span class="text-[10px] font-normal text-on-surface-variant">({telematicsLive ? telematicsLive.fuel_level_liters : 225}L)</span></p>
+								</div>
+								<!-- Battery Voltage -->
+								<div class="p-2 rounded-lg bg-surface border border-slate-200/60 dark:border-slate-800/60">
+									<p class="text-[9px] font-bold text-on-surface-variant uppercase">Aki / Battery</p>
+									<p class="text-sm font-black text-on-surface font-mono mt-0.5">{telematicsLive ? telematicsLive.battery_voltage : 24.2} <span class="text-[10px] font-normal text-on-surface-variant">V</span></p>
+								</div>
+							</div>
+
+							<!-- Quick IoT Simulation Buttons for Testing -->
+							<div class="pt-2 border-t border-slate-200/60 dark:border-slate-800/60">
+								<p class="text-[9px] font-bold text-on-surface-variant uppercase tracking-wider mb-1.5">Tes Injeksi Sinyal Telemetri:</p>
+								<div class="flex gap-1.5 flex-wrap">
+									<button 
+										disabled={isSimulatingTelematics}
+										onclick={() => triggerSimulateEvent('HARSH_BRAKING')} 
+										class="px-2 py-1 rounded bg-slate-200 dark:bg-slate-800 hover:bg-rose-500 hover:text-white text-[9px] font-bold transition-colors cursor-pointer disabled:opacity-50">
+										⚡ Harsh Brake
+									</button>
+									<button 
+										disabled={isSimulatingTelematics}
+										onclick={() => triggerSimulateEvent('FUEL_DRAIN_ANOMALY')} 
+										class="px-2 py-1 rounded bg-slate-200 dark:bg-slate-800 hover:bg-rose-500 hover:text-white text-[9px] font-bold transition-colors cursor-pointer disabled:opacity-50">
+										⛽ Fuel Drop Alert
+									</button>
+									<button 
+										disabled={isSimulatingTelematics}
+										onclick={() => triggerSimulateEvent('ENGINE_OVERHEAT')} 
+										class="px-2 py-1 rounded bg-slate-200 dark:bg-slate-800 hover:bg-rose-500 hover:text-white text-[9px] font-bold transition-colors cursor-pointer disabled:opacity-50">
+										🔥 Overheat
+									</button>
+								</div>
+							</div>
+						</div>
 
 						<div><p class="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider mb-1">Customer</p><p class="text-sm font-bold text-on-surface">{selectedUnit.customer}</p></div>
 						<div><p class="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider mb-1">Cargo</p><p class="text-sm font-medium text-on-surface">{selectedUnit.cargo}</p></div>

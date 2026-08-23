@@ -136,14 +136,14 @@
 		<!-- Row 1: Type Tabs & Search -->
 		<div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
 			<div class="inline-flex p-1 rounded-2xl bg-surface-container border border-slate-200 dark:border-slate-800 overflow-x-auto max-w-full">
-				{#each ['All', 'Accident', 'Breakdown', 'Traffic Violation', 'Cargo Damage'] as tf}
+				{#each ['All', 'Accident', 'Breakdown', 'Traffic Violation', 'Telematics Alert', 'Cargo Damage'] as tf}
 					<button
 						class="px-3.5 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all cursor-pointer {typeFilter === tf
 							? 'bg-surface text-blue-600 dark:text-blue-400 shadow-xs'
 							: 'text-on-surface-variant hover:text-on-surface'}"
 						onclick={() => { typeFilter = tf; handleFilterChange(); }}
 					>
-						{tf === 'All' ? 'Semua Jenis Insiden' : tf}
+						{tf === 'All' ? 'Semua Jenis Insiden' : tf === 'Telematics Alert' ? '📡 IoT Telematics Alert' : tf}
 					</button>
 				{/each}
 			</div>

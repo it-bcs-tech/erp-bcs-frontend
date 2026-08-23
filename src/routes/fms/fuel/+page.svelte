@@ -133,6 +133,30 @@
 		</div>
 	</div>
 
+	<!-- IoT Telematics Fuel Sensor Anomaly Card (Anti-Kencing Solar) -->
+	<div class="p-5 rounded-2xl bg-surface-container-low border border-amber-500/30 dark:border-amber-500/20 shadow-xs flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+		<div class="flex items-start gap-4">
+			<div class="w-12 h-12 rounded-2xl bg-amber-500/10 text-amber-600 flex items-center justify-center font-bold flex-shrink-0">
+				<span class="material-symbols-outlined text-2xl">security</span>
+			</div>
+			<div>
+				<div class="flex items-center gap-2">
+					<h3 class="text-sm font-black text-on-surface">Monitoring Sensor Tangki IoT (Deteksi Anomali Kencing Solar)</h3>
+					<span class="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-500/10 text-emerald-600 border border-emerald-500/20 uppercase">
+						ACTIVE MONITORING
+					</span>
+				</div>
+				<p class="text-xs text-on-surface-variant mt-0.5 leading-relaxed">
+					Sistem membandingkan log pengisian manual SPBU dengan pembacaan sensor ultrasonik tangki dan mendeteksi anomali penurunan volume saat mesin mati.
+				</p>
+			</div>
+		</div>
+		<a href="/fms/live-map" class="px-4 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs shadow-xs transition-colors flex items-center gap-1.5 whitespace-nowrap cursor-pointer">
+			<span class="material-symbols-outlined text-base">sensors</span>
+			<span>Pantau Sensor Live Map</span>
+		</a>
+	</div>
+
 	<!-- Unified Filter & Search Bar -->
 	<div class="p-4 rounded-2xl bg-surface-container-low border border-slate-200/60 dark:border-slate-800/60 flex flex-col md:flex-row gap-4 items-center justify-between shadow-xs">
 		<!-- Tabs (Segmented Control Jenis BBM) -->

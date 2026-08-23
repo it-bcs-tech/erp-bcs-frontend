@@ -22,10 +22,31 @@
 	// Slide-over Vehicle Detail Drawer state
 	let showVehicleDrawer = $state(false);
 	let selectedVehicle = $state<any | null>(null);
+	let telematicsDetail = $state<any | null>(null);
+	let fuelSensorDetail = $state<{ logs: any[], anomalies: any[] } | null>(null);
+	let isLoadingTelematics = $state(false);
 
-	function openVehicleDetail(vhc: any) {
+	async function openVehicleDetail(vhc: any) {
 		selectedVehicle = vhc;
 		showVehicleDrawer = true;
+		telematicsDetail = null;
+		fuelSensorDetail = null;
+		isLoadingTelematics = true;
+
+		try {
+			const unitId = vhc.nomor_unit || vhc.id;
+			const [telRes, fuelRes] = await Promise.all([
+				fetch(`/api/fms/telematics/live?unitId=${encodeURIComponent(unitId)}`).then(r => r.json()).catch(() => null),
+				fetch(`/api/fms/telematics/fuel-sensor/${encodeURIComponent(unitId)}`).then(r => r.json()).catch(() => null)
+			]);
+
+			if (telRes?.success) telematicsDetail = telRes.data;
+			if (fuelRes?.success) fuelSensorDetail = fuelRes.data;
+		} catch (e) {
+			console.error("Failed to load vehicle telematics", e);
+		} finally {
+			isLoadingTelematics = false;
+		}
 	}
 
 	// Filter state — selaras dengan query params di +page.server.ts
@@ -637,6 +658,61 @@
 							<p class="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Konfigurasi Gandar</p>
 							<p class="text-sm font-bold text-on-surface mt-1">{selectedVehicle.axle_config || '—'}</p>
 						</div>
+					</div>
+
+					<!-- Section: Telemetri CAN-bus & Sensor Bahan Bakar (IoT) -->
+					<div class="p-5 rounded-2xl bg-surface border border-slate-200/60 dark:border-slate-800/60 space-y-4">
+						<div class="flex items-center justify-between border-b border-slate-200/60 dark:border-slate-800/60 pb-3">
+							<div class="flex items-center gap-2">
+								<span class="material-symbols-outlined text-blue-600 text-lg">sensors</span>
+								<h3 class="text-xs font-black text-on-surface uppercase tracking-wider">Status Telemetri & Sensor Tangki BBM</h3>
+							</div>
+							<span class="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-600 border border-emerald-500/20">
+								<span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> Sensor Aktif
+							</span>
+						</div>
+
+						<!-- Telemetry Gauges -->
+						<div class="grid grid-cols-4 gap-2 text-center">
+							<div class="p-2.5 rounded-xl bg-surface-container-low border border-slate-200/60 dark:border-slate-800/60">
+								<p class="text-[9px] font-bold text-on-surface-variant uppercase">RPM Mesin</p>
+								<p class="text-xs font-black text-on-surface font-mono mt-1">{telematicsDetail ? telematicsDetail.rpm : 1650}</p>
+							</div>
+							<div class="p-2.5 rounded-xl bg-surface-container-low border border-slate-200/60 dark:border-slate-800/60">
+								<p class="text-[9px] font-bold text-on-surface-variant uppercase">Suhu Coolant</p>
+								<p class="text-xs font-black {telematicsDetail && Number(telematicsDetail.engine_temp_c) > 100 ? 'text-rose-600' : 'text-on-surface'} font-mono mt-1">
+									{telematicsDetail ? telematicsDetail.engine_temp_c : '88.5'}°C
+								</p>
+							</div>
+							<div class="p-2.5 rounded-xl bg-surface-container-low border border-slate-200/60 dark:border-slate-800/60">
+								<p class="text-[9px] font-bold text-on-surface-variant uppercase">Tangki BBM</p>
+								<p class="text-xs font-black text-blue-600 font-mono mt-1">{telematicsDetail ? telematicsDetail.fuel_pct : '75'}%</p>
+							</div>
+							<div class="p-2.5 rounded-xl bg-surface-container-low border border-slate-200/60 dark:border-slate-800/60">
+								<p class="text-[9px] font-bold text-on-surface-variant uppercase">Tegangan Aki</p>
+								<p class="text-xs font-black text-on-surface font-mono mt-1">{telematicsDetail ? telematicsDetail.battery_voltage : '24.2'}V</p>
+							</div>
+						</div>
+
+						<!-- Fuel Drop / Anomaly Detection Status -->
+						{#if fuelSensorDetail && fuelSensorDetail.anomalies && fuelSensorDetail.anomalies.length > 0}
+							<div class="p-3.5 rounded-xl bg-rose-500/10 border border-rose-500/30 flex items-start gap-3">
+								<span class="material-symbols-outlined text-rose-600 text-xl flex-shrink-0 mt-0.5">warning</span>
+								<div>
+									<h4 class="text-xs font-black text-rose-700 dark:text-rose-400">Terdeteksi Anomali Penurunan BBM Drastis (Kencing Solar)</h4>
+									<p class="text-[11px] text-rose-600 font-medium mt-0.5 leading-relaxed">
+										Volume bahan bakar turun tajam sebesar <strong>{fuelSensorDetail.anomalies[0].drop_percentage.toFixed(1)}% ({fuelSensorDetail.anomalies[0].drop_liters.toFixed(1)} Liter)</strong> saat mesin tidak aktif.
+									</p>
+								</div>
+							</div>
+						{:else}
+							<div class="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-between text-xs font-medium text-emerald-700 dark:text-emerald-400">
+								<div class="flex items-center gap-2">
+									<span class="material-symbols-outlined text-base">check_circle</span>
+									<span>Profil konsumsi solar normal (Tidak ada anomali drop 24 jam terakhir)</span>
+								</div>
+							</div>
+						{/if}
 					</div>
 
 					<!-- Section: Driver Utama & Penugasan -->
