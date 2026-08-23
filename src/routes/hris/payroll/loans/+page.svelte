@@ -134,30 +134,50 @@
 	</div>
 
 	<!-- Controls & Filter Bar -->
-	<div class="p-4 rounded-2xl bg-surface-container-low border border-slate-200/60 dark:border-slate-800/60 flex flex-col md:flex-row gap-4 items-center justify-between">
-		<div class="flex items-center gap-3 w-full md:w-auto">
-			<span class="material-symbols-outlined text-slate-400 text-lg">filter_alt</span>
-			<select
-				bind:value={selectedStatus}
-				onchange={handleFilterChange}
-				class="bg-surface border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-sm font-semibold text-on-surface focus:ring-2 focus:ring-primary/20"
+	<div class="p-4 rounded-2xl bg-surface-container-low border border-slate-200/60 dark:border-slate-800/60 flex flex-col md:flex-row gap-4 items-center justify-between shadow-xs">
+		<!-- Tabs (Segmented Control Status Pinjaman) -->
+		<div class="inline-flex p-1 rounded-2xl bg-surface-container border border-slate-200 dark:border-slate-800 overflow-x-auto max-w-full">
+			<button 
+				class="px-3.5 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all cursor-pointer {!selectedStatus ? 'bg-surface text-primary shadow-xs' : 'text-on-surface-variant hover:text-on-surface'}"
+				onclick={() => { selectedStatus = ''; handleFilterChange(); }}
 			>
-				<option value="">Semua Status Pinjaman</option>
-				<option value="pending">Menunggu HRD (Pending)</option>
-				<option value="approved">Disetujui / Aktif</option>
-				<option value="paid_off">Lunas (Paid Off)</option>
-				<option value="rejected">Ditolak</option>
-			</select>
+				Semua Status
+			</button>
+			<button 
+				class="px-3.5 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all cursor-pointer {selectedStatus === 'pending' ? 'bg-surface text-amber-600 shadow-xs' : 'text-on-surface-variant hover:text-on-surface'}"
+				onclick={() => { selectedStatus = 'pending'; handleFilterChange(); }}
+			>
+				Menunggu HRD
+			</button>
+			<button 
+				class="px-3.5 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all cursor-pointer {selectedStatus === 'approved' ? 'bg-surface text-emerald-600 shadow-xs' : 'text-on-surface-variant hover:text-on-surface'}"
+				onclick={() => { selectedStatus = 'approved'; handleFilterChange(); }}
+			>
+				Aktif / Disetujui
+			</button>
+			<button 
+				class="px-3.5 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all cursor-pointer {selectedStatus === 'paid_off' ? 'bg-surface text-blue-600 shadow-xs' : 'text-on-surface-variant hover:text-on-surface'}"
+				onclick={() => { selectedStatus = 'paid_off'; handleFilterChange(); }}
+			>
+				Lunas
+			</button>
+			<button 
+				class="px-3.5 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all cursor-pointer {selectedStatus === 'rejected' ? 'bg-surface text-rose-600 shadow-xs' : 'text-on-surface-variant hover:text-on-surface'}"
+				onclick={() => { selectedStatus = 'rejected'; handleFilterChange(); }}
+			>
+				Ditolak
+			</button>
 		</div>
 
-		<div class="relative w-full md:w-72">
-			<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">search</span>
+		<!-- Search Input -->
+		<div class="relative w-full md:w-80 flex-shrink-0">
+			<span class="material-symbols-outlined absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-lg">search</span>
 			<input
 				type="text"
-				placeholder="Cari Nama / Alasan..."
+				placeholder="Cari nama karyawan / alasan pinjaman..."
 				bind:value={searchQuery}
 				oninput={handleFilterChange}
-				class="w-full bg-surface border border-slate-200 dark:border-slate-700 rounded-xl py-2 pl-9 pr-4 text-sm font-medium focus:ring-2 focus:ring-primary/20 placeholder:text-slate-400"
+				class="w-full bg-surface border border-slate-200 dark:border-slate-700 text-on-surface rounded-xl py-2 pl-10 pr-4 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-primary/40 placeholder:text-slate-400"
 			/>
 		</div>
 	</div>
