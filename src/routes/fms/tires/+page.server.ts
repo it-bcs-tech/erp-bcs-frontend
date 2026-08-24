@@ -5,7 +5,7 @@ export const load: PageServerLoad = async ({ url }) => {
 	try {
 		const search = url.searchParams.get('search') || '';
 		const status = url.searchParams.get('status') || 'All';
-		const selectedUnitId = url.searchParams.get('unit') || 'DT-01';
+		const selectedUnitParam = url.searchParams.get('unit');
 
 		// 1. Fetch KPI metrics
 		const [metricsRow] = await sql<[{
@@ -27,18 +27,31 @@ export const load: PageServerLoad = async ({ url }) => {
 		`;
 
 		// 2. Fetch list of units that have tires mounted
-		const units = await sql<{ id: string; nomor_polisi: string; nama_tipe: string; axle_config: string }[]>`
-			SELECT DISTINCT u.id, u.id AS nomor_polisi, tu.nama_tipe, COALESCE(mu.axle_config, '6x4') AS axle_config
+		const units = await sql<{ id: string; nomor_unit: string; display_name: string; nama_tipe: string; axle_config: string }[]>`
+			SELECT DISTINCT 
+				u.id, 
+				u.nomor_unit, 
+				COALESCE(u.no_lambung, u.nomor_unit, u.id::text) AS display_name, 
+				tu.nama_tipe, 
+				COALESCE(mu.axle_config, '6x4') AS axle_config
 			FROM fleet.tire_positions tp
-			JOIN fleet.unit u ON u.id = tp.unit_id
+			JOIN fleet.unit u ON (u.id::text = tp.unit_id OR u.nomor_unit = tp.unit_id OR u.no_lambung = tp.unit_id)
 			JOIN master.m_model_unit mu ON mu.id = u.model_unit_id
 			JOIN master.m_tipe_unit tu ON tu.id = mu.tipe_unit_id
 			ORDER BY u.id ASC
 		`;
 
-		// 3. Fetch current wheel layout for the selected unit
-		const activeUnit = selectedUnitId || (units[0]?.id ?? 'DT-01');
-		const activeUnitObj = units.find(u => u.id === activeUnit) || units[0];
+		// 3. Determine active selected unit
+		const activeUnitObj = units.find(u => 
+			u.id.toString() === selectedUnitParam || 
+			u.nomor_unit === selectedUnitParam ||
+			u.display_name === selectedUnitParam
+		) || units[0];
+
+		const activeUnitId = activeUnitObj ? activeUnitObj.id.toString() : (selectedUnitParam || '40');
+		const activeUnitNomor = activeUnitObj ? activeUnitObj.nomor_unit : '';
+
+		// 4. Fetch current wheel layout for the selected unit
 		const unitWheelPositions = await sql<{
 			position_code: string;
 			axle_index: number;
@@ -68,28 +81,38 @@ export const load: PageServerLoad = async ({ url }) => {
 				t.cost_per_km
 			FROM fleet.tire_positions tp
 			LEFT JOIN fleet.tires t ON t.id = tp.tire_id
-			WHERE tp.unit_id = ${activeUnit}
+			WHERE tp.unit_id = ${activeUnitId} OR tp.unit_id = ${activeUnitNomor}
 			ORDER BY tp.axle_index ASC, tp.position_code ASC
 		`;
 
-		// 4. Fetch master table list
+		// 5. Fetch master table list
 		let tires;
 		if (status !== 'All' && search) {
 			const s = `%${search.toLowerCase()}%`;
 			tires = await sql`
-				SELECT t.*, tp.unit_id, tp.position_code
+				SELECT 
+					t.*, 
+					tp.unit_id, 
+					tp.position_code,
+					COALESCE(u.nomor_unit, u.no_lambung, tp.unit_id) AS unit_display_name
 				FROM fleet.tires t
 				LEFT JOIN fleet.tire_positions tp ON tp.tire_id = t.id
+				LEFT JOIN fleet.unit u ON (u.id::text = tp.unit_id OR u.nomor_unit = tp.unit_id)
 				WHERE t.status = ${status}
-				  AND (LOWER(t.serial_number) LIKE ${s} OR LOWER(t.brand) LIKE ${s} OR LOWER(COALESCE(tp.unit_id, '')) LIKE ${s})
+				  AND (LOWER(t.serial_number) LIKE ${s} OR LOWER(t.brand) LIKE ${s} OR LOWER(COALESCE(u.nomor_unit, tp.unit_id, '')) LIKE ${s})
 				ORDER BY t.id DESC
 				LIMIT 50
 			`;
 		} else if (status !== 'All') {
 			tires = await sql`
-				SELECT t.*, tp.unit_id, tp.position_code
+				SELECT 
+					t.*, 
+					tp.unit_id, 
+					tp.position_code,
+					COALESCE(u.nomor_unit, u.no_lambung, tp.unit_id) AS unit_display_name
 				FROM fleet.tires t
 				LEFT JOIN fleet.tire_positions tp ON tp.tire_id = t.id
+				LEFT JOIN fleet.unit u ON (u.id::text = tp.unit_id OR u.nomor_unit = tp.unit_id)
 				WHERE t.status = ${status}
 				ORDER BY t.id DESC
 				LIMIT 50
@@ -97,18 +120,28 @@ export const load: PageServerLoad = async ({ url }) => {
 		} else if (search) {
 			const s = `%${search.toLowerCase()}%`;
 			tires = await sql`
-				SELECT t.*, tp.unit_id, tp.position_code
+				SELECT 
+					t.*, 
+					tp.unit_id, 
+					tp.position_code,
+					COALESCE(u.nomor_unit, u.no_lambung, tp.unit_id) AS unit_display_name
 				FROM fleet.tires t
 				LEFT JOIN fleet.tire_positions tp ON tp.tire_id = t.id
-				WHERE (LOWER(t.serial_number) LIKE ${s} OR LOWER(t.brand) LIKE ${s} OR LOWER(COALESCE(tp.unit_id, '')) LIKE ${s})
+				LEFT JOIN fleet.unit u ON (u.id::text = tp.unit_id OR u.nomor_unit = tp.unit_id)
+				WHERE (LOWER(t.serial_number) LIKE ${s} OR LOWER(t.brand) LIKE ${s} OR LOWER(COALESCE(u.nomor_unit, tp.unit_id, '')) LIKE ${s})
 				ORDER BY t.id DESC
 				LIMIT 50
 			`;
 		} else {
 			tires = await sql`
-				SELECT t.*, tp.unit_id, tp.position_code
+				SELECT 
+					t.*, 
+					tp.unit_id, 
+					tp.position_code,
+					COALESCE(u.nomor_unit, u.no_lambung, tp.unit_id) AS unit_display_name
 				FROM fleet.tires t
 				LEFT JOIN fleet.tire_positions tp ON tp.tire_id = t.id
+				LEFT JOIN fleet.unit u ON (u.id::text = tp.unit_id OR u.nomor_unit = tp.unit_id)
 				ORDER BY t.id DESC
 				LIMIT 50
 			`;
@@ -124,7 +157,7 @@ export const load: PageServerLoad = async ({ url }) => {
 				criticalTread: Number(metricsRow?.critical_tread_count || 0)
 			},
 			units,
-			selectedUnitId: activeUnit,
+			selectedUnitId: activeUnitId,
 			activeUnit: activeUnitObj,
 			wheelPositions: unitWheelPositions,
 			tires
@@ -135,6 +168,7 @@ export const load: PageServerLoad = async ({ url }) => {
 			metrics: { total: 0, mounted: 0, spareStock: 0, retreading: 0, scrapped: 0, criticalTread: 0 },
 			units: [],
 			selectedUnitId: '',
+			activeUnit: null,
 			wheelPositions: [],
 			tires: []
 		};

@@ -42,6 +42,8 @@ export const GET: RequestHandler = async ({ params }) => {
 			FROM fleet.tire_positions tp
 			LEFT JOIN fleet.tires t ON t.id = tp.tire_id
 			WHERE tp.unit_id = ${unitId}
+			   OR tp.unit_id IN (SELECT id::text FROM fleet.unit WHERE nomor_unit = ${unitId} OR no_lambung = ${unitId})
+			   OR tp.unit_id IN (SELECT nomor_unit FROM fleet.unit WHERE id::text = ${unitId})
 			ORDER BY tp.axle_index ASC, tp.position_code ASC
 		`;
 

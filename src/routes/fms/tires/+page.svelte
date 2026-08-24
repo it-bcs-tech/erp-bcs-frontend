@@ -284,16 +284,37 @@
 			<div class="flex items-center gap-2 overflow-x-auto max-w-full pb-1">
 				{#each units as u}
 					<button
-						onclick={() => handleUnitSelect(u.id)}
-						class="px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap cursor-pointer {selectedUnitId === u.id
+						onclick={() => handleUnitSelect(u.id.toString())}
+						class="px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap cursor-pointer {selectedUnitId === u.id.toString() || selectedUnitId === u.nomor_unit
 							? 'bg-blue-600 text-white shadow-xs'
 							: 'bg-surface border border-slate-200 dark:border-slate-800 text-on-surface hover:bg-surface-container'}"
 					>
-						{u.id}
+						{u.display_name || u.nomor_unit || u.id}
 					</button>
 				{/each}
 			</div>
 		</div>
+
+		<!-- Active Vehicle Info Banner -->
+		{#if data.activeUnit}
+			<div class="flex items-center justify-between bg-blue-500/5 dark:bg-blue-500/10 border border-blue-500/20 rounded-2xl px-4 py-2.5">
+				<div class="flex items-center gap-3">
+					<div class="w-8 h-8 rounded-xl bg-blue-600 text-white flex items-center justify-center font-black text-xs shadow-xs">
+						<span class="material-symbols-outlined text-base">local_shipping</span>
+					</div>
+					<div>
+						<p class="text-xs font-black text-on-surface">Unit: {data.activeUnit.nomor_unit} <span class="text-blue-600 font-mono">({data.activeUnit.nama_tipe})</span></p>
+						<p class="text-[10px] text-on-surface-variant font-medium">Konfigurasi Gandar Pabrik: <span class="font-bold text-on-surface uppercase">{data.activeUnit.axle_config}</span> • Total Roda Terpasang: <span class="font-bold text-on-surface">{wheelPositions.length} Ban</span></p>
+					</div>
+				</div>
+				<button 
+					onclick={() => goto(`/fms/vehicles`)}
+					class="px-3 py-1 rounded-xl bg-surface border border-slate-200 dark:border-slate-800 text-[11px] font-bold text-blue-600 hover:bg-surface-container transition-all cursor-pointer"
+				>
+					Buka Detail Truk ↗
+				</button>
+			</div>
+		{/if}
 
 		<!-- Axle Layout Mode Selector -->
 		<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-surface p-3 rounded-2xl border border-slate-200/60 dark:border-slate-800/60">
@@ -653,10 +674,16 @@
 
 							<!-- Unit & Position -->
 							<td class="py-4 px-5">
-								{#if tire.unit_id}
-									<span class="px-2 py-0.5 rounded-md bg-blue-500/10 text-blue-600 font-bold text-xs border border-blue-500/20">
-										{tire.unit_id} ({tire.position_code})
-									</span>
+								{#if tire.unit_id || tire.unit_display_name}
+									<button 
+										onclick={() => handleUnitSelect(tire.unit_id)}
+										class="px-2.5 py-1 rounded-lg bg-blue-500/10 hover:bg-blue-500/20 text-blue-600 font-bold text-xs border border-blue-500/20 transition-all flex items-center gap-1.5 cursor-pointer text-left"
+										title="Klik untuk tampilkan diagram unit ini"
+									>
+										<span class="material-symbols-outlined text-xs">local_shipping</span>
+										<span>{tire.unit_display_name || tire.unit_id}</span>
+										<span class="text-blue-500 font-mono text-[10px]">({tire.position_code})</span>
+									</button>
 								{:else if tire.status === 'SPARE_STOCK'}
 									<span class="px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-600 font-bold text-xs">
 										Stok Pool

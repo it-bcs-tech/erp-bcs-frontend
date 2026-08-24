@@ -14,19 +14,29 @@ export const GET: RequestHandler = async ({ url }) => {
 		if (status && status !== 'All' && search) {
 			const s = `%${search.toLowerCase()}%`;
 			tires = await sql`
-				SELECT t.*, tp.unit_id, tp.position_code
+				SELECT 
+					t.*, 
+					tp.unit_id, 
+					tp.position_code,
+					COALESCE(u.nomor_unit, u.no_lambung, tp.unit_id) AS unit_display_name
 				FROM fleet.tires t
 				LEFT JOIN fleet.tire_positions tp ON tp.tire_id = t.id
+				LEFT JOIN fleet.unit u ON (u.id::text = tp.unit_id OR u.nomor_unit = tp.unit_id)
 				WHERE t.status = ${status}
-				  AND (LOWER(t.serial_number) LIKE ${s} OR LOWER(t.brand) LIKE ${s} OR LOWER(COALESCE(tp.unit_id, '')) LIKE ${s})
+				  AND (LOWER(t.serial_number) LIKE ${s} OR LOWER(t.brand) LIKE ${s} OR LOWER(COALESCE(u.nomor_unit, tp.unit_id, '')) LIKE ${s})
 				ORDER BY t.id DESC
 				LIMIT ${limit} OFFSET ${offset}
 			`;
 		} else if (status && status !== 'All') {
 			tires = await sql`
-				SELECT t.*, tp.unit_id, tp.position_code
+				SELECT 
+					t.*, 
+					tp.unit_id, 
+					tp.position_code,
+					COALESCE(u.nomor_unit, u.no_lambung, tp.unit_id) AS unit_display_name
 				FROM fleet.tires t
 				LEFT JOIN fleet.tire_positions tp ON tp.tire_id = t.id
+				LEFT JOIN fleet.unit u ON (u.id::text = tp.unit_id OR u.nomor_unit = tp.unit_id)
 				WHERE t.status = ${status}
 				ORDER BY t.id DESC
 				LIMIT ${limit} OFFSET ${offset}
@@ -34,18 +44,28 @@ export const GET: RequestHandler = async ({ url }) => {
 		} else if (search) {
 			const s = `%${search.toLowerCase()}%`;
 			tires = await sql`
-				SELECT t.*, tp.unit_id, tp.position_code
+				SELECT 
+					t.*, 
+					tp.unit_id, 
+					tp.position_code,
+					COALESCE(u.nomor_unit, u.no_lambung, tp.unit_id) AS unit_display_name
 				FROM fleet.tires t
 				LEFT JOIN fleet.tire_positions tp ON tp.tire_id = t.id
-				WHERE (LOWER(t.serial_number) LIKE ${s} OR LOWER(t.brand) LIKE ${s} OR LOWER(COALESCE(tp.unit_id, '')) LIKE ${s})
+				LEFT JOIN fleet.unit u ON (u.id::text = tp.unit_id OR u.nomor_unit = tp.unit_id)
+				WHERE (LOWER(t.serial_number) LIKE ${s} OR LOWER(t.brand) LIKE ${s} OR LOWER(COALESCE(u.nomor_unit, tp.unit_id, '')) LIKE ${s})
 				ORDER BY t.id DESC
 				LIMIT ${limit} OFFSET ${offset}
 			`;
 		} else {
 			tires = await sql`
-				SELECT t.*, tp.unit_id, tp.position_code
+				SELECT 
+					t.*, 
+					tp.unit_id, 
+					tp.position_code,
+					COALESCE(u.nomor_unit, u.no_lambung, tp.unit_id) AS unit_display_name
 				FROM fleet.tires t
 				LEFT JOIN fleet.tire_positions tp ON tp.tire_id = t.id
+				LEFT JOIN fleet.unit u ON (u.id::text = tp.unit_id OR u.nomor_unit = tp.unit_id)
 				ORDER BY t.id DESC
 				LIMIT ${limit} OFFSET ${offset}
 			`;
