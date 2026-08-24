@@ -11,6 +11,20 @@
 	let wheelPositions = $derived(data.wheelPositions || []);
 	let tires = $derived(data.tires || []);
 
+	// Multi-Axle Visualizer Configuration State
+	let selectedAxleConfig = $state<'AUTO' | '4_WHEELS' | '6_WHEELS' | '10_WHEELS' | '18_WHEELS' | '22_WHEELS'>('AUTO');
+
+	let effectiveAxleConfig = $derived.by(() => {
+		if (selectedAxleConfig !== 'AUTO') return selectedAxleConfig;
+		const codes = wheelPositions.map((w: any) => w.position_code);
+		if (codes.includes('TR3_L_OUT')) return '22_WHEELS';
+		if (codes.includes('TR1_L_OUT') || selectedUnitId.includes('TR') || selectedUnitId.includes('TRAILER')) return '18_WHEELS';
+		if (codes.includes('RL2_OUT') || codes.includes('RL2_IN')) return '10_WHEELS';
+		if (codes.includes('RL_OUT') || codes.includes('RL_IN')) return '6_WHEELS';
+		if (codes.includes('RL') || codes.includes('RR')) return '4_WHEELS';
+		return '10_WHEELS';
+	});
+
 	// Filter state
 	let searchQuery = $state($page.url.searchParams.get('search') || '');
 	let activeStatus = $state($page.url.searchParams.get('status') || 'All');
@@ -255,14 +269,14 @@
 
 	<!-- SECTION: INTERACTIVE AXLE WHEEL VISUALIZER -->
 	<div class="p-6 rounded-3xl bg-surface-container-low border border-slate-200/60 dark:border-slate-800/60 shadow-xs space-y-6">
-		<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-200 dark:border-slate-800">
+		<div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-4 border-b border-slate-200 dark:border-slate-800">
 			<div>
 				<div class="flex items-center gap-2">
 					<span class="material-symbols-outlined text-blue-600 text-xl">view_column</span>
 					<h2 class="text-base font-black text-on-surface tracking-tight">Diagram Visual Posisi Roda (Axle Visualizer)</h2>
 				</div>
 				<p class="text-xs text-on-surface-variant font-medium mt-0.5">
-					Pilih armada truk untuk memantau status keausan alur tapak ban per slot roda secara interaktif
+					Mendukung armada Engkel (4 roda), CDD (6 roda), Tronton (10 roda), hingga Tractor Head + Trailer Gandengan (18–22 roda)
 				</p>
 			</div>
 
@@ -281,20 +295,47 @@
 			</div>
 		</div>
 
-		<!-- Visual Truck Chassis 10 Wheels Diagram -->
+		<!-- Axle Layout Mode Selector -->
+		<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-surface p-3 rounded-2xl border border-slate-200/60 dark:border-slate-800/60">
+			<div class="flex items-center gap-2">
+				<span class="material-symbols-outlined text-blue-600 text-sm">settings_suggest</span>
+				<span class="text-xs font-black text-on-surface uppercase tracking-wider">Pilih Konfigurasi Gandar:</span>
+			</div>
+			<div class="inline-flex p-1 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800 overflow-x-auto max-w-full">
+				{#each [
+					{ key: 'AUTO', label: '⚡ Auto-Detect' },
+					{ key: '4_WHEELS', label: '4 Roda (CDE Engkel)' },
+					{ key: '6_WHEELS', label: '6 Roda (CDD Double)' },
+					{ key: '10_WHEELS', label: '10 Roda (Tronton 6x4)' },
+					{ key: '18_WHEELS', label: '18 Roda (Trailer 2-Axle)' },
+					{ key: '22_WHEELS', label: '22 Roda (Trailer 3-Axle)' }
+				] as opt}
+					<button
+						onclick={() => selectedAxleConfig = opt.key as any}
+						class="px-3 py-1 rounded-lg text-xs font-bold whitespace-nowrap transition-all cursor-pointer {selectedAxleConfig === opt.key
+							? 'bg-surface text-blue-600 dark:text-blue-400 shadow-xs'
+							: 'text-on-surface-variant hover:text-on-surface'}"
+					>
+						{opt.label}
+					</button>
+				{/each}
+			</div>
+		</div>
+
+		<!-- Visual Truck Chassis Multi-Axle Diagram -->
 		<div class="max-w-3xl mx-auto py-4">
-			<div class="relative bg-surface rounded-2xl border border-slate-200 dark:border-slate-800 p-6 shadow-inner">
+			<div class="relative bg-surface rounded-3xl border border-slate-200 dark:border-slate-800 p-6 shadow-inner space-y-8">
 				
 				<!-- Front Cab Indicator -->
-				<div class="w-full flex justify-center mb-6">
+				<div class="w-full flex justify-center">
 					<div class="px-6 py-1.5 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-600 text-xs font-black uppercase tracking-widest flex items-center gap-2">
 						<span class="material-symbols-outlined text-sm">arrow_upward</span>
-						<span>DEPAN KABIN TRUK (FRONT CABIN)</span>
+						<span>DEPAN KABIN TRUK ({effectiveAxleConfig.replace('_', ' ')})</span>
 						<span class="material-symbols-outlined text-sm">arrow_upward</span>
 					</div>
 				</div>
 
-				<!-- Chassis Spine (Center Beam) -->
+				<!-- Chassis Spine & Wheel Snippet -->
 				{#snippet wheelButton(posCode: string, label: string, isCompact: boolean = false)}
 					{@const w = getWheelByPos(posCode)}
 					{#if isCompact}
@@ -328,57 +369,201 @@
 					{/if}
 				{/snippet}
 
-				<div class="space-y-8 relative">
-					<!-- Axle 1: Front Steer (2 wheels: FL, FR) -->
+				<!-- 1. FRONT STEER AXLE (Semua tipe truk memiliki 2 roda depan) -->
+				<div>
+					<div class="text-center text-[10px] font-black text-on-surface-variant uppercase tracking-widest mb-2">
+						GANDAR 1: KEMUDI DEPAN (STEER AXLE)
+					</div>
+					<div class="flex items-center justify-between gap-4">
+						{@render wheelButton('FL', 'FL (Kiri Depan)')}
+						<div class="w-16 h-3 bg-slate-400 dark:bg-slate-600 rounded-full flex-shrink-0"></div>
+						{@render wheelButton('FR', 'FR (Kanan Depan)')}
+					</div>
+				</div>
+
+				<!-- 2. REAR AXLES ACCORDING TO CONFIGURATION -->
+				{#if effectiveAxleConfig === '4_WHEELS'}
+					<!-- 4 Roda (CDE Engkel): Single Rear Wheels -->
 					<div>
 						<div class="text-center text-[10px] font-black text-on-surface-variant uppercase tracking-widest mb-2">
-							GANDAR 1: KEMUDI DEPAN (STEER AXLE)
+							GANDAR 2: BELAKANG TUNGGAL (REAR SINGLE AXLE)
 						</div>
 						<div class="flex items-center justify-between gap-4">
-							{@render wheelButton('FL', 'FL (Kiri Depan)')}
-							<!-- Center Axle Beam -->
+							{@render wheelButton('RL', 'RL (Kiri Belakang)')}
 							<div class="w-16 h-3 bg-slate-400 dark:bg-slate-600 rounded-full flex-shrink-0"></div>
-							{@render wheelButton('FR', 'FR (Kanan Depan)')}
+							{@render wheelButton('RR', 'RR (Kanan Belakang)')}
 						</div>
 					</div>
 
-					<!-- Axle 2: Drive Axle 1 (Dual Wheels: RL1_OUT, RL1_IN | RR1_IN, RR1_OUT) -->
+				{:else if effectiveAxleConfig === '6_WHEELS'}
+					<!-- 6 Roda (CDD Double): Dual Rear Wheels -->
 					<div>
 						<div class="text-center text-[10px] font-black text-on-surface-variant uppercase tracking-widest mb-2">
-							GANDAR 2: DRIVE AXLE 1 (TENGAH - 4 RODA GANDA)
+							GANDAR 2: PENGGERAK BELAKANG (REAR DUAL AXLE - 4 RODA)
 						</div>
 						<div class="grid grid-cols-2 gap-6 items-center">
-							<!-- Left Dual Wheels -->
 							<div class="flex gap-2">
-								{@render wheelButton('RL1_OUT', 'RL1-OUT', true)}
-								{@render wheelButton('RL1_IN', 'RL1-IN', true)}
+								{@render wheelButton('RL_OUT', 'RL-OUT', true)}
+								{@render wheelButton('RL_IN', 'RL-IN', true)}
 							</div>
-							<!-- Right Dual Wheels -->
 							<div class="flex gap-2">
-								{@render wheelButton('RR1_IN', 'RR1-IN', true)}
-								{@render wheelButton('RR1_OUT', 'RR1-OUT', true)}
+								{@render wheelButton('RR_IN', 'RR-IN', true)}
+								{@render wheelButton('RR_OUT', 'RR-OUT', true)}
 							</div>
 						</div>
 					</div>
 
-					<!-- Axle 3: Drive Axle 2 (Dual Wheels: RL2_OUT, RL2_IN | RR2_IN, RR2_OUT) -->
-					<div>
-						<div class="text-center text-[10px] font-black text-on-surface-variant uppercase tracking-widest mb-2">
-							GANDAR 3: DRIVE AXLE 2 (BELAKANG - 4 RODA GANDA)
-						</div>
-						<div class="grid grid-cols-2 gap-6 items-center">
-							<!-- Left Dual Wheels -->
-							<div class="flex gap-2">
-								{@render wheelButton('RL2_OUT', 'RL2-OUT', true)}
-								{@render wheelButton('RL2_IN', 'RL2-IN', true)}
+				{:else if effectiveAxleConfig === '10_WHEELS'}
+					<!-- 10 Roda (Tronton 6x4): Drive 1 + Drive 2 -->
+					<div class="space-y-6">
+						<div>
+							<div class="text-center text-[10px] font-black text-on-surface-variant uppercase tracking-widest mb-2">
+								GANDAR 2: DRIVE AXLE 1 (TENGAH - 4 RODA GANDA)
 							</div>
-							<!-- Right Dual Wheels -->
-							<div class="flex gap-2">
-								{@render wheelButton('RR2_IN', 'RR2-IN', true)}
-								{@render wheelButton('RR2_OUT', 'RR2-OUT', true)}
+							<div class="grid grid-cols-2 gap-6 items-center">
+								<div class="flex gap-2">
+									{@render wheelButton('RL1_OUT', 'RL1-OUT', true)}
+									{@render wheelButton('RL1_IN', 'RL1-IN', true)}
+								</div>
+								<div class="flex gap-2">
+									{@render wheelButton('RR1_IN', 'RR1-IN', true)}
+									{@render wheelButton('RR1_OUT', 'RR1-OUT', true)}
+								</div>
+							</div>
+						</div>
+
+						<div>
+							<div class="text-center text-[10px] font-black text-on-surface-variant uppercase tracking-widest mb-2">
+								GANDAR 3: DRIVE AXLE 2 (BELAKANG - 4 RODA GANDA)
+							</div>
+							<div class="grid grid-cols-2 gap-6 items-center">
+								<div class="flex gap-2">
+									{@render wheelButton('RL2_OUT', 'RL2-OUT', true)}
+									{@render wheelButton('RL2_IN', 'RL2-IN', true)}
+								</div>
+								<div class="flex gap-2">
+									{@render wheelButton('RR2_IN', 'RR2-IN', true)}
+									{@render wheelButton('RR2_OUT', 'RR2-OUT', true)}
+								</div>
 							</div>
 						</div>
 					</div>
+
+				{:else if effectiveAxleConfig === '18_WHEELS' || effectiveAxleConfig === '22_WHEELS'}
+					<!-- 18 - 22 Roda: Tractor Head + Semi-Trailer -->
+					<div class="space-y-6">
+						<!-- Tractor Drive 1 & 2 -->
+						<div>
+							<div class="text-center text-[10px] font-black text-blue-600 uppercase tracking-widest mb-2">
+								TRACTOR HEAD — GANDAR 2 & 3 (PENGGERAK KEPALA PENARIK)
+							</div>
+							<div class="space-y-4">
+								<div class="grid grid-cols-2 gap-6 items-center">
+									<div class="flex gap-2">
+										{@render wheelButton('RL1_OUT', 'RL1-OUT', true)}
+										{@render wheelButton('RL1_IN', 'RL1-IN', true)}
+									</div>
+									<div class="flex gap-2">
+										{@render wheelButton('RR1_IN', 'RR1-IN', true)}
+										{@render wheelButton('RR1_OUT', 'RR1-OUT', true)}
+									</div>
+								</div>
+								<div class="grid grid-cols-2 gap-6 items-center">
+									<div class="flex gap-2">
+										{@render wheelButton('RL2_OUT', 'RL2-OUT', true)}
+										{@render wheelButton('RL2_IN', 'RL2-IN', true)}
+									</div>
+									<div class="flex gap-2">
+										{@render wheelButton('RR2_IN', 'RR2-IN', true)}
+										{@render wheelButton('RR2_OUT', 'RR2-OUT', true)}
+									</div>
+								</div>
+							</div>
+						</div>
+
+						<!-- Visual Kingpin Fifth-Wheel Hitch Turntable -->
+						<div class="my-4 p-3 rounded-2xl bg-gradient-to-r from-blue-500/20 via-indigo-500/20 to-blue-500/20 border-2 border-dashed border-indigo-500/40 text-center">
+							<div class="flex items-center justify-center gap-2">
+								<span class="material-symbols-outlined text-indigo-600 text-lg">link</span>
+								<span class="text-xs font-black text-indigo-700 dark:text-indigo-300 uppercase tracking-widest">
+									KOPEL GANDENGAN / FIFTH-WHEEL KINGPIN HITCH
+								</span>
+								<span class="material-symbols-outlined text-indigo-600 text-lg">link</span>
+							</div>
+							<p class="text-[10px] text-on-surface-variant font-medium mt-0.5">Pemisah Fisik Roda Unit Tractor Head & Roda Unit Trailer</p>
+						</div>
+
+						<!-- Semi-Trailer Axles -->
+						<div class="space-y-4">
+							<div class="text-center text-[10px] font-black text-amber-600 uppercase tracking-widest">
+								CHASSIS TRAILER GANDENGAN (SEMI-TRAILER AXLES)
+							</div>
+
+							<!-- Trailer Axle 1 -->
+							<div>
+								<p class="text-center text-[9px] font-bold text-on-surface-variant uppercase mb-1">Gandar Gandengan 1 (Axle 4)</p>
+								<div class="grid grid-cols-2 gap-6 items-center">
+									<div class="flex gap-2">
+										{@render wheelButton('TR1_L_OUT', 'TR1-L-OUT', true)}
+										{@render wheelButton('TR1_L_IN', 'TR1-L-IN', true)}
+									</div>
+									<div class="flex gap-2">
+										{@render wheelButton('TR1_R_IN', 'TR1-R-IN', true)}
+										{@render wheelButton('TR1_R_OUT', 'TR1-R-OUT', true)}
+									</div>
+								</div>
+							</div>
+
+							<!-- Trailer Axle 2 -->
+							<div>
+								<p class="text-center text-[9px] font-bold text-on-surface-variant uppercase mb-1">Gandar Gandengan 2 (Axle 5)</p>
+								<div class="grid grid-cols-2 gap-6 items-center">
+									<div class="flex gap-2">
+										{@render wheelButton('TR2_L_OUT', 'TR2-L-OUT', true)}
+										{@render wheelButton('TR2_L_IN', 'TR2-L-IN', true)}
+									</div>
+									<div class="flex gap-2">
+										{@render wheelButton('TR2_R_IN', 'TR2-R-IN', true)}
+										{@render wheelButton('TR2_R_OUT', 'TR2-R-OUT', true)}
+									</div>
+								</div>
+							</div>
+
+							<!-- Trailer Axle 3 (If 22_WHEELS) -->
+							{#if effectiveAxleConfig === '22_WHEELS'}
+								<div>
+									<p class="text-center text-[9px] font-bold text-on-surface-variant uppercase mb-1">Gandar Gandengan 3 (Axle 6)</p>
+									<div class="grid grid-cols-2 gap-6 items-center">
+										<div class="flex gap-2">
+											{@render wheelButton('TR3_L_OUT', 'TR3-L-OUT', true)}
+											{@render wheelButton('TR3_L_IN', 'TR3-L-IN', true)}
+										</div>
+										<div class="flex gap-2">
+											{@render wheelButton('TR3_R_IN', 'TR3-R-IN', true)}
+											{@render wheelButton('TR3_R_OUT', 'TR3-R-OUT', true)}
+										</div>
+									</div>
+								</div>
+							{/if}
+						</div>
+					</div>
+				{/if}
+
+				<!-- 3. SPARE TIRES SECTION (BAN SEREP) -->
+				<div class="pt-6 border-t border-slate-200 dark:border-slate-800">
+					<div class="text-center text-[10px] font-black text-emerald-600 uppercase tracking-widest mb-3">
+						SLOT BAN SEREP (SPARE WHEEL CADANGAN ARMADA)
+					</div>
+					{#if effectiveAxleConfig === '18_WHEELS' || effectiveAxleConfig === '22_WHEELS'}
+						<div class="grid grid-cols-2 gap-4">
+							{@render wheelButton('SPARE_1', 'Ban Serep Tractor')}
+							{@render wheelButton('SPARE_2', 'Ban Serep Trailer')}
+						</div>
+					{:else}
+						<div class="max-w-xs mx-auto">
+							{@render wheelButton('SPARE', 'Ban Serep Utama')}
+						</div>
+					{/if}
 				</div>
 
 				<!-- Legend -->

@@ -27,8 +27,8 @@ export const load: PageServerLoad = async ({ url }) => {
 		`;
 
 		// 2. Fetch list of units that have tires mounted
-		const units = await sql<{ id: string; nomor_polisi: string; nama_tipe: string }[]>`
-			SELECT DISTINCT u.id, u.id AS nomor_polisi, tu.nama_tipe
+		const units = await sql<{ id: string; nomor_polisi: string; nama_tipe: string; axle_config: string }[]>`
+			SELECT DISTINCT u.id, u.id AS nomor_polisi, tu.nama_tipe, COALESCE(mu.axle_config, '6x4') AS axle_config
 			FROM fleet.tire_positions tp
 			JOIN fleet.unit u ON u.id = tp.unit_id
 			JOIN master.m_model_unit mu ON mu.id = u.model_unit_id
@@ -38,6 +38,7 @@ export const load: PageServerLoad = async ({ url }) => {
 
 		// 3. Fetch current wheel layout for the selected unit
 		const activeUnit = selectedUnitId || (units[0]?.id ?? 'DT-01');
+		const activeUnitObj = units.find(u => u.id === activeUnit) || units[0];
 		const unitWheelPositions = await sql<{
 			position_code: string;
 			axle_index: number;
@@ -124,6 +125,7 @@ export const load: PageServerLoad = async ({ url }) => {
 			},
 			units,
 			selectedUnitId: activeUnit,
+			activeUnit: activeUnitObj,
 			wheelPositions: unitWheelPositions,
 			tires
 		};
