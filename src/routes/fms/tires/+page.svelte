@@ -7,6 +7,8 @@
 
 	let metrics = $derived(data.metrics);
 	let units = $derived(data.units || []);
+	let allFleetUnits = $derived(data.allFleetUnits || []);
+	let materialCatalog = $derived(data.materialCatalog || []);
 	let selectedUnitId = $state(data.selectedUnitId || 'DT-01');
 	let wheelPositions = $derived(data.wheelPositions || []);
 	let tires = $derived(data.tires || []);
@@ -70,6 +72,147 @@
 	let showRotateModal = $state(false);
 	let rotateFromPos = $state('FL');
 	let rotateToPos = $state('FR');
+
+	// Add New Tire Modal State
+	let showAddModal = $state(false);
+	let newTireForm = $state({
+		material_code: '',
+		serial_number: '',
+		brand: 'Bridgestone R168',
+		size_spec: '11.00R20 16PR',
+		pattern_type: 'RIB (STEER)',
+		current_tread_depth_mm: 16.0,
+		original_tread_depth_mm: 16.0,
+		purchase_cost: 3600000,
+		retread_count: 0,
+		status: 'MOUNTED',
+		unit_id: '40',
+		position_code: 'FL',
+		installed_odometer_km: 0,
+		notes: ''
+	});
+
+	function handleCatalogSelect(matCode: string) {
+		const mat = materialCatalog.find(m => m.material_code === matCode || m.id.toString() === matCode);
+		if (!mat) return;
+		newTireForm.material_code = mat.material_code || mat.id.toString();
+		newTireForm.brand = mat.name;
+		newTireForm.purchase_cost = parseFloat(mat.standard_price) || 0;
+		if (mat.name.toLowerCase().includes('retread') || mat.name.toLowerCase().includes('vulkanisir')) {
+			newTireForm.retread_count = 1;
+			newTireForm.pattern_type = 'LUG (TRACTION)';
+			newTireForm.current_tread_depth_mm = 13.0;
+		} else if (mat.name.toLowerCase().includes('radial')) {
+			newTireForm.pattern_type = 'RIB (STEER)';
+			newTireForm.current_tread_depth_mm = 16.0;
+		}
+	}
+
+	async function submitCreateTire() {
+		if (!newTireForm.serial_number || !newTireForm.brand) {
+			alert('Serial Number dan Merk Ban wajib diisi.');
+			return;
+		}
+		isSubmitting = true;
+		try {
+			const res = await fetch('/api/fms/tires/create', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify(newTireForm)
+			});
+			const d = await res.json();
+			if (d.success) {
+				actionFeedbackMessage = d.message;
+				showAddModal = false;
+				invalidateAll();
+				setTimeout(() => actionFeedbackMessage = '', 4000);
+			} else {
+				alert(d.message);
+			}
+		} catch (err: any) {
+			alert('Terjadi kesalahan: ' + err.message);
+		} finally {
+			isSubmitting = false;
+		}
+	}
+
+	// Import CSV Modal State
+	let showImportModal = $state(false);
+	let parsedCsvRows = $state<any[]>([]);
+	let csvParseError = $state('');
+
+	function downloadCsvTemplate() {
+		const header = 'serial_number,brand,size_spec,pattern_type,current_tread_depth_mm,original_tread_depth_mm,purchase_cost,retread_count,status,unit_id,position_code,notes\n';
+		const sample = 'TB-TEST-001,Bridgestone R168,11.00R20 16PR,RIB (STEER),15.5,16.0,3800000,0,MOUNTED,40,FL,Ban Baru\nTB-TEST-002,Giti GSR225,11.00R20 16PR,ALL-POSITION,16.0,16.0,3200000,0,SPARE_STOCK,,,Stok Gudang Pool\n';
+		const blob = new Blob([header + sample], { type: 'text/csv;charset=utf-8;' });
+		const url = URL.createObjectURL(blob);
+		const a = document.createElement('a');
+		a.href = url;
+		a.download = 'template_import_ban_bcs.csv';
+		a.click();
+	}
+
+	function handleCsvFileUpload(e: Event) {
+		const file = (e.target as HTMLInputElement).files?.[0];
+		if (!file) return;
+		const reader = new FileReader();
+		reader.onload = (evt) => {
+			const text = evt.target?.result as string;
+			if (!text) return;
+			try {
+				const lines = text.trim().split(/\r?\n/);
+				if (lines.length <= 1) {
+					csvParseError = 'File CSV kosong atau hanya berisi baris header';
+					return;
+				}
+				const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
+				const rows = [];
+				for (let i = 1; i < lines.length; i++) {
+					const cols = lines[i].split(',').map(c => c.trim());
+					if (cols.length < 2 || !cols[0]) continue;
+					const rowObj: any = {};
+					headers.forEach((h, idx) => {
+						rowObj[h] = cols[idx] || '';
+					});
+					rows.push(rowObj);
+				}
+				parsedCsvRows = rows;
+				csvParseError = '';
+			} catch (err: any) {
+				csvParseError = 'Gagal memproses file CSV: ' + err.message;
+			}
+		};
+		reader.readAsText(file);
+	}
+
+	async function submitImportTires() {
+		if (parsedCsvRows.length === 0) {
+			alert('Tidak ada data baris ban yang valid untuk diimpor.');
+			return;
+		}
+		isSubmitting = true;
+		try {
+			const res = await fetch('/api/fms/tires/import', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ items: parsedCsvRows })
+			});
+			const d = await res.json();
+			if (d.success) {
+				actionFeedbackMessage = d.message;
+				showImportModal = false;
+				parsedCsvRows = [];
+				invalidateAll();
+				setTimeout(() => actionFeedbackMessage = '', 5000);
+			} else {
+				alert(d.message);
+			}
+		} catch (err: any) {
+			alert('Terjadi kesalahan: ' + err.message);
+		} finally {
+			isSubmitting = false;
+		}
+	}
 
 	function openInspectModal(wheel: any) {
 		if (!wheel || !wheel.tire_id) return;
@@ -176,13 +319,27 @@
 				Diagram visual posisi ban armada, monitoring kedalaman alur (tread depth), tracking vulkanisir & kalkulasi CPK
 			</p>
 		</div>
-		<div class="flex gap-2.5">
+		<div class="flex flex-wrap gap-2.5">
+			<button 
+				onclick={() => showImportModal = true}
+				class="bg-surface-container-low border border-slate-200 dark:border-slate-800 text-on-surface px-3.5 py-2.5 rounded-xl text-xs font-bold flex items-center gap-1.5 hover:bg-surface-container transition-colors shadow-xs cursor-pointer"
+			>
+				<span class="material-symbols-outlined text-base">upload_file</span>
+				<span>Import CSV</span>
+			</button>
 			<button 
 				onclick={() => showRotateModal = true}
-				class="bg-surface-container-low border border-slate-200 dark:border-slate-800 text-on-surface px-4 py-2.5 rounded-xl text-sm font-semibold flex items-center gap-2 hover:bg-surface-container transition-colors shadow-xs cursor-pointer"
+				class="bg-surface-container-low border border-slate-200 dark:border-slate-800 text-on-surface px-3.5 py-2.5 rounded-xl text-xs font-bold flex items-center gap-1.5 hover:bg-surface-container transition-colors shadow-xs cursor-pointer"
 			>
-				<span class="material-symbols-outlined text-lg">sync_alt</span>
-				<span>Rotasi Posisi Ban</span>
+				<span class="material-symbols-outlined text-base">sync_alt</span>
+				<span>Rotasi Posisi</span>
+			</button>
+			<button 
+				onclick={() => showAddModal = true}
+				class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2.5 rounded-xl text-xs font-bold flex items-center gap-2 transition-all shadow-xs cursor-pointer"
+			>
+				<span class="material-symbols-outlined text-base">add_circle</span>
+				<span>Registrasi Ban Baru</span>
 			</button>
 		</div>
 	</header>
@@ -877,3 +1034,287 @@
 		</div>
 	</div>
 {/if}
+
+<!-- MODAL 3: REGISTRASI BAN BARU (DENGAN KATALOG master.m_materials) -->
+{#if showAddModal}
+	<div class="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
+		<div class="bg-surface-container-low border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-2xl max-w-xl w-full space-y-4 my-8 animate-in zoom-in-95">
+			<div class="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800">
+				<div class="flex items-center gap-2">
+					<span class="material-symbols-outlined text-blue-600 text-xl">add_circle</span>
+					<h3 class="text-base font-black text-on-surface">Registrasi Fisik Ban Baru (Asset Registration)</h3>
+				</div>
+				<button onclick={() => showAddModal = false} class="text-on-surface-variant hover:text-on-surface cursor-pointer">
+					<span class="material-symbols-outlined">close</span>
+				</button>
+			</div>
+
+			<!-- 1. Katalog SKU / Master Material Selector -->
+			<div class="space-y-1.5 bg-blue-500/5 dark:bg-blue-500/10 p-3.5 rounded-2xl border border-blue-500/20">
+				<label class="text-[11px] font-black text-blue-600 dark:text-blue-400 uppercase tracking-wider flex items-center gap-1.5">
+					<span class="material-symbols-outlined text-sm">inventory_2</span>
+					<span>Pilih dari Katalog Barang (master.m_materials):</span>
+				</label>
+				<select 
+					onchange={(e) => handleCatalogSelect(e.currentTarget.value)}
+					class="w-full bg-surface border border-slate-200 dark:border-slate-700 text-on-surface rounded-xl p-2.5 text-xs font-bold focus:ring-2 focus:ring-blue-500"
+				>
+					<option value="">-- Pilih Referensi Katalog Ban --</option>
+					{#each materialCatalog as mat}
+						<option value={mat.material_code || mat.id.toString()}>
+							[{mat.material_code || mat.id}] {mat.name} ({mat.type_name}) — Rp {Number(mat.standard_price).toLocaleString('id-ID')}
+						</option>
+					{/each}
+				</select>
+				<p class="text-[10px] text-on-surface-variant font-medium">Memilih katalog akan otomatis mengisi merk, kategori, dan estimasi harga standar.</p>
+			</div>
+
+			<!-- Form Inputs Grid -->
+			<div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+				<!-- Serial Number (DOT) -->
+				<div class="space-y-1">
+					<label class="text-[10px] font-black text-on-surface uppercase tracking-wider block">
+						Serial Number Fisik (DOT) <span class="text-rose-500">*</span>:
+					</label>
+					<input 
+						type="text" 
+						bind:value={newTireForm.serial_number}
+						placeholder="Contoh: BS-2026-9012" 
+						class="w-full bg-surface border border-slate-200 dark:border-slate-700 text-on-surface rounded-xl p-2.5 text-xs font-black font-mono focus:ring-2 focus:ring-blue-500"
+					/>
+				</div>
+
+				<!-- Brand / Model -->
+				<div class="space-y-1">
+					<label class="text-[10px] font-black text-on-surface uppercase tracking-wider block">
+						Merk & Tipe Ban <span class="text-rose-500">*</span>:
+					</label>
+					<input 
+						type="text" 
+						bind:value={newTireForm.brand}
+						placeholder="Contoh: Bridgestone R168" 
+						class="w-full bg-surface border border-slate-200 dark:border-slate-700 text-on-surface rounded-xl p-2.5 text-xs font-bold focus:ring-2 focus:ring-blue-500"
+					/>
+				</div>
+
+				<!-- Size Spec -->
+				<div class="space-y-1">
+					<label class="text-[10px] font-black text-on-surface uppercase tracking-wider block">Ukuran / Spesifikasi:</label>
+					<input 
+						type="text" 
+						bind:value={newTireForm.size_spec}
+						placeholder="11.00R20 16PR" 
+						class="w-full bg-surface border border-slate-200 dark:border-slate-700 text-on-surface rounded-xl p-2.5 text-xs font-medium"
+					/>
+				</div>
+
+				<!-- Pattern Type -->
+				<div class="space-y-1">
+					<label class="text-[10px] font-black text-on-surface uppercase tracking-wider block">Pola Alur Tapak:</label>
+					<select bind:value={newTireForm.pattern_type} class="w-full bg-surface border border-slate-200 dark:border-slate-700 text-on-surface rounded-xl p-2.5 text-xs font-bold">
+						<option value="RIB (STEER)">RIB (STEER - Kemudi Depan)</option>
+						<option value="LUG (TRACTION)">LUG (TRACTION - Penggerak Belakang)</option>
+						<option value="ALL-POSITION">ALL-POSITION (Semua Posisi / Serep)</option>
+					</select>
+				</div>
+
+				<!-- Tread Depth (mm) -->
+				<div class="space-y-1">
+					<label class="text-[10px] font-black text-on-surface uppercase tracking-wider block">Kedalaman Alur Tapak (mm):</label>
+					<input 
+						type="number" 
+						step="0.1" 
+						bind:value={newTireForm.current_tread_depth_mm}
+						class="w-full bg-surface border border-slate-200 dark:border-slate-700 text-on-surface rounded-xl p-2.5 text-xs font-black font-mono"
+					/>
+				</div>
+
+				<!-- Purchase Cost -->
+				<div class="space-y-1">
+					<label class="text-[10px] font-black text-on-surface uppercase tracking-wider block">Harga Beli (Rp):</label>
+					<input 
+						type="number" 
+						bind:value={newTireForm.purchase_cost}
+						class="w-full bg-surface border border-slate-200 dark:border-slate-700 text-on-surface rounded-xl p-2.5 text-xs font-bold font-mono"
+					/>
+				</div>
+
+				<!-- Retread Count -->
+				<div class="space-y-1">
+					<label class="text-[10px] font-black text-on-surface uppercase tracking-wider block">Status Casing / Vulkanisir:</label>
+					<select bind:value={newTireForm.retread_count} class="w-full bg-surface border border-slate-200 dark:border-slate-700 text-on-surface rounded-xl p-2.5 text-xs font-bold">
+						<option value={0}>Original (Casing Asli Pabrikan)</option>
+						<option value={1}>Vulkanisir I (R1)</option>
+						<option value={2}>Vulkanisir II (R2)</option>
+					</select>
+				</div>
+
+				<!-- Status Placement -->
+				<div class="space-y-1">
+					<label class="text-[10px] font-black text-on-surface uppercase tracking-wider block">Status Penempatan Awal:</label>
+					<select bind:value={newTireForm.status} class="w-full bg-surface border border-slate-200 dark:border-slate-700 text-on-surface rounded-xl p-2.5 text-xs font-bold">
+						<option value="MOUNTED">Langsung Terpasang di Truk</option>
+						<option value="SPARE_STOCK">Stok Pool Bengkel (Cadangan)</option>
+						<option value="RETREADING">Sedang di Vendor Vulkanisir</option>
+					</select>
+				</div>
+			</div>
+
+			<!-- Unit & Wheel Position (If MOUNTED) -->
+			{#if newTireForm.status === 'MOUNTED'}
+				<div class="grid grid-cols-2 gap-3.5 p-3.5 rounded-2xl bg-surface border border-slate-200 dark:border-slate-800">
+					<div class="space-y-1">
+						<label class="text-[10px] font-black text-blue-600 uppercase tracking-wider block">Pilih Unit Armada:</label>
+						<select bind:value={newTireForm.unit_id} class="w-full bg-surface-container border border-slate-200 dark:border-slate-700 text-on-surface rounded-xl p-2.5 text-xs font-bold">
+							{#each allFleetUnits as u}
+								<option value={u.id.toString()}>{u.nomor_unit} ({u.nama_tipe})</option>
+							{/each}
+						</select>
+					</div>
+					<div class="space-y-1">
+						<label class="text-[10px] font-black text-blue-600 uppercase tracking-wider block">Slot Posisi Roda:</label>
+						<select bind:value={newTireForm.position_code} class="w-full bg-surface-container border border-slate-200 dark:border-slate-700 text-on-surface rounded-xl p-2.5 text-xs font-bold font-mono">
+							<option value="FL">FL (Kemudi Kiri Depan)</option>
+							<option value="FR">FR (Kemudi Kanan Depan)</option>
+							<option value="RL1_OUT">RL1-OUT (Drive 1 Kiri Luar)</option>
+							<option value="RL1_IN">RL1-IN (Drive 1 Kiri Dalam)</option>
+							<option value="RR1_IN">RR1-IN (Drive 1 Kanan Dalam)</option>
+							<option value="RR1_OUT">RR1-OUT (Drive 1 Kanan Luar)</option>
+							<option value="RL2_OUT">RL2-OUT (Drive 2 Kiri Luar)</option>
+							<option value="RL2_IN">RL2-IN (Drive 2 Kiri Dalam)</option>
+							<option value="RR2_IN">RR2-IN (Drive 2 Kanan Dalam)</option>
+							<option value="RR2_OUT">RR2-OUT (Drive 2 Kanan Luar)</option>
+							<option value="TR1_L_OUT">TR1-L-OUT (Trailer Gandar 1 Kiri)</option>
+							<option value="TR1_R_OUT">TR1-R-OUT (Trailer Gandar 1 Kanan)</option>
+							<option value="SPARE">SPARE (Ban Serep)</option>
+						</select>
+					</div>
+				</div>
+			{/if}
+
+			<div class="flex gap-3 pt-3 border-t border-slate-200 dark:border-slate-800">
+				<button 
+					type="button" 
+					onclick={() => showAddModal = false}
+					class="flex-1 py-2.5 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-700 text-xs font-bold hover:bg-surface-container-high transition-colors cursor-pointer"
+				>
+					Batal
+				</button>
+				<button 
+					type="button" 
+					disabled={isSubmitting}
+					onclick={submitCreateTire}
+					class="flex-1 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold transition-colors cursor-pointer disabled:opacity-50 flex items-center justify-center gap-2"
+				>
+					<span class="material-symbols-outlined text-sm">save</span>
+					<span>{isSubmitting ? 'Mendaftarkan...' : 'Simpan & Daftarkan Ban'}</span>
+				</button>
+			</div>
+		</div>
+	</div>
+{/if}
+
+<!-- MODAL 4: IMPORT DATA BAN MASSAL DARI CSV / EXCEL -->
+{#if showImportModal}
+	<div class="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
+		<div class="bg-surface-container-low border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-2xl max-w-2xl w-full space-y-5 my-8 animate-in zoom-in-95">
+			<div class="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800">
+				<div class="flex items-center gap-2">
+					<span class="material-symbols-outlined text-blue-600 text-xl">upload_file</span>
+					<h3 class="text-base font-black text-on-surface">Import Data Ban dari Excel / CSV</h3>
+				</div>
+				<button onclick={() => { showImportModal = false; parsedCsvRows = []; csvParseError = ''; }} class="text-on-surface-variant hover:text-on-surface cursor-pointer">
+					<span class="material-symbols-outlined">close</span>
+				</button>
+			</div>
+
+			<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-2xl bg-blue-500/5 dark:bg-blue-500/10 border border-blue-500/20">
+				<div>
+					<p class="text-xs font-bold text-on-surface">Unduh Format Template CSV Standar</p>
+					<p class="text-[11px] text-on-surface-variant">Gunakan file template ini untuk mengisi data ban secara massal.</p>
+				</div>
+				<button 
+					type="button" 
+					onclick={downloadCsvTemplate}
+					class="px-3.5 py-2 rounded-xl bg-surface border border-blue-500/30 text-blue-600 text-xs font-bold flex items-center gap-1.5 hover:bg-blue-500/10 transition-colors cursor-pointer flex-shrink-0"
+				>
+					<span class="material-symbols-outlined text-sm">download</span>
+					<span>Download Template CSV</span>
+				</button>
+			</div>
+
+			<!-- Upload Area -->
+			<div class="border-2 border-dashed border-slate-300 dark:border-slate-700 rounded-2xl p-6 text-center space-y-2 bg-surface">
+				<span class="material-symbols-outlined text-3xl text-slate-400">cloud_upload</span>
+				<p class="text-xs font-bold text-on-surface">Pilih file CSV data ban dari komputer Anda</p>
+				<input 
+					type="file" 
+					accept=".csv"
+					onchange={handleCsvFileUpload}
+					class="block mx-auto text-xs text-on-surface-variant file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-blue-500/10 file:text-blue-600 hover:file:bg-blue-500/20 cursor-pointer"
+				/>
+			</div>
+
+			{#if csvParseError}
+				<p class="text-xs font-bold text-rose-600">{csvParseError}</p>
+			{/if}
+
+			<!-- Preview Table -->
+			{#if parsedCsvRows.length > 0}
+				<div class="space-y-2">
+					<div class="flex justify-between items-center text-xs font-bold">
+						<span class="text-on-surface">Pratinjau Data ({parsedCsvRows.length} baris ban terdeteksi):</span>
+						<span class="text-emerald-600 font-mono">Siap diimpor</span>
+					</div>
+					<div class="max-h-48 overflow-y-auto rounded-xl border border-slate-200 dark:border-slate-800 bg-surface">
+						<table class="w-full text-left text-xs">
+							<thead class="bg-slate-100 dark:bg-slate-800 text-[10px] font-bold text-on-surface-variant uppercase">
+								<tr>
+									<th class="p-2">Serial No</th>
+									<th class="p-2">Merk</th>
+									<th class="p-2">Alur (mm)</th>
+									<th class="p-2">Unit</th>
+									<th class="p-2">Posisi</th>
+								</tr>
+							</thead>
+							<tbody class="divide-y divide-slate-200 dark:divide-slate-800 font-mono">
+								{#each parsedCsvRows.slice(0, 5) as row}
+									<tr>
+										<td class="p-2 font-bold">{row.serial_number}</td>
+										<td class="p-2">{row.brand}</td>
+										<td class="p-2">{row.current_tread_depth_mm || '16.0'} mm</td>
+										<td class="p-2">{row.unit_id || '—'}</td>
+										<td class="p-2">{row.position_code || '—'}</td>
+									</tr>
+								{/each}
+							</tbody>
+						</table>
+					</div>
+					{#if parsedCsvRows.length > 5}
+						<p class="text-[10px] text-on-surface-variant text-right">...dan {parsedCsvRows.length - 5} baris lainnya</p>
+					{/if}
+				</div>
+			{/if}
+
+			<div class="flex gap-3 pt-3 border-t border-slate-200 dark:border-slate-800">
+				<button 
+					type="button" 
+					onclick={() => { showImportModal = false; parsedCsvRows = []; }}
+					class="flex-1 py-2.5 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-700 text-xs font-bold hover:bg-surface-container-high transition-colors cursor-pointer"
+				>
+					Batal
+				</button>
+				<button 
+					type="button" 
+					disabled={isSubmitting || parsedCsvRows.length === 0}
+					onclick={submitImportTires}
+					class="flex-1 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold transition-colors cursor-pointer disabled:opacity-50 flex items-center justify-center gap-2"
+				>
+					<span class="material-symbols-outlined text-sm">file_upload</span>
+					<span>{isSubmitting ? 'Mengimpor...' : `Impor ${parsedCsvRows.length} Ban ke Database`}</span>
+				</button>
+			</div>
+		</div>
+	</div>
+{/if}
+

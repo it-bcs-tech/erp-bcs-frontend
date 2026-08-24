@@ -41,7 +41,54 @@ export const load: PageServerLoad = async ({ url }) => {
 			ORDER BY u.id ASC
 		`;
 
-		// 3. Determine active selected unit
+		// 3. Fetch all active fleet units for assignment dropdown
+		const allFleetUnits = await sql<{ id: string; nomor_unit: string; display_name: string; nama_tipe: string; axle_config: string }[]>`
+			SELECT 
+				u.id, 
+				u.nomor_unit, 
+				COALESCE(u.no_lambung, u.nomor_unit, u.id::text) AS display_name, 
+				tu.nama_tipe, 
+				COALESCE(mu.axle_config, '6x4') AS axle_config
+			FROM fleet.unit u
+			JOIN master.m_model_unit mu ON mu.id = u.model_unit_id
+			JOIN master.m_tipe_unit tu ON tu.id = mu.tipe_unit_id
+			WHERE u.deleted_at IS NULL
+			ORDER BY u.nomor_unit ASC
+			LIMIT 50
+		`;
+
+		// 4. Fetch tire materials catalog from master.m_materials
+		const materialCatalog = await sql<{
+			id: number;
+			material_code: string;
+			name: string;
+			type_code: string;
+			type_name: string;
+			uom: string;
+			standard_price: string;
+		}[]>`
+			SELECT 
+				m.id,
+				m.material_code,
+				m.name,
+				m.type_code,
+				COALESCE(t.name, m.type_code, 'TIRE') AS type_name,
+				m.uom,
+				COALESCE(m.standard_price, 0) AS standard_price
+			FROM master.m_materials m
+			LEFT JOIN master.m_material_types t ON m.type_code = t.code
+			WHERE LOWER(m.name) LIKE '%ban%' 
+			   OR LOWER(m.name) LIKE '%tire%' 
+			   OR LOWER(m.name) LIKE '%tyre%'
+			   OR LOWER(m.name) LIKE '%radial%'
+			   OR LOWER(COALESCE(m.type_code, '')) LIKE '%ban%'
+			   OR LOWER(COALESCE(m.type_code, '')) LIKE '%tire%'
+			   OR LOWER(COALESCE(m.type_code, '')) LIKE '%retread%'
+			ORDER BY m.name ASC
+			LIMIT 100
+		`;
+
+		// 5. Determine active selected unit
 		const activeUnitObj = units.find(u => 
 			u.id.toString() === selectedUnitParam || 
 			u.nomor_unit === selectedUnitParam ||
@@ -51,7 +98,7 @@ export const load: PageServerLoad = async ({ url }) => {
 		const activeUnitId = activeUnitObj ? activeUnitObj.id.toString() : (selectedUnitParam || '40');
 		const activeUnitNomor = activeUnitObj ? activeUnitObj.nomor_unit : '';
 
-		// 4. Fetch current wheel layout for the selected unit
+		// 6. Fetch current wheel layout for the selected unit
 		const unitWheelPositions = await sql<{
 			position_code: string;
 			axle_index: number;
@@ -85,7 +132,7 @@ export const load: PageServerLoad = async ({ url }) => {
 			ORDER BY tp.axle_index ASC, tp.position_code ASC
 		`;
 
-		// 5. Fetch master table list
+		// 7. Fetch master table list
 		let tires;
 		if (status !== 'All' && search) {
 			const s = `%${search.toLowerCase()}%`;
@@ -157,6 +204,8 @@ export const load: PageServerLoad = async ({ url }) => {
 				criticalTread: Number(metricsRow?.critical_tread_count || 0)
 			},
 			units,
+			allFleetUnits,
+			materialCatalog,
 			selectedUnitId: activeUnitId,
 			activeUnit: activeUnitObj,
 			wheelPositions: unitWheelPositions,
@@ -167,6 +216,8 @@ export const load: PageServerLoad = async ({ url }) => {
 		return {
 			metrics: { total: 0, mounted: 0, spareStock: 0, retreading: 0, scrapped: 0, criticalTread: 0 },
 			units: [],
+			allFleetUnits: [],
+			materialCatalog: [],
 			selectedUnitId: '',
 			activeUnit: null,
 			wheelPositions: [],
