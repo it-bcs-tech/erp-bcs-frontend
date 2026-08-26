@@ -1,44 +1,74 @@
-import type { PageServerLoad, Actions } from './$types';
-import { apiFetch } from '$lib/utils/api';
-import { fail } from '@sveltejs/kit';
+import type { PageServerLoad, Actions } from "./$types";
+import { apiFetch } from "$lib/utils/api";
+import { fail } from "@sveltejs/kit";
+import sql from "$lib/server/db";
+import { runPayrollCalculation } from "$lib/server/payrollEngine";
 
 export const load: PageServerLoad = async ({ cookies, url }) => {
-	const authToken = cookies.get('auth_token');
-	const selectedPeriod = url.searchParams.get('period') || '2026-07-01';
-	const searchQuery = url.searchParams.get('search') || '';
-	const divisionFilter = url.searchParams.get('division') || '';
+	const authToken = cookies.get("auth_token");
+	const selectedPeriod = url.searchParams.get("period") || "2026-08-01";
+	const searchQuery = url.searchParams.get("search") || "";
+	const divisionFilter = url.searchParams.get("division") || "";
 
-	// Generate daftar periode bulanan riil yang tersedia di sistem
-	const periods = [
-		{ period_key: '2026-07-01', period_label: 'July 2026', period_code: '07 - 2026' },
-		{ period_key: '2026-06-01', period_label: 'June 2026', period_code: '06 - 2026' },
-		{ period_key: '2026-05-01', period_label: 'May 2026', period_code: '05 - 2026' },
-		{ period_key: '2026-04-01', period_label: 'April 2026', period_code: '04 - 2026' },
-		{ period_key: '2026-03-01', period_label: 'March 2026', period_code: '03 - 2026' }
-	];
+	// Format tanggal lengkap YYYY-MM-DD
+	const formattedPeriod = selectedPeriod.length === 7 ? `${selectedPeriod}-01` : selectedPeriod;
 
 	try {
+		// 1. Ambil daftar periode riil dari tabel presensi.salary_slips
+		let dbPeriods: any[] = [];
+		try {
+			dbPeriods = await sql`
+				SELECT 
+					TO_CHAR(period, 'YYYY-MM-DD') as period_key,
+					TO_CHAR(period, 'FMMonth YYYY') as period_label,
+					TO_CHAR(period, 'MM - YYYY') as period_code,
+					COUNT(*)::int as total_employees
+				FROM presensi.salary_slips
+				GROUP BY period
+				ORDER BY period DESC
+			`;
+		} catch (dbErr) {
+			console.error("❌ [DB Periods Query Error]:", dbErr);
+		}
+
+		// Pastikan periode aktif saat ini (August 2026, July 2026, etc) selalu tersedia di dropdown
+		const defaultPeriods = [
+			{ period_key: "2026-08-01", period_label: "August 2026", period_code: "08 - 2026", total_employees: 0 },
+			{ period_key: "2026-07-01", period_label: "July 2026", period_code: "07 - 2026", total_employees: 0 },
+			{ period_key: "2026-06-01", period_label: "June 2026", period_code: "06 - 2026", total_employees: 0 },
+			{ period_key: "2026-05-01", period_label: "May 2026", period_code: "05 - 2026", total_employees: 0 },
+			{ period_key: "2026-04-01", period_label: "April 2026", period_code: "04 - 2026", total_employees: 0 },
+			{ period_key: "2026-03-01", period_label: "March 2026", period_code: "03 - 2026", total_employees: 0 }
+		];
+
+		const periodMap = new Map<string, any>();
+		for (const dp of defaultPeriods) {
+			periodMap.set(dp.period_key, dp);
+		}
+		for (const p of dbPeriods) {
+			periodMap.set(p.period_key, {
+				period_key: p.period_key,
+				period_label: p.period_label,
+				period_code: p.period_code,
+				total_employees: p.total_employees
+			});
+		}
+		const periods = Array.from(periodMap.values()).sort((a, b) => b.period_key.localeCompare(a.period_key));
+
+		// 2. Coba fetch dari Laravel API, fallback ke PostgreSQL direct query
 		const payrollParams = new URLSearchParams();
-		// Kirim format tanggal lengkap YYYY-MM-DD ke Laravel API
-		const formattedPeriod = selectedPeriod.length === 7 ? `${selectedPeriod}-01` : selectedPeriod;
-		if (formattedPeriod) payrollParams.set('period', formattedPeriod);
-		if (searchQuery) payrollParams.set('search', searchQuery);
-		if (divisionFilter) payrollParams.set('division', divisionFilter);
-		payrollParams.set('per_page', '100');
+		if (formattedPeriod) payrollParams.set("period", formattedPeriod);
+		if (searchQuery) payrollParams.set("search", searchQuery);
+		if (divisionFilter) payrollParams.set("division", divisionFilter);
+		payrollParams.set("per_page", "500");
 
 		const [payrollRes, reimbursementRes] = await Promise.all([
 			apiFetch<any>(`/api/v1/hris/payroll?${payrollParams.toString()}`, {}, authToken).catch((err) => {
-				console.error('❌ [Payroll API Error]:', err?.message);
-				return {
-					data: {
-						summary: { total_count: 0, total_gross: 0, total_deductions: 0, total_net_thp: 0, avg_salary: 0 },
-						divisions: [],
-						slips: []
-					}
-				};
+				console.error("⚠️ [Payroll API Warning - will fallback to DB]:", err?.message);
+				return { data: null };
 			}),
 			apiFetch<any>(`/api/v1/hris/payroll/reimbursements?per_page=100`, {}, authToken).catch((err) => {
-				console.error('❌ [Reimbursement API Error]:', err?.message);
+				console.error("❌ [Reimbursement API Error]:", err?.message);
 				return {
 					data: {
 						summary: { total_claims: 0, total_approved_amount: 0, pending_claims: 0, rejected_claims: 0 },
@@ -48,28 +78,126 @@ export const load: PageServerLoad = async ({ cookies, url }) => {
 			})
 		]);
 
-		const payrollData = payrollRes?.data || {};
-		const reimbursementData = reimbursementRes?.data || {};
-
-		const summary = {
-			total_count: payrollData.summary?.total_count || 0,
+		let salarySlips: any[] = [];
+		let summary = {
+			total_count: 0,
 			sum_basic: 0,
-			sum_gross: payrollData.summary?.total_gross || 0,
-			sum_deductions: payrollData.summary?.total_deductions || 0,
-			sum_net: payrollData.summary?.total_net_thp || 0,
-			avg_net: payrollData.summary?.avg_salary || 0,
+			sum_gross: 0,
+			sum_deductions: 0,
+			sum_net: 0,
+			avg_net: 0,
 			sum_bpjs: 0,
 			sum_tax: 0,
 			sum_absence_deduction: 0
 		};
+		let divisions: string[] = [];
 
-		const divisions = payrollData.divisions || [];
-		const salarySlips = (payrollData.slips || []).map((s: any) => ({
-			...s,
-			period_date: s.period || selectedPeriod,
-			period_display: s.period || selectedPeriod
-		}));
+		if (payrollRes?.data?.slips && payrollRes.data.slips.length > 0) {
+			salarySlips = payrollRes.data.slips.map((s: any) => ({
+				...s,
+				period_date: s.period || selectedPeriod,
+				period_display: s.period || selectedPeriod
+			}));
+			summary = {
+				total_count: payrollRes.data.summary?.total_count || salarySlips.length,
+				sum_basic: 0,
+				sum_gross: Number(payrollRes.data.summary?.total_gross) || 0,
+				sum_deductions: Number(payrollRes.data.summary?.total_deductions) || 0,
+				sum_net: Number(payrollRes.data.summary?.total_net_thp) || 0,
+				avg_net: Number(payrollRes.data.summary?.avg_salary) || 0,
+				sum_bpjs: 0,
+				sum_tax: 0,
+				sum_absence_deduction: 0
+			};
+			divisions = payrollRes.data.divisions || [];
+		} else {
+			// Fallback: Query langsung dari PostgreSQL presensi.salary_slips
+			let queryFilter = sql`WHERE period = ${formattedPeriod}::date`;
+			if (searchQuery) {
+				const searchPat = `%${searchQuery}%`;
+				queryFilter = sql`${queryFilter} AND (employee_name ILIKE ${searchPat} OR employee_nik ILIKE ${searchPat} OR employee_position ILIKE ${searchPat})`;
+			}
+			if (divisionFilter) {
+				queryFilter = sql`${queryFilter} AND employee_division = ${divisionFilter}`;
+			}
 
+			const dbSlips = await sql<any[]>`
+				SELECT *
+				FROM presensi.salary_slips
+				${queryFilter}
+				ORDER BY employee_name ASC
+			`;
+
+			salarySlips = dbSlips.map((s) => ({
+				id: s.id,
+				user_id: s.user_id,
+				employee_nik: s.employee_nik,
+				employee_name: s.employee_name,
+				employee_position: s.employee_position,
+				employee_division: s.employee_division,
+				bank_name: s.bank_name || "BCA",
+				account_number: s.account_number || "-",
+				work_days: Number(s.work_days) || 0,
+				basic_salary: Number(s.basic_salary) || 0,
+				professional_allowance: Number(s.professional_allowance) || 0,
+				performance_allowance: Number(s.performance_allowance) || 0,
+				position_allowance: Number(s.position_allowance) || 0,
+				meal_allowance: Number(s.meal_allowance) || 0,
+				transport_allowance: Number(s.transport_allowance) || 0,
+				relocation_allowance: Number(s.relocation_allowance) || 0,
+				skill_allowance: Number(s.skill_allowance) || 0,
+				other_allowance: Number(s.other_allowance) || 0,
+				incentive_10th: Number(s.incentive_10th) || 0,
+				communication_allowance: Number(s.communication_allowance) || 0,
+				incentive: Number(s.incentive) || 0,
+				shift_allowance: Number(s.shift_allowance) || 0,
+				shift_count: Number(s.shift_count) || 0,
+				overtime_allowance: Number(s.overtime_allowance) || 0,
+				overtime_hours: Number(s.overtime_hours) || 0,
+				khk_allowance: Number(s.khk_allowance) || 0,
+				khk_count: Number(s.khk_count) || 0,
+				zakat: Number(s.zakat) || 0,
+				tax: Number(s.tax) || 0,
+				bpjs: Number(s.bpjs) || 0,
+				union_fee: Number(s.union_fee) || 0,
+				absence_deduction: Number(s.absence_deduction) || 0,
+				absence_days: Number(s.absence_days) || 0,
+				cooperative: Number(s.cooperative) || 0,
+				bpr_installment: Number(s.bpr_installment) || 0,
+				other_deduction: Number(s.other_deduction) || 0,
+				gross_salary: Number(s.gross_salary) || 0,
+				total_deductions: Number(s.total_deductions) || 0,
+				net_salary: Number(s.net_salary) || 0,
+				period_date: formattedPeriod,
+				period_display: formattedPeriod
+			}));
+
+			const sumGross = salarySlips.reduce((a, b) => a + b.gross_salary, 0);
+			const sumDed = salarySlips.reduce((a, b) => a + b.total_deductions, 0);
+			const sumNet = salarySlips.reduce((a, b) => a + b.net_salary, 0);
+
+			summary = {
+				total_count: salarySlips.length,
+				sum_basic: salarySlips.reduce((a, b) => a + b.basic_salary, 0),
+				sum_gross: sumGross,
+				sum_deductions: sumDed,
+				sum_net: sumNet,
+				avg_net: salarySlips.length > 0 ? Math.round(sumNet / salarySlips.length) : 0,
+				sum_bpjs: salarySlips.reduce((a, b) => a + b.bpjs, 0),
+				sum_tax: salarySlips.reduce((a, b) => a + b.tax, 0),
+				sum_absence_deduction: salarySlips.reduce((a, b) => a + b.absence_deduction, 0)
+			};
+
+			const divRes = await sql`
+				SELECT DISTINCT employee_division 
+				FROM presensi.salary_slips 
+				WHERE employee_division IS NOT NULL AND employee_division != ''
+				ORDER BY employee_division ASC
+			`;
+			divisions = divRes.map((d: any) => d.employee_division);
+		}
+
+		const reimbursementData = reimbursementRes?.data || {};
 		const reimbursementSummary = {
 			total_claims: reimbursementData.summary?.total_claims || 0,
 			total_approved_amount: reimbursementData.summary?.total_approved_amount || 0,
@@ -79,7 +207,7 @@ export const load: PageServerLoad = async ({ cookies, url }) => {
 
 		const reimbursements = (reimbursementData.claims || []).map((c: any) => ({
 			...c,
-			claim_date: c.submitted_at ? c.submitted_at.split(' ')[0] : '2026-08-18',
+			claim_date: c.submitted_at ? c.submitted_at.split(" ")[0] : "2026-08-18",
 			approved_amount: c.amount || 0
 		}));
 
@@ -93,15 +221,18 @@ export const load: PageServerLoad = async ({ cookies, url }) => {
 			salarySlips,
 			reimbursements,
 			reimbursementSummary,
-			dataSource: 'laravel'
+			dataSource: "postgres_laravel"
 		};
 	} catch (err: any) {
-		console.error('❌ [HRD Payroll API] Error loading data:', err?.message);
+		console.error("❌ [HRD Payroll Load Error]:", err?.message);
 		return {
 			selectedPeriod,
-			searchQuery: '',
-			divisionFilter: '',
-			periods,
+			searchQuery: "",
+			divisionFilter: "",
+			periods: [
+				{ period_key: "2026-08-01", period_label: "August 2026", period_code: "08 - 2026", total_employees: 0 },
+				{ period_key: "2026-07-01", period_label: "July 2026", period_code: "07 - 2026", total_employees: 0 }
+			],
 			divisions: [],
 			summary: {
 				total_count: 0,
@@ -122,41 +253,79 @@ export const load: PageServerLoad = async ({ cookies, url }) => {
 				pending_claims: 0,
 				approved_claims: 0
 			},
-			dataSource: 'laravel'
+			dataSource: "error_fallback"
 		};
 	}
 };
 
 export const actions: Actions = {
-	updateSlip: async ({ request, cookies }) => {
-		const authToken = cookies.get('auth_token');
+	calculatePayrollPreview: async ({ request }) => {
 		const formData = await request.formData();
-		const slipId = formData.get('slipId')?.toString();
+		const period = formData.get("period")?.toString() || "2026-08-01";
+		const mode = (formData.get("mode")?.toString() || "all") as "all" | "new_only";
+
+		try {
+			const summary = await runPayrollCalculation(period, { mode, commit: false });
+			return {
+				success: true,
+				actionType: "preview",
+				summary
+			};
+		} catch (err: any) {
+			console.error("❌ [calculatePayrollPreview Action Error]:", err);
+			return fail(500, { message: err.message || "Gagal menghitung pratinjau payroll." });
+		}
+	},
+
+	commitPayrollCalculation: async ({ request }) => {
+		const formData = await request.formData();
+		const period = formData.get("period")?.toString() || "2026-08-01";
+		const mode = (formData.get("mode")?.toString() || "all") as "all" | "new_only";
+
+		try {
+			const summary = await runPayrollCalculation(period, { mode, commit: true });
+			return {
+				success: true,
+				actionType: "committed",
+				totalEmployees: summary.total_employees,
+				period: summary.period,
+				summary
+			};
+		} catch (err: any) {
+			console.error("❌ [commitPayrollCalculation Action Error]:", err);
+			return fail(500, { message: err.message || "Gagal menyimpan hasil perhitungan payroll ke database." });
+		}
+	},
+
+	updateSlip: async ({ request, cookies }) => {
+		const authToken = cookies.get("auth_token");
+		const formData = await request.formData();
+		const slipId = formData.get("slipId")?.toString();
 		
-		if (!slipId) return fail(400, { message: 'ID Slip Gaji tidak ditemukan' });
+		if (!slipId) return fail(400, { message: "ID Slip Gaji tidak ditemukan" });
 
 		const payload = {
-			basic_salary: parseFloat(formData.get('basic_salary')?.toString() || '0'),
-			professional_allowance: parseFloat(formData.get('professional_allowance')?.toString() || '0'),
-			performance_allowance: parseFloat(formData.get('performance_allowance')?.toString() || '0'),
-			position_allowance: parseFloat(formData.get('position_allowance')?.toString() || '0'),
-			meal_allowance: parseFloat(formData.get('meal_allowance')?.toString() || '0'),
-			transport_allowance: parseFloat(formData.get('transport_allowance')?.toString() || '0'),
-			relocation_allowance: parseFloat(formData.get('relocation_allowance')?.toString() || '0'),
-			skill_allowance: parseFloat(formData.get('skill_allowance')?.toString() || '0'),
-			other_allowance: parseFloat(formData.get('other_allowance')?.toString() || '0'),
-			incentive: parseFloat(formData.get('incentive')?.toString() || '0'),
-			communication_allowance: parseFloat(formData.get('communication_allowance')?.toString() || '0'),
-			overtime_allowance: parseFloat(formData.get('overtime_allowance')?.toString() || '0'),
-			khk_allowance: parseFloat(formData.get('khk_allowance')?.toString() || '0'),
-			zakat: parseFloat(formData.get('zakat')?.toString() || '0'),
-			tax: parseFloat(formData.get('tax')?.toString() || '0'),
-			bpjs: parseFloat(formData.get('bpjs')?.toString() || '0'),
-			union_fee: parseFloat(formData.get('union_fee')?.toString() || '0'),
-			absence_deduction: parseFloat(formData.get('absence_deduction')?.toString() || '0'),
-			cooperative: parseFloat(formData.get('cooperative')?.toString() || '0'),
-			bpr_installment: parseFloat(formData.get('bpr_installment')?.toString() || '0'),
-			other_deduction: parseFloat(formData.get('other_deduction')?.toString() || '0')
+			basic_salary: parseFloat(formData.get("basic_salary")?.toString() || "0"),
+			professional_allowance: parseFloat(formData.get("professional_allowance")?.toString() || "0"),
+			performance_allowance: parseFloat(formData.get("performance_allowance")?.toString() || "0"),
+			position_allowance: parseFloat(formData.get("position_allowance")?.toString() || "0"),
+			meal_allowance: parseFloat(formData.get("meal_allowance")?.toString() || "0"),
+			transport_allowance: parseFloat(formData.get("transport_allowance")?.toString() || "0"),
+			relocation_allowance: parseFloat(formData.get("relocation_allowance")?.toString() || "0"),
+			skill_allowance: parseFloat(formData.get("skill_allowance")?.toString() || "0"),
+			other_allowance: parseFloat(formData.get("other_allowance")?.toString() || "0"),
+			incentive: parseFloat(formData.get("incentive")?.toString() || "0"),
+			communication_allowance: parseFloat(formData.get("communication_allowance")?.toString() || "0"),
+			overtime_allowance: parseFloat(formData.get("overtime_allowance")?.toString() || "0"),
+			khk_allowance: parseFloat(formData.get("khk_allowance")?.toString() || "0"),
+			zakat: parseFloat(formData.get("zakat")?.toString() || "0"),
+			tax: parseFloat(formData.get("tax")?.toString() || "0"),
+			bpjs: parseFloat(formData.get("bpjs")?.toString() || "0"),
+			union_fee: parseFloat(formData.get("union_fee")?.toString() || "0"),
+			absence_deduction: parseFloat(formData.get("absence_deduction")?.toString() || "0"),
+			cooperative: parseFloat(formData.get("cooperative")?.toString() || "0"),
+			bpr_installment: parseFloat(formData.get("bpr_installment")?.toString() || "0"),
+			other_deduction: parseFloat(formData.get("other_deduction")?.toString() || "0")
 		};
 
 		const gross_salary = payload.basic_salary + payload.professional_allowance + payload.performance_allowance + payload.position_allowance + payload.meal_allowance + payload.transport_allowance + payload.relocation_allowance + payload.skill_allowance + payload.other_allowance + payload.incentive + payload.communication_allowance + payload.overtime_allowance + payload.khk_allowance;
@@ -164,33 +333,67 @@ export const actions: Actions = {
 		const net_salary = gross_salary - total_deductions;
 
 		try {
-			await apiFetch(`/api/v1/hris/payroll/slips/${slipId}`, {
-				method: 'PUT',
+			// Update direct to PostgreSQL
+			await sql`
+				UPDATE presensi.salary_slips
+				SET
+					basic_salary = ${payload.basic_salary},
+					professional_allowance = ${payload.professional_allowance},
+					performance_allowance = ${payload.performance_allowance},
+					position_allowance = ${payload.position_allowance},
+					meal_allowance = ${payload.meal_allowance},
+					transport_allowance = ${payload.transport_allowance},
+					relocation_allowance = ${payload.relocation_allowance},
+					skill_allowance = ${payload.skill_allowance},
+					other_allowance = ${payload.other_allowance},
+					incentive = ${payload.incentive},
+					communication_allowance = ${payload.communication_allowance},
+					overtime_allowance = ${payload.overtime_allowance},
+					khk_allowance = ${payload.khk_allowance},
+					zakat = ${payload.zakat},
+					tax = ${payload.tax},
+					bpjs = ${payload.bpjs},
+					union_fee = ${payload.union_fee},
+					absence_deduction = ${payload.absence_deduction},
+					cooperative = ${payload.cooperative},
+					bpr_installment = ${payload.bpr_installment},
+					other_deduction = ${payload.other_deduction},
+					gross_salary = ${gross_salary},
+					total_deductions = ${total_deductions},
+					net_salary = ${net_salary},
+					updated_at = NOW()
+				WHERE id = ${slipId}
+			`;
+
+			// Juga coba sync ke Laravel API jika tersedia
+			apiFetch(`/api/v1/hris/payroll/slips/${slipId}`, {
+				method: "PUT",
 				body: JSON.stringify({ ...payload, net_salary })
-			}, authToken);
+			}, authToken).catch((e) => console.log("Laravel sync notice:", e?.message));
+
 			return { success: true };
 		} catch (apiErr: any) {
-			console.error('❌ [Update Slip API] Error:', apiErr?.message);
-			return fail(500, { message: apiErr.message || 'Gagal menyimpan ke backend API' });
+			console.error("❌ [Update Slip Error]:", apiErr?.message);
+			return fail(500, { message: apiErr.message || "Gagal menyimpan ke database" });
 		}
 	},
 
 	submitReimbursement: async ({ request, cookies }) => {
-		const authToken = cookies.get('auth_token');
+		const authToken = cookies.get("auth_token");
 		const formData = await request.formData();
-		const employee_nik = formData.get('employee_nik')?.toString() || '';
-		const employee_name = formData.get('employee_name')?.toString() || '';
-		const claim_type = formData.get('claim_type')?.toString() || 'Rawat Jalan & Obat';
-		const amount = parseFloat(formData.get('amount')?.toString() || '0');
-		const description = formData.get('description')?.toString() || '';
+		const employee_nik = formData.get("employee_nik")?.toString() || "";
+		const employee_name = formData.get("employee_name")?.toString() || "";
+		const claim_type = formData.get("claim_type")?.toString() || "Rawat Jalan & Obat";
+		const amount = parseFloat(formData.get("amount")?.toString() || "0");
+		const description = formData.get("description")?.toString() || "";
 
 		if (!employee_name || amount <= 0) {
-			return fail(400, { message: 'Nama karyawan dan nominal klaim valid wajib diisi.' });
+			return fail(400, { message: "Nama karyawan dan nominal klaim valid wajib diisi." });
 		}
 
 		try {
-			await apiFetch('/api/v1/hris/payroll/reimbursements', {
-				method: 'POST',
+			await apiFetch("/api/v1/hris/payroll/reimbursements", {
+				method: "POST",
 				body: JSON.stringify({
 					user_id: 122,
 					employee_nik,
@@ -202,46 +405,46 @@ export const actions: Actions = {
 			}, authToken);
 			return { success: true };
 		} catch (apiErr: any) {
-			console.error('❌ [Submit Reimbursement API] Error:', apiErr?.message);
-			return fail(500, { message: apiErr.message || 'Gagal menyimpan pengajuan klaim.' });
+			console.error("❌ [Submit Reimbursement API] Error:", apiErr?.message);
+			return fail(500, { message: apiErr.message || "Gagal menyimpan pengajuan klaim." });
 		}
 	},
 
 	approveReimbursement: async ({ request, cookies }) => {
-		const authToken = cookies.get('auth_token');
+		const authToken = cookies.get("auth_token");
 		const formData = await request.formData();
-		const claimId = formData.get('claimId')?.toString();
+		const claimId = formData.get("claimId")?.toString();
 
-		if (!claimId) return fail(400, { message: 'ID klaim tidak ditemukan.' });
+		if (!claimId) return fail(400, { message: "ID klaim tidak ditemukan." });
 
 		try {
 			await apiFetch(`/api/v1/hris/payroll/reimbursements/${claimId}/approve`, {
-				method: 'POST'
+				method: "POST"
 			}, authToken);
 			return { success: true };
 		} catch (apiErr: any) {
-			console.error('❌ [Approve Reimbursement API] Error:', apiErr?.message);
-			return fail(500, { message: apiErr.message || 'Gagal menyetujui klaim.' });
+			console.error("❌ [Approve Reimbursement API] Error:", apiErr?.message);
+			return fail(500, { message: apiErr.message || "Gagal menyetujui klaim." });
 		}
 	},
 
 	rejectReimbursement: async ({ request, cookies }) => {
-		const authToken = cookies.get('auth_token');
+		const authToken = cookies.get("auth_token");
 		const formData = await request.formData();
-		const claimId = formData.get('claimId')?.toString();
-		const rejection_reason = formData.get('rejection_reason')?.toString() || 'Dokumen atau kuitansi tidak memenuhi syarat';
+		const claimId = formData.get("claimId")?.toString();
+		const rejection_reason = formData.get("rejection_reason")?.toString() || "Dokumen atau kuitansi tidak memenuhi syarat";
 
-		if (!claimId) return fail(400, { message: 'ID klaim tidak ditemukan.' });
+		if (!claimId) return fail(400, { message: "ID klaim tidak ditemukan." });
 
 		try {
 			await apiFetch(`/api/v1/hris/payroll/reimbursements/${claimId}/reject`, {
-				method: 'POST',
+				method: "POST",
 				body: JSON.stringify({ rejection_reason })
 			}, authToken);
 			return { success: true };
 		} catch (apiErr: any) {
-			console.error('❌ [Reject Reimbursement API] Error:', apiErr?.message);
-			return fail(500, { message: apiErr.message || 'Gagal menolak klaim.' });
+			console.error("❌ [Reject Reimbursement API] Error:", apiErr?.message);
+			return fail(500, { message: apiErr.message || "Gagal menolak klaim." });
 		}
 	}
 };

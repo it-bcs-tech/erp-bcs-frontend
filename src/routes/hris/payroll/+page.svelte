@@ -21,6 +21,17 @@
 	let showApproveModal = $state(false);
 	let showRejectModal = $state(false);
 
+	// Automated Payroll Calculation Wizard State
+	let showGenerateModal = $state(false);
+	let generateStep = $state<'form' | 'preview' | 'success'>('form');
+	let generatePeriod = $state(data.selectedPeriod || '2026-08-01');
+	let generateMode = $state<'all' | 'new_only'>('all');
+	let isCalculating = $state(false);
+	let isSaving = $state(false);
+	let previewData = $state<any>(null);
+	let generateError = $state<string | null>(null);
+	let searchPreview = $state('');
+
 	function formatRupiah(val: number) {
 		return formatCurrencyPrivacy(val, $systemSettings.hideSalaryNominals);
 	}
@@ -54,6 +65,81 @@
 		isEditMode = false;
 	}
 
+	function openGenerateModal() {
+		generatePeriod = selectedPeriod || '2026-08-01';
+		generateStep = 'form';
+		previewData = null;
+		generateError = null;
+		showGenerateModal = true;
+	}
+
+	function closeGenerateModal() {
+		showGenerateModal = false;
+		generateStep = 'form';
+		previewData = null;
+		generateError = null;
+	}
+
+	async function handleCalculatePreview() {
+		isCalculating = true;
+		generateError = null;
+		try {
+			const formData = new FormData();
+			formData.append('period', generatePeriod);
+			formData.append('mode', generateMode);
+
+			const res = await fetch('?/calculatePayrollPreview', {
+				method: 'POST',
+				body: formData
+			});
+			const result = await res.json();
+
+			if (result.type === 'success' && result.data?.summary) {
+				previewData = result.data.summary;
+				generateStep = 'preview';
+			} else {
+				generateError = result.data?.message || 'Gagal menjalankan simulasi kalkulasi payroll.';
+			}
+		} catch (err: any) {
+			generateError = err?.message || 'Terjadi kesalahan jaringan/server saat memproses.';
+		} finally {
+			isCalculating = false;
+		}
+	}
+
+	async function handleCommitCalculation() {
+		isSaving = true;
+		generateError = null;
+		try {
+			const formData = new FormData();
+			formData.append('period', generatePeriod);
+			formData.append('mode', generateMode);
+
+			const res = await fetch('?/commitPayrollCalculation', {
+				method: 'POST',
+				body: formData
+			});
+			const result = await res.json();
+
+			if (result.type === 'success') {
+				generateStep = 'success';
+			} else {
+				generateError = result.data?.message || 'Gagal menyimpan hasil payroll ke database.';
+			}
+		} catch (err: any) {
+			generateError = err?.message || 'Terjadi kesalahan saat menyimpan ke database.';
+		} finally {
+			isSaving = false;
+		}
+	}
+
+	function handleFinishGenerate() {
+		showGenerateModal = false;
+		generateStep = 'form';
+		selectedPeriod = generatePeriod;
+		goto(`/hris/payroll?period=${generatePeriod}`, { invalidateAll: true });
+	}
+
 	function exportBankFile() {
 		if (!data.salarySlips || data.salarySlips.length === 0) {
 			alert('Tidak ada data payroll untuk diekspor.');
@@ -75,6 +161,18 @@
 		link.click();
 		document.body.removeChild(link);
 	}
+
+	let filteredPreviewItems = $derived(
+		previewData?.items?.filter((item: any) => {
+			if (!searchPreview) return true;
+			const q = searchPreview.toLowerCase();
+			return (
+				item.employee_name.toLowerCase().includes(q) ||
+				item.employee_nik.toLowerCase().includes(q) ||
+				item.employee_position.toLowerCase().includes(q)
+			);
+		}) || []
+	);
 </script>
 
 
@@ -95,7 +193,7 @@
 			</p>
 		</div>
 
-		<div class="flex items-center gap-2.5">
+		<div class="flex flex-wrap items-center gap-2.5">
 			<a
 				href="/hris/payroll/loans"
 				class="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-surface-container-low text-on-surface font-semibold text-sm hover:bg-surface-container transition-all"
@@ -105,8 +203,15 @@
 			</a>
 			{#if activeMainTab === 'payroll'}
 				<button
+					onclick={openGenerateModal}
+					class="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-bold text-sm shadow-md hover:shadow-lg hover:brightness-105 transition-all cursor-pointer"
+				>
+					<span class="material-symbols-outlined text-lg">bolt</span>
+					<span>Hitung Otomatis Payroll</span>
+				</button>
+				<button
 					onclick={exportBankFile}
-					class="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-primary text-on-primary font-bold text-sm shadow-xs hover:bg-primary/90 transition-all cursor-pointer"
+					class="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-surface-container-high border border-slate-200 dark:border-slate-700 text-on-surface font-bold text-sm shadow-2xs hover:bg-surface-container transition-all cursor-pointer"
 				>
 					<span class="material-symbols-outlined text-lg">file_download</span>
 					<span>Export Bank Transfer</span>
@@ -287,7 +392,14 @@
 							<tr>
 								<td colspan="7" class="px-5 py-12 text-center text-on-surface-variant font-medium">
 									<span class="material-symbols-outlined text-4xl mb-2 text-slate-300 block">search_off</span>
-									Tidak ada data payroll ditemukan untuk periode/filter ini.
+									<p>Belum ada data payroll ditemukan untuk periode <strong>{selectedPeriod}</strong>.</p>
+									<button
+										onclick={openGenerateModal}
+										class="mt-3 px-4 py-2 rounded-xl bg-primary text-on-primary text-xs font-bold inline-flex items-center gap-1.5 shadow-xs cursor-pointer hover:bg-primary/90 transition-all"
+									>
+										<span class="material-symbols-outlined text-sm">bolt</span>
+										<span>Hitung Otomatis Sekarang</span>
+									</button>
 								</td>
 							</tr>
 						{:else}
@@ -451,6 +563,254 @@
 		</div>
 	{/if}
 </div>
+
+<!-- MODAL WIZARD: AUTOMATED PAYROLL ENGINE (GENERASI & KALKULASI OTOMATIS) -->
+{#if showGenerateModal}
+	<div class="fixed inset-0 z-50 bg-slate-900/70 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
+		<div class="bg-surface rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xl w-full max-w-4xl overflow-hidden my-6 animate-in zoom-in-95 duration-150">
+			<!-- Header Wizard -->
+			<div class="bg-gradient-to-r from-blue-600 to-indigo-700 text-white p-6 flex items-center justify-between">
+				<div class="flex items-center gap-3.5">
+					<div class="w-11 h-11 rounded-2xl bg-white/15 text-white flex items-center justify-center font-bold border border-white/20">
+						<span class="material-symbols-outlined text-2xl">bolt</span>
+					</div>
+					<div>
+						<h2 class="text-lg font-black tracking-tight">Kalkulasi Otomatis Payroll PT BCS</h2>
+						<p class="text-xs text-blue-100 font-medium">Automated Batch Calculation Engine (Absensi, Lembur, Kasbon, BPJS & PPh 21)</p>
+					</div>
+				</div>
+				<button onclick={closeGenerateModal} class="text-blue-200 hover:text-white transition-colors cursor-pointer">
+					<span class="material-symbols-outlined">close</span>
+				</button>
+			</div>
+
+			<!-- Body Wizard -->
+			<div class="p-6 space-y-6 max-h-[75vh] overflow-y-auto">
+				{#if generateError}
+					<div class="p-4 rounded-2xl bg-rose-500/10 border border-rose-500/30 text-rose-700 dark:text-rose-300 text-xs flex items-center gap-3">
+						<span class="material-symbols-outlined text-rose-500 text-xl">error</span>
+						<span>{generateError}</span>
+					</div>
+				{/if}
+
+				{#if generateStep === 'form'}
+					<!-- STEP 1: PARAMETER SETUP -->
+					<div class="space-y-5">
+						<div class="p-4 rounded-2xl bg-blue-50/50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800/50 text-xs space-y-2">
+							<p class="font-bold text-blue-900 dark:text-blue-300 flex items-center gap-1.5">
+								<span class="material-symbols-outlined text-base text-blue-600">info</span>
+								Alur Kerja & Integrasi Sumber Data Otomatis:
+							</p>
+							<ul class="list-disc list-inside text-blue-800 dark:text-blue-300/90 space-y-1 pl-1">
+								<li><strong>Gaji Pokok & Tunjangan:</strong> Mewarisi baseline profil slip terakhir seluruh karyawan aktif.</li>
+								<li><strong>Uang Lembur:</strong> Mengagregasi jam lembur aktual dari log presensi (<code class="font-mono">presensi.presences</code>) x formula Depnaker 1.5x upah sejam.</li>
+								<li><strong>Potongan Alpa:</strong> Mengkalkulasi hari alpa aktual x pro-rata 25 hari kerja.</li>
+								<li><strong>Cicilan Pinjaman/Kasbon:</strong> Menarik angsuran pinjaman berstatus aktif dari modul Kasbon (<code class="font-mono">presensi.loans</code>).</li>
+								<li><strong>Pajak PPh 21 & BPJS:</strong> Mengalkulasi tarif efektif bulanan (TER 2024) dan porsi BPJS pekerja (4%).</li>
+							</ul>
+						</div>
+
+						<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+							<div>
+								<label class="font-bold text-xs text-on-surface block mb-1.5">Periode Gaji yang Dihitung</label>
+								<select
+									bind:value={generatePeriod}
+									class="w-full px-4 py-2.5 rounded-xl bg-surface-container-low border border-slate-200 dark:border-slate-700 text-sm font-semibold text-on-surface cursor-pointer"
+								>
+									{#each data.periods as p}
+										<option value={p.period_key}>{p.period_label} ({p.period_code})</option>
+									{/each}
+								</select>
+							</div>
+
+							<div>
+								<label class="font-bold text-xs text-on-surface block mb-1.5">Metode / Mode Sinkronisasi</label>
+								<select
+									bind:value={generateMode}
+									class="w-full px-4 py-2.5 rounded-xl bg-surface-container-low border border-slate-200 dark:border-slate-700 text-sm font-semibold text-on-surface cursor-pointer"
+								>
+									<option value="all">⚡ Hitung Ulang Semua Karyawan (Sinkronisasi Total)</option>
+									<option value="new_only">➕ Hanya Tambahkan Karyawan yang Belum Ada Slip</option>
+								</select>
+							</div>
+						</div>
+					</div>
+
+					<div class="flex justify-end gap-3 pt-4 border-t border-slate-200 dark:border-slate-800">
+						<button
+							type="button"
+							onclick={closeGenerateModal}
+							class="px-5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold hover:bg-slate-100 cursor-pointer"
+						>
+							Batal
+						</button>
+						<button
+							type="button"
+							disabled={isCalculating}
+							onclick={handleCalculatePreview}
+							class="px-6 py-2.5 rounded-xl bg-primary text-on-primary text-xs font-bold hover:bg-primary/90 transition-all cursor-pointer shadow-md inline-flex items-center gap-2 disabled:opacity-50"
+						>
+							{#if isCalculating}
+								<span class="material-symbols-outlined text-sm animate-spin">progress_activity</span>
+								<span>Menghitung Batch Data...</span>
+							{:else}
+								<span class="material-symbols-outlined text-sm">play_arrow</span>
+								<span>Mulai Simulasi Perhitungan</span>
+							{/if}
+						</button>
+					</div>
+
+				{:else if generateStep === 'preview' && previewData}
+					<!-- STEP 2: PREVIEW BATCH RESULTS -->
+					<div class="space-y-5">
+						<!-- Summary Metric Cards -->
+						<div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+							<div class="p-3.5 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800">
+								<p class="text-[10px] font-bold text-on-surface-variant uppercase">Total Karyawan</p>
+								<p class="text-xl font-black text-on-surface mt-0.5">{previewData.total_employees} Staff</p>
+							</div>
+							<div class="p-3.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
+								<p class="text-[10px] font-bold text-emerald-700 dark:text-emerald-300 uppercase">Gross Salary</p>
+								<p class="text-base font-black text-emerald-600 font-mono mt-0.5">{formatRupiah(previewData.total_gross)}</p>
+							</div>
+							<div class="p-3.5 rounded-xl bg-rose-500/10 border border-rose-500/20">
+								<p class="text-[10px] font-bold text-rose-700 dark:text-rose-300 uppercase">Total Potongan</p>
+								<p class="text-base font-black text-rose-600 font-mono mt-0.5">-{formatRupiah(previewData.total_deductions)}</p>
+							</div>
+							<div class="p-3.5 rounded-xl bg-blue-500/10 border border-blue-500/20">
+								<p class="text-[10px] font-bold text-blue-700 dark:text-blue-300 uppercase">Total Net THP</p>
+								<p class="text-base font-black text-blue-600 font-mono mt-0.5">{formatRupiah(previewData.total_net)}</p>
+							</div>
+						</div>
+
+						<!-- Dynamic Sub-metrics -->
+						<div class="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs p-3 rounded-xl bg-surface-container-low border border-slate-200 dark:border-slate-800">
+							<div>
+								<span class="text-slate-400 block text-[10px]">Total Lembur:</span>
+								<span class="font-bold font-mono text-on-surface">{previewData.total_overtime_hours} jam ({formatRupiah(previewData.total_overtime_amount)})</span>
+							</div>
+							<div>
+								<span class="text-slate-400 block text-[10px]">Potongan Alpa:</span>
+								<span class="font-bold font-mono text-rose-600">{previewData.total_absence_days} hari ({formatRupiah(previewData.total_absence_deduction)})</span>
+							</div>
+							<div>
+								<span class="text-slate-400 block text-[10px]">Potongan Kasbon:</span>
+								<span class="font-bold font-mono text-on-surface">{formatRupiah(previewData.total_loan_deduction)}</span>
+							</div>
+							<div>
+								<span class="text-slate-400 block text-[10px]">Total BPJS + PPh 21:</span>
+								<span class="font-bold font-mono text-on-surface">{formatRupiah(previewData.total_bpjs + previewData.total_tax)}</span>
+							</div>
+						</div>
+
+						<!-- Search & Preview Table -->
+						<div class="space-y-2">
+							<div class="flex items-center justify-between">
+								<h3 class="font-bold text-xs text-on-surface">Pratinjau Hasil Perhitungan (Menampilkan {filteredPreviewItems.length} Karyawan)</h3>
+								<input
+									type="text"
+									placeholder="Filter nama / NIK..."
+									bind:value={searchPreview}
+									class="px-3 py-1.5 text-xs rounded-xl bg-surface-container-low border border-slate-200 dark:border-slate-700 w-52"
+								/>
+							</div>
+
+							<div class="rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden max-h-60 overflow-y-auto">
+								<table class="w-full text-left text-xs">
+									<thead class="bg-slate-100 dark:bg-slate-800 text-[10px] font-bold text-on-surface-variant uppercase sticky top-0">
+										<tr>
+											<th class="p-2.5">Karyawan</th>
+											<th class="p-2.5">Gaji Pokok</th>
+											<th class="p-2.5">Lembur</th>
+											<th class="p-2.5">Alpa</th>
+											<th class="p-2.5">Kasbon</th>
+											<th class="p-2.5">BPJS & Pajak</th>
+											<th class="p-2.5 text-right">Take Home Pay</th>
+										</tr>
+									</thead>
+									<tbody class="divide-y divide-slate-100 dark:divide-slate-800">
+										{#each filteredPreviewItems.slice(0, 50) as item}
+											<tr class="hover:bg-slate-50 dark:hover:bg-slate-800/50">
+												<td class="p-2.5">
+													<p class="font-bold text-on-surface">{item.employee_name}</p>
+													<p class="text-[10px] text-slate-400 font-mono">{item.employee_nik}</p>
+												</td>
+												<td class="p-2.5 font-mono">{formatRupiah(item.basic_salary)}</td>
+												<td class="p-2.5 font-mono text-emerald-600">{formatRupiah(item.overtime_allowance)}</td>
+												<td class="p-2.5 font-mono text-rose-600">{item.absence_days > 0 ? `-${formatRupiah(item.absence_deduction)}` : 'Rp 0'}</td>
+												<td class="p-2.5 font-mono text-rose-600">{item.bpr_installment > 0 ? `-${formatRupiah(item.bpr_installment)}` : 'Rp 0'}</td>
+												<td class="p-2.5 font-mono text-rose-600">-{formatRupiah(item.bpjs + item.tax)}</td>
+												<td class="p-2.5 font-mono font-bold text-primary text-right">{formatRupiah(item.net_salary)}</td>
+											</tr>
+										{/each}
+									</tbody>
+								</table>
+							</div>
+						</div>
+					</div>
+
+					<div class="flex justify-between items-center pt-4 border-t border-slate-200 dark:border-slate-800">
+						<button
+							type="button"
+							onclick={() => (generateStep = 'form')}
+							class="px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold hover:bg-slate-100 cursor-pointer inline-flex items-center gap-1"
+						>
+							<span class="material-symbols-outlined text-sm">arrow_back</span>
+							<span>Ubah Parameter</span>
+						</button>
+
+						<div class="flex gap-2">
+							<button
+								type="button"
+								onclick={closeGenerateModal}
+								class="px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold hover:bg-slate-100 cursor-pointer"
+							>
+								Batal
+							</button>
+							<button
+								type="button"
+								disabled={isSaving}
+								onclick={handleCommitCalculation}
+								class="px-6 py-2.5 rounded-xl bg-emerald-600 text-white text-xs font-bold hover:bg-emerald-700 transition-all cursor-pointer shadow-md inline-flex items-center gap-1.5 disabled:opacity-50"
+							>
+								{#if isSaving}
+									<span class="material-symbols-outlined text-sm animate-spin">progress_activity</span>
+									<span>Menyimpan ke Database...</span>
+								{:else}
+									<span class="material-symbols-outlined text-sm">save</span>
+									<span>Simpan & Terapkan Hasil ke Database</span>
+								{/if}
+							</button>
+						</div>
+					</div>
+
+				{:else if generateStep === 'success'}
+					<!-- STEP 3: SUCCESS CONFIRMATION -->
+					<div class="py-8 text-center space-y-4">
+						<div class="w-16 h-16 rounded-full bg-emerald-500/10 text-emerald-600 flex items-center justify-center mx-auto">
+							<span class="material-symbols-outlined text-4xl">check_circle</span>
+						</div>
+						<h3 class="text-xl font-black text-on-surface">Perhitungan Payroll Berhasil Disimpan!</h3>
+						<p class="text-xs text-on-surface-variant max-w-md mx-auto">
+							Seluruh data slip gaji untuk periode <strong>{generatePeriod}</strong> telah berhasil dikalkulasi otomatis dan disimpan ke database sistem PT BCS.
+						</p>
+
+						<div class="pt-4">
+							<button
+								type="button"
+								onclick={handleFinishGenerate}
+								class="px-6 py-2.5 rounded-xl bg-primary text-on-primary text-xs font-bold hover:bg-primary/90 shadow-md cursor-pointer inline-flex items-center gap-2"
+							>
+								<span class="material-symbols-outlined text-sm">visibility</span>
+								<span>Buka Direktori Payroll Periode Ini</span>
+							</button>
+						</div>
+					</div>
+				{/if}
+			</div>
+		</div>
+	</div>
+{/if}
 
 <!-- MODAL SLIP GAJI ENTERPRISE WIDE DESKTOP (PT. BUANA CENTRA SWAKARSA) -->
 {#if showModal && selectedSlip}
