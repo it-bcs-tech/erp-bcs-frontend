@@ -412,7 +412,10 @@
 									<td class="px-5 py-4">
 										<div>
 											<p class="font-bold text-on-surface">{slip.employee_name}</p>
-											<p class="text-xs text-on-surface-variant font-mono mt-0.5">NIK: {slip.employee_nik}</p>
+											<div class="flex items-center gap-2 mt-0.5">
+												<span class="text-xs text-on-surface-variant font-mono">NIK: {slip.employee_nik}</span>
+												<span class="px-1.5 py-0.5 rounded-md bg-blue-500/10 text-blue-600 text-[10px] font-bold font-mono">HK: {slip.work_days || 0} hr</span>
+											</div>
 										</div>
 									</td>
 									<td class="px-5 py-4">
@@ -724,6 +727,7 @@
 									<thead class="bg-slate-100 dark:bg-slate-800 text-[10px] font-bold text-on-surface-variant uppercase sticky top-0">
 										<tr>
 											<th class="p-2.5">Karyawan</th>
+											<th class="p-2.5">Hari Kerja (HK)</th>
 											<th class="p-2.5">Gaji Pokok</th>
 											<th class="p-2.5">Lembur</th>
 											<th class="p-2.5">Alpa</th>
@@ -739,6 +743,7 @@
 													<p class="font-bold text-on-surface">{item.employee_name}</p>
 													<p class="text-[10px] text-slate-400 font-mono">{item.employee_nik}</p>
 												</td>
+												<td class="p-2.5 font-mono font-bold text-blue-600">{item.work_days || 0} hr</td>
 												<td class="p-2.5 font-mono">{formatRupiah(item.basic_salary)}</td>
 												<td class="p-2.5 font-mono text-emerald-600">{formatRupiah(item.overtime_allowance)}</td>
 												<td class="p-2.5 font-mono text-rose-600">{item.absence_days > 0 ? `-${formatRupiah(item.absence_deduction)}` : 'Rp 0'}</td>
@@ -848,7 +853,7 @@
 			<!-- Body Modal -->
 			<div class="p-6 sm:p-8 space-y-6 max-h-[75vh] overflow-y-auto">
 				<!-- Informasi Identitas Karyawan -->
-				<div class="grid grid-cols-2 md:grid-cols-4 gap-4 p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/40 text-xs font-medium border border-slate-200/60 dark:border-slate-700/60">
+				<div class="grid grid-cols-2 md:grid-cols-5 gap-4 p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/40 text-xs font-medium border border-slate-200/60 dark:border-slate-700/60">
 					<div>
 						<span class="text-slate-400 block text-[11px]">Nama Karyawan</span>
 						<span class="text-sm font-bold text-on-surface">{selectedSlip.employee_name}</span>
@@ -864,6 +869,10 @@
 					<div>
 						<span class="text-slate-400 block text-[11px]">Rekening Bank Transfer</span>
 						<span class="text-on-surface font-semibold">{selectedSlip.bank_name || 'BCA'} • {selectedSlip.account_number || '-'}</span>
+					</div>
+					<div class="bg-blue-500/10 dark:bg-blue-950/30 p-2.5 rounded-xl border border-blue-500/20 flex flex-col justify-center">
+						<span class="text-blue-600 dark:text-blue-300 block text-[11px] font-bold">Hari Kerja (HK)</span>
+						<span class="text-sm font-mono font-black text-blue-700 dark:text-blue-200">{selectedSlip.work_days || 0} Hari</span>
 					</div>
 				</div>
 
@@ -886,6 +895,34 @@
 					<!-- Form Edit Nilai Komponen Slip Gaji -->
 					<form method="POST" action="?/updateSlip" class="space-y-6 text-xs">
 						<input type="hidden" name="slipId" value={selectedSlip.id} />
+
+						<!-- Baris Edit Hari Kerja & Kehadiran Aktual -->
+						<div class="p-4 rounded-2xl border border-blue-500/30 bg-blue-50/30 dark:bg-blue-950/20 grid grid-cols-1 md:grid-cols-3 gap-4">
+							<div>
+								<label class="font-bold text-blue-900 dark:text-blue-300 block mb-1">Hari Kerja (HK)</label>
+								<div class="flex items-center gap-2">
+									<input type="number" name="work_days" bind:value={selectedSlip.work_days} min="0" max="31" class="w-full px-3 py-2 rounded-xl bg-surface border font-mono font-bold text-blue-600" />
+									<span class="text-xs font-bold text-slate-400">Hari</span>
+								</div>
+								<p class="text-[10px] text-slate-400 mt-1">Presensi hadir / edit manual</p>
+							</div>
+							<div>
+								<label class="font-bold text-rose-900 dark:text-rose-300 block mb-1">Jumlah Alpa / Absen</label>
+								<div class="flex items-center gap-2">
+									<input type="number" name="absence_days" bind:value={selectedSlip.absence_days} min="0" max="31" class="w-full px-3 py-2 rounded-xl bg-surface border font-mono font-bold text-rose-600" />
+									<span class="text-xs font-bold text-slate-400">Hari</span>
+								</div>
+								<p class="text-[10px] text-slate-400 mt-1">Mengurangi THP pro-rata</p>
+							</div>
+							<div>
+								<label class="font-bold text-emerald-900 dark:text-emerald-300 block mb-1">Total Jam Lembur (OT)</label>
+								<div class="flex items-center gap-2">
+									<input type="number" step="0.5" name="overtime_hours" bind:value={selectedSlip.overtime_hours} min="0" class="w-full px-3 py-2 rounded-xl bg-surface border font-mono font-bold text-emerald-600" />
+									<span class="text-xs font-bold text-slate-400">Jam</span>
+								</div>
+								<p class="text-[10px] text-slate-400 mt-1">Jam lembur aktual SPKL</p>
+							</div>
+						</div>
 
 						<div class="grid grid-cols-1 md:grid-cols-2 gap-6">
 							<!-- Kolom Edit Pendapatan -->

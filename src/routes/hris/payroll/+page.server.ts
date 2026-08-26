@@ -305,6 +305,9 @@ export const actions: Actions = {
 		if (!slipId) return fail(400, { message: "ID Slip Gaji tidak ditemukan" });
 
 		const payload = {
+			work_days: parseInt(formData.get("work_days")?.toString() || "0"),
+			absence_days: parseInt(formData.get("absence_days")?.toString() || "0"),
+			overtime_hours: parseFloat(formData.get("overtime_hours")?.toString() || "0"),
 			basic_salary: parseFloat(formData.get("basic_salary")?.toString() || "0"),
 			professional_allowance: parseFloat(formData.get("professional_allowance")?.toString() || "0"),
 			performance_allowance: parseFloat(formData.get("performance_allowance")?.toString() || "0"),
@@ -337,6 +340,9 @@ export const actions: Actions = {
 			await sql`
 				UPDATE presensi.salary_slips
 				SET
+					work_days = ${payload.work_days},
+					absence_days = ${payload.absence_days},
+					overtime_hours = ${payload.overtime_hours},
 					basic_salary = ${payload.basic_salary},
 					professional_allowance = ${payload.professional_allowance},
 					performance_allowance = ${payload.performance_allowance},
