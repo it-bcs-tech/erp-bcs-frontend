@@ -35,7 +35,7 @@
 		<div class="flex flex-wrap items-center gap-2">
 			<a
 				href="/hris/payroll"
-				class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-bold text-xs shadow-xs hover:shadow-md hover:brightness-105 transition-all"
+				class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-surface-container-low text-on-surface font-bold text-xs hover:bg-surface-container transition-all"
 			>
 				<span class="material-symbols-outlined text-base">bolt</span>
 				<span>Hitung Payroll</span>

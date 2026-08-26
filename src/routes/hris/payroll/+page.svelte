@@ -208,7 +208,7 @@
 			{#if activeMainTab === 'payroll'}
 				<button
 					onclick={openGenerateModal}
-					class="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-bold text-sm shadow-md hover:shadow-lg hover:brightness-105 transition-all cursor-pointer"
+					class="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-surface-container-low text-on-surface font-semibold text-sm hover:bg-surface-container transition-all cursor-pointer"
 				>
 					<span class="material-symbols-outlined text-lg">bolt</span>
 					<span>Hitung Otomatis Payroll</span>
