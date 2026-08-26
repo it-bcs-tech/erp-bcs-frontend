@@ -84,21 +84,23 @@
 		isCalculating = true;
 		generateError = null;
 		try {
-			const formData = new FormData();
-			formData.append('period', generatePeriod);
-			formData.append('mode', generateMode);
-
-			const res = await fetch('?/calculatePayrollPreview', {
+			const res = await fetch('/api/hris/payroll/calculate', {
 				method: 'POST',
-				body: formData
+				headers: {
+					'Content-Type': 'application/json'
+				},
+				body: JSON.stringify({
+					period: generatePeriod,
+					mode: generateMode
+				})
 			});
 			const result = await res.json();
 
-			if (result.type === 'success' && result.data?.summary) {
-				previewData = result.data.summary;
+			if (result.success && result.summary) {
+				previewData = result.summary;
 				generateStep = 'preview';
 			} else {
-				generateError = result.data?.message || 'Gagal menjalankan simulasi kalkulasi payroll.';
+				generateError = result.message || 'Gagal menjalankan simulasi kalkulasi payroll.';
 			}
 		} catch (err: any) {
 			generateError = err?.message || 'Terjadi kesalahan jaringan/server saat memproses.';
@@ -111,20 +113,22 @@
 		isSaving = true;
 		generateError = null;
 		try {
-			const formData = new FormData();
-			formData.append('period', generatePeriod);
-			formData.append('mode', generateMode);
-
-			const res = await fetch('?/commitPayrollCalculation', {
+			const res = await fetch('/api/hris/payroll/commit', {
 				method: 'POST',
-				body: formData
+				headers: {
+					'Content-Type': 'application/json'
+				},
+				body: JSON.stringify({
+					period: generatePeriod,
+					mode: generateMode
+				})
 			});
 			const result = await res.json();
 
-			if (result.type === 'success') {
+			if (result.success) {
 				generateStep = 'success';
 			} else {
-				generateError = result.data?.message || 'Gagal menyimpan hasil payroll ke database.';
+				generateError = result.message || 'Gagal menyimpan hasil payroll ke database.';
 			}
 		} catch (err: any) {
 			generateError = err?.message || 'Terjadi kesalahan saat menyimpan ke database.';
