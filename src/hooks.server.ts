@@ -12,7 +12,7 @@ import { verifyUserData } from '$lib/server/auth';
 const DEV_BYPASS = dev;
 
 // Daftar route modul yang perlu dicek hak akses
-const MODULE_ROUTES = ['fms', 'ocs', 'hris', 'marketing', 'pms', 'kasir', 'finance', 'dms', 'qhse'];
+const MODULE_ROUTES = ['fms', 'maintenance', 'ocs', 'hris', 'marketing', 'pms', 'kasir', 'finance', 'dms', 'qhse'];
 
 export const handle: Handle = async ({ event, resolve }) => {
 	const authToken = event.cookies.get('auth_token');

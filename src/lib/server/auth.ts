@@ -222,8 +222,11 @@ async function resolveModuleAccess(
 	// 2. Terapkan custom modules jika tidak kosong
 	if (customModules.length > 0) {
 		customModules.forEach((m) => {
-			if (ALL_MODULES.includes(m as ModuleId)) {
-				modules.add(m as ModuleId);
+			if (typeof m === 'string') {
+				const baseMod = m.includes('.') ? m.split('.')[0] : m;
+				if (ALL_MODULES.includes(baseMod as ModuleId) || m === '*') {
+					modules.add(m as ModuleId);
+				}
 			}
 		});
 	} else {
