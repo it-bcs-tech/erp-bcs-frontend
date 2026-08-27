@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
 	import { spawnToast } from '$lib/stores/notifications';
-	import { MODULE_MENUS, ALL_MODULES, ADMIN_ROLES } from '$lib/types/auth';
+	import { MODULE_MENUS, ALL_MODULES, ADMIN_ROLES, ROLE_MODULE_MAP } from '$lib/types/auth';
 
 	let { data, form } = $props();
 
@@ -28,12 +28,41 @@
 	let editSelectedModules = $state<string[]>([]);
 	let editRole = $state('');
 
-	// Define role list
-	const availableRoles = $derived([
-		...ADMIN_ROLES,
-		...Object.keys(data.roleModuleMap || {}),
-		'user'
-	]);
+	// Helper untuk display custom modules yang aman
+	function getDisplayModules(modules: any): string {
+		if (!modules) return 'None';
+		let list: string[] = [];
+		if (Array.isArray(modules)) {
+			list = modules;
+		} else if (typeof modules === 'string') {
+			try {
+				let parsed = JSON.parse(modules);
+				if (typeof parsed === 'string') parsed = JSON.parse(parsed);
+				if (Array.isArray(parsed)) list = parsed;
+			} catch {
+				return 'None';
+			}
+		}
+		if (list.includes('*')) return 'ALL MODULES';
+		if (list.length > 0) return list.join(', ');
+		return 'None';
+	}
+
+	// Define role list lengkap
+	const availableRoles = $derived(
+		Array.from(
+			new Set([
+				...ADMIN_ROLES,
+				...Object.keys(data.roleModuleMap || {}),
+				...Object.keys(ROLE_MODULE_MAP),
+				'manager',
+				'supervisor',
+				'hr',
+				'stakeholder',
+				'user'
+			])
+		).sort()
+	);
 
 	$effect(() => {
 		if (form) {
@@ -237,21 +266,7 @@
 									{user.erp_role}
 								</span>
 								<p class="text-xs text-on-surface-variant line-clamp-1 max-w-[200px]">
-									Custom: 
-									{#if Array.isArray(user.allowed_modules)}
-										{user.allowed_modules.includes('*') ? 'ALL MODULES' : (user.allowed_modules.join(', ') || 'None')}
-									{:else if typeof user.allowed_modules === 'string'}
-										{(() => {
-											try {
-												const parsed = JSON.parse(user.allowed_modules);
-												return parsed.includes('*') ? 'ALL MODULES' : (parsed.join(', ') || 'None');
-											} catch {
-												return 'None';
-											}
-										})()}
-									{:else}
-										None
-									{/if}
+									Custom: {getDisplayModules(user.allowed_modules)}
 								</p>
 							</td>
 							<td class="py-4 px-6">

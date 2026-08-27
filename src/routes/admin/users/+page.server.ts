@@ -21,6 +21,24 @@ import { ADMIN_ROLES } from '$lib/types/auth';
 
 const API_BASE_URL = env.API_URL || 'http://backend:9000';
 
+/**
+ * Helper untuk normalisasi dan parsing allowed_modules yang aman dan recursive
+ */
+function parseAllowedModules(val: any): string[] {
+	if (!val) return [];
+	if (Array.isArray(val)) return val;
+	if (typeof val === 'string') {
+		try {
+			let parsed = JSON.parse(val);
+			if (typeof parsed === 'string') parsed = JSON.parse(parsed);
+			if (Array.isArray(parsed)) return parsed;
+		} catch {
+			return [];
+		}
+	}
+	return [];
+}
+
 // ─────────────────────────────────────────────────────────
 // Helper: Panggil Laravel API dengan timeout & error handling
 // ─────────────────────────────────────────────────────────
@@ -103,7 +121,7 @@ async function getUsersFromDatabase() {
 		id: Number(u.id),
 		email: u.email,
 		erp_role: u.erp_role,
-		allowed_modules: typeof u.allowed_modules === 'string' ? JSON.parse(u.allowed_modules) : (u.allowed_modules || []),
+		allowed_modules: parseAllowedModules(u.allowed_modules),
 		is_active: Boolean(u.is_active),
 		karyawan_id: u.karyawan_id ? Number(u.karyawan_id) : null,
 		nama_karyawan: u.nama_karyawan || u.email,
@@ -133,7 +151,11 @@ export const load: PageServerLoad = async ({ cookies, parent }) => {
 	if (authToken) {
 		const apiResult = await tryLaravelApi('GET', '/api/v1/admin/users', authToken);
 		if (apiResult.ok && apiResult.data) {
-			return { usersList: apiResult.data, dataSource: 'laravel' as const, roleModuleMap };
+			const users = (apiResult.data as any[]).map((u: any) => ({
+				...u,
+				allowed_modules: parseAllowedModules(u.allowed_modules)
+			}));
+			return { usersList: users, dataSource: 'laravel' as const, roleModuleMap };
 		}
 	}
 
@@ -160,6 +182,7 @@ export const actions = {
 		const role = data.get('role')?.toString().trim();
 		const karyawanId = data.get('karyawan_id')?.toString();
 		const customModulesStr = data.get('allowed_modules')?.toString() || '[]';
+		const modulesArray = parseAllowedModules(customModulesStr);
 
 		if (!email || !password || !role) {
 			return fail(400, { success: false, message: 'Email, password, dan role wajib diisi' });
@@ -172,7 +195,7 @@ export const actions = {
 			const apiResult = await tryLaravelApi('POST', '/api/v1/admin/users', authToken, {
 				email, password, role,
 				karyawan_id: karyawanId ? Number(karyawanId) : null,
-				allowed_modules: customModulesStr
+				allowed_modules: modulesArray
 			});
 
 			if (apiResult.ok) {
@@ -183,7 +206,6 @@ export const actions = {
 		// Prioritas 2: Fallback ke PostgreSQL Langsung
 		try {
 			const hashedPassword = await bcrypt.hash(password, 12);
-			const parsedModules = typeof customModulesStr === 'string' ? JSON.parse(customModulesStr) : customModulesStr;
 			
 			await sql`
 				INSERT INTO master.erp_users (
@@ -193,7 +215,7 @@ export const actions = {
 					${hashedPassword}, 
 					${role}, 
 					${karyawanId ? Number(karyawanId) : null}, 
-					${JSON.stringify(parsedModules)}::jsonb, 
+					${JSON.stringify(modulesArray)}::jsonb, 
 					true, 
 					CURRENT_TIMESTAMP, 
 					CURRENT_TIMESTAMP
@@ -214,6 +236,7 @@ export const actions = {
 		const role = data.get('role')?.toString().trim();
 		const customModulesStr = data.get('allowed_modules')?.toString() || '[]';
 		const resetPassword = data.get('reset_password')?.toString();
+		const modulesArray = parseAllowedModules(customModulesStr);
 
 		if (!id || !role) {
 			return fail(400, { success: false, message: 'ID dan role wajib diisi' });
@@ -225,7 +248,7 @@ export const actions = {
 		if (authToken) {
 			const apiResult = await tryLaravelApi('PUT', `/api/v1/admin/users/${id}`, authToken, {
 				role,
-				allowed_modules: customModulesStr,
+				allowed_modules: modulesArray,
 				reset_password: resetPassword || ''
 			});
 
@@ -236,14 +259,12 @@ export const actions = {
 
 		// Prioritas 2: Fallback ke PostgreSQL Langsung
 		try {
-			const parsedModules = typeof customModulesStr === 'string' ? JSON.parse(customModulesStr) : customModulesStr;
-
 			if (resetPassword && resetPassword.trim()) {
 				const hashedPassword = await bcrypt.hash(resetPassword.trim(), 12);
 				await sql`
 					UPDATE master.erp_users 
 					SET erp_role = ${role}, 
-					    allowed_modules = ${JSON.stringify(parsedModules)}::jsonb, 
+					    allowed_modules = ${JSON.stringify(modulesArray)}::jsonb, 
 					    password = ${hashedPassword}, 
 					    updated_at = CURRENT_TIMESTAMP
 					WHERE id = ${id}
@@ -252,7 +273,7 @@ export const actions = {
 				await sql`
 					UPDATE master.erp_users 
 					SET erp_role = ${role}, 
-					    allowed_modules = ${JSON.stringify(parsedModules)}::jsonb, 
+					    allowed_modules = ${JSON.stringify(modulesArray)}::jsonb, 
 					    updated_at = CURRENT_TIMESTAMP
 					WHERE id = ${id}
 				`;

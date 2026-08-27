@@ -161,24 +161,34 @@ export async function getUserFromToken(token: string): Promise<AuthUser | null> 
 // ─────────────────────────────────────────────────────────
 
 export async function getDynamicRoleModuleMap(): Promise<Record<string, ModuleId[]>> {
+	const map: Record<string, ModuleId[]> = { ...ROLE_MODULE_MAP };
 	try {
+		// Fetch roles from master.roles
+		const dbRoles = await sql`SELECT name FROM master.roles`;
+		for (const r of dbRoles) {
+			if (!map[r.name] && !ADMIN_ROLES.includes(r.name) && r.name !== 'user') {
+				map[r.name] = [];
+			}
+		}
+
 		const rows = await sql`
 			SELECT r.name as role, array_agg(p.name) as modules
 			FROM master.roles r
-			LEFT JOIN master.role_has_permissions rhp ON rhp.role_id = r.id
-			LEFT JOIN master.permissions p ON p.id = rhp.permission_id
+			JOIN master.role_has_permissions rhp ON rhp.role_id = r.id
+			JOIN master.permissions p ON p.id = rhp.permission_id
 			WHERE p.name IS NOT NULL AND p.name LIKE 'module.%'
 			GROUP BY r.name
 		`;
 		
-		const map: Record<string, ModuleId[]> = {};
 		for (const row of rows) {
-			map[row.role] = row.modules.map((m: string) => m.replace('module.', '')) as ModuleId[];
+			if (row.modules && Array.isArray(row.modules)) {
+				map[row.role] = row.modules.map((m: string) => m.replace('module.', '')) as ModuleId[];
+			}
 		}
 		return map;
 	} catch (e) {
 		console.error("Error fetching dynamic role map:", e);
-		return ROLE_MODULE_MAP; // Fallback to static if DB fails
+		return ROLE_MODULE_MAP;
 	}
 }
 
