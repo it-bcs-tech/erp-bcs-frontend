@@ -1,6 +1,7 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import sql from '$lib/server/db';
+import { verifyUserData } from '$lib/server/auth';
 import { ADMIN_ROLES, type AuthUser } from '$lib/types/auth';
 
 export const GET: RequestHandler = async ({ url, cookies }) => {
@@ -9,11 +10,14 @@ export const GET: RequestHandler = async ({ url, cookies }) => {
 	if (!userDataCookie) return json({ error: 'Unauthorized' }, { status: 401 });
 	
 	try {
-		const user: AuthUser = verifyUserData(userDataCookie);
-		if (!ADMIN_ROLES.includes(user.role)) {
+		const user: AuthUser | null = verifyUserData(userDataCookie);
+		if (!user) {
+			return json({ error: 'Unauthorized' }, { status: 401 });
+		}
+		if (!ADMIN_ROLES.includes(user.role) && !['superadmin', 'superhyperadmin', 'super_admin', 'administrator'].includes(user.role)) {
 			return json({ error: 'Forbidden' }, { status: 403 });
 		}
-	} catch {
+	} catch (e: any) {
 		return json({ error: 'Unauthorized' }, { status: 401 });
 	}
 

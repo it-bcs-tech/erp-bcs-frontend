@@ -1,5 +1,6 @@
 import { redirect } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
+import { verifyUserData } from '$lib/server/auth';
 
 export const load: PageServerLoad = async ({ cookies }) => {
 	// Cek allowed_modules dari cookie user_data untuk menentukan redirect yang tepat

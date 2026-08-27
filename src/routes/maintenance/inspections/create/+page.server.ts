@@ -2,6 +2,7 @@ import type { PageServerLoad, Actions } from './$types';
 import { redirect, fail } from '@sveltejs/kit';
 import postgres from 'postgres';
 import { env } from '$env/dynamic/private';
+import { verifyUserData } from '$lib/server/auth';
 
 const sql = postgres(env.DATABASE_URL || 'postgres://bcs_admin:sangatrahasia@103.31.205.199:5433/mybcs_db');
 
