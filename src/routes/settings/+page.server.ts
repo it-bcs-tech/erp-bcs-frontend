@@ -1,7 +1,17 @@
+import { redirect } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 import sql from '$lib/server/db';
+import { ADMIN_ROLES } from '$lib/types/auth';
 
-export const load: PageServerLoad = async () => {
+export const load: PageServerLoad = async ({ parent }) => {
+	const { user } = await parent();
+
+	// Proteksi ketat: Hanya Super Admin / Administrator yang diizinkan mengakses halaman Settings
+	const isSuperAdmin = user && (ADMIN_ROLES.includes(user.role) || ['superadmin', 'superhyperadmin', 'super_admin', 'administrator'].includes(user.role));
+
+	if (!isSuperAdmin) {
+		throw redirect(303, '/');
+	}
 	try {
 		// Ambil status pool logistik & database health
 		const poolList = await sql`

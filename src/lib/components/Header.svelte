@@ -61,9 +61,8 @@
 			
 			{#if admin}
 				<a class="text-sm font-bold transition-colors {currentPath.startsWith('/admin') ? 'text-[#57344f] border-b-2 border-[#57344f] pb-1' : 'text-slate-500 dark:text-slate-400 hover:text-[#57344f]'}" href="/admin/users">System Admin</a>
+				<a class="text-sm font-bold transition-colors {currentPath === '/settings' ? 'text-[#57344f] border-b-2 border-[#57344f] pb-1' : 'text-slate-500 dark:text-slate-400 hover:text-[#57344f]'}" href="/settings">Settings</a>
 			{/if}
-			
-			<a class="text-sm font-bold transition-colors {currentPath === '/settings' ? 'text-[#57344f] border-b-2 border-[#57344f] pb-1' : 'text-slate-500 dark:text-slate-400 hover:text-[#57344f]'}" href="/settings">Settings</a>
 		</nav>
 
 	</div>
@@ -216,14 +215,14 @@
 								<span class="material-symbols-outlined text-[18px] text-on-surface-variant">manage_accounts</span>
 								User Management
 							</button>
+							<button 
+								onclick={() => { goto('/settings'); isProfileOpen = false; }}
+								class="w-full flex items-center gap-3 px-4 py-2 text-on-surface hover:bg-surface-container-low rounded-xl transition-colors text-sm font-semibold mb-1 cursor-pointer"
+							>
+								<span class="material-symbols-outlined text-[18px] text-on-surface-variant">tune</span>
+								Settings & Privasi
+							</button>
 						{/if}
-						<button 
-							onclick={() => { goto('/settings'); isProfileOpen = false; }}
-							class="w-full flex items-center gap-3 px-4 py-2 text-on-surface hover:bg-surface-container-low rounded-xl transition-colors text-sm font-semibold mb-1 cursor-pointer"
-						>
-							<span class="material-symbols-outlined text-[18px] text-on-surface-variant">tune</span>
-							Settings & Privasi
-						</button>
 						<button 
 							onclick={handleLogout}
 							class="w-full flex items-center gap-3 px-4 py-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl transition-colors text-sm font-semibold cursor-pointer"

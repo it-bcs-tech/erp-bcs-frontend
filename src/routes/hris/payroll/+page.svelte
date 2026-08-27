@@ -2,6 +2,7 @@
 	import { goto } from '$app/navigation';
 	import { page } from '$app/stores';
 	import { systemSettings, formatCurrencyPrivacy, formatMaskedText } from '$lib/stores/settings';
+	import { isAdmin } from '$lib/stores/auth';
 
 	let { data } = $props();
 
@@ -241,10 +242,12 @@
 					<strong>Mode Presentasi Aktif:</strong> Seluruh nominal rupiah disamarkan menjadi <code class="px-1.5 py-0.5 rounded bg-amber-500/20 font-mono font-bold">Rp ••••••••</code> untuk keamanan layar saat presentasi.
 				</span>
 			</div>
-			<a href="/settings" class="text-amber-700 dark:text-amber-300 font-bold hover:underline inline-flex items-center gap-1">
-				<span>Ubah di Pengaturan</span>
-				<span class="material-symbols-outlined text-xs">arrow_forward</span>
-			</a>
+			{#if $isAdmin}
+				<a href="/settings" class="text-amber-700 dark:text-amber-300 font-bold hover:underline inline-flex items-center gap-1">
+					<span>Ubah di Pengaturan</span>
+					<span class="material-symbols-outlined text-xs">arrow_forward</span>
+				</a>
+			{/if}
 		</div>
 	{/if}
 

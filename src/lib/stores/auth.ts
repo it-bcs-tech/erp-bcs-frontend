@@ -23,9 +23,9 @@ export const authUser = writable<AuthUser | null>(null);
 /** Apakah user sudah login */
 export const isLoggedIn = derived(authUser, ($user) => $user !== null);
 
-/** Apakah user adalah admin (superadmin/superhyperadmin) */
+/** Apakah user adalah admin (superadmin/superhyperadmin/super_admin/administrator) */
 export const isAdmin = derived(authUser, ($user) =>
-	$user ? ['superadmin', 'superhyperadmin'].includes($user.role) : false
+	$user ? ['superadmin', 'administrator', 'superhyperadmin', 'super_admin'].includes($user.role) : false
 );
 
 /** Nama display user */
@@ -52,7 +52,7 @@ export const userInitials = derived(authUser, ($user) => {
  */
 export function hasModuleAccess(user: AuthUser | null, moduleId: string): boolean {
 	if (!user) return false;
-	if (['superadmin', 'administrator', 'superhyperadmin'].includes(user.role)) return true;
+	if (['superadmin', 'administrator', 'superhyperadmin', 'super_admin'].includes(user.role)) return true;
 	// Akses diberikan jika user memiliki full modul ATAU minimal satu menu di dalam modul tersebut
 	return user.allowedModules.some(m => m === moduleId || m.startsWith(`${moduleId}.`));
 }
@@ -63,7 +63,7 @@ export function hasModuleAccess(user: AuthUser | null, moduleId: string): boolea
  */
 export function hasMenuAccess(user: AuthUser | null, moduleId: string, menuId: string): boolean {
 	if (!user) return false;
-	if (['superadmin', 'administrator', 'superhyperadmin'].includes(user.role)) return true;
+	if (['superadmin', 'administrator', 'superhyperadmin', 'super_admin'].includes(user.role)) return true;
 	
 	// Cek apakah user memiliki override spesifik (dot notation) untuk modul ini
 	const hasSpecificOverrides = user.allowedModules.some(m => m !== moduleId && m.startsWith(`${moduleId}.`));

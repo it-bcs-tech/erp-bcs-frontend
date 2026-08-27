@@ -4,9 +4,32 @@
 
 	let { data, form } = $props();
 
-	let activeCategory = $state(data.category);
-	let selectedSeverity = $state(data.severity);
-	let searchQuery = $state(data.searchQuery);
+	let activeCategory = $state(data.category || 'sim');
+	let selectedSeverity = $state(data.severity || '');
+	let searchQuery = $state(data.searchQuery || '');
+
+	// Sync state if server data changes
+	$effect(() => {
+		activeCategory = data.category || 'sim';
+		selectedSeverity = data.severity || '';
+		searchQuery = data.searchQuery || '';
+	});
+
+	// Pagination State
+	let currentPage = $state(1);
+	const pageSize = 50;
+
+	// Reset page when category, severity, or search changes
+	$effect(() => {
+		const _ = [activeCategory, selectedSeverity, searchQuery, data.documents];
+		currentPage = 1;
+	});
+
+	const totalDocuments = $derived(data.documents ? data.documents.length : 0);
+	const totalPages = $derived(Math.ceil(totalDocuments / pageSize) || 1);
+	const paginatedDocs = $derived(
+		(data.documents || []).slice((currentPage - 1) * pageSize, currentPage * pageSize)
+	);
 
 	let selectedDoc = $state<any>(null);
 	let showModal = $state(false);
@@ -15,10 +38,12 @@
 
 	function handleCategoryChange(cat: string) {
 		activeCategory = cat;
+		currentPage = 1;
 		updateFilters();
 	}
 
 	function handleFilterChange() {
+		currentPage = 1;
 		updateFilters();
 	}
 
@@ -81,8 +106,8 @@
 	<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
 		<!-- Expired Alert -->
 		<button
-			onclick={() => { selectedSeverity = 'expired'; handleFilterChange(); }}
-			class="p-5 rounded-2xl bg-rose-500/5 border border-rose-500/20 shadow-xs text-left cursor-pointer hover:bg-rose-500/10 transition-all"
+			onclick={() => { selectedSeverity = selectedSeverity === 'expired' ? '' : 'expired'; handleFilterChange(); }}
+			class="p-5 rounded-2xl border text-left cursor-pointer transition-all {selectedSeverity === 'expired' ? 'bg-rose-500/15 border-rose-500 ring-2 ring-rose-500/30' : 'bg-rose-500/5 border-rose-500/20 hover:bg-rose-500/10'}"
 		>
 			<div class="flex items-center justify-between">
 				<div>
@@ -98,8 +123,8 @@
 
 		<!-- Critical H-30 -->
 		<button
-			onclick={() => { selectedSeverity = 'critical'; handleFilterChange(); }}
-			class="p-5 rounded-2xl bg-amber-500/5 border border-amber-500/20 shadow-xs text-left cursor-pointer hover:bg-amber-500/10 transition-all"
+			onclick={() => { selectedSeverity = selectedSeverity === 'critical' ? '' : 'critical'; handleFilterChange(); }}
+			class="p-5 rounded-2xl border text-left cursor-pointer transition-all {selectedSeverity === 'critical' ? 'bg-amber-500/15 border-amber-500 ring-2 ring-amber-500/30' : 'bg-amber-500/5 border-amber-500/20 hover:bg-amber-500/10'}"
 		>
 			<div class="flex items-center justify-between">
 				<div>
@@ -115,8 +140,8 @@
 
 		<!-- Warning H-60 -->
 		<button
-			onclick={() => { selectedSeverity = 'warning'; handleFilterChange(); }}
-			class="p-5 rounded-2xl bg-yellow-500/5 border border-yellow-500/20 shadow-xs text-left cursor-pointer hover:bg-yellow-500/10 transition-all"
+			onclick={() => { selectedSeverity = selectedSeverity === 'warning' ? '' : 'warning'; handleFilterChange(); }}
+			class="p-5 rounded-2xl border text-left cursor-pointer transition-all {selectedSeverity === 'warning' ? 'bg-yellow-500/15 border-yellow-500 ring-2 ring-yellow-500/30' : 'bg-yellow-500/5 border-yellow-500/20 hover:bg-yellow-500/10'}"
 		>
 			<div class="flex items-center justify-between">
 				<div>
@@ -132,8 +157,8 @@
 
 		<!-- Valid -->
 		<button
-			onclick={() => { selectedSeverity = 'valid'; handleFilterChange(); }}
-			class="p-5 rounded-2xl bg-emerald-500/5 border border-emerald-500/20 shadow-xs text-left cursor-pointer hover:bg-emerald-500/10 transition-all"
+			onclick={() => { selectedSeverity = selectedSeverity === 'valid' ? '' : 'valid'; handleFilterChange(); }}
+			class="p-5 rounded-2xl border text-left cursor-pointer transition-all {selectedSeverity === 'valid' ? 'bg-emerald-500/15 border-emerald-500 ring-2 ring-emerald-500/30' : 'bg-emerald-500/5 border-emerald-500/20 hover:bg-emerald-500/10'}"
 		>
 			<div class="flex items-center justify-between">
 				<div>
@@ -148,30 +173,39 @@
 		</button>
 	</div>
 
-	<!-- 4 Category Tabs (Segmented Control) -->
+	<!-- 3 Category Tabs (Segmented Control) -->
 	<div class="inline-flex p-1 rounded-2xl bg-surface-container border border-slate-200 dark:border-slate-800 overflow-x-auto max-w-full">
 		<button
 			onclick={() => handleCategoryChange('sim')}
-			class="px-4 py-2 rounded-xl font-bold text-xs transition-all cursor-pointer flex items-center gap-2 whitespace-nowrap {activeCategory === 'sim' ? 'bg-surface text-primary shadow-xs' : 'text-on-surface-variant hover:text-on-surface'}"
+			class="px-4 py-2.5 rounded-xl font-bold text-xs transition-all cursor-pointer flex items-center gap-2 whitespace-nowrap {activeCategory === 'sim' ? 'bg-surface text-primary shadow-xs' : 'text-on-surface-variant hover:text-on-surface'}"
 		>
 			<span class="material-symbols-outlined text-sm">badge</span>
-			<span>SIM Driver (A/B1/B2)</span>
+			<span>SIM Driver (A / B1 / B2 / C)</span>
+			<span class="px-2 py-0.5 rounded-full text-[10px] {activeCategory === 'sim' ? 'bg-primary/10 text-primary' : 'bg-surface-container-high text-on-surface-variant'} font-bold font-mono">
+				{data.summary.sim_count || 0}
+			</span>
 		</button>
 
 		<button
 			onclick={() => handleCategoryChange('contract')}
-			class="px-4 py-2 rounded-xl font-bold text-xs transition-all cursor-pointer flex items-center gap-2 whitespace-nowrap {activeCategory === 'contract' ? 'bg-surface text-primary shadow-xs' : 'text-on-surface-variant hover:text-on-surface'}"
+			class="px-4 py-2.5 rounded-xl font-bold text-xs transition-all cursor-pointer flex items-center gap-2 whitespace-nowrap {activeCategory === 'contract' ? 'bg-surface text-primary shadow-xs' : 'text-on-surface-variant hover:text-on-surface'}"
 		>
 			<span class="material-symbols-outlined text-sm">assignment</span>
 			<span>Kontrak Kerja PKWT</span>
+			<span class="px-2 py-0.5 rounded-full text-[10px] {activeCategory === 'contract' ? 'bg-primary/10 text-primary' : 'bg-surface-container-high text-on-surface-variant'} font-bold font-mono">
+				{data.summary.contract_count || 0}
+			</span>
 		</button>
 
 		<button
 			onclick={() => handleCategoryChange('k3')}
-			class="px-4 py-2 rounded-xl font-bold text-xs transition-all cursor-pointer flex items-center gap-2 whitespace-nowrap {activeCategory === 'k3' ? 'bg-surface text-primary shadow-xs' : 'text-on-surface-variant hover:text-on-surface'}"
+			class="px-4 py-2.5 rounded-xl font-bold text-xs transition-all cursor-pointer flex items-center gap-2 whitespace-nowrap {activeCategory === 'k3' ? 'bg-surface text-primary shadow-xs' : 'text-on-surface-variant hover:text-on-surface'}"
 		>
 			<span class="material-symbols-outlined text-sm">health_and_safety</span>
 			<span>Sertifikat K3 & Training</span>
+			<span class="px-2 py-0.5 rounded-full text-[10px] {activeCategory === 'k3' ? 'bg-primary/10 text-primary' : 'bg-surface-container-high text-on-surface-variant'} font-bold font-mono">
+				{data.summary.k3_count || 0}
+			</span>
 		</button>
 	</div>
 
@@ -190,9 +224,18 @@
 				<option value="warning">🟡 Warning (H-60 Hari)</option>
 				<option value="valid">🟢 Valid / Aman</option>
 			</select>
+
+			{#if selectedSeverity || searchQuery}
+				<button
+					onclick={() => { selectedSeverity = ''; searchQuery = ''; handleFilterChange(); }}
+					class="text-xs font-bold text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 underline cursor-pointer"
+				>
+					Reset Filter
+				</button>
+			{/if}
 		</div>
 
-		<div class="relative w-full md:w-72">
+		<div class="relative w-full md:w-80">
 			<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">search</span>
 			<input
 				type="text"
@@ -217,41 +260,46 @@
 			<table class="w-full text-left text-sm">
 				<thead class="bg-slate-100/70 dark:bg-slate-800/50 text-xs font-bold text-on-surface-variant uppercase tracking-wider border-b border-slate-200/60 dark:border-slate-800/60">
 					<tr>
-						<th class="px-5 py-3.5">Karyawan</th>
+						<th class="px-5 py-3.5">Karyawan / Partisipan</th>
+						<th class="px-5 py-3.5">Departemen</th>
 						<th class="px-5 py-3.5">Jenis Dokumen</th>
-						<th class="px-5 py-3.5">Nomor Dokumen</th>
+						<th class="px-5 py-3.5">Nomor / Judul Dokumen</th>
 						<th class="px-5 py-3.5">Tanggal Expired</th>
 						<th class="px-5 py-3.5">Status Severity</th>
 						<th class="px-5 py-3.5 text-right">Aksi</th>
 					</tr>
 				</thead>
 				<tbody class="divide-y divide-slate-200/60 dark:divide-slate-800/60">
-					{#if data.documents.length === 0}
+					{#if paginatedDocs.length === 0}
 						<tr>
-							<td colspan="6" class="px-5 py-12 text-center text-on-surface-variant font-medium">
+							<td colspan="7" class="px-5 py-12 text-center text-on-surface-variant font-medium">
 								<span class="material-symbols-outlined text-4xl text-slate-300 block mb-2">verified_user</span>
 								Tidak ada data dokumen ditemukan untuk kriteria ini.
 							</td>
 						</tr>
 					{:else}
-						{#each data.documents as doc}
+						{#each paginatedDocs as doc}
 							{@const badge = getSeverityBadge(doc.status, doc.days_remaining)}
 							<tr class="hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors">
 								<td class="px-5 py-4">
 									<div>
 										<p class="font-bold text-on-surface">{doc.nama_karyawan || '-'}</p>
 										<p class="text-xs text-on-surface-variant font-mono mt-0.5">NIK: {doc.payroll_id || '-'}</p>
+										<p class="text-[11px] text-slate-400 mt-0.5">{doc.job_title || ''}</p>
 									</div>
+								</td>
+								<td class="px-5 py-4 text-xs font-medium text-on-surface-variant">
+									{doc.dept_name || '-'}
 								</td>
 								<td class="px-5 py-4">
 									<span class="px-2.5 py-1 rounded-lg bg-surface-container text-on-surface font-semibold text-xs inline-block">
 										{doc.doc_type}
 									</span>
 								</td>
-								<td class="px-5 py-4 font-mono font-semibold text-on-surface">
+								<td class="px-5 py-4 font-mono font-semibold text-on-surface max-w-xs truncate" title={doc.doc_number}>
 									{doc.doc_number || '-'}
 								</td>
-								<td class="px-5 py-4 font-bold text-on-surface">
+								<td class="px-5 py-4 font-bold text-on-surface font-mono">
 									{doc.expire_date || 'N/A'}
 								</td>
 								<td class="px-5 py-4">
@@ -274,6 +322,38 @@
 				</tbody>
 			</table>
 		</div>
+
+		<!-- Pagination Footer -->
+		{#if totalDocuments > pageSize}
+			<div class="px-5 py-4 bg-surface border-t border-slate-200/60 dark:border-slate-800/60 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-on-surface-variant">
+				<div>
+					Menampilkan <strong class="text-on-surface font-mono">{(currentPage - 1) * pageSize + 1}</strong> - <strong class="text-on-surface font-mono">{Math.min(currentPage * pageSize, totalDocuments)}</strong> dari <strong class="text-on-surface font-mono">{totalDocuments}</strong> dokumen
+				</div>
+				<div class="flex items-center gap-2">
+					<button
+						onclick={() => currentPage = Math.max(1, currentPage - 1)}
+						disabled={currentPage === 1}
+						class="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 font-bold hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer flex items-center gap-1"
+					>
+						<span class="material-symbols-outlined text-sm">chevron_left</span>
+						<span>Sebelumnya</span>
+					</button>
+
+					<span class="px-3 py-1.5 font-bold font-mono">
+						Halaman {currentPage} dari {totalPages}
+					</span>
+
+					<button
+						onclick={() => currentPage = Math.min(totalPages, currentPage + 1)}
+						disabled={currentPage === totalPages}
+						class="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 font-bold hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer flex items-center gap-1"
+					>
+						<span>Berikutnya</span>
+						<span class="material-symbols-outlined text-sm">chevron_right</span>
+					</button>
+				</div>
+			</div>
+		{/if}
 	</div>
 </div>
 
@@ -306,13 +386,13 @@
 				<input type="hidden" name="doc_type" value={selectedDoc.doc_type} />
 
 				<div class="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/40">
-					<span class="text-slate-400 block">Karyawan</span>
+					<span class="text-slate-400 block">Karyawan / Partisipan</span>
 					<span class="text-sm font-bold text-on-surface block">{selectedDoc.nama_karyawan}</span>
 					<span class="text-xs font-semibold text-primary mt-1 block">{selectedDoc.doc_type}</span>
 				</div>
 
 				<div class="space-y-1">
-					<label for="new_doc_number_input" class="font-bold text-on-surface block uppercase tracking-wider">Nomor Dokumen Baru:</label>
+					<label for="new_doc_number_input" class="font-bold text-on-surface block uppercase tracking-wider">Nomor / Judul Dokumen:</label>
 					<input
 						id="new_doc_number_input"
 						type="text"

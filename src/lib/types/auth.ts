@@ -45,8 +45,8 @@ export const MODULE_MENUS: Record<string, { id: string; name: string }[]> = {
 /** Level sequence minimum untuk akses OCS (Supervisor = 4) */
 export const OCS_MIN_LEVEL_SEQUENCE = 4;
 
-/** Role yang dianggap sebagai administrator (akses semua modul) */
-export const ADMIN_ROLES = ['superadmin', 'administrator'];
+/** Role yang dianggap sebagai administrator (akses semua modul & pengaturan) */
+export const ADMIN_ROLES = ['superadmin', 'administrator', 'superhyperadmin', 'super_admin'];
 
 /**
  * Mapping Role Spesifik ERP → Modul
