@@ -62,6 +62,20 @@ export async function authenticateUser(
 	`;
 	const user = rows[0];
 
+	if (!user) {
+		throw new AuthError('User tidak ditemukan', 'USER_NOT_FOUND');
+	}
+
+	if (!user.is_active) {
+		throw new AuthError('Akun ini dinonaktifkan. Silakan hubungi administrator.', 'ACCOUNT_INACTIVE');
+	}
+
+	// Verifikasi password dengan bcrypt
+	const isPasswordMatch = await bcrypt.compare(password, user.password);
+	if (!isPasswordMatch) {
+		throw new AuthError('Password yang Anda masukkan salah', 'INVALID_PASSWORD');
+	}
+
 	// 4. Update last_login_at
 	await sql`
 		UPDATE master.erp_users 

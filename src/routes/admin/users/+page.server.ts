@@ -39,6 +39,17 @@ function parseAllowedModules(val: any): string[] {
 	return [];
 }
 
+/**
+ * Menghasilkan hash bcrypt standar PHP ($2y$) agar kompatibel 100% dengan Laravel BcryptHasher
+ */
+async function hashPassword(password: string): Promise<string> {
+	const rawHash = await bcrypt.hash(password, 12);
+	if (rawHash.startsWith('$2a$') || rawHash.startsWith('$2b$')) {
+		return '$2y$' + rawHash.slice(4);
+	}
+	return rawHash;
+}
+
 // ─────────────────────────────────────────────────────────
 // Helper: Panggil Laravel API dengan timeout & error handling
 // ─────────────────────────────────────────────────────────
@@ -205,7 +216,7 @@ export const actions = {
 
 		// Prioritas 2: Fallback ke PostgreSQL Langsung
 		try {
-			const hashedPassword = await bcrypt.hash(password, 12);
+			const hashedPassword = await hashPassword(password);
 			
 			await sql`
 				INSERT INTO master.erp_users (
@@ -260,7 +271,7 @@ export const actions = {
 		// Prioritas 2: Fallback ke PostgreSQL Langsung
 		try {
 			if (resetPassword && resetPassword.trim()) {
-				const hashedPassword = await bcrypt.hash(resetPassword.trim(), 12);
+				const hashedPassword = await hashPassword(resetPassword.trim());
 				await sql`
 					UPDATE master.erp_users 
 					SET erp_role = ${role}, 
