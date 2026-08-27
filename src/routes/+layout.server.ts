@@ -32,35 +32,30 @@ export const load: LayoutServerLoad = async ({ cookies }) => {
 		}
 	}
 
-	if (authToken && cookieUser) {
+	if (cookieUser && cookieUser.email) {
 		try {
-			// Jika auth berasal dari Laravel (via API), kita percayakan 100% pada isi cookie
-			// karena Laravel API sudah mengirimkan payload RBAC / allowedModules yang benar.
-			if (cookieUser.authSource === 'laravel' && authToken.startsWith('eyJ')) {
-				user = cookieUser;
-			} else {
-				// Jika token Svelte internal, baru lakukan validasi ke DB lokal Svelte
-				let freshUser = await getUserFromToken(authToken);
+			// Selalu refresh data user dari database agar update role/modul dari Admin langsung aktif seketika
+			const freshUser = await getAuthUserByEmail(cookieUser.email);
+			if (freshUser) {
+				freshUser.authSource = cookieUser.authSource || 'laravel';
+				user = freshUser;
 
-				if (freshUser) {
-					freshUser.authSource = cookieUser.authSource;
-					user = freshUser;
-
+				// Refresh signed user_data cookie jika ada token aktif
+				if (authToken) {
 					cookies.set('user_data', signUserData(user), {
 						path: '/',
 						httpOnly: true,
 						sameSite: 'lax',
 						maxAge: 60 * 60 * 24
 					});
-				} else {
-					user = cookieUser;
 				}
+			} else {
+				user = cookieUser;
 			}
 		} catch {
 			user = cookieUser;
 		}
 	} else if (cookieUser) {
-		// Ada cookie tapi tidak ada token — pakai cookie apa adanya
 		user = cookieUser;
 	}
 

@@ -71,33 +71,31 @@ export const actions = {
 						userData.authSource = 'laravel';
 						userData.titleName = userData.title_name || userData.titleName || userData.title || '';
 						
-						// Jika Laravel tidak mengembalikan title_name, ambil dari database Svelte
-						if (!userData.titleName) {
-							try {
-								const localUser = await getAuthUserByEmail(email);
-								if (localUser && localUser.titleName) {
-									userData.titleName = localUser.titleName;
+						// Sinkronisasi profil & hak akses modul lengkap dari database PostgreSQL
+						try {
+							const localUser = await getAuthUserByEmail(email);
+							if (localUser) {
+								if (localUser.titleName) userData.titleName = localUser.titleName;
+								if (localUser.role) userData.role = localUser.role;
+								if (localUser.division) userData.division = localUser.division;
+								if (localUser.divisionCode) userData.divisionCode = localUser.divisionCode;
+								if (localUser.level) userData.level = localUser.level;
+								if (localUser.levelSequence) userData.levelSequence = localUser.levelSequence;
+								if (Array.isArray(localUser.allowedModules) && localUser.allowedModules.length > 0) {
+									userData.allowedModules = localUser.allowedModules;
 								}
-							} catch (err) {
-								console.error("Gagal mengambil titleName lokal:", err);
 							}
+						} catch (err) {
+							console.error("Gagal sinkronisasi data user lokal:", err);
 						}
 						
-						console.log(`🔍 [Login Debug] Raw allowedModules from Laravel:`, JSON.stringify(userData.allowedModules));
-						
-						// Bersihkan prefix 'module.' dari array permissions jika Laravel Spatie mengirimkannya
-						if (Array.isArray(userData.allowedModules)) {
-							userData.allowedModules = userData.allowedModules.map((m: string) => m.replace(/^module\./, ''));
-						} else {
-							console.warn(`⚠️ [Login Debug] allowedModules is NOT an array! Type: ${typeof userData.allowedModules}, Value: ${JSON.stringify(userData.allowedModules)}`);
-							// Jika bukan array, coba parse
-							if (typeof userData.allowedModules === 'string') {
-								try { userData.allowedModules = JSON.parse(userData.allowedModules); } catch {}
-							}
-							if (!Array.isArray(userData.allowedModules)) {
+						// Fallback jika belum terisi dari database lokal
+						if (!Array.isArray(userData.allowedModules) || userData.allowedModules.length === 0) {
+							if (Array.isArray(json.data.user?.allowedModules) && json.data.user.allowedModules.length > 0) {
+								userData.allowedModules = json.data.user.allowedModules.map((m: string) => m.replace(/^module\./, ''));
+							} else {
 								userData.allowedModules = [];
 							}
-							userData.allowedModules = userData.allowedModules.map((m: string) => m.replace(/^module\./, ''));
 						}
 						
 						console.log(`✅ [Login Debug] Final allowedModules stored in cookie:`, JSON.stringify(userData.allowedModules));
