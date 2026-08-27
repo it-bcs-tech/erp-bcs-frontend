@@ -1,20 +1,23 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
+	import { systemSettings, formatCurrencyPrivacy, formatMaskedText } from '$lib/stores/settings';
+	import { isAdmin } from '$lib/stores/auth';
 
 	let { data } = $props();
 
-	let searchQuery = $state(data.searchQuery);
-	let selectedStatus = $state(data.statusFilter);
+	let searchQuery = $state(data.searchQuery || '');
+	let selectedStatus = $state(data.statusFilter || '');
+
+	$effect(() => {
+		searchQuery = data.searchQuery || '';
+		selectedStatus = data.statusFilter || '';
+	});
 
 	let selectedLoan = $state<any>(null);
 	let showModal = $state(false);
 
-	function formatRupiah(val: number) {
-		return new Intl.NumberFormat('id-ID', {
-			style: 'currency',
-			currency: 'IDR',
-			maximumFractionDigits: 0
-		}).format(val || 0);
+	function formatRupiah(val: number | null | undefined) {
+		return formatCurrencyPrivacy(val, $systemSettings.hideSalaryNominals);
 	}
 
 	function handleFilterChange() {
@@ -77,6 +80,24 @@
 			</div>
 		</div>
 	</div>
+
+	<!-- Alert Banner: Mode Presentasi Aktif -->
+	{#if $systemSettings.hideSalaryNominals}
+		<div class="p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-xs text-amber-900 dark:text-amber-200 flex items-center justify-between animate-in fade-in">
+			<div class="flex items-center gap-2">
+				<span class="material-symbols-outlined text-amber-600 text-lg">visibility_off</span>
+				<span>
+					<strong>Mode Presentasi Aktif:</strong> Seluruh nominal rupiah pinjaman & kasbon disamarkan menjadi <code class="px-1.5 py-0.5 rounded bg-amber-500/20 font-mono font-bold">Rp ••••••••</code> untuk keamanan layar saat presentasi.
+				</span>
+			</div>
+			{#if $isAdmin}
+				<a href="/settings" class="text-amber-700 dark:text-amber-300 font-bold hover:underline inline-flex items-center gap-1">
+					<span>Ubah di Pengaturan</span>
+					<span class="material-symbols-outlined text-xs">arrow_forward</span>
+				</a>
+			{/if}
+		</div>
+	{/if}
 
 	<!-- Summary Cards -->
 	<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -215,16 +236,16 @@
 										<p class="text-xs text-on-surface-variant mt-0.5">Tgl Pengajuan: {loan.request_date || '-'}</p>
 									</div>
 								</td>
-								<td class="px-5 py-4 font-bold text-on-surface">
+								<td class="px-5 py-4 font-bold text-on-surface font-mono">
 									{formatRupiah(loan.amount)}
 								</td>
 								<td class="px-5 py-4">
 									<div>
 										<p class="font-semibold text-on-surface">{loan.tenor_months} Bulan</p>
-										<p class="text-xs text-primary font-medium mt-0.5">{formatRupiah(loan.monthly_installment)}/bln</p>
+										<p class="text-xs text-primary font-bold font-mono mt-0.5">{formatRupiah(loan.monthly_installment)}/bln</p>
 									</div>
 								</td>
-								<td class="px-5 py-4 font-black text-rose-600">
+								<td class="px-5 py-4 font-black text-rose-600 font-mono">
 									{formatRupiah(loan.remaining_amount)}
 								</td>
 								<td class="px-5 py-4 text-xs font-medium text-on-surface-variant max-w-xs truncate">
@@ -287,19 +308,19 @@
 					</div>
 					<div>
 						<span class="text-slate-400 block">Plafond Pinjaman</span>
-						<span class="text-sm font-bold text-emerald-600">{formatRupiah(selectedLoan.amount)}</span>
+						<span class="text-sm font-bold text-emerald-600 font-mono">{formatRupiah(selectedLoan.amount)}</span>
 					</div>
 					<div>
 						<span class="text-slate-400 block">Sisa Outstanding</span>
-						<span class="text-sm font-bold text-rose-600">{formatRupiah(selectedLoan.remaining_amount)}</span>
+						<span class="text-sm font-bold text-rose-600 font-mono">{formatRupiah(selectedLoan.remaining_amount)}</span>
 					</div>
 					<div>
 						<span class="text-slate-400 block">Tenor & Cicilan</span>
-						<span class="font-semibold text-on-surface">{selectedLoan.tenor_months} Bulan ({formatRupiah(selectedLoan.monthly_installment)}/bln)</span>
+						<span class="font-semibold text-on-surface">{selectedLoan.tenor_months} Bulan (<span class="font-mono">{formatRupiah(selectedLoan.monthly_installment)}</span>/bln)</span>
 					</div>
 					<div>
 						<span class="text-slate-400 block">Rekening Pencairan</span>
-						<span class="font-semibold text-on-surface">{selectedLoan.bank_name || 'BCA'} - {selectedLoan.bank_account_number || '-'}</span>
+						<span class="font-semibold text-on-surface">{selectedLoan.bank_name || 'BCA'} - {formatMaskedText(selectedLoan.bank_account_number, $systemSettings.maskSensitiveInfo)}</span>
 					</div>
 				</div>
 
