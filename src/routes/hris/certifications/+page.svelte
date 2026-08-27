@@ -92,10 +92,7 @@
 	<!-- Top Bar -->
 	<div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
 		<div>
-			<div class="flex items-center gap-2.5">
-				<span class="material-symbols-outlined text-primary text-2xl">verified</span>
-				<h1 class="text-2xl font-black text-on-surface tracking-tight">Document Expiry & Certifications</h1>
-			</div>
+			<h1 class="text-2xl font-black text-on-surface tracking-tight">Document Expiry & Certifications</h1>
 			<p class="text-sm text-on-surface-variant font-medium mt-0.5">
 				Peringatan Dini Masa Berlaku SIM Driver, Sertifikasi K3 & Kontrak Kerja PKWT
 			</p>
@@ -310,10 +307,9 @@
 								<td class="px-5 py-4 text-right">
 									<button
 										onclick={() => openRenewModal(doc)}
-										class="px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-xs font-bold text-primary transition-all cursor-pointer inline-flex items-center gap-1"
+										class="px-3.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-xs font-bold text-primary transition-all cursor-pointer"
 									>
-										<span class="material-symbols-outlined text-sm">edit_calendar</span>
-										<span>Perbarui</span>
+										Perbarui
 									</button>
 								</td>
 							</tr>

@@ -121,9 +121,6 @@
 				</div>
 			{/if}
 		</div>
-		<button class="p-2 text-slate-500 hover:bg-slate-200/50 dark:hover:bg-slate-800/50 rounded-lg transition-all">
-			<span class="material-symbols-outlined">apps</span>
-		</button>
 
 		<!-- User Profile Section -->
 		<div class="relative ml-1" use:clickOutside={() => isProfileOpen = false}>

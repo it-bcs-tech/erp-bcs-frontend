@@ -259,10 +259,9 @@
 								<td class="px-5 py-4 text-right">
 									<button
 										onclick={() => openLoanModal(loan)}
-										class="px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-xs font-bold text-primary transition-all inline-flex items-center gap-1 cursor-pointer"
+										class="px-3.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-xs font-bold text-primary transition-all cursor-pointer"
 									>
-										<span class="material-symbols-outlined text-sm">info</span>
-										<span>Detail</span>
+										Detail
 									</button>
 								</td>
 							</tr>

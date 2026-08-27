@@ -18,47 +18,36 @@
 	<!-- Top Bar / Executive Header -->
 	<div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
 		<div>
-			<div class="flex items-center gap-2.5">
-				<div class="w-10 h-10 rounded-2xl bg-primary/10 text-primary flex items-center justify-center font-bold">
-					<span class="material-symbols-outlined text-2xl">dashboard</span>
-				</div>
-				<div>
-					<h1 class="text-2xl font-black text-on-surface tracking-tight">Executive HR Overview</h1>
-					<p class="text-xs text-on-surface-variant font-medium mt-0.5">
-						Ringkasan Manajemen SDM, Kehadiran, Payroll & Benefit PT Buana Centra Swakarsa
-					</p>
-				</div>
-			</div>
+			<h1 class="text-2xl font-black text-on-surface tracking-tight">Executive HR Overview</h1>
+			<p class="text-xs text-on-surface-variant font-medium mt-0.5">
+				Ringkasan Manajemen SDM, Kehadiran, Payroll & Benefit PT Buana Centra Swakarsa
+			</p>
 		</div>
 
 		<!-- Quick Action Shortcuts -->
 		<div class="flex flex-wrap items-center gap-2">
 			<a
 				href="/hris/payroll"
-				class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-surface-container-low text-on-surface font-bold text-xs hover:bg-surface-container transition-all"
+				class="inline-flex items-center px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-surface-container-low text-on-surface font-bold text-xs hover:bg-surface-container transition-all"
 			>
-				<span class="material-symbols-outlined text-base">bolt</span>
 				<span>Hitung Payroll</span>
 			</a>
 			<a
 				href="/hris/employees"
-				class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-surface-container-low text-on-surface font-bold text-xs hover:bg-surface-container transition-all"
+				class="inline-flex items-center px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-surface-container-low text-on-surface font-bold text-xs hover:bg-surface-container transition-all"
 			>
-				<span class="material-symbols-outlined text-base">group</span>
 				<span>Direktori Karyawan</span>
 			</a>
 			<a
 				href="/hris/attendance"
-				class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-surface-container-low text-on-surface font-bold text-xs hover:bg-surface-container transition-all"
+				class="inline-flex items-center px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-surface-container-low text-on-surface font-bold text-xs hover:bg-surface-container transition-all"
 			>
-				<span class="material-symbols-outlined text-base">schedule</span>
 				<span>Log Presensi</span>
 			</a>
 			<a
 				href="/hris/payroll/loans"
-				class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-surface-container-low text-on-surface font-bold text-xs hover:bg-surface-container transition-all"
+				class="inline-flex items-center px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-surface-container-low text-on-surface font-bold text-xs hover:bg-surface-container transition-all"
 			>
-				<span class="material-symbols-outlined text-base">credit_score</span>
 				<span>Kasbon & Pinjaman</span>
 			</a>
 		</div>
@@ -182,12 +171,9 @@
 		<!-- Distribusi Karyawan per Divisi (1 Kolom) -->
 		<div class="p-6 sm:p-8 rounded-3xl bg-surface-container-low border border-slate-200/60 dark:border-slate-800/60 shadow-xs flex flex-col justify-between">
 			<div>
-				<div class="flex items-center justify-between mb-4">
-					<div>
-						<h3 class="text-lg font-black text-on-surface tracking-tight">Komposisi Divisi</h3>
-						<p class="text-xs text-on-surface-variant font-medium mt-0.5">Distribusi Penempatan Tenaga Kerja</p>
-					</div>
-					<span class="material-symbols-outlined text-slate-400">pie_chart</span>
+				<div class="mb-4">
+					<h3 class="text-lg font-black text-on-surface tracking-tight">Komposisi Divisi</h3>
+					<p class="text-xs text-on-surface-variant font-medium mt-0.5">Distribusi Penempatan Tenaga Kerja</p>
 				</div>
 
 				<div class="space-y-4 my-4">

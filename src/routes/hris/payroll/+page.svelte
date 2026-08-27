@@ -189,10 +189,7 @@
 	<!-- Top Bar / Header -->
 	<div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
 		<div>
-			<div class="flex items-center gap-2.5">
-				<span class="material-symbols-outlined text-primary text-2xl">payments</span>
-				<h1 class="text-2xl font-black text-on-surface tracking-tight">Payroll & Salary Slips</h1>
-			</div>
+			<h1 class="text-2xl font-black text-on-surface tracking-tight">Payroll & Salary Slips</h1>
 			<p class="text-sm text-on-surface-variant font-medium mt-0.5">
 				Pengelolaan Gaji Karyawan, Slip Gaji PT BCS & Klaim Reimbursement Benefit
 			</p>
@@ -201,32 +198,28 @@
 		<div class="flex flex-wrap items-center gap-2.5">
 			<a
 				href="/hris/payroll/loans"
-				class="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-surface-container-low text-on-surface font-semibold text-sm hover:bg-surface-container transition-all"
+				class="inline-flex items-center px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-surface-container-low text-on-surface font-semibold text-sm hover:bg-surface-container transition-all"
 			>
-				<span class="material-symbols-outlined text-lg">credit_score</span>
 				<span>Kasbon & Pinjaman</span>
 			</a>
 			{#if activeMainTab === 'payroll'}
 				<button
 					onclick={openGenerateModal}
-					class="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-surface-container-low text-on-surface font-semibold text-sm hover:bg-surface-container transition-all cursor-pointer"
+					class="inline-flex items-center px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-surface-container-low text-on-surface font-semibold text-sm hover:bg-surface-container transition-all cursor-pointer"
 				>
-					<span class="material-symbols-outlined text-lg">bolt</span>
 					<span>Hitung Otomatis Payroll</span>
 				</button>
 				<button
 					onclick={exportBankFile}
-					class="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-surface-container-high border border-slate-200 dark:border-slate-700 text-on-surface font-bold text-sm shadow-2xs hover:bg-surface-container transition-all cursor-pointer"
+					class="inline-flex items-center px-4 py-2.5 rounded-xl bg-surface-container-high border border-slate-200 dark:border-slate-700 text-on-surface font-bold text-sm shadow-2xs hover:bg-surface-container transition-all cursor-pointer"
 				>
-					<span class="material-symbols-outlined text-lg">file_download</span>
 					<span>Export Bank Transfer</span>
 				</button>
 			{:else}
 				<button
 					onclick={() => (showClaimModal = true)}
-					class="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-primary text-on-primary font-bold text-sm shadow-xs hover:bg-primary/90 transition-all cursor-pointer"
+					class="inline-flex items-center px-4 py-2.5 rounded-xl bg-primary text-on-primary font-bold text-sm shadow-xs hover:bg-primary/90 transition-all cursor-pointer"
 				>
-					<span class="material-symbols-outlined text-lg">add_card</span>
 					<span>Ajukan Klaim Baru</span>
 				</button>
 			{/if}
@@ -444,10 +437,9 @@
 									<td class="px-5 py-4 text-right">
 										<button
 											onclick={() => openSlipModal(slip)}
-											class="px-3.5 py-1.5 rounded-xl bg-primary text-on-primary text-xs font-bold hover:bg-primary/90 transition-all inline-flex items-center gap-1.5 cursor-pointer shadow-2xs"
+											class="px-3.5 py-1.5 rounded-xl bg-primary text-on-primary text-xs font-bold hover:bg-primary/90 transition-all cursor-pointer shadow-2xs"
 										>
-											<span class="material-symbols-outlined text-sm">receipt_long</span>
-											<span>Buka Slip</span>
+											Buka Slip
 										</button>
 									</td>
 								</tr>

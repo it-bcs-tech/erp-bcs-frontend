@@ -162,10 +162,7 @@
 	<!-- Header & Actions -->
 	<header class="flex flex-col md:flex-row md:items-end justify-between gap-4">
 		<div>
-			<div class="flex items-center gap-2.5">
-				<span class="material-symbols-outlined text-primary text-2xl">more_time</span>
-				<h1 class="text-2xl font-black text-on-surface tracking-tight">Attendance & Shift Rosters</h1>
-			</div>
+			<h1 class="text-2xl font-black text-on-surface tracking-tight">Attendance & Shift Rosters</h1>
 			<p class="text-on-surface-variant font-medium text-sm mt-0.5">
 				Monitoring Presensi Harian GPS, Penjadwalan Roster Pool 24/7 & Lembur SPKL
 			</p>
@@ -174,18 +171,16 @@
 			{#if activeTab === 'overtime'}
 				<button
 					onclick={() => (showOvertimeModal = true)}
-					class="bg-primary text-on-primary px-4 py-2.5 rounded-xl text-sm font-bold shadow-xs flex items-center gap-2 hover:bg-primary/90 transition-colors cursor-pointer"
+					class="bg-primary text-on-primary px-4 py-2.5 rounded-xl text-sm font-bold shadow-xs hover:bg-primary/90 transition-colors cursor-pointer"
 				>
-					<span class="material-symbols-outlined text-lg">post_add</span>
-					<span>Buat SPKL Baru</span>
+					Buat SPKL Baru
 				</button>
 			{:else}
 				<button
 					onclick={() => { activeTab = 'roster'; }}
-					class="bg-primary text-on-primary px-4 py-2.5 rounded-xl text-sm font-bold shadow-xs flex items-center gap-2 hover:bg-primary/90 transition-colors cursor-pointer"
+					class="bg-primary text-on-primary px-4 py-2.5 rounded-xl text-sm font-bold shadow-xs hover:bg-primary/90 transition-colors cursor-pointer"
 				>
-					<span class="material-symbols-outlined text-lg">calendar_month</span>
-					<span>Atur Roster Shift</span>
+					Atur Roster Shift
 				</button>
 			{/if}
 		</div>
