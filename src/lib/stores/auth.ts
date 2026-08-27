@@ -53,8 +53,9 @@ export const userInitials = derived(authUser, ($user) => {
 export function hasModuleAccess(user: AuthUser | null, moduleId: string): boolean {
 	if (!user) return false;
 	if (['superadmin', 'administrator', 'superhyperadmin', 'super_admin'].includes(user.role)) return true;
+	if (!user.allowedModules || !Array.isArray(user.allowedModules)) return false;
 	// Akses diberikan jika user memiliki full modul ATAU minimal satu menu di dalam modul tersebut
-	return user.allowedModules.some(m => m === moduleId || m.startsWith(`${moduleId}.`));
+	return user.allowedModules.some(m => typeof m === 'string' && (m === moduleId || m.startsWith(`${moduleId}.`)));
 }
 
 /**
@@ -64,9 +65,10 @@ export function hasModuleAccess(user: AuthUser | null, moduleId: string): boolea
 export function hasMenuAccess(user: AuthUser | null, moduleId: string, menuId: string): boolean {
 	if (!user) return false;
 	if (['superadmin', 'administrator', 'superhyperadmin', 'super_admin'].includes(user.role)) return true;
+	if (!user.allowedModules || !Array.isArray(user.allowedModules)) return false;
 	
 	// Cek apakah user memiliki override spesifik (dot notation) untuk modul ini
-	const hasSpecificOverrides = user.allowedModules.some(m => m !== moduleId && m.startsWith(`${moduleId}.`));
+	const hasSpecificOverrides = user.allowedModules.some(m => typeof m === 'string' && m !== moduleId && m.startsWith(`${moduleId}.`));
 
 	if (hasSpecificOverrides) {
 		// Jika ada override spesifik, kita HANYA mengizinkan menu yang secara eksplisit ada di array

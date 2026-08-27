@@ -9,14 +9,16 @@ export const load: PageServerLoad = async ({ cookies }) => {
 	if (userCookie) {
 		try { 
 			const userData = verifyUserData(userCookie); 
-			if (userData.allowedModules) {
+			if (userData && Array.isArray(userData.allowedModules)) {
 				allowedModules = userData.allowedModules;
 			}
 		} catch (e) {}
 	}
 
+	if (!Array.isArray(allowedModules)) allowedModules = ['*'];
+
 	// Check for specific maintenance overrides
-	const hasSpecificOverrides = allowedModules.some(m => m !== 'maintenance' && m.startsWith('maintenance.'));
+	const hasSpecificOverrides = allowedModules.some(m => typeof m === 'string' && m !== 'maintenance' && m.startsWith('maintenance.'));
 	
 	const isFullAccess = !hasSpecificOverrides && (allowedModules.includes('*') || allowedModules.includes('maintenance'));
 	const hasInspections = allowedModules.includes('maintenance.inspections');

@@ -72,11 +72,13 @@
 		editUser = { ...user };
 		editRole = user.erp_role || '';
 		try {
-			// Parse JSON modules
-			if (typeof user.allowed_modules === 'string') {
-				editSelectedModules = JSON.parse(user.allowed_modules);
+			if (Array.isArray(user.allowed_modules)) {
+				editSelectedModules = [...user.allowed_modules];
+			} else if (typeof user.allowed_modules === 'string') {
+				const parsed = JSON.parse(user.allowed_modules);
+				editSelectedModules = Array.isArray(parsed) ? parsed : [];
 			} else {
-				editSelectedModules = user.allowed_modules || [];
+				editSelectedModules = [];
 			}
 		} catch {
 			editSelectedModules = [];
@@ -90,7 +92,7 @@
 		
 		if (ADMIN_ROLES.includes(newRole)) {
 			newSelectedModules = ['*'];
-		} else if (data.roleModuleMap && data.roleModuleMap[newRole]) {
+		} else if (data.roleModuleMap && Array.isArray(data.roleModuleMap[newRole])) {
 			newSelectedModules = [...data.roleModuleMap[newRole]];
 		} else {
 			newSelectedModules = [];
@@ -100,11 +102,11 @@
 	function handleEditRoleChange(e: Event) {
 		const target = e.target as HTMLSelectElement;
 		editRole = target.value;
-		editUser.erp_role = editRole;
+		if (editUser) editUser.erp_role = editRole;
 
 		if (ADMIN_ROLES.includes(editRole)) {
 			editSelectedModules = ['*'];
-		} else if (data.roleModuleMap && data.roleModuleMap[editRole]) {
+		} else if (data.roleModuleMap && Array.isArray(data.roleModuleMap[editRole])) {
 			editSelectedModules = [...data.roleModuleMap[editRole]];
 		} else {
 			editSelectedModules = [];
@@ -124,7 +126,8 @@
 			try {
 				const res = await fetch(`/api/karyawan/search?q=${encodeURIComponent(searchQuery)}`);
 				if (res.ok) {
-					searchResults = await res.json();
+					const json = await res.json();
+					searchResults = Array.isArray(json) ? json : [];
 				}
 			} catch (e) {
 				console.error(e);
@@ -151,6 +154,7 @@
 	}
 
 	function toggleNewModule(mod: string) {
+		if (!Array.isArray(newSelectedModules)) newSelectedModules = [];
 		if (newSelectedModules.includes(mod)) {
 			newSelectedModules = newSelectedModules.filter(m => m !== mod);
 		} else {
@@ -159,6 +163,7 @@
 	}
 
 	function toggleEditModule(mod: string) {
+		if (!Array.isArray(editSelectedModules)) editSelectedModules = [];
 		if (editSelectedModules.includes(mod)) {
 			editSelectedModules = editSelectedModules.filter(m => m !== mod);
 		} else {
@@ -166,12 +171,14 @@
 		}
 	}
 	
-	function hasModuleSelected(targetArr: string[], mod: string) {
-		return targetArr.some(m => m === mod || m.startsWith(`${mod}.`));
+	function hasModuleSelected(targetArr: string[] | null | undefined, mod: string) {
+		if (!Array.isArray(targetArr)) return false;
+		return targetArr.some(m => typeof m === 'string' && (m === mod || m.startsWith(`${mod}.`)));
 	}
 	
-	function isModulePartial(targetArr: string[], mod: string) {
-		return !targetArr.includes(mod) && targetArr.some(m => m.startsWith(`${mod}.`));
+	function isModulePartial(targetArr: string[] | null | undefined, mod: string) {
+		if (!Array.isArray(targetArr)) return false;
+		return !targetArr.includes(mod) && targetArr.some(m => typeof m === 'string' && m.startsWith(`${mod}.`));
 	}
 </script>
 
@@ -387,7 +394,7 @@
 							<button 
 								type="button" 
 								onclick={() => handleModuleClick('*', 'new')}
-								class="px-3 py-2 border rounded-lg text-xs font-bold transition-all text-center {newSelectedModules.includes('*') ? 'bg-primary text-on-primary border-primary' : 'border-slate-300 dark:border-slate-700 text-on-surface-variant hover:bg-surface-container'}"
+								class="px-3 py-2 border rounded-lg text-xs font-bold transition-all text-center {Array.isArray(newSelectedModules) && newSelectedModules.includes('*') ? 'bg-primary text-on-primary border-primary' : 'border-slate-300 dark:border-slate-700 text-on-surface-variant hover:bg-surface-container'}"
 							>
 								* (All Modules)
 							</button>
@@ -465,7 +472,7 @@
 							<button 
 								type="button" 
 								onclick={() => handleModuleClick('*', 'edit')}
-								class="px-3 py-2 border rounded-lg text-xs font-bold transition-all text-center {editSelectedModules.includes('*') ? 'bg-primary text-on-primary border-primary' : 'border-slate-300 dark:border-slate-700 text-on-surface-variant hover:bg-surface-container'}"
+								class="px-3 py-2 border rounded-lg text-xs font-bold transition-all text-center {Array.isArray(editSelectedModules) && editSelectedModules.includes('*') ? 'bg-primary text-on-primary border-primary' : 'border-slate-300 dark:border-slate-700 text-on-surface-variant hover:bg-surface-container'}"
 							>
 								* (All Modules)
 							</button>
@@ -503,8 +510,9 @@
 <!-- MENU SELECTION MODAL -->
 <!-- ======================= -->
 {#if activeMenuSelectionModal}
-	{@const menus = MODULE_MENUS[activeMenuSelectionModal]}
-	{@const targetArray = menuSelectionTarget === 'new' ? newSelectedModules : editSelectedModules}
+	{@const menus = MODULE_MENUS[activeMenuSelectionModal] || []}
+	{@const rawTarget = menuSelectionTarget === 'new' ? newSelectedModules : editSelectedModules}
+	{@const targetArray = Array.isArray(rawTarget) ? rawTarget : []}
 	
 	<div class="fixed inset-0 bg-black/40 backdrop-blur-sm z-[200] flex items-center justify-center p-4 animate-in fade-in duration-200">
 		<div class="bg-surface-container-lowest rounded-3xl w-full max-w-sm shadow-2xl p-6 border border-surface-container">
@@ -516,7 +524,7 @@
 					<input type="checkbox" 
 						checked={targetArray.includes(activeMenuSelectionModal)} 
 						onchange={(e) => {
-							let newArr = [...targetArray.filter(m => m !== activeMenuSelectionModal && !m.startsWith(`${activeMenuSelectionModal}.`))];
+							let newArr = [...targetArray.filter(m => typeof m === 'string' && m !== activeMenuSelectionModal && !m.startsWith(`${activeMenuSelectionModal}.`))];
 							if (e.currentTarget.checked) {
 								newArr.push(activeMenuSelectionModal!); // full access
 							}
