@@ -7,12 +7,12 @@
 	const { metrics, courses, learningPaths, trainingMatrix, myLearning, dataSource } = data;
 
 	// Tabs State
-	let activeTab = $state<'catalog' | 'my-learning' | 'paths' | 'matrix'>('catalog');
+	let activeTab = $state<'catalog' | 'paths' | 'matrix' | 'reports'>('catalog');
 	const tabs = [
-		{ id: 'catalog', label: 'Katalog Kursus', icon: 'auto_stories' },
-		{ id: 'my-learning', label: 'Portal Belajar Saya', icon: 'school' },
+		{ id: 'catalog', label: 'Katalog & Manajemen Kursus', icon: 'auto_stories' },
 		{ id: 'paths', label: 'Learning Paths', icon: 'route' },
-		{ id: 'matrix', label: 'Training Matrix & K3', icon: 'table_chart' }
+		{ id: 'matrix', label: 'Training Matrix & K3', icon: 'table_chart' },
+		{ id: 'reports', label: 'Rekap Kelulusan & Nilai', icon: 'workspace_premium' }
 	];
 
 	// Filter & Search State
@@ -280,56 +280,78 @@
 				{/each}
 			</div>
 
-		<!-- TAB 2: PORTAL BELAJAR SAYA (MY LEARNING) -->
-		{:else if activeTab === 'my-learning'}
-			<div class="space-y-4">
-				{#each filteredMyLearning as item}
-					<div class="bg-surface-container-lowest border border-slate-200/60 dark:border-slate-800/60 rounded-3xl p-6 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-6">
-						<div class="flex-1 space-y-2">
-							<div class="flex items-center gap-3">
-								<span class="px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider bg-primary-container/50 text-primary">
-									{item.category}
-								</span>
-								<span class="text-xs font-semibold text-on-surface-variant">Tenggat: {item.deadline}</span>
-								<span class="text-xs font-medium text-on-surface-variant">• Terakhir diakses: {item.lastAccessed}</span>
-							</div>
-							
-							<h3 class="text-lg font-extrabold text-on-surface">{item.title}</h3>
-							
-							<div class="flex items-center gap-4 pt-2">
-								<div class="w-full max-w-md bg-surface-container rounded-full h-2.5 overflow-hidden">
-									<div class="bg-primary h-full rounded-full transition-all duration-500" style="width: {item.progress}%"></div>
-								</div>
-								<span class="text-xs font-black text-on-surface">{item.progress}% Selesai ({item.completedModules}/{item.totalModules} Bab)</span>
-							</div>
-						</div>
-
-						<div class="flex items-center gap-3 flex-shrink-0">
-							{#if item.hasCertificate}
-								<button 
-									type="button"
-									onclick={() => openCertificate(item)}
-									class="border border-emerald-500 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 px-4 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer"
-								>
-									<span class="material-symbols-outlined text-base">verified</span>
-									<span>Lihat Sertifikat</span>
-								</button>
-							{/if}
-
-							<button 
-								type="button"
-								onclick={() => {
-									const c = courses.find((x: any) => x.id === item.courseId) || courses[0];
-									openCoursePlayer(c);
-								}}
-								class="bg-primary text-on-primary px-5 py-2.5 rounded-xl text-xs font-bold shadow-xs hover:bg-primary/90 transition-all flex items-center gap-2 cursor-pointer"
-							>
-								<span>{item.progress === 100 ? 'Review Materi' : 'Lanjutkan Belajar'}</span>
-								<span class="material-symbols-outlined text-base">arrow_forward</span>
-							</button>
-						</div>
+		<!-- TAB 2: LAPORAN & REKAP KELULUSAN -->
+		{:else if activeTab === 'reports'}
+			<div class="bg-surface-container-lowest border border-slate-200/60 dark:border-slate-800/60 rounded-3xl overflow-hidden shadow-xs">
+				<div class="p-6 border-b border-surface-container flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+					<div>
+						<h3 class="font-extrabold text-base text-on-surface">Rekap Kelulusan Pelatihan & Nilai Karyawan</h3>
+						<p class="text-xs text-on-surface-variant mt-0.5">Daftar kelulusan modul pembelajaran mandiri dan sertifikasi terbitan BCS Academy.</p>
 					</div>
-				{/each}
+					<div class="flex items-center gap-3">
+						<button onclick={() => window.print()} class="px-4 py-2 border border-slate-300 dark:border-slate-700 rounded-xl text-xs font-bold text-on-surface hover:bg-surface-container flex items-center gap-1.5">
+							<span class="material-symbols-outlined text-sm">print</span>
+							<span>Cetak Laporan Rekap</span>
+						</button>
+					</div>
+				</div>
+
+				<div class="overflow-x-auto">
+					<table class="w-full text-left text-xs">
+						<thead class="bg-surface-container-low border-b border-surface-container text-on-surface-variant font-bold uppercase tracking-wider text-[10px]">
+							<tr>
+								<th class="py-4 px-6">Karyawan</th>
+								<th class="py-4 px-4">Modul Kursus</th>
+								<th class="py-4 px-4">Kategori</th>
+								<th class="py-4 px-4">Tgl Selesai</th>
+								<th class="py-4 px-4">Nilai Kuis</th>
+								<th class="py-4 px-4">No. Sertifikat</th>
+								<th class="py-4 px-6 text-right">Aksi</th>
+							</tr>
+						</thead>
+						<tbody class="divide-y divide-surface-container font-medium">
+							{#each myLearning as row}
+								<tr class="hover:bg-surface-container-low transition-colors">
+									<td class="py-4 px-6">
+										<p class="font-bold text-on-surface">Karyawan PT BCS</p>
+										<p class="text-[10px] text-on-surface-variant">Divisi Operasional</p>
+									</td>
+									<td class="py-4 px-4 font-bold text-on-surface">{row.title}</td>
+									<td class="py-4 px-4">
+										<span class="px-2 py-0.5 rounded-md text-[10px] font-bold bg-primary-container/50 text-primary">
+											{row.category}
+										</span>
+									</td>
+									<td class="py-4 px-4 text-on-surface-variant">{row.lastAccessed}</td>
+									<td class="py-4 px-4">
+										{#if row.score}
+											<span class="font-black text-emerald-600 dark:text-emerald-400">{row.score} / 100</span>
+										{:else}
+											<span class="text-on-surface-variant italic">{row.progress}% (Berjalan)</span>
+										{/if}
+									</td>
+									<td class="py-4 px-4 font-mono text-[11px] text-on-surface-variant">
+										{row.certificateNumber || '-'}
+									</td>
+									<td class="py-4 px-6 text-right">
+										{#if row.hasCertificate}
+											<button 
+												type="button" 
+												onclick={() => openCertificate(row)}
+												class="text-xs font-bold text-primary hover:underline flex items-center gap-1 ml-auto"
+											>
+												<span class="material-symbols-outlined text-sm">workspace_premium</span>
+												<span>Sertifikat</span>
+											</button>
+										{:else}
+											<span class="text-xs text-on-surface-variant opacity-60">Proses</span>
+										{/if}
+									</td>
+								</tr>
+							{/each}
+						</tbody>
+					</table>
+				</div>
 			</div>
 
 		<!-- TAB 3: LEARNING PATHS -->
