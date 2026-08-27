@@ -50,6 +50,10 @@
 				<span class="material-symbols-outlined">assessment</span>
 				<span class="font-medium text-sm">Performance</span>
 			</a>
+			<a class="flex items-center gap-3 px-4 py-3 rounded-xl transition-transform duration-200 hover:translate-x-1 {$page.url.pathname.includes('/hris/lms') ? 'bg-surface-container-highest text-primary' : 'text-on-surface-variant hover:bg-surface-container'}" href="/hris/lms">
+				<span class="material-symbols-outlined">school</span>
+				<span class="font-medium text-sm">LMS & Training</span>
+			</a>
 			<a class="flex items-center gap-3 px-4 py-3 rounded-xl transition-transform duration-200 hover:translate-x-1 {$page.url.pathname.includes('/hris/payroll') ? 'bg-surface-container-highest text-primary' : 'text-on-surface-variant hover:bg-surface-container'}" href="/hris/payroll">
 				<span class="material-symbols-outlined">payments</span>
 				<span class="font-medium text-sm">Payroll & Slips</span>
