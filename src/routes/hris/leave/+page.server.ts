@@ -86,8 +86,10 @@ export const actions: Actions = {
 
         if (!leaveId) return fail(400, { message: 'ID pengajuan cuti tidak ditemukan.' });
 
+        const targetId = leaveId.includes('-') ? leaveId.split('-').pop() : leaveId;
+
         try {
-            await apiFetch(`/api/v1/hris/leaves/${leaveId}/approve`, {
+            await apiFetch(`/api/v1/hris/leaves/${targetId}/approve`, {
                 method: 'POST'
             }, authToken);
 
@@ -106,8 +108,10 @@ export const actions: Actions = {
 
         if (!leaveId) return fail(400, { message: 'ID pengajuan cuti tidak ditemukan.' });
 
+        const targetId = leaveId.includes('-') ? leaveId.split('-').pop() : leaveId;
+
         try {
-            await apiFetch(`/api/v1/hris/leaves/${leaveId}/reject`, {
+            await apiFetch(`/api/v1/hris/leaves/${targetId}/reject`, {
                 method: 'POST',
                 body: JSON.stringify({ rejection_reason })
             }, authToken);
