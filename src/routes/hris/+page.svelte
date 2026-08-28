@@ -5,8 +5,8 @@
 	let metrics = $derived(data.metrics);
 	let latestPayroll = $derived(data.latestPayroll);
 
-	function formatRupiah(val: number) {
-		return formatCurrencyPrivacy(val, $systemSettings.hideSalaryNominals);
+	function formatRupiah(val: any) {
+		return formatCurrencyPrivacy(Number(val) || 0, $systemSettings.hideSalaryNominals);
 	}
 </script>
 
