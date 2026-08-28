@@ -1,7 +1,25 @@
 import type { PageServerLoad } from './$types';
 import sql from '$lib/server/db';
+import { apiFetch } from '$lib/utils/api';
 
-export const load: PageServerLoad = async () => {
+export const load: PageServerLoad = async ({ cookies }) => {
+	const authToken = cookies.get('auth_token');
+
+	// 1. Coba ambil dari Laravel API jika endpoint sudah aktif
+	if (authToken) {
+		try {
+			const res = await apiFetch<any>('/api/v1/hris/dashboard/overview', {}, authToken);
+			if (res && res.data) {
+				return {
+					...res.data,
+					dataSource: 'laravel'
+				};
+			}
+		} catch (err: any) {
+			// Graceful fallback to direct DB query
+		}
+	}
+
 	try {
 		// 1. Ambil data master karyawan aktif & statistik divisi
 		const [empStats] = await sql<any[]>`
