@@ -1,11 +1,12 @@
-import type { PageServerLoad } from './$types';
+import type { PageServerLoad, Actions } from './$types';
 import { apiFetch } from '$lib/utils/api';
+import { fail } from '@sveltejs/kit';
 
 export const load: PageServerLoad = async ({ cookies, url }) => {
     const authToken = cookies.get('auth_token');
 
     const page = Number(url.searchParams.get('page')) || 1;
-    const perPage = 5;
+    const perPage = 10;
     const searchQuery = url.searchParams.get('search') || '';
     const statusFilter = url.searchParams.get('status') || '';
 
@@ -44,7 +45,7 @@ export const load: PageServerLoad = async ({ cookies, url }) => {
                 }
 
                 if (statusFilter && statusFilter !== 'All') {
-                    leaveRequests = leaveRequests.filter((r: any) => r.status === statusFilter);
+                    leaveRequests = leaveRequests.filter((r: any) => r.status?.toLowerCase() === statusFilter.toLowerCase());
                 }
 
                 const total = leaveRequests.length;
@@ -74,5 +75,81 @@ export const load: PageServerLoad = async ({ cookies, url }) => {
             },
             meta: { current_page: page, total: 0, per_page: perPage }
         };
+    }
+};
+
+export const actions: Actions = {
+    submitLeave: async ({ request, cookies }) => {
+        const authToken = cookies.get('auth_token');
+        const formData = await request.formData();
+        const payroll_id = formData.get('payroll_id')?.toString()?.trim();
+        const leave_type = formData.get('leave_type')?.toString()?.trim() || 'Cuti Tahunan';
+        const start_date = formData.get('start_date')?.toString()?.trim();
+        const end_date = formData.get('end_date')?.toString()?.trim();
+        const duration_days = Number(formData.get('duration_days')) || 1;
+        const reason = formData.get('reason')?.toString()?.trim() || '';
+
+        if (!payroll_id || !start_date || !end_date) {
+            return fail(400, { message: 'Nomor NIK Karyawan, Tanggal Mulai dan Selesai wajib diisi.' });
+        }
+
+        try {
+            await apiFetch('/api/v1/hris/leaves', {
+                method: 'POST',
+                body: JSON.stringify({
+                    payroll_id,
+                    leave_type,
+                    start_date,
+                    end_date,
+                    duration_days,
+                    reason
+                })
+            }, authToken);
+
+            return { success: true, message: 'Pengajuan cuti berhasil dikirim.' };
+        } catch (apiErr: any) {
+            console.error('❌ [Submit Leave Action Error]:', apiErr?.message);
+            return fail(500, { message: apiErr.message || 'Gagal menyimpan pengajuan cuti.' });
+        }
+    },
+
+    approveLeave: async ({ request, cookies }) => {
+        const authToken = cookies.get('auth_token');
+        const formData = await request.formData();
+        const leaveId = formData.get('leaveId')?.toString();
+
+        if (!leaveId) return fail(400, { message: 'ID pengajuan cuti tidak ditemukan.' });
+
+        try {
+            await apiFetch(`/api/v1/hris/leaves/${leaveId}/approve`, {
+                method: 'POST'
+            }, authToken);
+
+            return { success: true, message: `Pengajuan cuti ${leaveId} berhasil disetujui.` };
+        } catch (apiErr: any) {
+            console.error('❌ [Approve Leave Action Error]:', apiErr?.message);
+            return fail(500, { message: apiErr.message || 'Gagal menyetujui pengajuan cuti.' });
+        }
+    },
+
+    rejectLeave: async ({ request, cookies }) => {
+        const authToken = cookies.get('auth_token');
+        const formData = await request.formData();
+        const leaveId = formData.get('leaveId')?.toString();
+        const rejection_reason = formData.get('rejection_reason')?.toString() || 'Pengajuan cuti tidak disetujui atasan/HRD';
+
+        if (!leaveId) return fail(400, { message: 'ID pengajuan cuti tidak ditemukan.' });
+
+        try {
+            await apiFetch(`/api/v1/hris/leaves/${leaveId}/reject`, {
+                method: 'POST',
+                body: JSON.stringify({ rejection_reason })
+            }, authToken);
+
+            return { success: true, message: `Pengajuan cuti ${leaveId} berhasil ditolak.` };
+        } catch (apiErr: any) {
+            console.error('❌ [Reject Leave Action Error]:', apiErr?.message);
+            return fail(500, { message: apiErr.message || 'Gagal menolak pengajuan cuti.' });
+        }
     }
 };

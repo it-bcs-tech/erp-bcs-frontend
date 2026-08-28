@@ -1,9 +1,10 @@
 <script lang="ts">
-	import type { PageData } from './$types';
+	import type { PageData, ActionData } from './$types';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/stores';
+	import { enhance } from '$app/forms';
 	
-	let { data }: { data: PageData } = $props();
+	let { data, form }: { data: PageData; form: ActionData } = $props();
 	
 	let leaveRequests = $derived(data.leaveRequests || []);
 	let metrics = $derived(data.metrics);
@@ -13,6 +14,9 @@
 	let statusFilter = $state($page.url.searchParams.get('status') || 'All');
 
 	let searchTimer: ReturnType<typeof setTimeout>;
+	let showCreateModal = $state(false);
+	let showRejectModal = $state(false);
+	let selectedLeaveIdForReject = $state('');
 
 	function updateQueryParams() {
 		const url = new URL(window.location.href);
@@ -42,10 +46,10 @@
 	}
 
 	// Pagination Compute
-	let totalPages = $derived(Math.max(1, Math.ceil((meta?.total || 0) / (meta?.per_page || 5))));
+	let totalPages = $derived(Math.max(1, Math.ceil((meta?.total || 0) / (meta?.per_page || 10))));
 	let currentPage = $derived(meta?.current_page || 1);
-	let startItem = $derived(meta?.total === 0 ? 0 : ((currentPage - 1) * (meta?.per_page || 5)) + 1);
-	let endItem = $derived(Math.min(currentPage * (meta?.per_page || 5), meta?.total || 0));
+	let startItem = $derived(meta?.total === 0 ? 0 : ((currentPage - 1) * (meta?.per_page || 10)) + 1);
+	let endItem = $derived(Math.min(currentPage * (meta?.per_page || 10), meta?.total || 0));
 
 	function goToPage(p: number) {
 		if (p < 1 || p > totalPages) return;
@@ -59,45 +63,62 @@
 	<title>Leave Management | HRIS Dashboard</title>
 </svelte:head>
 
-<div class="flex flex-col h-full">
+<div class="flex flex-col h-full space-y-6">
 	<!-- Header & Actions -->
-	<header class="mb-8 flex flex-col md:flex-row md:items-end justify-between gap-4">
+	<header class="flex flex-col md:flex-row md:items-center justify-between gap-4">
 		<div>
 			<div class="flex items-center gap-2.5">
 				<span class="material-symbols-outlined text-primary text-2xl">pending_actions</span>
 				<h1 class="text-2xl font-black text-on-surface tracking-tight">Leave & Absence Management</h1>
 			</div>
-			<p class="text-on-surface-variant font-medium text-sm mt-0.5">
+			<p class="text-on-surface-variant font-medium text-xs mt-0.5">
 				Pengajuan Cuti, Izin, Sakit & Monitoring Kuota Saldo Cuti Tahunan Karyawan
 			</p>
 		</div>
+
+		<!-- Action Button -->
+		<button
+			type="button"
+			onclick={() => showCreateModal = true}
+			class="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-primary text-on-primary font-bold text-xs shadow-md hover:bg-primary/90 transition-all cursor-pointer"
+		>
+			<span class="material-symbols-outlined text-lg">add_circle</span>
+			<span>Ajukan Cuti Baru</span>
+		</button>
 	</header>
 
+	<!-- Action Feedback Banner -->
+	{#if form?.message}
+		<div class="p-4 rounded-2xl border text-xs font-bold flex items-center gap-2.5 {form.success ? 'bg-emerald-950/40 border-emerald-500/40 text-emerald-300' : 'bg-rose-950/40 border-rose-500/40 text-rose-300'}">
+			<span class="material-symbols-outlined text-lg">{form.success ? 'check_circle' : 'error'}</span>
+			<span>{form.message}</span>
+		</div>
+	{/if}
+
 	<!-- Metrics Cards -->
-	<div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-		<div class="bg-surface-container-lowest p-5 rounded-2xl border border-primary/20 shadow-sm relative overflow-hidden group">
-            <div class="absolute inset-0 bg-primary/5 opacity-0 group-hover:opacity-100 transition-opacity"></div>
-			<p class="text-xs font-bold text-primary uppercase tracking-wider mb-2 relative z-10">Pending Approvals</p>
-			<div class="flex items-end justify-between relative z-10">
+	<div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+		<div class="bg-surface-container-lowest p-5 rounded-2xl border border-primary/20 shadow-xs relative overflow-hidden group">
+			<p class="text-xs font-bold text-primary uppercase tracking-wider mb-2">Pending Approvals</p>
+			<div class="flex items-end justify-between">
 				<h3 class="text-3xl font-black text-primary">{metrics.pendingApprovals}</h3>
 				<span class="material-symbols-outlined text-3xl text-primary/50">hourglass_top</span>
 			</div>
 		</div>
-		<div class="bg-surface-container-lowest p-5 rounded-2xl border border-tertiary/20 shadow-sm">
+		<div class="bg-surface-container-lowest p-5 rounded-2xl border border-tertiary/20 shadow-xs">
 			<p class="text-xs font-bold text-tertiary uppercase tracking-wider mb-2">Approved This Month</p>
 			<div class="flex items-end justify-between">
 				<h3 class="text-3xl font-black text-tertiary">{metrics.approvedThisMonth}</h3>
 				<span class="material-symbols-outlined text-3xl text-tertiary/50">check_circle</span>
 			</div>
 		</div>
-		<div class="bg-surface-container-lowest p-5 rounded-2xl border border-error/20 shadow-sm">
+		<div class="bg-surface-container-lowest p-5 rounded-2xl border border-error/20 shadow-xs">
 			<p class="text-xs font-bold text-error uppercase tracking-wider mb-2">Rejected This Month</p>
 			<div class="flex items-end justify-between">
 				<h3 class="text-3xl font-black text-error">{metrics.rejectedThisMonth}</h3>
 				<span class="material-symbols-outlined text-3xl text-error/50">cancel</span>
 			</div>
 		</div>
-		<div class="bg-surface-container-lowest p-5 rounded-2xl border border-surface-container shadow-sm">
+		<div class="bg-surface-container-lowest p-5 rounded-2xl border border-surface-container shadow-xs">
 			<p class="text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-2">On Leave Today</p>
 			<div class="flex items-end justify-between">
 				<h3 class="text-3xl font-black text-on-surface-variant">{metrics.employeesOnLeaveToday}</h3>
@@ -107,7 +128,7 @@
 	</div>
 
 	<!-- Unified Filter & Search Bar -->
-	<div class="p-4 rounded-2xl bg-surface-container-low border border-slate-200/60 dark:border-slate-800/60 flex flex-col md:flex-row gap-4 items-center justify-between shadow-xs mb-6">
+	<div class="p-4 rounded-2xl bg-surface-container-low border border-slate-200/60 dark:border-slate-800/60 flex flex-col md:flex-row gap-4 items-center justify-between shadow-xs">
 		<div class="flex items-center gap-3 w-full md:w-auto">
 			<div class="flex items-center gap-2">
 				<span class="material-symbols-outlined text-slate-400 text-sm">filter_alt</span>
@@ -138,104 +159,227 @@
 	</div>
 
 	<!-- Data Table -->
-	<div class="bg-surface-container-lowest rounded-[24px] shadow-sm flex-1 overflow-hidden flex flex-col">
-		<div class="overflow-x-auto flex-1">
+	<div class="bg-surface-container-lowest rounded-3xl shadow-xs border border-slate-200/60 dark:border-slate-800/60 overflow-hidden flex flex-col">
+		<div class="overflow-x-auto">
 			<table class="w-full text-left border-collapse min-w-[900px]">
 				<thead>
-					<tr class="border-b border-surface-container sticky top-0 bg-surface-container-lowest z-10">
-						<th class="py-5 px-6 text-[10px] font-black uppercase tracking-widest text-on-surface-variant">Request ID & Emp</th>
-						<th class="py-5 px-6 text-[10px] font-black uppercase tracking-widest text-on-surface-variant">Leave Type</th>
-						<th class="py-5 px-6 text-[10px] font-black uppercase tracking-widest text-on-surface-variant">Date Range & Duration</th>
-						<th class="py-5 px-6 text-[10px] font-black uppercase tracking-widest text-on-surface-variant">Status</th>
-						<th class="py-5 px-6 text-[10px] font-black uppercase tracking-widest text-on-surface-variant text-right">Actions</th>
+					<tr class="border-b border-surface-container bg-surface-container-low/40">
+						<th class="py-4 px-6 text-[10px] font-black uppercase tracking-widest text-on-surface-variant">ID & Karyawan</th>
+						<th class="py-4 px-6 text-[10px] font-black uppercase tracking-widest text-on-surface-variant">Jenis Cuti</th>
+						<th class="py-4 px-6 text-[10px] font-black uppercase tracking-widest text-on-surface-variant">Rentang Tanggal & Durasi</th>
+						<th class="py-4 px-6 text-[10px] font-black uppercase tracking-widest text-on-surface-variant">Status</th>
+						<th class="py-4 px-6 text-[10px] font-black uppercase tracking-widest text-on-surface-variant text-right">Aksi</th>
 					</tr>
 				</thead>
 				<tbody class="divide-y divide-surface-container">
 					{#each leaveRequests as req}
 						<tr class="group hover:bg-surface-container-low transition-colors">
 							<td class="py-4 px-6">
-								<div class="flex flex-col gap-2">
-                                    <span class="text-[10px] font-black tracking-widest uppercase text-on-surface-variant/70">{req.id}</span>
-                                    <div class="flex items-center gap-3">
-                                        <div class="w-8 h-8 rounded-full overflow-hidden bg-surface-container flex-shrink-0">
-                                            <img src={req.avatar} alt={req.employeeName} class="w-full h-full object-cover" />
-                                        </div>
-                                        <div>
-                                            <p class="text-sm font-bold text-on-surface">{req.employeeName}</p>
-                                            <p class="text-[11px] font-medium text-on-surface-variant">{req.employeeId}</p>
-                                        </div>
-                                    </div>
+								<div class="flex flex-col gap-1.5">
+									<span class="text-[10px] font-black tracking-widest uppercase text-on-surface-variant font-mono">{req.id}</span>
+									<div class="flex items-center gap-2.5">
+										<div class="w-8 h-8 rounded-full overflow-hidden bg-surface-container flex-shrink-0">
+											<img src={req.avatar?.startsWith('http') ? req.avatar : `https://ui-avatars.com/api/?name=${encodeURIComponent(req.employeeName)}&background=random`} alt={req.employeeName} class="w-full h-full object-cover" />
+										</div>
+										<div>
+											<p class="text-xs font-bold text-on-surface leading-tight">{req.employeeName}</p>
+											<p class="text-[10px] font-mono text-on-surface-variant">{req.employeeId}</p>
+										</div>
+									</div>
 								</div>
 							</td>
 							<td class="py-4 px-6">
-								<p class="text-sm font-bold text-on-surface">{req.type}</p>
-								<p class="text-[11px] font-medium text-on-surface-variant mt-1 truncate max-w-[200px]" title={req.reason}>{req.reason}</p>
+								<p class="text-xs font-bold text-on-surface">{req.type}</p>
+								<p class="text-[11px] text-on-surface-variant mt-0.5 truncate max-w-[220px]" title={req.reason}>{req.reason || '-'}</p>
 							</td>
 							<td class="py-4 px-6">
 								<div class="flex flex-col">
-									<span class="text-sm font-bold text-on-surface">{req.startDate} to {req.endDate}</span>
-									<span class="text-[11px] font-medium text-on-surface-variant mt-0.5">{req.duration} Day(s)</span>
+									<span class="text-xs font-bold text-on-surface">{req.startDate} s/d {req.endDate}</span>
+									<span class="text-[10px] font-semibold text-primary mt-0.5">{req.duration} Hari Kerja</span>
 								</div>
 							</td>
-                            <td class="py-4 px-6">
+							<td class="py-4 px-6">
 								{#if req.status?.toLowerCase() === 'approved'}
-									<span class="inline-flex items-center gap-1.5 text-green-600 dark:text-green-400 font-bold text-[11px] bg-green-500/10 px-2.5 py-1 rounded-md uppercase tracking-wider border border-green-500/20">
-										<span class="w-1.5 h-1.5 rounded-full bg-green-500"></span> Approved
+									<span class="inline-flex items-center gap-1 text-emerald-600 dark:text-emerald-400 font-bold text-[10px] bg-emerald-500/10 px-2.5 py-1 rounded-lg uppercase tracking-wider border border-emerald-500/20">
+										<span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> Disetujui
 									</span>
 								{:else if req.status?.toLowerCase() === 'rejected'}
-									<span class="inline-flex items-center gap-1.5 text-red-600 dark:text-red-400 font-bold text-[11px] bg-red-500/10 px-2.5 py-1 rounded-md uppercase tracking-wider border border-red-500/20">
-										<span class="w-1.5 h-1.5 rounded-full bg-red-500"></span> Rejected
+									<span class="inline-flex items-center gap-1 text-rose-600 dark:text-rose-400 font-bold text-[10px] bg-rose-500/10 px-2.5 py-1 rounded-lg uppercase tracking-wider border border-rose-500/20">
+										<span class="w-1.5 h-1.5 rounded-full bg-rose-500"></span> Ditolak
 									</span>
 								{:else}
-									<span class="inline-flex items-center gap-1.5 text-amber-600 dark:text-amber-400 font-bold text-[11px] bg-amber-500/10 px-2.5 py-1 rounded-md uppercase tracking-wider border border-amber-500/20">
-										<span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span> {req.status || 'Pending'}
+									<span class="inline-flex items-center gap-1 text-amber-600 dark:text-amber-400 font-bold text-[10px] bg-amber-500/10 px-2.5 py-1 rounded-lg uppercase tracking-wider border border-amber-500/20">
+										<span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span> Menunggu
 									</span>
 								{/if}
 							</td>
 							<td class="py-4 px-6 text-right">
-                                {#if req.status?.toLowerCase() === 'pending' || !req.status}
-                                    <div class="flex items-center justify-end gap-2">
-                                        <button class="px-3 py-1.5 rounded-lg bg-tertiary/10 text-tertiary hover:bg-tertiary/20 text-xs font-bold transition-colors">Approve</button>
-                                        <button class="px-3 py-1.5 rounded-lg bg-error/10 text-error hover:bg-error/20 text-xs font-bold transition-colors">Reject</button>
-                                    </div>
-                                {:else}
-                                    <button class="p-2 rounded-lg text-on-surface-variant hover:bg-surface-container-high transition-colors tooltip tooltip-left" data-tip="View Details">
-                                        <span class="material-symbols-outlined text-[20px]">visibility</span>
-                                    </button>
-                                {/if}
+								{#if req.status?.toLowerCase() === 'pending' || !req.status}
+									<div class="flex items-center justify-end gap-2">
+										<form method="POST" action="?/approveLeave" use:enhance>
+											<input type="hidden" name="leaveId" value={req.id} />
+											<button 
+												type="submit" 
+												class="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition-all shadow-xs cursor-pointer active:scale-95"
+											>
+												Approve
+											</button>
+										</form>
+										<button 
+											type="button" 
+											onclick={() => { selectedLeaveIdForReject = req.id; showRejectModal = true; }}
+											class="px-3 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold transition-all shadow-xs cursor-pointer active:scale-95"
+										>
+											Reject
+										</button>
+									</div>
+								{:else}
+									<span class="text-[11px] font-medium text-slate-400">Telah Diproses</span>
+								{/if}
 							</td>
 						</tr>
 					{/each}
+					{#if leaveRequests.length === 0}
+						<tr>
+							<td colspan="5" class="py-12 text-center text-xs text-on-surface-variant italic">
+								Tidak ada data pengajuan cuti yang ditemukan.
+							</td>
+						</tr>
+					{/if}
 				</tbody>
 			</table>
 		</div>
 		
 		<!-- Pagination Footer -->
 		<div class="px-6 py-4 border-t border-surface-container flex items-center justify-between bg-surface-container-lowest">
-			<p class="text-xs text-on-surface-variant font-medium">Showing {startItem} to {endItem} of {meta?.total || 0} entries</p>
+			<p class="text-xs text-on-surface-variant font-medium">Menampilkan {startItem} - {endItem} dari {meta?.total || 0} entri</p>
 			<div class="flex gap-1">
 				<button 
-					class="w-8 h-8 rounded-lg flex items-center justify-center text-on-surface-variant hover:bg-surface-container-high disabled:opacity-50 transition-colors" 
+					class="w-8 h-8 rounded-xl flex items-center justify-center text-on-surface-variant hover:bg-surface-container-high disabled:opacity-40 transition-colors" 
 					disabled={currentPage <= 1}
 					onclick={() => goToPage(currentPage - 1)}>
-					<span class="material-symbols-outlined text-lg">chevron_left</span>
+					<span class="material-symbols-outlined text-base">chevron_left</span>
 				</button>
 				
-				{#each Array(totalPages) as _, i}
-					<button 
-						class="w-8 h-8 rounded-lg flex items-center justify-center font-bold text-sm shadow-sm transition-colors {currentPage === i + 1 ? 'bg-primary text-on-primary' : 'text-on-surface hover:bg-surface-container-high'}"
-						onclick={() => goToPage(i + 1)}>
-						{i + 1}
-					</button>
-				{/each}
+				<span class="px-3 py-1 text-xs font-bold text-on-surface flex items-center">
+					Halaman {currentPage} / {totalPages}
+				</span>
 
 				<button 
-					class="w-8 h-8 rounded-lg flex items-center justify-center text-on-surface-variant hover:bg-surface-container-high disabled:opacity-50 transition-colors"
+					class="w-8 h-8 rounded-xl flex items-center justify-center text-on-surface-variant hover:bg-surface-container-high disabled:opacity-40 transition-colors"
 					disabled={currentPage >= totalPages}
 					onclick={() => goToPage(currentPage + 1)}>
-					<span class="material-symbols-outlined text-lg">chevron_right</span>
+					<span class="material-symbols-outlined text-base">chevron_right</span>
 				</button>
 			</div>
 		</div>
 	</div>
 </div>
+
+<!-- MODAL: AJUKAN CUTI BARU -->
+{#if showCreateModal}
+	<div class="fixed inset-0 bg-black/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+		<div class="bg-surface-container-lowest border border-slate-200 dark:border-slate-800 rounded-3xl p-6 max-w-lg w-full shadow-2xl space-y-4">
+			<div class="flex items-center justify-between pb-3 border-b border-surface-container">
+				<h3 class="font-black text-base text-on-surface">Form Pengajuan Cuti / Izin</h3>
+				<button type="button" onclick={() => showCreateModal = false} class="text-slate-400 hover:text-white">
+					<span class="material-symbols-outlined text-xl">close</span>
+				</button>
+			</div>
+
+			<form method="POST" action="?/submitLeave" use:enhance={() => {
+				return async ({ update }) => {
+					await update();
+					showCreateModal = false;
+				};
+			}} class="space-y-4">
+				<div>
+					<label for="payroll_id" class="block text-xs font-bold text-on-surface-variant mb-1">NIK / Payroll ID Karyawan</label>
+					<input id="payroll_id" type="text" name="payroll_id" required placeholder="Contoh: EMP-0042" class="w-full bg-surface border border-slate-200 dark:border-slate-700 rounded-xl px-3.5 py-2.5 text-xs text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/40 font-mono uppercase" />
+				</div>
+
+				<div>
+					<label for="leave_type" class="block text-xs font-bold text-on-surface-variant mb-1">Jenis Cuti / Izin</label>
+					<select id="leave_type" name="leave_type" required class="w-full bg-surface border border-slate-200 dark:border-slate-700 rounded-xl px-3.5 py-2.5 text-xs text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/40 cursor-pointer">
+						<option value="Cuti Tahunan">Cuti Tahunan</option>
+						<option value="Cuti Besar">Cuti Besar</option>
+						<option value="Cuti Khusus">Cuti Khusus (Menikah / Melahirkan / Duka)</option>
+						<option value="Izin Sakit (Surat Dokter)">Izin Sakit (Surat Dokter)</option>
+						<option value="Izin Keperluan Mendesak">Izin Keperluan Mendesak</option>
+					</select>
+				</div>
+
+				<div class="grid grid-cols-2 gap-3">
+					<div>
+						<label for="start_date" class="block text-xs font-bold text-on-surface-variant mb-1">Tanggal Mulai</label>
+						<input id="start_date" type="date" name="start_date" required class="w-full bg-surface border border-slate-200 dark:border-slate-700 rounded-xl px-3.5 py-2.5 text-xs text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/40" />
+					</div>
+					<div>
+						<label for="end_date" class="block text-xs font-bold text-on-surface-variant mb-1">Tanggal Selesai</label>
+						<input id="end_date" type="date" name="end_date" required class="w-full bg-surface border border-slate-200 dark:border-slate-700 rounded-xl px-3.5 py-2.5 text-xs text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/40" />
+					</div>
+				</div>
+
+				<div>
+					<label for="duration_days" class="block text-xs font-bold text-on-surface-variant mb-1">Jumlah Hari Kerja</label>
+					<input id="duration_days" type="number" name="duration_days" min="1" max="30" value="1" required class="w-full bg-surface border border-slate-200 dark:border-slate-700 rounded-xl px-3.5 py-2.5 text-xs text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/40 font-mono" />
+				</div>
+
+				<div>
+					<label for="reason" class="block text-xs font-bold text-on-surface-variant mb-1">Alasan / Keterangan Cuti</label>
+					<textarea id="reason" name="reason" rows="3" required placeholder="Tuliskan keterangan detail..." class="w-full bg-surface border border-slate-200 dark:border-slate-700 rounded-xl px-3.5 py-2.5 text-xs text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/40"></textarea>
+				</div>
+
+				<div class="flex justify-end gap-2.5 pt-2 border-t border-surface-container">
+					<button type="button" onclick={() => showCreateModal = false} class="px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold text-on-surface hover:bg-surface-container transition-all">
+						Batal
+					</button>
+					<button type="submit" class="px-5 py-2.5 rounded-xl bg-primary text-on-primary text-xs font-bold shadow-md hover:bg-primary/90 transition-all">
+						Kirim Pengajuan
+					</button>
+				</div>
+			</form>
+		</div>
+	</div>
+{/if}
+
+<!-- MODAL: REJECT CUTI -->
+{#if showRejectModal}
+	<div class="fixed inset-0 bg-black/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+		<div class="bg-surface-container-lowest border border-slate-200 dark:border-slate-800 rounded-3xl p-6 max-w-md w-full shadow-2xl space-y-4">
+			<div class="flex items-center justify-between pb-3 border-b border-surface-container">
+				<h3 class="font-black text-base text-rose-500">Konfirmasi Penolakan Cuti</h3>
+				<button type="button" onclick={() => showRejectModal = false} class="text-slate-400 hover:text-white">
+					<span class="material-symbols-outlined text-xl">close</span>
+				</button>
+			</div>
+
+			<form method="POST" action="?/rejectLeave" use:enhance={() => {
+				return async ({ update }) => {
+					await update();
+					showRejectModal = false;
+				};
+			}} class="space-y-4">
+				<input type="hidden" name="leaveId" value={selectedLeaveIdForReject} />
+
+				<p class="text-xs text-on-surface leading-relaxed">
+					Apakah Anda yakin ingin menolak pengajuan cuti ID <strong class="font-mono text-primary">{selectedLeaveIdForReject}</strong>?
+				</p>
+
+				<div>
+					<label for="rejection_reason" class="block text-xs font-bold text-on-surface-variant mb-1">Alasan Penolakan</label>
+					<textarea id="rejection_reason" name="rejection_reason" rows="3" required placeholder="Contoh: Kuota jadwal operasional pengemudi sedang padat..." class="w-full bg-surface border border-slate-200 dark:border-slate-700 rounded-xl px-3.5 py-2.5 text-xs text-on-surface focus:outline-none focus:ring-2 focus:ring-rose-500/40"></textarea>
+				</div>
+
+				<div class="flex justify-end gap-2.5 pt-2 border-t border-surface-container">
+					<button type="button" onclick={() => showRejectModal = false} class="px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold text-on-surface hover:bg-surface-container transition-all">
+						Batal
+					</button>
+					<button type="submit" class="px-5 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold shadow-md transition-all">
+						Tolak Pengajuan
+					</button>
+				</div>
+			</form>
+		</div>
+	</div>
+{/if}
