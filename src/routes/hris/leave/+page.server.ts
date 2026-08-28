@@ -79,40 +79,6 @@ export const load: PageServerLoad = async ({ cookies, url }) => {
 };
 
 export const actions: Actions = {
-    submitLeave: async ({ request, cookies }) => {
-        const authToken = cookies.get('auth_token');
-        const formData = await request.formData();
-        const payroll_id = formData.get('payroll_id')?.toString()?.trim();
-        const leave_type = formData.get('leave_type')?.toString()?.trim() || 'Cuti Tahunan';
-        const start_date = formData.get('start_date')?.toString()?.trim();
-        const end_date = formData.get('end_date')?.toString()?.trim();
-        const duration_days = Number(formData.get('duration_days')) || 1;
-        const reason = formData.get('reason')?.toString()?.trim() || '';
-
-        if (!payroll_id || !start_date || !end_date) {
-            return fail(400, { message: 'Nomor NIK Karyawan, Tanggal Mulai dan Selesai wajib diisi.' });
-        }
-
-        try {
-            await apiFetch('/api/v1/hris/leaves', {
-                method: 'POST',
-                body: JSON.stringify({
-                    payroll_id,
-                    leave_type,
-                    start_date,
-                    end_date,
-                    duration_days,
-                    reason
-                })
-            }, authToken);
-
-            return { success: true, message: 'Pengajuan cuti berhasil dikirim.' };
-        } catch (apiErr: any) {
-            console.error('❌ [Submit Leave Action Error]:', apiErr?.message);
-            return fail(500, { message: apiErr.message || 'Gagal menyimpan pengajuan cuti.' });
-        }
-    },
-
     approveLeave: async ({ request, cookies }) => {
         const authToken = cookies.get('auth_token');
         const formData = await request.formData();

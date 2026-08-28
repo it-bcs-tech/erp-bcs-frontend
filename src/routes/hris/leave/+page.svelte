@@ -14,7 +14,6 @@
 	let statusFilter = $state($page.url.searchParams.get('status') || 'All');
 
 	let searchTimer: ReturnType<typeof setTimeout>;
-	let showCreateModal = $state(false);
 	let showRejectModal = $state(false);
 	let selectedLeaveIdForReject = $state('');
 
@@ -72,19 +71,9 @@
 				<h1 class="text-2xl font-black text-on-surface tracking-tight">Leave & Absence Management</h1>
 			</div>
 			<p class="text-on-surface-variant font-medium text-xs mt-0.5">
-				Pengajuan Cuti, Izin, Sakit & Monitoring Kuota Saldo Cuti Tahunan Karyawan
+				Pusat Persetujuan Cuti, Izin, Sakit & Monitoring Kuota Saldo Cuti Karyawan (Pengajuan diajukan via Mobile App)
 			</p>
 		</div>
-
-		<!-- Action Button -->
-		<button
-			type="button"
-			onclick={() => showCreateModal = true}
-			class="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-primary text-on-primary font-bold text-xs shadow-md hover:bg-primary/90 transition-all cursor-pointer"
-		>
-			<span class="material-symbols-outlined text-lg">add_circle</span>
-			<span>Ajukan Cuti Baru</span>
-		</button>
 	</header>
 
 	<!-- Action Feedback Banner -->
@@ -275,73 +264,6 @@
 		</div>
 	</div>
 </div>
-
-<!-- MODAL: AJUKAN CUTI BARU -->
-{#if showCreateModal}
-	<div class="fixed inset-0 bg-black/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
-		<div class="bg-surface-container-lowest border border-slate-200 dark:border-slate-800 rounded-3xl p-6 max-w-lg w-full shadow-2xl space-y-4">
-			<div class="flex items-center justify-between pb-3 border-b border-surface-container">
-				<h3 class="font-black text-base text-on-surface">Form Pengajuan Cuti / Izin</h3>
-				<button type="button" onclick={() => showCreateModal = false} class="text-slate-400 hover:text-white">
-					<span class="material-symbols-outlined text-xl">close</span>
-				</button>
-			</div>
-
-			<form method="POST" action="?/submitLeave" use:enhance={() => {
-				return async ({ update }) => {
-					await update();
-					showCreateModal = false;
-				};
-			}} class="space-y-4">
-				<div>
-					<label for="payroll_id" class="block text-xs font-bold text-on-surface-variant mb-1">NIK / Payroll ID Karyawan</label>
-					<input id="payroll_id" type="text" name="payroll_id" required placeholder="Contoh: EMP-0042" class="w-full bg-surface border border-slate-200 dark:border-slate-700 rounded-xl px-3.5 py-2.5 text-xs text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/40 font-mono uppercase" />
-				</div>
-
-				<div>
-					<label for="leave_type" class="block text-xs font-bold text-on-surface-variant mb-1">Jenis Cuti / Izin</label>
-					<select id="leave_type" name="leave_type" required class="w-full bg-surface border border-slate-200 dark:border-slate-700 rounded-xl px-3.5 py-2.5 text-xs text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/40 cursor-pointer">
-						<option value="Cuti Tahunan">Cuti Tahunan</option>
-						<option value="Cuti Besar">Cuti Besar</option>
-						<option value="Cuti Khusus">Cuti Khusus (Menikah / Melahirkan / Duka)</option>
-						<option value="Izin Sakit (Surat Dokter)">Izin Sakit (Surat Dokter)</option>
-						<option value="Izin Keperluan Mendesak">Izin Keperluan Mendesak</option>
-					</select>
-				</div>
-
-				<div class="grid grid-cols-2 gap-3">
-					<div>
-						<label for="start_date" class="block text-xs font-bold text-on-surface-variant mb-1">Tanggal Mulai</label>
-						<input id="start_date" type="date" name="start_date" required class="w-full bg-surface border border-slate-200 dark:border-slate-700 rounded-xl px-3.5 py-2.5 text-xs text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/40" />
-					</div>
-					<div>
-						<label for="end_date" class="block text-xs font-bold text-on-surface-variant mb-1">Tanggal Selesai</label>
-						<input id="end_date" type="date" name="end_date" required class="w-full bg-surface border border-slate-200 dark:border-slate-700 rounded-xl px-3.5 py-2.5 text-xs text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/40" />
-					</div>
-				</div>
-
-				<div>
-					<label for="duration_days" class="block text-xs font-bold text-on-surface-variant mb-1">Jumlah Hari Kerja</label>
-					<input id="duration_days" type="number" name="duration_days" min="1" max="30" value="1" required class="w-full bg-surface border border-slate-200 dark:border-slate-700 rounded-xl px-3.5 py-2.5 text-xs text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/40 font-mono" />
-				</div>
-
-				<div>
-					<label for="reason" class="block text-xs font-bold text-on-surface-variant mb-1">Alasan / Keterangan Cuti</label>
-					<textarea id="reason" name="reason" rows="3" required placeholder="Tuliskan keterangan detail..." class="w-full bg-surface border border-slate-200 dark:border-slate-700 rounded-xl px-3.5 py-2.5 text-xs text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/40"></textarea>
-				</div>
-
-				<div class="flex justify-end gap-2.5 pt-2 border-t border-surface-container">
-					<button type="button" onclick={() => showCreateModal = false} class="px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold text-on-surface hover:bg-surface-container transition-all">
-						Batal
-					</button>
-					<button type="submit" class="px-5 py-2.5 rounded-xl bg-primary text-on-primary text-xs font-bold shadow-md hover:bg-primary/90 transition-all">
-						Kirim Pengajuan
-					</button>
-				</div>
-			</form>
-		</div>
-	</div>
-{/if}
 
 <!-- MODAL: REJECT CUTI -->
 {#if showRejectModal}
