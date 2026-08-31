@@ -52,7 +52,11 @@ export const load: PageServerLoad = async () => {
 				d.id as "driverId",
 				eligible_driver.days_worked,
 				u.current_state,
-				'Pool' as location
+				'Pool' as location,
+				unit_compliance.has_expired_doc,
+				unit_compliance.expired_doc_details,
+				driver_compliance.has_expired_sim,
+				driver_compliance.expired_sim_details
 			FROM fleet.unit u
 			LEFT JOIN master.m_model_unit mu ON mu.id = u.model_unit_id
 			LEFT JOIN master.m_tipe_unit tu ON tu.id = mu.tipe_unit_id
@@ -76,6 +80,32 @@ export const load: PageServerLoad = async () => {
 			) eligible_driver ON true
 			LEFT JOIN master.m_drivers d ON d.id = eligible_driver.driver_id
 			LEFT JOIN master.m_karyawan k ON k.id = d.karyawan_id
+			LEFT JOIN LATERAL (
+				SELECT 
+					EXISTS(
+						SELECT 1 FROM dms.documents doc 
+						WHERE doc.asset_id = u.id AND (doc.expiry_date < CURRENT_DATE OR doc.status = 'EXPIRED')
+					) as has_expired_doc,
+					(
+						SELECT string_agg(COALESCE(dt.name, doc.title) || ' (Expired: ' || to_char(doc.expiry_date, 'DD/MM/YYYY') || ')', ', ') 
+						FROM dms.documents doc 
+						LEFT JOIN dms.m_doc_type dt ON dt.id = doc.doc_type_id 
+						WHERE doc.asset_id = u.id AND (doc.expiry_date < CURRENT_DATE OR doc.status = 'EXPIRED')
+					) as expired_doc_details
+			) unit_compliance ON true
+			LEFT JOIN LATERAL (
+				SELECT 
+					EXISTS(
+						SELECT 1 FROM dms.documents doc 
+						WHERE (doc.employee_id = d.id OR doc.employee_id = k.id) AND (doc.expiry_date < CURRENT_DATE OR doc.status = 'EXPIRED')
+					) as has_expired_sim,
+					(
+						SELECT string_agg(COALESCE(dt.name, doc.title) || ' (Expired: ' || to_char(doc.expiry_date, 'DD/MM/YYYY') || ')', ', ') 
+						FROM dms.documents doc 
+						LEFT JOIN dms.m_doc_type dt ON dt.id = doc.doc_type_id 
+						WHERE (doc.employee_id = d.id OR doc.employee_id = k.id) AND (doc.expiry_date < CURRENT_DATE OR doc.status = 'EXPIRED')
+					) as expired_sim_details
+			) driver_compliance ON true
 			WHERE u.is_active = true 
 			  AND u.current_state IN ('AT_POOL')
 			  AND u.id NOT IN (

@@ -8,6 +8,7 @@
 	let documents = $derived(data.documents || []);
 	let metrics = $derived(data.metrics);
 	let meta = $derived(data.meta);
+	let docTypes = $derived(data.docTypes || []);
 
 	let searchQuery = $state($page.url.searchParams.get('search') || '');
 	let typeFilter = $state($page.url.searchParams.get('type') || 'All');
@@ -39,10 +40,10 @@
 		updateQueryParams();
 	}
 
-	let totalPages = $derived(Math.max(1, Math.ceil((meta?.total || 0) / (meta?.per_page || 5))));
+	let totalPages = $derived(Math.max(1, Math.ceil((meta?.total || 0) / (meta?.per_page || 10))));
 	let currentPage = $derived(meta?.current_page || 1);
-	let startItem = $derived(meta?.total === 0 ? 0 : ((currentPage - 1) * (meta?.per_page || 5)) + 1);
-	let endItem = $derived(Math.min(currentPage * (meta?.per_page || 5), meta?.total || 0));
+	let startItem = $derived(meta?.total === 0 ? 0 : ((currentPage - 1) * (meta?.per_page || 10)) + 1);
+	let endItem = $derived(Math.min(currentPage * (meta?.per_page || 10), meta?.total || 0));
 
 	function goToPage(p: number) {
 		if (p < 1 || p > totalPages) return;
@@ -58,43 +59,46 @@
 
 <div class="flex flex-col h-full space-y-6">
 	<!-- Header & Actions -->
-	<header class="flex flex-col md:flex-row md:items-end justify-between gap-4 flex-shrink-0">
+	<header class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
 		<div>
 			<div class="flex items-center gap-2.5">
-				<span class="material-symbols-outlined text-blue-600 dark:text-blue-400 text-2xl">folder_open</span>
-				<h1 class="text-2xl font-black text-on-surface tracking-tight">Document & Compliance Armada</h1>
+				<span class="material-symbols-outlined text-blue-600 dark:text-blue-400 text-2xl">verified_user</span>
+				<h1 class="text-2xl font-black text-on-surface tracking-tight">Kepatuhan Dokumen Armada (Live DMS)</h1>
 			</div>
-			<p class="text-on-surface-variant font-medium text-sm mt-0.5">
-				Monitoring masa berlaku STNK, uji KIR Dishub, asuransi armada, dan surat izin trayek logistik
+			<p class="text-on-surface-variant font-medium text-xs sm:text-sm mt-0.5">
+				Status legalitas STNK, KIR, BPKB, dan Polis Asuransi terhubung langsung dengan sistem DMS BCS
 			</p>
 		</div>
-		<div class="flex gap-2.5">
-			<button class="bg-surface-container-low border border-slate-200 dark:border-slate-800 text-on-surface px-4 py-2.5 rounded-xl text-sm font-semibold flex items-center gap-2 hover:bg-surface-container transition-colors shadow-xs">
-				<span class="material-symbols-outlined text-lg">download</span>
-				<span>Export</span>
-			</button>
+		<div class="flex items-center gap-2.5">
+			<a 
+				href="/dms/transactions/documents/create" 
+				class="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold px-4 py-2.5 rounded-xl shadow-xs transition-colors"
+			>
+				<span class="material-symbols-outlined text-[18px]">add</span>
+				<span>Unggah Dokumen Baru</span>
+			</a>
 		</div>
 	</header>
 
-	<!-- Metrics Cards (Bento) -->
-	<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+	<!-- Metric Bento Cards -->
+	<div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
 		<div class="p-5 rounded-2xl bg-surface-container-low border border-slate-200/60 dark:border-slate-800/60 shadow-xs">
 			<div class="flex items-center justify-between">
 				<div>
-					<p class="text-xs font-bold text-on-surface-variant uppercase tracking-wider">Total Documents</p>
+					<p class="text-xs font-bold text-on-surface-variant uppercase tracking-wider">Total Dokumen</p>
 					<h3 class="text-2xl font-black text-on-surface mt-1">{metrics.totalDocs}</h3>
 				</div>
 				<div class="w-12 h-12 rounded-xl bg-blue-500/10 text-blue-600 flex items-center justify-center">
-					<span class="material-symbols-outlined text-2xl">folder_open</span>
+					<span class="material-symbols-outlined text-2xl">description</span>
 				</div>
 			</div>
-			<p class="text-xs text-on-surface-variant mt-2">Seluruh dokumen kendaraan</p>
+			<p class="text-xs text-on-surface-variant font-medium mt-2">Seluruh berkas armada</p>
 		</div>
 
 		<div class="p-5 rounded-2xl bg-surface-container-low border border-slate-200/60 dark:border-slate-800/60 shadow-xs">
 			<div class="flex items-center justify-between">
 				<div>
-					<p class="text-xs font-bold text-on-surface-variant uppercase tracking-wider">Expired</p>
+					<p class="text-xs font-bold text-rose-600 uppercase tracking-wider">Expired</p>
 					<h3 class="text-2xl font-black text-rose-600 mt-1">{metrics.expired}</h3>
 				</div>
 				<div class="w-12 h-12 rounded-xl bg-rose-500/10 text-rose-600 flex items-center justify-center">
@@ -107,7 +111,7 @@
 		<div class="p-5 rounded-2xl bg-surface-container-low border border-slate-200/60 dark:border-slate-800/60 shadow-xs">
 			<div class="flex items-center justify-between">
 				<div>
-					<p class="text-xs font-bold text-on-surface-variant uppercase tracking-wider">Expiring Soon (30d)</p>
+					<p class="text-xs font-bold text-on-surface-variant uppercase tracking-wider">Expiring Soon (60d)</p>
 					<h3 class="text-2xl font-black text-amber-600 mt-1">{metrics.expiringSoon}</h3>
 				</div>
 				<div class="w-12 h-12 rounded-xl bg-amber-500/10 text-amber-600 flex items-center justify-center">
@@ -136,14 +140,22 @@
 		<!-- Row 1: Document Type Tabs & Search -->
 		<div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
 			<div class="inline-flex p-1 rounded-2xl bg-surface-container border border-slate-200 dark:border-slate-800 overflow-x-auto max-w-full">
-				{#each ['All', 'STNK', 'KIR', 'Asuransi', 'Izin Trayek'] as tf}
+				<button
+					class="px-3.5 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all cursor-pointer {typeFilter === 'All'
+						? 'bg-surface text-blue-600 dark:text-blue-400 shadow-xs'
+						: 'text-on-surface-variant hover:text-on-surface'}"
+					onclick={() => { typeFilter = 'All'; handleFilterChange(); }}
+				>
+					Semua Jenis Dokumen
+				</button>
+				{#each docTypes as dt}
 					<button
-						class="px-3.5 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all cursor-pointer {typeFilter === tf
+						class="px-3.5 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all cursor-pointer {typeFilter === dt.code
 							? 'bg-surface text-blue-600 dark:text-blue-400 shadow-xs'
 							: 'text-on-surface-variant hover:text-on-surface'}"
-						onclick={() => { typeFilter = tf; handleFilterChange(); }}
+						onclick={() => { typeFilter = dt.code; handleFilterChange(); }}
 					>
-						{tf === 'All' ? 'Semua Jenis Dokumen' : tf}
+						{dt.name}
 					</button>
 				{/each}
 			</div>
@@ -194,14 +206,14 @@
 				</thead>
 				<tbody class="divide-y divide-slate-200/60 dark:divide-slate-800/60">
 					{#each documents as doc}
-						<tr class="group hover:bg-surface-container-low transition-colors">
+						<tr class="group hover:bg-surface-container-high/40 transition-colors">
 							<td class="py-3.5 px-5">
 								<div class="flex flex-col gap-0.5">
 									<div class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-surface-container-high text-on-surface-variant text-[10px] font-bold uppercase tracking-wider w-fit">
 										{doc.type}
 									</div>
-									<span class="text-sm font-bold text-on-surface">{doc.docNumber}</span>
-									<span class="text-[10px] font-medium text-on-surface-variant/70 uppercase tracking-widest font-mono">{doc.id}</span>
+									<span class="text-sm font-bold text-on-surface">{doc.title || doc.docNumber}</span>
+									<span class="text-[10px] font-medium text-on-surface-variant/70 uppercase tracking-widest font-mono">No: {doc.docNumber || '-'}</span>
 								</div>
 							</td>
 							<td class="py-3.5 px-5">
@@ -218,7 +230,7 @@
 							<td class="py-3.5 px-5">
 								<div class="flex items-center gap-2">
 									<span class="material-symbols-outlined text-[16px] text-slate-400">calendar_today</span>
-									<span class="text-sm font-bold text-on-surface">{doc.expiryDate}</span>
+									<span class="text-sm font-bold text-on-surface">{doc.expiryDate || '-'}</span>
 								</div>
 							</td>
 							<td class="py-3.5 px-5">
@@ -237,17 +249,22 @@
 								{/if}
 							</td>
 							<td class="py-3.5 px-5 text-right">
-								<button class="p-2 rounded-lg text-blue-600 hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors cursor-pointer" title="Lihat Dokumen">
-									<span class="material-symbols-outlined text-[20px]">visibility</span>
-								</button>
+								<a
+									href="/dms/transactions/documents/{doc.id}"
+									class="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/50 transition-colors"
+									title="Buka di DMS"
+								>
+									<span class="material-symbols-outlined text-[18px]">visibility</span>
+									<span>Detail DMS</span>
+								</a>
 							</td>
 						</tr>
 					{:else}
 						<tr>
 							<td colspan="6" class="py-20 text-center">
 								<span class="material-symbols-outlined text-5xl text-on-surface-variant/30 block mb-3">folder_open</span>
-								<p class="text-on-surface-variant font-semibold">Tidak ada dokumen kendaraan</p>
-								<p class="text-xs text-on-surface-variant/60 mt-1">Coba ubah filter atau kata kunci pencarian</p>
+								<p class="text-on-surface-variant font-semibold">Tidak ada dokumen kendaraan di DMS</p>
+								<p class="text-xs text-on-surface-variant/60 mt-1">Coba ubah filter atau tambahkan dokumen armada baru di modul DMS.</p>
 							</td>
 						</tr>
 					{/each}

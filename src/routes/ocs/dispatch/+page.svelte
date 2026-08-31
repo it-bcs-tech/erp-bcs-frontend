@@ -123,10 +123,16 @@
 	let manualDispatchUnloadingDate = $state('');
 
 	// Dropdown Options
-	let unitOpts = $derived(availableUnits.map(u => ({
-		value: `${u.unitId}|${u.driverId}`,
-		label: `${u.id} • ${u.driver} • ${u.brand} ${u.type}`
-	})));
+	let unitOpts = $derived(availableUnits.map(u => {
+		const warnings: string[] = [];
+		if (u.has_expired_doc) warnings.push('⚠️ Dokumen Expired');
+		if (u.has_expired_sim) warnings.push('⚠️ SIM Expired');
+		const warnTag = warnings.length > 0 ? ` [${warnings.join(', ')}]` : '';
+		return {
+			value: `${u.unitId}|${u.driverId}`,
+			label: `${u.id} • ${u.driver} • ${u.brand} ${u.type}${warnTag}`
+		};
+	}));
 	let productOpts = $derived(products.map(p => ({ value: p.name, label: p.name })));
 
 	function openManualDispatchModal(order: any) {
@@ -668,8 +674,18 @@
 								{unit.location || 'Pool'}
 							</span>
 						</div>
-						<div class="mt-2">
+						<div class="mt-2 flex flex-wrap gap-1.5 items-center">
 							<span class="text-[9px] font-bold text-on-surface-variant bg-surface-container px-2 py-0.5 rounded uppercase tracking-wider">{unit.type}</span>
+							{#if unit.has_expired_doc}
+								<span class="text-[9px] font-black text-rose-600 bg-rose-50 dark:bg-rose-950/40 px-2 py-0.5 rounded border border-rose-200" title={unit.expired_doc_details}>
+									⚠️ Dokumen Unit Expired
+								</span>
+							{/if}
+							{#if unit.has_expired_sim}
+								<span class="text-[9px] font-black text-amber-600 bg-amber-50 dark:bg-amber-950/40 px-2 py-0.5 rounded border border-amber-200" title={unit.expired_sim_details}>
+									⚠️ SIM Driver Expired
+								</span>
+							{/if}
 						</div>
 					</div>
 				{/each}

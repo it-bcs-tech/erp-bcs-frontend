@@ -285,31 +285,73 @@
 					{/if}
 
 					{#if activeTab === 'documents'}
-						<div class="grid grid-cols-1 md:grid-cols-2 gap-8">
-							<div class="space-y-6">
+						<div class="space-y-6">
+							<div class="flex items-center justify-between">
 								<div>
-									<p class="text-[10px] text-on-surface-variant font-bold uppercase tracking-widest mb-1">National ID (NIK/KTP)</p>
-									<div class="flex items-center gap-3 mt-1">
-										<p class="text-base font-semibold text-on-surface">{employee.nik || 'Not Provided'}</p>
-										{#if employee.nik}
-											<span class="material-symbols-outlined text-tertiary text-[18px]">verified</span>
-										{/if}
-									</div>
+									<h4 class="text-sm font-bold text-on-surface">Dokumen Legalitas & Lisensi Driver (DMS)</h4>
+									<p class="text-xs text-on-surface-variant mt-0.5">SIM, SIO, KTP, MCU, dan Surat Perjanjian Kerja yang tercatat di DMS</p>
 								</div>
-								<div>
-									<p class="text-[10px] text-on-surface-variant font-bold uppercase tracking-widest mb-1">Tax ID (NPWP)</p>
-									<p class="text-base font-semibold text-on-surface">{employee.npwp || 'Not Provided'}</p>
-								</div>
-							</div>
-							
-							<div class="bg-surface-container-low rounded-2xl p-6 border border-dashed border-outline-variant/50 flex flex-col items-center justify-center text-center">
-								<span class="material-symbols-outlined text-4xl text-on-surface-variant mb-2">folder_open</span>
-								<p class="text-sm font-bold text-on-surface">Employee Files & Kontrak</p>
-								<p class="text-xs text-on-surface-variant mt-1 mb-4">Akses berkas digital, scan KTP, NPWP, & surat perjanjian kerja.</p>
-								<a href="/hris/certifications" class="px-4 py-2 bg-surface-container-highest text-on-surface text-xs font-bold rounded-xl hover:bg-outline-variant/20 transition-colors">
-									Buka Direktori Dokumen
+								<a href="/dms/transactions/documents/create" class="text-xs font-bold text-primary flex items-center gap-1 hover:underline">
+									<span class="material-symbols-outlined text-sm">upload_file</span>
+									<span>Tambah Dokumen</span>
 								</a>
 							</div>
+
+							<!-- Static NIK / NPWP Cards -->
+							<div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+								<div class="p-4 rounded-2xl bg-surface border border-slate-200/60 dark:border-slate-800/60 shadow-xs">
+									<p class="text-[10px] text-on-surface-variant font-bold uppercase tracking-widest mb-1">National ID (NIK/KTP)</p>
+									<p class="text-sm font-semibold text-on-surface">{employee.nik || employee.payrollId || 'Not Provided'}</p>
+								</div>
+								<div class="p-4 rounded-2xl bg-surface border border-slate-200/60 dark:border-slate-800/60 shadow-xs">
+									<p class="text-[10px] text-on-surface-variant font-bold uppercase tracking-widest mb-1">Tax ID (NPWP)</p>
+									<p class="text-sm font-semibold text-on-surface">{employee.npwp || 'Not Provided'}</p>
+								</div>
+							</div>
+
+							<!-- Live DMS Documents List -->
+							{#if data.dmsDocs && data.dmsDocs.length > 0}
+								<div class="space-y-3">
+									<p class="text-xs font-bold text-on-surface uppercase tracking-wider">Berkas Tersinkronisasi ({data.dmsDocs.length})</p>
+									<div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+										{#each data.dmsDocs as doc}
+											<div class="p-4 rounded-2xl bg-surface border border-slate-200/60 dark:border-slate-800/60 hover:border-primary/40 transition-colors shadow-xs space-y-2">
+												<div class="flex items-center justify-between">
+													<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300">
+														{doc.type_name || 'Dokumen'}
+													</span>
+													{#if doc.computedStatus === 'EXPIRED'}
+														<span class="text-[10px] font-black text-rose-600">Expired</span>
+													{:else if doc.daysRemaining !== null && doc.daysRemaining <= 30}
+														<span class="text-[10px] font-black text-amber-600">H-{doc.daysRemaining} (Kritis)</span>
+													{:else}
+														<span class="text-[10px] font-bold text-emerald-600">Valid</span>
+													{/if}
+												</div>
+												<h5 class="text-xs font-bold text-on-surface line-clamp-1">{doc.title}</h5>
+												<p class="text-[11px] font-mono text-on-surface-variant">No: {doc.doc_number || '-'}</p>
+												<div class="flex items-center justify-between pt-2 border-t border-slate-100 dark:border-slate-800 text-[11px]">
+													<span class="text-slate-500">Exp: {doc.expiry_date || 'Permanen'}</span>
+													<a href="/dms/transactions/documents/{doc.id}" class="text-primary font-bold hover:underline inline-flex items-center gap-1">
+														<span>Detail</span>
+														<span class="material-symbols-outlined text-xs">arrow_forward</span>
+													</a>
+												</div>
+											</div>
+										{/each}
+									</div>
+								</div>
+							{:else}
+								<div class="bg-surface-container-low rounded-2xl p-6 border border-dashed border-outline-variant/50 text-center">
+									<span class="material-symbols-outlined text-3xl text-on-surface-variant mb-1">description</span>
+									<p class="text-xs font-bold text-on-surface">Belum ada dokumen legal driver di DMS</p>
+									<p class="text-[11px] text-on-surface-variant mt-0.5 mb-3">Registrasikan SIM, SIO, atau MCU driver ini di modul DMS.</p>
+									<a href="/dms/transactions/documents/create" class="inline-flex items-center gap-1 px-3.5 py-1.5 bg-primary text-on-primary text-xs font-bold rounded-xl">
+										<span class="material-symbols-outlined text-sm">add</span>
+										<span>Registrasi Dokumen di DMS</span>
+									</a>
+								</div>
+							{/if}
 						</div>
 					{/if}
 
