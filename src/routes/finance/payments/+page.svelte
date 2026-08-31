@@ -8,6 +8,7 @@
 	let isLoadingDetail = $state(false);
 	let paymentDetail = $state<any>(null);
 	let actionLoading = $state(false);
+	let searchQuery = $state('');
 
 	async function openDetail(id: string) {
 		showModal = true;
@@ -34,6 +35,20 @@
 
 	const formatCurrency = (val: number) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(val);
 	const formatDate = (d: string) => d ? new Date(d).toLocaleDateString('id-ID', { day:'2-digit', month:'short', year:'numeric' }) : '-';
+
+	let filteredPayments = $derived.by(() => {
+		let list = data.payments || [];
+		if (searchQuery.trim()) {
+			const q = searchQuery.toLowerCase();
+			list = list.filter((p: any) =>
+				(p.payment_number && p.payment_number.toLowerCase().includes(q)) ||
+				(p.partner_name && p.partner_name.toLowerCase().includes(q)) ||
+				(p.reference && p.reference.toLowerCase().includes(q)) ||
+				(p.account_name && p.account_name.toLowerCase().includes(q))
+			);
+		}
+		return list;
+	});
 </script>
 
 <svelte:head>
@@ -53,12 +68,31 @@
 			</p>
 		</div>
 		<div class="flex gap-3">
-			<a href="/finance/create-transaction/receive-payments" class="bg-amber-600 hover:bg-amber-700 text-white px-4 py-2.5 rounded-xl text-sm font-bold shadow-xs flex items-center gap-2 transition-colors">
+			<a
+				href="/finance/create-transaction/receive-payments"
+				class="bg-amber-600 hover:bg-amber-700 text-white px-4 py-2.5 rounded-xl text-xs font-bold shadow-xs flex items-center gap-2 transition-colors cursor-pointer"
+			>
 				<span class="material-symbols-outlined text-lg">add</span>
 				<span>Terima Pembayaran</span>
 			</a>
 		</div>
 	</header>
+
+	<!-- Search Bar -->
+	<div class="p-4 rounded-2xl bg-surface-container-low border border-slate-200/60 dark:border-slate-800/60 shadow-xs flex items-center justify-between gap-4">
+		<div class="relative flex-1 max-w-md">
+			<span class="material-symbols-outlined absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-lg">search</span>
+			<input
+				type="text"
+				bind:value={searchQuery}
+				placeholder="Cari nomor pembayaran, kustomer/vendor, atau referensi..."
+				class="w-full bg-surface border border-slate-200 dark:border-slate-700 text-on-surface rounded-xl py-2 pl-10 pr-4 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-amber-500/40"
+			/>
+		</div>
+		<span class="text-xs font-medium text-on-surface-variant">
+			Total: <strong class="text-on-surface">{filteredPayments.length}</strong> Transaksi
+		</span>
+	</div>
 
 	<!-- Table Container -->
 	<div class="rounded-2xl bg-surface-container-low border border-slate-200/60 dark:border-slate-800/60 overflow-hidden shadow-xs flex-1 flex flex-col">
@@ -76,169 +110,115 @@
 						<th class="py-3.5 px-5 text-center">Aksi</th>
 					</tr>
 				</thead>
-				<tbody class="divide-y divide-slate-200/60 dark:divide-slate-800/60">
-					{#if !data.payments || data.payments.length === 0}
+				<tbody class="divide-y divide-slate-200/60 dark:divide-slate-800/60 font-medium text-xs">
+					{#if filteredPayments.length === 0}
 						<tr>
 							<td colspan="8" class="py-16 text-center text-on-surface-variant font-medium">
 								<span class="material-symbols-outlined text-4xl text-on-surface-variant/40 block mb-2">payments</span>
-								<p class="font-bold text-on-surface">Belum ada riwayat transaksi pembayaran.</p>
+								<p class="font-bold text-on-surface">Belum ada riwayat transaksi pembayaran yang cocok.</p>
 							</td>
 						</tr>
+					{:else}
+						{#each filteredPayments as payment}
+							<tr class="hover:bg-surface-container-high/40 transition-colors">
+								<td class="py-3.5 px-5 text-on-surface-variant font-mono">{formatDate(payment.date)}</td>
+								<td class="py-3.5 px-5 font-bold text-on-surface font-mono text-amber-700 dark:text-amber-300">{payment.payment_number}</td>
+								<td class="py-3.5 px-5">
+									{#if payment.type === 'RECEIVE'}
+										<span class="text-emerald-600 font-bold flex items-center gap-1 text-[11px] uppercase tracking-wider">
+											<span class="material-symbols-outlined text-sm">arrow_downward</span> Masuk
+										</span>
+									{:else}
+										<span class="text-rose-600 font-bold flex items-center gap-1 text-[11px] uppercase tracking-wider">
+											<span class="material-symbols-outlined text-sm">arrow_upward</span> Keluar
+										</span>
+									{/if}
+								</td>
+								<td class="py-3.5 px-5 font-bold text-on-surface">{payment.partner_name || '-'}</td>
+								<td class="py-3.5 px-5 text-on-surface-variant font-semibold">{payment.account_name || '-'}</td>
+								<td class="py-3.5 px-5 font-black text-on-surface text-right font-mono text-xs">{formatCurrency(Number(payment.amount))}</td>
+								<td class="py-3.5 px-5 text-center">
+									<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border bg-emerald-50 text-emerald-800 border-emerald-200">
+										{payment.status || 'PAID'}
+									</span>
+								</td>
+								<td class="py-3.5 px-5 text-center">
+									<button
+										type="button"
+										onclick={() => openDetail(payment.id)}
+										class="p-1.5 rounded-lg text-on-surface-variant hover:text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-900/30 transition-colors cursor-pointer"
+										title="Lihat Detail Transaksi"
+									>
+										<span class="material-symbols-outlined text-lg">visibility</span>
+									</button>
+								</td>
+							</tr>
+						{/each}
 					{/if}
-					{#each data.payments as payment}
-						<tr class="hover:bg-surface-container transition-colors">
-							<td class="py-4 px-5 text-xs text-on-surface-variant font-medium">{formatDate(payment.date)}</td>
-							<td class="py-4 px-5 font-bold text-on-surface font-mono">{payment.payment_number}</td>
-							<td class="py-4 px-5">
-								{#if payment.type === 'RECEIVE'}
-									<span class="text-emerald-600 font-bold flex items-center gap-1 text-xs uppercase tracking-wider"><span class="material-symbols-outlined text-sm">arrow_downward</span> Masuk</span>
-								{:else}
-									<span class="text-rose-600 font-bold flex items-center gap-1 text-xs uppercase tracking-wider"><span class="material-symbols-outlined text-sm">arrow_upward</span> Keluar</span>
-								{/if}
-							</td>
-							<td class="py-4 px-5 font-bold text-on-surface">{payment.partner_name || '-'}</td>
-							<td class="py-4 px-5 text-xs text-on-surface-variant font-medium">{payment.account_name || '-'}</td>
-							<td class="py-4 px-5 font-black text-on-surface text-right font-mono">{formatCurrency(Number(payment.amount))}</td>
-							<td class="py-4 px-5 text-center">
-								{#if payment.status === 'POSTED'}
-									<span class="inline-flex items-center px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider bg-emerald-500/10 text-emerald-600 border border-emerald-500/20">
-										POSTED
-									</span>
-								{:else}
-									<span class="inline-flex items-center px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider bg-rose-500/10 text-rose-600 border border-rose-500/20">
-										CANCELLED
-									</span>
-								{/if}
-							</td>
-							<td class="py-4 px-5 text-center">
-								<button onclick={() => openDetail(payment.id)} class="p-1.5 rounded-lg text-on-surface-variant hover:text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-900/30 transition-colors cursor-pointer" title="Lihat Detail">
-									<span class="material-symbols-outlined text-lg">visibility</span>
-								</button>
-							</td>
-						</tr>
-					{/each}
 				</tbody>
 			</table>
 		</div>
 	</div>
 </div>
 
-<!-- ===================== DETAIL MODAL ===================== -->
+<!-- Modal Detail Pembayaran -->
 {#if showModal}
-	<div class="fixed inset-0 z-[100] flex items-center justify-center p-4">
-		<div class="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onclick={() => !actionLoading && (showModal = false)} role="presentation"></div>
-		<div class="relative w-full max-w-3xl bg-surface-container-lowest rounded-[24px] shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
-			
-			{#if isLoadingDetail}
-				<div class="p-16 flex flex-col items-center justify-center gap-4 text-on-surface-variant">
-					<span class="material-symbols-outlined animate-spin text-4xl">sync</span>
-					<p class="font-bold">Memuat Detail Pembayaran...</p>
+	<div class="fixed inset-0 bg-black/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+		<div class="bg-surface-container-lowest rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden border border-slate-200 dark:border-slate-800">
+			<div class="p-6 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center">
+				<div class="flex items-center gap-2">
+					<span class="material-symbols-outlined text-amber-600">receipt</span>
+					<h3 class="text-base font-extrabold text-on-surface">Rincian Pembayaran</h3>
 				</div>
-			{:else if paymentDetail?.payment}
-				<!-- Header -->
-				<div class="p-6 border-b border-surface-container flex items-start justify-between {paymentDetail.payment.status === 'CANCELLED' ? 'bg-rose-50' : 'bg-surface-container-low/30'}">
-					<div>
-						<div class="flex items-center gap-3 mb-1">
-							<h3 class="text-2xl font-black text-on-surface">{paymentDetail.payment.payment_number}</h3>
-							{#if paymentDetail.payment.status === 'CANCELLED'}
-								<span class="px-2 py-0.5 rounded text-[10px] font-black uppercase bg-rose-200 text-rose-800">BATAL</span>
-							{/if}
-						</div>
-						<div class="flex items-center gap-4 text-sm font-medium text-on-surface-variant mt-2">
-							<span class="flex items-center gap-1"><span class="material-symbols-outlined text-[16px]">calendar_today</span> {formatDate(paymentDetail.payment.date)}</span>
-							<span class="flex items-center gap-1"><span class="material-symbols-outlined text-[16px]">account_balance</span> Masuk ke: {paymentDetail.payment.account_code} - {paymentDetail.payment.account_name}</span>
-						</div>
-					</div>
-					<button onclick={() => !actionLoading && (showModal = false)} disabled={actionLoading} class="w-10 h-10 rounded-full bg-surface-container hover:bg-surface-container-high flex items-center justify-center text-on-surface-variant transition-colors disabled:opacity-50">
-						<span class="material-symbols-outlined text-xl">close</span>
-					</button>
-				</div>
+				<button type="button" onclick={() => showModal = false} class="text-on-surface-variant hover:text-on-surface">
+					<span class="material-symbols-outlined text-lg">close</span>
+				</button>
+			</div>
 
-				<!-- Content -->
-				<div class="p-6 overflow-y-auto flex-1 space-y-6">
-					
-					<div class="grid grid-cols-2 gap-6 p-4 rounded-2xl bg-surface-container-low border border-surface-container">
+			<div class="p-6 space-y-4">
+				{#if isLoadingDetail}
+					<div class="py-12 text-center text-on-surface-variant">
+						<span class="material-symbols-outlined text-3xl animate-spin">progress_activity</span>
+						<p class="text-xs font-semibold mt-2">Memuat rincian...</p>
+					</div>
+				{:else if paymentDetail}
+					<div class="grid grid-cols-2 gap-4 text-xs">
 						<div>
-							<span class="block text-xs font-bold uppercase tracking-wider text-on-surface-variant mb-1">Kustomer / Vendor</span>
-							<span class="block text-lg font-bold text-on-surface">{paymentDetail.payment.partner_name || '-'}</span>
+							<p class="text-on-surface-variant font-bold uppercase tracking-wider text-[10px]">No. Transaksi</p>
+							<p class="font-mono font-bold text-on-surface text-sm mt-0.5">{paymentDetail.payment_number}</p>
 						</div>
-						<div class="text-right">
-							<span class="block text-xs font-bold uppercase tracking-wider text-on-surface-variant mb-1">Total Pembayaran</span>
-							<span class="block text-2xl font-black text-emerald-600">{formatCurrency(Number(paymentDetail.payment.amount))}</span>
+						<div>
+							<p class="text-on-surface-variant font-bold uppercase tracking-wider text-[10px]">Tanggal</p>
+							<p class="font-mono text-on-surface mt-0.5">{formatDate(paymentDetail.date)}</p>
 						</div>
-						<div class="col-span-2 pt-3 border-t border-surface-container">
-							<span class="block text-xs font-bold uppercase tracking-wider text-on-surface-variant mb-1">Referensi / Catatan</span>
-							<span class="block text-sm font-medium text-on-surface">{paymentDetail.payment.reference || '-'} &mdash; {paymentDetail.payment.notes || '-'}</span>
+						<div>
+							<p class="text-on-surface-variant font-bold uppercase tracking-wider text-[10px]">Mitra / Partner</p>
+							<p class="font-bold text-on-surface mt-0.5">{paymentDetail.partner_name || '-'}</p>
+						</div>
+						<div>
+							<p class="text-on-surface-variant font-bold uppercase tracking-wider text-[10px]">Jumlah</p>
+							<p class="font-mono font-black text-emerald-600 text-sm mt-0.5">{formatCurrency(paymentDetail.amount)}</p>
 						</div>
 					</div>
 
-					<div>
-						<h4 class="text-sm font-bold uppercase text-on-surface-variant mb-3 flex items-center gap-2">
-							<span class="material-symbols-outlined text-[18px]">account_tree</span> Alokasi Pembayaran
-						</h4>
-						{#if paymentDetail.allocations.length > 0}
-							<div class="border border-surface-container rounded-xl overflow-hidden">
-								<table class="w-full text-left text-sm">
-									<thead class="bg-surface-container-low/50 border-b border-surface-container font-black text-on-surface-variant">
-										<tr>
-											<th class="p-3">No. Invoice</th>
-											<th class="p-3">Tgl Invoice</th>
-											<th class="p-3 text-right">Total Invoice</th>
-											<th class="p-3 text-right">Alokasi Dibayar</th>
-										</tr>
-									</thead>
-									<tbody class="divide-y divide-surface-container">
-										{#each paymentDetail.allocations as alloc}
-											<tr>
-												<td class="p-3 font-bold text-primary">{alloc.invoice_number}</td>
-												<td class="p-3 text-on-surface-variant">{formatDate(alloc.invoice_date)}</td>
-												<td class="p-3 text-right font-medium text-on-surface-variant">{formatCurrency(Number(alloc.invoice_total))}</td>
-												<td class="p-3 text-right font-black text-on-surface">{formatCurrency(Number(alloc.amount))}</td>
-											</tr>
-										{/each}
-									</tbody>
-								</table>
-							</div>
-						{:else}
-							<div class="p-4 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 text-sm font-medium text-center">
-								Tidak ada rincian alokasi invoice (Pembayaran Bebas).
-							</div>
-						{/if}
-					</div>
-				</div>
-
-				<!-- Footer Actions -->
-				{#if paymentDetail.payment.status === 'POSTED'}
-					<div class="p-6 border-t border-surface-container bg-surface-container-lowest flex justify-between items-center">
-						<form method="POST" action="?/cancelPayment" use:enhance={() => {
-							const confirmCancel = confirm('Apakah Anda yakin ingin membatalkan transaksi pembayaran ini? Alokasi ke invoice akan dilepaskan (invoice kembali terhutang).');
-							if (!confirmCancel) return ({ cancel }) => cancel();
-							
-							actionLoading = true;
-							return async ({ result, update }) => {
-								if (result.type === 'success' && result.data?.success) {
-									alert(result.data.message);
-									showModal = false;
-									await update();
-								} else {
-									alert(result.data?.message || 'Gagal membatalkan pembayaran');
-								}
-								actionLoading = false;
-							};
-						}}>
-							<input type="hidden" name="paymentId" value={paymentDetail.payment.id}>
-							<button type="submit" disabled={actionLoading} class="px-4 py-2 bg-rose-100 hover:bg-rose-200 text-rose-700 rounded-xl text-sm font-bold flex items-center gap-2 transition-colors disabled:opacity-50">
-								{#if actionLoading}
-									<span class="material-symbols-outlined animate-spin text-[18px]">sync</span> Memproses...
-								{:else}
-									<span class="material-symbols-outlined text-[18px]">cancel</span> Batalkan Transaksi
-								{/if}
-							</button>
-						</form>
-						<button onclick={() => !actionLoading && (showModal = false)} disabled={actionLoading} class="px-5 py-2.5 bg-surface-container hover:bg-surface-container-high text-on-surface rounded-xl text-sm font-bold transition-colors">Tutup</button>
-					</div>
+					{#if paymentDetail.notes}
+						<div class="p-3 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800 text-xs">
+							<p class="text-on-surface-variant font-bold uppercase tracking-wider text-[10px]">Catatan</p>
+							<p class="text-on-surface mt-1">{paymentDetail.notes}</p>
+						</div>
+					{/if}
 				{/if}
-			{/if}
+			</div>
+
+			<div class="p-4 border-t border-slate-200 dark:border-slate-800 bg-surface-container-low flex justify-end">
+				<button
+					type="button"
+					onclick={() => showModal = false}
+					class="px-4 py-2 bg-surface-container border border-slate-200 dark:border-slate-700 text-xs font-bold text-on-surface rounded-xl hover:bg-surface-container-high transition-colors"
+				>
+					Tutup
+				</button>
+			</div>
 		</div>
 	</div>
 {/if}

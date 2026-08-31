@@ -1,5 +1,6 @@
 <script lang="ts">
 	let { data } = $props();
+	let searchQuery = $state('');
 
 	const formatCurrency = (val: number) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(val);
 	const formatDate = (d: string) => d ? new Date(d).toLocaleDateString('id-ID', { day:'2-digit', month:'short', year:'numeric' }) : '-';
@@ -13,6 +14,19 @@
 			default: return 'bg-slate-100 text-slate-700 border-slate-200';
 		}
 	}
+
+	let filteredBills = $derived.by(() => {
+		let list = data.bills || [];
+		if (searchQuery.trim()) {
+			const q = searchQuery.toLowerCase();
+			list = list.filter((b: any) =>
+				(b.bill_number && b.bill_number.toLowerCase().includes(q)) ||
+				(b.vendor_name && b.vendor_name.toLowerCase().includes(q)) ||
+				(b.reference && b.reference.toLowerCase().includes(q))
+			);
+		}
+		return list;
+	});
 </script>
 
 <svelte:head>
@@ -32,12 +46,31 @@
 			</p>
 		</div>
 		<div class="flex gap-3">
-			<a href="/finance/create-transaction/vendor-bills" class="bg-amber-600 hover:bg-amber-700 text-white px-4 py-2.5 rounded-xl text-sm font-bold shadow-xs flex items-center gap-2 transition-colors">
+			<a
+				href="/finance/create-transaction/vendor-bills"
+				class="bg-amber-600 hover:bg-amber-700 text-white px-4 py-2.5 rounded-xl text-xs font-bold shadow-xs flex items-center gap-2 transition-colors cursor-pointer"
+			>
 				<span class="material-symbols-outlined text-lg">add</span>
 				<span>Buat Bill Baru</span>
 			</a>
 		</div>
 	</header>
+
+	<!-- Search Bar -->
+	<div class="p-4 rounded-2xl bg-surface-container-low border border-slate-200/60 dark:border-slate-800/60 shadow-xs flex items-center justify-between gap-4">
+		<div class="relative flex-1 max-w-md">
+			<span class="material-symbols-outlined absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-lg">search</span>
+			<input
+				type="text"
+				bind:value={searchQuery}
+				placeholder="Cari nomor bill, nama vendor, atau referensi..."
+				class="w-full bg-surface border border-slate-200 dark:border-slate-700 text-on-surface rounded-xl py-2 pl-10 pr-4 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-amber-500/40"
+			/>
+		</div>
+		<span class="text-xs font-medium text-on-surface-variant">
+			Total: <strong class="text-on-surface">{filteredBills.length}</strong> Tagihan
+		</span>
+	</div>
 
 	<!-- Table Container -->
 	<div class="rounded-2xl bg-surface-container-low border border-slate-200/60 dark:border-slate-800/60 overflow-hidden shadow-xs flex-1 flex flex-col">
@@ -56,36 +89,37 @@
 						<th class="py-3.5 px-5 text-center">Aksi</th>
 					</tr>
 				</thead>
-				<tbody class="divide-y divide-slate-200/60 dark:divide-slate-800/60">
-					{#if !data.bills || data.bills.length === 0}
+				<tbody class="divide-y divide-slate-200/60 dark:divide-slate-800/60 font-medium text-xs">
+					{#if filteredBills.length === 0}
 						<tr>
-							<td colspan="9" class="py-16 text-center text-on-surface-variant font-medium">
+							<td colspan="9" class="py-16 text-center text-on-surface-variant">
 								<span class="material-symbols-outlined text-4xl text-on-surface-variant/40 block mb-2">shopping_cart_checkout</span>
-								<p class="font-bold text-on-surface">Belum ada data Vendor Bills yang terdaftar.</p>
+								<p class="font-bold text-on-surface">Belum ada data Vendor Bills yang cocok.</p>
 							</td>
 						</tr>
+					{:else}
+						{#each filteredBills as bill}
+							<tr class="hover:bg-surface-container-high/40 transition-colors">
+								<td class="py-3.5 px-5 font-bold text-on-surface font-mono text-amber-700 dark:text-amber-300">{bill.bill_number}</td>
+								<td class="py-3.5 px-5 text-on-surface-variant font-mono">{formatDate(bill.date)}</td>
+								<td class="py-3.5 px-5 text-on-surface-variant font-mono">{formatDate(bill.due_date)}</td>
+								<td class="py-3.5 px-5 font-bold text-on-surface">{bill.vendor_name}</td>
+								<td class="py-3.5 px-5 font-black text-on-surface text-right font-mono">{formatCurrency(Number(bill.total_amount))}</td>
+								<td class="py-3.5 px-5 font-bold text-emerald-600 text-right font-mono">{formatCurrency(Number(bill.paid_amount))}</td>
+								<td class="py-3.5 px-5 font-black text-rose-600 text-right font-mono">{formatCurrency(Number(bill.total_amount) - Number(bill.paid_amount))}</td>
+								<td class="py-3.5 px-5 text-center">
+									<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border {getStatusBadge(bill.status)}">
+										{bill.status}
+									</span>
+								</td>
+								<td class="py-3.5 px-5 text-center">
+									<button class="p-1.5 rounded-lg text-on-surface-variant hover:text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-900/30 transition-colors cursor-pointer" title="Lihat Detail">
+										<span class="material-symbols-outlined text-lg">visibility</span>
+									</button>
+								</td>
+							</tr>
+						{/each}
 					{/if}
-					{#each data.bills as bill}
-						<tr class="hover:bg-surface-container transition-colors">
-							<td class="py-4 px-5 font-bold text-on-surface font-mono">{bill.bill_number}</td>
-							<td class="py-4 px-5 text-xs text-on-surface-variant font-medium">{formatDate(bill.date)}</td>
-							<td class="py-4 px-5 text-xs text-on-surface-variant font-medium">{formatDate(bill.due_date)}</td>
-							<td class="py-4 px-5 font-bold text-on-surface">{bill.vendor_name}</td>
-							<td class="py-4 px-5 font-black text-on-surface text-right font-mono">{formatCurrency(Number(bill.total_amount))}</td>
-							<td class="py-4 px-5 font-bold text-emerald-600 text-right font-mono">{formatCurrency(Number(bill.paid_amount))}</td>
-							<td class="py-4 px-5 font-black text-rose-600 text-right font-mono">{formatCurrency(Number(bill.total_amount) - Number(bill.paid_amount))}</td>
-							<td class="py-4 px-5 text-center">
-								<span class="inline-flex items-center px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider border {getStatusBadge(bill.status)}">
-									{bill.status}
-								</span>
-							</td>
-							<td class="py-4 px-5 text-center">
-								<button class="p-1.5 rounded-lg text-on-surface-variant hover:text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-900/30 transition-colors cursor-pointer" title="Lihat">
-									<span class="material-symbols-outlined text-lg">visibility</span>
-								</button>
-							</td>
-						</tr>
-					{/each}
 				</tbody>
 			</table>
 		</div>
