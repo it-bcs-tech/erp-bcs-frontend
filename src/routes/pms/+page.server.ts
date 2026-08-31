@@ -1,37 +1,140 @@
 import type { PageServerLoad } from './$types';
+import sql from '$lib/server/db';
 
 export const load: PageServerLoad = async () => {
-	return {
-		summary: {
-			totalItems: 248,
-			lowStock: 12,
-			pendingPO: 5,
-			totalPOValue: 87500000,
-			scheduledService: 8,
-			overdueService: 3,
-		},
-		lowStockAlerts: [
-			{ code: 'ITM-045', name: 'Oli Mesin SAE 40', unit: 'Liter', stock: 15, minStock: 50, supplier: 'PT Pertamina Lubricants', category: 'Oli & Pelumas' },
-			{ code: 'ITM-089', name: 'Filter Udara Hino 500', unit: 'Pcs', stock: 3, minStock: 10, supplier: 'CV Sumber Jaya Parts', category: 'Sparepart' },
-			{ code: 'ITM-112', name: 'Kampas Rem Belakang', unit: 'Set', stock: 4, minStock: 8, supplier: 'PT Isuzu Astra', category: 'Sparepart' },
-			{ code: 'ITM-067', name: 'Ban Truk 10.00-20', unit: 'Pcs', stock: 6, minStock: 16, supplier: 'PT Bridgestone', category: 'Ban' },
-		],
-		recentPOs: [
-			{ id: 'PO-260515001', supplier: 'PT Pertamina Lubricants', items: 3, totalValue: 8500000, status: 'Approved', date: '2026-05-15' },
-			{ id: 'PO-260514002', supplier: 'CV Sumber Jaya Parts', items: 7, totalValue: 12300000, status: 'Received', date: '2026-05-14' },
-			{ id: 'PO-260513003', supplier: 'PT Bridgestone', items: 2, totalValue: 24000000, status: 'Pending', date: '2026-05-13' },
-		],
-		upcomingSchedules: [
-			{ unit: 'B 1234 CD', type: 'Ganti Oli', dueDate: '2026-05-20', dueKm: '150,000 km', status: 'Upcoming' },
-			{ unit: 'D 5678 EF', type: 'Ganti Ban', dueDate: '2026-05-18', dueKm: '-', status: 'Due Today' },
-			{ unit: 'L 9012 GH', type: 'Service Berkala', dueDate: '2026-05-22', dueKm: '100,000 km', status: 'Upcoming' },
-			{ unit: 'F 7890 KL', type: 'Ganti Kampas Rem', dueDate: '2026-05-16', dueKm: '-', status: 'Overdue' },
-		],
-		categoryBreakdown: [
-			{ name: 'Sparepart', count: 98, value: 45200000, icon: 'build', color: 'blue' },
-			{ name: 'Oli & Pelumas', count: 45, value: 12800000, icon: 'oil_barrel', color: 'amber' },
-			{ name: 'Ban', count: 32, value: 28000000, icon: 'tire_repair', color: 'emerald' },
-			{ name: 'Konsumabel', count: 73, value: 8100000, icon: 'cleaning_services', color: 'violet' },
-		]
-	};
+	try {
+		// 1. Resume Widget by 4 Categories: PACKAGING, TRANSPORT, WAREHOUSE, SUPPORTING
+		const categories = ['PACKAGING', 'TRANSPORT', 'WAREHOUSE', 'SUPPORTING'];
+		const categoryData = await Promise.all(
+			categories.map(async (cat) => {
+				const [poRow] = await sql`
+					SELECT 
+						COALESCE(SUM(po.total_amount), 0) as po_include_ppn,
+						COALESCE(SUM(po.tax_amount), 0) as ppn_amount,
+						COALESCE(SUM(po.subtotal), 0) as po_net,
+						COUNT(po.id) as po_count
+					FROM procurement.purchase_order po
+					WHERE UPPER(po.category) = ${cat}
+				`;
+
+				const [wrsRow] = await sql`
+					SELECT 
+						COALESCE(SUM(grl.qty_received * pol.unit_price), 0) as wrs_value
+					FROM procurement.goods_receipt_line grl
+					JOIN procurement.purchase_order_line pol ON pol.id = grl.po_line_id
+					JOIN procurement.purchase_order po ON po.id = pol.po_id
+					WHERE UPPER(po.category) = ${cat}
+				`;
+
+				const poInclude = parseFloat(poRow?.po_include_ppn || '0');
+				const ppn = parseFloat(poRow?.ppn_amount || '0');
+				const poNet = parseFloat(poRow?.po_net || '0');
+				const wrsVal = parseFloat(wrsRow?.wrs_value || '0');
+				const fulfillmentPercent = poNet > 0 ? Math.min(100, Math.round((wrsVal / poNet) * 100)) : 0;
+
+				return {
+					category: cat,
+					poInclude,
+					ppn,
+					poNet,
+					wrsValue: wrsVal,
+					fulfillmentPercent,
+					poCount: parseInt(poRow?.po_count || '0')
+				};
+			})
+		);
+
+		// 2. Matrix PR vs PO vs WRS Qty & Ratios
+		const matrixRows = await Promise.all(
+			categories.map(async (cat) => {
+				const [prRow] = await sql`
+					SELECT COALESCE(SUM(prl.qty_requested), 0) as pr_qty
+					FROM procurement.purchase_request_line prl
+					JOIN procurement.purchase_request pr ON pr.id = prl.pr_id
+					WHERE UPPER(pr.category) = ${cat}
+				`;
+
+				const [poRow] = await sql`
+					SELECT COALESCE(SUM(pol.qty_ordered), 0) as po_qty
+					FROM procurement.purchase_order_line pol
+					JOIN procurement.purchase_order po ON po.id = pol.po_id
+					WHERE UPPER(po.category) = ${cat}
+				`;
+
+				const [wrsRow] = await sql`
+					SELECT COALESCE(SUM(grl.qty_received), 0) as wrs_qty
+					FROM procurement.goods_receipt_line grl
+					JOIN procurement.purchase_order_line pol ON pol.id = grl.po_line_id
+					JOIN procurement.purchase_order po ON po.id = pol.po_id
+					WHERE UPPER(po.category) = ${cat}
+				`;
+
+				const prQty = parseFloat(prRow?.pr_qty || '0');
+				const poQty = parseFloat(poRow?.po_qty || '0');
+				const wrsQty = parseFloat(wrsRow?.wrs_qty || '0');
+
+				const ratioPoPr = prQty > 0 ? Math.min(100, Math.round((poQty / prQty) * 100)) : 100;
+				const ratioWrsPo = poQty > 0 ? Math.min(100, Math.round((wrsQty / poQty) * 100)) : 0;
+
+				return {
+					category: cat,
+					prQty,
+					poQty,
+					wrsQty,
+					ratioPoPr,
+					ratioWrsPo
+				};
+			})
+		);
+
+		// 3. Low stock alerts
+		const lowStockAlerts = await sql`
+			SELECT 
+				m.id, m.material_code as code, m.name, m.uom as unit, 
+				m.stock, m.min_stock as "minStock",
+				COALESCE(l.loc_name, 'Gudang Pusat') as supplier
+			FROM master.m_materials m
+			LEFT JOIN master.m_lokasi l ON l.id = m.location_id
+			WHERE m.stock <= m.min_stock AND m.is_active = true
+			ORDER BY m.stock ASC
+			LIMIT 5
+		`;
+
+		// 4. Recent Purchase Orders
+		const recentPOs = await sql`
+			SELECT 
+				po.id, po.po_number, to_char(po.date, 'YYYY-MM-DD') as date,
+				c.nama_kustomer as vendor, po.total_amount, po.status,
+				COUNT(pol.id) as item_count
+			FROM procurement.purchase_order po
+			LEFT JOIN master.m_customer c ON c.id = po.vendor_id
+			LEFT JOIN procurement.purchase_order_line pol ON pol.po_id = po.id
+			GROUP BY po.id, c.nama_kustomer
+			ORDER BY po.date DESC, po.id DESC
+			LIMIT 5
+		`;
+
+		// 5. Total Summaries
+		const totalPOValue = categoryData.reduce((sum, c) => sum + c.poInclude, 0);
+		const totalWRSValue = categoryData.reduce((sum, c) => sum + c.wrsValue, 0);
+
+		return {
+			categoryResume: categoryData,
+			matrixRows,
+			lowStockAlerts,
+			recentPOs,
+			totalPOValue,
+			totalWRSValue
+		};
+	} catch (err: any) {
+		console.error('Error loading PMS dashboard:', err);
+		return {
+			categoryResume: [],
+			matrixRows: [],
+			lowStockAlerts: [],
+			recentPOs: [],
+			totalPOValue: 0,
+			totalWRSValue: 0
+		};
+	}
 };
