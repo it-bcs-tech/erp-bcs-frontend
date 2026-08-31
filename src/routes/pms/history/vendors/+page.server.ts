@@ -17,7 +17,7 @@ export const load: PageServerLoad = async ({ url }) => {
 				COALESCE(SUM(po.total_amount), 0) as "totalValue"
 			FROM master.m_customer c
 			LEFT JOIN procurement.purchase_order po ON po.vendor_id = c.id
-			WHERE c.kategori = 'VENDOR' OR c.kode_kustomer LIKE 'VND-%'
+			WHERE UPPER(c.kategori) = 'VENDOR' OR c.kode_kustomer LIKE 'V%' OR c.kode_kustomer LIKE 'VND-%'
 			GROUP BY c.id, c.kode_kustomer, c.nama_kustomer, c.alamat, c.phone, c.tlp, c.email
 			ORDER BY "totalValue" DESC
 		`;

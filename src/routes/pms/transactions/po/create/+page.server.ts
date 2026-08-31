@@ -9,7 +9,7 @@ export const load: PageServerLoad = async ({ url }) => {
 		const vendors = await sql`
 			SELECT id, kode_kustomer, nama_kustomer, COALESCE(alamat, '') as alamat 
 			FROM master.m_customer 
-			WHERE kategori = 'VENDOR' OR kode_kustomer LIKE 'VND-%'
+			WHERE UPPER(kategori) = 'VENDOR' OR kode_kustomer LIKE 'V%' OR kode_kustomer LIKE 'VND-%'
 			ORDER BY nama_kustomer
 		`;
 		const projects = await sql`SELECT id, project_code, project_name FROM master.m_project WHERE is_active = true ORDER BY project_name`;

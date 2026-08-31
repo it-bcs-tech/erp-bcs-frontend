@@ -17,8 +17,8 @@ export const load: PageServerLoad = async ({ url }) => {
 				COALESCE(alamat, '-') as alamat,
 				is_active
 			FROM master.m_customer
-			WHERE kategori = 'VENDOR' OR kode_kustomer LIKE 'VND-%'
-			ORDER BY created_at DESC NULLS LAST, nama_kustomer ASC
+			WHERE UPPER(kategori) = 'VENDOR' OR kode_kustomer LIKE 'V%' OR kode_kustomer LIKE 'VND-%'
+			ORDER BY nama_kustomer ASC
 		`;
 
 		let filtered = vendors;
@@ -74,7 +74,7 @@ export const actions: Actions = {
 					${phone},
 					${email},
 					${alamat},
-					'VENDOR',
+					'Vendor',
 					true
 				)
 			`;
