@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { enhance } from '$app/forms';
+	import { goto } from '$app/navigation';
 	import { page } from '$app/stores';
 	import { formatDateId, getStatusInfo, getPhysicalStatusInfo, getEntityTypeInfo } from '$lib/utils/dms';
 	import DmsSecureViewer from '$lib/components/DmsSecureViewer.svelte';
@@ -20,37 +20,44 @@
 		isViewerOpen = true;
 	}
 
-	function handleFilterChange(e: Event) {
-		const form = (e.target as HTMLElement).closest('form');
-		if (form) form.submit();
-	}
-
 	function setEntityFilter(newType: string) {
-		const newUrl = new URL($page.url);
+		const url = new URL(window.location.href);
 		if (newType) {
-			newUrl.searchParams.set('entity_type', newType);
+			url.searchParams.set('entity_type', newType);
 		} else {
-			newUrl.searchParams.delete('entity_type');
+			url.searchParams.delete('entity_type');
 		}
-		newUrl.searchParams.set('page', '1');
-		window.location.href = newUrl.search + newUrl.hash;
+		url.searchParams.set('page', '1');
+		goto(url.toString(), { keepFocus: true, noScroll: true });
 	}
 
 	function setGateFilter(newGate: string) {
-		const newUrl = new URL($page.url);
+		const url = new URL(window.location.href);
 		if (newGate) {
-			newUrl.searchParams.set('gate', newGate);
+			url.searchParams.set('gate', newGate);
 		} else {
-			newUrl.searchParams.delete('gate');
+			url.searchParams.delete('gate');
 		}
-		newUrl.searchParams.set('page', '1');
-		window.location.href = newUrl.search + newUrl.hash;
+		url.searchParams.set('page', '1');
+		goto(url.toString(), { keepFocus: true, noScroll: true });
 	}
 
-	function getPageUrl(pageNum: number) {
-		const newUrl = new URL($page.url);
-		newUrl.searchParams.set('page', pageNum.toString());
-		return newUrl.search + newUrl.hash;
+	function handleTypeChange(e: Event) {
+		const val = (e.target as HTMLSelectElement).value;
+		const url = new URL(window.location.href);
+		if (val) {
+			url.searchParams.set('type', val);
+		} else {
+			url.searchParams.delete('type');
+		}
+		url.searchParams.set('page', '1');
+		goto(url.toString(), { keepFocus: true, noScroll: true });
+	}
+
+	function goToPage(pNum: number) {
+		const url = new URL(window.location.href);
+		url.searchParams.set('page', pNum.toString());
+		goto(url.toString(), { keepFocus: true, noScroll: true });
 	}
 
 	let currentPage = $derived(data.pagination.page);
@@ -79,7 +86,7 @@
 				<span class="material-symbols-outlined text-indigo-600 dark:text-indigo-400 text-2xl">folder_shared</span>
 				<h1 class="text-2xl font-black text-on-surface tracking-tight">Direktori Dokumen & Arsip Legal</h1>
 			</div>
-			<p class="text-on-surface-variant font-medium text-sm mt-0.5">
+			<p class="text-on-surface-variant font-medium text-xs sm:text-sm mt-0.5">
 				Pusat pemantauan masa berlaku dokumen kepatuhan logistik, armada, driver, kontrak legal, dan arsip fisik.
 			</p>
 		</div>
@@ -101,14 +108,14 @@
 		</div>
 	</header>
 
-	<!-- Entity Filter Tabs (Segmented Pills) -->
-	<div class="flex flex-wrap items-center gap-2">
+	<!-- Segmented Entity Category Selector (Armada, Driver, Customer, Corporate) -->
+	<div class="inline-flex p-1.5 rounded-2xl bg-surface-container-low border border-slate-200/80 dark:border-slate-800/80 gap-1 overflow-x-auto shadow-xs max-w-full">
 		<button
 			type="button"
 			onclick={() => setEntityFilter('')}
-			class="px-4 py-2 rounded-xl text-xs font-bold transition-colors flex items-center gap-2 {entityType === ''
+			class="px-4 py-2 rounded-xl text-xs font-bold transition-colors flex items-center gap-2 cursor-pointer {entityType === ''
 				? 'bg-indigo-600 text-white shadow-xs'
-				: 'bg-surface-container-low text-on-surface-variant hover:text-on-surface border border-slate-200/80 dark:border-slate-800'}"
+				: 'bg-transparent text-on-surface-variant hover:text-on-surface'}"
 		>
 			<span class="material-symbols-outlined text-sm">grid_view</span>
 			<span>Semua Kategori</span>
@@ -117,9 +124,9 @@
 		<button
 			type="button"
 			onclick={() => setEntityFilter('FLEET')}
-			class="px-4 py-2 rounded-xl text-xs font-bold transition-colors flex items-center gap-2 {entityType === 'FLEET'
+			class="px-4 py-2 rounded-xl text-xs font-bold transition-colors flex items-center gap-2 cursor-pointer {entityType === 'FLEET'
 				? 'bg-sky-600 text-white shadow-xs'
-				: 'bg-surface-container-low text-on-surface-variant hover:text-on-surface border border-slate-200/80 dark:border-slate-800'}"
+				: 'bg-transparent text-on-surface-variant hover:text-on-surface'}"
 		>
 			<span class="material-symbols-outlined text-sm">local_shipping</span>
 			<span>Dokumen Armada (FMS)</span>
@@ -128,9 +135,9 @@
 		<button
 			type="button"
 			onclick={() => setEntityFilter('DRIVER')}
-			class="px-4 py-2 rounded-xl text-xs font-bold transition-colors flex items-center gap-2 {entityType === 'DRIVER'
+			class="px-4 py-2 rounded-xl text-xs font-bold transition-colors flex items-center gap-2 cursor-pointer {entityType === 'DRIVER'
 				? 'bg-indigo-600 text-white shadow-xs'
-				: 'bg-surface-container-low text-on-surface-variant hover:text-on-surface border border-slate-200/80 dark:border-slate-800'}"
+				: 'bg-transparent text-on-surface-variant hover:text-on-surface'}"
 		>
 			<span class="material-symbols-outlined text-sm">airline_seat_recline_normal</span>
 			<span>Dokumen Driver (HRIS)</span>
@@ -139,9 +146,9 @@
 		<button
 			type="button"
 			onclick={() => setEntityFilter('CUSTOMER')}
-			class="px-4 py-2 rounded-xl text-xs font-bold transition-colors flex items-center gap-2 {entityType === 'CUSTOMER'
+			class="px-4 py-2 rounded-xl text-xs font-bold transition-colors flex items-center gap-2 cursor-pointer {entityType === 'CUSTOMER'
 				? 'bg-teal-600 text-white shadow-xs'
-				: 'bg-surface-container-low text-on-surface-variant hover:text-on-surface border border-slate-200/80 dark:border-slate-800'}"
+				: 'bg-transparent text-on-surface-variant hover:text-on-surface'}"
 		>
 			<span class="material-symbols-outlined text-sm">handshake</span>
 			<span>Mitra / Legal Customer</span>
@@ -150,9 +157,9 @@
 		<button
 			type="button"
 			onclick={() => setEntityFilter('CORPORATE')}
-			class="px-4 py-2 rounded-xl text-xs font-bold transition-colors flex items-center gap-2 {entityType === 'CORPORATE'
+			class="px-4 py-2 rounded-xl text-xs font-bold transition-colors flex items-center gap-2 cursor-pointer {entityType === 'CORPORATE'
 				? 'bg-violet-600 text-white shadow-xs'
-				: 'bg-surface-container-low text-on-surface-variant hover:text-on-surface border border-slate-200/80 dark:border-slate-800'}"
+				: 'bg-transparent text-on-surface-variant hover:text-on-surface'}"
 		>
 			<span class="material-symbols-outlined text-sm">corporate_fare</span>
 			<span>Korporat & ISO</span>
@@ -179,104 +186,154 @@
 
 			<select
 				name="type"
-				onchange={handleFilterChange}
-				class="bg-surface-container-lowest dark:bg-surface-container border border-slate-200 dark:border-slate-800 rounded-xl py-2 px-3 text-xs font-bold text-on-surface focus:outline-none focus:ring-2 focus:ring-indigo-500/50 cursor-pointer"
+				onchange={handleTypeChange}
+				value={type}
+				class="bg-surface-container-lowest dark:bg-surface-container border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs font-medium text-on-surface focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
 			>
-				<option value="" selected={type === ''}>Semua Tipe Dokumen</option>
+				<option value="">Semua Tipe Dokumen</option>
 				{#each data.docTypes as dt}
-					<option value={dt.code} selected={type === dt.code}>{dt.name}</option>
+					<option value={dt.code}>{dt.name}</option>
 				{/each}
 			</select>
 
-			<select
-				name="gate"
-				onchange={handleFilterChange}
-				class="bg-surface-container-lowest dark:bg-surface-container border border-slate-200 dark:border-slate-800 rounded-xl py-2 px-3 text-xs font-bold text-on-surface focus:outline-none focus:ring-2 focus:ring-indigo-500/50 cursor-pointer"
+			<button
+				type="submit"
+				class="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2 rounded-xl text-xs font-bold transition-colors flex items-center justify-center gap-1.5 shadow-xs"
 			>
-				<option value="" selected={gate === ''}>Semua Masa Berlaku</option>
-				<option value="URGENT_7" selected={gate === 'URGENT_7'}>🔴 H-7 (Urgent Jatuh Tempo)</option>
-				<option value="CRITICAL_30" selected={gate === 'CRITICAL_30'}>🟠 H-30 (Kritis)</option>
-				<option value="WARNING_60" selected={gate === 'WARNING_60'}>🟡 H-60 (Peringatan Awal)</option>
-				<option value="EXPIRED" selected={gate === 'EXPIRED'}>⛔ Sudah Expired (Kadaluarsa)</option>
-			</select>
+				<span class="material-symbols-outlined text-sm">filter_alt</span>
+				<span>Filter</span>
+			</button>
 		</form>
 
-		<!-- Data Table -->
+		<!-- Expiry Gate Quick Filters -->
+		<div class="px-4 py-2.5 bg-surface-container-lowest dark:bg-surface-container-low/50 border-b border-slate-200/60 dark:border-slate-800/60 flex items-center gap-2 overflow-x-auto text-xs">
+			<span class="text-on-surface-variant font-bold text-[11px] uppercase tracking-wider mr-1">Status Gate:</span>
+			
+			<button
+				type="button"
+				onclick={() => setGateFilter('')}
+				class="px-2.5 py-1 rounded-lg font-bold transition-colors cursor-pointer {gate === '' ? 'bg-indigo-500/10 text-indigo-600 border border-indigo-500/30' : 'text-on-surface-variant hover:text-on-surface'}"
+			>
+				Semua
+			</button>
+
+			<button
+				type="button"
+				onclick={() => setGateFilter('EXPIRED')}
+				class="px-2.5 py-1 rounded-lg font-bold transition-colors cursor-pointer {gate === 'EXPIRED' ? 'bg-rose-500/10 text-rose-600 border border-rose-500/30' : 'text-on-surface-variant hover:text-on-surface'}"
+			>
+				Expired (Kadaluarsa)
+			</button>
+
+			<button
+				type="button"
+				onclick={() => setGateFilter('URGENT_7')}
+				class="px-2.5 py-1 rounded-lg font-bold transition-colors cursor-pointer {gate === 'URGENT_7' ? 'bg-red-500/10 text-red-600 border border-red-500/30' : 'text-on-surface-variant hover:text-on-surface'}"
+			>
+				H-7 Urgent
+			</button>
+
+			<button
+				type="button"
+				onclick={() => setGateFilter('CRITICAL_30')}
+				class="px-2.5 py-1 rounded-lg font-bold transition-colors cursor-pointer {gate === 'CRITICAL_30' ? 'bg-orange-500/10 text-orange-600 border border-orange-500/30' : 'text-on-surface-variant hover:text-on-surface'}"
+			>
+				H-30 Kritis
+			</button>
+
+			<button
+				type="button"
+				onclick={() => setGateFilter('WARNING_60')}
+				class="px-2.5 py-1 rounded-lg font-bold transition-colors cursor-pointer {gate === 'WARNING_60' ? 'bg-amber-500/10 text-amber-600 border border-amber-500/30' : 'text-on-surface-variant hover:text-on-surface'}"
+			>
+				H-60 Warning
+			</button>
+		</div>
+
+		<!-- Main Document Table -->
 		<div class="overflow-x-auto flex-1">
-			<table class="w-full text-left text-xs border-collapse">
-				<thead>
-					<tr class="border-b border-slate-200/60 dark:border-slate-800/60 bg-surface-container-low font-bold text-on-surface-variant uppercase tracking-wider">
-						<th class="py-3.5 px-4">Dokumen & Nomor</th>
-						<th class="py-3.5 px-4">Tipe / Kategori</th>
+			<table class="w-full text-left text-sm min-w-[1000px]">
+				<thead class="bg-slate-100/70 dark:bg-slate-800/50 text-xs font-bold text-on-surface-variant uppercase tracking-wider border-b border-slate-200/60 dark:border-slate-800/60">
+					<tr>
+						<th class="py-3.5 px-4">Dokumen & QR ID</th>
 						<th class="py-3.5 px-4">Entitas Terkait</th>
-						<th class="py-3.5 px-4">Masa Berlaku (Expiry)</th>
+						<th class="py-3.5 px-4">Tipe & Versi</th>
+						<th class="py-3.5 px-4">Masa Berlaku</th>
 						<th class="py-3.5 px-4">Status & Sisa Hari</th>
 						<th class="py-3.5 px-4">Lokasi Fisik</th>
 						<th class="py-3.5 px-4 text-right">Aksi</th>
 					</tr>
 				</thead>
-				<tbody class="divide-y divide-slate-100 dark:divide-slate-800/50 font-medium">
+				<tbody class="divide-y divide-slate-200/60 dark:divide-slate-800/60">
 					{#if data.documents.length === 0}
 						<tr>
-							<td colspan="7" class="py-12 text-center text-on-surface-variant">
-								<span class="material-symbols-outlined text-4xl text-slate-300 dark:text-slate-600 mb-2">folder_off</span>
-								<p class="text-sm font-semibold">Tidak ada dokumen yang ditemukan.</p>
-								<p class="text-xs text-slate-400 mt-0.5">Coba ubah kata kunci pencarian atau filter kategori di atas.</p>
+							<td colspan="7" class="py-16 text-center text-on-surface-variant">
+								<span class="material-symbols-outlined text-4xl text-slate-300 dark:text-slate-600 mb-2">folder_open</span>
+								<p class="text-xs font-semibold">Tidak ada dokumen yang sesuai dengan kriteria pencarian.</p>
 							</td>
 						</tr>
 					{:else}
 						{#each data.documents as doc}
-							{@const sInfo = getStatusInfo(doc.status, doc.gate_level, doc.days_remaining)}
-							{@const pInfo = getPhysicalStatusInfo(doc.physical_status)}
+							{@const sInfo = getStatusInfo(doc.computedStatus, doc.daysRemaining, doc.gateLevel)}
 							{@const eInfo = getEntityTypeInfo(doc.entity_type)}
-							<tr class="hover:bg-surface-container-high/40 transition-colors group">
-								<!-- Doc Title & Number -->
+							{@const pInfo = getPhysicalStatusInfo(doc.physical_status)}
+
+							<tr class="hover:bg-surface-container-high/40 transition-colors">
+								<!-- Document Title & QR -->
 								<td class="py-3.5 px-4">
 									<div class="flex items-start gap-2.5">
-										<span class="material-symbols-outlined text-indigo-600 dark:text-indigo-400 text-lg mt-0.5">description</span>
+										<div class="w-8 h-8 rounded-lg bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 flex items-center justify-center flex-shrink-0 mt-0.5">
+											<span class="material-symbols-outlined text-base">description</span>
+										</div>
 										<div>
-											<a
-												href="/dms/transactions/documents/{doc.id}"
-												class="font-black text-on-surface hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors line-clamp-1"
-											>
+											<a href="/dms/transactions/documents/{doc.id}" class="font-bold text-on-surface hover:text-indigo-600 transition-colors text-xs line-clamp-1">
 												{doc.title}
 											</a>
-											<div class="flex items-center gap-2 mt-0.5 text-[11px] text-on-surface-variant">
-												<span class="font-mono font-bold text-slate-600 dark:text-slate-400">{doc.doc_number || 'Tanpa No'}</span>
-												<span>&bull;</span>
-												<span class="px-1.5 py-0.2 rounded bg-slate-100 dark:bg-slate-800 font-mono text-[10px]">v{doc.current_version || 1}</span>
+											<div class="flex items-center gap-1.5 mt-0.5">
+												<span class="text-[10px] font-mono text-on-surface-variant">No: {doc.doc_number || '-'}</span>
+												{#if doc.qr_code_id}
+													<span class="px-1.5 py-0.2 rounded bg-slate-100 dark:bg-slate-800 text-[9px] font-mono text-slate-600 dark:text-slate-400">
+														{doc.qr_code_id}
+													</span>
+												{/if}
 											</div>
 										</div>
 									</div>
 								</td>
 
-								<!-- Doc Type -->
-								<td class="py-3.5 px-4">
-									<span class="font-bold text-on-surface">{doc.type_name || '-'}</span>
-								</td>
-
 								<!-- Linked Entity -->
 								<td class="py-3.5 px-4">
-									<div class="flex items-center gap-1.5">
-										<span class="material-symbols-outlined text-sm {eInfo.color.split(' ')[0]}">{eInfo.icon}</span>
-										<span class="font-bold text-on-surface">
+									<div class="flex items-center gap-2">
+										<span class="material-symbols-outlined text-sm {eInfo.color}">{eInfo.icon}</span>
+										<div class="text-xs">
 											{#if doc.entity_type === 'FLEET'}
-												{doc.unit_number ? `${doc.unit_number}` : 'Armada'}
+												<p class="font-bold text-on-surface">{doc.unit_nomor || 'Armada'}</p>
+												<p class="text-[10px] text-on-surface-variant">{doc.unit_lambung || 'Fleet Unit'}</p>
 											{:else if doc.entity_type === 'DRIVER'}
-												{doc.driver_name || 'Driver'}
+												<p class="font-bold text-on-surface">{doc.driver_name || 'Driver'}</p>
+												<p class="text-[10px] text-on-surface-variant">NIK: {doc.driver_payroll || '-'}</p>
 											{:else if doc.entity_type === 'CUSTOMER'}
-												{doc.partner_name || 'Mitra'}
+												<p class="font-bold text-on-surface">{doc.customer_name || 'Mitra'}</p>
+												<p class="text-[10px] text-on-surface-variant">Customer SPK</p>
 											{:else}
-												Korporat
+												<p class="font-bold text-on-surface">PT BCS Logistics</p>
+												<p class="text-[10px] text-on-surface-variant">Korporat / Legal</p>
 											{/if}
-										</span>
+										</div>
 									</div>
 								</td>
 
-								<!-- Issue & Expiry Dates -->
+								<!-- Doc Type & Version -->
 								<td class="py-3.5 px-4">
-									<p class="font-bold text-on-surface">{formatDateId(doc.expiry_date)}</p>
-									<p class="text-[11px] text-on-surface-variant">Terbit: {formatDateId(doc.issue_date)}</p>
+									<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 dark:bg-slate-800 text-on-surface-variant">
+										{doc.doc_type_name || 'Dokumen'}
+									</span>
+									<span class="ml-1 text-[10px] font-mono font-bold text-indigo-600">v{doc.current_version || 1}</span>
+								</td>
+
+								<!-- Expiry Date -->
+								<td class="py-3.5 px-4 font-mono text-xs">
+									{doc.expiry_date ? formatDateId(doc.expiry_date) : 'Permanen'}
 								</td>
 
 								<!-- Status Badge & Remaining Days -->
@@ -305,7 +362,7 @@
 												type="button"
 												onclick={() => openViewer(doc)}
 												title="Pratinjau Watermark"
-												class="p-1.5 hover:bg-indigo-50 dark:hover:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 rounded-lg transition-colors"
+												class="p-1.5 hover:bg-indigo-50 dark:hover:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 rounded-lg transition-colors cursor-pointer"
 											>
 												<span class="material-symbols-outlined text-base">visibility</span>
 											</button>
@@ -333,30 +390,35 @@
 			</div>
 
 			<div class="flex items-center gap-1">
-				<a
-					href={currentPage > 1 ? getPageUrl(currentPage - 1) : '#'}
-					class="p-1.5 rounded-lg border border-slate-200 dark:border-slate-800 hover:bg-surface-container-high transition-colors {currentPage <= 1 ? 'opacity-40 pointer-events-none' : ''}"
+				<button
+					type="button"
+					onclick={() => goToPage(currentPage - 1)}
+					disabled={currentPage <= 1}
+					class="p-1.5 rounded-lg border border-slate-200 dark:border-slate-800 hover:bg-surface-container-high transition-colors disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
 				>
 					<span class="material-symbols-outlined text-sm">chevron_left</span>
-				</a>
+				</button>
 
 				{#each pageNumbers as pNum}
-					<a
-						href={getPageUrl(pNum)}
-						class="w-7 h-7 flex items-center justify-center rounded-lg font-bold transition-colors {pNum === currentPage
+					<button
+						type="button"
+						onclick={() => goToPage(pNum)}
+						class="w-7 h-7 flex items-center justify-center rounded-lg font-bold transition-colors cursor-pointer {pNum === currentPage
 							? 'bg-indigo-600 text-white'
 							: 'border border-slate-200 dark:border-slate-800 hover:bg-surface-container-high text-on-surface'}"
 					>
 						{pNum}
-					</a>
+					</button>
 				{/each}
 
-				<a
-					href={currentPage < totalPages ? getPageUrl(currentPage + 1) : '#'}
-					class="p-1.5 rounded-lg border border-slate-200 dark:border-slate-800 hover:bg-surface-container-high transition-colors {currentPage >= totalPages ? 'opacity-40 pointer-events-none' : ''}"
+				<button
+					type="button"
+					onclick={() => goToPage(currentPage + 1)}
+					disabled={currentPage >= totalPages}
+					class="p-1.5 rounded-lg border border-slate-200 dark:border-slate-800 hover:bg-surface-container-high transition-colors disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
 				>
 					<span class="material-symbols-outlined text-sm">chevron_right</span>
-				</a>
+				</button>
 			</div>
 		</div>
 	</div>
