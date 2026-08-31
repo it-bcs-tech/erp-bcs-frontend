@@ -1,24 +1,76 @@
 import type { PageServerLoad, Actions } from './$types';
 import sql from '$lib/server/db';
-import { error, redirect } from '@sveltejs/kit';
+import { error } from '@sveltejs/kit';
 import { writeFile, mkdir } from 'fs/promises';
 import { join } from 'path';
 import { randomUUID } from 'crypto';
+import { calculateExpiryGate, logDocumentAudit } from '$lib/server/dms';
+import type { DMSEntityType } from '$lib/types/dms';
 
 export const load: PageServerLoad = async ({ params }) => {
 	const { id } = params;
 	try {
-		// Load the document
-		const [doc] = await sql`SELECT * FROM documents.documents WHERE id = ${id}`;
+		const [doc] = await sql`
+			SELECT 
+				d.*,
+				to_char(d.issue_date, 'YYYY-MM-DD') as issue_date_str,
+				to_char(d.expiry_date, 'YYYY-MM-DD') as expiry_date_str
+			FROM dms.documents d
+			WHERE d.id = ${id}
+		`;
 		if (!doc) throw error(404, 'Dokumen tidak ditemukan');
 
-		// Load master data for dropdowns
-		const docTypes = await sql`SELECT id, code, name FROM documents.m_doc_type WHERE is_active = true ORDER BY name`;
-		const notaries = await sql`SELECT id, name FROM documents.m_notary WHERE is_active = true ORDER BY name`;
-		const issuers = await sql`SELECT id, name FROM documents.m_issuer WHERE is_active = true ORDER BY name`;
-		const locations = await sql`SELECT id, name FROM documents.m_filing_location WHERE is_active = true ORDER BY name`;
-		const partners = await sql`SELECT id, nama_kustomer as name FROM master.m_customer WHERE is_active = true ORDER BY name`;
-		const assets = await sql`SELECT id, nomor_unit as name FROM fleet.unit ORDER BY nomor_unit`;
+		const docTypes = await sql`
+			SELECT id, code, name, description 
+			FROM dms.m_doc_type 
+			WHERE is_active = true 
+			ORDER BY name ASC
+		`;
+
+		const notaries = await sql`
+			SELECT id, name 
+			FROM dms.m_notary 
+			WHERE is_active = true 
+			ORDER BY name ASC
+		`;
+
+		const issuers = await sql`
+			SELECT id, name, type 
+			FROM dms.m_issuer 
+			WHERE is_active = true 
+			ORDER BY name ASC
+		`;
+
+		const locations = await sql`
+			SELECT id, code, name, description 
+			FROM dms.m_filing_location 
+			WHERE is_active = true 
+			ORDER BY name ASC
+		`;
+
+		const partners = await sql`
+			SELECT id, nama_kustomer as name 
+			FROM master.m_customer 
+			ORDER BY nama_kustomer ASC
+		`;
+
+		const assets = await sql`
+			SELECT id, nomor_unit as name, business_unit 
+			FROM fleet.unit 
+			WHERE deleted_at IS NULL 
+			ORDER BY nomor_unit ASC
+		`;
+
+		const drivers = await sql`
+			SELECT 
+				d.id, 
+				k.nama_karyawan as name, 
+				k.payroll_id 
+			FROM master.m_drivers d
+			JOIN master.m_karyawan k ON k.id = d.karyawan_id
+			WHERE (k.aktif = 'Y' OR k.aktif = '1' OR k.aktif IS NULL)
+			ORDER BY k.nama_karyawan ASC
+		`;
 
 		return {
 			doc,
@@ -27,10 +79,11 @@ export const load: PageServerLoad = async ({ params }) => {
 			issuers,
 			locations,
 			partners,
-			assets
+			assets,
+			drivers
 		};
 	} catch (err: any) {
-		console.error("Error loading DMS edit page:", err);
+		console.error('Error loading DMS edit page:', err);
 		throw error(500, 'Gagal memuat data master atau dokumen');
 	}
 };
@@ -38,79 +91,101 @@ export const load: PageServerLoad = async ({ params }) => {
 export const actions: Actions = {
 	default: async ({ request, params }) => {
 		const { id } = params;
-		const formData = await request.formData();
-		
-		const title = formData.get('title') as string;
-		const doc_number = formData.get('doc_number') as string;
-		const doc_type_id = formData.get('doc_type_id') as string;
-		
-		const partner_id = formData.get('partner_id') as string;
-		const asset_id = formData.get('asset_id') as string;
-		const employee_id = formData.get('employee_id') as string;
-		
-		const notary_id = formData.get('notary_id') as string;
-		const issuer_id = formData.get('issuer_id') as string;
-		const filing_location_id = formData.get('filing_location_id') as string;
-		
-		const issue_date = formData.get('issue_date') as string;
-		const expiry_date = formData.get('expiry_date') as string;
-		const status = formData.get('status') as string;
-		const notes = formData.get('notes') as string;
+		const data = await request.formData();
+		const payloadStr = data.get('payload');
 
-		// Metadata for dynamic fields (e.g., Ownership, Brankas)
-		const metadataEntriesStr = formData.get('metadata') as string;
-		let metadata = {};
-		try {
-			if (metadataEntriesStr) metadata = JSON.parse(metadataEntriesStr);
-		} catch (e) {
-			console.warn("Invalid metadata JSON", e);
+		if (!payloadStr) {
+			return { success: false, message: 'Payload data tidak ditemukan' };
 		}
 
-		if (!title || !doc_type_id) {
-			return { success: false, error: 'Title and Type are required.' };
-		}
-
-		let file_path = null;
-		const file = formData.get('file_upload') as File;
+		let file_path: string | null = null;
+		const file = data.get('file_upload') as File;
 		if (file && file.size > 0) {
 			const ext = file.name.split('.').pop() || 'pdf';
 			const filename = `doc-${randomUUID()}.${ext}`;
 			const uploadDir = join(process.cwd(), 'uploads');
-			
+
 			await mkdir(uploadDir, { recursive: true });
-			
+
 			const arrayBuffer = await file.arrayBuffer();
 			const buffer = Buffer.from(arrayBuffer);
-			
+
 			await writeFile(join(uploadDir, filename), buffer);
 			file_path = filename;
 		}
 
 		try {
+			const payload = JSON.parse(payloadStr.toString());
+			const {
+				doc_number,
+				doc_type_id,
+				title,
+				entity_type = 'CORPORATE',
+				partner_id,
+				asset_id,
+				employee_id,
+				notary_id,
+				issuer_id,
+				issue_date,
+				expiry_date,
+				filing_location_id,
+				status,
+				notes,
+				metadata
+			} = payload;
+
+			if (!title || !doc_type_id) {
+				return { success: false, message: 'Judul Dokumen dan Tipe Dokumen wajib diisi!' };
+			}
+
+			// Hitung ulang lifecycle status jika expiry berubah
+			const { computedStatus } = calculateExpiryGate(expiry_date, status);
+
+			const formattedAssetId = asset_id ? Number(asset_id) : null;
+			const formattedEmployeeId = employee_id ? Number(employee_id) : null;
+			const formattedPartnerId = partner_id ? partner_id : null;
+
+			// Update document
 			await sql`
-				UPDATE documents.documents SET
-					doc_number = ${doc_number || null}, 
-					doc_type_id = ${doc_type_id}, 
-					title = ${title}, 
-					partner_id = ${partner_id || null}, 
-					asset_id = ${asset_id || null}, 
-					employee_id = ${employee_id || null}, 
-					notary_id = ${notary_id || null}, 
+				UPDATE dms.documents SET
+					doc_number = ${doc_number || null},
+					doc_type_id = ${doc_type_id},
+					title = ${title},
+					entity_type = ${entity_type as DMSEntityType},
+					partner_id = ${formattedPartnerId},
+					asset_id = ${formattedAssetId},
+					employee_id = ${formattedEmployeeId},
+					notary_id = ${notary_id || null},
 					issuer_id = ${issuer_id || null},
-					issue_date = ${issue_date || null}, 
-					expiry_date = ${expiry_date || null}, 
-					filing_location_id = ${filing_location_id || null}, 
-					status = ${status || 'ACTIVE'},
-					notes = ${notes || null}, 
-					metadata = ${metadata},
-					file_path = COALESCE(${file_path}, file_path)
+					issue_date = ${issue_date || null},
+					expiry_date = ${expiry_date || null},
+					status = ${computedStatus},
+					filing_location_id = ${filing_location_id || null},
+					notes = ${notes || null},
+					metadata = ${metadata ? sql.json(metadata) : null},
+					${file_path ? sql`file_path = ${file_path},` : sql``}
+					updated_at = CURRENT_TIMESTAMP
 				WHERE id = ${id}
 			`;
-		} catch (err: any) {
-			console.error("Error updating document:", err);
-			return { success: false, error: err.message };
-		}
 
-		throw redirect(303, `/dms/transactions/documents/${id}`);
+			// Catat log audit (ISO 27001)
+			await logDocumentAudit({
+				documentId: id,
+				action: 'UPDATE',
+				userName: 'Staff ERP',
+				details: {
+					title,
+					doc_number,
+					entity_type,
+					status: computedStatus,
+					file_updated: Boolean(file_path)
+				}
+			});
+
+			return { success: true, message: 'Dokumen berhasil diperbarui!' };
+		} catch (err: any) {
+			console.error('Error updating document:', err);
+			return { success: false, message: err.message || 'Gagal memperbarui dokumen' };
+		}
 	}
 };
