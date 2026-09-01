@@ -58,9 +58,9 @@
 				<span class="text-sm">Overview</span>
 			</a>
 
-			<!-- Section: Personalia & Rekrutmen -->
+			<!-- Section: Personnel & Careers -->
 			<div class="pt-3 pb-1 px-4">
-				<p class="text-[9px] font-black text-on-surface-variant/50 uppercase tracking-[0.2em]">Personalia & Karir</p>
+				<p class="text-[9px] font-black text-on-surface-variant/50 uppercase tracking-[0.2em]">Personnel & Careers</p>
 			</div>
 
 			<a
@@ -70,7 +70,7 @@
 				href="/hris/employees"
 			>
 				<span class="material-symbols-outlined text-[20px]">badge</span>
-				<span class="text-sm">Data Karyawan</span>
+				<span class="text-sm">Employees</span>
 			</a>
 
 			<a
@@ -90,12 +90,12 @@
 				href="/hris/lifecycle"
 			>
 				<span class="material-symbols-outlined text-[20px]">manage_accounts</span>
-				<span class="text-sm">Lifecycle & Mutasi</span>
+				<span class="text-sm">Lifecycle & Actions</span>
 			</a>
 
-			<!-- Section: Waktu & Kehadiran -->
+			<!-- Section: Time & Attendance -->
 			<div class="pt-3 pb-1 px-4">
-				<p class="text-[9px] font-black text-on-surface-variant/50 uppercase tracking-[0.2em]">Presensi & Waktu</p>
+				<p class="text-[9px] font-black text-on-surface-variant/50 uppercase tracking-[0.2em]">Time & Attendance</p>
 			</div>
 
 			<a
@@ -105,7 +105,7 @@
 				href="/hris/attendance"
 			>
 				<span class="material-symbols-outlined text-[20px]">how_to_reg</span>
-				<span class="text-sm">Presensi & Kehadiran</span>
+				<span class="text-sm">Attendance</span>
 			</a>
 
 			<a
@@ -115,12 +115,12 @@
 				href="/hris/leave"
 			>
 				<span class="material-symbols-outlined text-[20px]">pending_actions</span>
-				<span class="text-sm">Pengajuan Cuti</span>
+				<span class="text-sm">Leave Requests</span>
 			</a>
 
-			<!-- Section: Kompensasi & Benefit -->
+			<!-- Section: Compensation & Benefits -->
 			<div class="pt-3 pb-1 px-4">
-				<p class="text-[9px] font-black text-on-surface-variant/50 uppercase tracking-[0.2em]">Kompensasi & Benefit</p>
+				<p class="text-[9px] font-black text-on-surface-variant/50 uppercase tracking-[0.2em]">Compensation & Benefits</p>
 			</div>
 
 			<a
@@ -130,7 +130,7 @@
 				href="/hris/payroll"
 			>
 				<span class="material-symbols-outlined text-[20px]">payments</span>
-				<span class="text-sm">Penggajian & Slip Gaji</span>
+				<span class="text-sm">Payroll & Slips</span>
 			</a>
 
 			<a
@@ -140,12 +140,12 @@
 				href="/hris/payroll/loans"
 			>
 				<span class="material-symbols-outlined text-[20px]">account_balance_wallet</span>
-				<span class="text-sm">Pinjaman Kasbon</span>
+				<span class="text-sm">Employee Loans</span>
 			</a>
 
-			<!-- Section: Pengembangan & Organisasi -->
+			<!-- Section: Talent & Organization -->
 			<div class="pt-3 pb-1 px-4">
-				<p class="text-[9px] font-black text-on-surface-variant/50 uppercase tracking-[0.2em]">Pengembangan & Organisasi</p>
+				<p class="text-[9px] font-black text-on-surface-variant/50 uppercase tracking-[0.2em]">Talent & Organization</p>
 			</div>
 
 			<a
@@ -155,7 +155,7 @@
 				href="/hris/performance"
 			>
 				<span class="material-symbols-outlined text-[20px]">assessment</span>
-				<span class="text-sm">KPI & Kinerja</span>
+				<span class="text-sm">Performance & KPI</span>
 			</a>
 
 			<a
@@ -165,7 +165,7 @@
 				href="/hris/lms"
 			>
 				<span class="material-symbols-outlined text-[20px]">school</span>
-				<span class="text-sm">LMS & Pelatihan</span>
+				<span class="text-sm">LMS & Training</span>
 			</a>
 
 			<a
@@ -175,7 +175,7 @@
 				href="/hris/org-chart"
 			>
 				<span class="material-symbols-outlined text-[20px]">account_tree</span>
-				<span class="text-sm">Struktur Organisasi</span>
+				<span class="text-sm">Org Chart & Hierarchy</span>
 			</a>
 
 			<a
@@ -185,7 +185,7 @@
 				href="/hris/certifications"
 			>
 				<span class="material-symbols-outlined text-[20px]">verified</span>
-				<span class="text-sm">Sertifikasi & SIM Driver</span>
+				<span class="text-sm">Document Expiry & Certs</span>
 			</a>
 		</nav>
 	</aside>
