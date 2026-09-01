@@ -397,9 +397,9 @@
 		await import('leaflet/dist/leaflet.css');
 		map = L.map(mapContainer, { zoomControl: false }).setView([-6.8, 109.5], 7);
 		L.control.zoom({ position: 'topright' }).addTo(map);
-		L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
-			attribution: '&copy; OpenStreetMap &copy; CARTO',
-			subdomains: 'abcd', maxZoom: 19
+		L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+			attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+			maxZoom: 19
 		}).addTo(map);
 		setTimeout(() => { 
 			map.invalidateSize(); 
