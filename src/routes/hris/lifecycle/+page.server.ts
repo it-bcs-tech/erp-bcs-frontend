@@ -23,7 +23,7 @@ export const load: PageServerLoad = async ({ cookies }) => {
         return {
             actions: [],
             metrics: { activeMutations: 0, activeWarnings: 0, pendingTerminations: 0 },
-            dataSource: 'api'
+            dataSource: 'laravel'
         };
     }
 };

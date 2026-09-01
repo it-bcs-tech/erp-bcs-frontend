@@ -62,7 +62,7 @@ export const load: PageServerLoad = async ({ cookies, url }) => {
             }
         }
 
-        return { leaveRequests, metrics, meta };
+        return { leaveRequests, metrics, meta, dataSource: 'laravel' };
     } catch (error) {
         console.error('Failed to fetch leaves:', error);
         return {
@@ -73,7 +73,8 @@ export const load: PageServerLoad = async ({ cookies, url }) => {
                 rejectedThisMonth: 0,
                 employeesOnLeaveToday: 0
             },
-            meta: { current_page: page, total: 0, per_page: perPage }
+            meta: { current_page: page, total: 0, per_page: perPage },
+            dataSource: 'laravel'
         };
     }
 };

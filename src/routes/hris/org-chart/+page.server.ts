@@ -130,7 +130,8 @@ export const load: PageServerLoad = async ({ url }) => {
 			departments,
 			titles,
 			employees: employeesWithAtasan,
-			supervisorMappings
+			supervisorMappings,
+			dataSource: 'direct-db'
 		};
 	} catch (err: any) {
 		console.error('❌ [HRD Org Chart] Error loading data:', err?.message);
@@ -144,7 +145,8 @@ export const load: PageServerLoad = async ({ url }) => {
 			departments: [],
 			titles: [],
 			employees: [],
-			supervisorMappings: []
+			supervisorMappings: [],
+			dataSource: 'direct-db'
 		};
 	}
 };

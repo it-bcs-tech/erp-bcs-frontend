@@ -10,6 +10,23 @@
 		}
 		return $page.url.pathname.startsWith(path);
 	}
+
+	const user = $derived($page.data?.user);
+	const isAdmin = $derived(
+		user && (
+			['superadmin', 'administrator', 'superhyperadmin', 'super_admin'].includes(user.role?.toLowerCase()) ||
+			user.role?.toLowerCase()?.includes('admin') ||
+			user.email === 'superhyperadmin@bcs-logistics.co.id'
+		)
+	);
+
+	const currentPath = $derived($page.url.pathname);
+	const isLaravelConnected = $derived(
+		!currentPath.startsWith('/hris/lms') &&
+		!currentPath.startsWith('/hris/org-chart') &&
+		!currentPath.startsWith('/hris/certifications') &&
+		!currentPath.startsWith('/hris/recruitment')
+	);
 </script>
 
 <div class="flex h-[calc(100vh-64px)] overflow-hidden bg-surface relative">
@@ -101,7 +118,7 @@
 				<span class="text-sm">Pengajuan Cuti</span>
 			</a>
 
-			<!-- Section: Kompensasi & Payroll -->
+			<!-- Section: Kompensasi & Benefit -->
 			<div class="pt-3 pb-1 px-4">
 				<p class="text-[9px] font-black text-on-surface-variant/50 uppercase tracking-[0.2em]">Kompensasi & Benefit</p>
 			</div>
@@ -175,7 +192,30 @@
 
 	<!-- Main Content Canvas -->
 	<main class="flex-1 h-full overflow-y-auto p-8 bg-surface">
-		<div class="max-w-7xl mx-auto space-y-6">
+		<div class="max-w-7xl mx-auto space-y-4">
+			<!-- Admin-Only Data Source Status Badge -->
+			{#if isAdmin}
+				<div class="flex items-center justify-between px-4 py-2 rounded-xl bg-surface-container-low border border-slate-200/60 dark:border-slate-800/60 text-xs shadow-2xs">
+					<div class="flex items-center gap-2 font-medium">
+						<span class="text-on-surface-variant font-bold text-[10px] uppercase tracking-wider">Mode Admin:</span>
+						{#if isLaravelConnected}
+							<span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
+								<span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+								Backend: Laravel API v1 (Live & Tanpa Fallback)
+							</span>
+						{:else}
+							<span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 dark:bg-amber-950/50 dark:text-amber-300 border border-amber-200 dark:border-amber-800">
+								<span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
+								Belum Terhubung ke Laravel (Direct DB / Standalone)
+							</span>
+						{/if}
+					</div>
+					<div class="text-[10px] text-on-surface-variant font-mono hidden sm:block">
+						Role: {user?.role || 'Admin'}
+					</div>
+				</div>
+			{/if}
+
 			{@render children?.()}
 		</div>
 	</main>

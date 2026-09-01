@@ -147,7 +147,8 @@ export const load: PageServerLoad = async ({ url }) => {
 			severity,
 			searchQuery,
 			summary,
-			documents: activeDocs
+			documents: activeDocs,
+			dataSource: 'direct-db'
 		};
 	} catch (err: any) {
 		console.error('❌ [HRD Certifications] Error loading documents:', err?.message);
@@ -156,7 +157,8 @@ export const load: PageServerLoad = async ({ url }) => {
 			severity: '',
 			searchQuery: '',
 			summary: { total_expired: 0, total_critical: 0, total_warning: 0, total_valid: 0, total_docs: 0, sim_count: 0, contract_count: 0, k3_count: 0 },
-			documents: []
+			documents: [],
+			dataSource: 'direct-db'
 		};
 	}
 };

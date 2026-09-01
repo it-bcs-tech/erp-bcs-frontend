@@ -25,7 +25,7 @@ export const load: PageServerLoad = async ({ cookies }) => {
             kpiRecords: [],
             trainingPrograms: [],
             metrics: { avgKpiScore: 0, totalEvaluated: 0, upcomingTrainings: 0 },
-            dataSource: 'api'
+            dataSource: 'laravel'
         };
     }
 };
