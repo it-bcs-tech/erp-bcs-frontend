@@ -1,8 +1,11 @@
 import { json } from "@sveltejs/kit";
 import type { RequestHandler } from "./$types";
+import { apiFetch } from "$lib/utils/api";
 import { runPayrollCalculation } from "$lib/server/payrollEngine";
 
-export const POST: RequestHandler = async ({ request }) => {
+export const POST: RequestHandler = async ({ request, cookies }) => {
+	const authToken = cookies.get('auth_token');
+
 	try {
 		let period = "2026-08-01";
 		let mode: "all" | "new_only" = "all";
@@ -20,14 +23,36 @@ export const POST: RequestHandler = async ({ request }) => {
 			if (m === "new_only" || m === "all") mode = m;
 		}
 
+		// 1. Panggil Laravel API Endpoint
+		try {
+			const res = await apiFetch<any>('/api/v1/hris/payroll/commit', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ period, mode })
+			}, authToken);
+
+			if (res && (res.status === 'success' || res.data)) {
+				return json({
+					success: true,
+					status: "success",
+					message: res.message || "Payroll berhasil dikunci via Laravel API.",
+					summary: res.data?.summary || res.data || res,
+					source: 'laravel'
+				});
+			}
+		} catch (apiErr: any) {
+			console.warn("⚠️ [Laravel Commit API]:", apiErr?.message);
+		}
+
+		// 2. Engine internal
 		const summary = await runPayrollCalculation(period, { mode, commit: true });
 
 		return json({
 			success: true,
 			status: "success",
-			total_employees: summary.total_employees,
-			period: summary.period,
-			summary
+			message: "Kalkulasi payroll berhasil dihitung dan dikunci ke database.",
+			summary,
+			source: 'internal-engine'
 		});
 	} catch (err: any) {
 		console.error("❌ [API Payroll Commit Error]:", err);
@@ -35,7 +60,7 @@ export const POST: RequestHandler = async ({ request }) => {
 			{
 				success: false,
 				status: "error",
-				message: err?.message || "Gagal menyimpan hasil payroll ke database."
+				message: err?.message || "Gagal mengunci kalkulasi payroll."
 			},
 			{ status: 500 }
 		);
