@@ -5,16 +5,16 @@
 	import { fade } from 'svelte/transition';
 	
 	const modules = [
-		{ id: 'fms', title: 'FMS', subtitle: 'Fleet Management', icon: 'precision_manufacturing', colorClass: 'bg-blue-50', textClass: 'text-blue-600' },
-		{ id: 'maintenance', title: 'Maintenance', subtitle: 'Workshop & Inspections', icon: 'build_circle', colorClass: 'bg-slate-100', textClass: 'text-slate-700' },
-		{ id: 'ocs', title: 'OCS', subtitle: 'Operations Hub', icon: 'hub', colorClass: 'bg-sky-50', textClass: 'text-sky-600' },
-		{ id: 'hris', title: 'HRIS', subtitle: 'Human Capital', icon: 'groups', colorClass: 'bg-purple-50', textClass: 'text-purple-600' },
-		{ id: 'marketing', title: 'Marketing', subtitle: 'Growth Engine', icon: 'campaign', colorClass: 'bg-rose-50', textClass: 'text-rose-600' },
-		{ id: 'pms', title: 'PMS', subtitle: 'Procurement', icon: 'inventory', colorClass: 'bg-amber-50', textClass: 'text-amber-600' },
-		{ id: 'kasir', title: 'Kasir', subtitle: 'Cash & Payment', icon: 'point_of_sale', colorClass: 'bg-emerald-50', textClass: 'text-emerald-600' },
-		{ id: 'finance', title: 'Finance', subtitle: 'Economic Control', icon: 'account_balance', colorClass: 'bg-teal-50', textClass: 'text-teal-600' },
-		{ id: 'dms', title: 'DMS', subtitle: 'Document Asset', icon: 'folder_managed', colorClass: 'bg-indigo-50', textClass: 'text-indigo-600' },
-		{ id: 'qhse', title: 'QHSE', subtitle: 'Quality & Safety', icon: 'verified_user', colorClass: 'bg-orange-50', textClass: 'text-orange-600' }
+		{ id: 'fms', title: 'Fleet Management', subtitle: 'FMS • GPS & Drivers', icon: 'precision_manufacturing', colorClass: 'bg-blue-50', textClass: 'text-blue-600' },
+		{ id: 'maintenance', title: 'Workshop & Maintenance', subtitle: 'Work Orders & Repairs', icon: 'build_circle', colorClass: 'bg-slate-100', textClass: 'text-slate-700' },
+		{ id: 'ocs', title: 'Operations Control', subtitle: 'OCS • Dispatch & Targets', icon: 'hub', colorClass: 'bg-sky-50', textClass: 'text-sky-600' },
+		{ id: 'hris', title: 'Human Capital', subtitle: 'HRIS • Payroll & HR', icon: 'groups', colorClass: 'bg-purple-50', textClass: 'text-purple-600' },
+		{ id: 'marketing', title: 'Marketing & Contracts', subtitle: 'Sales & Agreements', icon: 'campaign', colorClass: 'bg-rose-50', textClass: 'text-rose-600' },
+		{ id: 'pms', title: 'Procurement', subtitle: 'PMS • PR, PO & Vendors', icon: 'inventory', colorClass: 'bg-amber-50', textClass: 'text-amber-600' },
+		{ id: 'kasir', title: 'Cashier & Settlement', subtitle: 'Daily Cash & Vouchers', icon: 'point_of_sale', colorClass: 'bg-emerald-50', textClass: 'text-emerald-600' },
+		{ id: 'finance', title: 'Finance & Accounting', subtitle: 'Invoicing, Bills & Tax', icon: 'account_balance', colorClass: 'bg-teal-50', textClass: 'text-teal-600' },
+		{ id: 'dms', title: 'Document Center', subtitle: 'DMS • Digital Archives', icon: 'folder_managed', colorClass: 'bg-indigo-50', textClass: 'text-indigo-600' },
+		{ id: 'qhse', title: 'QHSE & Safety', subtitle: 'Quality, Safety & K3', icon: 'verified_user', colorClass: 'bg-orange-50', textClass: 'text-orange-600' }
 	];
 
 	// Cek access_denied parameter dari URL

@@ -10,12 +10,20 @@
 		}
 		return $page.url.pathname.startsWith(path);
 	}
+
+	const user = $derived($page.data?.user);
+	const isAdmin = $derived(
+		user && (
+			['superadmin', 'administrator', 'superhyperadmin', 'super_admin'].includes(user.role?.toLowerCase()) ||
+			user.role?.toLowerCase()?.includes('admin') ||
+			user.email === 'superhyperadmin@bcs-logistics.co.id'
+		)
+	);
 </script>
 
 <div class="flex h-[calc(100vh-64px)] overflow-hidden bg-surface relative">
-	<!-- SideNavBar (Flat Standard as in FMS / HRIS / Kasir) -->
+	<!-- SideNavBar (Flat Standard DMS) -->
 	<aside class="w-64 flex-shrink-0 h-full bg-surface-container-low flex flex-col p-4 gap-2 z-40 relative overflow-y-auto">
-		<!-- Subtle gradient overlay border -->
 		<div class="absolute inset-y-0 right-0 w-[1px] bg-gradient-to-b from-transparent via-surface-variant/30 to-transparent"></div>
 		
 		<!-- Module Branding Header -->
@@ -25,8 +33,8 @@
 					<span class="material-symbols-outlined text-[20px]">folder_special</span>
 				</div>
 				<div>
-					<p class="text-sm font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-wider">Document Mgmt</p>
-					<p class="text-[10px] text-on-surface-variant font-medium uppercase">System (DMS)</p>
+					<p class="text-sm font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-wider">Document Center</p>
+					<p class="text-[10px] text-on-surface-variant font-medium uppercase">Digital Vault (DMS)</p>
 				</div>
 			</div>
 		</div>
@@ -43,9 +51,9 @@
 				<span class="text-sm">Overview & Horizon</span>
 			</a>
 
-			<!-- Section Divider: Transactions -->
-			<div class="pt-4 pb-1 px-4">
-				<p class="text-[9px] font-black text-on-surface-variant/50 uppercase tracking-[0.2em]">Dokumen & Arsip</p>
+			<!-- Section: Documents & Archives -->
+			<div class="pt-3 pb-1 px-4">
+				<p class="text-[9px] font-black text-on-surface-variant/50 uppercase tracking-[0.2em]">Documents & Archives</p>
 			</div>
 
 			<a
@@ -55,7 +63,7 @@
 				href="/dms/transactions/documents"
 			>
 				<span class="material-symbols-outlined text-[20px]">folder_shared</span>
-				<span class="text-sm">Semua Dokumen</span>
+				<span class="text-sm">All Documents</span>
 			</a>
 
 			<a
@@ -65,12 +73,12 @@
 				href="/dms/transactions/documents/create"
 			>
 				<span class="material-symbols-outlined text-[20px]">upload_file</span>
-				<span class="text-sm">Registrasi Dokumen</span>
+				<span class="text-sm">Register Document</span>
 			</a>
 
-			<!-- Section Divider: Master Data -->
-			<div class="pt-4 pb-1 px-4">
-				<p class="text-[9px] font-black text-on-surface-variant/50 uppercase tracking-[0.2em]">Master Data DMS</p>
+			<!-- Section: Master Data -->
+			<div class="pt-3 pb-1 px-4">
+				<p class="text-[9px] font-black text-on-surface-variant/50 uppercase tracking-[0.2em]">Master Data</p>
 			</div>
 
 			<a
@@ -80,7 +88,7 @@
 				href="/dms/master/types"
 			>
 				<span class="material-symbols-outlined text-[20px]">category</span>
-				<span class="text-sm">Tipe Dokumen</span>
+				<span class="text-sm">Document Types</span>
 			</a>
 
 			<a
@@ -90,7 +98,7 @@
 				href="/dms/master/locations"
 			>
 				<span class="material-symbols-outlined text-[20px]">inventory_2</span>
-				<span class="text-sm">Lokasi Penyimpanan</span>
+				<span class="text-sm">Storage Locations</span>
 			</a>
 
 			<a
@@ -100,7 +108,7 @@
 				href="/dms/master/issuers"
 			>
 				<span class="material-symbols-outlined text-[20px]">account_balance</span>
-				<span class="text-sm">Instansi Penerbit</span>
+				<span class="text-sm">Issuing Authorities</span>
 			</a>
 
 			<a
@@ -110,14 +118,30 @@
 				href="/dms/master/notaries"
 			>
 				<span class="material-symbols-outlined text-[20px]">gavel</span>
-				<span class="text-sm">Notaris</span>
+				<span class="text-sm">Notaries</span>
 			</a>
 		</nav>
 	</aside>
 
 	<!-- Main Content Canvas -->
 	<main class="flex-1 h-full overflow-y-auto p-8 bg-surface">
-		<div class="max-w-7xl mx-auto space-y-6">
+		<div class="max-w-7xl mx-auto space-y-4">
+			<!-- Admin-Only Data Source Status Badge -->
+			{#if isAdmin}
+				<div class="flex items-center justify-between px-4 py-2 rounded-xl bg-surface-container-low border border-slate-200/60 dark:border-slate-800/60 text-xs shadow-2xs">
+					<div class="flex items-center gap-2 font-medium">
+						<span class="text-on-surface-variant font-bold text-[10px] uppercase tracking-wider">Mode Admin:</span>
+						<span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-indigo-50 text-indigo-700 dark:bg-indigo-950/50 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800">
+							<span class="w-1.5 h-1.5 rounded-full bg-indigo-500"></span>
+							Data Source: Direct Database (DMS PostgreSQL)
+						</span>
+					</div>
+					<div class="text-[10px] text-on-surface-variant font-mono hidden sm:block">
+						Role: {user?.role || 'Admin'}
+					</div>
+				</div>
+			{/if}
+
 			{@render children?.()}
 		</div>
 	</main>

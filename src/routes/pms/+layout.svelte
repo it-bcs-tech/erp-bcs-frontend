@@ -10,6 +10,14 @@
 		}
 		return $page.url.pathname.startsWith(path);
 	}
+	const user = $derived($page.data?.user);
+	const isAdmin = $derived(
+		user && (
+			['superadmin', 'administrator', 'superhyperadmin', 'super_admin'].includes(user.role?.toLowerCase()) ||
+			user.role?.toLowerCase()?.includes('admin') ||
+			user.email === 'superhyperadmin@bcs-logistics.co.id'
+		)
+	);
 </script>
 
 <div class="flex h-[calc(100vh-64px)] overflow-hidden bg-surface relative">
@@ -25,7 +33,7 @@
 				</div>
 				<div>
 					<p class="text-sm font-black text-amber-600 dark:text-amber-400 uppercase tracking-wider">Procurement</p>
-					<p class="text-[10px] text-on-surface-variant font-medium uppercase">Management (PMS)</p>
+					<p class="text-[10px] text-on-surface-variant font-medium uppercase">Management System (PMS)</p>
 				</div>
 			</div>
 		</div>
@@ -241,7 +249,23 @@
 
 	<!-- Main Content Canvas -->
 	<main class="flex-1 h-full overflow-y-auto p-8 bg-surface">
-		<div class="max-w-7xl mx-auto space-y-6">
+		<div class="max-w-7xl mx-auto space-y-4">
+			<!-- Admin-Only Data Source Status Badge -->
+			{#if isAdmin}
+				<div class="flex items-center justify-between px-4 py-2 rounded-xl bg-surface-container-low border border-slate-200/60 dark:border-slate-800/60 text-xs shadow-2xs">
+					<div class="flex items-center gap-2 font-medium">
+						<span class="text-on-surface-variant font-bold text-[10px] uppercase tracking-wider">Mode Admin:</span>
+						<span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 dark:bg-amber-950/50 dark:text-amber-300 border border-amber-200 dark:border-amber-800">
+							<span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
+							Data Source: Direct Database (PMS PostgreSQL)
+						</span>
+					</div>
+					<div class="text-[10px] text-on-surface-variant font-mono hidden sm:block">
+						Role: {user?.role || 'Admin'}
+					</div>
+				</div>
+			{/if}
+
 			{@render children?.()}
 		</div>
 	</main>
