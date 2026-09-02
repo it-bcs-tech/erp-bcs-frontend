@@ -128,16 +128,19 @@
 		if (u.has_expired_doc) warnings.push('⚠️ Dokumen Expired');
 		if (u.has_expired_sim) warnings.push('⚠️ SIM Expired');
 		const warnTag = warnings.length > 0 ? ` [${warnings.join(', ')}]` : '';
+		const dId = (u.driverId && u.driverId !== 'null' && u.driverId !== 'undefined') ? u.driverId : '';
 		return {
-			value: `${u.unitId}|${u.driverId}`,
-			label: `${u.id} • ${u.driver} • ${u.brand} ${u.type}${warnTag}`
+			value: `${u.unitId}|${dId}`,
+			label: `${u.id} • ${u.driver || 'Tanpa Sopir'} • ${u.brand || ''} ${u.type || ''}${warnTag}`
 		};
 	}));
 	let productOpts = $derived(products.map(p => ({ value: p.name, label: p.name })));
 
 	function openManualDispatchModal(order: any) {
 		manualDispatchOrder = order;
-		manualDispatchUnitIds = order.ai_recommended_unit_id ? [`${order.ai_recommended_unit_id}|${order.ai_recommended_driver_id}`] : [];
+		const uId = (order.ai_recommended_unit_id && order.ai_recommended_unit_id !== 'null' && order.ai_recommended_unit_id !== 'undefined') ? order.ai_recommended_unit_id : '';
+		const dId = (order.ai_recommended_driver_id && order.ai_recommended_driver_id !== 'null' && order.ai_recommended_driver_id !== 'undefined') ? order.ai_recommended_driver_id : '';
+		manualDispatchUnitIds = uId ? [`${uId}|${dId}`] : [];
 		manualDispatchCargoName = '';
 		manualDispatchLoadingDate = '';
 		manualDispatchUnloadingDate = '';
@@ -445,7 +448,7 @@
 														<form method="POST" action="?/createDoFromPo" use:enhance={() => { isSubmitting = true; return async ({ update }) => { await update(); isSubmitting = false; } }} class="flex items-center gap-2">
 															<input type="hidden" name="contractId" value={contractOrder.contract_id}>
 															<input type="hidden" name="unitId" value={contractOrder.ai_recommended_unit_id}>
-															<input type="hidden" name="driverId" value={contractOrder.ai_recommended_driver_id}>
+															<input type="hidden" name="driverId" value={(contractOrder.ai_recommended_driver_id && contractOrder.ai_recommended_driver_id !== 'null') ? contractOrder.ai_recommended_driver_id : ''}>
 															
 															{#if !contractOrder.produk_id}
 																<select name="cargoName" required class="bg-surface-container-low border border-surface-container text-xs rounded-lg px-2 py-2 text-on-surface focus:outline-none focus:border-blue-500 max-w-[140px]">

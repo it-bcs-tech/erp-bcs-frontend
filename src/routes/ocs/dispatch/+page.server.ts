@@ -226,6 +226,14 @@ export const load: PageServerLoad = async () => {
 	}
 };
 
+function parseId(val: any): number | null {
+	if (val === null || val === undefined) return null;
+	const str = String(val).trim();
+	if (str === '' || str === 'null' || str === 'undefined') return null;
+	const num = parseInt(str, 10);
+	return isNaN(num) ? null : num;
+}
+
 export const actions: Actions = {
 	createDoFromPo: async ({ request }) => {
 		const data = await request.formData();
@@ -235,20 +243,26 @@ export const actions: Actions = {
 		const unloadingDate = data.get('unloadingDate') as string || null;
 		
 		const unitIdsRaw = data.get('unitIds') as string;
-		let assignments: { unitId: string, driverId: string }[] = [];
+		let assignments: { unitId: number, driverId: number | null }[] = [];
 
 		if (unitIdsRaw) {
 			try {
 				const parsed = JSON.parse(unitIdsRaw);
-				assignments = parsed.map((p: string) => ({
-					unitId: p.split('|')[0],
-					driverId: p.split('|')[1] || ''
-				}));
+				const arr = Array.isArray(parsed) ? parsed : [parsed];
+				assignments = arr.map((p: any) => {
+					const parts = String(p).split('|');
+					const uId = parseId(parts[0]);
+					const dId = parseId(parts[1]);
+					return { unitId: uId!, driverId: dId };
+				}).filter(a => a.unitId !== null);
 			} catch(e) {}
 		} else {
-			const unitId = data.get('unitId') as string;
-			const driverId = data.get('driverId') as string;
-			if (unitId && driverId) assignments.push({ unitId, driverId });
+			const rawU = data.get('unitId');
+			const rawD = data.get('driverId');
+			const uId = parseId(rawU);
+			if (uId) {
+				assignments.push({ unitId: uId, driverId: parseId(rawD) });
+			}
 		}
 
 		if (!contractId || assignments.length === 0) {
@@ -297,6 +311,19 @@ export const actions: Actions = {
 				}
 
 				for (const assignment of assignments) {
+					// Resolve Driver if not provided
+					let resolvedDriverId = assignment.driverId;
+					if (!resolvedDriverId) {
+						const driverRes = await sql`
+							SELECT driver_id FROM fleet.unit_driver_assignment 
+							WHERE unit_id = ${assignment.unitId} AND is_aktif = true 
+							ORDER BY CASE WHEN posisi = 'SUPIR_UTAMA' THEN 1 ELSE 2 END ASC LIMIT 1
+						`;
+						if (driverRes.length > 0 && driverRes[0].driver_id) {
+							resolvedDriverId = parseId(driverRes[0].driver_id);
+						}
+					}
+
 					// Get Unit Capacity and Tipe Unit ID
 					const unitDataResult = await sql`
 						SELECT u.id, mu.tipe_unit_id
@@ -306,6 +333,7 @@ export const actions: Actions = {
 					`;
 					if (unitDataResult.length === 0) throw new Error(`Unit ${assignment.unitId} tidak valid.`);
 					const unitData = unitDataResult[0];
+					const tipeUnitId = parseId(unitData.tipe_unit_id);
 					
 					const realCapacity = 30; // Default capacity as DB doesn't have it
 					const totalRit = contract.target_tonnage > 0 ? Math.ceil(contract.target_tonnage / realCapacity) : 1;
@@ -328,8 +356,8 @@ export const actions: Actions = {
 							tariff, assigned_unit_id, assigned_driver_id, status
 						) VALUES (
 							${doId}, ${contractId}, ${contract.customer_id}, ${contract.final_origin_id}, ${contract.final_dest_id},
-							${unitData.tipe_unit_id}, ${finalCargo}, ${realCapacity}, ${loadingDate ? new Date(loadingDate) : sql`NOW()`}, ${unloadingDate ? new Date(unloadingDate) : null},
-							${finalTariff}, ${assignment.unitId}, ${assignment.driverId}, 'READY_TO_DISPATCH'
+							${tipeUnitId}, ${finalCargo}, ${realCapacity}, ${loadingDate ? new Date(loadingDate) : sql`NOW()`}, ${unloadingDate ? new Date(unloadingDate) : null},
+							${finalTariff}, ${assignment.unitId}, ${resolvedDriverId}, 'READY_TO_DISPATCH'
 						)
 					`;
 
@@ -355,7 +383,7 @@ export const actions: Actions = {
 							${stNumber},
 							${loadingDate ? new Date(loadingDate).toISOString().split('T')[0] : sql`CURRENT_DATE`},
 							${assignment.unitId},
-							${assignment.driverId},
+							${resolvedDriverId},
 							(SELECT nama_kustomer FROM master.m_customer WHERE id = ${contract.customer_id}),
 							${contract.final_origin_id},
 							${contract.final_dest_id},
@@ -382,7 +410,7 @@ export const actions: Actions = {
 							trip_id, sales_order_id, unit_id, driver_id,
 							estimated_ujo, ujo_tol, ujo_makan, payment_status
 						) VALUES (
-							${tripId}, ${doId}, ${assignment.unitId}, ${assignment.driverId},
+							${tripId}, ${doId}, ${assignment.unitId}, ${resolvedDriverId},
 							${finalEstimatedUjo}, ${contract.ujo_tol}, ${contract.ujo_makan}, 'UNPAID'
 						)
 					`;
@@ -450,8 +478,8 @@ export const actions: Actions = {
 				}
 			}
 
-			const dbUnitId = unitData[0].id;
-			const dbDriverId = unitData[0].driver_id;
+			const dbUnitId = parseId(unitData[0].id);
+			const dbDriverId = parseId(unitData[0].driver_id);
 			const totalUjo = ujoAmount + ujoMakan + ujoTol;
 
 			await sql.begin(async (sql) => {
