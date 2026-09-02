@@ -1,9 +1,6 @@
 import type { PageServerLoad, Actions } from './$types';
 import { fail } from '@sveltejs/kit';
-import postgres from 'postgres';
-import { env } from '$env/dynamic/private';
-
-const sql = postgres(env.DATABASE_URL || 'postgres://bcs_admin:sangatrahasia@103.31.205.199:5433/mybcs_db');
+import sql from '$lib/server/db';
 
 export const load: PageServerLoad = async () => {
 	try {
@@ -40,15 +37,21 @@ export const load: PageServerLoad = async () => {
 				dn.no_surat_jalan,
 				dn.tgl_surat_jalan,
 				dn.total_berat,
+				dn.tarif,
+				dn.total_amount,
 				dn.status,
+				dn.file_upload,
 				t.no_surat_tugas,
 				u.nomor_unit as unit,
+				COALESCE(k.nama_karyawan, 'No Driver') as driver,
 				c.nama_kustomer as customer
 			FROM finance.dn_detail dn
 			JOIN fleet.trip t ON t.id = dn.trip_id
 			JOIN marketing.sales_order o ON o.assigned_unit_id = t.unit_id AND o.tgl_muat::date = t.tgl_trip::date
 			LEFT JOIN master.m_customer c ON c.id = o.customer_id
 			LEFT JOIN fleet.unit u ON u.id = t.unit_id
+			LEFT JOIN master.m_drivers d ON d.id = t.driver_id
+			LEFT JOIN master.m_karyawan k ON k.id = d.karyawan_id
 			ORDER BY dn.created_at DESC
 			LIMIT 50
 		`;
@@ -70,7 +73,7 @@ export const actions: Actions = {
 		const noSuratJalan = data.get('noSuratJalan') as string;
 		const tglSuratJalan = data.get('tglSuratJalan') as string;
 		const totalBerat = parseFloat(data.get('totalBerat') as string);
-		// const fileUpload = data.get('fileUpload') as File; // Can handle file upload later
+		const fileUploadUrl = (data.get('fileUploadUrl') as string) || '';
 
 		if (!tripId || !noSuratJalan || !tglSuratJalan || isNaN(totalBerat)) {
 			return fail(400, { message: 'Harap lengkapi semua field wajib!' });
@@ -92,13 +95,10 @@ export const actions: Actions = {
 					JOIN marketing.sales_order o ON o.assigned_unit_id = t.unit_id AND o.tgl_muat::date = t.tgl_trip::date
 					WHERE t.id = ${tripId}
 				`;
-				const customerId = tripInfoRes.length > 0 ? tripInfoRes[0].customer_id : null;
-				const tariff = tripInfoRes.length > 0 ? tripInfoRes[0].tariff || 0 : 0;
+				const tariff = tripInfoRes.length > 0 ? parseFloat(tripInfoRes[0].tariff || '0') : 0;
 				const dnValue = totalBerat * tariff;
 
 				// 3. Insert into finance.dn_detail
-				// Note: dn_header_id is deliberately set to null. 
-				// Finance will group and create the dn_header when making an invoice.
 				await sql`
 					INSERT INTO finance.dn_detail (
 						trip_id,
@@ -106,6 +106,8 @@ export const actions: Actions = {
 						no_surat_jalan,
 						tgl_surat_jalan,
 						total_berat,
+						tarif,
+						total_amount,
 						status,
 						file_upload
 					) VALUES (
@@ -114,8 +116,10 @@ export const actions: Actions = {
 						${noSuratJalan},
 						${tglSuratJalan},
 						${totalBerat},
+						${tariff},
+						${dnValue},
 						'VERIFIED',
-						'-'
+						${fileUploadUrl || 'https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?w=600&auto=format&fit=crop&q=60'}
 					)
 				`;
 			});
