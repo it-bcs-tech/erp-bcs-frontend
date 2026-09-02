@@ -53,6 +53,11 @@
 				<span class="material-symbols-outlined text-[20px]">assignment</span>
 				<span class="text-sm">Dispatch Operations</span>
 			</a>
+
+			<a class="flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200 hover:translate-x-1 {$page.url.pathname.includes('/ocs/pod') ? 'bg-surface-container-highest text-sky-600 dark:text-sky-400 font-bold' : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container font-medium text-sm'}" href="/ocs/pod">
+				<span class="material-symbols-outlined text-[20px]">verified</span>
+				<span class="text-sm">e-POD (Surat Jalan Balik)</span>
+			</a>
 			{/if}
 			
 			{#if hasMenuAccess(user, 'ocs', 'ocs.ujo')}
