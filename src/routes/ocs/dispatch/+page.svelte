@@ -55,6 +55,7 @@
 	}
 
 	// Modal States
+	let isAiSectionOpen = $state(true);
 	let showUjoModal = $state(false);
 	let showClosingModal = $state(false);
 	let selectedOrder = $state<any>(null);
@@ -400,58 +401,134 @@
 		<div class="lg:col-span-2 space-y-4">
 			<!-- AI Contract Auto-Dispatch Section -->
 			{#if localContractOrders && localContractOrders.length > 0}
-				<div class="mb-6 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-2xl p-1 shadow-lg">
-					<div class="bg-surface-container-lowest rounded-xl p-5 h-full">
-						<div class="flex items-center justify-between mb-4">
-							<div class="flex items-center gap-2 text-blue-600">
-								<span class="material-symbols-outlined text-[24px]">robot_2</span>
-								<h2 class="text-sm font-black tracking-widest uppercase">AI Contract Dispatch</h2>
+				<div class="mb-6 bg-gradient-to-r from-blue-600 via-indigo-600 to-sky-600 rounded-2xl p-[1px] shadow-md transition-all">
+					<div class="bg-surface-container-lowest rounded-2xl p-5 h-full">
+						<!-- Collapsible Card Header -->
+						<div class="flex items-center justify-between gap-3 {isAiSectionOpen ? 'mb-4 pb-3 border-b border-slate-100 dark:border-slate-800' : ''}">
+							<div class="flex items-center gap-3">
+								<div class="w-9 h-9 rounded-xl bg-blue-500/10 text-blue-600 flex items-center justify-center">
+									<span class="material-symbols-outlined text-xl">robot_2</span>
+								</div>
+								<div>
+									<div class="flex items-center gap-2">
+										<h2 class="text-sm font-black text-on-surface tracking-tight uppercase">AI Contract Dispatch</h2>
+										<span class="px-2 py-0.5 rounded-full bg-blue-100 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 text-[10px] font-bold">
+											{localContractOrders.length} Kontrak Aktif
+										</span>
+									</div>
+									<p class="text-[11px] text-on-surface-variant font-medium">Auto-match kontrak rutin marketing dengan armada idle di pool & kepatuhan sopir</p>
+								</div>
 							</div>
-							<span class="text-[10px] font-bold px-2 py-1 bg-blue-100 text-blue-700 rounded uppercase">PO Routine</span>
+
+							<button
+								type="button"
+								onclick={() => isAiSectionOpen = !isAiSectionOpen}
+								class="p-2 rounded-xl text-on-surface-variant hover:text-on-surface hover:bg-surface-container transition-colors cursor-pointer flex items-center gap-1 text-xs font-bold"
+								title={isAiSectionOpen ? 'Sembunyikan' : 'Tampilkan'}
+							>
+								<span>{isAiSectionOpen ? 'Tutup' : 'Buka Rekomendasi'}</span>
+								<span class="material-symbols-outlined text-lg transition-transform duration-200 {isAiSectionOpen ? 'rotate-180' : ''}">expand_more</span>
+							</button>
 						</div>
 						
-						{#each localContractOrders as contractOrder}
-							<div class="bg-blue-50 dark:bg-blue-900/10 rounded-xl p-4 border border-blue-500/20 mb-3">
-								<div class="flex justify-between items-start mb-2">
-									<div>
-										<p class="text-sm font-black text-on-surface">{contractOrder.id}</p>
-										<p class="text-xs text-on-surface-variant font-medium">{contractOrder.customer} ({contractOrder.contract_id})</p>
-									</div>
-									<div class="text-right">
-										<p class="text-[10px] font-bold text-on-surface-variant uppercase">Rute</p>
-										<p class="text-xs font-bold text-on-surface">{contractOrder.origin} &rarr; {contractOrder.destination}</p>
-									</div>
-								</div>
-								
-								<div class="bg-white dark:bg-surface-container-highest p-3 rounded-lg border border-surface-container mt-3">
-									<div class="flex items-start gap-3">
-										<span class="material-symbols-outlined text-amber-500 text-[20px] mt-0.5">tips_and_updates</span>
-										<div class="w-full">
-											<p class="text-[11px] text-on-surface-variant italic mb-2">"{contractOrder.ai_reason}"</p>
-											<div class="flex items-center justify-between">
+						{#if isAiSectionOpen}
+							<div class="space-y-4">
+								{#each localContractOrders as contractOrder}
+									{@const targetTon = parseFloat(contractOrder.targetTonnage || '0')}
+									{@const deliveredTon = parseFloat(contractOrder.deliveredTonnage || '0')}
+									{@const tonPct = targetTon > 0 ? Math.min(100, Math.round((deliveredTon / targetTon) * 100)) : 0}
+
+									<div class="bg-blue-50/50 dark:bg-blue-950/20 rounded-2xl p-4 border border-blue-200/60 dark:border-blue-800/40 space-y-3.5">
+										<!-- Contract Meta Header & Progress -->
+										<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+											<div>
+												<div class="flex items-center gap-2">
+													<p class="text-xs font-mono font-bold text-blue-600 dark:text-blue-400">{contractOrder.id}</p>
+													<span class="text-xs font-bold text-on-surface">• {contractOrder.customer}</span>
+													<span class="text-[10px] text-on-surface-variant font-mono">({contractOrder.contract_id})</span>
+												</div>
+												<p class="text-xs text-on-surface-variant font-medium mt-0.5 flex items-center gap-1">
+													<span>{contractOrder.origin}</span>
+													<span class="material-symbols-outlined text-[12px]">arrow_forward</span>
+													<span>{contractOrder.destination}</span>
+													<span class="text-slate-400">•</span>
+													<span class="text-on-surface font-semibold">{contractOrder.cargo}</span>
+												</p>
+											</div>
+
+											<!-- Tonnage Realization Progress -->
+											{#if targetTon > 0}
+												<div class="sm:text-right min-w-[160px]">
+													<div class="flex justify-between sm:justify-end gap-2 text-[11px] font-bold text-on-surface mb-1">
+														<span class="text-on-surface-variant font-normal">Realisasi:</span>
+														<span>{deliveredTon.toFixed(1)} / {targetTon.toFixed(1)} Ton ({tonPct}%)</span>
+													</div>
+													<div class="w-full bg-slate-200 dark:bg-slate-700 h-2 rounded-full overflow-hidden">
+														<div class="bg-blue-600 h-full rounded-full transition-all duration-500" style="width: {tonPct}%"></div>
+													</div>
+												</div>
+											{/if}
+										</div>
+										
+										<!-- Recommendation Box -->
+										<div class="bg-surface-container-lowest p-4 rounded-xl border border-slate-200/80 dark:border-slate-800 space-y-3">
+											<div class="flex items-start gap-2.5 text-xs text-on-surface-variant">
+												<span class="material-symbols-outlined text-amber-500 text-lg shrink-0">smart_toy</span>
+												<p class="italic leading-relaxed">"{contractOrder.ai_reason}"</p>
+											</div>
+
+											<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2 border-t border-slate-100 dark:border-slate-800/80">
 												<div>
-													<p class="text-[10px] uppercase font-bold text-on-surface-variant mb-1">Recommended Unit</p>
-													<div class="flex items-center gap-2">
-														<p class="text-sm font-black text-blue-600">{contractOrder.ai_recommended_unit} &bull; {contractOrder.ai_recommended_driver}</p>
+													<p class="text-[10px] uppercase font-bold text-on-surface-variant tracking-wider">Unit & Sopir Rekomendasi</p>
+													<div class="flex items-center gap-2 mt-0.5">
+														<span class="text-xs font-black text-blue-600 dark:text-blue-400 flex items-center gap-1.5">
+															<span class="material-symbols-outlined text-sm">local_shipping</span>
+															<span>{contractOrder.ai_recommended_unit}</span>
+														</span>
+														<span class="text-xs text-on-surface-variant">•</span>
+														<span class="text-xs font-bold text-on-surface">{contractOrder.ai_recommended_driver}</span>
+
 														{#if contractOrder.alternatives && contractOrder.alternatives.length > 0}
-															<button type="button" onclick={() => skipRecommendation(contractOrder.id)} class="w-6 h-6 rounded-full bg-rose-100 text-rose-600 hover:bg-rose-200 flex items-center justify-center transition-colors" title="Skip unit ini">
-																<span class="material-symbols-outlined text-[14px]">close</span>
+															<button
+																type="button"
+																onclick={() => skipRecommendation(contractOrder.id)}
+																class="w-5 h-5 rounded-full bg-rose-50 text-rose-600 hover:bg-rose-100 flex items-center justify-center transition-colors cursor-pointer"
+																title="Lewati unit ini & pilih alternatif"
+															>
+																<span class="material-symbols-outlined text-xs">close</span>
 															</button>
 														{/if}
 													</div>
 												</div>
-												<div class="flex items-center gap-2">
-													<button type="button" onclick={() => openManualDispatchModal(contractOrder)} class="px-3 py-2 {contractOrder.ai_recommended_unit_id ? 'bg-surface-container-high text-on-surface-variant' : 'bg-rose-100 text-rose-700 animate-pulse'} rounded-lg text-xs font-bold hover:bg-surface-container transition-colors flex items-center gap-1">
-														<span class="material-symbols-outlined text-[16px]">search</span> {contractOrder.ai_recommended_unit_id ? 'Tukar Unit Manual' : 'Pilih Unit Manual'}
+
+												<!-- Action Buttons -->
+												<div class="flex items-center gap-2 flex-wrap">
+													<button
+														type="button"
+														onclick={() => openManualDispatchModal(contractOrder)}
+														class="px-3 py-2 {contractOrder.ai_recommended_unit_id ? 'bg-surface-container hover:bg-surface-container-high text-on-surface-variant' : 'bg-rose-50 text-rose-700 border border-rose-200 animate-pulse'} rounded-xl text-xs font-bold transition-colors flex items-center gap-1.5 cursor-pointer"
+													>
+														<span class="material-symbols-outlined text-base">swap_horiz</span>
+														<span>{contractOrder.ai_recommended_unit_id ? 'Tukar Unit Manual' : 'Pilih Unit Manual'}</span>
 													</button>
+
 													{#if contractOrder.ai_recommended_unit_id}
-														<form method="POST" action="?/createDoFromPo" use:enhance={() => { isSubmitting = true; return async ({ update }) => { await update(); isSubmitting = false; } }} class="flex items-center gap-2">
+														<form
+															method="POST"
+															action="?/createDoFromPo"
+															use:enhance={() => { isSubmitting = true; return async ({ update }) => { await update(); isSubmitting = false; } }}
+															class="flex items-center gap-2"
+														>
 															<input type="hidden" name="contractId" value={contractOrder.contract_id}>
 															<input type="hidden" name="unitId" value={contractOrder.ai_recommended_unit_id}>
 															<input type="hidden" name="driverId" value={(contractOrder.ai_recommended_driver_id && contractOrder.ai_recommended_driver_id !== 'null') ? contractOrder.ai_recommended_driver_id : ''}>
 															
 															{#if !contractOrder.produk_id}
-																<select name="cargoName" required class="bg-surface-container-low border border-surface-container text-xs rounded-lg px-2 py-2 text-on-surface focus:outline-none focus:border-blue-500 max-w-[140px]">
+																<select
+																	name="cargoName"
+																	required
+																	class="bg-surface border border-slate-200 dark:border-slate-700 text-xs rounded-xl px-2.5 py-2 text-on-surface focus:outline-none focus:ring-2 focus:ring-blue-500 max-w-[140px]"
+																>
 																	<option value="" disabled selected>Pilih Muatan</option>
 																	{#each products as product}
 																		<option value={product.name}>{product.name}</option>
@@ -459,34 +536,49 @@
 																</select>
 															{/if}
 
-															<button type="submit" disabled={isSubmitting} class="bg-blue-600 text-white px-4 py-2 rounded-lg text-xs font-bold hover:bg-blue-700 shadow-sm flex items-center gap-1 transition-colors disabled:opacity-50 shrink-0">
-																<span class="material-symbols-outlined text-[16px]">task_alt</span> Approve Dispatch
+															<button
+																type="submit"
+																disabled={isSubmitting}
+																class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl text-xs font-bold shadow-xs flex items-center gap-1.5 transition-colors disabled:opacity-50 shrink-0 cursor-pointer"
+															>
+																<span class="material-symbols-outlined text-base">task_alt</span>
+																<span>Approve Dispatch</span>
 															</button>
 														</form>
 													{:else}
-														<button disabled class="bg-surface-container-high text-on-surface-variant px-4 py-2 rounded-lg text-xs font-bold cursor-not-allowed flex items-center gap-1 transition-colors">
-															<span class="material-symbols-outlined text-[16px]">hourglass_empty</span> Belum Ada Unit
+														<button disabled class="bg-surface-container text-on-surface-variant px-4 py-2 rounded-xl text-xs font-bold cursor-not-allowed flex items-center gap-1.5">
+															<span class="material-symbols-outlined text-base">hourglass_empty</span>
+															<span>Belum Ada Unit</span>
 														</button>
 													{/if}
 												</div>
 											</div>
-											
 
-
+											<!-- Alternatives Dropdown -->
 											{#if contractOrder.alternatives && contractOrder.alternatives.length > 0}
-												<div class="mt-4 border-t border-surface-container pt-3 w-full">
-													<button onclick={() => showAlternatives[contractOrder.id] = !showAlternatives[contractOrder.id]} class="text-[11px] font-bold text-blue-600 flex items-center gap-1 hover:underline">
-														<span class="material-symbols-outlined text-[16px] transition-transform {showAlternatives[contractOrder.id] ? 'rotate-180' : ''}">expand_more</span> Tampilkan {contractOrder.alternatives.length} Alternatif Unit Lainnya
+												<div class="mt-3 pt-3 border-t border-slate-100 dark:border-slate-800">
+													<button
+														type="button"
+														onclick={() => showAlternatives[contractOrder.id] = !showAlternatives[contractOrder.id]}
+														class="text-[11px] font-bold text-blue-600 dark:text-blue-400 flex items-center gap-1 hover:underline cursor-pointer"
+													>
+														<span class="material-symbols-outlined text-base transition-transform {showAlternatives[contractOrder.id] ? 'rotate-180' : ''}">expand_more</span>
+														<span>Lihat {contractOrder.alternatives.length} Alternatif Unit Ready Lainnya</span>
 													</button>
+
 													{#if showAlternatives[contractOrder.id]}
-														<div class="mt-3 flex flex-col gap-2">
+														<div class="mt-2.5 grid grid-cols-1 sm:grid-cols-2 gap-2">
 															{#each contractOrder.alternatives as alt, idx}
-																<div class="flex items-center justify-between p-2 bg-surface-container-lowest border border-surface-container rounded-lg">
+																<div class="flex items-center justify-between p-2.5 bg-surface-container-low border border-slate-200/60 dark:border-slate-800 rounded-xl">
 																	<div>
 																		<p class="text-xs font-bold text-on-surface">{alt.unitName}</p>
 																		<p class="text-[10px] text-on-surface-variant">{alt.driverName} • {alt.reason}</p>
 																	</div>
-																	<button onclick={() => selectAlternative(contractOrder.id, idx)} class="px-3 py-1 bg-surface-container hover:bg-blue-100 hover:text-blue-700 text-on-surface-variant text-[10px] font-bold rounded transition-colors">
+																	<button
+																		type="button"
+																		onclick={() => selectAlternative(contractOrder.id, idx)}
+																		class="px-2.5 py-1 bg-surface-container hover:bg-blue-100 hover:text-blue-700 text-on-surface-variant text-[10px] font-bold rounded-lg transition-colors cursor-pointer"
+																	>
 																		Pilih
 																	</button>
 																</div>
@@ -497,9 +589,9 @@
 											{/if}
 										</div>
 									</div>
-								</div>
+								{/each}
 							</div>
-						{/each}
+						{/if}
 					</div>
 				</div>
 			{/if}
