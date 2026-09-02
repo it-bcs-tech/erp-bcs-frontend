@@ -1,9 +1,6 @@
 import type { PageServerLoad, Actions } from './$types';
 import { fail } from '@sveltejs/kit';
-import postgres from 'postgres';
-import { env } from '$env/dynamic/private';
-
-const sql = postgres(env.DATABASE_URL || 'postgres://bcs_admin:sangatrahasia@103.31.205.199:5433/mybcs_db');
+import sql from '$lib/server/db';
 
 function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
 	const R = 6371; // km
