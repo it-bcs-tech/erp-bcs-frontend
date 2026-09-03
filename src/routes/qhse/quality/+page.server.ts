@@ -20,7 +20,7 @@ export const load: PageServerLoad = async () => {
 				FROM qhse.customer_complaints
 				ORDER BY date DESC
 			`,
-			sql`SELECT id, name FROM master.m_customer WHERE is_active = true ORDER BY name ASC LIMIT 100`
+			sql`SELECT id, nama_kustomer as name FROM master.m_customer WHERE is_active = true ORDER BY nama_kustomer ASC LIMIT 100`
 		]);
 
 		const summary = {

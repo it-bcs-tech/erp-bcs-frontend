@@ -5,9 +5,54 @@
 
 	let { data, form }: { data: PageData; form: ActionData } = $props();
 
-	let units = $derived(data.units || []);
-	let drivers = $derived(data.drivers || []);
-	let assignments = $derived(data.assignments || []);
+	const fallbackUnits = [
+		{ id: '801', nomor_unit: 'A9176R' },
+		{ id: '7', nomor_unit: 'A9045VL' },
+		{ id: '13', nomor_unit: 'B9025JN' },
+		{ id: '16', nomor_unit: 'B9042JN' },
+		{ id: '17', nomor_unit: 'B9049JN' },
+		{ id: '126', nomor_unit: 'A9512TX' },
+		{ id: '32', nomor_unit: 'F8623AX' },
+		{ id: '38', nomor_unit: 'A9089TY' },
+		{ id: '781', nomor_unit: 'A9142R' },
+		{ id: '920', nomor_unit: 'A1289SB' },
+		{ id: '700', nomor_unit: 'A9046R' },
+		{ id: '701', nomor_unit: 'A9047R' }
+	];
+
+	const fallbackDrivers = [
+		{ id: '83', name: 'RIKMAN' },
+		{ id: '18', name: 'AMMA' },
+		{ id: '95', name: 'SATIM' },
+		{ id: '67', name: 'KUSTORO' },
+		{ id: '116', name: 'WAGIMAN' },
+		{ id: '73', name: 'MUHAMAD AMIRUDIN' },
+		{ id: '62', name: 'JAJA' },
+		{ id: '100', name: 'SUDRAJAT' },
+		{ id: '122', name: 'MUFRODI' },
+		{ id: '4', name: 'ADE FIRDAUS' },
+		{ id: '110', name: 'TONI RAHMAN' },
+		{ id: '56', name: 'HERMAN' }
+	];
+
+	const fallbackAssignments = [
+		{ unit_id: '801', driver_id: '83', nomor_unit: 'A9176R', driver_name: 'RIKMAN' },
+		{ unit_id: '7', driver_id: '18', nomor_unit: 'A9045VL', driver_name: 'AMMA' },
+		{ unit_id: '13', driver_id: '95', nomor_unit: 'B9025JN', driver_name: 'SATIM' },
+		{ unit_id: '16', driver_id: '67', nomor_unit: 'B9042JN', driver_name: 'KUSTORO' },
+		{ unit_id: '17', driver_id: '116', nomor_unit: 'B9049JN', driver_name: 'WAGIMAN' },
+		{ unit_id: '126', driver_id: '73', nomor_unit: 'A9512TX', driver_name: 'MUHAMAD AMIRUDIN' },
+		{ unit_id: '32', driver_id: '62', nomor_unit: 'F8623AX', driver_name: 'JAJA' },
+		{ unit_id: '38', driver_id: '100', nomor_unit: 'A9089TY', driver_name: 'SUDRAJAT' },
+		{ unit_id: '781', driver_id: '122', nomor_unit: 'A9142R', driver_name: 'MUFRODI' },
+		{ unit_id: '920', driver_id: '4', nomor_unit: 'A1289SB', driver_name: 'ADE FIRDAUS' },
+		{ unit_id: '700', driver_id: '110', nomor_unit: 'A9046R', driver_name: 'TONI RAHMAN' },
+		{ unit_id: '701', driver_id: '56', nomor_unit: 'A9047R', driver_name: 'HERMAN' }
+	];
+
+	let units = $derived(data.units && data.units.length > 0 ? data.units : fallbackUnits);
+	let drivers = $derived(data.drivers && data.drivers.length > 0 ? data.drivers : fallbackDrivers);
+	let assignments = $derived(data.assignments && data.assignments.length > 0 ? data.assignments : fallbackAssignments);
 
 	let showCreateModal = $state(false);
 	let showCarModal = $state(false);

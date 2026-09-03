@@ -44,7 +44,7 @@ export const load: PageServerLoad = async ({ url }) => {
 				ORDER BY i.incident_date DESC
 			`,
 			sql`SELECT id, nomor_unit FROM fleet.unit WHERE is_active = true ORDER BY nomor_unit ASC`,
-			sql`SELECT d.id, k.nama_karyawan as name FROM master.m_drivers d JOIN master.m_karyawan k ON k.id = d.karyawan_id WHERE d.is_active = true ORDER BY k.nama_karyawan ASC`,
+			sql`SELECT d.id, k.nama_karyawan as name FROM master.m_drivers d JOIN master.m_karyawan k ON k.id = d.karyawan_id WHERE (k.aktif = 'Y' OR k.aktif = '1' OR k.aktif IS NULL) ORDER BY k.nama_karyawan ASC`,
 			sql`
 				SELECT 
 					a.unit_id::text,

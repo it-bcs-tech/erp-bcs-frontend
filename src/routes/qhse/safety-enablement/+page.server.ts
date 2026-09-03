@@ -19,7 +19,7 @@ export const load: PageServerLoad = async () => {
 				FROM qhse.safety_briefings
 				ORDER BY date DESC
 			`,
-			sql`SELECT d.id, k.nama_karyawan as name FROM master.m_drivers d JOIN master.m_karyawan k ON k.id = d.karyawan_id WHERE d.is_active = true ORDER BY k.nama_karyawan ASC`,
+			sql`SELECT d.id, k.nama_karyawan as name FROM master.m_drivers d JOIN master.m_karyawan k ON k.id = d.karyawan_id WHERE (k.aktif = 'Y' OR k.aktif = '1' OR k.aktif IS NULL) ORDER BY k.nama_karyawan ASC`,
 			sql`SELECT id, nama_karyawan as name, dept_id FROM master.m_karyawan WHERE status_karyawan = 'AKTIF' ORDER BY nama_karyawan ASC LIMIT 200`
 		]);
 
