@@ -40,8 +40,11 @@ export const load: PageServerLoad = async () => {
 		const safeManHours = totalEmployees * 176 + 12500; // 176 hrs/mo baseline + safe operational trip hours
 		const zeroAccidentDays = 148; // Continuous running days without major Lost Time Injury
 
-		const allIncidents = await sql`SELECT id, severity, status, incident_type FROM qhse.incidents`;
+		const allIncidents = await sql`SELECT id, severity, status, incident_type, COALESCE(financial_loss, 0) as financial_loss, COALESCE(lost_work_days, 0) as lost_work_days FROM qhse.incidents`;
 		const allProactive = await sql`SELECT id, report_type, status FROM qhse.proactive_reports`;
+
+		const totalLoss = allIncidents.reduce((acc: number, cur: any) => acc + parseFloat(cur.financial_loss || '0'), 0);
+		const totalLtiDays = allIncidents.reduce((acc: number, cur: any) => acc + parseInt(cur.lost_work_days || '0', 10), 0);
 
 		const metrics = {
 			safeManHours,
@@ -51,7 +54,9 @@ export const load: PageServerLoad = async () => {
 				totalIncidents: allIncidents.length,
 				openCar: allIncidents.filter((i: any) => i.status === 'CAR_ISSUED' || i.status === 'OPEN').length,
 				accidents: allIncidents.filter((i: any) => i.incident_type === 'Accident').length,
-				violations: allIncidents.filter((i: any) => i.incident_type === 'Pelanggaran Prosedur').length
+				violations: allIncidents.filter((i: any) => i.incident_type === 'Pelanggaran Prosedur').length,
+				totalLoss,
+				totalLtiDays
 			},
 			leading: {
 				totalReports: allProactive.length,

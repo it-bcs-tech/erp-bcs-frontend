@@ -121,12 +121,12 @@
 					<span class="font-bold text-on-surface">{metrics.lagging.totalIncidents}</span>
 				</div>
 				<div class="flex justify-between text-xs">
-					<span class="text-on-surface-variant">Pelanggaran Prosedur:</span>
-					<span class="font-bold text-on-surface">{metrics.lagging.violations}</span>
+					<span class="text-on-surface-variant">Kerugian Finansial:</span>
+					<span class="font-bold text-rose-600">{new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(metrics.lagging.totalLoss || 0)}</span>
 				</div>
 				<div class="flex justify-between text-xs">
 					<span class="text-on-surface-variant">Open CAR (Tindak Lanjut):</span>
-					<span class="font-bold text-rose-600">{metrics.lagging.openCar}</span>
+					<span class="font-bold text-amber-600">{metrics.lagging.openCar}</span>
 				</div>
 			</div>
 		</a>

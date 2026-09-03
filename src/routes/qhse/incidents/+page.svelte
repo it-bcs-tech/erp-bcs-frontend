@@ -18,6 +18,10 @@
 		selectedIncident = inc;
 		showCarModal = true;
 	}
+
+	function formatCurrency(val: number) {
+		return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(val);
+	}
 </script>
 
 <svelte:head>
@@ -30,10 +34,10 @@
 		<div>
 			<div class="flex items-center gap-2.5">
 				<span class="material-symbols-outlined text-rose-600 dark:text-rose-400 text-2xl">emergency</span>
-				<h1 class="text-2xl font-black text-on-surface tracking-tight">Insiden & CAR (Lagging Indicator)</h1>
+				<h1 class="text-2xl font-black text-on-surface tracking-tight">Insiden, Pelanggaran & CAR (Lagging)</h1>
 			</div>
 			<p class="text-on-surface-variant font-medium text-sm mt-0.5">
-				Pencatatan kecelakaan, analisis akar masalah (Root Cause), dan pelaporan tindakan korektif (CAR)
+				Pencatatan kecelakaan, estimasi kerugian finansial, investigasi 5-Why & 4M+1E, serta penerbitan CAR
 			</p>
 		</div>
 
@@ -71,33 +75,37 @@
 					<span class="material-symbols-outlined text-2xl">report</span>
 				</div>
 			</div>
-			<p class="text-xs text-on-surface-variant mt-2 font-medium">Rekapitulasi seluruh kejadian K3</p>
+			<div class="flex justify-between text-xs text-on-surface-variant mt-2 font-medium">
+				<span>{summary.accidents} Kecelakaan</span>
+				<span>•</span>
+				<span>{summary.violations} Pelanggaran</span>
+			</div>
 		</div>
 
 		<div class="p-5 rounded-2xl bg-surface-container-low border border-slate-200/60 dark:border-slate-800/60 shadow-xs">
 			<div class="flex items-center justify-between">
 				<div>
-					<p class="text-xs font-bold text-on-surface-variant uppercase tracking-wider">Kecelakaan (Accident)</p>
-					<h3 class="text-2xl font-black text-rose-600 mt-1">{summary.accidents}</h3>
+					<p class="text-xs font-bold text-on-surface-variant uppercase tracking-wider">Kerugian Finansial</p>
+					<h3 class="text-xl font-black text-rose-600 mt-1">{formatCurrency(summary.totalLoss)}</h3>
 				</div>
 				<div class="w-11 h-11 rounded-xl bg-rose-500/10 text-rose-600 flex items-center justify-center">
-					<span class="material-symbols-outlined text-2xl">car_crash</span>
+					<span class="material-symbols-outlined text-2xl">payments</span>
 				</div>
 			</div>
-			<p class="text-xs text-rose-600 mt-2 font-bold">Kecelakaan armada di jalan/lokasi</p>
+			<p class="text-xs text-rose-600 mt-2 font-bold">Biaya perbaikan unit & klaim kerusakan</p>
 		</div>
 
 		<div class="p-5 rounded-2xl bg-surface-container-low border border-slate-200/60 dark:border-slate-800/60 shadow-xs">
 			<div class="flex items-center justify-between">
 				<div>
-					<p class="text-xs font-bold text-on-surface-variant uppercase tracking-wider">Pelanggaran Prosedur</p>
-					<h3 class="text-2xl font-black text-amber-600 mt-1">{summary.violations}</h3>
+					<p class="text-xs font-bold text-on-surface-variant uppercase tracking-wider">Hari Kerja Hilang (LTI)</p>
+					<h3 class="text-2xl font-black text-amber-600 mt-1">{summary.totalLtiDays} <span class="text-sm font-normal text-on-surface-variant">Hari</span></h3>
 				</div>
 				<div class="w-11 h-11 rounded-xl bg-amber-500/10 text-amber-600 flex items-center justify-center">
-					<span class="material-symbols-outlined text-2xl">warning</span>
+					<span class="material-symbols-outlined text-2xl">event_busy</span>
 				</div>
 			</div>
-			<p class="text-xs text-amber-600 mt-2 font-bold">Pelanggaran SOP & Ketidaksesuaian APD</p>
+			<p class="text-xs text-amber-600 mt-2 font-bold">Lost Time Injury Days akumulatif</p>
 		</div>
 
 		<div class="p-5 rounded-2xl bg-surface-container-low border border-slate-200/60 dark:border-slate-800/60 shadow-xs">
@@ -110,7 +118,7 @@
 					<span class="material-symbols-outlined text-2xl">assignment_late</span>
 				</div>
 			</div>
-			<p class="text-xs text-orange-600 mt-2 font-bold">Menunggu penyelesaian perbaikan</p>
+			<p class="text-xs text-orange-600 mt-2 font-bold">{summary.closed} Kasus Telah Ditutup (Closed)</p>
 		</div>
 	</div>
 
@@ -148,21 +156,22 @@
 
 		<!-- Table View -->
 		<div class="overflow-x-auto">
-			<table class="w-full text-left text-sm min-w-[850px]">
+			<table class="w-full text-left text-sm min-w-[900px]">
 				<thead class="bg-slate-100/70 dark:bg-slate-800/50 text-xs font-bold text-on-surface-variant uppercase tracking-wider border-b border-slate-200/60 dark:border-slate-800/60">
 					<tr>
 						<th class="py-3.5 px-5">No. Insiden & Tanggal</th>
 						<th class="py-3.5 px-5">Tipe & Keparahan</th>
 						<th class="py-3.5 px-5">Unit / Driver</th>
-						<th class="py-3.5 px-5">Lokasi & Uraian Kejadian</th>
-						<th class="py-3.5 px-5">Status CAR & Tindak Lanjut</th>
+						<th class="py-3.5 px-5">Lokasi & Kronologi</th>
+						<th class="py-3.5 px-5">Kerugian & Faktor (4M)</th>
+						<th class="py-3.5 px-5">Status CAR</th>
 						<th class="py-3.5 px-5 text-right">Aksi</th>
 					</tr>
 				</thead>
 				<tbody class="divide-y divide-slate-200/60 dark:divide-slate-800/60">
 					{#if incidents.length === 0}
 						<tr>
-							<td colspan="6" class="py-12 text-center text-on-surface-variant">
+							<td colspan="7" class="py-12 text-center text-on-surface-variant">
 								<span class="material-symbols-outlined text-4xl text-slate-300 block mb-2">verified</span>
 								<p class="font-bold text-sm">Tidak ada insiden pada kategori filter ini.</p>
 							</td>
@@ -177,7 +186,7 @@
 								<td class="py-4 px-5">
 									<p class="text-xs font-bold text-on-surface">{inc.incident_type}</p>
 									<span class="inline-block mt-0.5 px-2 py-0.5 rounded-full text-[10px] font-bold {inc.severity === 'High' ? 'bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300' : inc.severity === 'Medium' ? 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300' : 'bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-300'}">
-										Severity: {inc.severity}
+										{inc.severity}
 									</span>
 								</td>
 								<td class="py-4 px-5">
@@ -190,6 +199,23 @@
 										<span class="material-symbols-outlined text-xs">location_on</span>
 										<span class="truncate">{inc.location}</span>
 									</p>
+								</td>
+								<td class="py-4 px-5">
+									<p class="text-xs font-bold text-rose-600">{formatCurrency(Number(inc.financial_loss || 0))}</p>
+									<div class="flex items-center gap-1 mt-1 flex-wrap">
+										{#if inc.is_human_factor}
+											<span class="px-1.5 py-0.5 rounded bg-blue-100 dark:bg-blue-950 text-blue-800 dark:text-blue-300 text-[9px] font-bold" title="Faktor Manusia">Man</span>
+										{/if}
+										{#if inc.is_equipment_factor}
+											<span class="px-1.5 py-0.5 rounded bg-purple-100 dark:bg-purple-950 text-purple-800 dark:text-purple-300 text-[9px] font-bold" title="Faktor Alat/Mesin">Machine</span>
+										{/if}
+										{#if inc.is_method_factor}
+											<span class="px-1.5 py-0.5 rounded bg-amber-100 dark:bg-amber-950 text-amber-800 dark:text-amber-300 text-[9px] font-bold" title="Faktor Prosedur/Metode">Method</span>
+										{/if}
+										{#if inc.is_environment_factor}
+											<span class="px-1.5 py-0.5 rounded bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 text-[9px] font-bold" title="Faktor Lingkungan/Cuaca">Env</span>
+										{/if}
+									</div>
 								</td>
 								<td class="py-4 px-5">
 									{#if inc.car_number}
@@ -217,7 +243,7 @@
 											class="px-2.5 py-1.5 rounded-lg bg-orange-600 hover:bg-orange-700 text-white text-xs font-bold transition-colors inline-flex items-center gap-1 cursor-pointer"
 										>
 											<span class="material-symbols-outlined text-sm">psychology</span>
-											<span>{inc.car_number ? 'Edit CAR' : 'Analisis Akar & CAR'}</span>
+											<span>{inc.car_number ? 'Edit CAR' : 'Analisis 5-Why & CAR'}</span>
 										</button>
 
 										{#if inc.status !== 'CLOSED' && inc.car_number}
@@ -246,7 +272,7 @@
 <!-- Modal: Lapor Insiden Baru -->
 {#if showCreateModal}
 	<div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-200">
-		<div class="bg-surface-container-lowest rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-2xl max-w-lg w-full overflow-hidden">
+		<div class="bg-surface-container-lowest rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-2xl max-w-lg w-full overflow-hidden max-h-[90vh] flex flex-col">
 			<div class="px-6 py-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
 				<h3 class="text-base font-bold text-on-surface flex items-center gap-2">
 					<span class="material-symbols-outlined text-rose-600 text-xl">report_problem</span>
@@ -262,7 +288,7 @@
 					await update();
 					if (result.type === 'success') showCreateModal = false;
 				};
-			}} class="p-6 space-y-4">
+			}} class="p-6 space-y-4 overflow-y-auto flex-1">
 				<div class="grid grid-cols-2 gap-3">
 					<div>
 						<label class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-1.5" for="inc_type">
@@ -285,6 +311,21 @@
 							<option value="High">High (Kerusakan Parah / Rawat Inap)</option>
 							<option value="Critical / Fatal">Critical / Fatal</option>
 						</select>
+					</div>
+				</div>
+
+				<div class="grid grid-cols-2 gap-3">
+					<div>
+						<label class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-1.5" for="inc_loss">
+							Estimasi Kerugian (Rp)
+						</label>
+						<input id="inc_loss" type="number" name="financial_loss" placeholder="0" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-surface text-sm font-medium" />
+					</div>
+					<div>
+						<label class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-1.5" for="inc_lti">
+							Hari Kerja Hilang (LTI)
+						</label>
+						<input id="inc_lti" type="number" name="lost_work_days" min="0" placeholder="0" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-surface text-sm font-medium" />
 					</div>
 				</div>
 
@@ -324,7 +365,14 @@
 					<label class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-1.5" for="inc_desc">
 						Uraian Kronologis Kejadian
 					</label>
-					<textarea id="inc_desc" name="description" rows="3" placeholder="Jelaskan secara ringkas urutan peristiwa insiden..." required class="w-full px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-surface text-sm font-medium"></textarea>
+					<textarea id="inc_desc" name="description" rows="2" placeholder="Jelaskan secara ringkas urutan peristiwa insiden..." required class="w-full px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-surface text-sm font-medium"></textarea>
+				</div>
+
+				<div>
+					<label class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-1.5" for="inc_csq">
+						Dampak / Konsekuensi Kejadian
+					</label>
+					<input id="inc_csq" type="text" name="consequence" placeholder="Cth: Spakbor penyok, muatan semen 2 sak pecah" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-surface text-sm font-medium" />
 				</div>
 
 				<div class="flex items-center justify-end gap-3 pt-3 border-t border-slate-200 dark:border-slate-800">
@@ -340,15 +388,15 @@
 	</div>
 {/if}
 
-<!-- Modal: Analisis Akar Masalah (Root Cause) & CAR -->
+<!-- Modal: Analisis Akar Masalah (Root Cause 5-Why) & CAR -->
 {#if showCarModal && selectedIncident}
 	<div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-200">
-		<div class="bg-surface-container-lowest rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-2xl max-w-lg w-full overflow-hidden">
+		<div class="bg-surface-container-lowest rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-2xl max-w-xl w-full overflow-hidden max-h-[90vh] flex flex-col">
 			<div class="px-6 py-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
 				<div>
 					<h3 class="text-base font-bold text-on-surface flex items-center gap-2">
 						<span class="material-symbols-outlined text-orange-600 text-xl">psychology</span>
-						<span>Analisis Akar Masalah (Root Cause) & CAR</span>
+						<span>Investigasi 5-Why & Penerbitan CAR</span>
 					</h3>
 					<p class="text-xs text-on-surface-variant font-mono mt-0.5">{selectedIncident.incident_number} — {selectedIncident.incident_type}</p>
 				</div>
@@ -362,27 +410,89 @@
 					await update();
 					if (result.type === 'success') showCarModal = false;
 				};
-			}} class="p-6 space-y-4">
+			}} class="p-6 space-y-4 overflow-y-auto flex-1">
 				<input type="hidden" name="id" value={selectedIncident.id} />
 
 				<!-- Uraian Kasus Singkat -->
 				<div class="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200/60 dark:border-slate-800 text-xs">
 					<p class="font-bold text-on-surface">Kronologi:</p>
 					<p class="text-on-surface-variant mt-0.5">{selectedIncident.description}</p>
+					{#if selectedIncident.consequence}
+						<p class="text-rose-600 font-medium mt-1">Dampak: {selectedIncident.consequence}</p>
+					{/if}
 				</div>
 
-				<!-- Root Cause Analysis -->
+				<!-- 4M + 1E Factor Checkboxes (dari Herd qhse-app) -->
+				<div class="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200/60 dark:border-slate-800 space-y-2">
+					<p class="text-xs font-bold text-on-surface uppercase tracking-wider">Faktor Penyebab Utama (4M + 1E)</p>
+					<div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
+						<label class="flex items-center gap-2 text-xs font-semibold text-on-surface cursor-pointer">
+							<input type="checkbox" name="is_human_factor" checked={selectedIncident.is_human_factor} class="rounded text-blue-600 focus:ring-blue-500" />
+							<span>Man (Manusia)</span>
+						</label>
+						<label class="flex items-center gap-2 text-xs font-semibold text-on-surface cursor-pointer">
+							<input type="checkbox" name="is_equipment_factor" checked={selectedIncident.is_equipment_factor} class="rounded text-purple-600 focus:ring-purple-500" />
+							<span>Machine (Alat)</span>
+						</label>
+						<label class="flex items-center gap-2 text-xs font-semibold text-on-surface cursor-pointer">
+							<input type="checkbox" name="is_method_factor" checked={selectedIncident.is_method_factor} class="rounded text-amber-600 focus:ring-amber-500" />
+							<span>Method (Metode)</span>
+						</label>
+						<label class="flex items-center gap-2 text-xs font-semibold text-on-surface cursor-pointer">
+							<input type="checkbox" name="is_environment_factor" checked={selectedIncident.is_environment_factor} class="rounded text-emerald-600 focus:ring-emerald-500" />
+							<span>Environment</span>
+						</label>
+					</div>
+				</div>
+
+				<!-- 5-Why Analysis Breakdown (dari Herd qhse-app) -->
+				<div class="space-y-2.5">
+					<p class="text-xs font-bold text-on-surface uppercase tracking-wider">Metode Analisis 5-Why</p>
+					
+					<div>
+						<label class="block text-[11px] font-bold text-on-surface-variant uppercase tracking-wider mb-1" for="why1">
+							1. Mengapa kejadian terjadi?
+						</label>
+						<input id="why1" type="text" name="why1" value={selectedIncident.analysis_data?.why1 || ''} placeholder="Gejala langsung..." class="w-full px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-surface text-xs font-medium" />
+					</div>
+					<div>
+						<label class="block text-[11px] font-bold text-on-surface-variant uppercase tracking-wider mb-1" for="why2">
+							2. Mengapa kondisi tersebut muncul?
+						</label>
+						<input id="why2" type="text" name="why2" value={selectedIncident.analysis_data?.why2 || ''} placeholder="Alasan kondisi..." class="w-full px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-surface text-xs font-medium" />
+					</div>
+					<div>
+						<label class="block text-[11px] font-bold text-on-surface-variant uppercase tracking-wider mb-1" for="why3">
+							3. Mengapa hal itu tidak dicegah?
+						</label>
+						<input id="why3" type="text" name="why3" value={selectedIncident.analysis_data?.why3 || ''} placeholder="Alasan pengawasan / kontrol..." class="w-full px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-surface text-xs font-medium" />
+					</div>
+					<div>
+						<label class="block text-[11px] font-bold text-on-surface-variant uppercase tracking-wider mb-1" for="why4">
+							4. Mengapa sistem tidak mendeteksi?
+						</label>
+						<input id="why4" type="text" name="why4" value={selectedIncident.analysis_data?.why4 || ''} placeholder="Kelemahan prosedur..." class="w-full px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-surface text-xs font-medium" />
+					</div>
+					<div>
+						<label class="block text-[11px] font-bold text-rose-600 uppercase tracking-wider mb-1" for="why5">
+							5. Akar Masalah Pokok (Root Cause)?
+						</label>
+						<input id="why5" type="text" name="why5" value={selectedIncident.analysis_data?.why5 || ''} placeholder="Akar masalah fundamental..." class="w-full px-3 py-1.5 rounded-lg border border-rose-300 dark:border-rose-700 bg-surface text-xs font-bold" />
+					</div>
+				</div>
+
+				<!-- Kesimpulan Akar Masalah -->
 				<div>
 					<label class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-1.5" for="car_rc">
-						Analisis Akar Masalah (5-Why / Faktor Manusia-Alat-Metode)
+						Ringkasan Akar Masalah (Root Cause Summary)
 					</label>
-					<textarea id="car_rc" name="root_cause_analysis" rows="2" placeholder="Contoh: Mengapa? Pengemudi lelah karena kurang tidur. Mengapa? Tidak istirahat di rest area." required class="w-full px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-surface text-sm font-medium">{selectedIncident.root_cause_analysis || ''}</textarea>
+					<textarea id="car_rc" name="root_cause_analysis" rows="2" placeholder="Uraikan rangkuman penyebab dasar..." required class="w-full px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-surface text-sm font-medium">{selectedIncident.root_cause_analysis || ''}</textarea>
 				</div>
 
 				<!-- Corrective Action (Tindakan Korektif Langsung) -->
 				<div>
 					<label class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-1.5" for="car_ca">
-						Tindakan Korektif (Corrective Action)
+						Tindakan Korektif Langsung (Corrective Action)
 					</label>
 					<textarea id="car_ca" name="corrective_action" rows="2" placeholder="Tindakan langsung perbaikan kerusakan / sanksi disiplin..." required class="w-full px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-surface text-sm font-medium">{selectedIncident.corrective_action || ''}</textarea>
 				</div>
@@ -390,7 +500,7 @@
 				<!-- Preventive Action (Tindakan Pencegahan Masa Depan) -->
 				<div>
 					<label class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-1.5" for="car_pa">
-						Tindakan Pencegahan (Preventive Action)
+						Tindakan Pencegahan Sistemik (Preventive Action)
 					</label>
 					<textarea id="car_pa" name="preventive_action" rows="2" placeholder="Pelatihan defensive driving berkala, checklist P2H lebih ketat..." class="w-full px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-surface text-sm font-medium">{selectedIncident.preventive_action || ''}</textarea>
 				</div>

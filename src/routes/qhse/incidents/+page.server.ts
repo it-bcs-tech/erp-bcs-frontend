@@ -27,6 +27,14 @@ export const load: PageServerLoad = async ({ url }) => {
 					i.pic_followup,
 					i.due_date,
 					i.status,
+					COALESCE(i.financial_loss, 0) as financial_loss,
+					COALESCE(i.lost_work_days, 0) as lost_work_days,
+					i.consequence,
+					i.is_human_factor,
+					i.is_equipment_factor,
+					i.is_method_factor,
+					i.is_environment_factor,
+					i.analysis_data,
 					u.nomor_unit as unit_number,
 					COALESCE(k.nama_karyawan, 'No Driver') as driver_name
 				FROM qhse.incidents i
@@ -44,12 +52,17 @@ export const load: PageServerLoad = async ({ url }) => {
 		if (severityFilter !== 'All') filtered = filtered.filter(i => i.severity === severityFilter);
 		if (statusFilter !== 'All') filtered = filtered.filter(i => i.status === statusFilter);
 
+		const totalLoss = incidents.reduce((acc: number, cur: any) => acc + parseFloat(cur.financial_loss || '0'), 0);
+		const totalLtiDays = incidents.reduce((acc: number, cur: any) => acc + parseInt(cur.lost_work_days || '0', 10), 0);
+
 		const summary = {
 			total: incidents.length,
 			accidents: incidents.filter((i: any) => i.incident_type === 'Accident').length,
 			violations: incidents.filter((i: any) => i.incident_type === 'Pelanggaran Prosedur').length,
 			openCar: incidents.filter((i: any) => i.status === 'CAR_ISSUED' || i.status === 'OPEN').length,
-			closed: incidents.filter((i: any) => i.status === 'CLOSED').length
+			closed: incidents.filter((i: any) => i.status === 'CLOSED').length,
+			totalLoss,
+			totalLtiDays
 		};
 
 		return {
@@ -63,7 +76,7 @@ export const load: PageServerLoad = async ({ url }) => {
 		console.error("Error loading QHSE incidents:", error);
 		return {
 			incidents: [],
-			summary: { total: 0, accidents: 0, violations: 0, openCar: 0, closed: 0 },
+			summary: { total: 0, accidents: 0, violations: 0, openCar: 0, closed: 0, totalLoss: 0, totalLtiDays: 0 },
 			units: [],
 			drivers: [],
 			filters: { type: 'All', severity: 'All', status: 'All' }
@@ -85,6 +98,10 @@ export const actions: Actions = {
 		const unitId = rawUnit && rawUnit !== 'null' ? parseInt(rawUnit, 10) : null;
 		const driverId = rawDriver && rawDriver !== 'null' ? parseInt(rawDriver, 10) : null;
 
+		const financialLoss = parseFloat(data.get('financial_loss') as string || '0');
+		const lostWorkDays = parseInt(data.get('lost_work_days') as string || '0', 10);
+		const consequence = data.get('consequence') as string || null;
+
 		if (!incidentType || !severity || !location || !description) {
 			return fail(400, { message: 'Harap lengkapi semua field wajib laporan insiden!' });
 		}
@@ -97,10 +114,12 @@ export const actions: Actions = {
 			await sql`
 				INSERT INTO qhse.incidents (
 					incident_number, incident_date, incident_type, severity,
-					unit_id, driver_id, location, description, status
+					unit_id, driver_id, location, description, status,
+					financial_loss, lost_work_days, consequence
 				) VALUES (
 					${incNumber}, ${new Date(incidentDate)}, ${incidentType}, ${severity},
-					${unitId}, ${driverId}, ${location}, ${description}, 'OPEN'
+					${unitId}, ${driverId}, ${location}, ${description}, 'OPEN',
+					${financialLoss}, ${lostWorkDays}, ${consequence}
 				)
 			`;
 
@@ -121,6 +140,21 @@ export const actions: Actions = {
 		const dueDate = data.get('due_date') as string;
 		const carNumber = data.get('car_number') as string || `CAR-${new Date().getFullYear()}-${Math.floor(100 + Math.random() * 900)}`;
 
+		// 4M + 1E Factors
+		const isHuman = data.get('is_human_factor') === 'on';
+		const isEquipment = data.get('is_equipment_factor') === 'on';
+		const isMethod = data.get('is_method_factor') === 'on';
+		const isEnvironment = data.get('is_environment_factor') === 'on';
+
+		// 5-Why Analysis
+		const analysisData = {
+			why1: data.get('why1') as string || '',
+			why2: data.get('why2') as string || '',
+			why3: data.get('why3') as string || '',
+			why4: data.get('why4') as string || '',
+			why5: data.get('why5') as string || ''
+		};
+
 		if (!id || !rootCause || !correctiveAction || !picFollowup) {
 			return fail(400, { message: 'Harap lengkapi analisis akar masalah, tindakan korektif, dan PIC!' });
 		}
@@ -134,7 +168,12 @@ export const actions: Actions = {
 					preventive_action = ${preventiveAction || null},
 					pic_followup = ${picFollowup},
 					due_date = ${dueDate ? new Date(dueDate) : null},
-					status = 'CAR_ISSUED'
+					status = 'CAR_ISSUED',
+					is_human_factor = ${isHuman},
+					is_equipment_factor = ${isEquipment},
+					is_method_factor = ${isMethod},
+					is_environment_factor = ${isEnvironment},
+					analysis_data = ${JSON.stringify(analysisData)}::jsonb
 				WHERE id = ${id}
 			`;
 
