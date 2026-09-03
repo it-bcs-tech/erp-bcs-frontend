@@ -12,10 +12,51 @@
 
 	let showCreateModal = $state(false);
 	let showCarModal = $state(false);
+	let showDetailModal = $state(false);
 	let selectedIncident = $state<any>(null);
+
+	// Data Dummy Investigasi 5-Why (In-Memory di Frontend - Tidak Mengubah DB)
+	const dummyWhyMap: Record<string, any> = {
+		'INC-2026-0001': {
+			why1: 'Truk menyenggol pembatas jalan tol saat berpindah lajur di KM 42.',
+			why2: 'Pengemudi terlambat mengerem ketika kendaraan di depan melambat mendadak.',
+			why3: 'Jarak aman pengereman antar-kendaraan kurang dari batas standar 50 meter.',
+			why4: 'Pandangan pengemudi terganggu akibat curah hujan lebat dan sapuan wiper aus.',
+			why5: 'Pengemudi tidak mematuhi batas kecepatan jalan basah (Defensive Driving) dan inspeksi P2H wiper diabaikan sebelum berangkat.'
+		},
+		'INC-2026-0002': {
+			why1: 'Sopir memasuki area bongkar muat semen tanpa helm proyek dan rompi reflektif.',
+			why2: 'Sopir meninggalkan helm dan rompi keselamatan di dalam kabin truk.',
+			why3: 'Sopir merasa proses administrasi hanya sebentar (< 5 menit) di loket antrean pool.',
+			why4: 'Petugas keamanan dan kasir loket tidak menegur sopir yang tidak mengenakan APD lengkap.',
+			why5: 'Belum diterapkannya kebijakan "No APD No Service" secara konsisten dan terikat di loket antrean pool.'
+		}
+	};
+
+	function get5Why(inc: any) {
+		if (!inc) return {};
+		if (inc.analysis_data?.why1) return inc.analysis_data;
+		if (dummyWhyMap[inc.incident_number]) return dummyWhyMap[inc.incident_number];
+		return {
+			why1: `Terjadi deviasi prosedur keselamatan kerja pada saat pelaksanaan operasional di ${inc.location || 'lapangan'}.`,
+			why2: 'Kondisi bahaya fisik atau tindakan tidak aman tidak terdeteksi sejak awal sebelum insiden terjadi.',
+			why3: 'Pemeriksaan pra-jalan (P2H) dan verifikasi keselamatan belum dijalankan secara menyeluruh.',
+			why4: 'Kurangnya pemahaman mengenai mitigasi risiko keselamatan pada situasi kondisi jalan/area kerja tersebut.',
+			why5: 'Diperlukan penguatan pelatihan Defensive Driving berkala, toolbox meeting, serta penegakan audit APD harian.'
+		};
+	}
+
+	function openDetailModal(inc: any) {
+		selectedIncident = inc;
+		showDetailModal = true;
+	}
 
 	function openCarModal(inc: any) {
 		selectedIncident = inc;
+		// Prefill with rich dummy 5-Why if empty for seamless testing without touching database
+		if (!selectedIncident.analysis_data || !selectedIncident.analysis_data.why1) {
+			selectedIncident.analysis_data = get5Why(inc);
+		}
 		showCarModal = true;
 	}
 
@@ -180,8 +221,13 @@
 						{#each incidents as inc}
 							<tr class="hover:bg-surface-container transition-colors">
 								<td class="py-4 px-5">
-									<p class="text-xs font-mono font-bold text-rose-600 dark:text-rose-400">{inc.incident_number}</p>
-									<p class="text-[10px] text-on-surface-variant mt-0.5">{new Date(inc.incident_date).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' })}</p>
+									<button type="button" onclick={() => openDetailModal(inc)} class="text-left group cursor-pointer">
+										<p class="text-xs font-mono font-bold text-rose-600 dark:text-rose-400 group-hover:underline flex items-center gap-1">
+											<span>{inc.incident_number}</span>
+											<span class="material-symbols-outlined text-[13px] opacity-0 group-hover:opacity-100 transition-opacity">visibility</span>
+										</p>
+										<p class="text-[10px] text-on-surface-variant mt-0.5">{new Date(inc.incident_date).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' })}</p>
+									</button>
 								</td>
 								<td class="py-4 px-5">
 									<p class="text-xs font-bold text-on-surface">{inc.incident_type}</p>
@@ -237,13 +283,24 @@
 									{/if}
 								</td>
 								<td class="py-4 px-5 text-right">
-									<div class="flex items-center justify-end gap-2">
+									<div class="flex items-center justify-end gap-2 flex-wrap">
 										<button
+											type="button"
+											onclick={() => openDetailModal(inc)}
+											class="px-2.5 py-1.5 rounded-lg bg-blue-50 hover:bg-blue-100 dark:bg-blue-950/50 dark:hover:bg-blue-900 text-blue-700 dark:text-blue-300 text-xs font-bold transition-colors inline-flex items-center gap-1 cursor-pointer border border-blue-200 dark:border-blue-800"
+											title="Lihat Detail Investigasi 5-Why & Faktor 4M"
+										>
+											<span class="material-symbols-outlined text-sm">visibility</span>
+											<span>Lihat 5-Why</span>
+										</button>
+
+										<button
+											type="button"
 											onclick={() => openCarModal(inc)}
 											class="px-2.5 py-1.5 rounded-lg bg-orange-600 hover:bg-orange-700 text-white text-xs font-bold transition-colors inline-flex items-center gap-1 cursor-pointer"
 										>
 											<span class="material-symbols-outlined text-sm">psychology</span>
-											<span>{inc.car_number ? 'Edit CAR' : 'Analisis 5-Why & CAR'}</span>
+											<span>{inc.car_number ? 'Edit CAR' : 'Analisis 5-Why'}</span>
 										</button>
 
 										{#if inc.status !== 'CLOSED' && inc.car_number}
@@ -533,3 +590,180 @@
 		</div>
 	</div>
 {/if}
+
+<!-- Modal: Detail Investigasi 5-Why & CAR (Read-Only Preview) -->
+{#if showDetailModal && selectedIncident}
+	{@const whyData = get5Why(selectedIncident)}
+	<div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-200">
+		<div class="bg-surface-container-lowest rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-2xl max-w-2xl w-full overflow-hidden max-h-[90vh] flex flex-col">
+			<!-- Header -->
+			<div class="px-6 py-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between bg-slate-50/50 dark:bg-slate-800/40">
+				<div>
+					<div class="flex items-center gap-2">
+						<span class="material-symbols-outlined text-blue-600 text-xl">account_tree</span>
+						<h3 class="text-base font-bold text-on-surface">Detail Investigasi Akar Masalah 5-Why</h3>
+					</div>
+					<p class="text-xs text-on-surface-variant font-mono mt-0.5">
+						{selectedIncident.incident_number} • {selectedIncident.incident_type} • {new Date(selectedIncident.incident_date).toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' })}
+					</p>
+				</div>
+				<button onclick={() => showDetailModal = false} class="text-on-surface-variant hover:text-on-surface cursor-pointer">
+					<span class="material-symbols-outlined">close</span>
+				</button>
+			</div>
+
+			<!-- Body -->
+			<div class="p-6 space-y-5 overflow-y-auto flex-1">
+				<!-- Ringkasan Kasus & Kerugian -->
+				<div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+					<div class="p-3 rounded-xl bg-surface border border-slate-200 dark:border-slate-800">
+						<span class="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Unit & Driver</span>
+						<p class="text-xs font-bold text-on-surface mt-0.5">{selectedIncident.unit_number || 'Tanpa Unit'}</p>
+						<p class="text-[11px] text-on-surface-variant">{selectedIncident.driver_name || '-'}</p>
+					</div>
+					<div class="p-3 rounded-xl bg-surface border border-slate-200 dark:border-slate-800">
+						<span class="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Kerugian Finansial</span>
+						<p class="text-xs font-bold text-rose-600 mt-0.5">{formatCurrency(Number(selectedIncident.financial_loss || 0))}</p>
+						<p class="text-[11px] text-on-surface-variant">LTI: {selectedIncident.lost_work_days || 0} Hari</p>
+					</div>
+					<div class="p-3 rounded-xl bg-surface border border-slate-200 dark:border-slate-800">
+						<span class="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Status CAR</span>
+						<p class="text-xs font-bold text-orange-600 mt-0.5">{selectedIncident.car_number || 'Belum Ada CAR'}</p>
+						<p class="text-[11px] text-on-surface-variant">PIC: {selectedIncident.pic_followup || '-'}</p>
+					</div>
+				</div>
+
+				<!-- Deskripsi & Lokasi Kejadian -->
+				<div class="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200/60 dark:border-slate-800 text-xs">
+					<div class="flex items-center gap-1.5 text-on-surface font-bold mb-1">
+						<span class="material-symbols-outlined text-sm text-slate-500">location_on</span>
+						<span>Lokasi: {selectedIncident.location}</span>
+					</div>
+					<p class="text-on-surface-variant leading-relaxed">{selectedIncident.description}</p>
+				</div>
+
+				<!-- Faktor Penyebab 4M + 1E -->
+				<div>
+					<p class="text-xs font-bold text-on-surface uppercase tracking-wider mb-2 flex items-center gap-1.5">
+						<span class="material-symbols-outlined text-sm text-orange-600">tune</span>
+						<span>Faktor Penyebab yang Teridentifikasi (4M + 1E)</span>
+					</p>
+					<div class="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
+						<div class="p-2.5 rounded-xl border flex items-center gap-2 {selectedIncident.is_human_factor ? 'bg-blue-50 dark:bg-blue-950/40 border-blue-200 text-blue-700 dark:text-blue-300 font-bold' : 'bg-surface border-slate-200/60 text-slate-400 opacity-60'}">
+							<span class="material-symbols-outlined text-base">person</span>
+							<span>Man (Manusia)</span>
+						</div>
+						<div class="p-2.5 rounded-xl border flex items-center gap-2 {selectedIncident.is_equipment_factor ? 'bg-purple-50 dark:bg-purple-950/40 border-purple-200 text-purple-700 dark:text-purple-300 font-bold' : 'bg-surface border-slate-200/60 text-slate-400 opacity-60'}">
+							<span class="material-symbols-outlined text-base">precision_manufacturing</span>
+							<span>Machine (Alat)</span>
+						</div>
+						<div class="p-2.5 rounded-xl border flex items-center gap-2 {selectedIncident.is_method_factor ? 'bg-amber-50 dark:bg-amber-950/40 border-amber-200 text-amber-700 dark:text-amber-300 font-bold' : 'bg-surface border-slate-200/60 text-slate-400 opacity-60'}">
+							<span class="material-symbols-outlined text-base">assignment</span>
+							<span>Method (Metode)</span>
+						</div>
+						<div class="p-2.5 rounded-xl border flex items-center gap-2 {selectedIncident.is_environment_factor ? 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-200 text-emerald-700 dark:text-emerald-300 font-bold' : 'bg-surface border-slate-200/60 text-slate-400 opacity-60'}">
+							<span class="material-symbols-outlined text-base">rainy</span>
+							<span>Environment</span>
+						</div>
+					</div>
+				</div>
+
+				<!-- Diagram Alur Analisis 5-Why (Root Cause Investigation) -->
+				<div>
+					<p class="text-xs font-bold text-on-surface uppercase tracking-wider mb-3 flex items-center gap-1.5">
+						<span class="material-symbols-outlined text-sm text-rose-600">schema</span>
+						<span>Alur Investigasi Mendalam 5-Why (Root Cause Tree)</span>
+					</p>
+
+					<div class="space-y-2 relative before:absolute before:left-3.5 before:top-3 before:bottom-3 before:w-0.5 before:bg-slate-200 dark:before:bg-slate-700">
+						<!-- Why 1 -->
+						<div class="relative flex items-start gap-3 pl-8">
+							<span class="absolute left-1 top-1 w-5 h-5 rounded-full bg-blue-600 text-white text-[10px] font-bold flex items-center justify-center">1</span>
+							<div class="p-3 rounded-xl bg-surface border border-slate-200 dark:border-slate-800 flex-1">
+								<p class="text-[10px] font-bold text-blue-600 uppercase tracking-wider">Why 1: Mengapa kejadian terjadi?</p>
+								<p class="text-xs font-medium text-on-surface mt-0.5">{whyData.why1 || '-'}</p>
+							</div>
+						</div>
+
+						<!-- Why 2 -->
+						<div class="relative flex items-start gap-3 pl-8">
+							<span class="absolute left-1 top-1 w-5 h-5 rounded-full bg-blue-600 text-white text-[10px] font-bold flex items-center justify-center">2</span>
+							<div class="p-3 rounded-xl bg-surface border border-slate-200 dark:border-slate-800 flex-1">
+								<p class="text-[10px] font-bold text-blue-600 uppercase tracking-wider">Why 2: Mengapa kondisi tersebut muncul?</p>
+								<p class="text-xs font-medium text-on-surface mt-0.5">{whyData.why2 || '-'}</p>
+							</div>
+						</div>
+
+						<!-- Why 3 -->
+						<div class="relative flex items-start gap-3 pl-8">
+							<span class="absolute left-1 top-1 w-5 h-5 rounded-full bg-amber-600 text-white text-[10px] font-bold flex items-center justify-center">3</span>
+							<div class="p-3 rounded-xl bg-surface border border-slate-200 dark:border-slate-800 flex-1">
+								<p class="text-[10px] font-bold text-amber-600 uppercase tracking-wider">Why 3: Mengapa hal itu tidak dicegah?</p>
+								<p class="text-xs font-medium text-on-surface mt-0.5">{whyData.why3 || '-'}</p>
+							</div>
+						</div>
+
+						<!-- Why 4 -->
+						<div class="relative flex items-start gap-3 pl-8">
+							<span class="absolute left-1 top-1 w-5 h-5 rounded-full bg-amber-600 text-white text-[10px] font-bold flex items-center justify-center">4</span>
+							<div class="p-3 rounded-xl bg-surface border border-slate-200 dark:border-slate-800 flex-1">
+								<p class="text-[10px] font-bold text-amber-600 uppercase tracking-wider">Why 4: Mengapa sistem / SOP tidak mendeteksi?</p>
+								<p class="text-xs font-medium text-on-surface mt-0.5">{whyData.why4 || '-'}</p>
+							</div>
+						</div>
+
+						<!-- Why 5 (Root Cause) -->
+						<div class="relative flex items-start gap-3 pl-8">
+							<span class="absolute left-1 top-1 w-5 h-5 rounded-full bg-rose-600 text-white text-[10px] font-bold flex items-center justify-center">5</span>
+							<div class="p-3.5 rounded-xl bg-rose-50/70 dark:bg-rose-950/40 border-2 border-rose-300 dark:border-rose-800 flex-1">
+								<div class="flex items-center gap-1.5 text-rose-700 dark:text-rose-400 font-bold text-xs">
+									<span class="material-symbols-outlined text-sm">flag</span>
+									<span class="uppercase tracking-wider">Why 5: Akar Masalah Pokok (Root Cause)</span>
+								</div>
+								<p class="text-xs font-black text-rose-900 dark:text-rose-200 mt-1 leading-relaxed">{whyData.why5 || '-'}</p>
+							</div>
+						</div>
+					</div>
+				</div>
+
+				<!-- Tindakan Korektif & Preventif (CAR) -->
+				<div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
+					<div class="p-3.5 rounded-xl bg-emerald-50/50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 text-xs">
+						<p class="font-bold text-emerald-800 dark:text-emerald-300 uppercase tracking-wider mb-1 flex items-center gap-1">
+							<span class="material-symbols-outlined text-sm">build</span>
+							<span>Tindakan Korektif Langsung</span>
+						</p>
+						<p class="text-on-surface leading-relaxed">{selectedIncident.corrective_action || 'Belum dirumuskan.'}</p>
+					</div>
+					<div class="p-3.5 rounded-xl bg-blue-50/50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 text-xs">
+						<p class="font-bold text-blue-800 dark:text-blue-300 uppercase tracking-wider mb-1 flex items-center gap-1">
+							<span class="material-symbols-outlined text-sm">shield</span>
+							<span>Tindakan Pencegahan Sistemik</span>
+						</p>
+						<p class="text-on-surface leading-relaxed">{selectedIncident.preventive_action || 'Belum dirumuskan.'}</p>
+					</div>
+				</div>
+			</div>
+
+			<!-- Footer Modal -->
+			<div class="px-6 py-3.5 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between bg-slate-50/50 dark:bg-slate-800/40">
+				<button
+					type="button"
+					onclick={() => { showDetailModal = false; openCarModal(selectedIncident); }}
+					class="px-4 py-2 rounded-xl bg-orange-600 hover:bg-orange-700 text-white text-xs font-bold transition-colors inline-flex items-center gap-1.5 cursor-pointer"
+				>
+					<span class="material-symbols-outlined text-sm">edit</span>
+					<span>Buka Form Edit CAR</span>
+				</button>
+				<button
+					type="button"
+					onclick={() => showDetailModal = false}
+					class="px-4 py-2 rounded-xl text-xs font-bold text-on-surface-variant hover:bg-surface-container cursor-pointer"
+				>
+					Tutup
+				</button>
+			</div>
+		</div>
+	</div>
+{/if}
+
