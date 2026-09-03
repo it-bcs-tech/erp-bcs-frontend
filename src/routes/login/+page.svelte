@@ -63,7 +63,7 @@
 						</div>
 						<span class="text-xl font-bold font-manrope tracking-tight text-white">300+ Units</span>
 					</div>
-					<span class="text-[11px] text-[#d1c3ca] font-semibold tracking-wide uppercase">Active Fleet Fleet</span>
+					<span class="text-[11px] text-[#d1c3ca] font-semibold tracking-wide uppercase">Active Fleet</span>
 				</div>
 				
 				<div class="bg-white/5 backdrop-blur-md p-4 rounded-2xl border border-white/10 hover:bg-white/10 hover:border-white/20 transition-all duration-300 group cursor-default">
