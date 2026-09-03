@@ -12,6 +12,13 @@
 			user.email === 'superhyperadmin@bcs-logistics.co.id'
 		)
 	);
+
+	function isActive(path: string) {
+		if (path === '/qhse') {
+			return $page.url.pathname === '/qhse';
+		}
+		return $page.url.pathname.startsWith(path);
+	}
 </script>
 
 <div class="flex h-[calc(100vh-64px)] overflow-hidden bg-surface relative">
@@ -34,7 +41,12 @@
 
 		<nav class="flex-1 space-y-1">
 			<!-- Overview / Dashboard -->
-			<a class="flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200 hover:translate-x-1 {$page.url.pathname === '/qhse' ? 'bg-surface-container-highest text-orange-600 dark:text-orange-400 font-bold' : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container font-medium text-sm'}" href="/qhse">
+			<a
+				class="flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200 hover:translate-x-1 {isActive('/qhse')
+					? 'bg-surface-container-highest text-orange-600 dark:text-orange-400 font-bold'
+					: 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container font-medium text-sm'}"
+				href="/qhse"
+			>
 				<span class="material-symbols-outlined text-[20px]">space_dashboard</span>
 				<span class="text-sm">Overview & KPI</span>
 			</a>
@@ -44,13 +56,23 @@
 			</div>
 
 			<!-- Lagging: Incident & CAR -->
-			<a class="flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200 hover:translate-x-1 {$page.url.pathname.includes('/qhse/incidents') ? 'bg-surface-container-highest text-orange-600 dark:text-orange-400 font-bold' : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container font-medium text-sm'}" href="/qhse/incidents">
+			<a
+				class="flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200 hover:translate-x-1 {isActive('/qhse/incidents')
+					? 'bg-surface-container-highest text-orange-600 dark:text-orange-400 font-bold'
+					: 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container font-medium text-sm'}"
+				href="/qhse/incidents"
+			>
 				<span class="material-symbols-outlined text-[20px]">emergency</span>
 				<span class="text-sm">Insiden & CAR (Lagging)</span>
 			</a>
 
 			<!-- Leading: Inspeksi & Proaktif -->
-			<a class="flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200 hover:translate-x-1 {$page.url.pathname.includes('/qhse/inspections') ? 'bg-surface-container-highest text-orange-600 dark:text-orange-400 font-bold' : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container font-medium text-sm'}" href="/qhse/inspections">
+			<a
+				class="flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200 hover:translate-x-1 {isActive('/qhse/inspections')
+					? 'bg-surface-container-highest text-orange-600 dark:text-orange-400 font-bold'
+					: 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container font-medium text-sm'}"
+				href="/qhse/inspections"
+			>
 				<span class="material-symbols-outlined text-[20px]">fact_check</span>
 				<span class="text-sm">Inspeksi & Proaktif (Leading)</span>
 			</a>
@@ -60,13 +82,23 @@
 			</div>
 
 			<!-- Enablement & APD -->
-			<a class="flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200 hover:translate-x-1 {$page.url.pathname.includes('/qhse/safety-enablement') ? 'bg-surface-container-highest text-orange-600 dark:text-orange-400 font-bold' : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container font-medium text-sm'}" href="/qhse/safety-enablement">
+			<a
+				class="flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200 hover:translate-x-1 {isActive('/qhse/safety-enablement')
+					? 'bg-surface-container-highest text-orange-600 dark:text-orange-400 font-bold'
+					: 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container font-medium text-sm'}"
+				href="/qhse/safety-enablement"
+			>
 				<span class="material-symbols-outlined text-[20px]">health_and_safety</span>
 				<span class="text-sm">Safety Briefing & APD</span>
 			</a>
 
 			<!-- Management System & Quality -->
-			<a class="flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200 hover:translate-x-1 {$page.url.pathname.includes('/qhse/quality') ? 'bg-surface-container-highest text-orange-600 dark:text-orange-400 font-bold' : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container font-medium text-sm'}" href="/qhse/quality">
+			<a
+				class="flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200 hover:translate-x-1 {isActive('/qhse/quality')
+					? 'bg-surface-container-highest text-orange-600 dark:text-orange-400 font-bold'
+					: 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container font-medium text-sm'}"
+				href="/qhse/quality"
+			>
 				<span class="material-symbols-outlined text-[20px]">policy</span>
 				<span class="text-sm">SOP & Complain System</span>
 			</a>
@@ -75,7 +107,7 @@
 
 	<!-- Main Content Canvas -->
 	<main class="flex-1 h-full overflow-y-auto p-8 bg-surface">
-		<div class="max-w-7xl mx-auto space-y-4">
+		<div class="max-w-7xl mx-auto space-y-6">
 			<!-- Admin-Only Data Source Status Badge -->
 			{#if isAdmin}
 				<div class="flex items-center justify-between px-4 py-2 rounded-xl bg-surface-container-low border border-slate-200/60 dark:border-slate-800/60 text-xs shadow-2xs">
@@ -92,7 +124,7 @@
 				</div>
 			{/if}
 
-			{@render children()}
+			{@render children?.()}
 		</div>
 	</main>
 
