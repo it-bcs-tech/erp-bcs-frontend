@@ -44,7 +44,19 @@ export const load: PageServerLoad = async ({ url }) => {
 				ORDER BY i.incident_date DESC
 			`,
 			sql`SELECT id, nomor_unit FROM fleet.unit WHERE is_active = true ORDER BY nomor_unit ASC`,
-			sql`SELECT d.id, k.nama_karyawan as name FROM master.m_drivers d JOIN master.m_karyawan k ON k.id = d.karyawan_id WHERE d.is_active = true ORDER BY k.nama_karyawan ASC`
+			sql`SELECT d.id, k.nama_karyawan as name FROM master.m_drivers d JOIN master.m_karyawan k ON k.id = d.karyawan_id WHERE d.is_active = true ORDER BY k.nama_karyawan ASC`,
+			sql`
+				SELECT 
+					a.unit_id::text,
+					a.driver_id::text,
+					u.nomor_unit,
+					k.nama_karyawan as driver_name
+				FROM fleet.unit_driver_assignment a
+				JOIN fleet.unit u ON u.id = a.unit_id
+				JOIN master.m_drivers d ON d.id = a.driver_id
+				JOIN master.m_karyawan k ON k.id = d.karyawan_id
+				WHERE a.is_aktif = true
+			`
 		]);
 
 		let filtered = incidents as any[];
@@ -70,6 +82,7 @@ export const load: PageServerLoad = async ({ url }) => {
 			summary,
 			units: units as any[],
 			drivers: drivers as any[],
+			assignments: assignments as any[],
 			filters: { type: typeFilter, severity: severityFilter, status: statusFilter }
 		};
 	} catch (error) {
@@ -79,6 +92,7 @@ export const load: PageServerLoad = async ({ url }) => {
 			summary: { total: 0, accidents: 0, violations: 0, openCar: 0, closed: 0, totalLoss: 0, totalLtiDays: 0 },
 			units: [],
 			drivers: [],
+			assignments: [],
 			filters: { type: 'All', severity: 'All', status: 'All' }
 		};
 	}

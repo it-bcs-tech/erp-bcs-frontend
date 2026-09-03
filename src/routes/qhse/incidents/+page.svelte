@@ -7,11 +7,73 @@
 
 	let units = $derived(data.units || []);
 	let drivers = $derived(data.drivers || []);
+	let assignments = $derived(data.assignments || []);
 
 	let showCreateModal = $state(false);
 	let showCarModal = $state(false);
 	let showDetailModal = $state(false);
 	let selectedIncident = $state<any>(null);
+
+	let createUnitId = $state('');
+	let createDriverId = $state('');
+	let syncStatus = $state<{ type: 'linked' | 'unlinked' | 'none'; text: string }>({ type: 'none', text: '' });
+
+	function onUnitSelect(e: Event) {
+		const unitId = (e.target as HTMLSelectElement).value;
+		createUnitId = unitId;
+
+		if (!unitId) {
+			syncStatus = { type: 'none', text: '' };
+			return;
+		}
+
+		// Cari supir yang ter-assign aktif di unit ini
+		const match = assignments.find((a: any) => a.unit_id?.toString() === unitId.toString());
+		if (match && match.driver_id) {
+			createDriverId = match.driver_id.toString();
+			syncStatus = {
+				type: 'linked',
+				text: `Driver otomatis terhubung: ${match.driver_name} (Supir Aktif Unit ${match.nomor_unit})`
+			};
+		} else {
+			syncStatus = {
+				type: 'unlinked',
+				text: `Unit ini saat ini tidak memiliki supir aktif ter-assign. Driver dapat dipilih manual jika diperlukan.`
+			};
+		}
+	}
+
+	function onDriverSelect(e: Event) {
+		const driverId = (e.target as HTMLSelectElement).value;
+		createDriverId = driverId;
+
+		if (!driverId) {
+			syncStatus = { type: 'none', text: '' };
+			return;
+		}
+
+		// Cari unit yang ter-assign aktif ke driver ini
+		const match = assignments.find((a: any) => a.driver_id?.toString() === driverId.toString());
+		if (match && match.unit_id) {
+			createUnitId = match.unit_id.toString();
+			syncStatus = {
+				type: 'linked',
+				text: `Unit otomatis terhubung: ${match.nomor_unit} (Unit Aktif Driver ${match.driver_name})`
+			};
+		} else {
+			syncStatus = {
+				type: 'unlinked',
+				text: `Driver ini saat ini belum ter-assign ke unit manapun. Unit dapat dipilih manual jika diperlukan.`
+			};
+		}
+	}
+
+	function openCreateModal() {
+		createUnitId = '';
+		createDriverId = '';
+		syncStatus = { type: 'none', text: '' };
+		showCreateModal = true;
+	}
 
 	// 5 Data Dummy Insiden & CAR Realistis (In-Memory di Frontend - Tidak Menyimpan ke DB)
 	const fiveDummyIncidents = [
@@ -249,7 +311,7 @@
 		</div>
 
 		<button
-			onclick={() => showCreateModal = true}
+			onclick={openCreateModal}
 			class="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold shadow-xs transition-colors cursor-pointer"
 		>
 			<span class="material-symbols-outlined text-lg">add_alert</span>
@@ -544,27 +606,63 @@
 
 				<div class="grid grid-cols-2 gap-3">
 					<div>
-						<label class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-1.5" for="inc_unit">
-							Unit Terlibat (Opsional)
-						</label>
-						<select id="inc_unit" name="unit_id" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-surface text-sm font-medium">
+						<div class="flex items-center justify-between mb-1.5">
+							<label class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider" for="inc_unit">
+								Unit Terlibat
+							</label>
+							{#if createUnitId}
+								<span class="text-[10px] font-bold text-blue-600 dark:text-blue-400">Terpilih</span>
+							{/if}
+						</div>
+						<select
+							id="inc_unit"
+							name="unit_id"
+							bind:value={createUnitId}
+							onchange={onUnitSelect}
+							class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-surface text-sm font-medium focus:ring-2 focus:ring-rose-500 transition-all"
+						>
 							<option value="">-- Tanpa Unit --</option>
 							{#each units as u}
-								<option value={u.id}>{u.nomor_unit}</option>
+								{@const match = assignments.find((a: any) => a.unit_id?.toString() === u.id?.toString())}
+								<option value={u.id}>
+									{u.nomor_unit} {match ? `[Supir: ${match.driver_name}]` : ''}
+								</option>
 							{/each}
 						</select>
 					</div>
 					<div>
-						<label class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-1.5" for="inc_driver">
-							Driver Terlibat (Opsional)
-						</label>
-						<select id="inc_driver" name="driver_id" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-surface text-sm font-medium">
+						<div class="flex items-center justify-between mb-1.5">
+							<label class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider" for="inc_driver">
+								Driver Terlibat
+							</label>
+							{#if createDriverId}
+								<span class="text-[10px] font-bold text-blue-600 dark:text-blue-400">Terpilih</span>
+							{/if}
+						</div>
+						<select
+							id="inc_driver"
+							name="driver_id"
+							bind:value={createDriverId}
+							onchange={onDriverSelect}
+							class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-surface text-sm font-medium focus:ring-2 focus:ring-rose-500 transition-all"
+						>
 							<option value="">-- Tanpa Driver --</option>
 							{#each drivers as d}
-								<option value={d.id}>{d.name}</option>
+								{@const match = assignments.find((a: any) => a.driver_id?.toString() === d.id?.toString())}
+								<option value={d.id}>
+									{d.name} {match ? `[Unit: ${match.nomor_unit}]` : ''}
+								</option>
 							{/each}
 						</select>
 					</div>
+
+					<!-- Visual Synchronized Assignment Status -->
+					{#if syncStatus.text}
+						<div class="col-span-2 p-2.5 rounded-xl text-xs font-semibold flex items-center gap-2 {syncStatus.type === 'linked' ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800' : 'bg-slate-100 dark:bg-slate-800 text-on-surface-variant border border-slate-200 dark:border-slate-700'} animate-in fade-in duration-150">
+							<span class="material-symbols-outlined text-base">{syncStatus.type === 'linked' ? 'sync' : 'info'}</span>
+							<span>{syncStatus.text}</span>
+						</div>
+					{/if}
 				</div>
 
 				<div>
