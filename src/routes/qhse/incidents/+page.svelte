@@ -5,8 +5,6 @@
 
 	let { data, form }: { data: PageData; form: ActionData } = $props();
 
-	let summary = $derived(data.summary);
-	let incidents = $derived(data.incidents || []);
 	let units = $derived(data.units || []);
 	let drivers = $derived(data.drivers || []);
 
@@ -15,35 +13,204 @@
 	let showDetailModal = $state(false);
 	let selectedIncident = $state<any>(null);
 
-	// Data Dummy Investigasi 5-Why (In-Memory di Frontend - Tidak Mengubah DB)
-	const dummyWhyMap: Record<string, any> = {
-		'INC-2026-0001': {
-			why1: 'Truk menyenggol pembatas jalan tol saat berpindah lajur di KM 42.',
-			why2: 'Pengemudi terlambat mengerem ketika kendaraan di depan melambat mendadak.',
-			why3: 'Jarak aman pengereman antar-kendaraan kurang dari batas standar 50 meter.',
-			why4: 'Pandangan pengemudi terganggu akibat curah hujan lebat dan sapuan wiper aus.',
-			why5: 'Pengemudi tidak mematuhi batas kecepatan jalan basah (Defensive Driving) dan inspeksi P2H wiper diabaikan sebelum berangkat.'
+	// 5 Data Dummy Insiden & CAR Realistis (In-Memory di Frontend - Tidak Menyimpan ke DB)
+	const fiveDummyIncidents = [
+		{
+			id: 101,
+			incident_number: 'INC-2026-0001',
+			incident_date: '2026-02-28T09:30:00Z',
+			incident_type: 'Accident',
+			severity: 'Medium',
+			unit_id: 1,
+			unit_number: 'BCS-TRK-084',
+			driver_id: 1,
+			driver_name: 'Ahmad Supriyadi',
+			location: 'Tol Cipularang KM 92B (Arah Jakarta)',
+			description: 'Truk menyenggol pembatas beton jalan tol (guardrail) saat berpindah lajur di tikungan menurun dalam kondisi hujan deras.',
+			consequence: 'Spakbor depan kiri retak, lampu sein pecah, bumper lecet, kargo palet aman.',
+			financial_loss: 4500000,
+			lost_work_days: 0,
+			is_human_factor: true,
+			is_equipment_factor: true,
+			is_method_factor: false,
+			is_environment_factor: true,
+			car_number: 'CAR-2026-001',
+			pic_followup: 'Agus Hendra (HSE Officer)',
+			due_date: '2026-03-05',
+			status: 'CLOSED',
+			corrective_action: 'Penggantian spakbor dan unit lampu sein di Workshop BCS Cilegon; teguran lisan tertulis kepada pengemudi.',
+			preventive_action: 'Pemeriksaan ketebalan karet wiper wajib lolos di pos gate-in sebelum surat jalan diterbitkan & sosialisasi Defensive Driving saat hujan.',
+			root_cause_analysis: 'Pengemudi mengabaikan SOP batas kecepatan hujan (Defensive Driving) dan inspeksi P2H wiper diabaikan sebelum dispatch.',
+			analysis_data: {
+				why1: 'Truk menyenggol pembatas jalan tol saat berpindah lajur di KM 92B.',
+				why2: 'Pengemudi terlambat mengerem ketika kendaraan di depan melambat mendadak.',
+				why3: 'Jarak aman pengereman antar-kendaraan kurang dari batas standar 50 meter.',
+				why4: 'Pandangan pengemudi terganggu akibat curah hujan lebat dan sapuan karet wiper aus.',
+				why5: 'Pengemudi tidak mematuhi batas kecepatan jalan basah (Defensive Driving) dan inspeksi P2H wiper diabaikan sebelum berangkat.'
+			}
 		},
-		'INC-2026-0002': {
-			why1: 'Sopir memasuki area bongkar muat semen tanpa helm proyek dan rompi reflektif.',
-			why2: 'Sopir meninggalkan helm dan rompi keselamatan di dalam kabin truk.',
-			why3: 'Sopir merasa proses administrasi hanya sebentar (< 5 menit) di loket antrean pool.',
-			why4: 'Petugas keamanan dan kasir loket tidak menegur sopir yang tidak mengenakan APD lengkap.',
-			why5: 'Belum diterapkannya kebijakan "No APD No Service" secara konsisten dan terikat di loket antrean pool.'
+		{
+			id: 102,
+			incident_number: 'INC-2026-0002',
+			incident_date: '2026-03-01T14:15:00Z',
+			incident_type: 'Pelanggaran Prosedur',
+			severity: 'Low',
+			unit_id: 2,
+			unit_number: 'BCS-TRK-102',
+			driver_id: 2,
+			driver_name: 'Bambang Haryanto',
+			location: 'Loading Dock Gudang Semen Conch Cilegon',
+			description: 'Sopir terpantau berada di atas bak trailer saat proses bongkar semen sak tanpa mengenakan safety helmet & body harness.',
+			consequence: 'Potensi bahaya jatuh dari ketinggian 1.8 meter (Zero harm achieved berkat intervensi pengawas).',
+			financial_loss: 0,
+			lost_work_days: 0,
+			is_human_factor: true,
+			is_equipment_factor: false,
+			is_method_factor: true,
+			is_environment_factor: false,
+			car_number: 'CAR-2026-002',
+			pic_followup: 'Danang Prasetyo (Safety Supervisor)',
+			due_date: '2026-03-07',
+			status: 'CAR_ISSUED',
+			corrective_action: 'Pemberian Surat Peringatan (SP 1) K3 kepada driver dan penundaan muat selama 2 jam untuk re-induction K3.',
+			preventive_action: 'Pemasangan rambu intervensi keselamatan "Stop Work Authority" dan audit berkala checklist APD di loading dock.',
+			root_cause_analysis: 'Kurangnya pengawasan ketat Golden Safety Rules di area transit dan ketiadaan sistem penalti "No APD No Loading".',
+			analysis_data: {
+				why1: 'Sopir naik ke bak trailer tanpa memakai helm keselamatan dan tali pengaman.',
+				why2: 'Sopir ingin segera merapikan terpal yang tersangkut sebelum forklift pabrik masuk.',
+				why3: 'Sopir merasa waktu pemasangan harness terlalu lama dan memakan waktu antrean.',
+				why4: 'Jalur tangga inspeksi khusus dan safety line di dock tersebut sedang dipakai armada lain.',
+				why5: 'Kurangnya pengawasan ketat Golden Safety Rules di area transit dan ketiadaan sistem penalti "No APD No Loading".'
+			}
+		},
+		{
+			id: 103,
+			incident_number: 'INC-2026-0003',
+			incident_date: '2026-03-02T10:45:00Z',
+			incident_type: 'Kerusakan Properti/Muatan',
+			severity: 'Medium',
+			unit_id: 3,
+			unit_number: 'BCS-TRK-055',
+			driver_id: 3,
+			driver_name: 'Rudi Hartono',
+			location: 'Area Stockpile Batubara Jetty Bojonegara',
+			description: 'Truk amblas saat proses dumping di tepi tebing stockpile karena tanah timbunan belum dipadatkan setelah hujan deras.',
+			consequence: 'Roda belakang amblas sedalam 40 cm, proses dumping terhenti sementara, memerlukan bantuan wheel loader untuk evakuasi.',
+			financial_loss: 2200000,
+			lost_work_days: 0,
+			is_human_factor: false,
+			is_equipment_factor: false,
+			is_method_factor: true,
+			is_environment_factor: true,
+			car_number: 'CAR-2026-003',
+			pic_followup: 'Fajar Nugroho (Kepala Operasional Jetty)',
+			due_date: '2026-03-10',
+			status: 'CAR_ISSUED',
+			corrective_action: 'Evakuasi aman truk menggunakan sling baja wheel loader, perataan kembali kontur tanah stockpile.',
+			preventive_action: 'Pembuatan tanggul penahan roda (safety berm) setinggi 1/2 diameter roda truk dan briefing wajib spotter tanah labil.',
+			root_cause_analysis: 'SOP dumping batubara pada area basah belum diperbarui dan tidak ada patok batas aman penahan roda di bibir tebing.',
+			analysis_data: {
+				why1: 'Roda belakang sisi kanan dump truck amblas ke dalam tanah saat bak terangkat 45 derajat.',
+				why2: 'Struktur tanggul bibir stockpile tidak mampu menahan beban tumpuan roda 30 ton.',
+				why3: 'Timbunan tanah di pinggir jetty masih gembur setelah tersiram hujan lebat semalaman.',
+				why4: 'Spotter (pemandu manuver) mengarahkan truk terlalu dekat dengan bibir tebing (< 3 meter).',
+				why5: 'SOP dumping batubara pada area basah belum diperbarui dan tidak ada patok batas aman (bund wall marker).'
+			}
+		},
+		{
+			id: 104,
+			incident_number: 'INC-2026-0004',
+			incident_date: '2026-03-02T16:20:00Z',
+			incident_type: 'Kecelakaan Kerja',
+			severity: 'Medium',
+			unit_id: 4,
+			unit_number: 'BCS-TRK-029',
+			driver_id: null,
+			driver_name: 'No Driver (Mekanik: Hendra Wijaya)',
+			location: 'Pit Stop Bay 3 Workshop BCS Cilegon',
+			description: 'Tangan mekanik terjepit kunci torsi saat membuka baut roda yang macet karena selip kunci impact pneumatik.',
+			consequence: 'Memar dan luka lecet pada jari telunjuk dan ibu jari tangan kanan, mendapat pertolongan pertama (P3K) di klinik pool.',
+			financial_loss: 450000,
+			lost_work_days: 1,
+			is_human_factor: true,
+			is_equipment_factor: true,
+			is_method_factor: false,
+			is_environment_factor: false,
+			car_number: 'CAR-2026-004',
+			pic_followup: 'Supriyadi (Chief Mechanic / Workshop Lead)',
+			due_date: '2026-03-08',
+			status: 'OPEN',
+			corrective_action: 'Pertolongan medis klinik & istirahat dokter 1 hari; afkir (scrap) soket kunci yang sudah aus sudutnya.',
+			preventive_action: 'Pengadaan sarung tangan mekanik khusus Heavy-Duty Impact Resistant & audit tool kit mekanik tiap awal bulan.',
+			root_cause_analysis: 'Ketiadaan standarisasi inspeksi rutin tool kit mekanik dan sarung tangan anti-impact tidak dipakai saat pengerjaan berat.',
+			analysis_data: {
+				why1: 'Tangan mekanik terhantam gagang kunci torsi saat melepas mur roda ban ganda.',
+				why2: 'Kunci soket mengalami selip dari kepala mur baut yang sudah aus (gundul).',
+				why3: 'Mekanik memberikan tekanan tenaga berlebih tanpa posisi tumpuan kuda-kuda yang stabil.',
+				why4: 'Kunci impact pneumatik bertenaga sedang dalam perbaikan sehingga mekanik beralih ke kunci manual tanpa pipa pelindung.',
+				why5: 'Ketiadaan standarisasi inspeksi rutin tool kit mekanik dan sarung tangan anti-impact tidak dipakai saat pengerjaan berat.'
+			}
+		},
+		{
+			id: 105,
+			incident_number: 'INC-2026-0005',
+			incident_date: '2026-03-03T08:10:00Z',
+			incident_type: 'Accident',
+			severity: 'High',
+			unit_id: 5,
+			unit_number: 'BCS-TRK-019',
+			driver_id: 4,
+			driver_name: 'Dedi Kurniawan',
+			location: 'Jalan Raya Serang - Cilegon KM 14',
+			description: 'Ban kiri belakang trailer meledak (tire burst) di lajur lambat yang mengakibatkan serpihan kawat ban mengenai bodi mobil pick-up di samping.',
+			consequence: 'Kerusakan fender tangki, kaca lampu pick-up pecah, tidak ada korban cedera fisik (property damage only).',
+			financial_loss: 8750000,
+			lost_work_days: 0,
+			is_human_factor: false,
+			is_equipment_factor: true,
+			is_method_factor: true,
+			is_environment_factor: true,
+			car_number: 'CAR-2026-005',
+			pic_followup: 'Heri Santoso (Fleet Safety Officer)',
+			due_date: '2026-03-12',
+			status: 'CAR_ISSUED',
+			corrective_action: 'Ganti ban serep baru di lokasi kejadian; penyelesaian klaim ganti rugi perbaikan bodi mobil pick-up pihak ketiga.',
+			preventive_action: 'Penerapan sistem cek tire pressure digital otomatis di gerbang keluar pool & kalibrasi berkala alat pengukur tekanan angin.',
+			root_cause_analysis: 'Alat ukur tekanan ban digital (tire pressure gauge) di pool transit rusak dan pengemudi mengabaikan pemeriksaan fisik ketukan ban.',
+			analysis_data: {
+				why1: 'Ban luar nomor 7 (posisi kiri gandeng belakang) meledak tiba-tiba saat melaju 55 km/jam.',
+				why2: 'Suhu dan tekanan dalam ban meningkat drastis melebihi batas aman (heat build-up overpressure).',
+				why3: 'Ban mengalami kondisi under-inflation (tekanan angin kurang dari 110 PSI) yang menyebabkan dinding ban melipat saat menahan muatan 35 ton.',
+				why4: 'Pengemudi tidak melakukan pengetukan ban (tire knocking check) saat beristirahat di pool transit.',
+				why5: 'Alat ukur tekanan ban digital (tire pressure gauge) di pool transit rusak dan belum diganti selama 2 minggu.'
+			}
 		}
-	};
+	];
+
+	// Filter & Reactive State
+	let statusFilter = $derived($page.url.searchParams.get('status') || 'All');
+
+	let displayedIncidents = $derived.by(() => {
+		let list = [...fiveDummyIncidents];
+		if (statusFilter !== 'All') {
+			list = list.filter(i => i.status === statusFilter);
+		}
+		return list;
+	});
+
+	let computedSummary = $derived({
+		total: fiveDummyIncidents.length,
+		accidents: fiveDummyIncidents.filter(i => i.incident_type === 'Accident').length,
+		violations: fiveDummyIncidents.filter(i => i.incident_type === 'Pelanggaran Prosedur').length,
+		openCar: fiveDummyIncidents.filter(i => i.status === 'CAR_ISSUED').length,
+		openCases: fiveDummyIncidents.filter(i => i.status === 'OPEN').length,
+		closed: fiveDummyIncidents.filter(i => i.status === 'CLOSED').length,
+		totalLoss: fiveDummyIncidents.reduce((acc, cur) => acc + cur.financial_loss, 0),
+		totalLtiDays: fiveDummyIncidents.reduce((acc, cur) => acc + cur.lost_work_days, 0)
+	});
 
 	function get5Why(inc: any) {
-		if (!inc) return {};
-		if (inc.analysis_data?.why1) return inc.analysis_data;
-		if (dummyWhyMap[inc.incident_number]) return dummyWhyMap[inc.incident_number];
-		return {
-			why1: `Terjadi deviasi prosedur keselamatan kerja pada saat pelaksanaan operasional di ${inc.location || 'lapangan'}.`,
-			why2: 'Kondisi bahaya fisik atau tindakan tidak aman tidak terdeteksi sejak awal sebelum insiden terjadi.',
-			why3: 'Pemeriksaan pra-jalan (P2H) dan verifikasi keselamatan belum dijalankan secara menyeluruh.',
-			why4: 'Kurangnya pemahaman mengenai mitigasi risiko keselamatan pada situasi kondisi jalan/area kerja tersebut.',
-			why5: 'Diperlukan penguatan pelatihan Defensive Driving berkala, toolbox meeting, serta penegakan audit APD harian.'
-		};
+		return inc?.analysis_data || {};
 	}
 
 	function openDetailModal(inc: any) {
@@ -52,11 +219,7 @@
 	}
 
 	function openCarModal(inc: any) {
-		selectedIncident = inc;
-		// Prefill with rich dummy 5-Why if empty for seamless testing without touching database
-		if (!selectedIncident.analysis_data || !selectedIncident.analysis_data.why1) {
-			selectedIncident.analysis_data = get5Why(inc);
-		}
+		selectedIncident = { ...inc };
 		showCarModal = true;
 	}
 
@@ -76,6 +239,9 @@
 			<div class="flex items-center gap-2.5">
 				<span class="material-symbols-outlined text-rose-600 dark:text-rose-400 text-2xl">emergency</span>
 				<h1 class="text-2xl font-black text-on-surface tracking-tight">Insiden, Pelanggaran & CAR (Lagging)</h1>
+				<span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 dark:bg-amber-950/50 dark:text-amber-300 border border-amber-200 dark:border-amber-800">
+					5 Dummy Dataset (In-Memory)
+				</span>
 			</div>
 			<p class="text-on-surface-variant font-medium text-sm mt-0.5">
 				Pencatatan kecelakaan, estimasi kerugian finansial, investigasi 5-Why & 4M+1E, serta penerbitan CAR
@@ -110,16 +276,16 @@
 			<div class="flex items-center justify-between">
 				<div>
 					<p class="text-xs font-bold text-on-surface-variant uppercase tracking-wider">Total Kasus Tercatat</p>
-					<h3 class="text-2xl font-black text-on-surface mt-1">{summary.total}</h3>
+					<h3 class="text-2xl font-black text-on-surface mt-1">{computedSummary.total}</h3>
 				</div>
 				<div class="w-11 h-11 rounded-xl bg-slate-500/10 text-slate-600 flex items-center justify-center">
 					<span class="material-symbols-outlined text-2xl">report</span>
 				</div>
 			</div>
 			<div class="flex justify-between text-xs text-on-surface-variant mt-2 font-medium">
-				<span>{summary.accidents} Kecelakaan</span>
+				<span>{computedSummary.accidents} Kecelakaan</span>
 				<span>•</span>
-				<span>{summary.violations} Pelanggaran</span>
+				<span>{computedSummary.violations} Pelanggaran</span>
 			</div>
 		</div>
 
@@ -127,20 +293,20 @@
 			<div class="flex items-center justify-between">
 				<div>
 					<p class="text-xs font-bold text-on-surface-variant uppercase tracking-wider">Kerugian Finansial</p>
-					<h3 class="text-xl font-black text-rose-600 mt-1">{formatCurrency(summary.totalLoss)}</h3>
+					<h3 class="text-xl font-black text-rose-600 mt-1">{formatCurrency(computedSummary.totalLoss)}</h3>
 				</div>
 				<div class="w-11 h-11 rounded-xl bg-rose-500/10 text-rose-600 flex items-center justify-center">
 					<span class="material-symbols-outlined text-2xl">payments</span>
 				</div>
 			</div>
-			<p class="text-xs text-rose-600 mt-2 font-bold">Biaya perbaikan unit & klaim kerusakan</p>
+			<p class="text-xs text-rose-600 mt-2 font-bold">Biaya perbaikan unit & klaim kargo</p>
 		</div>
 
 		<div class="p-5 rounded-2xl bg-surface-container-low border border-slate-200/60 dark:border-slate-800/60 shadow-xs">
 			<div class="flex items-center justify-between">
 				<div>
 					<p class="text-xs font-bold text-on-surface-variant uppercase tracking-wider">Hari Kerja Hilang (LTI)</p>
-					<h3 class="text-2xl font-black text-amber-600 mt-1">{summary.totalLtiDays} <span class="text-sm font-normal text-on-surface-variant">Hari</span></h3>
+					<h3 class="text-2xl font-black text-amber-600 mt-1">{computedSummary.totalLtiDays} <span class="text-sm font-normal text-on-surface-variant">Hari</span></h3>
 				</div>
 				<div class="w-11 h-11 rounded-xl bg-amber-500/10 text-amber-600 flex items-center justify-center">
 					<span class="material-symbols-outlined text-2xl">event_busy</span>
@@ -153,13 +319,13 @@
 			<div class="flex items-center justify-between">
 				<div>
 					<p class="text-xs font-bold text-on-surface-variant uppercase tracking-wider">Open CAR (Tindak Lanjut)</p>
-					<h3 class="text-2xl font-black text-orange-600 mt-1">{summary.openCar}</h3>
+					<h3 class="text-2xl font-black text-orange-600 mt-1">{computedSummary.openCar}</h3>
 				</div>
 				<div class="w-11 h-11 rounded-xl bg-orange-500/10 text-orange-600 flex items-center justify-center">
 					<span class="material-symbols-outlined text-2xl">assignment_late</span>
 				</div>
 			</div>
-			<p class="text-xs text-orange-600 mt-2 font-bold">{summary.closed} Kasus Telah Ditutup (Closed)</p>
+			<p class="text-xs text-orange-600 mt-2 font-bold">{computedSummary.closed} Kasus Telah Ditutup (Closed)</p>
 		</div>
 	</div>
 
@@ -167,37 +333,37 @@
 	<div class="rounded-2xl bg-surface-container-low border border-slate-200/60 dark:border-slate-800/60 shadow-xs overflow-hidden">
 		<!-- Table Filter Toolbar -->
 		<div class="p-4 border-b border-slate-200/60 dark:border-slate-800/60 flex flex-col sm:flex-row items-center justify-between gap-3 bg-slate-50/50 dark:bg-slate-800/30">
-			<div class="flex items-center gap-2 w-full sm:w-auto">
+			<div class="flex items-center gap-2 w-full sm:w-auto flex-wrap">
 				<a
 					href="?status=All"
-					class="px-3 py-1.5 rounded-lg text-xs font-bold transition-colors {$page.url.searchParams.get('status') === 'All' || !$page.url.searchParams.get('status') ? 'bg-rose-600 text-white' : 'bg-surface text-on-surface-variant hover:bg-surface-container'}"
+					class="px-3 py-1.5 rounded-lg text-xs font-bold transition-colors {statusFilter === 'All' ? 'bg-rose-600 text-white' : 'bg-surface text-on-surface-variant hover:bg-surface-container'}"
 				>
-					Semua ({summary.total})
+					Semua ({computedSummary.total})
 				</a>
 				<a
 					href="?status=OPEN"
-					class="px-3 py-1.5 rounded-lg text-xs font-bold transition-colors {$page.url.searchParams.get('status') === 'OPEN' ? 'bg-rose-600 text-white' : 'bg-surface text-on-surface-variant hover:bg-surface-container'}"
+					class="px-3 py-1.5 rounded-lg text-xs font-bold transition-colors {statusFilter === 'OPEN' ? 'bg-rose-600 text-white' : 'bg-surface text-on-surface-variant hover:bg-surface-container'}"
 				>
-					Perlu Investigasi ({summary.total - summary.closed - summary.openCar})
+					Perlu Investigasi ({computedSummary.openCases})
 				</a>
 				<a
 					href="?status=CAR_ISSUED"
-					class="px-3 py-1.5 rounded-lg text-xs font-bold transition-colors {$page.url.searchParams.get('status') === 'CAR_ISSUED' ? 'bg-orange-600 text-white' : 'bg-surface text-on-surface-variant hover:bg-surface-container'}"
+					class="px-3 py-1.5 rounded-lg text-xs font-bold transition-colors {statusFilter === 'CAR_ISSUED' ? 'bg-orange-600 text-white' : 'bg-surface text-on-surface-variant hover:bg-surface-container'}"
 				>
-					CAR Aktif ({summary.openCar})
+					CAR Aktif ({computedSummary.openCar})
 				</a>
 				<a
 					href="?status=CLOSED"
-					class="px-3 py-1.5 rounded-lg text-xs font-bold transition-colors {$page.url.searchParams.get('status') === 'CLOSED' ? 'bg-emerald-600 text-white' : 'bg-surface text-on-surface-variant hover:bg-surface-container'}"
+					class="px-3 py-1.5 rounded-lg text-xs font-bold transition-colors {statusFilter === 'CLOSED' ? 'bg-emerald-600 text-white' : 'bg-surface text-on-surface-variant hover:bg-surface-container'}"
 				>
-					Closed ({summary.closed})
+					Closed ({computedSummary.closed})
 				</a>
 			</div>
 		</div>
 
 		<!-- Table View -->
 		<div class="overflow-x-auto">
-			<table class="w-full text-left text-sm min-w-[900px]">
+			<table class="w-full text-left text-sm min-w-[950px]">
 				<thead class="bg-slate-100/70 dark:bg-slate-800/50 text-xs font-bold text-on-surface-variant uppercase tracking-wider border-b border-slate-200/60 dark:border-slate-800/60">
 					<tr>
 						<th class="py-3.5 px-5">No. Insiden & Tanggal</th>
@@ -210,7 +376,7 @@
 					</tr>
 				</thead>
 				<tbody class="divide-y divide-slate-200/60 dark:divide-slate-800/60">
-					{#if incidents.length === 0}
+					{#if displayedIncidents.length === 0}
 						<tr>
 							<td colspan="7" class="py-12 text-center text-on-surface-variant">
 								<span class="material-symbols-outlined text-4xl text-slate-300 block mb-2">verified</span>
@@ -218,7 +384,7 @@
 							</td>
 						</tr>
 					{:else}
-						{#each incidents as inc}
+						{#each displayedIncidents as inc}
 							<tr class="hover:bg-surface-container transition-colors">
 								<td class="py-4 px-5">
 									<button type="button" onclick={() => openDetailModal(inc)} class="text-left group cursor-pointer">
@@ -248,6 +414,9 @@
 								</td>
 								<td class="py-4 px-5">
 									<p class="text-xs font-bold text-rose-600">{formatCurrency(Number(inc.financial_loss || 0))}</p>
+									{#if inc.lost_work_days > 0}
+										<p class="text-[10px] font-bold text-amber-600">LTI: {inc.lost_work_days} Hari</p>
+									{/if}
 									<div class="flex items-center gap-1 mt-1 flex-wrap">
 										{#if inc.is_human_factor}
 											<span class="px-1.5 py-0.5 rounded bg-blue-100 dark:bg-blue-950 text-blue-800 dark:text-blue-300 text-[9px] font-bold" title="Faktor Manusia">Man</span>
@@ -302,19 +471,6 @@
 											<span class="material-symbols-outlined text-sm">psychology</span>
 											<span>{inc.car_number ? 'Edit CAR' : 'Analisis 5-Why'}</span>
 										</button>
-
-										{#if inc.status !== 'CLOSED' && inc.car_number}
-											<form action="?/closeIncident" method="POST" use:enhance>
-												<input type="hidden" name="id" value={inc.id} />
-												<button
-													type="submit"
-													class="px-2.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition-colors cursor-pointer"
-													title="Tutup Kasus (Resolved & Closed)"
-												>
-													Close
-												</button>
-											</form>
-										{/if}
 									</div>
 								</td>
 							</tr>
@@ -766,4 +922,3 @@
 		</div>
 	</div>
 {/if}
-
