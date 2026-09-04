@@ -148,7 +148,15 @@
 	);
 
 	function get5Why(inc: any) {
-		return inc?.analysis_data || {};
+		if (!inc?.analysis_data) return {};
+		if (typeof inc.analysis_data === 'string') {
+			try {
+				return JSON.parse(inc.analysis_data);
+			} catch {
+				return {};
+			}
+		}
+		return inc.analysis_data;
 	}
 
 	function openDetailModal(inc: any) {
@@ -157,7 +165,15 @@
 	}
 
 	function openCarModal(inc: any) {
-		selectedIncident = { ...inc };
+		const raw = { ...inc };
+		if (raw.analysis_data && typeof raw.analysis_data === 'string') {
+			try {
+				raw.analysis_data = JSON.parse(raw.analysis_data);
+			} catch {
+				// keep as is
+			}
+		}
+		selectedIncident = raw;
 		showCarModal = true;
 	}
 
