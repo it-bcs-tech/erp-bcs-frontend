@@ -8,7 +8,7 @@ export const load: PageServerLoad = async ({ url }) => {
 		const severityFilter = url.searchParams.get('severity') || 'All';
 		const statusFilter = url.searchParams.get('status') || 'All';
 
-		const [incidents, units, drivers] = await Promise.all([
+		const [incidents, units, drivers, assignments] = await Promise.all([
 			sql`
 				SELECT 
 					i.id,
