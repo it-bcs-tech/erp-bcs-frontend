@@ -51,17 +51,23 @@ export const load: PageServerLoad = async ({ url }) => {
 			}
 		}
 
+		const vendorPrices = await sql`
+			SELECT material_id, vendor_id, price 
+			FROM master.m_material_prices
+		`;
+
 		return {
 			vendors,
 			projects,
 			sites,
 			materials,
 			initialPR,
-			initialItems
+			initialItems,
+			vendorPrices
 		};
 	} catch (err: any) {
 		console.error('Error loading PO create dependencies:', err);
-		return { vendors: [], projects: [], sites: [], materials: [], initialPR: null, initialItems: [] };
+		return { vendors: [], projects: [], sites: [], materials: [], initialPR: null, initialItems: [], vendorPrices: [] };
 	}
 };
 

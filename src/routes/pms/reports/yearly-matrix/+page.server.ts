@@ -47,6 +47,22 @@ export const load: PageServerLoad = async ({ url }) => {
 				GROUP BY l.loc_name, l.alias, l.loc_code, EXTRACT(MONTH FROM po.date)
 				ORDER BY entity_name
 			`;
+		} else if (groupBy === 'WRS') {
+			rawData = await sql`
+				SELECT 
+					gr.gr_number as entity_name,
+					COALESCE(po.po_number, 'WRS') as entity_code,
+					EXTRACT(MONTH FROM gr.date)::int as month,
+					COALESCE(SUM(grl.qty_received * COALESCE(pol.unit_price, m.standard_price, 0)), 0) as total
+				FROM procurement.goods_receipt gr
+				LEFT JOIN procurement.purchase_order po ON po.id = gr.po_id
+				LEFT JOIN procurement.goods_receipt_line grl ON grl.gr_id = gr.id
+				LEFT JOIN procurement.purchase_order_line pol ON pol.id = grl.po_line_id
+				LEFT JOIN master.m_materials m ON m.id = grl.item_id
+				WHERE EXTRACT(YEAR FROM gr.date) = ${year}
+				GROUP BY gr.gr_number, po.po_number, EXTRACT(MONTH FROM gr.date)
+				ORDER BY entity_name
+			`;
 		} else { // MATERIAL
 			rawData = await sql`
 				SELECT 

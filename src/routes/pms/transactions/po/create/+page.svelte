@@ -49,6 +49,23 @@
 
 	let selectedMaterialId = $state('');
 
+	function getVendorSpecificPrice(matId: number, vId: string): number | null {
+		if (!vId || !data.vendorPrices) return null;
+		const vIdNum = parseInt(vId);
+		const vp = data.vendorPrices.find((p: any) => p.material_id === matId && p.vendor_id === vIdNum);
+		return vp ? parseFloat(vp.price) : null;
+	}
+
+	function onVendorChange() {
+		if (!vendorId) return;
+		items.forEach(itm => {
+			const vp = getVendorSpecificPrice(itm.material_id, vendorId);
+			if (vp !== null) {
+				itm.unit_price = vp;
+			}
+		});
+	}
+
 	function addItem() {
 		if (!selectedMaterialId) return;
 		const mat = data.materials.find((m: any) => m.id === parseInt(selectedMaterialId));
@@ -61,6 +78,9 @@
 			return;
 		}
 
+		const vp = getVendorSpecificPrice(mat.id, vendorId);
+		const initialPrice = vp !== null ? vp : (parseFloat(mat.standard_price) || 0);
+
 		items.push({
 			material_id: mat.id,
 			material_code: mat.material_code,
@@ -68,7 +88,7 @@
 			spec: mat.spec || '-',
 			uom: mat.uom || 'Pcs',
 			qty: 1,
-			unit_price: parseFloat(mat.standard_price) || 0
+			unit_price: initialPrice
 		});
 
 		selectedMaterialId = '';
@@ -136,6 +156,7 @@
 							name="vendorId"
 							required
 							bind:value={vendorId}
+							onchange={onVendorChange}
 							class="w-full bg-surface border border-slate-200 dark:border-slate-700 text-on-surface rounded-xl px-4 py-2.5 text-xs font-bold focus:ring-2 focus:ring-amber-500 outline-none"
 						>
 							<option value="">-- Pilih Vendor --</option>
@@ -338,6 +359,11 @@
 												bind:value={item.unit_price}
 												class="w-32 bg-surface border border-slate-200 dark:border-slate-700 text-on-surface rounded-lg px-2 py-1 text-right font-mono font-bold text-xs focus:ring-2 focus:ring-amber-500 outline-none"
 											/>
+											{#if getVendorSpecificPrice(item.material_id, vendorId) !== null}
+												<span class="block text-[9px] font-bold text-amber-600 dark:text-amber-400 mt-0.5">
+													★ Harga Vendor
+												</span>
+											{/if}
 										</td>
 										<td class="py-3 px-3 text-right font-mono font-bold text-on-surface">
 											{formatRupiah((item.qty || 0) * (item.unit_price || 0))}

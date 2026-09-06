@@ -8,6 +8,11 @@
 	let searchQuery = $state('');
 	let selectedType = $state('');
 
+	// Vendor price modal state
+	let selectedMaterialForPrices = $state<any>(null);
+	let isPriceModalOpen = $state(false);
+	let isSavingPrice = $state(false);
+
 	let filteredMaterials = $derived.by(() => {
 		let list = data.materials || [];
 		if (selectedType) {
@@ -96,18 +101,20 @@
 						<th class="py-3.5 px-4 text-right">Harga Standar</th>
 						<th class="py-3.5 px-4 text-center">Stok Gudang</th>
 						<th class="py-3.5 px-4">Lokasi Rak</th>
+						<th class="py-3.5 px-4 text-center">Harga Vendor</th>
 					</tr>
 				</thead>
 				<tbody class="divide-y divide-slate-200/60 dark:divide-slate-800/60 font-medium text-xs">
 					{#if filteredMaterials.length === 0}
 						<tr>
-							<td colspan="8" class="py-12 text-center text-on-surface-variant">
+							<td colspan="9" class="py-12 text-center text-on-surface-variant">
 								<span class="material-symbols-outlined text-4xl text-slate-300 dark:text-slate-600 mb-2">category</span>
 								<p class="text-xs font-semibold">Tidak ada material yang cocok.</p>
 							</td>
 						</tr>
 					{:else}
 						{#each filteredMaterials as m}
+							{@const vPriceCount = (data.vendorPrices || []).filter((vp: any) => vp.materialId === m.id).length}
 							<tr class="hover:bg-surface-container-high/40 transition-colors">
 								<td class="py-3.5 px-4">
 									<span class="px-2.5 py-1 rounded-lg bg-amber-50 dark:bg-amber-950/50 text-amber-700 dark:text-amber-300 font-mono font-bold text-xs border border-amber-200 dark:border-amber-800">
@@ -139,6 +146,19 @@
 									</span>
 								</td>
 								<td class="py-3.5 px-4 text-on-surface-variant">{m.locationName}</td>
+								<td class="py-3.5 px-4 text-center">
+									<button
+										type="button"
+										onclick={() => {
+											selectedMaterialForPrices = m;
+											isPriceModalOpen = true;
+										}}
+										class="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800/60 font-bold text-[10px] hover:bg-amber-100 cursor-pointer transition-colors"
+									>
+										<span class="material-symbols-outlined text-[14px]">price_change</span>
+										<span>{vPriceCount > 0 ? `${vPriceCount} Vendor` : 'Atur Harga'}</span>
+									</button>
+								</td>
 							</tr>
 						{/each}
 					{/if}
@@ -332,6 +352,211 @@
 					</button>
 				</div>
 			</form>
+		</div>
+	</div>
+{/if}
+
+<!-- Modal Atur Harga Vendor (Add Price) -->
+{#if isPriceModalOpen && selectedMaterialForPrices}
+	{@const materialVendorPrices = (data.vendorPrices || []).filter((vp: any) => vp.materialId === selectedMaterialForPrices.id)}
+	<div class="fixed inset-0 bg-black/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+		<div class="bg-surface-container-lowest rounded-3xl w-full max-w-2xl shadow-2xl overflow-hidden border border-slate-200 dark:border-slate-800 flex flex-col max-h-[90vh]">
+			<div class="p-6 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center">
+				<div class="flex items-center gap-2">
+					<span class="material-symbols-outlined text-amber-600">price_change</span>
+					<div>
+						<h3 class="text-base font-extrabold text-on-surface">Atur Harga Beli Vendor</h3>
+						<p class="text-xs text-on-surface-variant font-mono">
+							{selectedMaterialForPrices.materialCode} - {selectedMaterialForPrices.name}
+						</p>
+					</div>
+				</div>
+				<button type="button" onclick={() => isPriceModalOpen = false} class="text-on-surface-variant hover:text-on-surface">
+					<span class="material-symbols-outlined text-lg">close</span>
+				</button>
+			</div>
+
+			<div class="p-6 overflow-y-auto space-y-6">
+				<!-- Standard Reference Price Info -->
+				<div class="p-4 rounded-2xl bg-surface-container-low border border-slate-200/80 dark:border-slate-800/80 flex items-center justify-between">
+					<div>
+						<p class="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant">Harga Standar Baseline</p>
+						<p class="text-lg font-black font-mono text-on-surface mt-0.5">{formatRupiah(selectedMaterialForPrices.standardPrice)}</p>
+					</div>
+					<div class="text-right">
+						<span class="px-2.5 py-1 rounded-lg bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 text-xs font-bold">
+							Satuan: {selectedMaterialForPrices.uom}
+						</span>
+					</div>
+				</div>
+
+				<!-- Form Tambah / Update Harga Vendor -->
+				<div class="p-4 rounded-2xl bg-surface-container border border-slate-200/80 dark:border-slate-800/80 space-y-3">
+					<h4 class="text-xs font-black uppercase tracking-wider text-on-surface flex items-center gap-1.5">
+						<span class="material-symbols-outlined text-base text-amber-600">add_circle</span>
+						<span>Input / Perbarui Harga Vendor</span>
+					</h4>
+
+					<form 
+						method="POST" 
+						action="?/saveVendorPrice" 
+						class="space-y-3"
+						use:enhance={() => {
+							isSavingPrice = true;
+							return async ({ result, update }) => {
+								isSavingPrice = false;
+								if (result.type === 'success') {
+									update();
+								} else {
+									alert((result as any).data?.message || 'Gagal menyimpan harga vendor');
+								}
+							};
+						}}
+					>
+						<input type="hidden" name="materialId" value={selectedMaterialForPrices.id} />
+
+						<div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+							<div>
+								<label class="block text-[10px] font-bold text-on-surface-variant uppercase mb-1">
+									Pilih Vendor / Supplier <span class="text-rose-500">*</span>
+								</label>
+								<select
+									name="vendorId"
+									required
+									class="w-full bg-surface border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs font-medium text-on-surface outline-none"
+								>
+									<option value="">-- Pilih Supplier --</option>
+									{#each data.vendors as v}
+										<option value={v.id}>{v.name} ({v.code})</option>
+									{/each}
+								</select>
+							</div>
+
+							<div>
+								<label class="block text-[10px] font-bold text-on-surface-variant uppercase mb-1">
+									Harga Beli Satuan (Rp) <span class="text-rose-500">*</span>
+								</label>
+								<input
+									type="number"
+									name="price"
+									min="1"
+									required
+									placeholder="Contoh: 150000"
+									class="w-full bg-surface border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs font-mono font-bold text-on-surface outline-none"
+								/>
+							</div>
+						</div>
+
+						<div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+							<div>
+								<label class="block text-[10px] font-bold text-on-surface-variant uppercase mb-1">
+									Tanggal Berlaku
+								</label>
+								<input
+									type="date"
+									name="effectiveDate"
+									value={new Date().toISOString().split('T')[0]}
+									class="w-full bg-surface border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs font-bold text-on-surface outline-none"
+								/>
+							</div>
+
+							<div>
+								<label class="block text-[10px] font-bold text-on-surface-variant uppercase mb-1">
+									Catatan Penawaran
+								</label>
+								<input
+									type="text"
+									name="notes"
+									placeholder="Term of payment / promo..."
+									class="w-full bg-surface border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs text-on-surface outline-none"
+								/>
+							</div>
+						</div>
+
+						<div class="flex justify-end pt-1">
+							<button
+								type="submit"
+								disabled={isSavingPrice}
+								class="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow-xs disabled:opacity-50"
+							>
+								{#if isSavingPrice}
+									<span class="material-symbols-outlined text-sm animate-spin">progress_activity</span>
+									<span>Menyimpan...</span>
+								{:else}
+									<span class="material-symbols-outlined text-sm">save</span>
+									<span>Simpan Harga Vendor</span>
+								{/if}
+							</button>
+						</div>
+					</form>
+				</div>
+
+				<!-- Tabel Daftar Harga Vendor Terdaftar -->
+				<div class="space-y-2">
+					<div class="flex justify-between items-center">
+						<h4 class="text-xs font-black uppercase tracking-wider text-on-surface">
+							Riwayat Harga Beli per Vendor ({materialVendorPrices.length})
+						</h4>
+					</div>
+
+					{#if materialVendorPrices.length === 0}
+						<div class="p-6 text-center rounded-2xl bg-surface-container-low border border-dashed border-slate-300 dark:border-slate-700 text-on-surface-variant text-xs">
+							Belum ada harga khusus per vendor. Saat membuat PO, sistem akan menggunakan harga standar baseline.
+						</div>
+					{:else}
+						<div class="rounded-2xl border border-slate-200/80 dark:border-slate-800/80 overflow-hidden">
+							<table class="w-full text-left text-xs">
+								<thead class="bg-surface-container-low font-bold text-on-surface-variant border-b border-slate-200/80 dark:border-slate-800/80">
+									<tr>
+										<th class="py-2.5 px-3">Vendor / Supplier</th>
+										<th class="py-2.5 px-3 text-right">Harga Satuan</th>
+										<th class="py-2.5 px-3">Tgl Berlaku</th>
+										<th class="py-2.5 px-3">Catatan</th>
+										<th class="py-2.5 px-3 text-center">Aksi</th>
+									</tr>
+								</thead>
+								<tbody class="divide-y divide-slate-200/60 dark:divide-slate-800/60">
+									{#each materialVendorPrices as vp}
+										<tr class="hover:bg-surface-container-high/40">
+											<td class="py-2.5 px-3">
+												<p class="font-bold text-on-surface">{vp.vendorName}</p>
+												<span class="text-[10px] font-mono text-on-surface-variant">{vp.vendorCode}</span>
+											</td>
+											<td class="py-2.5 px-3 text-right font-mono font-bold text-amber-700 dark:text-amber-300">
+												{formatRupiah(vp.price)}
+											</td>
+											<td class="py-2.5 px-3 text-on-surface-variant">{formatDateId(vp.effectiveDate)}</td>
+											<td class="py-2.5 px-3 text-on-surface-variant">{vp.notes}</td>
+											<td class="py-2.5 px-3 text-center">
+												<form method="POST" action="?/deleteVendorPrice" use:enhance>
+													<input type="hidden" name="priceId" value={vp.id} />
+													<button
+														type="submit"
+														class="text-rose-500 hover:text-rose-700 p-1 cursor-pointer"
+														title="Hapus harga vendor"
+													>
+														<span class="material-symbols-outlined text-base">delete</span>
+													</button>
+												</form>
+											</td>
+										</tr>
+									{/each}
+								</tbody>
+							</table>
+						</div>
+					{/if}
+				</div>
+			</div>
+
+			<div class="p-4 border-t border-slate-200 dark:border-slate-800 bg-surface-container-low flex justify-end">
+				<button
+					type="button"
+					onclick={() => isPriceModalOpen = false}
+					class="px-5 py-2 rounded-xl bg-surface-container text-xs font-bold text-on-surface hover:bg-surface-container-high cursor-pointer"
+				>
+					Selesai
+				</button>
+			</div>
 		</div>
 	</div>
 {/if}

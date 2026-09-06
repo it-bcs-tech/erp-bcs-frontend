@@ -147,7 +147,7 @@
 				href="/pms/transactions/service-sheets"
 			>
 				<span class="material-symbols-outlined text-[18px]">build</span>
-				<span class="text-xs font-semibold">Service Sheets (SS)</span>
+				<span class="text-xs font-semibold">Supply Slip (SS / WO)</span>
 			</a>
 
 			<a
@@ -218,6 +218,16 @@
 			>
 				<span class="material-symbols-outlined text-[18px]">timelapse</span>
 				<span class="text-xs font-semibold">Lead Time Tracking</span>
+			</a>
+
+			<a
+				class="flex items-center gap-3 px-4 py-2 rounded-xl transition-all duration-200 hover:translate-x-1 {isActive('/pms/reports/transactions')
+					? 'bg-surface-container-highest text-amber-600 dark:text-amber-400 font-bold'
+					: 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container font-medium text-sm'}"
+				href="/pms/reports/transactions"
+			>
+				<span class="material-symbols-outlined text-[18px]">table_chart</span>
+				<span class="text-xs font-semibold">Detail PO & Rekap SS/DN</span>
 			</a>
 
 			<!-- 6. Inventory & Stock -->

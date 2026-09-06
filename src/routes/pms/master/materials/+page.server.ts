@@ -30,6 +30,27 @@ export const load: PageServerLoad = async ({ url }) => {
 
 		const types = await sql`SELECT code, name FROM master.m_material_types ORDER BY name`;
 		const sites = await sql`SELECT id, loc_code, loc_name FROM master.m_lokasi ORDER BY loc_code`;
+		const vendors = await sql`
+			SELECT id, customer_code as code, name 
+			FROM master.m_customer 
+			WHERE type = 'VENDOR' AND is_active = true 
+			ORDER BY name ASC
+		`;
+
+		const vendorPrices = await sql`
+			SELECT 
+				mp.id,
+				mp.material_id as "materialId",
+				mp.vendor_id as "vendorId",
+				c.name as "vendorName",
+				COALESCE(c.customer_code, '-') as "vendorCode",
+				mp.price,
+				to_char(mp.effective_date, 'YYYY-MM-DD') as "effectiveDate",
+				COALESCE(mp.notes, '-') as notes
+			FROM master.m_material_prices mp
+			JOIN master.m_customer c ON c.id = mp.vendor_id
+			ORDER BY mp.id DESC
+		`;
 
 		let filtered = materials;
 		if (search) {
@@ -48,11 +69,13 @@ export const load: PageServerLoad = async ({ url }) => {
 		return {
 			materials: filtered,
 			types,
-			sites
+			sites,
+			vendors,
+			vendorPrices
 		};
 	} catch (err: any) {
 		console.error('Error loading PMS materials:', err);
-		return { materials: [], types: [], sites: [] };
+		return { materials: [], types: [], sites: [], vendors: [], vendorPrices: [] };
 	}
 };
 
@@ -108,6 +131,50 @@ export const actions: Actions = {
 		} catch (err: any) {
 			console.error('Error creating material:', err);
 			return fail(500, { success: false, message: err.message || 'Gagal menyimpan material' });
+		}
+	},
+
+	saveVendorPrice: async ({ request }) => {
+		const formData = await request.formData();
+		const materialId = parseInt(formData.get('materialId') as string);
+		const vendorId = (formData.get('vendorId') as string || '').trim();
+		const price = parseFloat(formData.get('price') as string || '0');
+		const effectiveDate = (formData.get('effectiveDate') as string) || new Date().toISOString().split('T')[0];
+		const notes = ((formData.get('notes') as string) || '').trim();
+
+		if (!materialId || !vendorId || !price) {
+			return fail(400, { success: false, message: 'Material, Vendor, dan Harga wajib diisi!' });
+		}
+
+		try {
+			await sql`
+				INSERT INTO master.m_material_prices (
+					material_id, vendor_id, price, effective_date, notes, updated_at
+				) VALUES (
+					${materialId}, ${vendorId}, ${price}, ${effectiveDate}, ${notes}, NOW()
+				)
+				ON CONFLICT (material_id, vendor_id) DO UPDATE
+				SET price = EXCLUDED.price,
+				    effective_date = EXCLUDED.effective_date,
+				    notes = EXCLUDED.notes,
+				    updated_at = NOW()
+			`;
+			return { success: true, message: 'Harga vendor berhasil disimpan!' };
+		} catch (err: any) {
+			console.error('Error saving vendor price:', err);
+			return fail(500, { success: false, message: err.message || 'Gagal menyimpan harga vendor' });
+		}
+	},
+
+	deleteVendorPrice: async ({ request }) => {
+		const formData = await request.formData();
+		const priceId = parseInt(formData.get('priceId') as string);
+		if (!priceId) return fail(400, { success: false, message: 'ID harga tidak valid' });
+		try {
+			await sql`DELETE FROM master.m_material_prices WHERE id = ${priceId}`;
+			return { success: true, message: 'Harga vendor berhasil dihapus!' };
+		} catch (err: any) {
+			return fail(500, { success: false, message: err.message || 'Gagal menghapus harga vendor' });
 		}
 	}
 };

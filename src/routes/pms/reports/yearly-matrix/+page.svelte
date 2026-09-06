@@ -82,6 +82,7 @@
 				<option value="SITE">by Site / Gudang</option>
 				<option value="VENDOR">by Vendor / Supplier</option>
 				<option value="MATERIAL">by Material Suku Cadang</option>
+				<option value="WRS">by WRS / Penerimaan Gudang</option>
 			</select>
 		</div>
 

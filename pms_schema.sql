@@ -91,3 +91,32 @@ CREATE TABLE IF NOT EXISTS procurement.delivery_note_item (
   uom VARCHAR(50),
   notes TEXT
 );
+
+-- 9. Supply Slip / Service Sheet Items & Extensions
+ALTER TABLE procurement.service_sheet
+  ADD COLUMN IF NOT EXISTS helper_name VARCHAR(150),
+  ADD COLUMN IF NOT EXISTS driver_name VARCHAR(150),
+  ADD COLUMN IF NOT EXISTS chassis_no VARCHAR(100);
+
+CREATE TABLE IF NOT EXISTS procurement.service_sheet_item (
+  id SERIAL PRIMARY KEY,
+  service_sheet_id INT REFERENCES procurement.service_sheet(id) ON DELETE CASCADE,
+  material_id INT REFERENCES master.m_materials(id),
+  qty NUMERIC(15,2) NOT NULL,
+  uom VARCHAR(50),
+  notes TEXT,
+  created_at TIMESTAMP WITHOUT TIME ZONE DEFAULT NOW()
+);
+
+-- 10. Vendor Pricing per Material
+CREATE TABLE IF NOT EXISTS master.m_material_prices (
+  id SERIAL PRIMARY KEY,
+  material_id INT REFERENCES master.m_materials(id) ON DELETE CASCADE,
+  vendor_id UUID REFERENCES master.m_customer(id) ON DELETE CASCADE,
+  price NUMERIC(15,2) NOT NULL,
+  effective_date DATE DEFAULT CURRENT_DATE,
+  notes TEXT,
+  created_at TIMESTAMP WITHOUT TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITHOUT TIME ZONE DEFAULT NOW(),
+  UNIQUE(material_id, vendor_id)
+);
