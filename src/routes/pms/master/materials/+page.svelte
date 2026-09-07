@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
-	import { formatRupiah, formatNumber } from '$lib/utils/pms';
+	import { formatRupiah, formatNumber, formatDateId } from '$lib/utils/pms';
 
 	let { data } = $props();
 	let isModalOpen = $state(false);
@@ -14,7 +14,7 @@
 	let isSavingPrice = $state(false);
 
 	let filteredMaterials = $derived.by(() => {
-		let list = data.materials || [];
+		let list: any[] = ((data.materials || []) as any[]);
 		if (selectedType) {
 			list = list.filter((m: any) => m.typeName === selectedType);
 		}
@@ -29,6 +29,23 @@
 			);
 		}
 		return list;
+	});
+
+	let currentPage = $state(1);
+	let pageSize = $state(50);
+
+	let totalPages = $derived(Math.max(1, Math.ceil(filteredMaterials.length / pageSize)));
+
+	let paginatedMaterials = $derived.by(() => {
+		const start = (currentPage - 1) * pageSize;
+		return filteredMaterials.slice(start, start + pageSize);
+	});
+
+	$effect(() => {
+		// Reset page whenever search or category filter changes
+		searchQuery;
+		selectedType;
+		currentPage = 1;
 	});
 </script>
 
@@ -113,7 +130,7 @@
 							</td>
 						</tr>
 					{:else}
-						{#each filteredMaterials as m}
+						{#each paginatedMaterials as m}
 							{@const vPriceCount = (data.vendorPrices || []).filter((vp: any) => vp.materialId === m.id).length}
 							<tr class="hover:bg-surface-container-high/40 transition-colors">
 								<td class="py-3.5 px-4">
@@ -165,6 +182,72 @@
 				</tbody>
 			</table>
 		</div>
+
+		{#if filteredMaterials.length > 0}
+			<div class="px-6 py-4 border-t border-slate-200/60 dark:border-slate-800/60 bg-surface-container/50 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
+				<div class="text-on-surface-variant font-medium flex items-center gap-2">
+					<span>Menampilkan {(currentPage - 1) * pageSize + 1} - {Math.min(currentPage * pageSize, filteredMaterials.length)} dari <strong>{filteredMaterials.length}</strong> material</span>
+					<span class="text-slate-300 dark:text-slate-700">|</span>
+					<label class="flex items-center gap-1.5">
+						<span>Per halaman:</span>
+						<select
+							bind:value={pageSize}
+							onchange={() => currentPage = 1}
+							class="bg-surface border border-slate-200 dark:border-slate-700 rounded-lg px-2 py-1 text-xs font-bold text-on-surface focus:ring-1 focus:ring-amber-500 outline-none"
+						>
+							<option value={25}>25</option>
+							<option value={50}>50</option>
+							<option value={100}>100</option>
+							<option value={200}>200</option>
+						</select>
+					</label>
+				</div>
+
+				<div class="flex items-center gap-1.5">
+					<button
+						type="button"
+						disabled={currentPage <= 1}
+						onclick={() => currentPage = 1}
+						class="p-1.5 rounded-lg border border-slate-200 dark:border-slate-700 text-on-surface hover:bg-surface-container-high disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+						title="Halaman Pertama"
+					>
+						<span class="material-symbols-outlined text-sm">first_page</span>
+					</button>
+					<button
+						type="button"
+						disabled={currentPage <= 1}
+						onclick={() => currentPage--}
+						class="p-1.5 rounded-lg border border-slate-200 dark:border-slate-700 text-on-surface hover:bg-surface-container-high disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+						title="Sebelumnya"
+					>
+						<span class="material-symbols-outlined text-sm">chevron_left</span>
+					</button>
+
+					<span class="px-3 py-1 font-bold text-on-surface">
+						Halaman {currentPage} dari {totalPages}
+					</span>
+
+					<button
+						type="button"
+						disabled={currentPage >= totalPages}
+						onclick={() => currentPage++}
+						class="p-1.5 rounded-lg border border-slate-200 dark:border-slate-700 text-on-surface hover:bg-surface-container-high disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+						title="Berikutnya"
+					>
+						<span class="material-symbols-outlined text-sm">chevron_right</span>
+					</button>
+					<button
+						type="button"
+						disabled={currentPage >= totalPages}
+						onclick={() => currentPage = totalPages}
+						class="p-1.5 rounded-lg border border-slate-200 dark:border-slate-700 text-on-surface hover:bg-surface-container-high disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+						title="Halaman Terakhir"
+					>
+						<span class="material-symbols-outlined text-sm">last_page</span>
+					</button>
+				</div>
+			</div>
+		{/if}
 	</div>
 </div>
 
@@ -190,7 +273,7 @@
 						isModalOpen = false;
 						update();
 					} else {
-						alert(result.data?.message || 'Terjadi kesalahan');
+						alert((result as any).data?.message || 'Terjadi kesalahan');
 					}
 				};
 			}}>

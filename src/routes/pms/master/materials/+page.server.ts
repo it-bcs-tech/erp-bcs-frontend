@@ -31,10 +31,10 @@ export const load: PageServerLoad = async ({ url }) => {
 		const types = await sql`SELECT code, name FROM master.m_material_types ORDER BY name`;
 		const sites = await sql`SELECT id, loc_code, loc_name FROM master.m_lokasi ORDER BY loc_code`;
 		const vendors = await sql`
-			SELECT id, customer_code as code, name 
+			SELECT id, kode_kustomer as code, nama_kustomer as name 
 			FROM master.m_customer 
-			WHERE type = 'VENDOR' AND is_active = true 
-			ORDER BY name ASC
+			WHERE (UPPER(kategori) = 'VENDOR' OR kode_kustomer LIKE 'V%' OR kode_kustomer LIKE 'VND-%') AND is_active = true 
+			ORDER BY nama_kustomer ASC
 		`;
 
 		const vendorPrices = await sql`
@@ -42,8 +42,8 @@ export const load: PageServerLoad = async ({ url }) => {
 				mp.id,
 				mp.material_id as "materialId",
 				mp.vendor_id as "vendorId",
-				c.name as "vendorName",
-				COALESCE(c.customer_code, '-') as "vendorCode",
+				c.nama_kustomer as "vendorName",
+				COALESCE(c.kode_kustomer, '-') as "vendorCode",
 				mp.price,
 				to_char(mp.effective_date, 'YYYY-MM-DD') as "effectiveDate",
 				COALESCE(mp.notes, '-') as notes
@@ -52,9 +52,9 @@ export const load: PageServerLoad = async ({ url }) => {
 			ORDER BY mp.id DESC
 		`;
 
-		let filtered = materials;
+		let filtered: any[] = [...materials];
 		if (search) {
-			filtered = filtered.filter(m =>
+			filtered = filtered.filter((m: any) =>
 				(m.name && m.name.toLowerCase().includes(search)) ||
 				(m.materialCode && m.materialCode.toLowerCase().includes(search)) ||
 				(m.brand && m.brand.toLowerCase().includes(search)) ||
@@ -63,7 +63,7 @@ export const load: PageServerLoad = async ({ url }) => {
 			);
 		}
 		if (typeFilter) {
-			filtered = filtered.filter(m => m.typeName === typeFilter || m.type_code === typeFilter);
+			filtered = filtered.filter((m: any) => m.typeName === typeFilter || m.type_code === typeFilter);
 		}
 
 		return {
