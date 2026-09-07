@@ -57,6 +57,7 @@
 	let showCreateModal = $state(false);
 	let showCarModal = $state(false);
 	let showDetailModal = $state(false);
+	let showCloseModal = $state(false);
 	let selectedIncident = $state<any>(null);
 
 	let createUnitId = $state('');
@@ -404,6 +405,16 @@
 								</td>
 								<td class="py-4 px-5 text-right">
 									<div class="flex items-center justify-end gap-2 flex-wrap">
+										<a
+											href="/qhse/incidents/{inc.id}/print"
+											target="_blank"
+											class="px-2.5 py-1.5 rounded-lg bg-surface border border-slate-200 dark:border-slate-700 hover:bg-surface-container-high text-on-surface text-xs font-bold transition-colors inline-flex items-center gap-1 cursor-pointer shadow-xs"
+											title="Cetak Berita Acara & Laporan Investigasi"
+										>
+											<span class="material-symbols-outlined text-sm text-slate-500 dark:text-slate-400">print</span>
+											<span>Cetak</span>
+										</a>
+
 										<button
 											type="button"
 											onclick={() => openDetailModal(inc)}
@@ -886,26 +897,183 @@
 						<p class="text-on-surface leading-relaxed">{selectedIncident.preventive_action || 'Belum dirumuskan.'}</p>
 					</div>
 				</div>
+
+				<!-- Status Verifikasi Penutupan (Jika Closed) -->
+				{#if selectedIncident.status === 'CLOSED' || selectedIncident.analysis_data?.closing_notes}
+					<div class="p-3.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-xs space-y-2">
+						<div class="flex items-center justify-between border-b border-emerald-500/20 pb-2">
+							<span class="font-bold text-emerald-800 dark:text-emerald-300 uppercase tracking-wider flex items-center gap-1.5">
+								<span class="material-symbols-outlined text-base">verified</span>
+								<span>Status: Kasus Selesai Ditutup (Closed)</span>
+							</span>
+							{#if selectedIncident.analysis_data?.closed_date}
+								<span class="text-[11px] font-mono text-emerald-700 dark:text-emerald-400">
+									Tgl: {new Date(selectedIncident.analysis_data.closed_date).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}
+								</span>
+							{/if}
+						</div>
+						<div class="text-on-surface leading-relaxed">
+							<p class="font-bold text-[11px] text-on-surface-variant">Hasil Verifikasi Efektivitas Tindakan:</p>
+							<p class="italic mt-0.5">"{selectedIncident.analysis_data?.closing_notes || 'Tindakan telah diverifikasi dan disetujui tim QHSE.'}"</p>
+							{#if selectedIncident.analysis_data?.verified_by}
+								<p class="text-[10px] text-on-surface-variant font-semibold mt-1">Verifikator: {selectedIncident.analysis_data.verified_by}</p>
+							{/if}
+						</div>
+					</div>
+				{/if}
 			</div>
 
 			<!-- Footer Modal -->
-			<div class="px-6 py-3.5 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between bg-slate-50/50 dark:bg-slate-800/40">
-				<button
-					type="button"
-					onclick={() => { showDetailModal = false; openCarModal(selectedIncident); }}
-					class="px-4 py-2 rounded-xl bg-orange-600 hover:bg-orange-700 text-white text-xs font-bold transition-colors inline-flex items-center gap-1.5 cursor-pointer"
-				>
-					<span class="material-symbols-outlined text-sm">edit</span>
-					<span>Buka Form Edit CAR</span>
-				</button>
-				<button
-					type="button"
-					onclick={() => showDetailModal = false}
-					class="px-4 py-2 rounded-xl text-xs font-bold text-on-surface-variant hover:bg-surface-container cursor-pointer"
-				>
-					Tutup
+			<div class="px-6 py-3.5 border-t border-slate-200 dark:border-slate-800 flex flex-wrap items-center justify-between gap-2 bg-slate-50/50 dark:bg-slate-800/40">
+				<div class="flex items-center gap-2">
+					<a
+						href="/qhse/incidents/{selectedIncident.id}/print"
+						target="_blank"
+						class="px-3.5 py-2 rounded-xl bg-surface border border-slate-300 dark:border-slate-700 text-on-surface text-xs font-bold hover:bg-surface-container-high transition-colors inline-flex items-center gap-1.5 cursor-pointer shadow-xs"
+					>
+						<span class="material-symbols-outlined text-base text-slate-500 dark:text-slate-400">print</span>
+						<span>Cetak Berita Acara</span>
+					</a>
+
+					{#if selectedIncident.status !== 'CLOSED'}
+						<button
+							type="button"
+							onclick={() => { showDetailModal = false; openCarModal(selectedIncident); }}
+							class="px-3.5 py-2 rounded-xl bg-orange-600 hover:bg-orange-700 text-white text-xs font-bold transition-colors inline-flex items-center gap-1.5 cursor-pointer shadow-xs"
+						>
+							<span class="material-symbols-outlined text-sm">edit</span>
+							<span>Edit CAR</span>
+						</button>
+					{/if}
+				</div>
+
+				<div class="flex items-center gap-2">
+					{#if selectedIncident.status !== 'CLOSED'}
+						<button
+							type="button"
+							onclick={() => { showCloseModal = true; }}
+							class="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition-colors inline-flex items-center gap-1.5 cursor-pointer shadow-xs"
+						>
+							<span class="material-symbols-outlined text-base">check_circle</span>
+							<span>Verifikasi & Tutup CAR</span>
+						</button>
+					{/if}
+
+					<button
+						type="button"
+						onclick={() => showDetailModal = false}
+						class="px-4 py-2 rounded-xl text-xs font-bold text-on-surface-variant hover:bg-surface-container cursor-pointer"
+					>
+						Tutup
+					</button>
+				</div>
+			</div>
+		</div>
+	</div>
+{/if}
+
+<!-- Modal: Verifikasi Tindakan & Tutup Kasus CAR (Close Incident) -->
+{#if showCloseModal && selectedIncident}
+	<div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-200">
+		<div class="bg-surface-container-lowest rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-2xl max-w-lg w-full overflow-hidden flex flex-col">
+			<!-- Header -->
+			<div class="px-6 py-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between bg-emerald-500/10">
+				<div class="flex items-center gap-2.5">
+					<div class="w-8 h-8 rounded-xl bg-emerald-600 text-white flex items-center justify-center shadow-xs">
+						<span class="material-symbols-outlined text-lg">verified</span>
+					</div>
+					<div>
+						<h3 class="text-sm font-bold text-on-surface">Verifikasi & Tutup Kasus (Close CAR)</h3>
+						<p class="text-[11px] text-on-surface-variant font-mono mt-0.5">
+							{selectedIncident.incident_number} • CAR: {selectedIncident.car_number || 'Tanpa No. CAR'}
+						</p>
+					</div>
+				</div>
+				<button onclick={() => showCloseModal = false} class="text-on-surface-variant hover:text-on-surface cursor-pointer">
+					<span class="material-symbols-outlined">close</span>
 				</button>
 			</div>
+
+			<!-- Form -->
+			<form
+				method="POST"
+				action="?/closeIncident"
+				use:enhance={() => {
+					return async ({ result, update }) => {
+						if (result.type === 'success') {
+							showCloseModal = false;
+							showDetailModal = false;
+						}
+						await update();
+					};
+				}}
+				class="p-6 space-y-4 text-xs"
+			>
+				<input type="hidden" name="id" value={selectedIncident.id} />
+
+				<div class="p-3 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/60 rounded-xl text-amber-900 dark:text-amber-200 text-[11px]">
+					<p class="font-bold">Perhatian Verifikasi:</p>
+					<p class="mt-0.5">Pastikan tindakan perbaikan (corrective) dan pencegahan (preventive) telah diimplementasikan secara nyata di lapangan sebelum menutup kasus ini.</p>
+				</div>
+
+				<div class="grid grid-cols-2 gap-3">
+					<div>
+						<label class="block text-[10px] font-bold text-on-surface-variant uppercase tracking-wider mb-1">
+							Tanggal Closing <span class="text-rose-500">*</span>
+						</label>
+						<input
+							type="date"
+							name="closed_date"
+							required
+							value={new Date().toISOString().split('T')[0]}
+							class="w-full bg-surface border border-slate-200 dark:border-slate-700 text-on-surface rounded-xl px-3 py-2 text-xs font-bold focus:ring-2 focus:ring-emerald-500 outline-none"
+						/>
+					</div>
+					<div>
+						<label class="block text-[10px] font-bold text-on-surface-variant uppercase tracking-wider mb-1">
+							Diverifikasi Oleh <span class="text-rose-500">*</span>
+						</label>
+						<input
+							type="text"
+							name="verified_by"
+							required
+							value="QHSE Officer"
+							placeholder="Nama Petugas QHSE"
+							class="w-full bg-surface border border-slate-200 dark:border-slate-700 text-on-surface rounded-xl px-3 py-2 text-xs font-bold focus:ring-2 focus:ring-emerald-500 outline-none"
+						/>
+					</div>
+				</div>
+
+				<div>
+					<label class="block text-[10px] font-bold text-on-surface-variant uppercase tracking-wider mb-1">
+						Catatan Hasil Verifikasi Lapangan (Effectiveness Check) <span class="text-rose-500">*</span>
+					</label>
+					<textarea
+						name="closing_notes"
+						required
+						rows="3"
+						placeholder="Jelaskan bukti verifikasi lapangan, misal: driver telah mengikuti re-training safety driving, perbaikan spion unit telah selesai diperiksa mekanik..."
+						class="w-full bg-surface border border-slate-200 dark:border-slate-700 text-on-surface rounded-xl p-3 text-xs font-medium focus:ring-2 focus:ring-emerald-500 outline-none resize-none leading-relaxed"
+					></textarea>
+				</div>
+
+				<div class="pt-2 flex items-center justify-end gap-2.5">
+					<button
+						type="button"
+						onclick={() => showCloseModal = false}
+						class="px-4 py-2 rounded-xl text-xs font-bold text-on-surface-variant hover:bg-surface-container cursor-pointer"
+					>
+						Batal
+					</button>
+					<button
+						type="submit"
+						class="px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition-colors inline-flex items-center gap-1.5 cursor-pointer shadow-xs"
+					>
+						<span class="material-symbols-outlined text-base">check_circle</span>
+						<span>Konfirmasi Selesai & Tutup Kasus</span>
+					</button>
+				</div>
+			</form>
 		</div>
 	</div>
 {/if}

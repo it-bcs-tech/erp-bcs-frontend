@@ -201,17 +201,36 @@ export const actions: Actions = {
 	closeIncident: async ({ request }) => {
 		const data = await request.formData();
 		const id = data.get('id') as string;
+		const closingNotes = (data.get('closing_notes') as string || '').trim();
+		const verifiedBy = (data.get('verified_by') as string || 'QHSE Officer').trim();
+		const closedDate = (data.get('closed_date') as string || new Date().toISOString().split('T')[0]).trim();
 
 		if (!id) return fail(400, { message: 'ID Insiden tidak ditemukan.' });
+		if (!closingNotes) return fail(400, { message: 'Catatan hasil verifikasi efektivitas tindakan wajib diisi!' });
 
 		try {
+			const [existing] = await sql`SELECT analysis_data FROM qhse.incidents WHERE id = ${id}`;
+			let currentData: any = {};
+			if (existing?.analysis_data) {
+				if (typeof existing.analysis_data === 'string') {
+					try { currentData = JSON.parse(existing.analysis_data); } catch {}
+				} else {
+					currentData = existing.analysis_data;
+				}
+			}
+
+			currentData.closing_notes = closingNotes;
+			currentData.verified_by = verifiedBy;
+			currentData.closed_date = closedDate;
+
 			await sql`
 				UPDATE qhse.incidents
-				SET status = 'CLOSED'
+				SET status = 'CLOSED',
+					analysis_data = ${JSON.stringify(currentData)}::jsonb
 				WHERE id = ${id}
 			`;
 
-			return { success: true, message: 'Insiden & CAR resmi ditutup (Closed).' };
+			return { success: true, message: 'Insiden & CAR resmi diverifikasi dan ditutup (Closed).' };
 		} catch (e: any) {
 			console.error("Close incident error:", e);
 			return fail(500, { error: e.message || 'Gagal menutup status insiden.' });

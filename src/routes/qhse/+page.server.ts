@@ -88,7 +88,7 @@ export const load: PageServerLoad = async () => {
 				safeManHours: 0,
 				zeroAccidentDays: 0,
 				totalEmployees: 0,
-				lagging: { totalIncidents: 0, openCar: 0, accidents: 0, violations: 0 },
+				lagging: { totalIncidents: 0, openCar: 0, accidents: 0, violations: 0, totalLoss: 0, totalLtiDays: 0 },
 				leading: { totalReports: 0, nearmiss: 0, inspections: 0, patrolAndSot: 0, openCapa: 0 },
 				enablement: { apdDistributed: 0, totalBriefings: 0, totalParticipants: 0 },
 				management: { activeSops: 0, openComplaints: 0 }
