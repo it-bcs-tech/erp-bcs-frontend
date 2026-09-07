@@ -14,7 +14,8 @@
 		{ id: 'kasir', title: 'Cashier & Settlement', subtitle: 'Daily Cash & Vouchers', icon: 'point_of_sale', colorClass: 'bg-emerald-50', textClass: 'text-emerald-600' },
 		{ id: 'finance', title: 'Finance & Accounting', subtitle: 'Invoicing, Bills & Tax', icon: 'account_balance', colorClass: 'bg-teal-50', textClass: 'text-teal-600' },
 		{ id: 'dms', title: 'Document Center', subtitle: 'DMS • Digital Archives', icon: 'folder_managed', colorClass: 'bg-indigo-50', textClass: 'text-indigo-600' },
-		{ id: 'qhse', title: 'QHSE & Safety', subtitle: 'Quality, Safety & K3', icon: 'verified_user', colorClass: 'bg-orange-50', textClass: 'text-orange-600' }
+		{ id: 'qhse', title: 'QHSE & Safety', subtitle: 'Quality, Safety & K3', icon: 'verified_user', colorClass: 'bg-orange-50', textClass: 'text-orange-600' },
+		{ id: 'ga', title: 'General Affair', subtitle: 'GA • Assets & Facilities', icon: 'domain', colorClass: 'bg-cyan-50', textClass: 'text-cyan-600' }
 	];
 
 	// Cek access_denied parameter dari URL

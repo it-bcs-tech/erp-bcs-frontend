@@ -4,7 +4,7 @@
  */
 
 /** ID modul ERP yang tersedia */
-export type ModuleId = 'fms' | 'maintenance' | 'ocs' | 'hris' | 'marketing' | 'pms' | 'kasir' | 'finance' | 'dms' | 'qhse';
+export type ModuleId = 'fms' | 'maintenance' | 'ocs' | 'hris' | 'marketing' | 'pms' | 'kasir' | 'finance' | 'dms' | 'qhse' | 'ga';
 
 /** Data user yang disimpan setelah login (dikirim via cookie & store) */
 export interface AuthUser {
@@ -22,10 +22,17 @@ export interface AuthUser {
 }
 
 /** Semua modul yang tersedia di ERP */
-export const ALL_MODULES: ModuleId[] = ['fms', 'maintenance', 'ocs', 'hris', 'marketing', 'pms', 'kasir', 'finance', 'dms', 'qhse'];
+export const ALL_MODULES: ModuleId[] = ['fms', 'maintenance', 'ocs', 'hris', 'marketing', 'pms', 'kasir', 'finance', 'dms', 'qhse', 'ga'];
 
 /** Definisi Sub-menu per modul untuk keperluan Menu-Level RBAC */
 export const MODULE_MENUS: Record<string, { id: string; name: string }[]> = {
+	ga: [
+		{ id: 'ga.dashboard', name: 'Dashboard GA' },
+		{ id: 'ga.assets', name: 'Master Aset' },
+		{ id: 'ga.permits', name: 'Legalitas & Perizinan' },
+		{ id: 'ga.facilities', name: 'Facility Maintenance' },
+		{ id: 'ga.stationery', name: 'Request ATK' }
+	],
 	ocs: [
 		{ id: 'ocs.dashboard', name: 'Dashboard' },
 		{ id: 'ocs.dispatch', name: 'Dispatch' },
