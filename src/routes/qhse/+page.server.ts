@@ -38,6 +38,8 @@ export const load: PageServerLoad = async () => {
 		const totalEmployees = parseInt(employeeCountRes[0]?.count || '633', 10);
 		// Safe Man-Hours: estimated active working hours (total active employees * 8 hrs * days worked)
 		const safeManHours = totalEmployees * 176 + 12500; // 176 hrs/mo baseline + safe operational trip hours
+		const safeDays = Math.floor(safeManHours / 24);
+		const safeRemainingHours = safeManHours % 24;
 		const zeroAccidentDays = 148; // Continuous running days without major Lost Time Injury
 
 		const allIncidents = await sql`SELECT id, severity, status, incident_type, COALESCE(financial_loss, 0) as financial_loss, COALESCE(lost_work_days, 0) as lost_work_days FROM qhse.incidents`;
@@ -48,6 +50,8 @@ export const load: PageServerLoad = async () => {
 
 		const metrics = {
 			safeManHours,
+			safeDays,
+			safeRemainingHours,
 			zeroAccidentDays,
 			totalEmployees,
 			lagging: {
@@ -86,6 +90,8 @@ export const load: PageServerLoad = async () => {
 		return {
 			metrics: {
 				safeManHours: 0,
+				safeDays: 0,
+				safeRemainingHours: 0,
 				zeroAccidentDays: 0,
 				totalEmployees: 0,
 				lagging: { totalIncidents: 0, openCar: 0, accidents: 0, violations: 0, totalLoss: 0, totalLtiDays: 0 },

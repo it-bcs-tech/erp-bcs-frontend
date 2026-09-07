@@ -50,6 +50,10 @@
 				<h3 class="text-3xl font-black mt-2 tracking-tight">
 					{new Intl.NumberFormat('id-ID').format(metrics.safeManHours)} <span class="text-base font-normal text-emerald-100">Jam</span>
 				</h3>
+				<div class="mt-2 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-950/40 border border-emerald-300/30 text-emerald-100 text-xs font-semibold backdrop-blur-xs">
+					<span class="material-symbols-outlined text-sm">schedule</span>
+					<span>Setara {new Intl.NumberFormat('id-ID').format(metrics.safeDays || Math.floor(metrics.safeManHours / 24))} Hari {metrics.safeRemainingHours ?? (metrics.safeManHours % 24)} Jam Operasional</span>
+				</div>
 				<p class="text-xs text-emerald-100/80 mt-2 font-medium">
 					Akumulasi jam kerja {metrics.totalEmployees} karyawan aktif & armada logistik
 				</p>
