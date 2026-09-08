@@ -222,10 +222,50 @@
 		showDnModal = false;
 	}
 
+	const STANDARD_UOMS = ['Ton', 'Kg', 'Trip', 'M3', 'Dus', 'Sak', 'Rit', 'Pcs', 'Unit', 'Box', 'Bulan', 'Hari'];
+
+	let editingItemIndex = $state<number | null>(null);
+	let modalItemData = $state({
+		qty: 1,
+		satuanSelect: 'Ton',
+		customSatuan: '',
+		harga: 0
+	});
+
+	function openItemModal(index: number) {
+		const item = form.items[index];
+		if (!item) return;
+		editingItemIndex = index;
+		const isStandard = STANDARD_UOMS.includes(item.satuan);
+		modalItemData = {
+			qty: item.qty ?? 1,
+			satuanSelect: isStandard ? item.satuan : 'CUSTOM',
+			customSatuan: isStandard ? '' : (item.satuan || ''),
+			harga: item.harga ?? 0
+		};
+	}
+
+	function saveItemModal() {
+		if (editingItemIndex === null) return;
+		const finalSatuan = modalItemData.satuanSelect === 'CUSTOM'
+			? (modalItemData.customSatuan.trim() || 'Pcs')
+			: modalItemData.satuanSelect;
+
+		form.items[editingItemIndex].qty = parseFloat(Number(modalItemData.qty).toFixed(3)) || 0;
+		form.items[editingItemIndex].satuan = finalSatuan;
+		form.items[editingItemIndex].harga = Number(modalItemData.harga) || 0;
+
+		editingItemIndex = null;
+	}
+
+	function closeItemModal() {
+		editingItemIndex = null;
+	}
+
 	function addItem() {
 		form.items.push({
 			department_id: '', project_id: '', akun_pendapatan: '', akun_piutang: '',
-			deskripsi: '', qty: 1, satuan: 'PCS', harga: 0, pajak_id: ''
+			deskripsi: '', qty: 1, satuan: 'Ton', harga: 0, pajak_id: ''
 		});
 	}
 
@@ -236,6 +276,10 @@
 	}
 	
 	const formatCurrency = (val: number) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(val);
+	const formatQty = (val: any) => {
+		if (val === null || val === undefined || isNaN(Number(val))) return '0';
+		return parseFloat(Number(val).toFixed(3)).toString();
+	};
 	const formatDate = (d: string) => d ? new Date(d).toLocaleDateString('id-ID', { day:'2-digit', month:'short', year:'numeric' }) : '-';
 </script>
 
@@ -339,6 +383,137 @@
 						Konfirmasi ({selectedDnIds.length} SJ)
 					</button>
 				</div>
+			</div>
+		</div>
+	</div>
+{/if}
+
+<!-- ===================== QUICK ITEM EDIT MODAL ===================== -->
+{#if editingItemIndex !== null}
+	<div class="fixed inset-0 z-[80] flex items-center justify-center p-4">
+		<div class="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onclick={closeItemModal} role="presentation"></div>
+		<div class="relative w-full max-w-lg bg-surface-container-lowest rounded-3xl shadow-2xl border border-surface-container overflow-hidden">
+			<!-- Header -->
+			<div class="p-6 border-b border-surface-container bg-surface-container-low/50 flex items-center justify-between">
+				<div>
+					<h3 class="text-lg font-black text-on-surface flex items-center gap-2">
+						<span class="material-symbols-outlined text-primary">edit_note</span>
+						Ubah Qty, Satuan & Harga
+					</h3>
+					<p class="text-xs text-on-surface-variant mt-0.5 max-w-sm truncate" title={form.items[editingItemIndex]?.deskripsi}>
+						{form.items[editingItemIndex]?.deskripsi || `Item #${editingItemIndex + 1}`}
+					</p>
+				</div>
+				<button type="button" onclick={closeItemModal} class="w-8 h-8 rounded-full bg-surface-container hover:bg-surface-container-high flex items-center justify-center text-on-surface-variant transition-colors">
+					<span class="material-symbols-outlined text-lg">close</span>
+				</button>
+			</div>
+
+			<!-- Body -->
+			<div class="p-6 space-y-5">
+				<!-- Quantity & Satuan in 2 cols -->
+				<div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+					<!-- Quantity -->
+					<div>
+						<label for="modal-edit-qty" class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-1.5">
+							Quantity (Qty) <span class="text-error">*</span>
+						</label>
+						<input 
+							id="modal-edit-qty" 
+							type="number" 
+							bind:value={modalItemData.qty} 
+							step="0.001" 
+							min="0" 
+							class="w-full bg-surface-container rounded-xl px-3.5 py-2.5 text-base font-bold font-mono text-on-surface border-2 border-transparent focus:border-primary focus:bg-surface-container-lowest outline-none transition-all text-right" 
+							placeholder="0.000"
+						/>
+						<p class="text-[10px] text-on-surface-variant mt-1 italic">Mendukung 3 digit desimal (cth: 12.345)</p>
+					</div>
+
+					<!-- Satuan (UOM) -->
+					<div>
+						<label for="modal-edit-satuan" class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-1.5">
+							Satuan / UOM <span class="text-error">*</span>
+						</label>
+						<select 
+							id="modal-edit-satuan" 
+							bind:value={modalItemData.satuanSelect} 
+							class="w-full bg-surface-container rounded-xl px-3.5 py-2.5 text-sm font-bold text-on-surface border-2 border-transparent focus:border-primary outline-none transition-all cursor-pointer"
+						>
+							{#each STANDARD_UOMS as uom}
+								<option value={uom}>{uom}</option>
+							{/each}
+							<option value="CUSTOM">-- Lainnya (Ketik Manual) --</option>
+						</select>
+
+						{#if modalItemData.satuanSelect === 'CUSTOM'}
+							<div class="mt-2">
+								<input 
+									type="text" 
+									bind:value={modalItemData.customSatuan} 
+									placeholder="Ketik satuan..." 
+									class="w-full bg-surface-container-lowest border-2 border-primary/50 rounded-xl px-3 py-1.5 text-sm font-semibold uppercase text-on-surface outline-none focus:border-primary"
+								/>
+							</div>
+						{/if}
+					</div>
+				</div>
+
+				<!-- Harga Satuan -->
+				<div>
+					<label for="modal-edit-harga" class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-1.5">
+						Harga Satuan (Rp) <span class="text-error">*</span>
+					</label>
+					<div class="relative">
+						<span class="absolute left-3.5 top-1/2 -translate-y-1/2 text-sm font-bold text-on-surface-variant font-mono">Rp</span>
+						<input 
+							id="modal-edit-harga" 
+							type="number" 
+							bind:value={modalItemData.harga} 
+							min="0" 
+							step="any"
+							class="w-full bg-surface-container rounded-xl pl-11 pr-4 py-2.5 text-base font-bold font-mono text-on-surface border-2 border-transparent focus:border-primary focus:bg-surface-container-lowest outline-none transition-all text-right" 
+							placeholder="0"
+						/>
+					</div>
+					<p class="text-xs text-on-surface-variant font-medium mt-1 text-right">
+						{formatCurrency(modalItemData.harga || 0)}
+					</p>
+				</div>
+
+				<!-- Live Line Total Preview Bento -->
+				<div class="p-4 rounded-2xl bg-blue-50/70 dark:bg-blue-950/30 border border-blue-200/60 dark:border-blue-800/60 flex items-center justify-between">
+					<div>
+						<span class="text-xs font-bold text-blue-700 dark:text-blue-300 uppercase tracking-wider">Subtotal Baris</span>
+						<p class="text-xs text-on-surface-variant mt-0.5">
+							{formatQty(modalItemData.qty || 0)} {modalItemData.satuanSelect === 'CUSTOM' ? (modalItemData.customSatuan || 'Satuan') : modalItemData.satuanSelect} × {formatCurrency(modalItemData.harga || 0)}
+						</p>
+					</div>
+					<div class="text-right">
+						<span class="text-xl font-black text-blue-700 dark:text-blue-400 font-mono">
+							{formatCurrency((Number(modalItemData.qty) || 0) * (Number(modalItemData.harga) || 0))}
+						</span>
+					</div>
+				</div>
+			</div>
+
+			<!-- Footer Actions -->
+			<div class="p-4 border-t border-surface-container bg-surface-container-low/30 flex items-center justify-end gap-3">
+				<button 
+					type="button" 
+					onclick={closeItemModal} 
+					class="px-4 py-2 rounded-xl text-sm font-bold text-on-surface-variant hover:bg-surface-container transition-colors"
+				>
+					Batal
+				</button>
+				<button 
+					type="button" 
+					onclick={saveItemModal} 
+					class="px-5 py-2 bg-primary text-on-primary rounded-xl text-sm font-bold hover:opacity-90 shadow-sm flex items-center gap-2 transition-all"
+				>
+					<span class="material-symbols-outlined text-[18px]">check</span>
+					Terapkan Nilai
+				</button>
 			</div>
 		</div>
 	</div>
@@ -460,18 +635,6 @@
 					</div>
 				</div>
 				<div class="overflow-x-auto">
-					<datalist id="uom-options">
-						<option value="Ton" />
-						<option value="Kg" />
-						<option value="Trip" />
-						<option value="M3" />
-						<option value="Dus" />
-						<option value="Sak" />
-						<option value="Rit" />
-						<option value="Pcs" />
-						<option value="Unit" />
-						<option value="Box" />
-					</datalist>
 					<table class="w-full text-left border-collapse">
 						<thead class="bg-surface-container text-on-surface-variant text-[10px] uppercase tracking-wider">
 							<tr>
@@ -480,7 +643,7 @@
 								<th class="p-3 font-black">Akun Pdk.</th>
 								<th class="p-3 font-black text-right w-24">Qty</th>
 								<th class="p-3 font-black w-24">Satuan</th>
-								<th class="p-3 font-black text-right w-32">Harga</th>
+								<th class="p-3 font-black text-right w-36">Harga</th>
 								<th class="p-3 font-black w-32">Pajak</th>
 								<th class="p-3 font-black text-right w-32">Total</th>
 								<th class="p-3 w-10"></th>
@@ -513,13 +676,37 @@
 											</select>
 										</td>
 										<td class="p-3">
-											<input type="number" bind:value={item.qty} class="w-full min-w-[65px] bg-transparent border-b border-surface-variant/30 focus:border-primary outline-none py-1 text-sm text-right font-bold" min="0" step="0.001" placeholder="0.000" />
+											<button 
+												type="button" 
+												onclick={() => openItemModal(i)} 
+												class="w-full text-right px-2 py-1.5 rounded-lg bg-surface-container/60 hover:bg-primary/10 hover:text-primary border border-surface-variant/30 hover:border-primary/50 transition-all font-mono font-bold text-sm flex items-center justify-end gap-1 group/btn cursor-pointer"
+												title="Klik untuk ubah Qty, Satuan & Harga"
+											>
+												<span>{formatQty(item.qty)}</span>
+												<span class="material-symbols-outlined text-[13px] opacity-0 group-hover/btn:opacity-100 text-primary">edit</span>
+											</button>
 										</td>
 										<td class="p-3">
-											<input list="uom-options" type="text" bind:value={item.satuan} class="w-full min-w-[70px] bg-transparent border-b border-surface-variant/30 focus:border-primary outline-none py-1 text-sm font-semibold uppercase" placeholder="Satuan" />
+											<button 
+												type="button" 
+												onclick={() => openItemModal(i)} 
+												class="w-full text-left px-2 py-1.5 rounded-lg bg-surface-container/60 hover:bg-primary/10 hover:text-primary border border-surface-variant/30 hover:border-primary/50 transition-all font-semibold text-xs uppercase flex items-center justify-between gap-1 group/btn cursor-pointer"
+												title="Klik untuk ubah Qty, Satuan & Harga"
+											>
+												<span class="truncate">{item.satuan || '-'}</span>
+												<span class="material-symbols-outlined text-[13px] text-on-surface-variant group-hover/btn:text-primary">arrow_drop_down</span>
+											</button>
 										</td>
 										<td class="p-3">
-											<input type="number" bind:value={item.harga} class="w-full min-w-[80px] bg-transparent border-b border-surface-variant/30 focus:border-primary outline-none py-1 text-sm text-right font-bold" />
+											<button 
+												type="button" 
+												onclick={() => openItemModal(i)} 
+												class="w-full text-right px-2 py-1.5 rounded-lg bg-surface-container/60 hover:bg-primary/10 hover:text-primary border border-surface-variant/30 hover:border-primary/50 transition-all font-mono font-bold text-sm flex items-center justify-end gap-1 group/btn cursor-pointer"
+												title="Klik untuk ubah Qty, Satuan & Harga"
+											>
+												<span>{formatCurrency(item.harga)}</span>
+												<span class="material-symbols-outlined text-[13px] opacity-0 group-hover/btn:opacity-100 text-primary">edit</span>
+											</button>
 										</td>
 										<td class="p-3">
 											<select bind:value={item.pajak_id} class="w-full min-w-[80px] bg-transparent border-b border-surface-variant/30 focus:border-primary outline-none py-1 text-sm">
