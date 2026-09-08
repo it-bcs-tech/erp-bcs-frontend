@@ -1,6 +1,7 @@
 import type { PageServerLoad, Actions } from './$types';
 import sql from '$lib/server/db';
 import { fail, redirect } from '@sveltejs/kit';
+import { formatAuditUser } from '$lib/server/auth';
 
 export const load: PageServerLoad = async () => {
 	try {
@@ -25,12 +26,13 @@ export const load: PageServerLoad = async () => {
 };
 
 export const actions: Actions = {
-	create: async ({ request }) => {
+	create: async ({ request, locals }) => {
 		const formData = await request.formData();
 		const date = formData.get('date') as string || new Date().toISOString().split('T')[0];
 		const requiredDate = formData.get('requiredDate') as string || null;
 		const department = (formData.get('department') as string || 'General').trim();
 		const requestedBy = (formData.get('requestedBy') as string || '').trim();
+		const createdBy = formatAuditUser(locals.user);
 		const projectId = formData.get('projectId') ? parseInt(formData.get('projectId') as string) : null;
 		const siteId = formData.get('siteId') ? parseInt(formData.get('siteId') as string) : null;
 		const category = (formData.get('category') as string || 'SUPPORTING').trim();
@@ -66,6 +68,7 @@ export const actions: Actions = {
 					date,
 					department,
 					requested_by,
+					created_by,
 					project_id,
 					site_id,
 					category,
@@ -77,6 +80,7 @@ export const actions: Actions = {
 					${date},
 					${department},
 					${requestedBy},
+					${createdBy},
 					${projectId},
 					${siteId},
 					${category},

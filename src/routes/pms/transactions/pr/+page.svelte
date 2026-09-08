@@ -127,6 +127,12 @@
 								<td class="py-3.5 px-4">
 									<p class="font-semibold text-on-surface">{pr.requestedBy}</p>
 									<p class="text-[10px] text-on-surface-variant">{pr.department || 'General'}</p>
+									{#if pr.createdBy}
+										<p class="text-[10px] text-amber-600 dark:text-amber-400 mt-1 flex items-center gap-1 font-medium" title="Dibuat oleh">
+											<span class="material-symbols-outlined text-[12px]">badge</span>
+											<span class="truncate max-w-[140px]">{pr.createdBy}</span>
+										</p>
+									{/if}
 								</td>
 								<td class="py-3.5 px-4 text-center font-mono font-bold text-on-surface">
 									{pr.item_count} item

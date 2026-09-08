@@ -2,6 +2,7 @@
 	import { enhance } from '$app/forms';
 	import { goto } from '$app/navigation';
 	import { formatNumber } from '$lib/utils/pms';
+	import SearchableSelect from '$lib/components/SearchableSelect.svelte';
 
 	let { data } = $props();
 	let isSubmitting = $state(false);
@@ -12,6 +13,22 @@
 	let vendorDeliveryNumber = $state('');
 	let receivedBy = $state('Petugas Gudang Cilegon');
 	let notes = $state(data.initialPO?.wrs_notes || '');
+
+	let poOpts = $derived(
+		data.purchaseOrders.map((po: any) => ({
+			value: po.id.toString(),
+			label: `${po.po_number} • ${po.vendor_name}`,
+			sublabel: po.date
+		}))
+	);
+
+	let siteOpts = $derived(
+		data.sites.map((s: any) => ({
+			value: s.id.toString(),
+			label: s.loc_name,
+			sublabel: s.loc_code
+		}))
+	);
 
 	// Line items
 	let items = $state<Array<{
@@ -49,8 +66,7 @@
 		}
 	});
 
-	function handlePOChange(e: Event) {
-		const val = (e.target as HTMLSelectElement).value;
+	function handlePOSelect(val: string | number) {
 		if (val) {
 			goto(`/pms/transactions/wrs/create?po_id=${val}`);
 		}
@@ -100,18 +116,13 @@
 						<label class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-1.5">
 							Pilih Purchase Order (PO) <span class="text-rose-500">*</span>
 						</label>
-						<select
-							name="poSelect"
-							required
-							value={selectedPOId}
-							onchange={handlePOChange}
-							class="w-full bg-surface border border-slate-200 dark:border-slate-700 text-on-surface rounded-xl px-4 py-2.5 text-xs font-bold focus:ring-2 focus:ring-amber-500 outline-none font-mono"
-						>
-							<option value="">-- Pilih PO Aktif --</option>
-							{#each data.purchaseOrders as po}
-								<option value={po.id}>{po.po_number} • {po.vendor_name} ({po.date})</option>
-							{/each}
-						</select>
+						<SearchableSelect
+							options={poOpts}
+							bind:value={selectedPOId}
+							onchange={handlePOSelect}
+							placeholder="-- Pilih PO Aktif --"
+							btnClass="bg-surface border border-slate-200 dark:border-slate-700 text-xs font-bold font-mono"
+						/>
 					</div>
 
 					<div>
@@ -131,15 +142,13 @@
 						<label class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-1.5">
 							Lokasi Gudang Penerima <span class="text-rose-500">*</span>
 						</label>
-						<select
+						<SearchableSelect
 							name="siteId"
+							options={siteOpts}
 							bind:value={siteId}
-							class="w-full bg-surface border border-slate-200 dark:border-slate-700 text-on-surface rounded-xl px-4 py-2.5 text-xs font-bold focus:ring-2 focus:ring-amber-500 outline-none"
-						>
-							{#each data.sites as s}
-								<option value={s.id}>{s.loc_name}</option>
-							{/each}
-						</select>
+							placeholder="-- Pilih Gudang --"
+							btnClass="bg-surface border border-slate-200 dark:border-slate-700 text-xs font-bold"
+						/>
 					</div>
 				</div>
 

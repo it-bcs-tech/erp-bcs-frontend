@@ -31,6 +31,7 @@ export const load: PageServerLoad = async ({ url }) => {
 				po.status,
 				po.notes,
 				po.wrs_notes as "wrsNotes",
+				po.created_by as "createdBy",
 				COUNT(pol.id) as item_count,
 				COALESCE(SUM(pol.qty_ordered), 0) as total_qty_ordered
 			FROM procurement.purchase_order po
@@ -38,7 +39,7 @@ export const load: PageServerLoad = async ({ url }) => {
 			LEFT JOIN master.m_project p ON p.id = po.project_id
 			LEFT JOIN master.m_lokasi l ON l.id = po.site_id
 			LEFT JOIN procurement.purchase_order_line pol ON pol.po_id = po.id
-			GROUP BY po.id, c.nama_kustomer, c.kode_kustomer, p.project_name, l.loc_name
+			GROUP BY po.id, c.nama_kustomer, c.kode_kustomer, p.project_name, l.loc_name, po.created_by
 			ORDER BY po.id DESC
 		`;
 

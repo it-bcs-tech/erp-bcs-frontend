@@ -30,6 +30,7 @@ interface ErpUserRow {
 	allowed_modules: any; // JSONB
 	is_active: boolean;
 	karyawan_id: string | null;
+	payroll_id: string | null;
 	nama_karyawan: string | null;
 	level_code: string | null;
 	level_name: string | null;
@@ -99,6 +100,7 @@ export async function getAuthUserByEmail(email: string): Promise<AuthUser | null
 			eu.erp_role,
 			eu.allowed_modules,
 			mk.nama_karyawan,
+			mk.payroll_id,
 			ml.level    AS level_name,
 			ml.level_sequence,
 			md.div_name,
@@ -142,8 +144,21 @@ export async function getAuthUserByEmail(email: string): Promise<AuthUser | null
 		division: user.div_name || 'Unknown',
 		divisionCode,
 		titleName: user.title_name || '',
+		payrollId: user.payroll_id || null,
 		allowedModules
 	};
+}
+
+/**
+ * Format audit user string: "Nama Karyawan (Payroll ID)"
+ * e.g., "M. SYAMSUL (2408.4101)" atau fallback ke "Nama Karyawan" / "System"
+ */
+export function formatAuditUser(user: AuthUser | null | undefined): string {
+	if (!user) return 'System';
+	if (user.payrollId && user.name) {
+		return `${user.name} (${user.payrollId})`;
+	}
+	return user.name || user.email || 'System';
 }
 
 export async function getUserFromToken(token: string): Promise<AuthUser | null> {

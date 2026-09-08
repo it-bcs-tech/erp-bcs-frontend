@@ -1,6 +1,7 @@
 import type { PageServerLoad, Actions } from './$types';
 import sql from '$lib/server/db';
 import { fail } from '@sveltejs/kit';
+import { formatAuditUser } from '$lib/server/auth';
 
 export const load: PageServerLoad = async ({ url }) => {
 	try {
@@ -53,13 +54,14 @@ export const load: PageServerLoad = async ({ url }) => {
 };
 
 export const actions: Actions = {
-	save: async ({ request }) => {
+	save: async ({ request, locals }) => {
 		const formData = await request.formData();
 		const date = formData.get('date') as string || new Date().toISOString().split('T')[0];
 		const fromSiteId = formData.get('fromSiteId') ? parseInt(formData.get('fromSiteId') as string) : null;
 		const toSiteId = formData.get('toSiteId') ? parseInt(formData.get('toSiteId') as string) : null;
 		const courierName = (formData.get('courierName') as string || '').trim();
 		const vehicleNo = (formData.get('vehicleNo') as string || '').trim().toUpperCase();
+		const createdBy = formatAuditUser(locals.user);
 		const notes = (formData.get('notes') as string || '').trim();
 		const materialId = formData.get('materialId') ? parseInt(formData.get('materialId') as string) : null;
 		const qty = parseFloat(formData.get('qty') as string || '1');
@@ -80,7 +82,8 @@ export const actions: Actions = {
 					courier_name,
 					vehicle_no,
 					status,
-					notes
+					notes,
+					created_by
 				) VALUES (
 					${dnNumber},
 					${date},
@@ -89,7 +92,8 @@ export const actions: Actions = {
 					${courierName},
 					${vehicleNo},
 					'DELIVERED',
-					${notes}
+					${notes},
+					${createdBy}
 				) RETURNING id
 			`;
 

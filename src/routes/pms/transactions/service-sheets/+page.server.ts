@@ -1,6 +1,7 @@
 import type { PageServerLoad, Actions } from './$types';
 import sql from '$lib/server/db';
 import { fail } from '@sveltejs/kit';
+import { formatAuditUser } from '$lib/server/auth';
 
 export const load: PageServerLoad = async ({ url }) => {
 	try {
@@ -82,7 +83,7 @@ export const load: PageServerLoad = async ({ url }) => {
 };
 
 export const actions: Actions = {
-	save: async ({ request }) => {
+	save: async ({ request, locals }) => {
 		const formData = await request.formData();
 		const date = (formData.get('date') as string) || new Date().toISOString().split('T')[0];
 		const woNo = ((formData.get('woNo') as string) || '').trim();
@@ -95,6 +96,7 @@ export const actions: Actions = {
 		const chassisNo = ((formData.get('chassisNo') as string) || '').trim();
 		const problem = ((formData.get('problem') as string) || '').trim();
 		const notes = ((formData.get('notes') as string) || '').trim();
+		const createdBy = formatAuditUser(locals.user);
 		const itemsJson = (formData.get('itemsJson') as string) || '[]';
 
 		if (!problem) {
@@ -130,7 +132,8 @@ export const actions: Actions = {
 						chassis_no,
 						problem,
 						notes,
-						status
+						status,
+						created_by
 					) VALUES (
 						${ssNumber},
 						${woNo || `WO-${Date.now().toString().slice(-4)}`},
@@ -144,7 +147,8 @@ export const actions: Actions = {
 						${chassisNo},
 						${problem},
 						${notes},
-						'OPEN'
+						'OPEN',
+						${createdBy}
 					)
 					RETURNING id
 				`;

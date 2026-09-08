@@ -1,6 +1,7 @@
 import type { PageServerLoad, Actions } from './$types';
 import sql from '$lib/server/db';
 import { fail, redirect } from '@sveltejs/kit';
+import { formatAuditUser } from '$lib/server/auth';
 
 export const load: PageServerLoad = async ({ url }) => {
 	try {
@@ -72,10 +73,11 @@ export const load: PageServerLoad = async ({ url }) => {
 };
 
 export const actions: Actions = {
-	create: async ({ request }) => {
+	create: async ({ request, locals }) => {
 		const formData = await request.formData();
 		const date = formData.get('date') as string || new Date().toISOString().split('T')[0];
 		const vendorId = formData.get('vendorId') as string;
+		const createdBy = formatAuditUser(locals.user);
 		const projectId = formData.get('projectId') ? parseInt(formData.get('projectId') as string) : null;
 		const siteId = formData.get('siteId') ? parseInt(formData.get('siteId') as string) : null;
 		const category = (formData.get('category') as string || 'SUPPORTING').trim();
@@ -131,6 +133,7 @@ export const actions: Actions = {
 					po_number,
 					date,
 					vendor_id,
+					created_by,
 					project_id,
 					site_id,
 					category,
@@ -151,6 +154,7 @@ export const actions: Actions = {
 					${poNumber},
 					${date},
 					${vendorId},
+					${createdBy},
 					${projectId},
 					${siteId},
 					${category},

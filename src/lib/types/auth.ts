@@ -17,6 +17,7 @@ export interface AuthUser {
 	division: string;        // nama divisi dari m_division
 	divisionCode: string;    // kode divisi (DV_41, DV_37, dll)
 	titleName: string;       // nama jabatan dari m_karyawan.title atau API
+	payrollId?: string | null; // NIK / Payroll ID karyawan dari m_karyawan
 	allowedModules: ModuleId[];  // daftar modul yang bisa diakses
 	authSource?: 'laravel' | 'svelte-db'; // sumber otentikasi saat login
 }

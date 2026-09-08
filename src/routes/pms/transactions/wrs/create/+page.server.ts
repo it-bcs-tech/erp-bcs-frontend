@@ -1,6 +1,7 @@
 import type { PageServerLoad, Actions } from './$types';
 import sql from '$lib/server/db';
 import { fail, redirect } from '@sveltejs/kit';
+import { formatAuditUser } from '$lib/server/auth';
 
 export const load: PageServerLoad = async ({ url }) => {
 	try {
@@ -75,13 +76,14 @@ export const load: PageServerLoad = async ({ url }) => {
 };
 
 export const actions: Actions = {
-	create: async ({ request }) => {
+	create: async ({ request, locals }) => {
 		const formData = await request.formData();
 		const date = formData.get('date') as string || new Date().toISOString().split('T')[0];
 		const poId = parseInt(formData.get('poId') as string);
 		const siteId = formData.get('siteId') ? parseInt(formData.get('siteId') as string) : null;
 		const vendorDeliveryNumber = (formData.get('vendorDeliveryNumber') as string || '').trim();
-		const receivedBy = (formData.get('receivedBy') as string || 'Petugas Gudang').trim();
+		const createdBy = formatAuditUser(locals.user);
+		const receivedBy = (formData.get('receivedBy') as string || createdBy).trim();
 		const notes = (formData.get('notes') as string || '').trim();
 		const itemsRaw = formData.get('items') as string || '[]';
 
@@ -131,7 +133,7 @@ export const actions: Actions = {
 					${notes},
 					${siteId || po?.site_id},
 					${po?.vendor_id},
-					${receivedBy}
+					${createdBy}
 				) RETURNING id
 			`;
 

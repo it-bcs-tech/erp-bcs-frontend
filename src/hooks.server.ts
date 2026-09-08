@@ -12,7 +12,7 @@ import { verifyUserData } from '$lib/server/auth';
 const DEV_BYPASS = dev;
 
 // Daftar route modul yang perlu dicek hak akses
-const MODULE_ROUTES = ['fms', 'maintenance', 'ocs', 'hris', 'marketing', 'pms', 'kasir', 'finance', 'dms', 'qhse'];
+const MODULE_ROUTES = ['fms', 'maintenance', 'ocs', 'hris', 'marketing', 'pms', 'kasir', 'finance', 'dms', 'qhse', 'ga'];
 
 export const handle: Handle = async ({ event, resolve }) => {
 	const authToken = event.cookies.get('auth_token');
@@ -21,6 +21,18 @@ export const handle: Handle = async ({ event, resolve }) => {
 	const isLogoutEndpoint  = pathname.startsWith('/logout');
 	const isApiRoute        = pathname.startsWith('/api');
 	const isAdminRoute      = pathname.startsWith('/admin');
+
+	// Populate event.locals.user dari cookie yang terverifikasi
+	let currentUser: AuthUser | null = null;
+	const userDataCookie = event.cookies.get('user_data');
+	if (userDataCookie) {
+		try {
+			currentUser = verifyUserData(userDataCookie);
+		} catch {
+			currentUser = null;
+		}
+	}
+	event.locals.user = currentUser;
 
 	// Biarkan logout dan API berjalan tanpa guard
 	if (isLogoutEndpoint || isApiRoute) {

@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
 	import { formatNumber } from '$lib/utils/pms';
+	import SearchableSelect from '$lib/components/SearchableSelect.svelte';
 
 	let { data } = $props();
 	let isSubmitting = $state(false);
@@ -13,6 +14,39 @@
 	let siteId = $state('');
 	let category = $state('SUPPORTING');
 	let notes = $state('');
+
+	const categoryOpts = [
+		{ value: 'PACKAGING', label: 'Packaging (Pallet, Wrapping, Sak)' },
+		{ value: 'TRANSPORT', label: 'Transport (Armada & Ban Truk)' },
+		{ value: 'WAREHOUSE', label: 'Warehouse (Gudang & Forklift)' },
+		{ value: 'SUPPORTING', label: 'Supporting (Oli, Pelumas, Tools)' }
+	];
+
+	let projectOpts = $derived([
+		{ value: '', label: '-- Bebas / Non-Project --' },
+		...data.projects.map((p: any) => ({
+			value: p.id,
+			label: p.project_name,
+			sublabel: p.project_code
+		}))
+	]);
+
+	let siteOpts = $derived([
+		{ value: '', label: '-- Semua Site --' },
+		...data.sites.map((s: any) => ({
+			value: s.id,
+			label: s.loc_name,
+			sublabel: s.loc_code
+		}))
+	]);
+
+	let materialOpts = $derived(
+		data.materials.map((m: any) => ({
+			value: m.id,
+			label: `${m.name} (${m.uom})`,
+			sublabel: m.material_code
+		}))
+	);
 
 	// Line items
 	let items = $state<Array<{
@@ -127,16 +161,14 @@
 						<label class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-1.5">
 							Kategori Pengadaan <span class="text-rose-500">*</span>
 						</label>
-						<select
+						<SearchableSelect
 							name="category"
+							options={categoryOpts}
 							bind:value={category}
-							class="w-full bg-surface border border-slate-200 dark:border-slate-700 text-on-surface rounded-xl px-4 py-2.5 text-xs font-bold focus:ring-2 focus:ring-amber-500 outline-none"
-						>
-							<option value="PACKAGING">Packaging (Pallet, Wrapping, Sak)</option>
-							<option value="TRANSPORT">Transport (Armada & Ban Truk)</option>
-							<option value="WAREHOUSE">Warehouse (Gudang & Forklift)</option>
-							<option value="SUPPORTING">Supporting (Oli, Pelumas, Tools)</option>
-						</select>
+							placeholder="-- Pilih Kategori --"
+							required
+							btnClass="bg-surface border border-slate-200 dark:border-slate-700 text-xs font-bold"
+						/>
 					</div>
 				</div>
 
@@ -172,32 +204,26 @@
 						<label class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-1.5">
 							Alokasi Project
 						</label>
-						<select
+						<SearchableSelect
 							name="projectId"
+							options={projectOpts}
 							bind:value={projectId}
-							class="w-full bg-surface border border-slate-200 dark:border-slate-700 text-on-surface rounded-xl px-4 py-2.5 text-xs font-medium focus:ring-2 focus:ring-amber-500 outline-none"
-						>
-							<option value="">-- Bebas / Non-Project --</option>
-							{#each data.projects as p}
-								<option value={p.id}>{p.project_name}</option>
-							{/each}
-						</select>
+							placeholder="-- Bebas / Non-Project --"
+							btnClass="bg-surface border border-slate-200 dark:border-slate-700 text-xs font-medium"
+						/>
 					</div>
 
 					<div>
 						<label class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-1.5">
 							Lokasi Site Tujuan
 						</label>
-						<select
+						<SearchableSelect
 							name="siteId"
+							options={siteOpts}
 							bind:value={siteId}
-							class="w-full bg-surface border border-slate-200 dark:border-slate-700 text-on-surface rounded-xl px-4 py-2.5 text-xs font-medium focus:ring-2 focus:ring-amber-500 outline-none"
-						>
-							<option value="">-- Semua Site --</option>
-							{#each data.sites as s}
-								<option value={s.id}>{s.loc_name}</option>
-							{/each}
-						</select>
+							placeholder="-- Semua Site --"
+							btnClass="bg-surface border border-slate-200 dark:border-slate-700 text-xs font-medium"
+						/>
 					</div>
 				</div>
 
@@ -223,21 +249,18 @@
 						<span>Daftar Item Material ({items.length})</span>
 					</h3>
 
-					<div class="flex items-center gap-2">
-						<select
+					<div class="flex items-center gap-2 min-w-[280px] sm:min-w-[360px]">
+						<SearchableSelect
+							options={materialOpts}
 							bind:value={selectedMaterialId}
-							class="bg-surface border border-slate-200 dark:border-slate-700 text-on-surface rounded-xl px-3 py-2 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-amber-500/40 max-w-xs"
-						>
-							<option value="">-- Pilih Material dari Katalog --</option>
-							{#each data.materials as mat}
-								<option value={mat.id}>{mat.material_code} - {mat.name} ({mat.uom})</option>
-							{/each}
-						</select>
+							placeholder="-- Cari & Pilih Material --"
+							btnClass="bg-surface border border-slate-200 dark:border-slate-700 text-xs font-medium"
+						/>
 						<button
 							type="button"
 							onclick={addItem}
 							disabled={!selectedMaterialId}
-							class="bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold px-3 py-2 rounded-xl transition-colors disabled:opacity-50 flex items-center gap-1 shadow-xs"
+							class="bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold px-3 py-2.5 rounded-xl transition-colors disabled:opacity-50 flex items-center gap-1 shadow-xs shrink-0 cursor-pointer"
 						>
 							<span class="material-symbols-outlined text-base">add</span>
 							<span>Tambah</span>

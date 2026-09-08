@@ -14,6 +14,7 @@ export const load: PageServerLoad = async ({ url }) => {
 				to_char(pr.date, 'YYYY-MM-DD') as date,
 				pr.department,
 				pr.requested_by as "requestedBy",
+				pr.created_by as "createdBy",
 				COALESCE(pr.category, 'SUPPORTING') as category,
 				pr.status,
 				pr.notes,
@@ -26,7 +27,7 @@ export const load: PageServerLoad = async ({ url }) => {
 			LEFT JOIN master.m_project p ON p.id = pr.project_id
 			LEFT JOIN master.m_lokasi l ON l.id = pr.site_id
 			LEFT JOIN procurement.purchase_request_line prl ON prl.pr_id = pr.id
-			GROUP BY pr.id, pr.pr_number, pr.date, pr.department, pr.requested_by, pr.category, pr.status, pr.notes, p.project_name, p.project_code, p.id, l.loc_name
+			GROUP BY pr.id, pr.pr_number, pr.date, pr.department, pr.requested_by, pr.created_by, pr.category, pr.status, pr.notes, p.project_name, p.project_code, p.id, l.loc_name
 			ORDER BY pr.id DESC
 		`;
 

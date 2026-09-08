@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
 	import { formatRupiah, formatNumber } from '$lib/utils/pms';
+	import SearchableSelect from '$lib/components/SearchableSelect.svelte';
 
 	let { data } = $props();
 	let isSubmitting = $state(false);
@@ -19,6 +20,47 @@
 	let vatPercent = $state(11);
 	let notes = $state(data.initialPR?.notes || '');
 	let wrsNotes = $state('');
+
+	const categoryOpts = [
+		{ value: 'PACKAGING', label: 'Packaging' },
+		{ value: 'TRANSPORT', label: 'Transport' },
+		{ value: 'WAREHOUSE', label: 'Warehouse' },
+		{ value: 'SUPPORTING', label: 'Supporting' }
+	];
+
+	let vendorOpts = $derived(
+		data.vendors.map((v: any) => ({
+			value: v.id,
+			label: v.nama_kustomer,
+			sublabel: v.kode_kustomer
+		}))
+	);
+
+	let projectOpts = $derived([
+		{ value: '', label: '-- Bebas / Non-Project --' },
+		...data.projects.map((p: any) => ({
+			value: p.id,
+			label: p.project_name,
+			sublabel: p.project_code
+		}))
+	]);
+
+	let siteOpts = $derived([
+		{ value: '', label: '-- Semua Site --' },
+		...data.sites.map((s: any) => ({
+			value: s.id,
+			label: s.loc_name,
+			sublabel: s.loc_code
+		}))
+	]);
+
+	let materialOpts = $derived(
+		data.materials.map((m: any) => ({
+			value: m.id,
+			label: `${m.name} (${m.uom})`,
+			sublabel: m.material_code
+		}))
+	);
 
 	// Line items
 	let items = $state<Array<{
@@ -152,18 +194,15 @@
 						<label class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-1.5">
 							Pilih Vendor / Supplier <span class="text-rose-500">*</span>
 						</label>
-						<select
+						<SearchableSelect
 							name="vendorId"
-							required
+							options={vendorOpts}
 							bind:value={vendorId}
 							onchange={onVendorChange}
-							class="w-full bg-surface border border-slate-200 dark:border-slate-700 text-on-surface rounded-xl px-4 py-2.5 text-xs font-bold focus:ring-2 focus:ring-amber-500 outline-none"
-						>
-							<option value="">-- Pilih Vendor --</option>
-							{#each data.vendors as v}
-								<option value={v.id}>{v.nama_kustomer} ({v.kode_kustomer})</option>
-							{/each}
-						</select>
+							placeholder="-- Pilih Vendor --"
+							required
+							btnClass="bg-surface border border-slate-200 dark:border-slate-700 text-xs font-bold"
+						/>
 					</div>
 
 					<div>
@@ -183,16 +222,14 @@
 						<label class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-1.5">
 							Kategori Pengadaan <span class="text-rose-500">*</span>
 						</label>
-						<select
+						<SearchableSelect
 							name="category"
+							options={categoryOpts}
 							bind:value={category}
-							class="w-full bg-surface border border-slate-200 dark:border-slate-700 text-on-surface rounded-xl px-4 py-2.5 text-xs font-bold focus:ring-2 focus:ring-amber-500 outline-none"
-						>
-							<option value="PACKAGING">Packaging</option>
-							<option value="TRANSPORT">Transport</option>
-							<option value="WAREHOUSE">Warehouse</option>
-							<option value="SUPPORTING">Supporting</option>
-						</select>
+							placeholder="-- Pilih Kategori --"
+							required
+							btnClass="bg-surface border border-slate-200 dark:border-slate-700 text-xs font-bold"
+						/>
 					</div>
 				</div>
 
@@ -201,32 +238,26 @@
 						<label class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-1.5">
 							Alokasi Project
 						</label>
-						<select
+						<SearchableSelect
 							name="projectId"
+							options={projectOpts}
 							bind:value={projectId}
-							class="w-full bg-surface border border-slate-200 dark:border-slate-700 text-on-surface rounded-xl px-4 py-2.5 text-xs font-medium focus:ring-2 focus:ring-amber-500 outline-none"
-						>
-							<option value="">-- Bebas / Non-Project --</option>
-							{#each data.projects as p}
-								<option value={p.id}>{p.project_name}</option>
-							{/each}
-						</select>
+							placeholder="-- Bebas / Non-Project --"
+							btnClass="bg-surface border border-slate-200 dark:border-slate-700 text-xs font-medium"
+						/>
 					</div>
 
 					<div>
 						<label class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-1.5">
 							Site Penerima
 						</label>
-						<select
+						<SearchableSelect
 							name="siteId"
+							options={siteOpts}
 							bind:value={siteId}
-							class="w-full bg-surface border border-slate-200 dark:border-slate-700 text-on-surface rounded-xl px-4 py-2.5 text-xs font-medium focus:ring-2 focus:ring-amber-500 outline-none"
-						>
-							<option value="">-- Semua Site --</option>
-							{#each data.sites as s}
-								<option value={s.id}>{s.loc_name}</option>
-							{/each}
-						</select>
+							placeholder="-- Semua Site --"
+							btnClass="bg-surface border border-slate-200 dark:border-slate-700 text-xs font-medium"
+						/>
 					</div>
 
 					<div>
@@ -291,21 +322,18 @@
 						<span>Rincian Barang & Harga ({items.length})</span>
 					</h3>
 
-					<div class="flex items-center gap-2">
-						<select
+					<div class="flex items-center gap-2 min-w-[280px] sm:min-w-[360px]">
+						<SearchableSelect
+							options={materialOpts}
 							bind:value={selectedMaterialId}
-							class="bg-surface border border-slate-200 dark:border-slate-700 text-on-surface rounded-xl px-3 py-2 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-amber-500/40 max-w-xs"
-						>
-							<option value="">-- Tambah Item Material --</option>
-							{#each data.materials as mat}
-								<option value={mat.id}>{mat.material_code} - {mat.name} ({mat.uom})</option>
-							{/each}
-						</select>
+							placeholder="-- Cari & Pilih Material --"
+							btnClass="bg-surface border border-slate-200 dark:border-slate-700 text-xs font-medium"
+						/>
 						<button
 							type="button"
 							onclick={addItem}
 							disabled={!selectedMaterialId}
-							class="bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold px-3 py-2 rounded-xl transition-colors disabled:opacity-50 flex items-center gap-1 shadow-xs"
+							class="bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold px-3 py-2.5 rounded-xl transition-colors disabled:opacity-50 flex items-center gap-1 shadow-xs shrink-0 cursor-pointer"
 						>
 							<span class="material-symbols-outlined text-base">add</span>
 							<span>Tambah</span>
