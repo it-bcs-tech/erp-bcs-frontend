@@ -101,10 +101,10 @@
 	<button 
 		type="button" 
 		{disabled}
-		class="w-full text-left bg-surface-container rounded-xl px-4 py-2.5 text-xs sm:text-sm font-medium border border-outline-variant/30 dark:border-slate-700 focus:ring-2 focus:ring-amber-500/40 outline-none flex justify-between items-center transition-all disabled:opacity-60 disabled:cursor-not-allowed {btnClass}"
+		class="w-full text-left bg-surface-container rounded-xl px-4 py-2.5 text-xs font-normal border border-outline-variant/30 dark:border-slate-700 focus:ring-2 focus:ring-amber-500/40 outline-none flex justify-between items-center transition-all disabled:opacity-60 disabled:cursor-not-allowed {btnClass}"
 		onclick={toggleOpen}
 	>
-		<span class="truncate flex items-center gap-2 {value ? 'text-on-surface font-semibold' : 'text-on-surface-variant font-normal'}">
+		<span class="truncate flex items-center gap-2 {value ? 'text-on-surface font-normal' : 'text-on-surface-variant font-normal'}">
 			{value && selectedLabel ? selectedLabel : placeholder}
 			{#if selectedOption?.sublabel}
 				<span class="text-[10px] px-1.5 py-0.5 rounded bg-surface-container-high text-on-surface-variant font-mono">
@@ -150,7 +150,7 @@
 					<!-- svelte-ignore a11y_click_events_have_key_events -->
 					<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
 					<li 
-						class="px-3 py-2 text-xs rounded-lg cursor-pointer hover:bg-amber-500/15 dark:hover:bg-amber-500/20 transition-colors flex items-center justify-between gap-2 {String(value) === String(opt.value) ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400 font-bold' : 'text-on-surface'}"
+						class="px-3 py-2 text-xs rounded-lg cursor-pointer hover:bg-amber-500/15 dark:hover:bg-amber-500/20 transition-colors flex items-center justify-between gap-2 {String(value) === String(opt.value) ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400 font-medium' : 'text-on-surface font-normal'}"
 						onclick={() => selectOption(opt)}
 					>
 						<span class="truncate">{opt.label}</span>

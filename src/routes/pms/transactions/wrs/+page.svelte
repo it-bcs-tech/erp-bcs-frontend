@@ -73,13 +73,14 @@
 						<th class="py-3.5 px-4">Surat Jalan / Delivery No</th>
 						<th class="py-3.5 px-4">Site Gudang</th>
 						<th class="py-3.5 px-4 text-center">Total Item Diterima</th>
+						<th class="py-3.5 px-4">Diterima Oleh</th>
 						<th class="py-3.5 px-4 text-center">Status</th>
 					</tr>
 				</thead>
 				<tbody class="divide-y divide-slate-200/60 dark:divide-slate-800/60 font-medium text-xs">
 					{#if filteredReceipts.length === 0}
 						<tr>
-							<td colspan="8" class="py-12 text-center text-on-surface-variant">
+							<td colspan="9" class="py-12 text-center text-on-surface-variant">
 								<span class="material-symbols-outlined text-4xl text-slate-300 dark:text-slate-600 mb-2">receipt_long</span>
 								<p class="text-xs font-semibold">Tidak ada data penerimaan gudang (WRS).</p>
 							</td>
@@ -103,6 +104,13 @@
 								<td class="py-3.5 px-4 text-on-surface font-semibold">{wrs.siteName || 'Gudang Pusat'}</td>
 								<td class="py-3.5 px-4 text-center font-mono font-bold text-on-surface">
 									{wrs.item_count} item ({formatNumber(wrs.total_qty_received)} qty)
+								</td>
+								<td class="py-3.5 px-4 text-xs text-on-surface">
+									{#if wrs.receivedBy}
+										<span class="font-medium text-slate-700 dark:text-slate-300">{wrs.receivedBy}</span>
+									{:else}
+										<span class="text-on-surface-variant text-[11px]">-</span>
+									{/if}
 								</td>
 								<td class="py-3.5 px-4 text-center">
 									<span class="inline-flex items-center gap-1.5 text-[11px] font-bold px-2.5 py-0.5 rounded-full border bg-emerald-100 text-emerald-800 border-emerald-300">

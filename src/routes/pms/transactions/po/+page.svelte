@@ -108,13 +108,14 @@
 						<th class="py-3.5 px-4">Shipment & Ref</th>
 						<th class="py-3.5 px-4 text-right">Total Nilai (Inc PPN)</th>
 						<th class="py-3.5 px-4 text-center">Status</th>
+						<th class="py-3.5 px-4">Dibuat Oleh</th>
 						<th class="py-3.5 px-4 text-right">Aksi</th>
 					</tr>
 				</thead>
 				<tbody class="divide-y divide-slate-200/60 dark:divide-slate-800/60 font-medium text-xs">
 					{#if filteredOrders.length === 0}
 						<tr>
-							<td colspan="8" class="py-12 text-center text-on-surface-variant">
+							<td colspan="9" class="py-12 text-center text-on-surface-variant">
 								<span class="material-symbols-outlined text-4xl text-slate-300 dark:text-slate-600 mb-2">shopping_cart</span>
 								<p class="text-xs font-semibold">Tidak ada data Purchase Order.</p>
 							</td>
@@ -130,12 +131,6 @@
 										{po.poNumber}
 									</span>
 									<p class="text-[10px] text-on-surface-variant mt-0.5">{formatDateId(po.date)}</p>
-									{#if po.createdBy}
-										<p class="text-[10px] text-amber-600 dark:text-amber-400 mt-1 flex items-center gap-1 font-medium" title="Dibuat oleh">
-											<span class="material-symbols-outlined text-[12px]">badge</span>
-											<span class="truncate max-w-[130px]">{po.createdBy}</span>
-										</p>
-									{/if}
 								</td>
 								<td class="py-3.5 px-4">
 									<p class="font-bold text-on-surface">{po.vendorName}</p>
@@ -163,6 +158,13 @@
 										<span class="material-symbols-outlined text-xs">{stBadge.icon}</span>
 										<span>{stBadge.label}</span>
 									</span>
+								</td>
+								<td class="py-3.5 px-4 text-xs text-on-surface">
+									{#if po.createdBy}
+										<span class="font-medium text-slate-700 dark:text-slate-300">{po.createdBy}</span>
+									{:else}
+										<span class="text-on-surface-variant text-[11px]">-</span>
+									{/if}
 								</td>
 								<td class="py-3.5 px-4 text-right">
 									<div class="flex items-center justify-end gap-1.5">

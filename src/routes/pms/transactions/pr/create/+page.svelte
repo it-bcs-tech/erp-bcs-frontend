@@ -167,7 +167,7 @@
 							bind:value={category}
 							placeholder="-- Pilih Kategori --"
 							required
-							btnClass="bg-surface border border-slate-200 dark:border-slate-700 text-xs font-bold"
+							btnClass="bg-surface border border-slate-200 dark:border-slate-700 text-xs font-normal"
 						/>
 					</div>
 				</div>
@@ -183,7 +183,7 @@
 							required
 							bind:value={requestedBy}
 							placeholder="Nama staf pemohon"
-							class="w-full bg-surface border border-slate-200 dark:border-slate-700 text-on-surface rounded-xl px-4 py-2.5 text-xs font-bold focus:ring-2 focus:ring-amber-500 outline-none"
+							class="w-full bg-surface border border-slate-200 dark:border-slate-700 text-on-surface rounded-xl px-4 py-2.5 text-xs font-normal focus:ring-2 focus:ring-amber-500 outline-none"
 						/>
 					</div>
 
@@ -196,7 +196,7 @@
 							name="department"
 							bind:value={department}
 							placeholder="Workshop, IT, Logistik"
-							class="w-full bg-surface border border-slate-200 dark:border-slate-700 text-on-surface rounded-xl px-4 py-2.5 text-xs font-medium focus:ring-2 focus:ring-amber-500 outline-none"
+							class="w-full bg-surface border border-slate-200 dark:border-slate-700 text-on-surface rounded-xl px-4 py-2.5 text-xs font-normal focus:ring-2 focus:ring-amber-500 outline-none"
 						/>
 					</div>
 
@@ -209,7 +209,7 @@
 							options={projectOpts}
 							bind:value={projectId}
 							placeholder="-- Bebas / Non-Project --"
-							btnClass="bg-surface border border-slate-200 dark:border-slate-700 text-xs font-medium"
+							btnClass="bg-surface border border-slate-200 dark:border-slate-700 text-xs font-normal"
 						/>
 					</div>
 
@@ -222,7 +222,7 @@
 							options={siteOpts}
 							bind:value={siteId}
 							placeholder="-- Semua Site --"
-							btnClass="bg-surface border border-slate-200 dark:border-slate-700 text-xs font-medium"
+							btnClass="bg-surface border border-slate-200 dark:border-slate-700 text-xs font-normal"
 						/>
 					</div>
 				</div>
@@ -236,7 +236,7 @@
 						bind:value={notes}
 						rows="2"
 						placeholder="Keterangan peruntukan atau alasan pembelian..."
-						class="w-full bg-surface border border-slate-200 dark:border-slate-700 text-on-surface rounded-xl p-3 text-xs font-medium focus:ring-2 focus:ring-amber-500 outline-none resize-none"
+						class="w-full bg-surface border border-slate-200 dark:border-slate-700 text-on-surface rounded-xl p-3 text-xs font-normal focus:ring-2 focus:ring-amber-500 outline-none resize-none"
 					></textarea>
 				</div>
 			</div>
@@ -254,7 +254,7 @@
 							options={materialOpts}
 							bind:value={selectedMaterialId}
 							placeholder="-- Cari & Pilih Material --"
-							btnClass="bg-surface border border-slate-200 dark:border-slate-700 text-xs font-medium"
+							btnClass="bg-surface border border-slate-200 dark:border-slate-700 text-xs font-normal"
 						/>
 						<button
 							type="button"

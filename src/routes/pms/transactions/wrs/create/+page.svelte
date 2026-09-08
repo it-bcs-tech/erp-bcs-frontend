@@ -121,7 +121,7 @@
 							bind:value={selectedPOId}
 							onchange={handlePOSelect}
 							placeholder="-- Pilih PO Aktif --"
-							btnClass="bg-surface border border-slate-200 dark:border-slate-700 text-xs font-bold font-mono"
+							btnClass="bg-surface border border-slate-200 dark:border-slate-700 text-xs font-normal font-mono"
 						/>
 					</div>
 
@@ -134,7 +134,7 @@
 							name="date"
 							required
 							bind:value={date}
-							class="w-full bg-surface border border-slate-200 dark:border-slate-700 text-on-surface rounded-xl px-4 py-2.5 text-xs font-bold focus:ring-2 focus:ring-amber-500 outline-none"
+							class="w-full bg-surface border border-slate-200 dark:border-slate-700 text-on-surface rounded-xl px-4 py-2.5 text-xs font-normal focus:ring-2 focus:ring-amber-500 outline-none"
 						/>
 					</div>
 
@@ -147,7 +147,7 @@
 							options={siteOpts}
 							bind:value={siteId}
 							placeholder="-- Pilih Gudang --"
-							btnClass="bg-surface border border-slate-200 dark:border-slate-700 text-xs font-bold"
+							btnClass="bg-surface border border-slate-200 dark:border-slate-700 text-xs font-normal"
 						/>
 					</div>
 				</div>
