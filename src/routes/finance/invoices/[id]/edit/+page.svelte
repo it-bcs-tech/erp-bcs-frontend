@@ -9,6 +9,7 @@
 	const customerOpts = customers.map((c: any) => ({ value: c.id, label: `${c.code} - ${c.name}` }));
 	const contractOpts = contracts.map((c: any) => ({ value: c.id, label: `${c.id} ${c.project_name ? `(${c.project_name})` : ''}`, customer_id: c.customer_id, project_id: c.project_id }));
 	const bankOpts = banks.map((b: any) => ({ value: b.id, label: b.name }));
+	const departmentOpts = departments.map((d: any) => ({ value: d.id, label: d.name }));
 
 	let form = $state({
 		customer_id: data.invoice.partner_id || '',
@@ -661,17 +662,19 @@
 								{#each form.items as item, i}
 									<tr class="hover:bg-surface-container-lowest group">
 										<td class="p-3">
-											<input type="text" bind:value={item.deskripsi} class="w-full min-w-[150px] bg-transparent border-b border-surface-variant/30 focus:border-primary outline-none py-1 text-sm font-medium" placeholder="Nama Layanan/Barang" />
+											<input type="text" bind:value={item.deskripsi} class="w-full min-w-[150px] bg-surface-container rounded-lg px-2.5 py-1.5 text-xs font-medium border border-surface-variant/30 focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all" placeholder="Nama Layanan/Barang" />
+										</td>
+										<td class="p-3 min-w-[140px]">
+											<SearchableSelect 
+												options={departmentOpts} 
+												bind:value={item.department_id} 
+												placeholder="- Dept -" 
+												btnClass="bg-surface-container rounded-lg px-2.5 py-1.5 text-xs border border-surface-variant/30" 
+											/>
 										</td>
 										<td class="p-3">
-											<select bind:value={item.department_id} class="w-full min-w-[100px] bg-transparent border-b border-surface-variant/30 focus:border-primary outline-none py-1 text-sm">
-												<option value="">-Dept-</option>
-												{#each departments as d}<option value={d.id}>{d.name}</option>{/each}
-											</select>
-										</td>
-										<td class="p-3">
-											<select bind:value={item.akun_pendapatan} class="w-full min-w-[100px] bg-transparent border-b border-surface-variant/30 focus:border-primary outline-none py-1 text-sm">
-												<option value="">-Akun-</option>
+											<select bind:value={item.akun_pendapatan} class="w-full min-w-[110px] bg-surface-container rounded-lg px-2.5 py-1.5 text-xs font-medium border border-surface-variant/30 focus:border-primary focus:ring-1 focus:ring-primary outline-none cursor-pointer">
+												<option value="">- Akun -</option>
 												{#each accounts as a}<option value={a.id}>{a.name}</option>{/each}
 											</select>
 										</td>
@@ -709,8 +712,8 @@
 											</button>
 										</td>
 										<td class="p-3">
-											<select bind:value={item.pajak_id} class="w-full min-w-[80px] bg-transparent border-b border-surface-variant/30 focus:border-primary outline-none py-1 text-sm">
-												<option value="">-Pajak-</option>
+											<select bind:value={item.pajak_id} class="w-full min-w-[90px] bg-surface-container rounded-lg px-2.5 py-1.5 text-xs font-medium border border-surface-variant/30 focus:border-primary focus:ring-1 focus:ring-primary outline-none cursor-pointer">
+												<option value="">- Pajak -</option>
 												{#each taxes as t}<option value={t.id}>{t.name}</option>{/each}
 											</select>
 										</td>

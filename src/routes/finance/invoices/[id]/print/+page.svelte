@@ -78,9 +78,10 @@
 			<p class="text-sm">Tanggal: <strong>{formatDate(data.invoice.date)}</strong></p>
 			<p class="text-sm">Jatuh Tempo: <strong>{formatDate(data.invoice.due_date)}</strong></p>
 		</div>
-		<div class="text-right max-w-xs">
-			<h2 class="text-xl font-bold">PT. BUMI CIKANDEL SEJAHTERA</h2>
-			<p class="text-sm mt-1">Gedung BCS, Serang, Banten</p>
+		<div class="text-right max-w-sm">
+			<h2 class="text-xl font-bold">PT. BUANA CENTRA SWAKARSA</h2>
+			<p class="text-xs mt-1 font-semibold">Head Office : BCS Logistics Center</p>
+			<p class="text-xs text-gray-700">Address : Jl. Raya Merak KM. 115, Rw. Arum, Kec. Gerogol, Kota Cilegon, Banten - 42436</p>
 		</div>
 	</div>
 
@@ -158,7 +159,7 @@
 		<div class="text-center">
 			<p class="text-sm mb-16">Hormat Kami,</p>
 			<p class="font-bold border-b border-black inline-block px-8 pb-1">Finance Dept.</p>
-			<p class="text-sm mt-1">PT. Bumi Cikandel Sejahtera</p>
+			<p class="text-sm mt-1">PT. Buana Centra Swakarsa</p>
 		</div>
 	</div>
 	
