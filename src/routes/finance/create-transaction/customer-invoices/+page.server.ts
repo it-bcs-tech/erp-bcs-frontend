@@ -107,13 +107,23 @@ export const actions: Actions = {
 
 			const reference = invoice.no_po_spk || '';
 			
+			// Fetch taxes to calculate taxAmount reliably
+			const taxRows = await sql`SELECT id, value as rate FROM master.m_pajak WHERE is_active = true`;
+			const taxRateMap = new Map(taxRows.map((t: any) => [t.id, parseFloat(t.rate) || 0]));
+
 			// Calculate totals from items
 			let subtotal = 0;
 			let taxAmount = 0;
 			for (const item of invoice.items) {
-				subtotal += item.qty * item.harga;
+				const qty = parseFloat(item.qty) || 0;
+				const harga = parseFloat(item.harga) || 0;
+				const lineTotal = qty * harga;
+				subtotal += lineTotal;
+				const rate = item.pajak_id ? (taxRateMap.get(item.pajak_id) ?? 0) : 0;
+				taxAmount += (lineTotal * rate) / 100;
 			}
-			const totalAmount = subtotal + taxAmount - (invoice.uang_muka || 0);
+			const advancePayment = parseFloat(invoice.uang_muka) || 0;
+			const totalAmount = subtotal + taxAmount - advancePayment;
 			
 			let savedInvoiceNumber = invoice.no_inv;
 
@@ -121,7 +131,7 @@ export const actions: Actions = {
 				// 1. Create dn_header from selected DN details (if any are selected)
 				let dnHeaderId: string | null = null;
 				if (selectedDnIds.length > 0) {
-					const totalDnAmount = invoice.items.reduce((sum: number, item: any) => sum + (item.qty * item.harga), 0);
+					const totalDnAmount = invoice.items.reduce((sum: number, item: any) => sum + ((parseFloat(item.qty) || 0) * (parseFloat(item.harga) || 0)), 0);
 					const noDnHeader = `DN-${new Date().toISOString().slice(0,7).replace('-','')}-${Date.now().toString().slice(-4)}`;
 					
 					const [newDnHeader] = await tx`
@@ -146,12 +156,14 @@ export const actions: Actions = {
 					INSERT INTO finance.invoice (
 						type, invoice_number, partner_id, date, due_date, 
 						currency, subtotal, tax_amount, total_amount, status, reference, notes,
-						contract_id, po_spk_number, bank_account_id, activity_period, delivery_date, payment_term_days, advance_payment
+						contract_id, po_spk_number, bank_account_id, activity_period, delivery_date, payment_term_days, advance_payment,
+						no_lhp
 					) VALUES (
 						'SALES', ${invoice.no_inv}, ${invoice.customer_id}, ${invoice.tgl_inv}, ${dueDate},
 						'IDR', ${subtotal}, ${taxAmount}, ${totalAmount}, ${invoice.status}, ${reference}, ${invoice.remark},
 						${invoice.no_kontrak || null}, ${invoice.no_po_spk}, ${invoice.bank_id || null}, ${invoice.periode_kegiatan}, 
-						${invoice.tgl_kirim_inv || null}, ${invoice.term_pembayaran}, ${invoice.uang_muka}
+						${invoice.tgl_kirim_inv || null}, ${invoice.term_pembayaran}, ${advancePayment},
+						${invoice.no_lhp || null}
 					) RETURNING id, invoice_number
 				`;
 
@@ -164,13 +176,17 @@ export const actions: Actions = {
 
 				// 4. Insert Invoice Lines
 				for (const item of invoice.items) {
+					const qty = parseFloat(item.qty) || 0;
+					const harga = parseFloat(item.harga) || 0;
+					const lineTotal = qty * harga;
+					const rate = item.pajak_id ? (taxRateMap.get(item.pajak_id) ?? 0) : 0;
 					await tx`
 						INSERT INTO finance.invoice_line (
 							invoice_id, account_id, description, quantity, unit_price, total,
-							department_id, project_id, uom, tax_id
+							department_id, project_id, uom, tax_id, tax_rate
 						) VALUES (
-							${newInvoice.id}, ${item.akun_pendapatan || null}, ${item.deskripsi}, ${item.qty}, ${item.harga}, ${item.qty * item.harga},
-							${item.department_id || null}, ${item.project_id || null}, ${item.satuan}, ${item.pajak_id || null}
+							${newInvoice.id}, ${item.akun_pendapatan || null}, ${item.deskripsi}, ${qty}, ${harga}, ${lineTotal},
+							${item.department_id || null}, ${item.project_id || null}, ${item.satuan || null}, ${item.pajak_id || null}, ${rate}
 						)
 					`;
 				}

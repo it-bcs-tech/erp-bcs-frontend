@@ -16,6 +16,7 @@
 		no_inv: data.invoice.invoice_number || '',
 		no_kontrak: data.invoice.contract_id || '',
 		no_po_spk: data.invoice.po_spk_number || '',
+		no_lhp: data.invoice.no_lhp || '',
 		periode_kegiatan: data.invoice.activity_period || '',
 		tgl_kirim_inv: data.invoice.delivery_date ? new Date(data.invoice.delivery_date).toISOString().split('T')[0] : '',
 		term_pembayaran: data.invoice.payment_term_days || 30,
@@ -433,6 +434,10 @@
 						<label class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-1">No PO / SPK <span class="text-error">*</span></label>
 						<input type="text" bind:value={form.no_po_spk} class="w-full bg-surface-container rounded-xl px-4 py-2.5 text-sm font-medium border-none focus:ring-2 focus:ring-primary outline-none" placeholder="No PO Pelanggan" />
 					</div>
+					<div>
+						<label class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-1">No LHP (Laporan Hasil Penjualan)</label>
+						<input type="text" bind:value={form.no_lhp} class="w-full bg-surface-container rounded-xl px-4 py-2.5 text-sm font-medium border-none focus:ring-2 focus:ring-primary outline-none" placeholder="Contoh: LHP/2026/09/001 (Opsional)" />
+					</div>
 				</div>
 			</div>
 
@@ -455,6 +460,18 @@
 					</div>
 				</div>
 				<div class="overflow-x-auto">
+					<datalist id="uom-options">
+						<option value="Ton" />
+						<option value="Kg" />
+						<option value="Trip" />
+						<option value="M3" />
+						<option value="Dus" />
+						<option value="Sak" />
+						<option value="Rit" />
+						<option value="Pcs" />
+						<option value="Unit" />
+						<option value="Box" />
+					</datalist>
 					<table class="w-full text-left border-collapse">
 						<thead class="bg-surface-container text-on-surface-variant text-[10px] uppercase tracking-wider">
 							<tr>
@@ -462,6 +479,7 @@
 								<th class="p-3 font-black">Department</th>
 								<th class="p-3 font-black">Akun Pdk.</th>
 								<th class="p-3 font-black text-right w-24">Qty</th>
+								<th class="p-3 font-black w-24">Satuan</th>
 								<th class="p-3 font-black text-right w-32">Harga</th>
 								<th class="p-3 font-black w-32">Pajak</th>
 								<th class="p-3 font-black text-right w-32">Total</th>
@@ -471,7 +489,7 @@
 						<tbody class="divide-y divide-surface-container">
 							{#if form.items.length === 0}
 								<tr>
-									<td colspan="8" class="py-8 text-center text-sm text-on-surface-variant">
+									<td colspan="9" class="py-8 text-center text-sm text-on-surface-variant">
 										<p class="font-bold">Belum ada item</p>
 										<p class="text-xs mt-1">Klik <strong>"Pilih Surat Jalan"</strong> untuk mengisi otomatis dari data operasional, atau <strong>"Add Row"</strong> untuk menginput manual.</p>
 									</td>
@@ -495,10 +513,10 @@
 											</select>
 										</td>
 										<td class="p-3">
-											<div class="flex items-center gap-1">
-												<input type="number" bind:value={item.qty} class="w-full min-w-[50px] bg-transparent border-b border-surface-variant/30 focus:border-primary outline-none py-1 text-sm text-right font-bold" min="0" step="0.001" />
-												<span class="text-[10px] text-on-surface-variant">{item.satuan}</span>
-											</div>
+											<input type="number" bind:value={item.qty} class="w-full min-w-[65px] bg-transparent border-b border-surface-variant/30 focus:border-primary outline-none py-1 text-sm text-right font-bold" min="0" step="0.001" placeholder="0.000" />
+										</td>
+										<td class="p-3">
+											<input list="uom-options" type="text" bind:value={item.satuan} class="w-full min-w-[70px] bg-transparent border-b border-surface-variant/30 focus:border-primary outline-none py-1 text-sm font-semibold uppercase" placeholder="Satuan" />
 										</td>
 										<td class="p-3">
 											<input type="number" bind:value={item.harga} class="w-full min-w-[80px] bg-transparent border-b border-surface-variant/30 focus:border-primary outline-none py-1 text-sm text-right font-bold" />

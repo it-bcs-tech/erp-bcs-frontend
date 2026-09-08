@@ -13,6 +13,11 @@
 		return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(amount);
 	}
 
+	function formatQty(val: any) {
+		if (val === null || val === undefined || isNaN(Number(val))) return '0';
+		return parseFloat(Number(val).toFixed(3)).toString();
+	}
+
 	function formatDate(dateStr: string | null) {
 		if (!dateStr) return '-';
 		return new Date(dateStr).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' });
@@ -88,6 +93,7 @@
 		<div>
 			<h3 class="text-sm font-bold uppercase border-b border-black pb-1 mb-2">Informasi Tambahan:</h3>
 			<p class="text-sm">No. PO/SPK: <strong>{data.invoice.po_spk_number || '-'}</strong></p>
+			<p class="text-sm">No. LHP: <strong>{data.invoice.no_lhp || '-'}</strong></p>
 			<p class="text-sm">Periode Kegiatan: <strong>{data.invoice.activity_period || '-'}</strong></p>
 			<p class="text-sm">Tgl Kirim Invoice: <strong>{formatDate(data.invoice.delivery_date)}</strong></p>
 		</div>
@@ -98,7 +104,7 @@
 			<tr>
 				<th class="w-12">No</th>
 				<th>Deskripsi</th>
-				<th class="w-24 text-right">Qty</th>
+				<th class="w-28 text-right">Qty</th>
 				<th class="w-32 text-right">Harga Satuan</th>
 				<th class="w-40 text-right">Total</th>
 			</tr>
@@ -108,7 +114,7 @@
 				<tr>
 					<td>{i + 1}</td>
 					<td>{line.description}</td>
-					<td class="text-right">{Number(line.quantity).toFixed(2)} {line.uom}</td>
+					<td class="text-right">{formatQty(line.quantity)} {line.uom || ''}</td>
 					<td class="text-right">{formatCurrency(Number(line.unit_price))}</td>
 					<td class="text-right">{formatCurrency(Number(line.total))}</td>
 				</tr>
@@ -123,7 +129,7 @@
 				<span class="font-bold">{formatCurrency(Number(data.invoice.subtotal))}</span>
 			</div>
 			<div class="flex justify-between border-b border-gray-300 py-1">
-				<span>Pajak</span>
+				<span>Pajak (PPN)</span>
 				<span class="font-bold">{formatCurrency(Number(data.invoice.tax_amount))}</span>
 			</div>
 			{#if Number(data.invoice.advance_payment) > 0}

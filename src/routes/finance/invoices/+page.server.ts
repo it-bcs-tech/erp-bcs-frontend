@@ -17,6 +17,7 @@ export const load: PageServerLoad = async ({ url }) => {
 			SELECT 
 				i.id,
 				i.invoice_number,
+				i.no_lhp,
 				i.date as invoice_date,
 				i.due_date,
 				i.total_amount,

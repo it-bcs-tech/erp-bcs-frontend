@@ -20,6 +20,11 @@
 		return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(amount);
 	}
 
+	function formatQty(val: any) {
+		if (val === null || val === undefined || isNaN(Number(val))) return '0';
+		return parseFloat(Number(val).toFixed(3)).toString();
+	}
+
 	function formatDate(dateStr: string | null) {
 		if (!dateStr) return '-';
 		return new Date(dateStr).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' });
@@ -172,6 +177,9 @@
 								<td class="py-4 px-6 text-sm font-medium text-on-surface-variant">{formatDate(invoice.invoice_date)}</td>
 								<td class="py-4 px-6">
 									<div class="font-bold text-on-surface">{invoice.invoice_number}</div>
+									{#if invoice.no_lhp}
+										<div class="text-[11px] text-blue-600 dark:text-blue-400 font-bold">LHP: {invoice.no_lhp}</div>
+									{/if}
 								</td>
 								<td class="py-4 px-6 text-sm font-bold text-on-surface">{invoice.customer_name || '-'}</td>
 								<td class="py-4 px-6 text-sm font-black text-on-surface text-right">{formatCurrency(invoice.total_amount)}</td>
@@ -277,6 +285,10 @@
 								<h4 class="text-xs font-black uppercase tracking-wider text-on-surface-variant mb-2">No. PO/SPK</h4>
 								<div class="font-bold text-on-surface">{previewData.invoice.po_spk_number || '-'}</div>
 							</div>
+							<div class="col-span-2">
+								<h4 class="text-xs font-black uppercase tracking-wider text-on-surface-variant mb-2">No. LHP (Laporan Hasil Penjualan)</h4>
+								<div class="font-bold text-on-surface">{previewData.invoice.no_lhp || '-'}</div>
+							</div>
 							<div class="col-span-2 mt-2">
 								<h4 class="text-xs font-black uppercase tracking-wider text-on-surface-variant mb-2">Pembayaran (Bank)</h4>
 								<div class="p-3 rounded-xl bg-surface-container-low text-sm font-medium text-on-surface-variant">
@@ -304,7 +316,7 @@
 									{#each previewData.invoiceLines as line}
 										<tr class="hover:bg-surface-container-lowest transition-colors">
 											<td class="p-4 text-sm font-medium text-on-surface-variant max-w-xs truncate" title={line.description}>{line.description}</td>
-											<td class="p-4 text-sm font-bold text-on-surface text-right">{Number(line.quantity).toFixed(2)} {line.uom}</td>
+											<td class="p-4 text-sm font-bold text-on-surface text-right">{formatQty(line.quantity)} {line.uom || ''}</td>
 											<td class="p-4 text-sm font-medium text-on-surface-variant text-right">{formatCurrency(Number(line.unit_price))}</td>
 											<td class="p-4 text-sm font-black text-on-surface text-right">{formatCurrency(Number(line.total))}</td>
 										</tr>

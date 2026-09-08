@@ -148,12 +148,22 @@ export const actions: Actions = {
 
 			const reference = invoiceData.no_po_spk || '';
 			
+			// Fetch taxes to calculate taxAmount reliably
+			const taxRows = await sql`SELECT id, value as rate FROM master.m_pajak WHERE is_active = true`;
+			const taxRateMap = new Map(taxRows.map((t: any) => [t.id, parseFloat(t.rate) || 0]));
+
 			let subtotal = 0;
 			let taxAmount = 0;
 			for (const item of invoiceData.items) {
-				subtotal += item.qty * item.harga;
+				const qty = parseFloat(item.qty) || 0;
+				const harga = parseFloat(item.harga) || 0;
+				const lineTotal = qty * harga;
+				subtotal += lineTotal;
+				const rate = item.pajak_id ? (taxRateMap.get(item.pajak_id) ?? 0) : 0;
+				taxAmount += (lineTotal * rate) / 100;
 			}
-			const totalAmount = subtotal + taxAmount - (invoiceData.uang_muka || 0);
+			const advancePayment = parseFloat(invoiceData.uang_muka) || 0;
+			const totalAmount = subtotal + taxAmount - advancePayment;
 
 			await sql.begin(async (tx) => {
 				// 1. Unlink removed DN details
@@ -168,7 +178,7 @@ export const actions: Actions = {
 				if (selectedDnIds.length > 0) {
 					if (!dnHeaderId) {
 						// Create dn_header if doesn't exist
-						const totalDnAmount = invoiceData.items.reduce((sum: number, item: any) => sum + (item.qty * item.harga), 0);
+						const totalDnAmount = invoiceData.items.reduce((sum: number, item: any) => sum + ((parseFloat(item.qty) || 0) * (parseFloat(item.harga) || 0)), 0);
 						const noDnHeader = `DN-${new Date().toISOString().slice(0,7).replace('-','')}-${Date.now().toString().slice(-4)}`;
 						const [newDnHeader] = await tx`
 							INSERT INTO finance.dn_header (dn_header_no, customer_id, total_amount, status, invoice_id)
@@ -203,7 +213,8 @@ export const actions: Actions = {
 						activity_period = ${invoiceData.periode_kegiatan},
 						delivery_date = ${invoiceData.tgl_kirim_inv || null},
 						payment_term_days = ${invoiceData.term_pembayaran},
-						advance_payment = ${invoiceData.uang_muka},
+						advance_payment = ${advancePayment},
+						no_lhp = ${invoiceData.no_lhp || null},
 						updated_at = NOW()
 					WHERE id = ${invoiceId}
 				`;
@@ -213,13 +224,17 @@ export const actions: Actions = {
 
 				// 4. Insert new Invoice Lines
 				for (const item of invoiceData.items) {
+					const qty = parseFloat(item.qty) || 0;
+					const harga = parseFloat(item.harga) || 0;
+					const lineTotal = qty * harga;
+					const rate = item.pajak_id ? (taxRateMap.get(item.pajak_id) ?? 0) : 0;
 					await tx`
 						INSERT INTO finance.invoice_line (
 							invoice_id, account_id, description, quantity, unit_price, total,
-							department_id, project_id, uom, tax_id
+							department_id, project_id, uom, tax_id, tax_rate
 						) VALUES (
-							${invoiceId}, ${item.akun_pendapatan || null}, ${item.deskripsi}, ${item.qty}, ${item.harga}, ${item.qty * item.harga},
-							${item.department_id || null}, ${item.project_id || null}, ${item.satuan}, ${item.pajak_id || null}
+							${invoiceId}, ${item.akun_pendapatan || null}, ${item.deskripsi}, ${qty}, ${harga}, ${lineTotal},
+							${item.department_id || null}, ${item.project_id || null}, ${item.satuan || null}, ${item.pajak_id || null}, ${rate}
 						)
 					`;
 				}
