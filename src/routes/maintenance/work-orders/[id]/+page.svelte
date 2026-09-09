@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { page } from '$app/stores';
+	import { enhance } from '$app/forms';
 
 	let { data } = $props();
 	const { workOrder, dnHeader, dnDetails } = data;
@@ -489,7 +490,17 @@
 					id="createDnForm"
 					method="POST" 
 					action="?/createDN"
-					onsubmit={() => isSubmittingDn = true}
+					use:enhance={() => {
+						isSubmittingDn = true;
+						return async ({ update, result }) => {
+							await update();
+							isSubmittingDn = false;
+							if (result.type === 'success') {
+								showSparepartsModal = false;
+								alert('Delivery Note ' + ((result.data as any)?.dnNo || '') + ' berhasil dibuat dan terkirim ke PMS!');
+							}
+						};
+					}}
 					class="space-y-6 pb-48"
 				>
 					<input type="hidden" name="requested_parts" value={JSON.stringify(requestedParts)} />
