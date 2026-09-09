@@ -8,12 +8,12 @@
 
 	let date = $state(new Date().toISOString().split('T')[0]);
 	let requiredDate = $state('');
-	let department = $state('Workshop / Maintenance');
-	let requestedBy = $state('Staff Gudang');
-	let projectId = $state('');
+	let department = $state(data.prefill?.department || 'Workshop / Maintenance');
+	let requestedBy = $state(data.prefill?.requestedBy || 'Staff Gudang');
+	let projectId = $state(data.prefill?.projectId ? String(data.prefill.projectId) : '');
 	let siteId = $state('');
 	let category = $state('SUPPORTING');
-	let notes = $state('');
+	let notes = $state(data.prefill?.notes || '');
 
 	const categoryOpts = [
 		{ value: 'PACKAGING', label: 'Packaging (Pallet, Wrapping, Sak)' },
@@ -59,7 +59,18 @@
 		stock: number;
 		qty: number;
 		remarks: string;
-	}>>([]);
+	}>>(
+		data.prefill?.items?.map((item: any) => ({
+			material_id: item.material_id,
+			material_code: item.material_code || '',
+			name: item.name || '',
+			spec: item.spec || '-',
+			uom: item.uom || 'Pcs',
+			stock: item.current_stock || 0,
+			qty: item.qty || 1,
+			remarks: item.remarks || ''
+		})) || []
+	);
 
 	let selectedMaterialId = $state('');
 
@@ -114,6 +125,21 @@
 			</p>
 		</div>
 	</header>
+
+	{#if data.prefill}
+		<div class="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-start gap-3.5 text-amber-900 dark:text-amber-200 shadow-xs">
+			<span class="material-symbols-outlined text-amber-600 dark:text-amber-400 mt-0.5 text-2xl">info</span>
+			<div class="flex-1 text-xs">
+				<div class="flex items-center gap-2">
+					<span class="font-bold text-sm text-amber-800 dark:text-amber-300">Pengajuan Otomatis dari Delivery Note</span>
+					<span class="font-mono font-bold bg-amber-500/20 text-amber-700 dark:text-amber-300 px-2 py-0.5 rounded text-[11px]">{data.prefill.fromDn}</span>
+				</div>
+				<p class="mt-1 text-on-surface-variant leading-relaxed">
+					Formulir ini telah diisi secara otomatis untuk memenuhi kekurangan stok material pada <strong>Work Order {data.prefill.woNo || '-'}</strong> (Unit: {data.prefill.unitId || '-'}). Kuantitas material telah disesuaikan dengan selisih kekurangan stok di gudang. Silakan tinjau dan lengkapi data jika diperlukan.
+				</p>
+			</div>
+		</div>
+	{/if}
 
 	<form method="POST" action="?/create" use:enhance={() => {
 		isSubmitting = true;

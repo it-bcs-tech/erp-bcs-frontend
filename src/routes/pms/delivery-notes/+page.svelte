@@ -24,6 +24,14 @@
 		pickerDisplay ? data.warehouseStaff.filter(s => s.name.toLowerCase().includes(pickerDisplay.toLowerCase())) : data.warehouseStaff
 	);
 
+	function hasStockShortage(dn: any) {
+		return dn.details?.some((d: any) => parseFloat(d.qty_request) > (parseFloat(d.stock) || 0));
+	}
+
+	function getShortageCount(dn: any) {
+		return dn.details?.filter((d: any) => parseFloat(d.qty_request) > (parseFloat(d.stock) || 0)).length || 0;
+	}
+
 	function openIssueModal(dn: any) {
 		selectedDn = dn;
 		// Prepare the parts for the form
@@ -112,7 +120,14 @@
 											<span class="material-symbols-outlined text-sm">calendar_today</span> {formatDate(dn.created_at)}
 										</p>
 									</div>
-									<span class="bg-amber-500/10 text-amber-600 border border-amber-500/20 font-bold px-2.5 py-1 rounded-md text-[10px] uppercase tracking-wider">Menunggu</span>
+									<div class="flex items-center gap-1.5">
+										{#if hasStockShortage(dn)}
+											<span class="bg-rose-500/10 text-rose-600 border border-rose-500/20 font-bold px-2 py-0.5 rounded-md text-[10px] uppercase tracking-wider flex items-center gap-1">
+												<span class="material-symbols-outlined text-[12px]">warning</span> Stok Kurang
+											</span>
+										{/if}
+										<span class="bg-amber-500/10 text-amber-600 border border-amber-500/20 font-bold px-2.5 py-1 rounded-md text-[10px] uppercase tracking-wider">Menunggu</span>
+									</div>
 								</div>
 								
 								<div class="grid grid-cols-2 gap-3 mb-4">
@@ -134,24 +149,50 @@
 								{/if}
 
 								<div class="space-y-2 mb-4 bg-surface p-3 rounded-xl border border-slate-200/60 dark:border-slate-800/60">
-									<p class="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant">Daftar Item Diminta ({dn.details.length})</p>
+									<div class="flex justify-between items-center border-b border-slate-200/40 dark:border-slate-800/40 pb-1.5">
+										<p class="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant">Daftar Item Diminta ({dn.details.length})</p>
+										<p class="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant">Stok / Req</p>
+									</div>
 									{#each dn.details as item}
-										<div class="flex justify-between text-xs">
-											<span class="font-medium text-on-surface">{item.material_name} <span class="text-on-surface-variant font-mono text-[11px]">({item.material_code})</span></span>
-											<span class="font-bold text-emerald-600">{item.qty_request}x</span>
+										{@const stockNum = parseFloat(item.stock) || 0}
+										{@const isShort = item.qty_request > stockNum}
+										<div class="flex justify-between items-start text-xs pt-1">
+											<div>
+												<p class="font-medium text-on-surface">{item.material_name}</p>
+												{#if item.spec && item.spec !== '-'}
+													<p class="text-[10px] text-on-surface-variant italic">{item.spec}</p>
+												{/if}
+												<p class="text-[10px] {stockNum <= 0 ? 'text-rose-600 font-bold' : isShort ? 'text-amber-600 font-bold' : 'text-slate-400'}">
+													Stok Gudang: {stockNum} {item.uom || ''}
+													{#if isShort}
+														<span class="text-rose-600 ml-1 font-mono font-bold">(Kurang {item.qty_request - stockNum})</span>
+													{/if}
+												</p>
+											</div>
+											<span class="font-bold text-emerald-600 ml-2">{item.qty_request}x</span>
 										</div>
 									{/each}
 								</div>
 							</div>
 
-							<div class="pt-3 border-t border-slate-200/60 dark:border-slate-800/60 mt-auto">
+							<div class="pt-3 border-t border-slate-200/60 dark:border-slate-800/60 mt-auto flex flex-col sm:flex-row gap-2">
 								<button 
 									onclick={() => openIssueModal(dn)}
-									class="w-full py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-xs transition-colors flex justify-center items-center gap-2 cursor-pointer"
+									class="flex-1 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-xs transition-colors flex justify-center items-center gap-2 cursor-pointer"
 								>
 									<span class="material-symbols-outlined text-base">outbox</span>
-									<span>Proses Pengeluaran Barang</span>
+									<span>Proses Pengeluaran</span>
 								</button>
+								{#if hasStockShortage(dn)}
+									<a 
+										href="/pms/transactions/pr/create?from_dn={encodeURIComponent(dn.dn_no)}"
+										class="py-2.5 px-3.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs shadow-xs transition-colors flex justify-center items-center gap-1.5 whitespace-nowrap cursor-pointer"
+										title="Buat Purchase Request untuk item yang stoknya kurang"
+									>
+										<span class="material-symbols-outlined text-base">shopping_cart</span>
+										<span>Buat PR</span>
+									</a>
+								{/if}
 							</div>
 						</div>
 					{/each}
@@ -332,6 +373,25 @@
 								<p class="text-sm font-bold">Total Pengeluaran Kosong (0)</p>
 								<p class="text-xs mt-1 leading-relaxed">Anda memasukkan angka 0 untuk semua barang. Delivery Note tidak bisa diproses jika tidak ada barang fisik yang diserahkan ke mekanik. Jika stok memang sedang kosong seluruhnya, jangan klik konfirmasi. Biarkan pesanan ini tetap <span class="font-bold">Pending</span> hingga stok tiba di gudang.</p>
 							</div>
+						</div>
+					{/if}
+
+					{#if issueParts.some(p => p.stock < p.qty_request)}
+						<div class="bg-amber-500/10 border border-amber-500/30 text-amber-900 dark:text-amber-200 p-4 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 mt-4">
+							<div class="flex items-start gap-2.5">
+								<span class="material-symbols-outlined text-amber-600 dark:text-amber-400 text-xl mt-0.5">shopping_cart</span>
+								<div>
+									<p class="text-xs font-bold text-amber-800 dark:text-amber-300">Stok Gudang Tidak Mencukupi?</p>
+									<p class="text-[11px] text-on-surface-variant mt-0.5">Terdapat material yang kurang dari permintaan. Anda dapat langsung menerbitkan Purchase Request (PR) untuk pengadaan item kekurangan tersebut.</p>
+								</div>
+							</div>
+							<a 
+								href="/pms/transactions/pr/create?from_dn={encodeURIComponent(selectedDn.dn_no)}"
+								class="px-3.5 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs shadow-xs transition-colors flex items-center justify-center gap-1.5 shrink-0 whitespace-nowrap cursor-pointer"
+							>
+								<span class="material-symbols-outlined text-sm">post_add</span>
+								<span>Buat PR Pengadaan</span>
+							</a>
 						</div>
 					{/if}
 				</form>

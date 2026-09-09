@@ -19,9 +19,13 @@ export const load: PageServerLoad = async () => {
 
 		// Fetch all DN Details joined with materials
 		const details = await sql`
-			SELECT d.*, m.name as material_name, m.material_code, m.stock, m.id as m_id
+			SELECT d.*, m.name as material_name, m.material_code, m.spec, m.uom, m.stock, m.id as m_id
 			FROM fleet.maintenance_dn_detail d
-			LEFT JOIN master.m_materials m ON d.material_id = m.material_code
+			LEFT JOIN master.m_materials m ON 
+				CASE 
+					WHEN d.material_id ~ '^[0-9]+$' THEN m.id = d.material_id::integer 
+					ELSE m.material_code = d.material_id 
+				END
 		`;
 
 		// Map details to their respective headers
