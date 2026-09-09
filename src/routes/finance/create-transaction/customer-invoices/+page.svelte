@@ -9,7 +9,11 @@
 	const customerOpts = customers.map((c: any) => ({ value: c.id, label: `${c.code} - ${c.name}` }));
 	const contractOpts = contracts.map((c: any) => ({ value: c.id, label: `${c.id} ${c.project_name ? `(${c.project_name})` : ''}`, customer_id: c.customer_id, project_id: c.project_id }));
 	const bankOpts = banks.map((b: any) => ({ value: b.id, label: b.name }));
-	const departmentOpts = departments.map((d: any) => ({ value: d.id, label: d.name }));
+	const departmentOpts = departments.map((d: any) => {
+		const rawName = d.name || '';
+		const cleanName = rawName.replace(/^[\d\s\-]+(?=[A-Za-z])/, '').trim() || rawName;
+		return { value: d.id, label: cleanName };
+	}).sort((a: any, b: any) => a.label.localeCompare(b.label));
 
 	// Invoice form state
 	let form = $state({
@@ -620,12 +624,12 @@
 						</button>
 					</div>
 				</div>
-				<div class="overflow-x-auto">
+				<div class="overflow-x-auto min-h-[320px]">
 					<table class="w-full text-left border-collapse">
 						<thead class="bg-surface-container text-on-surface-variant text-[10px] uppercase tracking-wider">
 							<tr>
 								<th class="p-3 font-black whitespace-nowrap">Deskripsi</th>
-								<th class="p-3 font-black">Department</th>
+								<th class="p-3 font-black w-48">Department</th>
 								<th class="p-3 font-black">Akun Pdk.</th>
 								<th class="p-3 font-black text-right w-24">Qty</th>
 								<th class="p-3 font-black w-24">Satuan</th>
@@ -649,7 +653,7 @@
 										<td class="p-3">
 											<input type="text" bind:value={item.deskripsi} class="w-full min-w-[150px] bg-surface-container rounded-lg px-2.5 py-1.5 text-xs font-medium border border-surface-variant/30 focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all" placeholder="Nama Layanan/Barang" />
 										</td>
-										<td class="p-3 min-w-[140px]">
+										<td class="p-3 min-w-[160px]">
 											<SearchableSelect 
 												options={departmentOpts} 
 												bind:value={item.department_id} 

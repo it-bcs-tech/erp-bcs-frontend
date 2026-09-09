@@ -11,6 +11,7 @@
 		placeholder = 'Pilih opsi...',
 		class: className = '',
 		btnClass = '',
+		dropdownClass = '',
 		name = '',
 		required = false,
 		disabled = false,
@@ -22,6 +23,7 @@
 		placeholder?: string;
 		class?: string;
 		btnClass?: string;
+		dropdownClass?: string;
 		name?: string;
 		required?: boolean;
 		disabled?: boolean;
@@ -132,7 +134,7 @@
 	</button>
 
 	{#if open}
-		<div class="absolute z-50 mt-1 w-full bg-surface-container-highest dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl shadow-xl max-h-64 flex flex-col overflow-hidden">
+		<div class="absolute left-0 z-50 mt-1 min-w-full min-w-[260px] {dropdownClass} bg-surface-container-highest dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl shadow-xl max-h-64 flex flex-col overflow-hidden">
 			<div class="p-2 border-b border-slate-200/60 dark:border-slate-800 bg-surface-container dark:bg-slate-800/80">
 				<input 
 					type="text" 
