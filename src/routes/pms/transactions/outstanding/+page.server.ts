@@ -15,6 +15,7 @@ export const load: PageServerLoad = async ({ url }) => {
 				pr.department,
 				p.project_name as "projectName",
 				l.loc_name as "siteName",
+				prl.item_id as "itemId",
 				m.material_code as "materialCode",
 				m.name as "materialName",
 				COALESCE(m.spec, '-') as spec,
@@ -29,6 +30,43 @@ export const load: PageServerLoad = async ({ url }) => {
 			WHERE pr.status IN ('PENDING', 'APPROVED')
 			ORDER BY pr.date ASC
 		`;
+
+		// Ambil riwayat PO sebelumnya untuk bahan referensi harga & vendor
+		const poHistoryRows = await sql`
+			SELECT 
+				pol.item_id as "itemId",
+				po.po_number as "poNumber",
+				to_char(po.date, 'YYYY-MM-DD') as "poDate",
+				COALESCE(c.nama_kustomer, '-') as "vendorName",
+				pol.qty_ordered as "qtyOrdered",
+				pol.unit_price as "unitPrice"
+			FROM procurement.purchase_order_line pol
+			JOIN procurement.purchase_order po ON po.id = pol.po_id
+			LEFT JOIN master.m_customer c ON c.id = po.vendor_id
+			ORDER BY po.date DESC, po.id DESC
+		`;
+
+		const historyByItem = new Map<number, any[]>();
+		for (const row of poHistoryRows) {
+			const itemId = row.itemId;
+			if (!historyByItem.has(itemId)) {
+				historyByItem.set(itemId, []);
+			}
+			const list = historyByItem.get(itemId)!;
+			if (list.length < 3) {
+				list.push(row);
+			}
+		}
+
+		const processedOsOrders = osOrders.map((r: any) => {
+			const history = historyByItem.get(r.itemId) || [];
+			const lastPo = history[0] || null;
+			return {
+				...r,
+				purchaseHistory: history,
+				lastPo
+			};
+		});
 
 		// 2. OS WRS: PO vs WRS (PO Qty - Received Qty > 0)
 		const osWrs = await sql`
@@ -96,7 +134,7 @@ export const load: PageServerLoad = async ({ url }) => {
 		`;
 
 		return {
-			osOrders,
+			osOrders: processedOsOrders,
 			osWrs: processedOsWrs,
 			osHistory
 		};

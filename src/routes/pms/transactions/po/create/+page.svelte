@@ -15,11 +15,43 @@
 	let shipmentLocation = $state('');
 	let refNo = $state(data.initialPR?.pr_number ? `PR REF: ${data.initialPR.pr_number}` : '');
 	let dueDate = $state('');
+	let paymentTerm = $state('30 Hari');
 	let currency = $state('IDR');
 	let discountPercent = $state(0);
 	let vatPercent = $state(11);
 	let notes = $state(data.initialPR?.notes || '');
 	let wrsNotes = $state('');
+
+	const paymentTermOpts = [
+		{ value: 'Cash', days: 0, label: 'Cash / Tunai' },
+		{ value: '7 Hari', days: 7, label: '7 Hari' },
+		{ value: '14 Hari', days: 14, label: '14 Hari' },
+		{ value: '30 Hari', days: 30, label: '30 Hari' },
+		{ value: '60 Hari', days: 60, label: '60 Hari' },
+		{ value: '90 Hari', days: 90, label: '90 Hari' }
+	];
+
+	function updateDueDateFromTerm(term: string, baseDate: string) {
+		if (!baseDate) return;
+		const opt = paymentTermOpts.find(o => o.value === term);
+		const days = opt ? opt.days : 0;
+		const d = new Date(baseDate);
+		d.setDate(d.getDate() + days);
+		dueDate = d.toISOString().split('T')[0];
+	}
+
+	function onPaymentTermChange(term: string) {
+		paymentTerm = term;
+		updateDueDateFromTerm(term, date);
+	}
+
+	function handlePriceInput(index: number, e: Event) {
+		const target = e.target as HTMLInputElement;
+		const rawDigits = target.value.replace(/\D/g, '');
+		const num = rawDigits ? parseInt(rawDigits, 10) : 0;
+		items[index].unit_price = num;
+		target.value = num ? num.toLocaleString('id-ID') : '';
+	}
 
 	const categoryOpts = [
 		{ value: 'PACKAGING', label: 'Packaging' },
@@ -86,6 +118,13 @@
 				unit_price: parseFloat(itm.unit_price) || 0,
 				pr_line_id: itm.pr_line_id
 			}));
+		}
+		if (!dueDate && date) {
+			updateDueDateFromTerm(paymentTerm, date);
+		}
+		if (siteId && !shipmentLocation) {
+			const s = data.sites?.find((st: any) => st.id.toString() === siteId.toString());
+			if (s) shipmentLocation = s.loc_name;
 		}
 	});
 
@@ -277,12 +316,23 @@
 						<label class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-1.5">
 							Jatuh Tempo Pembayaran
 						</label>
-						<input
-							type="date"
-							name="dueDate"
-							bind:value={dueDate}
-							class="w-full bg-surface border border-slate-200 dark:border-slate-700 text-on-surface rounded-xl px-4 py-2.5 text-xs font-medium focus:ring-2 focus:ring-amber-500 outline-none"
-						/>
+						<div class="grid grid-cols-2 gap-2">
+							<select
+								bind:value={paymentTerm}
+								onchange={(e) => onPaymentTermChange((e.target as HTMLSelectElement).value)}
+								class="w-full bg-surface border border-slate-200 dark:border-slate-700 text-on-surface rounded-xl px-3 py-2.5 text-xs font-semibold focus:ring-2 focus:ring-amber-500 outline-none cursor-pointer"
+							>
+								{#each paymentTermOpts as t}
+									<option value={t.value}>{t.label}</option>
+								{/each}
+							</select>
+							<input
+								type="date"
+								name="dueDate"
+								bind:value={dueDate}
+								class="w-full bg-surface border border-slate-200 dark:border-slate-700 text-on-surface rounded-xl px-4 py-2.5 text-xs font-medium focus:ring-2 focus:ring-amber-500 outline-none"
+							/>
+						</div>
 					</div>
 				</div>
 
@@ -301,15 +351,20 @@
 
 					<div>
 						<label class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-1.5">
-							Alamat / Lokasi Pengiriman (Shipment Location)
+							Alamat Lokasi Pengiriman (Master Site)
 						</label>
-						<input
-							type="text"
+						<select
 							name="shipmentLocation"
 							bind:value={shipmentLocation}
-							placeholder="Misal: Gudang Utama BCS Cilegon, Pool Merak"
-							class="w-full bg-surface border border-slate-200 dark:border-slate-700 text-on-surface rounded-xl px-4 py-2.5 text-xs font-medium focus:ring-2 focus:ring-amber-500 outline-none"
-						/>
+							class="w-full bg-surface border border-slate-200 dark:border-slate-700 text-on-surface rounded-xl px-4 py-2.5 text-xs font-semibold focus:ring-2 focus:ring-amber-500 outline-none cursor-pointer"
+						>
+							<option value="">-- Pilih Site Pengiriman --</option>
+							{#each data.sites as site}
+								<option value={site.loc_name}>
+									[{site.loc_code}] {site.loc_name}
+								</option>
+							{/each}
+						</select>
 					</div>
 				</div>
 			</div>
@@ -374,19 +429,24 @@
 											<input
 												type="number"
 												min="1"
+												step="any"
 												bind:value={item.qty}
 												class="w-20 bg-surface border border-slate-200 dark:border-slate-700 text-on-surface rounded-lg px-2 py-1 text-center font-mono font-bold text-xs focus:ring-2 focus:ring-amber-500 outline-none"
 											/>
 										</td>
 										<td class="py-3 px-3 font-semibold">{item.uom}</td>
 										<td class="py-3 px-3 text-right">
-											<input
-												type="number"
-												min="0"
-												step="500"
-												bind:value={item.unit_price}
-												class="w-32 bg-surface border border-slate-200 dark:border-slate-700 text-on-surface rounded-lg px-2 py-1 text-right font-mono font-bold text-xs focus:ring-2 focus:ring-amber-500 outline-none"
-											/>
+											<div class="relative flex items-center justify-end">
+												<span class="absolute left-2.5 text-[10px] font-bold text-on-surface-variant pointer-events-none">Rp</span>
+												<input
+													type="text"
+													inputmode="numeric"
+													value={item.unit_price ? Number(item.unit_price).toLocaleString('id-ID') : ''}
+													oninput={(e) => handlePriceInput(idx, e)}
+													placeholder="0"
+													class="w-36 bg-surface border border-slate-200 dark:border-slate-700 text-on-surface rounded-lg pl-8 pr-2.5 py-1 text-right font-mono font-bold text-xs focus:ring-2 focus:ring-amber-500 outline-none"
+												/>
+											</div>
 											{#if getVendorSpecificPrice(item.material_id, vendorId) !== null}
 												<span class="block text-[9px] font-bold text-amber-600 dark:text-amber-400 mt-0.5">
 													★ Harga Vendor
