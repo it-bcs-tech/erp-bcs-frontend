@@ -44,7 +44,8 @@
 		data.materials.map((m: any) => ({
 			value: m.id,
 			label: `${m.name} (${m.uom})`,
-			sublabel: m.material_code
+			sublabel: m.spec && m.spec !== '-' ? m.spec : undefined,
+			searchTerms: `${m.spec || ''} ${m.material_code || ''} ${m.brand || ''} ${m.part_no || ''}`
 		}))
 	);
 
@@ -272,7 +273,7 @@
 					<table class="w-full text-left text-sm min-w-[700px]">
 						<thead class="bg-slate-100/70 dark:bg-slate-800/50 text-xs font-bold text-on-surface-variant uppercase tracking-wider border-b border-slate-200/60 dark:border-slate-800/60">
 							<tr>
-								<th class="py-3 px-3">Kode & Nama Material</th>
+								<th class="py-3 px-3">Nama Material</th>
 								<th class="py-3 px-3">Spesifikasi</th>
 								<th class="py-3 px-3 text-center">Stok Saat Ini</th>
 								<th class="py-3 px-3 text-center w-28">Qty Request</th>
@@ -292,9 +293,8 @@
 							{:else}
 								{#each items as item, idx}
 									<tr>
-										<td class="py-3 px-3">
-											<span class="font-mono font-bold text-amber-700 dark:text-amber-300 text-xs">{item.material_code}</span>
-											<p class="font-bold text-on-surface text-xs">{item.name}</p>
+										<td class="py-3 px-3 font-bold text-on-surface text-xs">
+											{item.name}
 										</td>
 										<td class="py-3 px-3 text-on-surface-variant">{item.spec}</td>
 										<td class="py-3 px-3 text-center font-mono font-semibold">

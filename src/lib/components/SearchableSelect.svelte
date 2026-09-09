@@ -3,6 +3,7 @@
 		value: string | number;
 		label: string;
 		sublabel?: string;
+		searchTerms?: string;
 	}
 
 	let { 
@@ -42,7 +43,8 @@
 			const s = search.toLowerCase();
 			const labelMatch = (opt.label || '').toLowerCase().includes(s);
 			const subMatch = opt.sublabel ? opt.sublabel.toLowerCase().includes(s) : false;
-			return labelMatch || subMatch;
+			const termMatch = opt.searchTerms ? opt.searchTerms.toLowerCase().includes(s) : false;
+			return labelMatch || subMatch || termMatch;
 		})
 	);
 

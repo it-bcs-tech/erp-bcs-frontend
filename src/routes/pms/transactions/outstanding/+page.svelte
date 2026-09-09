@@ -190,24 +190,25 @@
 	{#if activeTab === 'ORDER'}
 		<div class="rounded-2xl bg-surface-container-low border border-slate-200/60 dark:border-slate-800/60 overflow-hidden shadow-xs">
 			<div class="overflow-x-auto">
-				<table class="w-full text-left text-sm min-w-[1050px]">
+				<table class="w-full text-left text-sm min-w-[1100px]">
 					<thead class="bg-slate-100/70 dark:bg-slate-800/50 text-xs font-bold text-on-surface-variant uppercase tracking-wider border-b border-slate-200/60 dark:border-slate-800/60">
 						<tr>
-							<th class="py-3.5 px-4">No. PR & Tanggal</th>
+							<th class="py-3.5 px-4">No. PR</th>
+							<th class="py-3.5 px-4">Tanggal</th>
 							<th class="py-3.5 px-4">Departemen</th>
-							<th class="py-3.5 px-4">Project & Site</th>
-							<th class="py-3.5 px-4">Material & Spec</th>
+							<th class="py-3.5 px-4">Project</th>
+							<th class="py-3.5 px-4">Site</th>
+							<th class="py-3.5 px-4">Material</th>
+							<th class="py-3.5 px-4">Spesifikasi</th>
 							<th class="py-3.5 px-3 text-right">Qty</th>
 							<th class="py-3.5 px-3 text-left">Satuan</th>
 							<th class="py-3.5 px-4">Riwayat Terakhir</th>
-							<th class="py-3.5 px-3 text-center">Status PR</th>
-							<th class="py-3.5 px-4 text-right">Aksi</th>
 						</tr>
 					</thead>
 					<tbody class="divide-y divide-slate-200/60 dark:divide-slate-800/60 font-medium text-xs">
 						{#if filteredOsOrders.length === 0}
 							<tr>
-								<td colspan="9" class="py-12 text-center text-on-surface-variant">
+								<td colspan="10" class="py-12 text-center text-on-surface-variant">
 									<span class="material-symbols-outlined text-4xl text-emerald-500 mb-2">task_alt</span>
 									<p class="text-xs font-semibold">Tidak ada PR yang tertunda. Semua permintaan telah diproses PO.</p>
 								</td>
@@ -215,35 +216,28 @@
 						{:else}
 							{#each filteredOsOrders as pr}
 								<tr class="hover:bg-surface-container-high/40 transition-colors">
-									<td class="py-3.5 px-4">
-										<div class="flex items-center gap-2 whitespace-nowrap">
-											<span class="font-mono font-bold text-amber-700 dark:text-amber-400">
-												{pr.prNumber}
-											</span>
-											<span class="text-slate-300 dark:text-slate-700">•</span>
-											<span class="text-[11px] text-on-surface-variant font-medium">{formatDateId(pr.date)}</span>
-										</div>
+									<td class="py-3.5 px-4 whitespace-nowrap">
+										<span class="font-mono font-bold text-amber-700 dark:text-amber-400">
+											{pr.prNumber}
+										</span>
+									</td>
+									<td class="py-3.5 px-4 whitespace-nowrap text-on-surface-variant text-xs">
+										{formatDateId(pr.date)}
 									</td>
 									<td class="py-3.5 px-4 font-semibold text-on-surface whitespace-nowrap">
 										{pr.department || '-'}
 									</td>
-									<td class="py-3.5 px-4">
-										<div class="flex items-center gap-1.5 whitespace-nowrap text-xs">
-											<span class="font-semibold text-on-surface">{pr.projectName || '-'}</span>
-											<span class="text-slate-400">/</span>
-											<span class="text-on-surface-variant text-[11px]">{pr.siteName || 'Semua Site'}</span>
-										</div>
+									<td class="py-3.5 px-4 font-semibold text-on-surface whitespace-nowrap">
+										{pr.projectName || '-'}
 									</td>
-									<td class="py-3.5 px-4">
-										<div>
-											<div class="flex items-center gap-1.5">
-												<span class="font-mono text-[10px] font-bold text-amber-600 dark:text-amber-400 bg-amber-500/10 px-1.5 py-0.5 rounded">{pr.materialCode}</span>
-												<span class="font-bold text-on-surface text-xs">{pr.materialName}</span>
-											</div>
-											{#if pr.spec && pr.spec !== '-'}
-												<p class="text-[11px] text-on-surface-variant mt-0.5 italic">{pr.spec}</p>
-											{/if}
-										</div>
+									<td class="py-3.5 px-4 text-on-surface-variant whitespace-nowrap">
+										{pr.siteName || 'Semua Site'}
+									</td>
+									<td class="py-3.5 px-4 font-bold text-on-surface">
+										{pr.materialName}
+									</td>
+									<td class="py-3.5 px-4 text-on-surface-variant">
+										{pr.spec || '-'}
 									</td>
 									<td class="py-3.5 px-3 text-right font-mono font-bold text-amber-600 text-xs">
 										{formatNumber(pr.qtyRequested)}
@@ -268,20 +262,6 @@
 										{:else}
 											<span class="text-[10px] text-slate-400 italic">Belum ada PO</span>
 										{/if}
-									</td>
-									<td class="py-3.5 px-3 text-center">
-										<span class="px-2 py-0.5 rounded-full text-[10px] font-bold border {pr.status === 'APPROVED' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-amber-50 text-amber-700 border-amber-200'}">
-											{pr.status}
-										</span>
-									</td>
-									<td class="py-3.5 px-4 text-right">
-										<a
-											href="/pms/transactions/po/create?pr_id={pr.id}"
-											class="inline-flex items-center gap-1 px-2.5 py-1 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-xs font-bold transition-colors shadow-xs"
-										>
-											<span class="material-symbols-outlined text-xs">shopping_cart</span>
-											<span>Proses PO</span>
-										</a>
 									</td>
 								</tr>
 							{/each}
