@@ -15,22 +15,24 @@ export const load: PageServerLoad = async ({ url }) => {
 				h.wo_no as "woNo",
 				to_char(h.dn_date, 'YYYY-MM-DD') as date,
 				COALESCE(h.target_unit, w.unit_id, '-') as "unitNopol",
-				COALESCE(u.no_rangka, '-') as "chassisNo",
+				COALESCE(w.chassis_no, u.no_rangka, '-') as "chassisNo",
 				COALESCE(w.project_name, '-') as "projectName",
 				'Work Order Maintenance' as tipe,
-				COALESCE(w.assigned_mechanic, h.created_by, 'Mekanik Workshop') as "mekanikName",
-				'-' as "helperName",
-				'-' as "driverName",
+				COALESCE(km.nama_karyawan, w.mechanic_id, h.created_by, 'Mekanik Workshop') as "mekanikName",
+				COALESCE(kh.nama_karyawan, w.helper_mechanic_id, '-') as "helperName",
+				COALESCE(w.driver_id, '-') as "driverName",
 				COALESCE(w.problem, w.keluhan_driver, h.note, 'Permintaan suku cadang WO') as problem,
 				h.picked_by,
-				k.nama_karyawan as "pickerName",
+				kp.nama_karyawan as "pickerName",
 				h.note as notes,
 				h.created_at as "createdAt",
 				h.updated_at as "updatedAt"
 			FROM fleet.maintenance_dn_header h
 			LEFT JOIN fleet.work_orders w ON h.wo_no = w.wo_no
 			LEFT JOIN fleet.unit u ON (u.nomor_unit = h.target_unit OR u.nomor_unit = w.unit_id)
-			LEFT JOIN master.m_karyawan k ON h.picked_by = k.payroll_id
+			LEFT JOIN master.m_karyawan km ON w.mechanic_id = km.payroll_id
+			LEFT JOIN master.m_karyawan kh ON w.helper_mechanic_id = kh.payroll_id
+			LEFT JOIN master.m_karyawan kp ON h.picked_by = kp.payroll_id
 			ORDER BY h.created_at DESC
 		`;
 
@@ -188,7 +190,13 @@ export const load: PageServerLoad = async ({ url }) => {
 			LIMIT 200
 		`;
 		const projects = await sql`SELECT id, project_name FROM master.m_project WHERE is_active = true ORDER BY project_name`;
-		const drivers = await sql`SELECT id, name FROM master.m_drivers WHERE is_active = true ORDER BY name ASC`;
+		const drivers = await sql`
+			SELECT d.id, k.nama_karyawan as name 
+			FROM master.m_drivers d 
+			JOIN master.m_karyawan k ON k.id = d.karyawan_id 
+			WHERE (k.aktif = 'Y' OR k.aktif = '1' OR k.aktif IS NULL) 
+			ORDER BY k.nama_karyawan ASC
+		`;
 		const materials = await sql`
 			SELECT id, material_code, name, uom, stock, standard_price 
 			FROM master.m_materials 
