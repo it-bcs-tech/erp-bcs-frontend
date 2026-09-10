@@ -1,11 +1,17 @@
 <script lang="ts">
 	import { page } from '$app/stores';
 	import { formatDateId, getCategoryBadge, getPRStatusBadge } from '$lib/utils/pms';
+	import { fly } from 'svelte/transition';
+	import { cubicOut } from 'svelte/easing';
 
 	let { data } = $props();
 	let searchQuery = $state('');
 	let statusFilter = $state('');
 	let selectedPrIds = $state<number[]>([]);
+
+	let counterBadgeEl = $state<HTMLElement | null>(null);
+	let isBumping = $state(false);
+	let bumpTimeout: any = null;
 
 	let filteredRequests = $derived.by(() => {
 		let list = data.requests || [];
@@ -41,19 +47,126 @@
 			.reduce((sum: number, r: any) => sum + (parseInt(r.item_count) || 0), 0)
 	);
 
-	function toggleSelectAll() {
-		if (isAllSelected) {
-			selectedPrIds = [];
+	function triggerBump() {
+		isBumping = true;
+		if (bumpTimeout) clearTimeout(bumpTimeout);
+		bumpTimeout = setTimeout(() => {
+			isBumping = false;
+		}, 350);
+	}
+
+	function spawnFlyingPill(pr: any, willSelect: boolean, startX: number, startY: number) {
+		if (typeof document === 'undefined') return;
+
+		let endX = window.innerWidth / 2 - 180;
+		let endY = window.innerHeight - 50;
+
+		if (counterBadgeEl) {
+			const rect = counterBadgeEl.getBoundingClientRect();
+			endX = rect.left + rect.width / 2;
+			endY = rect.top + rect.height / 2;
+		}
+
+		const pill = document.createElement('div');
+		pill.className = 'fixed top-0 left-0 pointer-events-none z-[100] flex items-center gap-1.5 px-3 py-1 bg-amber-500 text-slate-950 font-mono font-black text-xs rounded-full shadow-2xl border border-amber-300 select-none';
+		pill.style.willChange = 'transform, opacity';
+		pill.innerHTML = `
+			<span class="material-symbols-outlined" style="font-size: 14px;">assignment</span>
+			<span>${pr.prNumber || 'PR'}</span>
+		`;
+		document.body.appendChild(pill);
+
+		const pillRect = pill.getBoundingClientRect();
+		const halfW = pillRect.width / 2;
+		const halfH = pillRect.height / 2;
+
+		const fromX = willSelect ? (startX - halfW) : (endX - halfW);
+		const fromY = willSelect ? (startY - halfH) : (endY - halfH);
+		const toX = willSelect ? (endX - halfW) : (startX - halfW);
+		const toY = willSelect ? (endY - halfH) : (startY - halfH);
+
+		const midX = fromX + (toX - fromX) * 0.45 + (willSelect ? 30 : -30);
+		const midY = Math.min(fromY, toY) - (willSelect ? 40 : 30);
+
+		if (willSelect) {
+			const animation = pill.animate(
+				[
+					{ transform: `translate3d(${fromX}px, ${fromY}px, 0) scale(1)`, opacity: 0.95 },
+					{ transform: `translate3d(${midX}px, ${midY}px, 0) scale(0.95)`, opacity: 1, offset: 0.45 },
+					{ transform: `translate3d(${toX}px, ${toY}px, 0) scale(0.4)`, opacity: 0.2 }
+				],
+				{
+					duration: 550,
+					easing: 'cubic-bezier(0.2, 0.8, 0.2, 1)',
+					fill: 'forwards'
+				}
+			);
+			animation.onfinish = () => {
+				pill.remove();
+				triggerBump();
+			};
 		} else {
-			selectedPrIds = openRequests.map((r: any) => r.id);
+			triggerBump();
+			const animation = pill.animate(
+				[
+					{ transform: `translate3d(${fromX}px, ${fromY}px, 0) scale(0.5)`, opacity: 1 },
+					{ transform: `translate3d(${midX}px, ${midY}px, 0) scale(0.95)`, opacity: 0.9, offset: 0.5 },
+					{ transform: `translate3d(${toX}px, ${toY}px, 0) scale(1)`, opacity: 0 }
+				],
+				{
+					duration: 480,
+					easing: 'cubic-bezier(0.2, 0.8, 0.2, 1)',
+					fill: 'forwards'
+				}
+			);
+			animation.onfinish = () => {
+				pill.remove();
+			};
 		}
 	}
 
-	function toggleSelect(id: number) {
-		if (selectedPrIds.includes(id)) {
-			selectedPrIds = selectedPrIds.filter(i => i !== id);
+	function toggleSelectWithAnimation(pr: any, willSelect: boolean, event: MouseEvent | Event) {
+		let startX = window.innerWidth / 2;
+		let startY = window.innerHeight / 2;
+
+		if ('currentTarget' in event && event.currentTarget instanceof HTMLElement) {
+			const rect = event.currentTarget.getBoundingClientRect();
+			startX = rect.left + Math.min(rect.width * 0.25, 200);
+			startY = rect.top + rect.height / 2;
+		} else if ('clientX' in event) {
+			const me = event as MouseEvent;
+			startX = me.clientX;
+			startY = me.clientY;
+		}
+
+		if (willSelect) {
+			if (!selectedPrIds.includes(pr.id)) {
+				selectedPrIds = [...selectedPrIds, pr.id];
+			}
 		} else {
-			selectedPrIds = [...selectedPrIds, id];
+			selectedPrIds = selectedPrIds.filter(id => id !== pr.id);
+		}
+
+		spawnFlyingPill(pr, willSelect, startX, startY);
+	}
+
+	function handleRowClick(pr: any, event: MouseEvent) {
+		if (pr.status === 'PROCESSED') return;
+		const target = event.target as HTMLElement | null;
+		if (target?.closest('button, a, input[type="checkbox"]')) {
+			return;
+		}
+		const isCurrentlySelected = selectedPrIds.includes(pr.id);
+		toggleSelectWithAnimation(pr, !isCurrentlySelected, event);
+	}
+
+	function toggleSelectAll() {
+		if (isAllSelected) {
+			selectedPrIds = [];
+			triggerBump();
+		} else {
+			selectedPrIds = openRequests.map((r: any) => r.id);
+			triggerBump();
 		}
 	}
 </script>
@@ -160,7 +273,10 @@
 							{@const stBadge = getPRStatusBadge(pr.status)}
 							{@const isSelected = selectedPrIds.includes(pr.id)}
 
-							<tr class="hover:bg-surface-container-high/40 transition-colors {isSelected ? 'bg-amber-500/10 dark:bg-amber-500/15' : ''}">
+							<tr
+								onclick={(e) => handleRowClick(pr, e)}
+								class="transition-colors {pr.status === 'PROCESSED' ? 'cursor-default opacity-80' : 'cursor-pointer hover:bg-surface-container-high/40 select-none'} {isSelected ? 'bg-amber-500/10 dark:bg-amber-500/15' : ''}"
+							>
 								<td class="py-3.5 pl-4 pr-2 text-center">
 									{#if pr.status === 'PROCESSED'}
 										<input
@@ -173,7 +289,11 @@
 										<input
 											type="checkbox"
 											checked={isSelected}
-											onchange={() => toggleSelect(pr.id)}
+											onchange={(e) => {
+												e.stopPropagation();
+												toggleSelectWithAnimation(pr, !isSelected, e);
+											}}
+											onclick={(e) => e.stopPropagation()}
 											class="rounded border-slate-300 dark:border-slate-700 text-amber-600 focus:ring-amber-500 w-4 h-4 cursor-pointer"
 										/>
 									{/if}
@@ -232,6 +352,7 @@
 										{:else}
 											<a
 												href="/pms/transactions/po/create?pr_ids={pr.id}"
+												onclick={(e) => e.stopPropagation()}
 												class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-xs font-bold transition-colors shadow-xs cursor-pointer"
 												title="Buat Purchase Order dari PR ini"
 											>
@@ -251,10 +372,16 @@
 
 	<!-- Floating Bottom Action Bar for Multi-PR to PO -->
 	{#if selectedCount > 0}
-		<div class="fixed bottom-6 inset-x-0 mx-auto w-full max-w-xl px-4 z-40 pointer-events-none">
+		<div 
+			transition:fly={{ y: 50, duration: 300, easing: cubicOut }}
+			class="fixed bottom-6 inset-x-0 mx-auto w-full max-w-xl px-4 z-40 pointer-events-none"
+		>
 			<div class="pointer-events-auto bg-slate-900/95 dark:bg-slate-950/95 text-white backdrop-blur-md rounded-2xl p-3.5 shadow-2xl border border-amber-500/40 flex items-center justify-between gap-4">
 				<div class="flex items-center gap-3 pl-2">
-					<div class="w-8 h-8 rounded-xl bg-amber-500 text-slate-950 flex items-center justify-center font-bold text-xs shrink-0 shadow-xs">
+					<div 
+						bind:this={counterBadgeEl}
+						class="w-8 h-8 rounded-xl bg-amber-500 text-slate-950 flex items-center justify-center font-bold text-xs shrink-0 shadow-xs transition-all duration-300 ease-out {isBumping ? 'scale-135 bg-amber-400 ring-4 ring-amber-400/50 shadow-lg shadow-amber-500/50' : 'scale-100'}"
+					>
 						{selectedCount}
 					</div>
 					<div>
