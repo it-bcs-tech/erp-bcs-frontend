@@ -63,16 +63,16 @@ export function getPOStatusBadge(status: string | null | undefined): { label: st
 
 export function getPRStatusBadge(status: string | null | undefined): { label: string; badgeClass: string; icon: string } {
 	switch (status?.toUpperCase()) {
-		case 'APPROVED':
-			return { label: 'Disetujui', badgeClass: 'bg-emerald-100 text-emerald-800 border-emerald-300', icon: 'check_circle' };
 		case 'PROCESSED':
 			return { label: 'Sudah Dibuat PO', badgeClass: 'bg-sky-100 text-sky-800 border-sky-300', icon: 'shopping_bag' };
+		case 'APPROVED':
+			return { label: 'Disetujui', badgeClass: 'bg-emerald-100 text-emerald-800 border-emerald-300', icon: 'check_circle' };
 		case 'REJECTED':
 			return { label: 'Ditolak', badgeClass: 'bg-rose-100 text-rose-800 border-rose-300', icon: 'cancel' };
 		case 'PENDING':
-			return { label: 'Menunggu Approval', badgeClass: 'bg-amber-100 text-amber-800 border-amber-300', icon: 'hourglass_top' };
+		case 'OPEN':
 		case 'DRAFT':
 		default:
-			return { label: 'Draft', badgeClass: 'bg-slate-100 text-slate-700 border-slate-300', icon: 'edit_note' };
+			return { label: 'Open (Menunggu PO)', badgeClass: 'bg-amber-100 text-amber-800 border-amber-300', icon: 'hourglass_top' };
 	}
 }

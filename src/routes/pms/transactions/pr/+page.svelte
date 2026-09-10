@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { enhance } from '$app/forms';
+	import { page } from '$app/stores';
 	import { formatDateId, getCategoryBadge, getPRStatusBadge } from '$lib/utils/pms';
 
 	let { data } = $props();
@@ -9,7 +9,11 @@
 	let filteredRequests = $derived.by(() => {
 		let list = data.requests || [];
 		if (statusFilter) {
-			list = list.filter((r: any) => r.status === statusFilter);
+			if (statusFilter === 'OPEN') {
+				list = list.filter((r: any) => !r.status || r.status === 'PENDING' || r.status === 'OPEN' || r.status === 'DRAFT' || r.status === 'APPROVED');
+			} else {
+				list = list.filter((r: any) => r.status === statusFilter);
+			}
 		}
 		if (searchQuery.trim()) {
 			const q = searchQuery.toLowerCase();
@@ -17,7 +21,9 @@
 				(r.prNumber && r.prNumber.toLowerCase().includes(q)) ||
 				(r.requestedBy && r.requestedBy.toLowerCase().includes(q)) ||
 				(r.projectName && r.projectName.toLowerCase().includes(q)) ||
-				(r.department && r.department.toLowerCase().includes(q))
+				(r.department && r.department.toLowerCase().includes(q)) ||
+				(r.createdByName && r.createdByName.toLowerCase().includes(q)) ||
+				(r.createdByPayroll && r.createdByPayroll.toLowerCase().includes(q))
 			);
 		}
 		return list;
@@ -49,6 +55,15 @@
 		</a>
 	</header>
 
+	{#if $page.url.searchParams.get('error') === 'pr_required'}
+		<div class="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-900 dark:text-amber-200 text-xs flex items-center gap-3">
+			<span class="material-symbols-outlined text-xl text-amber-600 dark:text-amber-400 shrink-0">info</span>
+			<p class="leading-relaxed">
+				<strong>Pemberitahuan:</strong> Pembuatan Purchase Order (PO) wajib dipilih dari daftar Purchase Request (PR). Silakan klik tombol <strong>"Buat PO"</strong> pada salah satu item PR di bawah ini.
+			</p>
+		</div>
+	{/if}
+
 	<!-- Search & Filter Bar -->
 	<div class="p-4 rounded-2xl bg-surface-container-low border border-slate-200/60 dark:border-slate-800/60 shadow-xs flex flex-col sm:flex-row items-center justify-between gap-4">
 		<div class="relative flex-1 w-full max-w-md">
@@ -67,10 +82,8 @@
 				class="bg-surface border border-slate-200 dark:border-slate-700 text-on-surface rounded-xl px-3 py-2 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-amber-500/40"
 			>
 				<option value="">Semua Status PR</option>
-				<option value="PENDING">Menunggu Approval</option>
-				<option value="APPROVED">Disetujui (Approved)</option>
+				<option value="OPEN">Open (Menunggu PO)</option>
 				<option value="PROCESSED">Sudah Ada PO</option>
-				<option value="REJECTED">Ditolak</option>
 			</select>
 
 			<span class="text-xs font-medium text-on-surface-variant whitespace-nowrap">
@@ -139,7 +152,12 @@
 									</span>
 								</td>
 								<td class="py-3.5 px-4 text-xs text-on-surface">
-									{#if pr.createdBy}
+									{#if pr.createdByName}
+										<p class="font-bold text-on-surface leading-tight">{pr.createdByName}</p>
+										{#if pr.createdByPayroll}
+											<p class="text-[10px] text-on-surface-variant font-mono mt-0.5">{pr.createdByPayroll}</p>
+										{/if}
+									{:else if pr.createdBy}
 										<span class="font-medium text-slate-700 dark:text-slate-300">{pr.createdBy}</span>
 									{:else}
 										<span class="text-on-surface-variant text-[11px]">-</span>
@@ -147,32 +165,19 @@
 								</td>
 								<td class="py-3.5 px-4 text-right">
 									<div class="flex items-center justify-end gap-1.5">
-										{#if pr.status === 'PENDING' || pr.status === 'DRAFT'}
-											<form method="POST" action="?/approvePR" use:enhance>
-												<input type="hidden" name="id" value={pr.id} />
-												<button
-													type="submit"
-													title="Approve PR"
-													class="p-1.5 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100 rounded-lg transition-colors cursor-pointer"
-												>
-													<span class="material-symbols-outlined text-base">check</span>
-												</button>
-											</form>
-											<form method="POST" action="?/rejectPR" use:enhance>
-												<input type="hidden" name="id" value={pr.id} />
-												<button
-													type="submit"
-													title="Reject PR"
-													class="p-1.5 bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 hover:bg-rose-100 rounded-lg transition-colors cursor-pointer"
-												>
-													<span class="material-symbols-outlined text-base">close</span>
-												</button>
-											</form>
-										{/if}
-										{#if pr.status === 'APPROVED'}
+										{#if pr.status === 'PROCESSED'}
+											<span
+												class="inline-flex items-center gap-1 px-2.5 py-1 bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 rounded-lg text-xs font-semibold cursor-not-allowed"
+												title="PR ini sudah diproses ke Purchase Order"
+											>
+												<span class="material-symbols-outlined text-xs">check_circle</span>
+												<span>Sudah Jadi PO</span>
+											</span>
+										{:else}
 											<a
 												href="/pms/transactions/po/create?pr_id={pr.id}"
-												class="inline-flex items-center gap-1 px-2.5 py-1 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-xs font-bold transition-colors shadow-xs"
+												class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-xs font-bold transition-colors shadow-xs cursor-pointer"
+												title="Buat Purchase Order dari PR ini"
 											>
 												<span class="material-symbols-outlined text-xs">shopping_cart</span>
 												<span>Buat PO</span>

@@ -4,8 +4,38 @@ import { fail, redirect } from '@sveltejs/kit';
 import { formatAuditUser } from '$lib/server/auth';
 
 export const load: PageServerLoad = async ({ url }) => {
+	const prIdParam = url.searchParams.get('pr_id');
+	if (!prIdParam) {
+		throw redirect(302, '/pms/transactions/pr?error=pr_required');
+	}
+
 	try {
-		const prIdParam = url.searchParams.get('pr_id');
+		const [pr] = await sql`
+			SELECT id, pr_number, project_id, site_id, category, notes 
+			FROM procurement.purchase_request 
+			WHERE id = ${prIdParam}
+		`;
+		if (!pr) {
+			throw redirect(302, '/pms/transactions/pr?error=pr_required');
+		}
+
+		const initialPR = pr;
+		const initialItems = await sql`
+			SELECT 
+				prl.id as pr_line_id,
+				prl.item_id,
+				m.material_code,
+				m.name,
+				m.spec,
+				m.brand,
+				m.uom,
+				m.stock,
+				m.standard_price as unit_price,
+				prl.qty_requested as qty_ordered
+			FROM procurement.purchase_request_line prl
+			JOIN master.m_materials m ON m.id = prl.item_id
+			WHERE prl.pr_id = ${pr.id}
+		`;
 
 		const vendors = await sql`
 			SELECT id, kode_kustomer, nama_kustomer, COALESCE(alamat, '') as alamat 
@@ -22,36 +52,6 @@ export const load: PageServerLoad = async ({ url }) => {
 			ORDER BY name
 		`;
 
-		let initialPR: any = null;
-		let initialItems: any[] = [];
-
-		if (prIdParam) {
-			const [pr] = await sql`
-				SELECT id, pr_number, project_id, site_id, category, notes 
-				FROM procurement.purchase_request 
-				WHERE id = ${prIdParam}
-			`;
-			if (pr) {
-				initialPR = pr;
-				initialItems = await sql`
-					SELECT 
-						prl.id as pr_line_id,
-						prl.item_id,
-						m.material_code,
-						m.name,
-						m.spec,
-						m.brand,
-						m.uom,
-						m.stock,
-						m.standard_price as unit_price,
-						prl.qty_requested as qty_ordered
-					FROM procurement.purchase_request_line prl
-					JOIN master.m_materials m ON m.id = prl.item_id
-					WHERE prl.pr_id = ${pr.id}
-				`;
-			}
-		}
-
 		const vendorPrices = await sql`
 			SELECT material_id, vendor_id, price 
 			FROM master.m_material_prices
@@ -67,6 +67,7 @@ export const load: PageServerLoad = async ({ url }) => {
 			vendorPrices
 		};
 	} catch (err: any) {
+		if (err?.status === 302 || err?.status === 303 || err?.location) throw err;
 		console.error('Error loading PO create dependencies:', err);
 		return { vendors: [], projects: [], sites: [], materials: [], initialPR: null, initialItems: [], vendorPrices: [] };
 	}
@@ -77,7 +78,7 @@ export const actions: Actions = {
 		const formData = await request.formData();
 		const date = formData.get('date') as string || new Date().toISOString().split('T')[0];
 		const vendorId = formData.get('vendorId') as string;
-		const createdBy = formatAuditUser(locals.user);
+		const createdBy = locals.user?.payrollId || locals.user?.name || 'SYSTEM';
 		const projectId = formData.get('projectId') ? parseInt(formData.get('projectId') as string) : null;
 		const siteId = formData.get('siteId') ? parseInt(formData.get('siteId') as string) : null;
 		const category = (formData.get('category') as string || 'SUPPORTING').trim();
@@ -92,6 +93,10 @@ export const actions: Actions = {
 		const wrsNotes = (formData.get('wrsNotes') as string || '').trim();
 		const prId = formData.get('prId') ? parseInt(formData.get('prId') as string) : null;
 		const itemsRaw = formData.get('items') as string || '[]';
+
+		if (!prId) {
+			return fail(400, { success: false, message: 'Referensi Purchase Request (PR) wajib ada untuk membuat PO!' });
+		}
 
 		if (!vendorId) {
 			return fail(400, { success: false, message: 'Vendor / Supplier wajib dipilih!' });

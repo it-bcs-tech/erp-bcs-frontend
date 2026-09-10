@@ -211,6 +211,29 @@
 		</div>
 	</header>
 
+	{#if data.initialPR}
+		<div class="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs">
+			<div class="flex items-center gap-3">
+				<div class="w-9 h-9 rounded-xl bg-amber-500/20 text-amber-700 dark:text-amber-300 flex items-center justify-center shrink-0">
+					<span class="material-symbols-outlined text-lg">assignment</span>
+				</div>
+				<div>
+					<p class="font-bold text-on-surface">
+						Referensi Purchase Request: <span class="font-mono text-amber-700 dark:text-amber-300">{data.initialPR.pr_number}</span>
+					</p>
+					<p class="text-[11px] text-on-surface-variant mt-0.5">PO ini dibuat terikat langsung dengan pengajuan PR terkait.</p>
+				</div>
+			</div>
+			<a
+				href="/pms/transactions/pr"
+				class="text-[11px] font-bold text-amber-700 dark:text-amber-300 hover:underline flex items-center gap-1 self-start sm:self-auto shrink-0"
+			>
+				<span>Ganti PR</span>
+				<span class="material-symbols-outlined text-xs">arrow_forward</span>
+			</a>
+		</div>
+	{/if}
+
 	<form method="POST" action="?/create" use:enhance={() => {
 		isSubmitting = true;
 		return async ({ update }) => {

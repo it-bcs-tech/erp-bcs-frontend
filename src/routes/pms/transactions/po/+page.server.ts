@@ -32,14 +32,27 @@ export const load: PageServerLoad = async ({ url }) => {
 				po.notes,
 				po.wrs_notes as "wrsNotes",
 				po.created_by as "createdBy",
+				COALESCE(mk.nama_karyawan, 
+					CASE 
+						WHEN po.created_by LIKE '%(%)%' THEN TRIM(SUBSTRING(po.created_by FROM '^[^(]+'))
+						ELSE po.created_by 
+					END
+				) as "createdByName",
+				COALESCE(mk.payroll_id, 
+					CASE 
+						WHEN po.created_by LIKE '%(%)%' THEN SUBSTRING(po.created_by FROM '\\(([^)]+)\\)')
+						ELSE NULL 
+					END
+				) as "createdByPayroll",
 				COUNT(pol.id) as item_count,
 				COALESCE(SUM(pol.qty_ordered), 0) as total_qty_ordered
 			FROM procurement.purchase_order po
+			LEFT JOIN master.m_karyawan mk ON mk.payroll_id = po.created_by OR mk.payroll_id = SUBSTRING(po.created_by FROM '\\(([^)]+)\\)') OR mk.nama_karyawan = po.created_by
 			LEFT JOIN master.m_customer c ON c.id = po.vendor_id
 			LEFT JOIN master.m_project p ON p.id = po.project_id
 			LEFT JOIN master.m_lokasi l ON l.id = po.site_id
 			LEFT JOIN procurement.purchase_order_line pol ON pol.po_id = po.id
-			GROUP BY po.id, c.nama_kustomer, c.kode_kustomer, p.project_name, l.loc_name, po.created_by
+			GROUP BY po.id, c.nama_kustomer, c.kode_kustomer, p.project_name, l.loc_name, po.created_by, mk.nama_karyawan, mk.payroll_id
 			ORDER BY po.id DESC
 		`;
 
@@ -49,7 +62,9 @@ export const load: PageServerLoad = async ({ url }) => {
 				(o.poNumber && o.poNumber.toLowerCase().includes(search)) ||
 				(o.vendorName && o.vendorName.toLowerCase().includes(search)) ||
 				(o.projectName && o.projectName.toLowerCase().includes(search)) ||
-				(o.refNo && o.refNo.toLowerCase().includes(search))
+				(o.refNo && o.refNo.toLowerCase().includes(search)) ||
+				(o.createdByName && o.createdByName.toLowerCase().includes(search)) ||
+				(o.createdByPayroll && o.createdByPayroll.toLowerCase().includes(search))
 			);
 		}
 		if (statusFilter) {

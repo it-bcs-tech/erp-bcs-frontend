@@ -21,7 +21,9 @@
 				(o.poNumber && o.poNumber.toLowerCase().includes(q)) ||
 				(o.vendorName && o.vendorName.toLowerCase().includes(q)) ||
 				(o.projectName && o.projectName.toLowerCase().includes(q)) ||
-				(o.refNo && o.refNo.toLowerCase().includes(q))
+				(o.refNo && o.refNo.toLowerCase().includes(q)) ||
+				(o.createdByName && o.createdByName.toLowerCase().includes(q)) ||
+				(o.createdByPayroll && o.createdByPayroll.toLowerCase().includes(q))
 			);
 		}
 		return list;
@@ -44,13 +46,6 @@
 				Penerbitan pesanan resmi pembelian kepada vendor & supplier dengan kalkulasi diskon & PPN 11%
 			</p>
 		</div>
-		<a
-			href="/pms/transactions/po/create"
-			class="inline-flex items-center gap-2 bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold px-4 py-2.5 rounded-xl shadow-xs transition-colors"
-		>
-			<span class="material-symbols-outlined text-[18px]">add</span>
-			<span>Buat PO Baru</span>
-		</a>
 	</header>
 
 	<!-- Search & Filter Bar -->
@@ -160,7 +155,12 @@
 									</span>
 								</td>
 								<td class="py-3.5 px-4 text-xs text-on-surface">
-									{#if po.createdBy}
+									{#if po.createdByName}
+										<p class="font-bold text-on-surface leading-tight">{po.createdByName}</p>
+										{#if po.createdByPayroll}
+											<p class="text-[10px] text-on-surface-variant font-mono mt-0.5">{po.createdByPayroll}</p>
+										{/if}
+									{:else if po.createdBy}
 										<span class="font-medium text-slate-700 dark:text-slate-300">{po.createdBy}</span>
 									{:else}
 										<span class="text-on-surface-variant text-[11px]">-</span>
