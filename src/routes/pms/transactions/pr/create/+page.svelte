@@ -131,8 +131,8 @@
 			<span class="material-symbols-outlined text-amber-600 dark:text-amber-400 mt-0.5 text-2xl">info</span>
 			<div class="flex-1 text-xs">
 				<div class="flex items-center gap-2">
-					<span class="font-bold text-sm text-amber-800 dark:text-amber-300">Pengajuan Otomatis dari Delivery Note</span>
-					<span class="font-mono font-bold bg-amber-500/20 text-amber-700 dark:text-amber-300 px-2 py-0.5 rounded text-[11px]">{data.prefill.fromDn}</span>
+					<span class="font-bold text-sm text-amber-800 dark:text-amber-300">Pengajuan Otomatis dari Service Sheet (SS)</span>
+					<span class="font-mono font-bold bg-amber-500/20 text-amber-700 dark:text-amber-300 px-2 py-0.5 rounded text-[11px]">{data.prefill.fromSs || data.prefill.fromDn}</span>
 				</div>
 				<p class="mt-1 text-on-surface-variant leading-relaxed">
 					Formulir ini telah diisi secara otomatis untuk memenuhi kekurangan stok material pada <strong>Work Order {data.prefill.woNo || '-'}</strong> (Unit: {data.prefill.unitId || '-'}). Kuantitas material telah disesuaikan dengan selisih kekurangan stok di gudang. Silakan tinjau dan lengkapi data jika diperlukan.

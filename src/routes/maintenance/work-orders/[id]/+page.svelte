@@ -212,10 +212,10 @@
 				<div class="p-6 border-b border-surface-container">
 					<h2 class="text-lg font-black text-on-surface flex items-center gap-2">
 						<span class="material-symbols-outlined text-primary">build_circle</span>
-						Spareparts / Delivery Note
+						Spareparts / Supply Slip (SS)
 					</h2>
 					{#if dnHeader}
-						<p class="text-xs font-medium text-on-surface-variant mt-2">DN No: {dnHeader.dn_no}</p>
+						<p class="text-xs font-medium text-on-surface-variant mt-2 font-mono">No. SS: {dnHeader.dn_no}</p>
 					{/if}
 				</div>
 
@@ -256,7 +256,7 @@
 						<div class="p-8 text-center">
 							<span class="material-symbols-outlined text-4xl text-on-surface-variant mb-3">inventory_2</span>
 							<p class="text-sm font-bold text-on-surface">No Spareparts Used</p>
-							<p class="text-xs text-on-surface-variant mt-1">There are no material delivery notes associated with this Work Order.</p>
+							<p class="text-xs text-on-surface-variant mt-1">There are no material supply slips associated with this Work Order.</p>
 						</div>
 					{/if}
 				</div>
@@ -478,7 +478,7 @@
 			<div class="p-6 border-b border-surface-container flex justify-between items-center bg-surface-container-low">
 				<h2 class="text-xl font-black text-on-surface flex items-center gap-2">
 					<span class="material-symbols-outlined text-emerald-600">inventory_2</span>
-					Request Spareparts (Delivery Note)
+					Request Spareparts (Supply Slip / SS)
 				</h2>
 				<button onclick={() => showSparepartsModal = false} class="w-8 h-8 rounded-full flex items-center justify-center hover:bg-surface-container transition-colors text-on-surface-variant">
 					<span class="material-symbols-outlined text-[20px]">close</span>
@@ -497,7 +497,7 @@
 							isSubmittingDn = false;
 							if (result.type === 'success') {
 								showSparepartsModal = false;
-								alert('Delivery Note ' + ((result.data as any)?.dnNo || '') + ' berhasil dibuat dan terkirim ke PMS!');
+								alert('Supply Slip ' + ((result.data as any)?.dnNo || (result.data as any)?.ssNo || '') + ' berhasil dibuat dan terkirim ke PMS!');
 							}
 						};
 					}}

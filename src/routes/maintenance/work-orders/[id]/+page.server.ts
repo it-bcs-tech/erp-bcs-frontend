@@ -204,57 +204,56 @@ export const actions = {
 
 			// Begin Transaction
 			return await sql.begin(async (tx) => {
-				// 1. Generate DN Sequence
+				// 1. Generate SS Sequence (Supply Slip / Service Sheet)
 				const now = new Date();
 				const month = String(now.getMonth() + 1).padStart(2, '0');
 				const year = now.getFullYear();
 				
-				const lastDn = await tx`
+				const lastSs = await tx`
 					SELECT dn_no 
 					FROM fleet.maintenance_dn_header 
-					WHERE dn_no LIKE ${'%/DN/WSP/' + month + '/' + year}
+					WHERE dn_no LIKE ${'%/SS/WSP/' + month + '/' + year} OR dn_no LIKE ${'%/DN/WSP/' + month + '/' + year}
 					ORDER BY id DESC LIMIT 1
 				`;
 				
 				let sequence = 1;
-				if (lastDn.length > 0) {
-					const lastSeq = parseInt(lastDn[0].dn_no.split('/')[0], 10);
+				if (lastSs.length > 0) {
+					const lastSeq = parseInt(lastSs[0].dn_no.split('/')[0], 10);
 					if (!isNaN(lastSeq)) sequence = lastSeq + 1;
 				}
 				
-				const dnNo = `${String(sequence).padStart(5, '0')}/DN/WSP/${month}/${year}`;
+				const ssNo = `${String(sequence).padStart(5, '0')}/SS/WSP/${month}/${year}`;
 
-				// 2. Insert DN Header
+				// 2. Insert SS Header (stored in maintenance_dn_header)
 				await tx`
 					INSERT INTO fleet.maintenance_dn_header (
 						dn_no, dn_date, wo_no, target_unit, note, created_at, created_by
 					) VALUES (
-						${dnNo}, CURRENT_DATE, ${woNo}, ${targetUnit}, ${note}, NOW(), ${createdBy}
+						${ssNo}, CURRENT_DATE, ${woNo}, ${targetUnit}, ${note}, NOW(), ${createdBy}
 					)
 				`;
 
-				// 3. Insert DN Details
+				// 3. Insert SS Details
 				for (const part of parts) {
 					const qty = parseFloat(part.qty) || 0;
 					if (qty <= 0) continue;
 
-					// Find price if needed
 					const price = parseFloat(part.price) || 0;
 
 					await tx`
 						INSERT INTO fleet.maintenance_dn_detail (
 							dn_no, material_id, qty_request, price, total, created_at
 						) VALUES (
-							${dnNo}, ${part.code}, ${qty}, ${price}, ${qty * price}, NOW()
+							${ssNo}, ${part.code}, ${qty}, ${price}, ${qty * price}, NOW()
 						)
 					`;
 				}
 
-				return { success: true, dnNo };
+				return { success: true, dnNo: ssNo, ssNo };
 			});
 
 		} catch (err) {
-			console.error("Failed to create DN:", err);
+			console.error("Failed to create SS:", err);
 			return { success: false, message: 'Failed to request materials' };
 		}
 	}

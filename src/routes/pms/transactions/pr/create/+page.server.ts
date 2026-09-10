@@ -14,15 +14,15 @@ export const load: PageServerLoad = async ({ url }) => {
 			ORDER BY name
 		`;
 
-		const fromDn = url.searchParams.get('from_dn')?.trim();
+		const fromSs = (url.searchParams.get('from_ss') || url.searchParams.get('from_dn'))?.trim();
 		let prefill: any = null;
 
-		if (fromDn) {
+		if (fromSs) {
 			const dnRows = await sql`
 				SELECT h.*, w.unit_id, w.wo_no, w.problem, w.keluhan_driver, w.project_code, w.project_name, w.job_location
 				FROM fleet.maintenance_dn_header h
 				LEFT JOIN fleet.work_orders w ON h.wo_no = w.wo_no
-				WHERE h.dn_no = ${fromDn}
+				WHERE h.dn_no = ${fromSs}
 				LIMIT 1
 			`;
 
@@ -36,7 +36,7 @@ export const load: PageServerLoad = async ({ url }) => {
 							WHEN d.material_id ~ '^[0-9]+$' THEN m.id = d.material_id::integer 
 							ELSE m.material_code = d.material_id 
 						END
-					WHERE d.dn_no = ${fromDn}
+					WHERE d.dn_no = ${fromSs}
 				`;
 
 				// Calculate shortage for each item: qty_request - stock
@@ -54,7 +54,7 @@ export const load: PageServerLoad = async ({ url }) => {
 						requested_dn: reqQty,
 						qty: shortage > 0 ? shortage : reqQty,
 						is_shortage: shortage > 0,
-						remarks: `Kekurangan stok DN: ${dn.dn_no} (WO: ${dn.wo_no || '-'}, Unit: ${dn.unit_id || '-'})`
+						remarks: `Kekurangan stok SS: ${dn.dn_no} (WO: ${dn.wo_no || '-'}, Unit: ${dn.unit_id || '-'})`
 					};
 				}).filter((i: any) => i.material_id);
 
@@ -73,13 +73,14 @@ export const load: PageServerLoad = async ({ url }) => {
 				}
 
 				prefill = {
+					fromSs: dn.dn_no,
 					fromDn: dn.dn_no,
 					woNo: dn.wo_no,
 					unitId: dn.unit_id,
 					department: 'Workshop / Maintenance',
 					requestedBy: dn.created_by && dn.created_by !== 'system' ? dn.created_by : 'Mekanik Workshop',
 					projectId: matchedProjectId,
-					notes: `Pengadaan sparepart untuk Work Order ${dn.wo_no || '-'} (Unit: ${dn.unit_id || '-'}) - Ref DN: ${dn.dn_no}`,
+					notes: `Pengadaan sparepart untuk Work Order ${dn.wo_no || '-'} (Unit: ${dn.unit_id || '-'}) - Ref SS: ${dn.dn_no}`,
 					items: finalItems
 				};
 			}
