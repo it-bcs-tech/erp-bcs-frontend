@@ -75,12 +75,13 @@
 						<th class="py-3.5 px-4 text-center">Total Item Diterima</th>
 						<th class="py-3.5 px-4">Diterima Oleh</th>
 						<th class="py-3.5 px-4 text-center">Status</th>
+						<th class="py-3.5 px-4 text-right">Aksi</th>
 					</tr>
 				</thead>
 				<tbody class="divide-y divide-slate-200/60 dark:divide-slate-800/60 font-medium text-xs">
 					{#if filteredReceipts.length === 0}
 						<tr>
-							<td colspan="9" class="py-12 text-center text-on-surface-variant">
+							<td colspan="10" class="py-12 text-center text-on-surface-variant">
 								<span class="material-symbols-outlined text-4xl text-slate-300 dark:text-slate-600 mb-2">receipt_long</span>
 								<p class="text-xs font-semibold">Tidak ada data penerimaan gudang (WRS).</p>
 							</td>
@@ -89,14 +90,22 @@
 						{#each filteredReceipts as wrs}
 							<tr class="hover:bg-surface-container-high/40 transition-colors">
 								<td class="py-3.5 px-4">
-									<span class="font-mono font-bold text-emerald-700 dark:text-emerald-300 text-xs bg-emerald-50 dark:bg-emerald-950/40 px-2 py-0.5 rounded border border-emerald-200">
-										{wrs.grNumber}
-									</span>
+									<a
+										href="/pms/transactions/wrs/{wrs.id}"
+										class="font-mono font-bold text-emerald-700 dark:text-emerald-300 text-xs bg-emerald-50 dark:bg-emerald-950/40 px-2 py-0.5 rounded border border-emerald-200 hover:underline inline-flex items-center gap-1 group"
+									>
+										<span>{wrs.grNumber}</span>
+										<span class="material-symbols-outlined text-xs opacity-0 group-hover:opacity-100 transition-opacity">open_in_new</span>
+									</a>
 								</td>
 								<td class="py-3.5 px-4">
-									<a href="/pms/transactions/po" class="font-mono font-bold text-amber-700 dark:text-amber-300 hover:underline">
-										{wrs.poNumber}
-									</a>
+									{#if wrs.po_id}
+										<a href="/pms/transactions/po/{wrs.po_id}" class="font-mono font-bold text-amber-700 dark:text-amber-300 hover:underline">
+											{wrs.poNumber}
+										</a>
+									{:else}
+										<span class="font-mono font-bold text-amber-700 dark:text-amber-300">{wrs.poNumber || '-'}</span>
+									{/if}
 								</td>
 								<td class="py-3.5 px-4 font-mono text-on-surface">{formatDateId(wrs.date)}</td>
 								<td class="py-3.5 px-4 font-bold text-on-surface">{wrs.supplierName || '-'}</td>
@@ -117,6 +126,18 @@
 										<span class="material-symbols-outlined text-xs">verified</span>
 										<span>Diterima</span>
 									</span>
+								</td>
+								<td class="py-3.5 px-4 text-right">
+									<div class="flex items-center justify-end gap-1.5">
+										<a
+											href="/pms/transactions/wrs/{wrs.id}"
+											class="inline-flex items-center gap-1 px-2.5 py-1 bg-surface border border-slate-200 dark:border-slate-700 hover:bg-surface-container-high text-on-surface-variant hover:text-on-surface rounded-lg text-xs font-bold transition-colors shadow-xs"
+											title="Lihat Detail WRS"
+										>
+											<span class="material-symbols-outlined text-sm">visibility</span>
+											<span>Detail</span>
+										</a>
+									</div>
 								</td>
 							</tr>
 						{/each}

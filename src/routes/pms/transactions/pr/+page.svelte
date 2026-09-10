@@ -299,9 +299,14 @@
 									{/if}
 								</td>
 								<td class="py-3.5 px-3">
-									<span class="font-mono font-bold text-amber-700 dark:text-amber-300 text-xs">
-										{pr.prNumber}
-									</span>
+									<a
+										href="/pms/transactions/pr/{pr.id}"
+										onclick={(e) => e.stopPropagation()}
+										class="font-mono font-bold text-amber-700 dark:text-amber-300 text-xs hover:underline inline-flex items-center gap-1 group"
+									>
+										<span>{pr.prNumber}</span>
+										<span class="material-symbols-outlined text-xs opacity-0 group-hover:opacity-100 transition-opacity">open_in_new</span>
+									</a>
 									<p class="text-[10px] text-on-surface-variant mt-0.5">{formatDateId(pr.date)}</p>
 								</td>
 								<td class="py-3.5 px-4">
@@ -341,19 +346,28 @@
 								</td>
 								<td class="py-3.5 px-4 text-right">
 									<div class="flex items-center justify-end gap-1.5">
+										<a
+											href="/pms/transactions/pr/{pr.id}"
+											onclick={(e) => e.stopPropagation()}
+											class="inline-flex items-center gap-1 px-2.5 py-1.5 bg-surface border border-slate-200 dark:border-slate-700 hover:bg-surface-container-high text-on-surface-variant hover:text-on-surface rounded-lg text-xs font-bold transition-colors shadow-xs cursor-pointer"
+											title="Lihat Detail PR"
+										>
+											<span class="material-symbols-outlined text-sm">visibility</span>
+											<span>Detail</span>
+										</a>
 										{#if pr.status === 'PROCESSED'}
 											<span
 												class="inline-flex items-center gap-1 px-2.5 py-1 bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 rounded-lg text-xs font-semibold cursor-not-allowed"
 												title="PR ini sudah diproses ke Purchase Order"
 											>
 												<span class="material-symbols-outlined text-xs">check_circle</span>
-												<span>Sudah Jadi PO</span>
+												<span>Sudah PO</span>
 											</span>
 										{:else}
 											<a
 												href="/pms/transactions/po/create?pr_ids={pr.id}"
 												onclick={(e) => e.stopPropagation()}
-												class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-xs font-bold transition-colors shadow-xs cursor-pointer"
+												class="inline-flex items-center gap-1 px-2.5 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-xs font-bold transition-colors shadow-xs cursor-pointer"
 												title="Buat Purchase Order dari PR ini"
 											>
 												<span class="material-symbols-outlined text-xs">shopping_cart</span>

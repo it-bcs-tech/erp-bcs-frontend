@@ -122,9 +122,13 @@
 
 							<tr class="hover:bg-surface-container-high/40 transition-colors">
 								<td class="py-3.5 px-4">
-									<span class="font-mono font-bold text-amber-700 dark:text-amber-300 text-xs">
-										{po.poNumber}
-									</span>
+									<a
+										href="/pms/transactions/po/{po.id}"
+										class="font-mono font-bold text-amber-700 dark:text-amber-300 text-xs hover:underline inline-flex items-center gap-1 group"
+									>
+										<span>{po.poNumber}</span>
+										<span class="material-symbols-outlined text-xs opacity-0 group-hover:opacity-100 transition-opacity">open_in_new</span>
+									</a>
 									<p class="text-[10px] text-on-surface-variant mt-0.5">{formatDateId(po.date)}</p>
 								</td>
 								<td class="py-3.5 px-4">
@@ -168,13 +172,21 @@
 								</td>
 								<td class="py-3.5 px-4 text-right">
 									<div class="flex items-center justify-end gap-1.5">
+										<a
+											href="/pms/transactions/po/{po.id}"
+											class="inline-flex items-center gap-1 px-2.5 py-1 bg-surface border border-slate-200 dark:border-slate-700 hover:bg-surface-container-high text-on-surface-variant hover:text-on-surface rounded-lg text-xs font-bold transition-colors shadow-xs"
+											title="Lihat Detail PO"
+										>
+											<span class="material-symbols-outlined text-sm">visibility</span>
+											<span>Detail</span>
+										</a>
 										{#if po.status === 'DRAFT'}
 											<form method="POST" action="?/confirmPO" use:enhance>
 												<input type="hidden" name="id" value={po.id} />
 												<button
 													type="submit"
 													title="Confirm PO"
-													class="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold transition-colors shadow-xs flex items-center gap-1"
+													class="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold transition-colors shadow-xs flex items-center gap-1 cursor-pointer"
 												>
 													<span class="material-symbols-outlined text-xs">check</span>
 													<span>Confirm</span>
