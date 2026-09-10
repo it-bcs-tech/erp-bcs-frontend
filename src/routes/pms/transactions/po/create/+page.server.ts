@@ -62,10 +62,32 @@ export const load: PageServerLoad = async ({ url }) => {
 		const projects = await sql`SELECT id, project_code, project_name FROM master.m_project WHERE is_active = true ORDER BY project_name`;
 		const sites = await sql`SELECT id, loc_code, loc_name FROM master.m_lokasi ORDER BY loc_code`;
 		const materials = await sql`
-			SELECT id, material_code, name, spec, brand, part_no, uom, standard_price, stock 
-			FROM master.m_materials 
-			WHERE is_active = true 
-			ORDER BY name
+			SELECT DISTINCT 
+				m.id, 
+				m.material_code, 
+				m.name, 
+				m.spec, 
+				m.brand, 
+				m.part_no, 
+				m.uom, 
+				m.standard_price, 
+				m.stock,
+				pr.pr_number as ref_pr_number,
+				prl.id as ref_pr_line_id,
+				pr.id as ref_pr_id,
+				prl.qty_requested as ref_qty_requested
+			FROM master.m_materials m
+			JOIN procurement.purchase_request_line prl ON prl.item_id = m.id
+			JOIN procurement.purchase_request pr ON pr.id = prl.pr_id
+			WHERE m.is_active = true 
+			  AND (
+				pr.status = 'OPEN' 
+				OR pr.status = 'PENDING' 
+				OR pr.status = 'DRAFT' 
+				OR pr.status = 'APPROVED'
+				OR pr.id IN ${sql(parsedIds)}
+			  )
+			ORDER BY m.name
 		`;
 
 		const vendorPrices = await sql`

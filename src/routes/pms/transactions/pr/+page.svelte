@@ -1,12 +1,11 @@
 <script lang="ts">
 	import { page } from '$app/stores';
-	import { formatDateId, getCategoryBadge, getPRStatusBadge } from '$lib/utils/pms';
+	import { formatDateId, getCategoryBadge } from '$lib/utils/pms';
 	import { fly } from 'svelte/transition';
 	import { cubicOut } from 'svelte/easing';
 
 	let { data } = $props();
 	let searchQuery = $state('');
-	let statusFilter = $state('');
 	let selectedPrIds = $state<number[]>([]);
 
 	let counterBadgeEl = $state<HTMLElement | null>(null);
@@ -15,13 +14,6 @@
 
 	let filteredRequests = $derived.by(() => {
 		let list = data.requests || [];
-		if (statusFilter) {
-			if (statusFilter === 'OPEN') {
-				list = list.filter((r: any) => !r.status || r.status === 'PENDING' || r.status === 'OPEN' || r.status === 'DRAFT' || r.status === 'APPROVED');
-			} else {
-				list = list.filter((r: any) => r.status === statusFilter);
-			}
-		}
 		if (searchQuery.trim()) {
 			const q = searchQuery.toLowerCase();
 			list = list.filter((r: any) =>
@@ -217,20 +209,9 @@
 			/>
 		</div>
 
-		<div class="flex items-center gap-3 w-full sm:w-auto justify-between sm:justify-end">
-			<select
-				bind:value={statusFilter}
-				class="bg-surface border border-slate-200 dark:border-slate-700 text-on-surface rounded-xl px-3 py-2 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-amber-500/40"
-			>
-				<option value="">Semua Status PR</option>
-				<option value="OPEN">Open (Menunggu PO)</option>
-				<option value="PROCESSED">Sudah Ada PO</option>
-			</select>
-
-			<span class="text-xs font-medium text-on-surface-variant whitespace-nowrap">
-				Total: <strong class="text-on-surface">{filteredRequests.length}</strong> PR
-			</span>
-		</div>
+		<span class="text-xs font-medium text-on-surface-variant whitespace-nowrap">
+			Total: <strong class="text-on-surface">{filteredRequests.length}</strong> PR
+		</span>
 	</div>
 
 	<!-- Data Table -->
@@ -254,7 +235,6 @@
 						<th class="py-3.5 px-4">Kategori</th>
 						<th class="py-3.5 px-4">Pemohon / Dept</th>
 						<th class="py-3.5 px-4 text-center">Jumlah Item</th>
-						<th class="py-3.5 px-4 text-center">Status</th>
 						<th class="py-3.5 px-4">Dibuat Oleh</th>
 						<th class="py-3.5 px-4 text-right">Aksi</th>
 					</tr>
@@ -262,7 +242,7 @@
 				<tbody class="divide-y divide-slate-200/60 dark:divide-slate-800/60 font-medium text-xs">
 					{#if filteredRequests.length === 0}
 						<tr>
-							<td colspan="9" class="py-12 text-center text-on-surface-variant">
+							<td colspan="8" class="py-12 text-center text-on-surface-variant">
 								<span class="material-symbols-outlined text-4xl text-slate-300 dark:text-slate-600 mb-2">assignment</span>
 								<p class="text-xs font-semibold">Tidak ada data Purchase Request.</p>
 							</td>
@@ -270,7 +250,6 @@
 					{:else}
 						{#each filteredRequests as pr}
 							{@const catBadge = getCategoryBadge(pr.category)}
-							{@const stBadge = getPRStatusBadge(pr.status)}
 							{@const isSelected = selectedPrIds.includes(pr.id)}
 
 							<tr
@@ -325,12 +304,6 @@
 								</td>
 								<td class="py-3.5 px-4 text-center font-mono font-bold text-on-surface">
 									{pr.item_count} item
-								</td>
-								<td class="py-3.5 px-4 text-center">
-									<span class="inline-flex items-center gap-1.5 text-[11px] font-bold px-2.5 py-0.5 rounded-full border {stBadge.badgeClass}">
-										<span class="material-symbols-outlined text-xs">{stBadge.icon}</span>
-										<span>{stBadge.label}</span>
-									</span>
 								</td>
 								<td class="py-3.5 px-4 text-xs text-on-surface">
 									{#if pr.createdByName}

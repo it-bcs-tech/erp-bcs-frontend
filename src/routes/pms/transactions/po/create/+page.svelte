@@ -94,10 +94,10 @@
 
 	let materialOpts = $derived(
 		data.materials.map((m: any) => ({
-			value: m.id,
+			value: m.ref_pr_line_id ? `${m.id}-${m.ref_pr_line_id}` : `${m.id}`,
 			label: `${m.name} (${m.uom})`,
-			sublabel: m.spec && m.spec !== '-' ? m.spec : undefined,
-			searchTerms: `${m.spec || ''} ${m.material_code || ''} ${m.brand || ''} ${m.part_no || ''}`
+			sublabel: m.ref_pr_number ? `[PR: ${m.ref_pr_number}] ${m.spec && m.spec !== '-' ? m.spec : ''}` : (m.spec || undefined),
+			searchTerms: `${m.ref_pr_number || ''} ${m.spec || ''} ${m.material_code || ''} ${m.brand || ''} ${m.part_no || ''}`
 		}))
 	);
 
@@ -160,10 +160,16 @@
 
 	function addItem() {
 		if (!selectedMaterialId) return;
-		const mat = data.materials.find((m: any) => m.id === parseInt(selectedMaterialId));
+		const mat = data.materials.find((m: any) => 
+			(m.ref_pr_line_id && `${m.id}-${m.ref_pr_line_id}` === selectedMaterialId) || 
+			m.id.toString() === selectedMaterialId
+		);
 		if (!mat) return;
 
-		const exists = items.find(i => i.material_id === mat.id);
+		const exists = items.find(i => 
+			(mat.ref_pr_line_id && i.pr_line_id === mat.ref_pr_line_id) || 
+			(!mat.ref_pr_line_id && i.material_id === mat.id)
+		);
 		if (exists) {
 			exists.qty += 1;
 			selectedMaterialId = '';
@@ -179,8 +185,11 @@
 			name: mat.name,
 			spec: mat.spec || '-',
 			uom: mat.uom || 'Pcs',
-			qty: 1,
-			unit_price: initialPrice
+			qty: parseFloat(mat.ref_qty_requested) || 1,
+			unit_price: initialPrice,
+			pr_line_id: mat.ref_pr_line_id,
+			pr_id: mat.ref_pr_id,
+			pr_number: mat.ref_pr_number
 		});
 
 		selectedMaterialId = '';
@@ -425,7 +434,7 @@
 						<SearchableSelect
 							options={materialOpts}
 							bind:value={selectedMaterialId}
-							placeholder="-- Cari & Pilih Material --"
+							placeholder="-- Cari & Pilih Material (Dari PR Open) --"
 							btnClass="bg-surface border border-slate-200 dark:border-slate-700 text-xs font-normal"
 						/>
 						<button
