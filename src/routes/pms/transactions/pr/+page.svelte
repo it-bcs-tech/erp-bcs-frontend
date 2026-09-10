@@ -5,6 +5,7 @@
 	let { data } = $props();
 	let searchQuery = $state('');
 	let statusFilter = $state('');
+	let selectedPrIds = $state<number[]>([]);
 
 	let filteredRequests = $derived.by(() => {
 		let list = data.requests || [];
@@ -28,6 +29,33 @@
 		}
 		return list;
 	});
+
+	let openRequests = $derived(filteredRequests.filter((r: any) => r.status !== 'PROCESSED'));
+	let isAllSelected = $derived(
+		openRequests.length > 0 && openRequests.every((r: any) => selectedPrIds.includes(r.id))
+	);
+	let selectedCount = $derived(selectedPrIds.length);
+	let selectedItemsCount = $derived(
+		(data.requests || [])
+			.filter((r: any) => selectedPrIds.includes(r.id))
+			.reduce((sum: number, r: any) => sum + (parseInt(r.item_count) || 0), 0)
+	);
+
+	function toggleSelectAll() {
+		if (isAllSelected) {
+			selectedPrIds = [];
+		} else {
+			selectedPrIds = openRequests.map((r: any) => r.id);
+		}
+	}
+
+	function toggleSelect(id: number) {
+		if (selectedPrIds.includes(id)) {
+			selectedPrIds = selectedPrIds.filter(i => i !== id);
+		} else {
+			selectedPrIds = [...selectedPrIds, id];
+		}
+	}
 </script>
 
 <svelte:head>
@@ -95,10 +123,20 @@
 	<!-- Data Table -->
 	<div class="rounded-2xl bg-surface-container-low border border-slate-200/60 dark:border-slate-800/60 overflow-hidden shadow-xs">
 		<div class="overflow-x-auto">
-			<table class="w-full text-left text-sm min-w-[900px]">
+			<table class="w-full text-left text-sm min-w-[950px]">
 				<thead class="bg-slate-100/70 dark:bg-slate-800/50 text-xs font-bold text-on-surface-variant uppercase tracking-wider border-b border-slate-200/60 dark:border-slate-800/60">
 					<tr>
-						<th class="py-3.5 px-4">No. PR & Tanggal</th>
+						<th class="py-3.5 pl-4 pr-2 w-10 text-center">
+							<input
+								type="checkbox"
+								checked={isAllSelected}
+								onchange={toggleSelectAll}
+								disabled={openRequests.length === 0}
+								class="rounded border-slate-300 dark:border-slate-700 text-amber-600 focus:ring-amber-500 w-4 h-4 cursor-pointer disabled:opacity-30"
+								title="Pilih semua PR Open"
+							/>
+						</th>
+						<th class="py-3.5 px-3">No. PR & Tanggal</th>
 						<th class="py-3.5 px-4">Project & Site</th>
 						<th class="py-3.5 px-4">Kategori</th>
 						<th class="py-3.5 px-4">Pemohon / Dept</th>
@@ -111,7 +149,7 @@
 				<tbody class="divide-y divide-slate-200/60 dark:divide-slate-800/60 font-medium text-xs">
 					{#if filteredRequests.length === 0}
 						<tr>
-							<td colspan="8" class="py-12 text-center text-on-surface-variant">
+							<td colspan="9" class="py-12 text-center text-on-surface-variant">
 								<span class="material-symbols-outlined text-4xl text-slate-300 dark:text-slate-600 mb-2">assignment</span>
 								<p class="text-xs font-semibold">Tidak ada data Purchase Request.</p>
 							</td>
@@ -120,9 +158,27 @@
 						{#each filteredRequests as pr}
 							{@const catBadge = getCategoryBadge(pr.category)}
 							{@const stBadge = getPRStatusBadge(pr.status)}
+							{@const isSelected = selectedPrIds.includes(pr.id)}
 
-							<tr class="hover:bg-surface-container-high/40 transition-colors">
-								<td class="py-3.5 px-4">
+							<tr class="hover:bg-surface-container-high/40 transition-colors {isSelected ? 'bg-amber-500/10 dark:bg-amber-500/15' : ''}">
+								<td class="py-3.5 pl-4 pr-2 text-center">
+									{#if pr.status === 'PROCESSED'}
+										<input
+											type="checkbox"
+											disabled
+											class="rounded border-slate-300 dark:border-slate-700 opacity-20 w-4 h-4 cursor-not-allowed"
+											title="PR ini sudah selesai diproses ke PO"
+										/>
+									{:else}
+										<input
+											type="checkbox"
+											checked={isSelected}
+											onchange={() => toggleSelect(pr.id)}
+											class="rounded border-slate-300 dark:border-slate-700 text-amber-600 focus:ring-amber-500 w-4 h-4 cursor-pointer"
+										/>
+									{/if}
+								</td>
+								<td class="py-3.5 px-3">
 									<span class="font-mono font-bold text-amber-700 dark:text-amber-300 text-xs">
 										{pr.prNumber}
 									</span>
@@ -175,7 +231,7 @@
 											</span>
 										{:else}
 											<a
-												href="/pms/transactions/po/create?pr_id={pr.id}"
+												href="/pms/transactions/po/create?pr_ids={pr.id}"
 												class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-xs font-bold transition-colors shadow-xs cursor-pointer"
 												title="Buat Purchase Order dari PR ini"
 											>
@@ -192,4 +248,43 @@
 			</table>
 		</div>
 	</div>
+
+	<!-- Floating Bottom Action Bar for Multi-PR to PO -->
+	{#if selectedCount > 0}
+		<div class="fixed bottom-6 inset-x-0 mx-auto w-full max-w-xl px-4 z-40 pointer-events-none">
+			<div class="pointer-events-auto bg-slate-900/95 dark:bg-slate-950/95 text-white backdrop-blur-md rounded-2xl p-3.5 shadow-2xl border border-amber-500/40 flex items-center justify-between gap-4">
+				<div class="flex items-center gap-3 pl-2">
+					<div class="w-8 h-8 rounded-xl bg-amber-500 text-slate-950 flex items-center justify-center font-bold text-xs shrink-0 shadow-xs">
+						{selectedCount}
+					</div>
+					<div>
+						<p class="text-xs font-bold leading-tight text-slate-100">
+							{selectedCount} PR Terpilih
+						</p>
+						<p class="text-[11px] text-slate-400 mt-0.5">
+							Total {selectedItemsCount} item material siap digabungkan
+						</p>
+					</div>
+				</div>
+
+				<div class="flex items-center gap-2 shrink-0">
+					<button
+						type="button"
+						onclick={() => selectedPrIds = []}
+						class="px-3 py-2 rounded-xl text-xs font-semibold text-slate-300 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer"
+					>
+						Batal
+					</button>
+
+					<a
+						href="/pms/transactions/po/create?pr_ids={selectedPrIds.join(',')}"
+						class="inline-flex items-center gap-2 px-4 py-2 bg-amber-500 hover:bg-amber-400 text-slate-950 rounded-xl text-xs font-bold shadow-md transition-all cursor-pointer"
+					>
+						<span class="material-symbols-outlined text-[18px]">shopping_cart</span>
+						<span>Buat PO Gabungan</span>
+					</a>
+				</div>
+			</div>
+		</div>
+	{/if}
 </div>

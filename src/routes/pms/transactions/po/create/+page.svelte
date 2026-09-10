@@ -13,13 +13,19 @@
 	let category = $state(data.initialPR?.category || 'SUPPORTING');
 	let shipmentDate = $state('');
 	let shipmentLocation = $state('');
-	let refNo = $state(data.initialPR?.pr_number ? `PR REF: ${data.initialPR.pr_number}` : '');
+	const prNumbers = data.initialPRs?.length
+		? data.initialPRs.map((p: any) => p.pr_number).join(', ')
+		: (data.initialPR?.pr_number || '');
+	let refNo = $state(prNumbers ? `PR REF: ${prNumbers}` : '');
 	let dueDate = $state('');
 	let paymentTerm = $state('30 Hari');
 	let currency = $state('IDR');
 	let discountPercent = $state(0);
 	let vatPercent = $state(11);
-	let notes = $state(data.initialPR?.notes || '');
+	const combinedNotes = data.initialPRs?.length
+		? data.initialPRs.map((p: any) => p.notes).filter(Boolean).join('\n')
+		: (data.initialPR?.notes || '');
+	let notes = $state(combinedNotes);
 	let wrsNotes = $state('');
 
 	const paymentTermOpts = [
@@ -105,6 +111,8 @@
 		qty: number;
 		unit_price: number;
 		pr_line_id?: number;
+		pr_id?: number;
+		pr_number?: string;
 	}>>([]);
 
 	$effect(() => {
@@ -117,7 +125,9 @@
 				uom: itm.uom || 'Pcs',
 				qty: parseFloat(itm.qty_ordered) || 1,
 				unit_price: parseFloat(itm.unit_price) || 0,
-				pr_line_id: itm.pr_line_id
+				pr_line_id: itm.pr_line_id,
+				pr_id: itm.pr_id,
+				pr_number: itm.pr_number
 			}));
 		}
 		if (!dueDate && date) {
@@ -211,24 +221,34 @@
 		</div>
 	</header>
 
-	{#if data.initialPR}
+	{#if (data.initialPRs && data.initialPRs.length > 0) || data.initialPR}
+		{@const prs = data.initialPRs && data.initialPRs.length > 0 ? data.initialPRs : [data.initialPR]}
 		<div class="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs">
-			<div class="flex items-center gap-3">
+			<div class="flex items-start sm:items-center gap-3">
 				<div class="w-9 h-9 rounded-xl bg-amber-500/20 text-amber-700 dark:text-amber-300 flex items-center justify-center shrink-0">
-					<span class="material-symbols-outlined text-lg">assignment</span>
+					<span class="material-symbols-outlined text-lg">{prs.length > 1 ? 'layers' : 'assignment'}</span>
 				</div>
 				<div>
-					<p class="font-bold text-on-surface">
-						Referensi Purchase Request: <span class="font-mono text-amber-700 dark:text-amber-300">{data.initialPR.pr_number}</span>
+					<div class="flex flex-wrap items-center gap-1.5 font-bold text-on-surface">
+						<span>Referensi Purchase Request ({prs.length}):</span>
+						{#each prs as pr}
+							<span class="inline-flex items-center px-2 py-0.5 rounded-md font-mono text-[11px] font-bold bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-300/60 dark:border-amber-800/60">
+								{pr.pr_number}
+							</span>
+						{/each}
+					</div>
+					<p class="text-[11px] text-on-surface-variant mt-1">
+						{prs.length > 1 
+							? `PO ini merupakan gabungan dari ${prs.length} pengajuan PR. Material dari setiap PR dikumpulkan ke dalam 1 pesanan.`
+							: 'PO ini dibuat terikat langsung dengan pengajuan PR terkait.'}
 					</p>
-					<p class="text-[11px] text-on-surface-variant mt-0.5">PO ini dibuat terikat langsung dengan pengajuan PR terkait.</p>
 				</div>
 			</div>
 			<a
 				href="/pms/transactions/pr"
 				class="text-[11px] font-bold text-amber-700 dark:text-amber-300 hover:underline flex items-center gap-1 self-start sm:self-auto shrink-0"
 			>
-				<span>Ganti PR</span>
+				<span>Ganti / Pilih PR Lain</span>
 				<span class="material-symbols-outlined text-xs">arrow_forward</span>
 			</a>
 		</div>
@@ -241,7 +261,7 @@
 			await update();
 		};
 	}}>
-		<input type="hidden" name="prId" value={data.initialPR?.id || ''} />
+		<input type="hidden" name="prIds" value={(data.initialPRs || (data.initialPR ? [data.initialPR] : [])).map((p: any) => p.id).join(',')} />
 		<input type="hidden" name="items" value={JSON.stringify(items)} />
 
 		<div class="space-y-6">
@@ -445,7 +465,14 @@
 								{#each items as item, idx}
 									<tr>
 										<td class="py-3 px-3 font-bold text-on-surface text-xs">
-											{item.name}
+											<div class="flex items-center gap-1.5 flex-wrap">
+												{#if item.pr_number}
+													<span class="text-[9px] font-mono font-bold px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-300/40 dark:border-amber-800/40 shrink-0">
+														{item.pr_number}
+													</span>
+												{/if}
+												<span>{item.name}</span>
+											</div>
 										</td>
 										<td class="py-3 px-3 text-on-surface-variant">{item.spec}</td>
 										<td class="py-3 px-3 text-center">

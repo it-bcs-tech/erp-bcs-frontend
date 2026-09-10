@@ -4,25 +4,39 @@ import { fail, redirect } from '@sveltejs/kit';
 import { formatAuditUser } from '$lib/server/auth';
 
 export const load: PageServerLoad = async ({ url }) => {
-	const prIdParam = url.searchParams.get('pr_id');
-	if (!prIdParam) {
+	const prIdsParam = url.searchParams.get('pr_ids') || url.searchParams.get('pr_id');
+	if (!prIdsParam) {
+		throw redirect(302, '/pms/transactions/pr?error=pr_required');
+	}
+
+	const parsedIds = prIdsParam
+		.split(',')
+		.map(s => parseInt(s.trim()))
+		.filter(n => !isNaN(n) && n > 0);
+
+	if (parsedIds.length === 0) {
 		throw redirect(302, '/pms/transactions/pr?error=pr_required');
 	}
 
 	try {
-		const [pr] = await sql`
-			SELECT id, pr_number, project_id, site_id, category, notes 
+		const prList = await sql`
+			SELECT id, pr_number, project_id, site_id, category, notes, department, requested_by
 			FROM procurement.purchase_request 
-			WHERE id = ${prIdParam}
+			WHERE id IN ${sql(parsedIds)}
+			ORDER BY id ASC
 		`;
-		if (!pr) {
+		if (prList.length === 0) {
 			throw redirect(302, '/pms/transactions/pr?error=pr_required');
 		}
 
-		const initialPR = pr;
+		const initialPR = prList[0];
+		const initialPRs = prList;
+
 		const initialItems = await sql`
 			SELECT 
 				prl.id as pr_line_id,
+				prl.pr_id,
+				pr.pr_number,
 				prl.item_id,
 				m.material_code,
 				m.name,
@@ -33,8 +47,10 @@ export const load: PageServerLoad = async ({ url }) => {
 				m.standard_price as unit_price,
 				prl.qty_requested as qty_ordered
 			FROM procurement.purchase_request_line prl
+			JOIN procurement.purchase_request pr ON pr.id = prl.pr_id
 			JOIN master.m_materials m ON m.id = prl.item_id
-			WHERE prl.pr_id = ${pr.id}
+			WHERE prl.pr_id IN ${sql(parsedIds)}
+			ORDER BY prl.pr_id ASC, prl.id ASC
 		`;
 
 		const vendors = await sql`
@@ -63,13 +79,14 @@ export const load: PageServerLoad = async ({ url }) => {
 			sites,
 			materials,
 			initialPR,
+			initialPRs,
 			initialItems,
 			vendorPrices
 		};
 	} catch (err: any) {
 		if (err?.status === 302 || err?.status === 303 || err?.location) throw err;
 		console.error('Error loading PO create dependencies:', err);
-		return { vendors: [], projects: [], sites: [], materials: [], initialPR: null, initialItems: [], vendorPrices: [] };
+		return { vendors: [], projects: [], sites: [], materials: [], initialPR: null, initialPRs: [], initialItems: [], vendorPrices: [] };
 	}
 };
 
@@ -91,22 +108,26 @@ export const actions: Actions = {
 		const vatPercent = parseFloat(formData.get('vatPercent') as string || '11');
 		const notes = (formData.get('notes') as string || '').trim();
 		const wrsNotes = (formData.get('wrsNotes') as string || '').trim();
-		const prId = formData.get('prId') ? parseInt(formData.get('prId') as string) : null;
+		const prIdsRaw = (formData.get('prIds') as string || formData.get('prId') as string || '').trim();
+		const submittedPrIds = prIdsRaw
+			.split(',')
+			.map(s => parseInt(s.trim()))
+			.filter(n => !isNaN(n) && n > 0);
 		const itemsRaw = formData.get('items') as string || '[]';
-
-		if (!prId) {
-			return fail(400, { success: false, message: 'Referensi Purchase Request (PR) wajib ada untuk membuat PO!' });
-		}
-
-		if (!vendorId) {
-			return fail(400, { success: false, message: 'Vendor / Supplier wajib dipilih!' });
-		}
 
 		let items: any[] = [];
 		try {
 			items = JSON.parse(itemsRaw);
 		} catch {
 			items = [];
+		}
+
+		if (submittedPrIds.length === 0 && items.every((itm: any) => !itm.pr_id)) {
+			return fail(400, { success: false, message: 'Referensi Purchase Request (PR) wajib ada untuk membuat PO!' });
+		}
+
+		if (!vendorId) {
+			return fail(400, { success: false, message: 'Vendor / Supplier wajib dipilih!' });
 		}
 
 		if (items.length === 0) {
@@ -202,9 +223,22 @@ export const actions: Actions = {
 				`;
 			}
 
-			// Update PR status if source was PR
-			if (prId) {
-				await sql`UPDATE procurement.purchase_request SET status = 'PROCESSED', updated_at = NOW() WHERE id = ${prId}`;
+			// Update PR status for PRs that have materials in the final PO
+			const activePrIds = new Set<number>();
+			for (const itm of items) {
+				if (itm.pr_id) {
+					const pid = parseInt(itm.pr_id);
+					if (!isNaN(pid)) activePrIds.add(pid);
+				}
+			}
+			// If items didn't have pr_id explicitly attached, fallback to submittedPrIds
+			if (activePrIds.size === 0 && submittedPrIds.length > 0) {
+				submittedPrIds.forEach(id => activePrIds.add(id));
+			}
+
+			if (activePrIds.size > 0) {
+				const idsToUpdate = Array.from(activePrIds);
+				await sql`UPDATE procurement.purchase_request SET status = 'PROCESSED', updated_at = NOW() WHERE id IN ${sql(idsToUpdate)}`;
 			}
 		} catch (err: any) {
 			console.error('Error creating PO:', err);
