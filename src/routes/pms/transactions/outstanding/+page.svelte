@@ -202,13 +202,14 @@
 							<th class="py-3.5 px-4">Spesifikasi</th>
 							<th class="py-3.5 px-3 text-right">Qty</th>
 							<th class="py-3.5 px-3 text-left">Satuan</th>
+							<th class="py-3.5 px-4 text-center">Status</th>
 							<th class="py-3.5 px-4">Riwayat Terakhir</th>
 						</tr>
 					</thead>
 					<tbody class="divide-y divide-slate-200/60 dark:divide-slate-800/60 font-medium text-xs">
 						{#if filteredOsOrders.length === 0}
 							<tr>
-								<td colspan="10" class="py-12 text-center text-on-surface-variant">
+								<td colspan="11" class="py-12 text-center text-on-surface-variant">
 									<span class="material-symbols-outlined text-4xl text-emerald-500 mb-2">task_alt</span>
 									<p class="text-xs font-semibold">Tidak ada PR yang tertunda. Semua permintaan telah diproses PO.</p>
 								</td>
@@ -244,6 +245,12 @@
 									</td>
 									<td class="py-3.5 px-3 font-semibold text-on-surface-variant text-xs">
 										{pr.uom}
+									</td>
+									<td class="py-3.5 px-4 text-center whitespace-nowrap">
+										<span class="inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-0.5 rounded-full border bg-amber-100 text-amber-800 border-amber-300">
+											<span class="material-symbols-outlined text-xs">hourglass_top</span>
+											<span>Belum Ada PO</span>
+										</span>
 									</td>
 									<td class="py-3.5 px-4">
 										{#if pr.lastPo}

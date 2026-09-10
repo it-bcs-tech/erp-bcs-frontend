@@ -8,6 +8,7 @@ export const load: PageServerLoad = async ({ url }) => {
 		const history = await sql`
 			SELECT 
 				pol.id,
+				po.id as "poId",
 				po.po_number as "poNumber",
 				to_char(po.date, 'YYYY-MM-DD') as "poDate",
 				p.project_name as "projectName",
@@ -31,6 +32,7 @@ export const load: PageServerLoad = async ({ url }) => {
 		let filtered = history;
 		if (search) {
 			filtered = filtered.filter(h =>
+				(h.poNumber && h.poNumber.toLowerCase().includes(search)) ||
 				(h.materialName && h.materialName.toLowerCase().includes(search)) ||
 				(h.materialCode && h.materialCode.toLowerCase().includes(search)) ||
 				(h.projectName && h.projectName.toLowerCase().includes(search)) ||

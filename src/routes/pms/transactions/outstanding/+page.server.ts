@@ -27,7 +27,8 @@ export const load: PageServerLoad = async ({ url }) => {
 			JOIN master.m_materials m ON m.id = prl.item_id
 			LEFT JOIN master.m_project p ON p.id = pr.project_id
 			LEFT JOIN master.m_lokasi l ON l.id = pr.site_id
-			WHERE pr.status IN ('PENDING', 'APPROVED')
+			WHERE (pr.status IS NULL OR pr.status NOT IN ('PROCESSED', 'REJECTED', 'CANCELLED'))
+			  AND prl.id NOT IN (SELECT pr_line_id FROM procurement.purchase_order_line WHERE pr_line_id IS NOT NULL)
 			ORDER BY pr.date ASC
 		`;
 
