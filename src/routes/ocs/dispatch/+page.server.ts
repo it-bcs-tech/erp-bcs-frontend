@@ -20,6 +20,8 @@ export const load: PageServerLoad = async () => {
 				u.nomor_unit as "assignedUnit",
 				k.nama_karyawan as "assignedDriver",
 				o.status,
+				o.dispatch_mode,
+				o.total_ritase_plan,
 				ori.latitude as origin_lat,
 				dest.latitude as dest_lat,
 				t.last_lat,
@@ -34,7 +36,7 @@ export const load: PageServerLoad = async () => {
 			LEFT JOIN master.m_drivers d ON d.id = o.assigned_driver_id
 			LEFT JOIN master.m_karyawan k ON k.id = d.karyawan_id
 			LEFT JOIN finance.cash_advance ca ON ca.sales_order_id = o.id
-			WHERE o.status NOT IN ('COMPLETED', 'CANCELED')
+			WHERE o.status NOT IN ('COMPLETED', 'CANCELED') AND COALESCE(o.dispatch_mode, 'REGULER') = 'REGULER'
 			ORDER BY o.created_at DESC
 		`;
 
@@ -213,12 +215,125 @@ export const load: PageServerLoad = async () => {
 		// Fetch Products for borongan contracts
 		const products = await sql`SELECT id, nama_produk as name FROM master.m_produk ORDER BY nama_produk ASC`;
 
+		// Fetch Customers list
+		const customers = await sql`SELECT id, nama_kustomer FROM master.m_customer WHERE is_active = true ORDER BY nama_kustomer ASC`;
+
+		// Fetch Ngepok Multi-Rit Batches
+		const ngepokTrips = await sql`
+			SELECT 
+				t.id as trip_id,
+				t.no_surat_tugas,
+				t.group_id,
+				t.ritase_ke,
+				t.total_ritase_plan,
+				t.status,
+				t.tgl_trip,
+				t.customer,
+				t.origin,
+				t.destination,
+				t.cargo,
+				t.no_surat_jalan_customer,
+				t.actual_weight,
+				t.void_reason,
+				t.created_at,
+				u.nomor_unit,
+				k.nama_karyawan as driver_nama,
+				ca.estimated_ujo,
+				ca.payment_status as ujo_payment_status
+			FROM fleet.trip t
+			LEFT JOIN fleet.unit u ON u.id = t.unit_id
+			LEFT JOIN master.m_drivers d ON d.id = t.driver_id
+			LEFT JOIN master.m_karyawan k ON k.id = d.karyawan_id
+			LEFT JOIN finance.cash_advance ca ON ca.trip_id = t.id
+			WHERE t.dispatch_mode = 'NGEPOK'
+			ORDER BY t.created_at DESC, t.ritase_ke ASC
+		`;
+
+		const batchMap = new Map<string, any>();
+		for (const trip of (ngepokTrips as any[])) {
+			const gid = trip.group_id || `BATCH-${trip.trip_id}`;
+			if (!batchMap.has(gid)) {
+				batchMap.set(gid, {
+					groupId: gid,
+					nomorUnit: trip.nomor_unit,
+					driverNama: trip.driver_nama,
+					customer: trip.customer,
+					origin: trip.origin,
+					destination: trip.destination,
+					cargo: trip.cargo,
+					tglTrip: trip.tgl_trip,
+					totalPlan: trip.total_ritase_plan,
+					createdAt: trip.created_at,
+					trips: []
+				});
+			}
+			batchMap.get(gid).trips.push(trip);
+		}
+		const ngepokBatches = Array.from(batchMap.values());
+
+		// Fetch Dedicated On-Site Dispatches
+		const dedicatedTrips = await sql`
+			SELECT 
+				t.id as trip_id,
+				t.spk_induk_nomor,
+				t.status,
+				t.tgl_trip,
+				t.customer,
+				t.origin,
+				t.destination,
+				t.cargo,
+				t.remark as periode_shift,
+				t.actual_weight,
+				t.created_at,
+				u.nomor_unit,
+				k.nama_karyawan as driver_nama
+			FROM fleet.trip t
+			LEFT JOIN fleet.unit u ON u.id = t.unit_id
+			LEFT JOIN master.m_drivers d ON d.id = t.driver_id
+			LEFT JOIN master.m_karyawan k ON k.id = d.karyawan_id
+			WHERE t.dispatch_mode = 'DEDICATED_ONSITE'
+			ORDER BY t.created_at DESC
+		`;
+
+		const logsheets = await sql`
+			SELECT 
+				id,
+				trip_id,
+				jam_muat::text,
+				jam_bongkar::text,
+				no_surat_jalan_customer,
+				tonase,
+				catatan,
+				created_at
+			FROM fleet.onsite_logsheet
+			ORDER BY id ASC
+		`;
+
+		const logsheetMap = new Map<number, any[]>();
+		for (const ls of (logsheets as any[])) {
+			if (!logsheetMap.has(ls.trip_id)) logsheetMap.set(ls.trip_id, []);
+			logsheetMap.get(ls.trip_id)!.push(ls);
+		}
+		const dedicatedList = (dedicatedTrips as any[]).map(dt => {
+			const lsList = logsheetMap.get(dt.trip_id) || [];
+			const totalTonnage = lsList.reduce((acc: number, l: any) => acc + (parseFloat(l.tonase) || 0), 0);
+			return {
+				...dt,
+				logsheets: lsList,
+				totalRitase: lsList.length,
+				totalTonase: totalTonnage
+			};
+		});
+
 		return {
 			orders: ordersResult as any[],
 			availableUnits: unitsResult as any[],
 			contractOrders,
 			pools: poolsResult as any[],
-			products: products as any[]
+			products: products as any[],
+			customers: customers as any[],
+			ngepokBatches,
+			dedicatedDispatches: dedicatedList
 		};
 	} catch (error) {
 		console.error("Error loading dispatch data:", error);
@@ -353,11 +468,13 @@ export const actions: Actions = {
 						INSERT INTO marketing.sales_order (
 							id, contract_id, customer_id, origin_id, destination_id,
 							tipe_unit_id, jenis_muatan, berat_muatan, tgl_muat, tgl_bongkar,
-							tariff, assigned_unit_id, assigned_driver_id, status
+							tariff, assigned_unit_id, assigned_driver_id, status,
+							dispatch_mode
 						) VALUES (
 							${doId}, ${contractId}, ${contract.customer_id}, ${contract.final_origin_id}, ${contract.final_dest_id},
 							${tipeUnitId}, ${finalCargo}, ${realCapacity}, ${loadingDate ? new Date(loadingDate) : sql`NOW()`}, ${unloadingDate ? new Date(unloadingDate) : null},
-							${finalTariff}, ${assignment.unitId}, ${resolvedDriverId}, 'READY_TO_DISPATCH'
+							${finalTariff}, ${assignment.unitId}, ${resolvedDriverId}, 'READY_TO_DISPATCH',
+							'REGULER'
 						)
 					`;
 
@@ -367,6 +484,7 @@ export const actions: Actions = {
 					const tripResult = await sql`
 						INSERT INTO fleet.trip (
 							no_surat_tugas,
+							dispatch_mode,
 							tgl_trip,
 							unit_id,
 							driver_id,
@@ -381,6 +499,7 @@ export const actions: Actions = {
 							pool_tujuan_id
 						) VALUES (
 							${stNumber},
+							'REGULER',
 							${loadingDate ? new Date(loadingDate).toISOString().split('T')[0] : sql`CURRENT_DATE`},
 							${assignment.unitId},
 							${resolvedDriverId},
@@ -402,6 +521,13 @@ export const actions: Actions = {
 					await sql`
 						INSERT INTO fleet.trip_status_log (trip_id, status)
 						VALUES (${tripId}, 'SCHEDULED')
+					`;
+
+					// Update unit status to ON_DUTY_REGULER
+					await sql`
+						UPDATE fleet.unit
+						SET current_state = 'ON_DUTY_REGULER'
+						WHERE id = ${assignment.unitId}
 					`;
 
 					// 3. Insert UJO into finance.cash_advance
@@ -545,6 +671,473 @@ export const actions: Actions = {
 		} catch (e: any) {
 			console.error("Submit closing error:", e);
 			return fail(500, { error: e.message || 'Gagal update status closing.' });
+		}
+	},
+
+	createNgepokDispatch: async ({ request }) => {
+		const data = await request.formData();
+		const contractId = data.get('contractId') as string || null;
+		const customerId = data.get('customerId') as string || null;
+		const unitIdRaw = data.get('unitId') as string;
+		const driverIdRaw = data.get('driverId') as string;
+		const originIdRaw = data.get('originId') as string;
+		const destIdRaw = data.get('destinationId') as string;
+		const cargoName = (data.get('cargoName') as string || 'Muatan Shuttle / Ngepok').trim();
+		const loadingDate = data.get('loadingDate') as string || null;
+		const planRitase = parseInt(data.get('planRitase') as string, 10) || 5;
+		const ujoPerRit = parseFloat(data.get('ujoPerRit') as string) || 0;
+		const ujoMakan = parseFloat(data.get('ujoMakan') as string) || 0;
+		const ujoTol = parseFloat(data.get('ujoTol') as string) || 0;
+
+		const unitId = parseId(unitIdRaw);
+		let driverId = parseId(driverIdRaw);
+		const originId = parseId(originIdRaw);
+		const destId = parseId(destIdRaw);
+
+		if (!unitId || planRitase < 1) {
+			return fail(400, { message: 'Unit dan Plan Ritase wajib diisi.' });
+		}
+
+		try {
+			await sql.begin(async (sql) => {
+				if (!driverId) {
+					const dRes = await sql`
+						SELECT driver_id FROM fleet.unit_driver_assignment 
+						WHERE unit_id = ${unitId} AND is_aktif = true 
+						ORDER BY CASE WHEN posisi = 'SUPIR_UTAMA' THEN 1 ELSE 2 END ASC LIMIT 1
+					`;
+					if (dRes.length > 0) driverId = parseId(dRes[0].driver_id);
+				}
+
+				let custName = 'Customer Umum';
+				let finalCustId = parseId(customerId);
+				let finalOriginId = originId;
+				let finalDestId = destId;
+
+				if (contractId) {
+					const cData = await sql`
+						SELECT c.customer_id, COALESCE(c.origin_id, mru.origin_id) as origin_id, COALESCE(c.destination_id, mru.destination_id) as destination_id, cust.nama_kustomer
+						FROM marketing.contract c
+						LEFT JOIN master.m_customer cust ON cust.id = c.customer_id
+						LEFT JOIN master.m_rute_ujo mru ON mru.id = c.master_rute_id
+						WHERE c.id = ${contractId}
+					`;
+					if (cData.length > 0) {
+						finalCustId = cData[0].customer_id;
+						finalOriginId = finalOriginId || cData[0].origin_id;
+						finalDestId = finalDestId || cData[0].destination_id;
+						custName = cData[0].nama_kustomer || custName;
+					}
+				} else if (finalCustId) {
+					const custRes = await sql`SELECT nama_kustomer FROM master.m_customer WHERE id = ${finalCustId}`;
+					if (custRes.length > 0) custName = custRes[0].nama_kustomer;
+				}
+
+				const originRes = finalOriginId ? await sql`SELECT nama_kustomer FROM master.m_customer WHERE id = ${finalOriginId}` : [];
+				const destRes = finalDestId ? await sql`SELECT nama_kustomer FROM master.m_customer WHERE id = ${finalDestId}` : [];
+				const originName = originRes.length > 0 ? originRes[0].nama_kustomer : 'Pool / Origin';
+				const destName = destRes.length > 0 ? destRes[0].nama_kustomer : 'Lokasi Tujuan';
+
+				const dateSuffix = new Date().toISOString().slice(2, 10).replace(/-/g, '');
+				const randomSuffix = Math.floor(100 + Math.random() * 900);
+				const groupId = `NPK-${dateSuffix}-${randomSuffix}`;
+				const doId = `DO-${groupId}`;
+
+				// 1. Insert into marketing.sales_order
+				await sql`
+					INSERT INTO marketing.sales_order (
+						id, contract_id, customer_id, origin_id, destination_id,
+						jenis_muatan, berat_muatan, tgl_muat, tariff,
+						assigned_unit_id, assigned_driver_id, status,
+						dispatch_mode, total_ritase_plan
+					) VALUES (
+						${doId}, ${contractId ? parseId(contractId) : null}, ${finalCustId}, ${finalOriginId}, ${finalDestId},
+						${cargoName}, 0, ${loadingDate ? new Date(loadingDate) : sql`NOW()`}, 0,
+						${unitId}, ${driverId}, 'READY_TO_DISPATCH',
+						'NGEPOK', ${planRitase}
+					)
+				`;
+
+				// 2. Generate Batch Surat Tugas (ST-NPK-.../1 to N)
+				for (let i = 1; i <= planRitase; i++) {
+					const stNumber = `ST-${groupId}/${i}`;
+					const tripRes = await sql`
+						INSERT INTO fleet.trip (
+							no_surat_tugas, group_id, dispatch_mode, ritase_ke, total_ritase_plan,
+							tgl_trip, unit_id, driver_id, customer,
+							origin_id, destination_id, origin, destination, cargo,
+							status, created_by
+						) VALUES (
+							${stNumber}, ${groupId}, 'NGEPOK', ${i}, ${planRitase},
+							${loadingDate ? new Date(loadingDate).toISOString().split('T')[0] : sql`CURRENT_DATE`},
+							${unitId}, ${driverId}, ${custName},
+							${finalOriginId}, ${finalDestId}, ${originName}, ${destName}, ${cargoName},
+							'SCHEDULED', 'OCS Dispatch'
+						)
+						RETURNING id
+					`;
+					const tripId = tripRes[0].id;
+
+					await sql`
+						INSERT INTO fleet.trip_status_log (trip_id, status)
+						VALUES (${tripId}, 'SCHEDULED')
+					`;
+
+					if (ujoPerRit > 0 || ujoMakan > 0 || ujoTol > 0) {
+						await sql`
+							INSERT INTO finance.cash_advance (
+								trip_id, sales_order_id, unit_id, driver_id,
+								estimated_ujo, ujo_tol, ujo_makan, payment_status
+							) VALUES (
+								${tripId}, ${doId}, ${unitId}, ${driverId},
+								${ujoPerRit}, ${ujoTol}, ${ujoMakan}, 'UNPAID'
+							)
+						`;
+					}
+				}
+
+				// 3. Update unit current_state
+				await sql`
+					UPDATE fleet.unit
+					SET current_state = 'ON_DUTY_NGEPOK'
+					WHERE id = ${unitId}
+				`;
+			});
+
+			return { success: true, message: `Batch Penugasan Ngepok (${planRitase} Rit) berhasil dibuat.` };
+		} catch (e: any) {
+			console.error("Create Ngepok error:", e);
+			return fail(500, { error: e.message || 'Gagal membuat penugasan Ngepok.' });
+		}
+	},
+
+	voidRitNgepok: async ({ request }) => {
+		const data = await request.formData();
+		const tripId = parseId(data.get('tripId'));
+		const voidReason = (data.get('voidReason') as string || 'Dibatalkan oleh Dispatcher').trim();
+
+		if (!tripId) return fail(400, { message: 'Trip ID kosong.' });
+
+		try {
+			await sql.begin(async (sql) => {
+				await sql`
+					UPDATE fleet.trip
+					SET status = 'VOID',
+					    void_reason = ${voidReason}
+					WHERE id = ${tripId}
+				`;
+				await sql`
+					INSERT INTO fleet.trip_status_log (trip_id, status)
+					VALUES (${tripId}, 'VOID')
+				`;
+			});
+			return { success: true, message: 'Ritase berhasil di-Void.' };
+		} catch (e: any) {
+			return fail(500, { error: e.message || 'Gagal membatalkan ritase.' });
+		}
+	},
+
+	addSusulanRitNgepok: async ({ request }) => {
+		const data = await request.formData();
+		const groupId = (data.get('groupId') as string || '').trim();
+		if (!groupId) return fail(400, { message: 'Group ID kosong.' });
+
+		try {
+			await sql.begin(async (sql) => {
+				const existingTrips = await sql`
+					SELECT * FROM fleet.trip WHERE group_id = ${groupId} ORDER BY ritase_ke DESC LIMIT 1
+				`;
+				if (existingTrips.length === 0) throw new Error('Batch Ngepok tidak ditemukan.');
+				const lastTrip = existingTrips[0];
+				const nextRit = (lastTrip.ritase_ke || 0) + 1;
+				const newStNumber = `ST-${groupId}/${nextRit}`;
+
+				// Update all existing trips in batch total_ritase_plan
+				await sql`
+					UPDATE fleet.trip
+					SET total_ritase_plan = ${nextRit}
+					WHERE group_id = ${groupId}
+				`;
+
+				// Insert new trip
+				const tripRes = await sql`
+					INSERT INTO fleet.trip (
+						no_surat_tugas, group_id, dispatch_mode, ritase_ke, total_ritase_plan,
+						tgl_trip, unit_id, driver_id, customer,
+						origin_id, destination_id, origin, destination, cargo,
+						status, created_by
+					) VALUES (
+						${newStNumber}, ${groupId}, 'NGEPOK', ${nextRit}, ${nextRit},
+						${lastTrip.tgl_trip}, ${lastTrip.unit_id}, ${lastTrip.driver_id}, ${lastTrip.customer},
+						${lastTrip.origin_id}, ${lastTrip.destination_id}, ${lastTrip.origin}, ${lastTrip.destination}, ${lastTrip.cargo},
+						'SCHEDULED', 'OCS Dispatch'
+					)
+					RETURNING id
+				`;
+
+				await sql`
+					INSERT INTO fleet.trip_status_log (trip_id, status)
+					VALUES (${tripRes[0].id}, 'SCHEDULED')
+				`;
+			});
+			return { success: true, message: 'Ritase susulan berhasil ditambahkan.' };
+		} catch (e: any) {
+			return fail(500, { error: e.message || 'Gagal menambah ritase susulan.' });
+		}
+	},
+
+	completeRitNgepok: async ({ request }) => {
+		const data = await request.formData();
+		const tripId = parseId(data.get('tripId'));
+		const noSuratJalanCustomer = (data.get('noSuratJalanCustomer') as string || '').trim();
+		const actualWeight = parseFloat(data.get('actualWeight') as string) || 0;
+
+		if (!tripId || !noSuratJalanCustomer) {
+			return fail(400, { message: 'Trip ID dan Nomor Surat Jalan Customer wajib diisi.' });
+		}
+
+		try {
+			await sql.begin(async (sql) => {
+				await sql`
+					UPDATE fleet.trip
+					SET status = 'COMPLETED',
+					    no_surat_jalan_customer = ${noSuratJalanCustomer},
+					    actual_weight = ${actualWeight},
+					    arrive_time = NOW()
+					WHERE id = ${tripId}
+				`;
+				await sql`
+					INSERT INTO fleet.trip_status_log (trip_id, status)
+					VALUES (${tripId}, 'COMPLETED')
+				`;
+			});
+			return { success: true, message: 'Ritase berhasil diselesaikan (Terkoneksi ke Surat Jalan Customer).' };
+		} catch (e: any) {
+			return fail(500, { error: e.message || 'Gagal menyelesaikan ritase.' });
+		}
+	},
+
+	closeNgepokBatch: async ({ request }) => {
+		const data = await request.formData();
+		const groupId = (data.get('groupId') as string || '').trim();
+		if (!groupId) return fail(400, { message: 'Group ID kosong.' });
+
+		try {
+			await sql.begin(async (sql) => {
+				const trips = await sql`SELECT unit_id FROM fleet.trip WHERE group_id = ${groupId} LIMIT 1`;
+				if (trips.length > 0 && trips[0].unit_id) {
+					await sql`
+						UPDATE fleet.unit
+						SET current_state = 'AT_POOL'
+						WHERE id = ${trips[0].unit_id}
+					`;
+				}
+				await sql`
+					UPDATE marketing.sales_order
+					SET status = 'CLOSING'
+					WHERE id = ${'DO-' + groupId} OR id LIKE ${'%' + groupId + '%'}
+				`;
+			});
+			return { success: true, message: 'Batch penugasan Ngepok telah ditutup. Unit kembali ke AT_POOL.' };
+		} catch (e: any) {
+			return fail(500, { error: e.message || 'Gagal menutup batch.' });
+		}
+	},
+
+	createDedicatedDispatch: async ({ request }) => {
+		const data = await request.formData();
+		const customerIdRaw = data.get('customerId') as string;
+		const unitIdRaw = data.get('unitId') as string;
+		const driverIdRaw = data.get('driverId') as string;
+		const spkIndukNomor = (data.get('spkIndukNomor') as string || '').trim();
+		const periodeShift = (data.get('periodeShift') as string || 'Harian').trim();
+		const originIdRaw = data.get('originId') as string;
+		const destIdRaw = data.get('destinationId') as string;
+		const cargoName = (data.get('cargoName') as string || 'Muatan On-Site').trim();
+		const tglTrip = data.get('tglTrip') as string || null;
+
+		const unitId = parseId(unitIdRaw);
+		let driverId = parseId(driverIdRaw);
+		const customerId = parseId(customerIdRaw);
+		const originId = parseId(originIdRaw);
+		const destId = parseId(destIdRaw);
+
+		if (!unitId || !spkIndukNomor) {
+			return fail(400, { message: 'Unit dan Nomor SPK Induk wajib diisi.' });
+		}
+
+		try {
+			await sql.begin(async (sql) => {
+				if (!driverId) {
+					const dRes = await sql`
+						SELECT driver_id FROM fleet.unit_driver_assignment 
+						WHERE unit_id = ${unitId} AND is_aktif = true 
+						ORDER BY CASE WHEN posisi = 'SUPIR_UTAMA' THEN 1 ELSE 2 END ASC LIMIT 1
+					`;
+					if (dRes.length > 0) driverId = parseId(dRes[0].driver_id);
+				}
+
+				let custName = 'Customer Dedicated';
+				if (customerId) {
+					const custRes = await sql`SELECT nama_kustomer FROM master.m_customer WHERE id = ${customerId}`;
+					if (custRes.length > 0) custName = custRes[0].nama_kustomer;
+				}
+				const originRes = originId ? await sql`SELECT nama_kustomer FROM master.m_customer WHERE id = ${originId}` : [];
+				const destRes = destId ? await sql`SELECT nama_kustomer FROM master.m_customer WHERE id = ${destId}` : [];
+				const originName = originRes.length > 0 ? originRes[0].nama_kustomer : 'Area On-Site A';
+				const destName = destRes.length > 0 ? destRes[0].nama_kustomer : 'Area On-Site B';
+
+				const dateSuffix = new Date().toISOString().slice(2, 10).replace(/-/g, '');
+				const randomSuffix = Math.floor(100 + Math.random() * 900);
+				const spkId = `SPK-DED-${dateSuffix}-${randomSuffix}`;
+
+				// 1. Insert into marketing.sales_order
+				await sql`
+					INSERT INTO marketing.sales_order (
+						id, customer_id, origin_id, destination_id,
+						jenis_muatan, berat_muatan, tgl_muat, tariff,
+						assigned_unit_id, assigned_driver_id, status,
+						dispatch_mode
+					) VALUES (
+						${spkId}, ${customerId}, ${originId}, ${destId},
+						${cargoName}, 0, ${tglTrip ? new Date(tglTrip) : sql`NOW()`}, 0,
+						${unitId}, ${driverId}, 'DISPATCHED',
+						'DEDICATED_ONSITE'
+					)
+				`;
+
+				// 2. Insert into fleet.trip (SPK Induk dedicated)
+				await sql`
+					INSERT INTO fleet.trip (
+						no_surat_tugas, spk_induk_nomor, dispatch_mode,
+						tgl_trip, unit_id, driver_id, customer,
+						origin_id, destination_id, origin, destination, cargo,
+						status, remark, created_by
+					) VALUES (
+						${spkId}, ${spkIndukNomor}, 'DEDICATED_ONSITE',
+						${tglTrip ? new Date(tglTrip).toISOString().split('T')[0] : sql`CURRENT_DATE`},
+						${unitId}, ${driverId}, ${custName},
+						${originId}, ${destId}, ${originName}, ${destName}, ${cargoName},
+						'DISPATCHED', ${periodeShift}, 'OCS Dispatch'
+					)
+				`;
+
+				// 3. Update fleet.unit current_state
+				await sql`
+					UPDATE fleet.unit
+					SET current_state = 'DEDICATED_ONSITE'
+					WHERE id = ${unitId}
+				`;
+			});
+
+			return { success: true, message: `Penugasan Dedicated On-Site (${spkIndukNomor}) berhasil dibuat.` };
+		} catch (e: any) {
+			console.error("Create Dedicated error:", e);
+			return fail(500, { error: e.message || 'Gagal membuat penugasan Dedicated On-Site.' });
+		}
+	},
+
+	saveOnsiteLogsheet: async ({ request }) => {
+		const data = await request.formData();
+		const tripId = parseId(data.get('tripId'));
+		const jamMuat = (data.get('jamMuat') as string || null);
+		const jamBongkar = (data.get('jamBongkar') as string || null);
+		const noSuratJalanCustomer = (data.get('noSuratJalanCustomer') as string || '').trim();
+		const tonase = parseFloat(data.get('tonase') as string) || 0;
+		const catatan = (data.get('catatan') as string || '').trim();
+
+		if (!tripId || !noSuratJalanCustomer) {
+			return fail(400, { message: 'Trip ID dan No. Surat Jalan Customer wajib diisi.' });
+		}
+
+		try {
+			await sql.begin(async (sql) => {
+				await sql`
+					INSERT INTO fleet.onsite_logsheet (
+						trip_id, jam_muat, jam_bongkar, no_surat_jalan_customer, tonase, catatan, created_by
+					) VALUES (
+						${tripId}, ${jamMuat}, ${jamBongkar}, ${noSuratJalanCustomer}, ${tonase}, ${catatan}, 'OCS Dispatch'
+					)
+				`;
+
+				// Update accumulated weight in fleet.trip
+				await sql`
+					UPDATE fleet.trip
+					SET actual_weight = (
+						SELECT COALESCE(SUM(tonase), 0) FROM fleet.onsite_logsheet WHERE trip_id = ${tripId}
+					)
+					WHERE id = ${tripId}
+				`;
+			});
+			return { success: true, message: 'Baris logsheet berhasil ditambahkan.' };
+		} catch (e: any) {
+			console.error("Save logsheet error:", e);
+			return fail(500, { error: e.message || 'Gagal menyimpan baris logsheet.' });
+		}
+	},
+
+	deleteOnsiteLogsheet: async ({ request }) => {
+		const data = await request.formData();
+		const logsheetId = parseId(data.get('logsheetId'));
+		const tripId = parseId(data.get('tripId'));
+
+		if (!logsheetId || !tripId) {
+			return fail(400, { message: 'Data logsheet tidak valid.' });
+		}
+
+		try {
+			await sql.begin(async (sql) => {
+				await sql`DELETE FROM fleet.onsite_logsheet WHERE id = ${logsheetId}`;
+				await sql`
+					UPDATE fleet.trip
+					SET actual_weight = (
+						SELECT COALESCE(SUM(tonase), 0) FROM fleet.onsite_logsheet WHERE trip_id = ${tripId}
+					)
+					WHERE id = ${tripId}
+				`;
+			});
+			return { success: true, message: 'Baris logsheet berhasil dihapus.' };
+		} catch (e: any) {
+			return fail(500, { error: e.message || 'Gagal menghapus baris logsheet.' });
+		}
+	},
+
+	closeDedicatedDispatch: async ({ request }) => {
+		const data = await request.formData();
+		const tripId = parseId(data.get('tripId'));
+		if (!tripId) return fail(400, { message: 'Trip ID kosong.' });
+
+		try {
+			await sql.begin(async (sql) => {
+				const trip = await sql`SELECT unit_id, no_surat_tugas FROM fleet.trip WHERE id = ${tripId}`;
+				if (trip.length === 0) throw new Error('Penugasan tidak ditemukan.');
+
+				await sql`
+					UPDATE fleet.trip
+					SET status = 'COMPLETED',
+					    arrive_time = NOW()
+					WHERE id = ${tripId}
+				`;
+
+				if (trip[0].unit_id) {
+					await sql`
+						UPDATE fleet.unit
+						SET current_state = 'AT_POOL'
+						WHERE id = ${trip[0].unit_id}
+					`;
+				}
+
+				if (trip[0].no_surat_tugas) {
+					await sql`
+						UPDATE marketing.sales_order
+						SET status = 'CLOSING'
+						WHERE id = ${trip[0].no_surat_tugas}
+					`;
+				}
+			});
+			return { success: true, message: 'Penugasan Dedicated On-Site telah selesai / closing.' };
+		} catch (e: any) {
+			return fail(500, { error: e.message || 'Gagal menutup penugasan dedicated.' });
 		}
 	}
 };

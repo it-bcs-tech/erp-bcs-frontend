@@ -136,6 +136,216 @@
 		};
 	}));
 	let productOpts = $derived(products.map(p => ({ value: p.name, label: p.name })));
+	let activeMode = $state($page.url.searchParams.get('mode') || 'reguler');
+	let ngepokBatches = $derived(data.ngepokBatches || []);
+	let dedicatedDispatches = $derived(data.dedicatedDispatches || []);
+	let customers = $derived(data.customers || []);
+	let customerOpts = $derived((data.customers || []).map(c => ({ value: String(c.id), label: c.nama_kustomer })));
+	let contractOpts = $derived((data.contractOrders || []).map(co => ({ value: String(co.contract_id), label: `${co.customer} (${co.cargo}) • ${co.origin} -> ${co.destination}` })));
+
+	function setMode(m: string) {
+		activeMode = m;
+		const url = new URL(window.location.href);
+		url.searchParams.set('mode', m);
+		goto(url.toString(), { keepFocus: true, noScroll: true });
+	}
+
+	// Mode 2: Ngepok State
+	let showNgepokModal = $state(false);
+	let ngepokCustomerId = $state('');
+	let ngepokContractId = $state('');
+	let ngepokUnitAssignment = $state('');
+	let ngepokOriginId = $state('');
+	let ngepokDestId = $state('');
+	let ngepokCargo = $state('');
+	let ngepokDate = $state(new Date().toISOString().split('T')[0]);
+	let ngepokPlanRit = $state(5);
+	let ngepokUjoPerRit = $state(250000);
+	let ngepokUjoMakan = $state(50000);
+	let ngepokUjoTol = $state(0);
+	let expandedBatches: Record<string, boolean> = $state({});
+
+	function toggleBatch(gid: string) {
+		expandedBatches[gid] = !expandedBatches[gid];
+	}
+
+	function openNgepokModal() {
+		ngepokCustomerId = '';
+		ngepokContractId = '';
+		ngepokUnitAssignment = '';
+		ngepokOriginId = '';
+		ngepokDestId = '';
+		ngepokCargo = 'Muatan Shuttle / Ngepok';
+		ngepokDate = new Date().toISOString().split('T')[0];
+		ngepokPlanRit = 5;
+		ngepokUjoPerRit = 250000;
+		ngepokUjoMakan = 50000;
+		ngepokUjoTol = 0;
+		showNgepokModal = true;
+	}
+
+	function closeNgepokModal() {
+		showNgepokModal = false;
+	}
+
+	// Void Rit State
+	let showVoidModal = $state(false);
+	let voidTripId = $state<number | null>(null);
+	let voidTripSt = $state('');
+	let voidReason = $state('');
+
+	function openVoidModal(trip: any) {
+		voidTripId = trip.trip_id || trip.id;
+		voidTripSt = trip.no_surat_tugas;
+		voidReason = '';
+		showVoidModal = true;
+	}
+
+	function closeVoidModal() {
+		showVoidModal = false;
+		voidTripId = null;
+	}
+
+	// Complete Rit State
+	let showCompleteModal = $state(false);
+	let completeTripId = $state<number | null>(null);
+	let completeTripSt = $state('');
+	let completeNoSj = $state('');
+	let completeWeight = $state('');
+
+	function openCompleteModal(trip: any) {
+		completeTripId = trip.trip_id || trip.id;
+		completeTripSt = trip.no_surat_tugas;
+		completeNoSj = trip.no_surat_jalan_customer || '';
+		completeWeight = trip.actual_weight ? String(trip.actual_weight) : '';
+		showCompleteModal = true;
+	}
+
+	function closeCompleteModal() {
+		showCompleteModal = false;
+		completeTripId = null;
+	}
+
+	// Print Batch State
+	let showPrintModal = $state(false);
+	let printBatch = $state<any>(null);
+	let printSelectedRit = $state<'all' | number>('all');
+
+	function openBatchPrintModal(batch: any, tripId?: number) {
+		printBatch = batch;
+		printSelectedRit = tripId ? tripId : 'all';
+		showPrintModal = true;
+	}
+
+	function closeBatchPrintModal() {
+		showPrintModal = false;
+		printBatch = null;
+	}
+
+	function executeBatchPrint() {
+		const printContent = document.getElementById('ngepok-print-area');
+		if (!printContent) return;
+
+		let printIframe = document.getElementById('print-iframe') as HTMLIFrameElement;
+		if (!printIframe) {
+			printIframe = document.createElement('iframe');
+			printIframe.id = 'print-iframe';
+			printIframe.style.position = 'fixed';
+			printIframe.style.right = '0';
+			printIframe.style.bottom = '0';
+			printIframe.style.width = '0';
+			printIframe.style.height = '0';
+			printIframe.style.border = '0';
+			document.body.appendChild(printIframe);
+		}
+
+		const doc = printIframe.contentWindow?.document;
+		if (!doc) return;
+
+		doc.open();
+		doc.write(`
+			<!DOCTYPE html>
+			<html>
+			<head>
+				<title>Batch Surat Tugas</title>
+				<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+				<script src="https://cdn.tailwindcss.com"><\/script>
+				<style>
+					@page { size: A4 portrait; margin: 10mm 10mm 10mm 10mm; }
+					body { font-family: 'Plus Jakarta Sans', sans-serif; background: white; color: black; }
+					.page-break { page-break-after: always; }
+				</style>
+			</head>
+			<body class="p-4">
+				\${printContent.innerHTML}
+			</body>
+			</html>
+		`);
+		doc.close();
+
+		setTimeout(() => {
+			printIframe.contentWindow?.focus();
+			printIframe.contentWindow?.print();
+		}, 500);
+	}
+
+	// Mode 3: Dedicated On-Site State
+	let showDedicatedModal = $state(false);
+	let dedSpkInduk = $state('');
+	let dedShift = $state('Shift 1 (08:00 - 16:00)');
+	let dedCustomerId = $state('');
+	let dedUnitAssignment = $state('');
+	let dedOriginId = $state('');
+	let dedDestId = $state('');
+	let dedCargo = $state('');
+	let dedDate = $state(new Date().toISOString().split('T')[0]);
+	let expandedDedicated: Record<number, boolean> = $state({});
+
+	function toggleDedicated(tripId: number) {
+		expandedDedicated[tripId] = !expandedDedicated[tripId];
+	}
+
+	function openDedicatedModal() {
+		dedSpkInduk = 'SPK-DED-' + Date.now().toString().slice(-6);
+		dedShift = 'Shift 1 (08:00 - 16:00)';
+		dedCustomerId = '';
+		dedUnitAssignment = '';
+		dedOriginId = '';
+		dedDestId = '';
+		dedCargo = 'Muatan On-Site Pelabuhan / Stevedoring';
+		dedDate = new Date().toISOString().split('T')[0];
+		showDedicatedModal = true;
+	}
+
+	function closeDedicatedModal() {
+		showDedicatedModal = false;
+	}
+
+	// Add Logsheet State
+	let showLogsheetModal = $state(false);
+	let logsheetTripId = $state<number | null>(null);
+	let logsheetSpkNomor = $state('');
+	let lsJamMuat = $state('');
+	let lsJamBongkar = $state('');
+	let lsNoSj = $state('');
+	let lsTonase = $state('');
+	let lsCatatan = $state('');
+
+	function openLogsheetModal(dispatch: any) {
+		logsheetTripId = dispatch.trip_id;
+		logsheetSpkNomor = dispatch.spk_induk_nomor || dispatch.no_surat_tugas;
+		lsJamMuat = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }).replace('.', ':');
+		lsJamBongkar = '';
+		lsNoSj = '';
+		lsTonase = '';
+		lsCatatan = '';
+		showLogsheetModal = true;
+	}
+
+	function closeLogsheetModal() {
+		showLogsheetModal = false;
+		logsheetTripId = null;
+	}
 
 	function openManualDispatchModal(order: any) {
 		manualDispatchOrder = order;
@@ -310,6 +520,11 @@
 		if (form?.success) {
 			closeUjoModal();
 			closeClosingModal();
+			closeNgepokModal();
+			closeVoidModal();
+			closeCompleteModal();
+			closeDedicatedModal();
+			closeLogsheetModal();
 			isSubmitting = false;
 		}
 		if (form?.error) {
@@ -335,14 +550,68 @@
 				Penugasan unit armada, approval dispatch otomatis dari kontrak, dan monitoring status Surat Jalan
 			</p>
 		</div>
-		<button class="bg-blue-600 text-white px-4 py-2.5 rounded-xl text-sm font-bold shadow-xs flex items-center gap-2 hover:bg-blue-700 transition-colors">
-			<span class="material-symbols-outlined text-lg">auto_fix_high</span>
-			<span>Auto-Assign AI</span>
-		</button>
+		<div class="flex items-center gap-3">
+			{#if activeMode === 'ngepok'}
+				<button onclick={openNgepokModal} class="bg-indigo-600 text-white px-4 py-2.5 rounded-xl text-sm font-bold shadow-xs flex items-center gap-2 hover:bg-indigo-700 transition-colors cursor-pointer">
+					<span class="material-symbols-outlined text-lg">add_circle</span>
+					<span>Buat Penugasan Ngepok</span>
+				</button>
+			{:else if activeMode === 'dedicated'}
+				<button onclick={openDedicatedModal} class="bg-amber-600 text-white px-4 py-2.5 rounded-xl text-sm font-bold shadow-xs flex items-center gap-2 hover:bg-amber-700 transition-colors cursor-pointer">
+					<span class="material-symbols-outlined text-lg">add_circle</span>
+					<span>Penugasan Dedicated Baru</span>
+				</button>
+			{:else}
+				<button class="bg-blue-600 text-white px-4 py-2.5 rounded-xl text-sm font-bold shadow-xs flex items-center gap-2 hover:bg-blue-700 transition-colors">
+					<span class="material-symbols-outlined text-lg">auto_fix_high</span>
+					<span>Auto-Assign AI</span>
+				</button>
+			{/if}
+		</div>
 	</header>
 
-	<!-- Summary Cards (Bento) -->
-	<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+	<!-- Multi-Mode Dispatch Tabs -->
+	<div class="flex items-center gap-2 border-b border-surface-container pb-3 overflow-x-auto">
+		<button 
+			type="button"
+			onclick={() => setMode('reguler')}
+			class="flex items-center gap-2.5 px-4 py-2.5 rounded-xl font-bold text-sm transition-all cursor-pointer {activeMode === 'reguler' ? 'bg-primary text-on-primary shadow-sm' : 'bg-surface-container text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high'}"
+		>
+			<span class="material-symbols-outlined text-lg">local_shipping</span>
+			<span>Mode 1: Dispatch Reguler</span>
+			<span class="px-2 py-0.5 rounded-full text-xs font-black {activeMode === 'reguler' ? 'bg-on-primary/20 text-on-primary' : 'bg-surface-container-highest text-on-surface-variant'}">
+				{orders.length}
+			</span>
+		</button>
+
+		<button 
+			type="button"
+			onclick={() => setMode('ngepok')}
+			class="flex items-center gap-2.5 px-4 py-2.5 rounded-xl font-bold text-sm transition-all cursor-pointer {activeMode === 'ngepok' ? 'bg-indigo-600 text-white shadow-sm' : 'bg-surface-container text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high'}"
+		>
+			<span class="material-symbols-outlined text-lg">sync_alt</span>
+			<span>Mode 2: Ngepok / Shuttle Multi-Rit</span>
+			<span class="px-2 py-0.5 rounded-full text-xs font-black {activeMode === 'ngepok' ? 'bg-white/20 text-white' : 'bg-surface-container-highest text-on-surface-variant'}">
+				{ngepokBatches.length}
+			</span>
+		</button>
+
+		<button 
+			type="button"
+			onclick={() => setMode('dedicated')}
+			class="flex items-center gap-2.5 px-4 py-2.5 rounded-xl font-bold text-sm transition-all cursor-pointer {activeMode === 'dedicated' ? 'bg-amber-600 text-white shadow-sm' : 'bg-surface-container text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high'}"
+		>
+			<span class="material-symbols-outlined text-lg">warehouse</span>
+			<span>Mode 3: Dedicated On-Site Shuttling</span>
+			<span class="px-2 py-0.5 rounded-full text-xs font-black {activeMode === 'dedicated' ? 'bg-white/20 text-white' : 'bg-surface-container-highest text-on-surface-variant'}">
+				{dedicatedDispatches.length}
+			</span>
+		</button>
+	</div>
+
+	{#if activeMode === 'reguler'}
+		<!-- Summary Cards (Bento) -->
+		<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
 		<div class="p-5 rounded-2xl bg-surface-container-low border border-slate-200/60 dark:border-slate-800/60 shadow-xs">
 			<div class="flex items-center justify-between">
 				<div>
@@ -787,6 +1056,507 @@
 			</div>
 		</div>
 	</div>
+	{:else if activeMode === 'ngepok'}
+		<!-- Summary Bento Cards for Ngepok -->
+		{@const totalPlan = ngepokBatches.reduce((acc, b) => acc + (b.totalPlan || 0), 0)}
+		{@const allTrips = ngepokBatches.flatMap(b => b.trips || [])}
+		{@const completedCount = allTrips.filter(t => t.status === 'COMPLETED').length}
+		{@const voidCount = allTrips.filter(t => t.status === 'VOID').length}
+		{@const activeBatchesCount = ngepokBatches.filter(b => b.trips?.some((t: any) => t.status === 'SCHEDULED' || t.status === 'DISPATCHED')).length}
+
+		<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+			<div class="p-5 rounded-2xl bg-surface-container-low border border-slate-200/60 dark:border-slate-800/60 shadow-xs">
+				<div class="flex items-center justify-between">
+					<div>
+						<p class="text-xs font-bold text-on-surface-variant uppercase tracking-wider">Batch Aktif</p>
+						<h3 class="text-2xl font-black text-indigo-600 mt-1">{activeBatchesCount} <span class="text-xs text-on-surface-variant font-normal">/ {ngepokBatches.length} Total</span></h3>
+					</div>
+					<div class="w-12 h-12 rounded-xl bg-indigo-500/10 text-indigo-600 flex items-center justify-center">
+						<span class="material-symbols-outlined text-2xl">sync_alt</span>
+					</div>
+				</div>
+				<p class="text-xs text-on-surface-variant mt-2">Armada multi-rit beroperasi</p>
+			</div>
+
+			<div class="p-5 rounded-2xl bg-surface-container-low border border-slate-200/60 dark:border-slate-800/60 shadow-xs">
+				<div class="flex items-center justify-between">
+					<div>
+						<p class="text-xs font-bold text-on-surface-variant uppercase tracking-wider">Total Plan Ritase</p>
+						<h3 class="text-2xl font-black text-on-surface mt-1">{totalPlan} <span class="text-xs text-on-surface-variant font-normal">Rit</span></h3>
+					</div>
+					<div class="w-12 h-12 rounded-xl bg-blue-500/10 text-blue-600 flex items-center justify-center">
+						<span class="material-symbols-outlined text-2xl">route</span>
+					</div>
+				</div>
+				<p class="text-xs text-on-surface-variant mt-2">Target tarikan bolak-balik</p>
+			</div>
+
+			<div class="p-5 rounded-2xl bg-surface-container-low border border-slate-200/60 dark:border-slate-800/60 shadow-xs">
+				<div class="flex items-center justify-between">
+					<div>
+						<p class="text-xs font-bold text-on-surface-variant uppercase tracking-wider">Ritase Selesai</p>
+						<h3 class="text-2xl font-black text-emerald-600 mt-1">{completedCount} <span class="text-xs text-on-surface-variant font-normal">Rit Selesai</span></h3>
+					</div>
+					<div class="w-12 h-12 rounded-xl bg-emerald-500/10 text-emerald-600 flex items-center justify-center">
+						<span class="material-symbols-outlined text-2xl">check_circle</span>
+					</div>
+				</div>
+				<p class="text-xs text-emerald-600 font-medium mt-2">Tervalidasi Surat Jalan Customer</p>
+			</div>
+
+			<div class="p-5 rounded-2xl bg-surface-container-low border border-slate-200/60 dark:border-slate-800/60 shadow-xs">
+				<div class="flex items-center justify-between">
+					<div>
+						<p class="text-xs font-bold text-on-surface-variant uppercase tracking-wider">Ritase Batal (Void)</p>
+						<h3 class="text-2xl font-black text-rose-600 mt-1">{voidCount} <span class="text-xs text-on-surface-variant font-normal">Rit Batal</span></h3>
+					</div>
+					<div class="w-12 h-12 rounded-xl bg-rose-500/10 text-rose-600 flex items-center justify-center">
+						<span class="material-symbols-outlined text-2xl">cancel</span>
+					</div>
+				</div>
+				<p class="text-xs text-rose-600 font-medium mt-2">Hangus dengan alasan tercatat</p>
+			</div>
+		</div>
+
+		<!-- Batch List Container -->
+		{#if ngepokBatches.length === 0}
+			<div class="p-12 text-center rounded-2xl bg-surface-container-low border border-dashed border-surface-container">
+				<div class="w-16 h-16 rounded-full bg-indigo-500/10 text-indigo-600 flex items-center justify-center mx-auto mb-4">
+					<span class="material-symbols-outlined text-3xl">sync_alt</span>
+				</div>
+				<h3 class="text-lg font-bold text-on-surface">Belum Ada Penugasan Ngepok</h3>
+				<p class="text-sm text-on-surface-variant mt-1 max-w-md mx-auto">
+					Gunakan mode ini untuk penugasan armada yang mengangkut barang bolak-balik (shuttle) beberapa ritase dalam satu siklus.
+				</p>
+				<button onclick={openNgepokModal} class="mt-4 px-5 py-2.5 bg-indigo-600 text-white text-sm font-bold rounded-xl hover:bg-indigo-700 transition-colors inline-flex items-center gap-2 cursor-pointer">
+					<span class="material-symbols-outlined text-lg">add_circle</span>
+					Buat Penugasan Ngepok Baru
+				</button>
+			</div>
+		{:else}
+			<div class="space-y-4">
+				{#each ngepokBatches as batch}
+					{@const bTrips = batch.trips || []}
+					{@const bCompleted = bTrips.filter((t: any) => t.status === 'COMPLETED').length}
+					{@const bVoid = bTrips.filter((t: any) => t.status === 'VOID').length}
+					{@const bScheduled = bTrips.filter((t: any) => t.status === 'SCHEDULED').length}
+					{@const isExpanded = expandedBatches[batch.groupId] ?? true}
+
+					<div class="rounded-2xl bg-surface-container-lowest border border-slate-200/80 dark:border-slate-800/80 shadow-xs overflow-hidden transition-all">
+						<!-- Batch Header -->
+						<div class="p-5 bg-surface-container-low/40 border-b border-surface-container flex flex-wrap items-center justify-between gap-4">
+							<div class="flex items-center gap-3.5">
+								<button 
+									type="button" 
+									onclick={() => toggleBatch(batch.groupId)} 
+									class="w-10 h-10 rounded-xl bg-indigo-500/10 text-indigo-600 flex items-center justify-center hover:bg-indigo-500/20 transition-colors cursor-pointer"
+									title={isExpanded ? 'Sembunyikan Ritase' : 'Tampilkan Ritase'}
+								>
+									<span class="material-symbols-outlined text-2xl transition-transform duration-200 {isExpanded ? 'rotate-180' : ''}">expand_more</span>
+								</button>
+								<div>
+									<div class="flex items-center gap-2">
+										<span class="font-mono text-sm font-black text-indigo-600 dark:text-indigo-400 tracking-tight">{batch.groupId}</span>
+										<span class="px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wider bg-indigo-100 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300">
+											Ngepok Multi-Rit
+										</span>
+										{#if bScheduled > 0}
+											<span class="px-2 py-0.5 rounded-md text-[10px] font-bold bg-amber-100 text-amber-800 dark:bg-amber-950/50 dark:text-amber-300">
+												Berjalan ({bScheduled} Sisa)
+											</span>
+										{:else}
+											<span class="px-2 py-0.5 rounded-md text-[10px] font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-300">
+												Selesai / Terpenuhi
+											</span>
+										{/if}
+									</div>
+									<div class="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-on-surface-variant mt-1 font-medium">
+										<span class="font-bold text-on-surface">Unit: {batch.nomorUnit || '-'}</span>
+										<span>Supir: <strong class="text-on-surface">{batch.driverNama || '-'}</strong></span>
+										<span>Customer: <strong class="text-on-surface">{batch.customer || '-'}</strong></span>
+										<span>Muatan: <strong class="text-on-surface">{batch.cargo || '-'}</strong></span>
+									</div>
+								</div>
+							</div>
+
+							<div class="flex items-center gap-3">
+								<!-- Progress Pill -->
+								<div class="flex items-center gap-2 bg-surface-container px-3 py-1.5 rounded-xl text-xs font-bold text-on-surface">
+									<span class="text-emerald-600">{bCompleted} Selesai</span>
+									{#if bVoid > 0}
+										<span class="text-rose-600">({bVoid} Void)</span>
+									{/if}
+									<span class="text-on-surface-variant">/ {batch.totalPlan} Plan</span>
+								</div>
+
+								<!-- Action Buttons -->
+								<form method="POST" action="?/addSusulanRitNgepok" use:enhance>
+									<input type="hidden" name="groupId" value={batch.groupId}>
+									<button type="submit" class="px-3 py-2 bg-surface-container hover:bg-indigo-50 hover:text-indigo-600 dark:hover:bg-indigo-950/50 text-xs font-bold rounded-xl transition-colors flex items-center gap-1.5 border border-surface-container cursor-pointer" title="Tambah Ritase Susulan (ST-N+1)">
+										<span class="material-symbols-outlined text-[16px]">add</span>
+										<span>+ Rit Susulan</span>
+									</button>
+								</form>
+
+								<button 
+									type="button" 
+									onclick={() => openBatchPrintModal(batch)} 
+									class="px-3 py-2 bg-surface-container hover:bg-blue-50 hover:text-blue-600 dark:hover:bg-blue-950/50 text-xs font-bold rounded-xl transition-colors flex items-center gap-1.5 border border-surface-container cursor-pointer" 
+									title="Cetak Batch Surat Tugas"
+								>
+									<span class="material-symbols-outlined text-[16px]">print</span>
+									<span>Cetak Batch</span>
+								</button>
+
+								<form method="POST" action="?/closeNgepokBatch" use:enhance>
+									<input type="hidden" name="groupId" value={batch.groupId}>
+									<button 
+										type="submit" 
+										onclick={(e) => { if (!confirm('Yakin ingin menutup batch ini? Unit akan kembali ke status AT_POOL.')) e.preventDefault(); }}
+										class="px-3 py-2 bg-surface-container hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-950/50 text-xs font-bold rounded-xl transition-colors flex items-center gap-1.5 border border-surface-container cursor-pointer" 
+										title="Tutup Batch dan kembalikan unit ke pool"
+									>
+										<span class="material-symbols-outlined text-[16px]">logout</span>
+										<span>Tutup Batch</span>
+									</button>
+								</form>
+							</div>
+						</div>
+
+						<!-- Rute banner -->
+						<div class="px-5 py-2.5 bg-surface-container/30 border-b border-surface-container flex items-center justify-between text-xs text-on-surface-variant font-medium">
+							<div class="flex items-center gap-2">
+								<span class="material-symbols-outlined text-[15px] text-blue-500">pin_drop</span>
+								<span>Origin: <strong class="text-on-surface">{batch.origin || '-'}</strong></span>
+								<span class="material-symbols-outlined text-[14px]">arrow_right_alt</span>
+								<span>Destination: <strong class="text-on-surface">{batch.destination || '-'}</strong></span>
+							</div>
+							<div>
+								Tanggal: <strong class="text-on-surface">{batch.tglTrip ? new Date(batch.tglTrip).toLocaleDateString('id-ID') : '-'}</strong>
+							</div>
+						</div>
+
+						<!-- Sub-table of Ritase -->
+						{#if isExpanded}
+							<div class="overflow-x-auto">
+								<table class="w-full text-left text-xs">
+									<thead class="bg-surface-container-low/60 text-on-surface-variant font-bold border-b border-surface-container uppercase text-[10px] tracking-wider">
+										<tr>
+											<th class="py-3 px-5">Rit Ke</th>
+											<th class="py-3 px-4">No. Surat Tugas</th>
+											<th class="py-3 px-4">Surat Jalan Customer</th>
+											<th class="py-3 px-4 text-right">Tonase Riil</th>
+											<th class="py-3 px-4">Status Rit</th>
+											<th class="py-3 px-4">Keterangan / Alasan</th>
+											<th class="py-3 px-5 text-right">Aksi</th>
+										</tr>
+									</thead>
+									<tbody class="divide-y divide-surface-container">
+										{#each bTrips as trip}
+											<tr class="hover:bg-surface-container-low/40 transition-colors">
+												<td class="py-3.5 px-5 font-bold text-on-surface">
+													<span class="w-6 h-6 rounded-full bg-surface-container inline-flex items-center justify-center text-xs font-black">
+														{trip.ritase_ke}
+													</span>
+												</td>
+												<td class="py-3.5 px-4 font-mono font-bold text-indigo-600 dark:text-indigo-400">
+													{trip.no_surat_tugas}
+												</td>
+												<td class="py-3.5 px-4">
+													{#if trip.no_surat_jalan_customer}
+														<span class="font-mono font-bold text-on-surface bg-blue-50 text-blue-700 dark:bg-blue-950/50 dark:text-blue-300 px-2.5 py-1 rounded-lg inline-block">
+															{trip.no_surat_jalan_customer}
+														</span>
+													{:else if trip.status === 'SCHEDULED'}
+														<button 
+															type="button" 
+															onclick={() => openCompleteModal(trip)} 
+															class="text-primary hover:underline font-bold text-[11px] flex items-center gap-1 cursor-pointer"
+														>
+															<span class="material-symbols-outlined text-[14px]">edit</span>
+															<span>+ Input No. SJ</span>
+														</button>
+													{:else}
+														<span class="text-on-surface-variant/40">-</span>
+													{/if}
+												</td>
+												<td class="py-3.5 px-4 text-right font-mono font-bold text-on-surface">
+													{trip.actual_weight ? `${trip.actual_weight} Ton` : '-'}
+												</td>
+												<td class="py-3.5 px-4">
+													{#if trip.status === 'COMPLETED'}
+														<span class="px-2.5 py-1 rounded-md text-[10px] font-black uppercase bg-emerald-100 text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-300">
+															Completed
+														</span>
+													{:else if trip.status === 'VOID'}
+														<span class="px-2.5 py-1 rounded-md text-[10px] font-black uppercase bg-rose-100 text-rose-800 dark:bg-rose-950/50 dark:text-rose-300">
+															Void / Batal
+														</span>
+													{:else}
+														<span class="px-2.5 py-1 rounded-md text-[10px] font-black uppercase bg-amber-100 text-amber-800 dark:bg-amber-950/50 dark:text-amber-300">
+															Scheduled
+														</span>
+													{/if}
+												</td>
+												<td class="py-3.5 px-4 text-xs text-on-surface-variant">
+													{#if trip.void_reason}
+														<span class="text-rose-600 dark:text-rose-400 font-medium italic">"{trip.void_reason}"</span>
+													{:else}
+														<span class="text-on-surface-variant/50">-</span>
+													{/if}
+												</td>
+												<td class="py-3.5 px-5 text-right">
+													<div class="flex items-center justify-end gap-1.5">
+														{#if trip.status === 'SCHEDULED'}
+															<button 
+																type="button" 
+																onclick={() => openCompleteModal(trip)}
+																class="px-2.5 py-1 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 dark:bg-emerald-950/40 dark:text-emerald-300 rounded-lg text-xs font-bold transition-colors cursor-pointer"
+																title="Selesaikan Rit dan tautkan Surat Jalan Customer"
+															>
+																Selesai
+															</button>
+															<button 
+																type="button" 
+																onclick={() => openVoidModal(trip)}
+																class="px-2.5 py-1 bg-rose-50 text-rose-700 hover:bg-rose-100 dark:bg-rose-950/40 dark:text-rose-300 rounded-lg text-xs font-bold transition-colors cursor-pointer"
+																title="Void / Batalkan Rit Ini"
+															>
+																Void
+															</button>
+														{/if}
+														<button 
+															type="button" 
+															onclick={() => openBatchPrintModal(batch, trip.trip_id)}
+															class="w-7 h-7 rounded-lg bg-surface-container hover:bg-surface-container-high text-on-surface-variant hover:text-on-surface flex items-center justify-center transition-colors cursor-pointer"
+															title="Cetak Surat Tugas Rit Ini"
+														>
+															<span class="material-symbols-outlined text-[15px]">print</span>
+														</button>
+													</div>
+												</td>
+											</tr>
+										{/each}
+									</tbody>
+								</table>
+							</div>
+						{/if}
+					</div>
+				{/each}
+			</div>
+		{/if}
+
+	{:else if activeMode === 'dedicated'}
+		<!-- Summary Bento Cards for Dedicated -->
+		{@const totalDedicatedRitase = dedicatedDispatches.reduce((acc, d) => acc + (d.totalRitase || 0), 0)}
+		{@const totalDedicatedTonnage = dedicatedDispatches.reduce((acc, d) => acc + (d.totalTonase || 0), 0)}
+		{@const activeDedicatedCount = dedicatedDispatches.filter(d => d.status !== 'COMPLETED').length}
+
+		<div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+			<div class="p-5 rounded-2xl bg-surface-container-low border border-slate-200/60 dark:border-slate-800/60 shadow-xs">
+				<div class="flex items-center justify-between">
+					<div>
+						<p class="text-xs font-bold text-on-surface-variant uppercase tracking-wider">Unit Dedicated Aktif</p>
+						<h3 class="text-2xl font-black text-amber-600 mt-1">{activeDedicatedCount} <span class="text-xs text-on-surface-variant font-normal">Armada Standby</span></h3>
+					</div>
+					<div class="w-12 h-12 rounded-xl bg-amber-500/10 text-amber-600 flex items-center justify-center">
+						<span class="material-symbols-outlined text-2xl">warehouse</span>
+					</div>
+				</div>
+				<p class="text-xs text-on-surface-variant mt-2">Standby di Pelabuhan / Dermaga / Pabrik</p>
+			</div>
+
+			<div class="p-5 rounded-2xl bg-surface-container-low border border-slate-200/60 dark:border-slate-800/60 shadow-xs">
+				<div class="flex items-center justify-between">
+					<div>
+						<p class="text-xs font-bold text-on-surface-variant uppercase tracking-wider">Total Tarikan Logsheet</p>
+						<h3 class="text-2xl font-black text-on-surface mt-1">{totalDedicatedRitase} <span class="text-xs text-on-surface-variant font-normal">Tarikan</span></h3>
+					</div>
+					<div class="w-12 h-12 rounded-xl bg-blue-500/10 text-blue-600 flex items-center justify-center">
+						<span class="material-symbols-outlined text-2xl">receipt_long</span>
+					</div>
+				</div>
+				<p class="text-xs text-on-surface-variant mt-2">Akumulasi ritase tercatat di logsheet</p>
+			</div>
+
+			<div class="p-5 rounded-2xl bg-surface-container-low border border-slate-200/60 dark:border-slate-800/60 shadow-xs">
+				<div class="flex items-center justify-between">
+					<div>
+						<p class="text-xs font-bold text-on-surface-variant uppercase tracking-wider">Total Tonase Terpindah</p>
+						<h3 class="text-2xl font-black text-emerald-600 mt-1">{totalDedicatedTonnage.toLocaleString('id-ID')} <span class="text-xs text-on-surface-variant font-normal">Ton</span></h3>
+					</div>
+					<div class="w-12 h-12 rounded-xl bg-emerald-500/10 text-emerald-600 flex items-center justify-center">
+						<span class="material-symbols-outlined text-2xl">scale</span>
+					</div>
+				</div>
+				<p class="text-xs text-emerald-600 font-medium mt-2">Siap untuk rekonsiliasi & invoice</p>
+			</div>
+		</div>
+
+		<!-- Dedicated List Container -->
+		{#if dedicatedDispatches.length === 0}
+			<div class="p-12 text-center rounded-2xl bg-surface-container-low border border-dashed border-surface-container">
+				<div class="w-16 h-16 rounded-full bg-amber-500/10 text-amber-600 flex items-center justify-center mx-auto mb-4">
+					<span class="material-symbols-outlined text-3xl">warehouse</span>
+				</div>
+				<h3 class="text-lg font-bold text-on-surface">Belum Ada Penugasan Dedicated On-Site</h3>
+				<p class="text-sm text-on-surface-variant mt-1 max-w-md mx-auto">
+					Gunakan mode ini untuk armada yang standby dedicated di area pabrik atau dermaga kapal ↔ gudang tanpa validasi Surat Tugas per ritase.
+				</p>
+				<button onclick={openDedicatedModal} class="mt-4 px-5 py-2.5 bg-amber-600 text-white text-sm font-bold rounded-xl hover:bg-amber-700 transition-colors inline-flex items-center gap-2 cursor-pointer">
+					<span class="material-symbols-outlined text-lg">add_circle</span>
+					Buat Penugasan Dedicated Baru
+				</button>
+			</div>
+		{:else}
+			<div class="space-y-4">
+				{#each dedicatedDispatches as item}
+					{@const isExpanded = expandedDedicated[item.trip_id] ?? true}
+					{@const lsList = item.logsheets || []}
+
+					<div class="rounded-2xl bg-surface-container-lowest border border-slate-200/80 dark:border-slate-800/80 shadow-xs overflow-hidden transition-all">
+						<!-- Header -->
+						<div class="p-5 bg-surface-container-low/40 border-b border-surface-container flex flex-wrap items-center justify-between gap-4">
+							<div class="flex items-center gap-3.5">
+								<button 
+									type="button" 
+									onclick={() => toggleDedicated(item.trip_id)} 
+									class="w-10 h-10 rounded-xl bg-amber-500/10 text-amber-600 flex items-center justify-center hover:bg-amber-500/20 transition-colors cursor-pointer"
+									title={isExpanded ? 'Sembunyikan Logsheet' : 'Tampilkan Logsheet'}
+								>
+									<span class="material-symbols-outlined text-2xl transition-transform duration-200 {isExpanded ? 'rotate-180' : ''}">expand_more</span>
+								</button>
+								<div>
+									<div class="flex items-center gap-2">
+										<span class="font-mono text-sm font-black text-amber-600 dark:text-amber-400 tracking-tight">{item.spk_induk_nomor || item.no_surat_tugas}</span>
+										<span class="px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wider bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300">
+											Dedicated On-Site
+										</span>
+										<span class="px-2 py-0.5 rounded-md text-[10px] font-bold bg-surface-container text-on-surface-variant">
+											{item.periode_shift || 'Shift Harian'}
+										</span>
+										{#if item.status === 'COMPLETED'}
+											<span class="px-2 py-0.5 rounded-md text-[10px] font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-300">
+												Selesai / Closed
+											</span>
+										{:else}
+											<span class="px-2 py-0.5 rounded-md text-[10px] font-bold bg-blue-100 text-blue-800 dark:bg-blue-950/50 dark:text-blue-300">
+												Aktif On-Site
+											</span>
+										{/if}
+									</div>
+									<div class="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-on-surface-variant mt-1 font-medium">
+										<span class="font-bold text-on-surface">Unit: {item.nomor_unit || '-'}</span>
+										<span>Supir: <strong class="text-on-surface">{item.driver_nama || '-'}</strong></span>
+										<span>Customer: <strong class="text-on-surface">{item.customer || '-'}</strong></span>
+										<span>Area: <strong class="text-on-surface">{item.origin || 'Gudang'} ↔ {item.destination || 'Dermaga'}</strong></span>
+										<span>Muatan: <strong class="text-on-surface">{item.cargo || '-'}</strong></span>
+									</div>
+								</div>
+							</div>
+
+							<div class="flex items-center gap-3">
+								<!-- Total stats pill -->
+								<div class="flex items-center gap-2 bg-surface-container px-3.5 py-1.5 rounded-xl text-xs font-bold text-on-surface">
+									<span class="text-blue-600">{item.totalRitase} Tarikan</span>
+									<span class="text-on-surface-variant">•</span>
+									<span class="text-emerald-600">{item.totalTonase.toLocaleString('id-ID')} Ton</span>
+								</div>
+
+								{#if item.status !== 'COMPLETED'}
+									<button 
+										type="button" 
+										onclick={() => openLogsheetModal(item)} 
+										class="px-3.5 py-2 bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold rounded-xl transition-colors flex items-center gap-1.5 shadow-xs cursor-pointer"
+									>
+										<span class="material-symbols-outlined text-[16px]">add</span>
+										<span>+ Input Logsheet</span>
+									</button>
+
+									<form method="POST" action="?/closeDedicatedDispatch" use:enhance>
+										<input type="hidden" name="tripId" value={item.trip_id}>
+										<button 
+											type="submit" 
+											onclick={(e) => { if (!confirm('Yakin ingin menutup penugasan dedicated ini? Unit akan kembali ke status AT_POOL.')) e.preventDefault(); }}
+											class="px-3.5 py-2 bg-surface-container hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-950/50 text-xs font-bold rounded-xl transition-colors flex items-center gap-1.5 border border-surface-container cursor-pointer"
+										>
+											<span class="material-symbols-outlined text-[16px]">task_alt</span>
+											<span>Selesai Shift</span>
+										</button>
+									</form>
+								{/if}
+							</div>
+						</div>
+
+						<!-- Logsheet Table -->
+						{#if isExpanded}
+							<div class="p-4 bg-surface-container-low/20">
+								<div class="rounded-xl border border-surface-container overflow-hidden bg-surface-container-lowest">
+									<table class="w-full text-left text-xs">
+										<thead class="bg-surface-container-low text-on-surface-variant font-bold border-b border-surface-container uppercase text-[10px] tracking-wider">
+											<tr>
+												<th class="py-2.5 px-4 w-12">#</th>
+												<th class="py-2.5 px-4">Jam Muat</th>
+												<th class="py-2.5 px-4">Jam Bongkar</th>
+												<th class="py-2.5 px-4">No. Surat Jalan Customer / Tally</th>
+												<th class="py-2.5 px-4 text-right">Tonase (Ton)</th>
+												<th class="py-2.5 px-4">Catatan</th>
+												<th class="py-2.5 px-4 text-center w-16">Aksi</th>
+											</tr>
+										</thead>
+										<tbody class="divide-y divide-surface-container">
+											{#if lsList.length === 0}
+												<tr>
+													<td colspan="7" class="py-8 text-center text-on-surface-variant italic">
+														Belum ada catatan logsheet untuk SPK ini. Klik "+ Input Logsheet" untuk menambah tarikan.
+													</td>
+												</tr>
+											{:else}
+												{#each lsList as ls, idx}
+													<tr class="hover:bg-surface-container-low/30 transition-colors">
+														<td class="py-2.5 px-4 font-bold text-on-surface-variant">{idx + 1}</td>
+														<td class="py-2.5 px-4 font-mono font-medium text-on-surface">{ls.jam_muat ? ls.jam_muat.slice(0, 5) : '-'}</td>
+														<td class="py-2.5 px-4 font-mono font-medium text-on-surface">{ls.jam_bongkar ? ls.jam_bongkar.slice(0, 5) : '-'}</td>
+														<td class="py-2.5 px-4 font-mono font-bold text-blue-600 dark:text-blue-400">
+															{ls.no_surat_jalan_customer}
+														</td>
+														<td class="py-2.5 px-4 text-right font-mono font-black text-on-surface">
+															{Number(ls.tonase).toLocaleString('id-ID')}
+														</td>
+														<td class="py-2.5 px-4 text-on-surface-variant">{ls.catatan || '-'}</td>
+														<td class="py-2.5 px-4 text-center">
+															<form method="POST" action="?/deleteOnsiteLogsheet" use:enhance>
+																<input type="hidden" name="logsheetId" value={ls.id}>
+																<input type="hidden" name="tripId" value={item.trip_id}>
+																<button type="submit" class="w-6 h-6 rounded text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/40 inline-flex items-center justify-center transition-colors cursor-pointer" title="Hapus Baris">
+																	<span class="material-symbols-outlined text-[15px]">delete</span>
+																</button>
+															</form>
+														</td>
+													</tr>
+												{/each}
+											{/if}
+										</tbody>
+										<tfoot class="bg-surface-container-low/80 border-t border-surface-container font-black text-xs text-on-surface">
+											<tr>
+												<td colspan="4" class="py-3 px-4 text-right">TOTAL AKUMULASI:</td>
+												<td class="py-3 px-4 text-right font-mono text-emerald-600 dark:text-emerald-400 text-sm">
+													{item.totalTonase.toLocaleString('id-ID')} Ton
+												</td>
+												<td colspan="2" class="py-3 px-4 text-on-surface-variant font-bold text-[11px]">
+													({item.totalRitase} Tarikan Ritase)
+												</td>
+											</tr>
+										</tfoot>
+									</table>
+								</div>
+							</div>
+						{/if}
+					</div>
+				{/each}
+			</div>
+		{/if}
+	{/if}
 </div>
 
 <!-- Modal Manual Dispatch -->
@@ -1066,6 +1836,601 @@
 					<button type="submit" disabled={isSubmitting} class="px-5 py-2.5 bg-rose-600 text-white rounded-xl text-sm font-bold shadow-sm hover:bg-rose-700 transition-colors flex items-center gap-2 disabled:opacity-50">
 						<span class="material-symbols-outlined text-[18px]">check_circle</span>
 						Submit Closing
+					</button>
+				</div>
+			</form>
+		</div>
+	</div>
+{/if}
+
+<!-- Modal Buat Penugasan Ngepok -->
+{#if showNgepokModal}
+	<div class="fixed inset-0 z-50 flex items-center justify-center p-4">
+		<div class="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onclick={closeNgepokModal}></div>
+		<div class="relative w-full max-w-xl bg-surface-container-lowest rounded-[24px] shadow-2xl flex flex-col overflow-hidden max-h-[90vh]">
+			<div class="p-6 border-b border-surface-container bg-indigo-50/50 dark:bg-indigo-950/20">
+				<div class="flex items-start justify-between">
+					<div class="flex items-center gap-3">
+						<div class="w-10 h-10 rounded-xl bg-indigo-600 text-white flex items-center justify-center">
+							<span class="material-symbols-outlined text-2xl">sync_alt</span>
+						</div>
+						<div>
+							<h3 class="text-xl font-bold text-on-surface">Buat Penugasan Ngepok (Multi-Rit)</h3>
+							<p class="text-xs text-on-surface-variant mt-0.5">Penugasan armada bolak-balik rute berulang dengan batch Surat Tugas</p>
+						</div>
+					</div>
+					<button type="button" onclick={closeNgepokModal} class="w-8 h-8 rounded-full bg-surface-container hover:bg-surface-container-high flex items-center justify-center text-on-surface-variant transition-colors cursor-pointer">
+						<span class="material-symbols-outlined text-lg">close</span>
+					</button>
+				</div>
+			</div>
+
+			<form method="POST" action="?/createNgepokDispatch" use:enhance={() => { isSubmitting = true; return async ({ update }) => { await update(); isSubmitting = false; }; }} class="flex flex-col flex-1 overflow-hidden">
+				<div class="p-6 overflow-y-auto space-y-4">
+					<!-- Pilih Kontrak / Pelanggan -->
+					<div>
+						<label class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-2">Pilih Kontrak Marketing (Opsional)</label>
+						<SearchableSelect 
+							options={contractOpts} 
+							bind:value={ngepokContractId} 
+							placeholder="-- Pilih dari Kontrak Aktif --" 
+						/>
+						<input type="hidden" name="contractId" value={ngepokContractId}>
+					</div>
+
+					{#if !ngepokContractId}
+						<div>
+							<label class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-2">Pelanggan / Customer <span class="text-error">*</span></label>
+							<SearchableSelect 
+								options={customerOpts} 
+								bind:value={ngepokCustomerId} 
+								placeholder="-- Pilih Customer --" 
+								required={true}
+							/>
+							<input type="hidden" name="customerId" value={ngepokCustomerId}>
+						</div>
+
+						<div class="grid grid-cols-2 gap-4">
+							<div>
+								<label class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-2">Origin / Lokasi Muat <span class="text-error">*</span></label>
+								<SearchableSelect 
+									options={customerOpts} 
+									bind:value={ngepokOriginId} 
+									placeholder="-- Pilih Origin --" 
+								/>
+								<input type="hidden" name="originId" value={ngepokOriginId}>
+							</div>
+							<div>
+								<label class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-2">Destination / Bongkar <span class="text-error">*</span></label>
+								<SearchableSelect 
+									options={customerOpts} 
+									bind:value={ngepokDestId} 
+									placeholder="-- Pilih Destination --" 
+								/>
+								<input type="hidden" name="destinationId" value={ngepokDestId}>
+							</div>
+						</div>
+					{/if}
+
+					<!-- Armada & Sopir -->
+					<div>
+						<label class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-2">Pilih Armada & Sopir <span class="text-error">*</span></label>
+						<SearchableSelect 
+							options={unitOpts} 
+							bind:value={ngepokUnitAssignment} 
+							placeholder="-- Pilih Unit Armada --" 
+							required={true}
+						/>
+						{#if ngepokUnitAssignment}
+							{@const parts = ngepokUnitAssignment.split('|')}
+							<input type="hidden" name="unitId" value={parts[0]}>
+							<input type="hidden" name="driverId" value={parts[1] || ''}>
+						{/if}
+					</div>
+
+					<!-- Muatan & Tanggal -->
+					<div class="grid grid-cols-2 gap-4">
+						<div>
+							<label class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-2">Jenis Muatan <span class="text-error">*</span></label>
+							<input type="text" name="cargoName" bind:value={ngepokCargo} required placeholder="Contoh: Batubara / Semen / Pasir" class="w-full bg-surface-container rounded-xl px-4 py-2.5 text-sm font-medium border-none outline-none focus:ring-2 focus:ring-indigo-500 text-on-surface" />
+						</div>
+						<div>
+							<label class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-2">Tanggal Mulai <span class="text-error">*</span></label>
+							<input type="date" name="loadingDate" bind:value={ngepokDate} required class="w-full bg-surface-container rounded-xl px-4 py-2.5 text-sm font-medium border-none outline-none focus:ring-2 focus:ring-indigo-500 text-on-surface" />
+						</div>
+					</div>
+
+					<!-- Plan Ritase & UJO -->
+					<div class="p-4 rounded-xl bg-indigo-500/5 border border-indigo-500/20 space-y-3">
+						<div class="flex items-center justify-between">
+							<span class="text-xs font-bold uppercase tracking-wider text-indigo-700 dark:text-indigo-400">Rencana Ritase (Batch Size)</span>
+							<span class="text-xs font-extrabold text-indigo-700 dark:text-indigo-400">{ngepokPlanRit} Surat Tugas Akan Dibuat</span>
+						</div>
+						<div class="grid grid-cols-2 gap-4">
+							<div>
+								<label class="block text-[11px] font-bold text-on-surface-variant mb-1">Target Ritase (Plan)</label>
+								<div class="relative">
+									<input type="number" name="planRitase" min="1" max="30" bind:value={ngepokPlanRit} required class="w-full bg-surface-container-lowest border border-surface-container rounded-xl px-4 py-2 text-sm font-bold text-on-surface outline-none focus:ring-2 focus:ring-indigo-500" />
+									<span class="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-on-surface-variant">Rit</span>
+								</div>
+							</div>
+							<div>
+								<label class="block text-[11px] font-bold text-on-surface-variant mb-1">UJO per Rit</label>
+								<div class="relative">
+									<span class="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-on-surface-variant">Rp</span>
+									<input type="number" name="ujoPerRit" bind:value={ngepokUjoPerRit} placeholder="0" class="w-full bg-surface-container-lowest border border-surface-container rounded-xl pl-9 pr-3 py-2 text-sm font-bold text-on-surface outline-none focus:ring-2 focus:ring-indigo-500" />
+								</div>
+							</div>
+						</div>
+
+						<div class="grid grid-cols-2 gap-4">
+							<div>
+								<label class="block text-[11px] font-bold text-on-surface-variant mb-1">Uang Makan / Rit</label>
+								<div class="relative">
+									<span class="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-on-surface-variant">Rp</span>
+									<input type="number" name="ujoMakan" bind:value={ngepokUjoMakan} placeholder="0" class="w-full bg-surface-container-lowest border border-surface-container rounded-xl pl-9 pr-3 py-2 text-sm font-bold text-on-surface outline-none focus:ring-2 focus:ring-indigo-500" />
+								</div>
+							</div>
+							<div>
+								<label class="block text-[11px] font-bold text-on-surface-variant mb-1">Uang Tol / Rit</label>
+								<div class="relative">
+									<span class="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-on-surface-variant">Rp</span>
+									<input type="number" name="ujoTol" bind:value={ngepokUjoTol} placeholder="0" class="w-full bg-surface-container-lowest border border-surface-container rounded-xl pl-9 pr-3 py-2 text-sm font-bold text-on-surface outline-none focus:ring-2 focus:ring-indigo-500" />
+								</div>
+							</div>
+						</div>
+
+						<div class="pt-2 border-t border-indigo-200 dark:border-indigo-900/40 flex items-center justify-between text-xs">
+							<span class="font-bold text-on-surface">Total Estimasi UJO Batch:</span>
+							<span class="font-black text-indigo-600 dark:text-indigo-400 font-mono text-sm">
+								Rp {((ngepokUjoPerRit + ngepokUjoMakan + ngepokUjoTol) * (ngepokPlanRit || 1)).toLocaleString('id-ID')}
+							</span>
+						</div>
+					</div>
+				</div>
+
+				<div class="p-6 border-t border-surface-container bg-surface-container-low/40 flex justify-end gap-3">
+					<button type="button" onclick={closeNgepokModal} class="px-5 py-2.5 rounded-xl text-sm font-bold text-on-surface-variant hover:bg-surface-container transition-colors cursor-pointer">
+						Batal
+					</button>
+					<button type="submit" disabled={isSubmitting || !ngepokUnitAssignment || (!ngepokContractId && !ngepokCustomerId)} class="px-5 py-2.5 bg-indigo-600 text-white rounded-xl text-sm font-bold shadow-sm hover:bg-indigo-700 transition-colors flex items-center gap-2 disabled:opacity-50 cursor-pointer">
+						{#if isSubmitting}
+							<span class="material-symbols-outlined text-[18px] animate-spin">sync</span>
+							<span>Membuat Batch...</span>
+						{:else}
+							<span class="material-symbols-outlined text-[18px]">task_alt</span>
+							<span>Terbitkan Batch ({ngepokPlanRit} Rit)</span>
+						{/if}
+					</button>
+				</div>
+			</form>
+		</div>
+	</div>
+{/if}
+
+<!-- Modal Void Ritase Ngepok -->
+{#if showVoidModal}
+	<div class="fixed inset-0 z-50 flex items-center justify-center p-4">
+		<div class="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onclick={closeVoidModal}></div>
+		<div class="relative w-full max-w-md bg-surface-container-lowest rounded-[24px] shadow-2xl flex flex-col overflow-hidden">
+			<div class="p-6 border-b border-surface-container bg-rose-50/50 dark:bg-rose-950/20">
+				<div class="flex items-start justify-between">
+					<div class="flex items-center gap-3">
+						<div class="w-10 h-10 rounded-xl bg-rose-600 text-white flex items-center justify-center">
+							<span class="material-symbols-outlined text-2xl">cancel</span>
+						</div>
+						<div>
+							<h3 class="text-lg font-bold text-rose-700 dark:text-rose-400">Void / Batalkan Ritase</h3>
+							<p class="text-xs text-on-surface-variant font-mono mt-0.5">{voidTripSt}</p>
+						</div>
+					</div>
+					<button type="button" onclick={closeVoidModal} class="w-8 h-8 rounded-full bg-surface-container hover:bg-surface-container-high flex items-center justify-center text-on-surface-variant transition-colors cursor-pointer">
+						<span class="material-symbols-outlined text-lg">close</span>
+					</button>
+				</div>
+			</div>
+
+			<form method="POST" action="?/voidRitNgepok" use:enhance={() => { isSubmitting = true; return async ({ update }) => { await update(); isSubmitting = false; }; }}>
+				<input type="hidden" name="tripId" value={voidTripId}>
+				<div class="p-6 space-y-4">
+					<p class="text-xs text-on-surface-variant">
+						Ritase ini akan dinyatakan <strong>Hangus (Void)</strong> dan tidak dapat ditagihkan ke Kasir atau ditautkan dengan Surat Jalan.
+					</p>
+					<div>
+						<label class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-2">Alasan Pembatalan <span class="text-error">*</span></label>
+						<textarea name="voidReason" bind:value={voidReason} required rows="3" placeholder="Contoh: Antrean dermaga ditutup / Hujan lebat / Kerusakan alat customer..." class="w-full bg-surface-container rounded-xl p-3 text-sm font-medium border-none outline-none focus:ring-2 focus:ring-rose-500 text-on-surface resize-none"></textarea>
+					</div>
+				</div>
+
+				<div class="p-6 border-t border-surface-container bg-surface-container-low/40 flex justify-end gap-3">
+					<button type="button" onclick={closeVoidModal} class="px-5 py-2.5 rounded-xl text-sm font-bold text-on-surface-variant hover:bg-surface-container transition-colors cursor-pointer">
+						Batal
+					</button>
+					<button type="submit" disabled={isSubmitting || !voidReason.trim()} class="px-5 py-2.5 bg-rose-600 text-white rounded-xl text-sm font-bold shadow-sm hover:bg-rose-700 transition-colors flex items-center gap-2 disabled:opacity-50 cursor-pointer">
+						<span class="material-symbols-outlined text-[18px]">cancel</span>
+						<span>Konfirmasi Void</span>
+					</button>
+				</div>
+			</form>
+		</div>
+	</div>
+{/if}
+
+<!-- Modal Selesaikan Ritase Ngepok -->
+{#if showCompleteModal}
+	<div class="fixed inset-0 z-50 flex items-center justify-center p-4">
+		<div class="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onclick={closeCompleteModal}></div>
+		<div class="relative w-full max-w-md bg-surface-container-lowest rounded-[24px] shadow-2xl flex flex-col overflow-hidden">
+			<div class="p-6 border-b border-surface-container bg-emerald-50/50 dark:bg-emerald-950/20">
+				<div class="flex items-start justify-between">
+					<div class="flex items-center gap-3">
+						<div class="w-10 h-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center">
+							<span class="material-symbols-outlined text-2xl">check_circle</span>
+						</div>
+						<div>
+							<h3 class="text-lg font-bold text-emerald-700 dark:text-emerald-400">Selesaikan Ritase</h3>
+							<p class="text-xs text-on-surface-variant font-mono mt-0.5">{completeTripSt}</p>
+						</div>
+					</div>
+					<button type="button" onclick={closeCompleteModal} class="w-8 h-8 rounded-full bg-surface-container hover:bg-surface-container-high flex items-center justify-center text-on-surface-variant transition-colors cursor-pointer">
+						<span class="material-symbols-outlined text-lg">close</span>
+					</button>
+				</div>
+			</div>
+
+			<form method="POST" action="?/completeRitNgepok" use:enhance={() => { isSubmitting = true; return async ({ update }) => { await update(); isSubmitting = false; }; }}>
+				<input type="hidden" name="tripId" value={completeTripId}>
+				<div class="p-6 space-y-4">
+					<div>
+						<label class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-2">No. Surat Jalan Customer (Fisik) <span class="text-error">*</span></label>
+						<input type="text" name="noSuratJalanCustomer" bind:value={completeNoSj} required placeholder="Contoh: SJ-CUST-98214" class="w-full bg-surface-container rounded-xl px-4 py-2.5 text-sm font-bold border-none outline-none focus:ring-2 focus:ring-emerald-500 text-on-surface font-mono" />
+					</div>
+					<div>
+						<label class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-2">Tonase Riil (Hasil Timbang) <span class="text-error">*</span></label>
+						<div class="relative">
+							<input type="number" step="0.01" name="actualWeight" bind:value={completeWeight} required placeholder="Contoh: 32.50" class="w-full bg-surface-container rounded-xl px-4 py-2.5 text-sm font-bold border-none outline-none focus:ring-2 focus:ring-emerald-500 text-on-surface font-mono" />
+							<span class="absolute right-4 top-1/2 -translate-y-1/2 text-xs font-bold text-on-surface-variant">Ton</span>
+						</div>
+					</div>
+				</div>
+
+				<div class="p-6 border-t border-surface-container bg-surface-container-low/40 flex justify-end gap-3">
+					<button type="button" onclick={closeCompleteModal} class="px-5 py-2.5 rounded-xl text-sm font-bold text-on-surface-variant hover:bg-surface-container transition-colors cursor-pointer">
+						Batal
+					</button>
+					<button type="submit" disabled={isSubmitting || !completeNoSj.trim() || !completeWeight} class="px-5 py-2.5 bg-emerald-600 text-white rounded-xl text-sm font-bold shadow-sm hover:bg-emerald-700 transition-colors flex items-center gap-2 disabled:opacity-50 cursor-pointer">
+						<span class="material-symbols-outlined text-[18px]">done_all</span>
+						<span>Simpan & Tautkan SJ</span>
+					</button>
+				</div>
+			</form>
+		</div>
+	</div>
+{/if}
+
+<!-- Modal Batch Print Surat Tugas Ngepok -->
+{#if showPrintModal && printBatch}
+	{@const tripsToPrint = printSelectedRit === 'all' ? printBatch.trips : printBatch.trips.filter((t: any) => t.trip_id === printSelectedRit)}
+	<div class="fixed inset-0 z-50 flex items-center justify-center p-4">
+		<div class="absolute inset-0 bg-slate-950/70 backdrop-blur-sm" onclick={closeBatchPrintModal}></div>
+		<div class="relative w-full max-w-4xl bg-surface-container-lowest rounded-[24px] shadow-2xl flex flex-col overflow-hidden max-h-[95vh] z-10">
+			<!-- Header -->
+			<div class="p-5 border-b border-surface-container bg-surface-container-low/60 flex items-center justify-between gap-4">
+				<div class="flex items-center gap-3">
+					<div class="w-10 h-10 rounded-xl bg-blue-600 text-white flex items-center justify-center">
+						<span class="material-symbols-outlined text-2xl">print</span>
+					</div>
+					<div>
+						<h3 class="text-lg font-bold text-on-surface">Cetak Surat Tugas Batch Ngepok</h3>
+						<p class="text-xs text-on-surface-variant font-mono">Batch: {printBatch.groupId} • {printBatch.nomorUnit} ({printBatch.driverNama})</p>
+					</div>
+				</div>
+
+				<div class="flex items-center gap-2">
+					<!-- Filter Cetak -->
+					<div class="flex items-center gap-1.5 bg-surface-container p-1 rounded-xl text-xs font-bold">
+						<button 
+							type="button" 
+							onclick={() => printSelectedRit = 'all'} 
+							class="px-3 py-1.5 rounded-lg transition-colors cursor-pointer {printSelectedRit === 'all' ? 'bg-blue-600 text-white shadow-xs' : 'text-on-surface-variant hover:text-on-surface'}"
+						>
+							Semua ({printBatch.trips?.length || 0} Rit)
+						</button>
+						{#each printBatch.trips || [] as t}
+							<button 
+								type="button" 
+								onclick={() => printSelectedRit = t.trip_id} 
+								class="px-2.5 py-1.5 rounded-lg transition-colors cursor-pointer {printSelectedRit === t.trip_id ? 'bg-blue-600 text-white shadow-xs' : 'text-on-surface-variant hover:text-on-surface'}"
+							>
+								Rit #{t.ritase_ke}
+							</button>
+						{/each}
+					</div>
+
+					<button type="button" onclick={executeBatchPrint} class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl transition-colors flex items-center gap-1.5 shadow-sm cursor-pointer">
+						<span class="material-symbols-outlined text-[16px]">print</span>
+						<span>Cetak Sekarang</span>
+					</button>
+
+					<button type="button" onclick={closeBatchPrintModal} class="w-8 h-8 rounded-full bg-surface-container hover:bg-surface-container-high flex items-center justify-center text-on-surface-variant transition-colors cursor-pointer">
+						<span class="material-symbols-outlined text-lg">close</span>
+					</button>
+				</div>
+			</div>
+
+			<!-- Print Preview Area -->
+			<div class="flex-1 overflow-y-auto p-6 bg-slate-900/40 flex justify-center">
+				<div id="ngepok-print-area" class="w-full max-w-[210mm] space-y-6">
+					{#each tripsToPrint as trip}
+						<div class="bg-white text-black p-8 rounded-sm shadow-xl page-break text-xs leading-normal border border-slate-300">
+							<!-- Kop Perusahaan -->
+							<div class="flex justify-between items-center border-b-2 border-slate-900 pb-3 mb-4">
+								<div class="flex items-center gap-3">
+									<img src="https://bcs-logistics.co.id/assets/images/logoo.png" alt="BCS Logistics" class="h-10 w-auto object-contain" />
+									<div>
+										<h2 class="text-sm font-black uppercase tracking-wider text-slate-900">PT Bintang Cipta Sarana</h2>
+										<p class="text-[10px] text-slate-600 font-medium">Logistics, Transportation & Heavy Equipment Services</p>
+									</div>
+								</div>
+								<div class="text-right">
+									<h3 class="text-sm font-black uppercase text-slate-900">SURAT TUGAS ARMADA</h3>
+									<p class="text-[11px] font-mono font-bold text-blue-700">{trip.no_surat_tugas}</p>
+									<p class="text-[10px] text-slate-500">Mode: NGEPOK / SHUTTLE MULTI-RIT</p>
+								</div>
+							</div>
+
+							<!-- Metadata Ritase -->
+							<div class="grid grid-cols-2 gap-4 mb-4 bg-slate-50 p-3 rounded border border-slate-200">
+								<div>
+									<div class="text-[10px] uppercase text-slate-500 font-bold">Nomor Batch Penugasan</div>
+									<div class="font-mono font-bold text-slate-900">{printBatch.groupId}</div>
+									<div class="text-[10px] uppercase text-slate-500 font-bold mt-2">Nomor Ritase</div>
+									<div class="font-bold text-sm text-blue-700">Rit Ke-{trip.ritase_ke} <span class="text-xs text-slate-500 font-normal">(Dari Rencana {trip.total_ritase_plan} Rit)</span></div>
+								</div>
+								<div>
+									<div class="text-[10px] uppercase text-slate-500 font-bold">Tanggal Tugas</div>
+									<div class="font-bold text-slate-900">{trip.tgl_trip ? new Date(trip.tgl_trip).toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }) : '-'}</div>
+									<div class="text-[10px] uppercase text-slate-500 font-bold mt-2">Pelanggan / Customer</div>
+									<div class="font-bold text-slate-900">{trip.customer || printBatch.customer || '-'}</div>
+								</div>
+							</div>
+
+							<!-- Informasi Rute & Armada -->
+							<table class="w-full text-xs border border-slate-300 mb-4">
+								<tbody class="divide-y divide-slate-200">
+									<tr>
+										<td class="py-1.5 px-3 font-bold bg-slate-100 w-1/4">Nomor Polisi / Unit</td>
+										<td class="py-1.5 px-3 font-black text-slate-900">{printBatch.nomorUnit || '-'}</td>
+										<td class="py-1.5 px-3 font-bold bg-slate-100 w-1/4">Nama Pengemudi</td>
+										<td class="py-1.5 px-3 font-black text-slate-900">{printBatch.driverNama || '-'}</td>
+									</tr>
+									<tr>
+										<td class="py-1.5 px-3 font-bold bg-slate-100">Lokasi Asal (Origin)</td>
+										<td class="py-1.5 px-3 text-slate-900">{trip.origin || printBatch.origin || '-'}</td>
+										<td class="py-1.5 px-3 font-bold bg-slate-100">Lokasi Tujuan (Destination)</td>
+										<td class="py-1.5 px-3 text-slate-900">{trip.destination || printBatch.destination || '-'}</td>
+									</tr>
+									<tr>
+										<td class="py-1.5 px-3 font-bold bg-slate-100">Jenis Muatan</td>
+										<td class="py-1.5 px-3 font-bold text-slate-900" colspan="3">{trip.cargo || printBatch.cargo || '-'}</td>
+									</tr>
+								</tbody>
+							</table>
+
+							<!-- Catatan Pengemudi & Surat Jalan -->
+							<div class="border border-dashed border-slate-400 p-3 rounded mb-6 bg-slate-50">
+								<div class="flex justify-between items-center text-[10px] font-bold text-slate-700 mb-1">
+									<span>PENCATATAN SURAT JALAN CUSTOMER (DIISI SAAT MUAT / BONGKAR):</span>
+									<span>HASIL TIMBANG PABRIK:</span>
+								</div>
+								<div class="flex justify-between items-baseline pt-2">
+									<div class="font-mono text-sm font-bold text-slate-900">
+										No. SJ: ________________________
+									</div>
+									<div class="font-mono text-sm font-bold text-slate-900">
+										Tonase: __________ Ton / Kg
+									</div>
+								</div>
+							</div>
+
+							<!-- Kolom Tanda Tangan -->
+							<div class="grid grid-cols-3 gap-4 text-center pt-2">
+								<div class="border-t border-slate-400 pt-1">
+									<p class="text-[10px] text-slate-500 uppercase font-bold">Dispatcher Kantor</p>
+									<div class="h-12"></div>
+									<p class="font-bold text-xs text-slate-900">( ____________________ )</p>
+								</div>
+								<div class="border-t border-slate-400 pt-1">
+									<p class="text-[10px] text-slate-500 uppercase font-bold">Pengemudi / Driver</p>
+									<div class="h-12"></div>
+									<p class="font-bold text-xs text-slate-900">( {printBatch.driverNama || '____________________'} )</p>
+								</div>
+								<div class="border-t border-slate-400 pt-1">
+									<p class="text-[10px] text-slate-500 uppercase font-bold">Petugas Customer</p>
+									<div class="h-12"></div>
+									<p class="font-bold text-xs text-slate-900">( ____________________ )</p>
+								</div>
+							</div>
+						</div>
+					{/each}
+				</div>
+			</div>
+		</div>
+	</div>
+{/if}
+
+<!-- Modal Penugasan Dedicated On-Site -->
+{#if showDedicatedModal}
+	<div class="fixed inset-0 z-50 flex items-center justify-center p-4">
+		<div class="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onclick={closeDedicatedModal}></div>
+		<div class="relative w-full max-w-xl bg-surface-container-lowest rounded-[24px] shadow-2xl flex flex-col overflow-hidden max-h-[90vh]">
+			<div class="p-6 border-b border-surface-container bg-amber-50/50 dark:bg-amber-950/20">
+				<div class="flex items-start justify-between">
+					<div class="flex items-center gap-3">
+						<div class="w-10 h-10 rounded-xl bg-amber-600 text-white flex items-center justify-center">
+							<span class="material-symbols-outlined text-2xl">warehouse</span>
+						</div>
+						<div>
+							<h3 class="text-xl font-bold text-on-surface">Penugasan Dedicated On-Site & Stevedoring</h3>
+							<p class="text-xs text-on-surface-variant mt-0.5">Penugasan armada standby di area customer/pelabuhan tanpa Surat Tugas per rit</p>
+						</div>
+					</div>
+					<button type="button" onclick={closeDedicatedModal} class="w-8 h-8 rounded-full bg-surface-container hover:bg-surface-container-high flex items-center justify-center text-on-surface-variant transition-colors cursor-pointer">
+						<span class="material-symbols-outlined text-lg">close</span>
+					</button>
+				</div>
+			</div>
+
+			<form method="POST" action="?/createDedicatedDispatch" use:enhance={() => { isSubmitting = true; return async ({ update }) => { await update(); isSubmitting = false; }; }} class="flex flex-col flex-1 overflow-hidden">
+				<div class="p-6 overflow-y-auto space-y-4">
+					<div class="grid grid-cols-2 gap-4">
+						<div>
+							<label class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-2">No. SPK Induk <span class="text-error">*</span></label>
+							<input type="text" name="spkIndukNomor" bind:value={dedSpkInduk} required placeholder="Contoh: SPK-DED-260901" class="w-full bg-surface-container rounded-xl px-4 py-2.5 text-sm font-bold border-none outline-none focus:ring-2 focus:ring-amber-500 text-on-surface font-mono" />
+						</div>
+						<div>
+							<label class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-2">Periode / Shift Penugasan <span class="text-error">*</span></label>
+							<input type="text" name="periodeShift" bind:value={dedShift} required placeholder="Contoh: Shift 1 (08:00 - 16:00)" class="w-full bg-surface-container rounded-xl px-4 py-2.5 text-sm font-medium border-none outline-none focus:ring-2 focus:ring-amber-500 text-on-surface" />
+						</div>
+					</div>
+
+					<div>
+						<label class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-2">Pelanggan / Perusahaan Customer <span class="text-error">*</span></label>
+						<SearchableSelect 
+							options={customerOpts} 
+							bind:value={dedCustomerId} 
+							placeholder="-- Pilih Customer --" 
+							required={true}
+						/>
+						<input type="hidden" name="customerId" value={dedCustomerId}>
+					</div>
+
+					<div>
+						<label class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-2">Pilih Armada & Sopir <span class="text-error">*</span></label>
+						<SearchableSelect 
+							options={unitOpts} 
+							bind:value={dedUnitAssignment} 
+							placeholder="-- Pilih Unit Armada --" 
+							required={true}
+						/>
+						{#if dedUnitAssignment}
+							{@const parts = dedUnitAssignment.split('|')}
+							<input type="hidden" name="unitId" value={parts[0]}>
+							<input type="hidden" name="driverId" value={parts[1] || ''}>
+						{/if}
+					</div>
+
+					<div class="grid grid-cols-2 gap-4">
+						<div>
+							<label class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-2">Area Asal (Gudang/Kapal)</label>
+							<SearchableSelect 
+								options={customerOpts} 
+								bind:value={dedOriginId} 
+								placeholder="-- Pilih Lokasi Asal --" 
+							/>
+							<input type="hidden" name="originId" value={dedOriginId}>
+						</div>
+						<div>
+							<label class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-2">Area Tujuan (Bongkar)</label>
+							<SearchableSelect 
+								options={customerOpts} 
+								bind:value={dedDestId} 
+								placeholder="-- Pilih Lokasi Tujuan --" 
+							/>
+							<input type="hidden" name="destinationId" value={dedDestId}>
+						</div>
+					</div>
+
+					<div class="grid grid-cols-2 gap-4">
+						<div>
+							<label class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-2">Jenis Muatan</label>
+							<input type="text" name="cargoName" bind:value={dedCargo} placeholder="Muatan On-Site" class="w-full bg-surface-container rounded-xl px-4 py-2.5 text-sm font-medium border-none outline-none focus:ring-2 focus:ring-amber-500 text-on-surface" />
+						</div>
+						<div>
+							<label class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-2">Tanggal Mulai</label>
+							<input type="date" name="tglTrip" bind:value={dedDate} required class="w-full bg-surface-container rounded-xl px-4 py-2.5 text-sm font-medium border-none outline-none focus:ring-2 focus:ring-amber-500 text-on-surface" />
+						</div>
+					</div>
+				</div>
+
+				<div class="p-6 border-t border-surface-container bg-surface-container-low/40 flex justify-end gap-3">
+					<button type="button" onclick={closeDedicatedModal} class="px-5 py-2.5 rounded-xl text-sm font-bold text-on-surface-variant hover:bg-surface-container transition-colors cursor-pointer">
+						Batal
+					</button>
+					<button type="submit" disabled={isSubmitting || !dedUnitAssignment || !dedSpkInduk.trim()} class="px-5 py-2.5 bg-amber-600 text-white rounded-xl text-sm font-bold shadow-sm hover:bg-amber-700 transition-colors flex items-center gap-2 disabled:opacity-50 cursor-pointer">
+						{#if isSubmitting}
+							<span class="material-symbols-outlined text-[18px] animate-spin">sync</span>
+							<span>Menyimpan...</span>
+						{:else}
+							<span class="material-symbols-outlined text-[18px]">task_alt</span>
+							<span>Terbitkan Penugasan Dedicated</span>
+						{/if}
+					</button>
+				</div>
+			</form>
+		</div>
+	</div>
+{/if}
+
+<!-- Modal Input Baris Logsheet On-Site -->
+{#if showLogsheetModal}
+	<div class="fixed inset-0 z-50 flex items-center justify-center p-4">
+		<div class="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onclick={closeLogsheetModal}></div>
+		<div class="relative w-full max-w-md bg-surface-container-lowest rounded-[24px] shadow-2xl flex flex-col overflow-hidden">
+			<div class="p-6 border-b border-surface-container bg-amber-50/50 dark:bg-amber-950/20">
+				<div class="flex items-start justify-between">
+					<div class="flex items-center gap-3">
+						<div class="w-10 h-10 rounded-xl bg-amber-600 text-white flex items-center justify-center">
+							<span class="material-symbols-outlined text-2xl">post_add</span>
+						</div>
+						<div>
+							<h3 class="text-lg font-bold text-on-surface">Input Baris Logsheet On-Site</h3>
+							<p class="text-xs text-on-surface-variant font-mono mt-0.5">SPK: {logsheetSpkNomor}</p>
+						</div>
+					</div>
+					<button type="button" onclick={closeLogsheetModal} class="w-8 h-8 rounded-full bg-surface-container hover:bg-surface-container-high flex items-center justify-center text-on-surface-variant transition-colors cursor-pointer">
+						<span class="material-symbols-outlined text-lg">close</span>
+					</button>
+				</div>
+			</div>
+
+			<form method="POST" action="?/saveOnsiteLogsheet" use:enhance={() => { isSubmitting = true; return async ({ update }) => { await update(); isSubmitting = false; }; }}>
+				<input type="hidden" name="tripId" value={logsheetTripId}>
+				<div class="p-6 space-y-4">
+					<div class="grid grid-cols-2 gap-4">
+						<div>
+							<label class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-2">Jam Muat</label>
+							<input type="time" name="jamMuat" bind:value={lsJamMuat} class="w-full bg-surface-container rounded-xl px-4 py-2.5 text-sm font-medium border-none outline-none focus:ring-2 focus:ring-amber-500 text-on-surface" />
+						</div>
+						<div>
+							<label class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-2">Jam Bongkar</label>
+							<input type="time" name="jamBongkar" bind:value={lsJamBongkar} class="w-full bg-surface-container rounded-xl px-4 py-2.5 text-sm font-medium border-none outline-none focus:ring-2 focus:ring-amber-500 text-on-surface" />
+						</div>
+					</div>
+
+					<div>
+						<label class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-2">No. Surat Jalan Customer / Tally <span class="text-error">*</span></label>
+						<input type="text" name="noSuratJalanCustomer" bind:value={lsNoSj} required placeholder="Contoh: SJ-PABRIK-0012" class="w-full bg-surface-container rounded-xl px-4 py-2.5 text-sm font-bold border-none outline-none focus:ring-2 focus:ring-amber-500 text-on-surface font-mono" />
+					</div>
+
+					<div>
+						<label class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-2">Tonase Riil (Ton) <span class="text-error">*</span></label>
+						<input type="number" step="0.01" name="tonase" bind:value={lsTonase} required placeholder="Contoh: 35.40" class="w-full bg-surface-container rounded-xl px-4 py-2.5 text-sm font-bold border-none outline-none focus:ring-2 focus:ring-amber-500 text-on-surface font-mono" />
+					</div>
+
+					<div>
+						<label class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-2">Catatan Tambahan</label>
+						<input type="text" name="catatan" bind:value={lsCatatan} placeholder="Opsional: Keterangan dermaga / palka" class="w-full bg-surface-container rounded-xl px-4 py-2.5 text-sm font-medium border-none outline-none focus:ring-2 focus:ring-amber-500 text-on-surface" />
+					</div>
+				</div>
+
+				<div class="p-6 border-t border-surface-container bg-surface-container-low/40 flex justify-end gap-3">
+					<button type="button" onclick={closeLogsheetModal} class="px-5 py-2.5 rounded-xl text-sm font-bold text-on-surface-variant hover:bg-surface-container transition-colors cursor-pointer">
+						Batal
+					</button>
+					<button type="submit" disabled={isSubmitting || !lsNoSj.trim() || !lsTonase} class="px-5 py-2.5 bg-amber-600 text-white rounded-xl text-sm font-bold shadow-sm hover:bg-amber-700 transition-colors flex items-center gap-2 disabled:opacity-50 cursor-pointer">
+						<span class="material-symbols-outlined text-[18px]">add</span>
+						<span>Tambahkan ke Logsheet</span>
 					</button>
 				</div>
 			</form>
