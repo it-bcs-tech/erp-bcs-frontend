@@ -684,7 +684,7 @@ export const actions: Actions = {
 		const destIdRaw = data.get('destinationId') as string;
 		const cargoName = (data.get('cargoName') as string || 'Muatan Shuttle / Ngepok').trim();
 		const loadingDate = data.get('loadingDate') as string || null;
-		const planRitase = parseInt(data.get('planRitase') as string, 10) || 5;
+		const planRitase = parseInt(data.get('planRitase') as string, 10) || 1;
 		const ujoPerRit = parseFloat(data.get('ujoPerRit') as string) || 0;
 		const ujoMakan = parseFloat(data.get('ujoMakan') as string) || 0;
 		const ujoTol = parseFloat(data.get('ujoTol') as string) || 0;
@@ -840,7 +840,9 @@ export const actions: Actions = {
 	addSusulanRitNgepok: async ({ request }) => {
 		const data = await request.formData();
 		const groupId = (data.get('groupId') as string || '').trim();
+		const count = parseInt(data.get('count') as string, 10) || 1;
 		if (!groupId) return fail(400, { message: 'Group ID kosong.' });
+		if (count < 1) return fail(400, { message: 'Jumlah ritase susulan minimal 1.' });
 
 		try {
 			await sql.begin(async (sql) => {
@@ -849,39 +851,79 @@ export const actions: Actions = {
 				`;
 				if (existingTrips.length === 0) throw new Error('Batch Ngepok tidak ditemukan.');
 				const lastTrip = existingTrips[0];
-				const nextRit = (lastTrip.ritase_ke || 0) + 1;
-				const newStNumber = `ST-${groupId}/${nextRit}`;
+				const currentMaxRit = lastTrip.ritase_ke || 0;
+				const newTotalRitasePlan = currentMaxRit + count;
+
+				// Cari data cash advance ritase sebelumnya untuk mendapatkan tarif UJO per rit
+				const caSample = await sql`
+					SELECT ca.sales_order_id, ca.estimated_ujo, ca.ujo_tol, ca.ujo_makan
+					FROM finance.cash_advance ca
+					JOIN fleet.trip t ON t.id = ca.trip_id
+					WHERE t.group_id = ${groupId}
+					ORDER BY ca.id DESC
+					LIMIT 1
+				`;
+				const salesOrderId = caSample.length > 0 && caSample[0].sales_order_id ? caSample[0].sales_order_id : `DO-${groupId}`;
+				const ujoPerRit = caSample.length > 0 ? (caSample[0].estimated_ujo || 0) : 0;
+				const ujoTol = caSample.length > 0 ? (caSample[0].ujo_tol || 0) : 0;
+				const ujoMakan = caSample.length > 0 ? (caSample[0].ujo_makan || 0) : 0;
 
 				// Update all existing trips in batch total_ritase_plan
 				await sql`
 					UPDATE fleet.trip
-					SET total_ritase_plan = ${nextRit}
+					SET total_ritase_plan = ${newTotalRitasePlan}
 					WHERE group_id = ${groupId}
 				`;
 
-				// Insert new trip
-				const tripRes = await sql`
-					INSERT INTO fleet.trip (
-						no_surat_tugas, group_id, dispatch_mode, ritase_ke, total_ritase_plan,
-						tgl_trip, unit_id, driver_id, customer,
-						origin_id, destination_id, origin, destination, cargo,
-						status, created_by
-					) VALUES (
-						${newStNumber}, ${groupId}, 'NGEPOK', ${nextRit}, ${nextRit},
-						${lastTrip.tgl_trip}, ${lastTrip.unit_id}, ${lastTrip.driver_id}, ${lastTrip.customer},
-						${lastTrip.origin_id}, ${lastTrip.destination_id}, ${lastTrip.origin}, ${lastTrip.destination}, ${lastTrip.cargo},
-						'SCHEDULED', 'OCS Dispatch'
-					)
-					RETURNING id
+				// Update marketing.sales_order total_ritase_plan
+				await sql`
+					UPDATE marketing.sales_order
+					SET total_ritase_plan = ${newTotalRitasePlan}
+					WHERE id = ${salesOrderId}
 				`;
 
-				await sql`
-					INSERT INTO fleet.trip_status_log (trip_id, status)
-					VALUES (${tripRes[0].id}, 'SCHEDULED')
-				`;
+				// Insert new trips (1..count)
+				for (let step = 1; step <= count; step++) {
+					const nextRit = currentMaxRit + step;
+					const newStNumber = `ST-${groupId}/${nextRit}`;
+
+					const tripRes = await sql`
+						INSERT INTO fleet.trip (
+							no_surat_tugas, group_id, dispatch_mode, ritase_ke, total_ritase_plan,
+							tgl_trip, unit_id, driver_id, customer,
+							origin_id, destination_id, origin, destination, cargo,
+							status, created_by
+						) VALUES (
+							${newStNumber}, ${groupId}, 'NGEPOK', ${nextRit}, ${newTotalRitasePlan},
+							${lastTrip.tgl_trip}, ${lastTrip.unit_id}, ${lastTrip.driver_id}, ${lastTrip.customer},
+							${lastTrip.origin_id}, ${lastTrip.destination_id}, ${lastTrip.origin}, ${lastTrip.destination}, ${lastTrip.cargo},
+							'SCHEDULED', 'OCS Dispatch'
+						)
+						RETURNING id
+					`;
+					const newTripId = tripRes[0].id;
+
+					await sql`
+						INSERT INTO fleet.trip_status_log (trip_id, status)
+						VALUES (${newTripId}, 'SCHEDULED')
+					`;
+
+					if (ujoPerRit > 0 || ujoMakan > 0 || ujoTol > 0) {
+						await sql`
+							INSERT INTO finance.cash_advance (
+								trip_id, sales_order_id, unit_id, driver_id,
+								estimated_ujo, ujo_tol, ujo_makan, payment_status
+							) VALUES (
+								${newTripId}, ${salesOrderId}, ${lastTrip.unit_id}, ${lastTrip.driver_id},
+								${ujoPerRit}, ${ujoTol}, ${ujoMakan}, 'UNPAID'
+							)
+						`;
+					}
+				}
 			});
-			return { success: true, message: 'Ritase susulan berhasil ditambahkan.' };
+			return { success: true, message: `Berhasil menambahkan ${count} ritase susulan.` };
 		} catch (e: any) {
+			console.error("Add susulan rit error:", e);
 			return fail(500, { error: e.message || 'Gagal menambah ritase susulan.' });
 		}
 	},

@@ -159,7 +159,7 @@
 	let ngepokDestId = $state('');
 	let ngepokCargo = $state('');
 	let ngepokDate = $state(new Date().toISOString().split('T')[0]);
-	let ngepokPlanRit = $state(5);
+	let ngepokPlanRit = $state(1);
 	let ngepokUjoPerRit = $state(250000);
 	let ngepokUjoMakan = $state(50000);
 	let ngepokUjoTol = $state(0);
@@ -177,7 +177,7 @@
 		ngepokDestId = '';
 		ngepokCargo = 'Muatan Shuttle / Ngepok';
 		ngepokDate = new Date().toISOString().split('T')[0];
-		ngepokPlanRit = 5;
+		ngepokPlanRit = 1;
 		ngepokUjoPerRit = 250000;
 		ngepokUjoMakan = 50000;
 		ngepokUjoTol = 0;
@@ -186,6 +186,23 @@
 
 	function closeNgepokModal() {
 		showNgepokModal = false;
+	}
+
+	// Add Susulan Rit State
+	let showAddSusulanModal = $state(false);
+	let susulanBatch = $state<any>(null);
+	let susulanCount = $state(1);
+
+	function openAddSusulanModal(batch: any) {
+		susulanBatch = batch;
+		susulanCount = 1;
+		showAddSusulanModal = true;
+	}
+
+	function closeAddSusulanModal() {
+		showAddSusulanModal = false;
+		susulanBatch = null;
+		susulanCount = 1;
 	}
 
 	// Void Rit State
@@ -521,6 +538,7 @@
 			closeUjoModal();
 			closeClosingModal();
 			closeNgepokModal();
+			closeAddSusulanModal();
 			closeVoidModal();
 			closeCompleteModal();
 			closeDedicatedModal();
@@ -1190,13 +1208,15 @@
 								</div>
 
 								<!-- Action Buttons -->
-								<form method="POST" action="?/addSusulanRitNgepok" use:enhance>
-									<input type="hidden" name="groupId" value={batch.groupId}>
-									<button type="submit" class="px-3 py-2 bg-surface-container hover:bg-indigo-50 hover:text-indigo-600 dark:hover:bg-indigo-950/50 text-xs font-bold rounded-xl transition-colors flex items-center gap-1.5 border border-surface-container cursor-pointer" title="Tambah Ritase Susulan (ST-N+1)">
-										<span class="material-symbols-outlined text-[16px]">add</span>
-										<span>+ Rit Susulan</span>
-									</button>
-								</form>
+								<button 
+									type="button" 
+									onclick={() => openAddSusulanModal(batch)} 
+									class="px-3 py-2 bg-surface-container hover:bg-indigo-50 hover:text-indigo-600 dark:hover:bg-indigo-950/50 text-xs font-bold rounded-xl transition-colors flex items-center gap-1.5 border border-surface-container cursor-pointer" 
+									title="Tambah Ritase Susulan"
+								>
+									<span class="material-symbols-outlined text-[16px]">more_time</span>
+									<span>+ Rit Susulan</span>
+								</button>
 
 								<button 
 									type="button" 
@@ -1949,9 +1969,40 @@
 						<div class="grid grid-cols-2 gap-4">
 							<div>
 								<label class="block text-[11px] font-bold text-on-surface-variant mb-1">Target Ritase (Plan)</label>
-								<div class="relative">
-									<input type="number" name="planRitase" min="1" max="30" bind:value={ngepokPlanRit} required class="w-full bg-surface-container-lowest border border-surface-container rounded-xl px-4 py-2 text-sm font-bold text-on-surface outline-none focus:ring-2 focus:ring-indigo-500" />
-									<span class="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-on-surface-variant">Rit</span>
+								<div class="flex items-center gap-1.5">
+									<button 
+										type="button" 
+										onclick={() => { if (ngepokPlanRit > 1) ngepokPlanRit--; }} 
+										class="w-9 h-9 flex items-center justify-center rounded-xl bg-surface-container hover:bg-surface-container-high text-on-surface font-black text-sm transition-colors border border-surface-container cursor-pointer"
+									>-</button>
+									<div class="relative flex-1">
+										<input 
+											type="number" 
+											name="planRitase" 
+											min="1" 
+											max="50" 
+											bind:value={ngepokPlanRit} 
+											required 
+											class="w-full bg-surface-container-lowest border border-surface-container rounded-xl px-2 py-2 text-center text-sm font-bold text-on-surface outline-none focus:ring-2 focus:ring-indigo-500" 
+										/>
+									</div>
+									<button 
+										type="button" 
+										onclick={() => ngepokPlanRit++} 
+										class="w-9 h-9 flex items-center justify-center rounded-xl bg-surface-container hover:bg-surface-container-high text-on-surface font-black text-sm transition-colors border border-surface-container cursor-pointer"
+									>+</button>
+								</div>
+								<!-- Quick Preset Pills -->
+								<div class="flex items-center gap-1 mt-1.5 flex-wrap">
+									{#each [1, 2, 3, 5, 8] as preset}
+										<button 
+											type="button" 
+											onclick={() => ngepokPlanRit = preset}
+											class="px-2 py-0.5 text-[10px] font-bold rounded-lg transition-colors cursor-pointer {ngepokPlanRit === preset ? 'bg-indigo-600 text-white' : 'bg-surface-container hover:bg-surface-container-high text-on-surface-variant'}"
+										>
+											{preset} Rit
+										</button>
+									{/each}
 								</div>
 							</div>
 							<div>
@@ -2000,6 +2051,114 @@
 						{:else}
 							<span class="material-symbols-outlined text-[18px]">task_alt</span>
 							<span>Terbitkan Batch ({ngepokPlanRit} Rit)</span>
+						{/if}
+					</button>
+				</div>
+			</form>
+		</div>
+	</div>
+{/if}
+
+<!-- Modal Tambah Ritase Susulan Ngepok -->
+{#if showAddSusulanModal && susulanBatch}
+	<div class="fixed inset-0 z-50 flex items-center justify-center p-4">
+		<div class="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onclick={closeAddSusulanModal}></div>
+		<div class="relative w-full max-w-md bg-surface-container-lowest rounded-[24px] shadow-2xl flex flex-col overflow-hidden">
+			<div class="p-6 border-b border-surface-container bg-indigo-50/50 dark:bg-indigo-950/20">
+				<div class="flex items-start justify-between">
+					<div class="flex items-center gap-3">
+						<div class="w-10 h-10 rounded-xl bg-indigo-600 text-white flex items-center justify-center">
+							<span class="material-symbols-outlined text-2xl">more_time</span>
+						</div>
+						<div>
+							<h3 class="text-lg font-bold text-indigo-700 dark:text-indigo-400">Tambah Ritase Susulan</h3>
+							<p class="text-xs text-on-surface-variant font-mono mt-0.5">Batch: {susulanBatch.groupId} • {susulanBatch.nomorUnit}</p>
+						</div>
+					</div>
+					<button type="button" onclick={closeAddSusulanModal} class="w-8 h-8 rounded-full bg-surface-container hover:bg-surface-container-high flex items-center justify-center text-on-surface-variant transition-colors cursor-pointer">
+						<span class="material-symbols-outlined text-lg">close</span>
+					</button>
+				</div>
+			</div>
+
+			<form method="POST" action="?/addSusulanRitNgepok" use:enhance={() => { isSubmitting = true; return async ({ update }) => { await update(); isSubmitting = false; }; }}>
+				<input type="hidden" name="groupId" value={susulanBatch.groupId}>
+				<div class="p-6 space-y-4">
+					<div class="p-3.5 bg-surface-container/60 rounded-xl text-xs space-y-1.5 border border-surface-container">
+						<div class="flex justify-between items-center">
+							<span class="text-on-surface-variant">Ritase Berjalan:</span>
+							<span class="font-bold text-on-surface">{susulanBatch.trips?.length || 0} Rit (Plan: {susulanBatch.totalPlan} Rit)</span>
+						</div>
+						<div class="flex justify-between items-center">
+							<span class="text-on-surface-variant">Pengemudi:</span>
+							<span class="font-bold text-on-surface">{susulanBatch.driverNama || '-'}</span>
+						</div>
+					</div>
+
+					<div>
+						<label class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-2">Jumlah Ritase Ditambahkan</label>
+						<div class="flex items-center gap-2">
+							<button 
+								type="button" 
+								onclick={() => { if (susulanCount > 1) susulanCount--; }} 
+								class="w-11 h-11 flex items-center justify-center rounded-xl bg-surface-container hover:bg-surface-container-high text-on-surface font-black text-lg transition-colors border border-surface-container cursor-pointer"
+							>-</button>
+							<div class="relative flex-1">
+								<input 
+									type="number" 
+									name="count" 
+									min="1" 
+									max="20" 
+									bind:value={susulanCount} 
+									required 
+									class="w-full bg-surface-container-lowest border border-surface-container rounded-xl px-4 py-2.5 text-center text-base font-black text-on-surface outline-none focus:ring-2 focus:ring-indigo-500" 
+								/>
+								<span class="absolute right-4 top-1/2 -translate-y-1/2 text-xs font-bold text-on-surface-variant">Rit</span>
+							</div>
+							<button 
+								type="button" 
+								onclick={() => susulanCount++} 
+								class="w-11 h-11 flex items-center justify-center rounded-xl bg-surface-container hover:bg-surface-container-high text-on-surface font-black text-lg transition-colors border border-surface-container cursor-pointer"
+							>+</button>
+						</div>
+
+						<!-- Quick Preset Pills -->
+						<div class="flex items-center gap-1.5 mt-2">
+							<span class="text-[11px] text-on-surface-variant font-medium mr-1">Preset:</span>
+							{#each [1, 2, 3, 5] as preset}
+								<button 
+									type="button" 
+									onclick={() => susulanCount = preset}
+									class="px-3 py-1 text-xs font-bold rounded-lg transition-colors cursor-pointer {susulanCount === preset ? 'bg-indigo-600 text-white shadow-xs' : 'bg-surface-container hover:bg-surface-container-high text-on-surface-variant'}"
+								>
+									+{preset} Rit
+								</button>
+							{/each}
+						</div>
+					</div>
+
+					<div class="p-3.5 rounded-xl bg-indigo-500/10 border border-indigo-500/20 text-xs text-indigo-900 dark:text-indigo-300">
+						<div class="font-bold flex items-center gap-1.5 mb-1">
+							<span class="material-symbols-outlined text-[16px]">info</span>
+							<span>Otomatisasi Penugasan & UJO:</span>
+						</div>
+						<p class="leading-relaxed text-[11px]">
+							Sistem akan menambahkan <strong>{susulanCount} Surat Tugas baru</strong> (rit ke-{(susulanBatch.trips?.length || 0) + 1} s/d ke-{(susulanBatch.trips?.length || 0) + susulanCount}) dan secara otomatis membuat rincian UJO susulan di menu Finance.
+						</p>
+					</div>
+				</div>
+
+				<div class="p-6 border-t border-surface-container bg-surface-container-low/40 flex justify-end gap-3">
+					<button type="button" onclick={closeAddSusulanModal} class="px-5 py-2.5 rounded-xl text-sm font-bold text-on-surface-variant hover:bg-surface-container transition-colors cursor-pointer">
+						Batal
+					</button>
+					<button type="submit" disabled={isSubmitting || susulanCount < 1} class="px-5 py-2.5 bg-indigo-600 text-white rounded-xl text-sm font-bold shadow-sm hover:bg-indigo-700 transition-colors flex items-center gap-2 disabled:opacity-50 cursor-pointer">
+						{#if isSubmitting}
+							<span class="material-symbols-outlined text-[18px] animate-spin">sync</span>
+							<span>Memproses...</span>
+						{:else}
+							<span class="material-symbols-outlined text-[18px]">add_circle</span>
+							<span>Tambahkan {susulanCount} Rit Susulan</span>
 						{/if}
 					</button>
 				</div>
