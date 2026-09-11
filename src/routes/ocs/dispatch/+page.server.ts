@@ -928,37 +928,6 @@ export const actions: Actions = {
 		}
 	},
 
-	completeRitNgepok: async ({ request }) => {
-		const data = await request.formData();
-		const tripId = parseId(data.get('tripId'));
-		const noSuratJalanCustomer = (data.get('noSuratJalanCustomer') as string || '').trim();
-		const actualWeight = parseFloat(data.get('actualWeight') as string) || 0;
-
-		if (!tripId || !noSuratJalanCustomer) {
-			return fail(400, { message: 'Trip ID dan Nomor Surat Jalan Customer wajib diisi.' });
-		}
-
-		try {
-			await sql.begin(async (sql) => {
-				await sql`
-					UPDATE fleet.trip
-					SET status = 'COMPLETED',
-					    no_surat_jalan_customer = ${noSuratJalanCustomer},
-					    actual_weight = ${actualWeight},
-					    arrive_time = NOW()
-					WHERE id = ${tripId}
-				`;
-				await sql`
-					INSERT INTO fleet.trip_status_log (trip_id, status)
-					VALUES (${tripId}, 'COMPLETED')
-				`;
-			});
-			return { success: true, message: 'Ritase berhasil diselesaikan (Terkoneksi ke Surat Jalan Customer).' };
-		} catch (e: any) {
-			return fail(500, { error: e.message || 'Gagal menyelesaikan ritase.' });
-		}
-	},
-
 	closeNgepokBatch: async ({ request }) => {
 		const data = await request.formData();
 		const groupId = (data.get('groupId') as string || '').trim();

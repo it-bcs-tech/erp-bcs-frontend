@@ -223,26 +223,6 @@
 		voidTripId = null;
 	}
 
-	// Complete Rit State
-	let showCompleteModal = $state(false);
-	let completeTripId = $state<number | null>(null);
-	let completeTripSt = $state('');
-	let completeNoSj = $state('');
-	let completeWeight = $state('');
-
-	function openCompleteModal(trip: any) {
-		completeTripId = trip.trip_id || trip.id;
-		completeTripSt = trip.no_surat_tugas;
-		completeNoSj = trip.no_surat_jalan_customer || '';
-		completeWeight = trip.actual_weight ? String(trip.actual_weight) : '';
-		showCompleteModal = true;
-	}
-
-	function closeCompleteModal() {
-		showCompleteModal = false;
-		completeTripId = null;
-	}
-
 	// Print Batch State
 	let showPrintModal = $state(false);
 	let printBatch = $state<any>(null);
@@ -540,7 +520,6 @@
 			closeNgepokModal();
 			closeAddSusulanModal();
 			closeVoidModal();
-			closeCompleteModal();
 			closeDedicatedModal();
 			closeLogsheetModal();
 			isSubmitting = false;
@@ -1288,14 +1267,10 @@
 															{trip.no_surat_jalan_customer}
 														</span>
 													{:else if trip.status === 'SCHEDULED'}
-														<button 
-															type="button" 
-															onclick={() => openCompleteModal(trip)} 
-															class="text-primary hover:underline font-bold text-[11px] flex items-center gap-1 cursor-pointer"
-														>
-															<span class="material-symbols-outlined text-[14px]">edit</span>
-															<span>+ Input No. SJ</span>
-														</button>
+														<span class="inline-flex items-center gap-1 text-[11px] font-bold text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/40 px-2.5 py-1 rounded-lg border border-amber-200/60 dark:border-amber-900/40">
+															<span class="material-symbols-outlined text-[13px]">schedule</span>
+															<span>Menunggu Kasir</span>
+														</span>
 													{:else}
 														<span class="text-on-surface-variant/40">-</span>
 													{/if}
@@ -1328,14 +1303,6 @@
 												<td class="py-3.5 px-5 text-right">
 													<div class="flex items-center justify-end gap-1.5">
 														{#if trip.status === 'SCHEDULED'}
-															<button 
-																type="button" 
-																onclick={() => openCompleteModal(trip)}
-																class="px-2.5 py-1 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 dark:bg-emerald-950/40 dark:text-emerald-300 rounded-lg text-xs font-bold transition-colors cursor-pointer"
-																title="Selesaikan Rit dan tautkan Surat Jalan Customer"
-															>
-																Selesai
-															</button>
 															<button 
 																type="button" 
 																onclick={() => openVoidModal(trip)}
@@ -2208,58 +2175,6 @@
 					<button type="submit" disabled={isSubmitting || !voidReason.trim()} class="px-5 py-2.5 bg-rose-600 text-white rounded-xl text-sm font-bold shadow-sm hover:bg-rose-700 transition-colors flex items-center gap-2 disabled:opacity-50 cursor-pointer">
 						<span class="material-symbols-outlined text-[18px]">cancel</span>
 						<span>Konfirmasi Void</span>
-					</button>
-				</div>
-			</form>
-		</div>
-	</div>
-{/if}
-
-<!-- Modal Selesaikan Ritase Ngepok -->
-{#if showCompleteModal}
-	<div class="fixed inset-0 z-50 flex items-center justify-center p-4">
-		<div class="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onclick={closeCompleteModal}></div>
-		<div class="relative w-full max-w-md bg-surface-container-lowest rounded-[24px] shadow-2xl flex flex-col overflow-hidden">
-			<div class="p-6 border-b border-surface-container bg-emerald-50/50 dark:bg-emerald-950/20">
-				<div class="flex items-start justify-between">
-					<div class="flex items-center gap-3">
-						<div class="w-10 h-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center">
-							<span class="material-symbols-outlined text-2xl">check_circle</span>
-						</div>
-						<div>
-							<h3 class="text-lg font-bold text-emerald-700 dark:text-emerald-400">Selesaikan Ritase</h3>
-							<p class="text-xs text-on-surface-variant font-mono mt-0.5">{completeTripSt}</p>
-						</div>
-					</div>
-					<button type="button" onclick={closeCompleteModal} class="w-8 h-8 rounded-full bg-surface-container hover:bg-surface-container-high flex items-center justify-center text-on-surface-variant transition-colors cursor-pointer">
-						<span class="material-symbols-outlined text-lg">close</span>
-					</button>
-				</div>
-			</div>
-
-			<form method="POST" action="?/completeRitNgepok" use:enhance={() => { isSubmitting = true; return async ({ update }) => { await update(); isSubmitting = false; }; }}>
-				<input type="hidden" name="tripId" value={completeTripId}>
-				<div class="p-6 space-y-4">
-					<div>
-						<label class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-2">No. Surat Jalan Customer (Fisik) <span class="text-error">*</span></label>
-						<input type="text" name="noSuratJalanCustomer" bind:value={completeNoSj} required placeholder="Contoh: SJ-CUST-98214" class="w-full bg-surface-container rounded-xl px-4 py-2.5 text-sm font-bold border-none outline-none focus:ring-2 focus:ring-emerald-500 text-on-surface font-mono" />
-					</div>
-					<div>
-						<label class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-2">Tonase Riil (Hasil Timbang) <span class="text-error">*</span></label>
-						<div class="relative">
-							<input type="number" step="0.01" name="actualWeight" bind:value={completeWeight} required placeholder="Contoh: 32.50" class="w-full bg-surface-container rounded-xl px-4 py-2.5 text-sm font-bold border-none outline-none focus:ring-2 focus:ring-emerald-500 text-on-surface font-mono" />
-							<span class="absolute right-4 top-1/2 -translate-y-1/2 text-xs font-bold text-on-surface-variant">Ton</span>
-						</div>
-					</div>
-				</div>
-
-				<div class="p-6 border-t border-surface-container bg-surface-container-low/40 flex justify-end gap-3">
-					<button type="button" onclick={closeCompleteModal} class="px-5 py-2.5 rounded-xl text-sm font-bold text-on-surface-variant hover:bg-surface-container transition-colors cursor-pointer">
-						Batal
-					</button>
-					<button type="submit" disabled={isSubmitting || !completeNoSj.trim() || !completeWeight} class="px-5 py-2.5 bg-emerald-600 text-white rounded-xl text-sm font-bold shadow-sm hover:bg-emerald-700 transition-colors flex items-center gap-2 disabled:opacity-50 cursor-pointer">
-						<span class="material-symbols-outlined text-[18px]">done_all</span>
-						<span>Simpan & Tautkan SJ</span>
 					</button>
 				</div>
 			</form>
