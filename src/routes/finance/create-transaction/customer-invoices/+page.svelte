@@ -815,11 +815,11 @@
 						<label class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-1">
 							Dokumen Order / Kontrak <span class="text-error">*</span>
 						</label>
-						<div class="flex rounded-xl overflow-hidden bg-surface-container border border-surface-variant/30 focus-within:ring-2 focus-within:ring-primary">
+						<div class="flex rounded-xl overflow-hidden bg-surface-container focus-within:ring-2 focus-within:ring-primary">
 							<select 
 								bind:value={refOrderType} 
 								onchange={syncOrderRef}
-								class="bg-surface-container-high text-xs font-bold text-on-surface px-3 py-2.5 outline-none border-r border-surface-variant/30 cursor-pointer shrink-0"
+								class="bg-surface-container-high/60 text-xs font-bold text-on-surface px-3 py-2.5 outline-none border-none cursor-pointer shrink-0"
 							>
 								<option value="PO">PO</option>
 								<option value="SPK">SPK</option>
@@ -831,25 +831,20 @@
 								type="text" 
 								bind:value={refOrderNumber} 
 								oninput={syncOrderRef}
-								class="flex-1 bg-transparent px-3.5 py-2.5 text-sm font-medium outline-none text-on-surface placeholder:text-on-surface-variant/50" 
+								class="flex-1 bg-transparent px-3.5 py-2.5 text-sm font-medium outline-none border-none text-on-surface placeholder:text-on-surface-variant/50" 
 								placeholder={refOrderType === 'CUSTOM' ? 'Nomor referensi manual...' : `Nomor ${refOrderType} pelanggan...`} 
 							/>
 						</div>
-						{#if form.no_po_spk}
-							<p class="text-[10px] text-on-surface-variant mt-1 font-mono">
-								Tersimpan: <strong class="text-primary">{form.no_po_spk}</strong>
-							</p>
-						{/if}
 					</div>
 					<div>
 						<label class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-1">
 							Dokumen Penerimaan / Pengiriman (LHP / Penerimaan)
 						</label>
-						<div class="flex rounded-xl overflow-hidden bg-surface-container border border-surface-variant/30 focus-within:ring-2 focus-within:ring-primary">
+						<div class="flex rounded-xl overflow-hidden bg-surface-container focus-within:ring-2 focus-within:ring-primary">
 							<select 
 								bind:value={refLhpType} 
 								onchange={syncLhpRef}
-								class="bg-surface-container-high text-xs font-bold text-on-surface px-3 py-2.5 outline-none border-r border-surface-variant/30 cursor-pointer shrink-0"
+								class="bg-surface-container-high/60 text-xs font-bold text-on-surface px-3 py-2.5 outline-none border-none cursor-pointer shrink-0"
 							>
 								<option value="LHP">LHP</option>
 								<option value="RR">RR</option>
@@ -860,15 +855,10 @@
 								type="text" 
 								bind:value={refLhpNumber} 
 								oninput={syncLhpRef}
-								class="flex-1 bg-transparent px-3.5 py-2.5 text-sm font-medium outline-none text-on-surface placeholder:text-on-surface-variant/50" 
+								class="flex-1 bg-transparent px-3.5 py-2.5 text-sm font-medium outline-none border-none text-on-surface placeholder:text-on-surface-variant/50" 
 								placeholder={refLhpType === 'CUSTOM' ? 'Nomor dokumen manual...' : `Nomor ${refLhpType}... (Opsional)`} 
 							/>
 						</div>
-						{#if form.no_lhp}
-							<p class="text-[10px] text-on-surface-variant mt-1 font-mono">
-								Tersimpan: <strong class="text-primary">{form.no_lhp}</strong>
-							</p>
-						{/if}
 					</div>
 				</div>
 			</div>
@@ -916,62 +906,53 @@
 								</tr>
 							{:else}
 								{#each form.items as item, i}
-									<tr class="hover:bg-surface-container-lowest group">
+									<tr 
+										onclick={() => openItemModal(i)} 
+										class="hover:bg-primary/5 cursor-pointer transition-colors group/row border-b border-surface-container"
+										title="Klik untuk ubah detail baris (Modal)"
+									>
 										<td class="p-3">
-											<input type="text" bind:value={item.deskripsi} class="w-full min-w-[150px] bg-surface-container rounded-lg px-2.5 py-1.5 text-xs font-medium border border-surface-variant/30 focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all" placeholder="Nama Layanan/Barang" />
+											<div class="flex items-center gap-2">
+												<span class="font-bold text-sm text-on-surface group-hover/row:text-primary transition-colors">
+													{item.deskripsi || '(Klik untuk isi deskripsi)'}
+												</span>
+												<span class="material-symbols-outlined text-[14px] text-primary opacity-0 group-hover/row:opacity-100 transition-opacity shrink-0">edit</span>
+											</div>
 										</td>
-										<td class="p-3 min-w-[160px]">
-											<SearchableSelect 
-												options={departmentOpts} 
-												bind:value={item.department_id} 
-												placeholder="- Dept -" 
-												btnClass="bg-surface-container rounded-lg px-2.5 py-1.5 text-xs border border-surface-variant/30" 
-											/>
-										</td>
-										<td class="p-3">
-											<select bind:value={item.akun_pendapatan} class="w-full min-w-[110px] bg-surface-container rounded-lg px-2.5 py-1.5 text-xs font-medium border border-surface-variant/30 focus:border-primary focus:ring-1 focus:ring-primary outline-none cursor-pointer">
-												<option value="">- Akun -</option>
-												{#each accounts as a}<option value={a.id}>{a.name}</option>{/each}
-											</select>
-										</td>
-										<td class="p-3">
-											<button 
-												type="button" 
-												onclick={() => openItemModal(i)} 
-												class="w-full text-right px-2 py-1.5 rounded-lg bg-surface-container/60 hover:bg-primary/10 hover:text-primary border border-surface-variant/30 hover:border-primary/50 transition-all font-mono font-bold text-sm flex items-center justify-end gap-1 group/btn cursor-pointer" 
-												title="Klik untuk buka modal detail baris"
-											>
-												<span>{formatQty(item.qty)}</span>
-												<span class="material-symbols-outlined text-[13px] opacity-0 group-hover/btn:opacity-100 text-primary">edit</span>
-											</button>
+										<td class="p-3 min-w-[140px]">
+											{#if item.department_id}
+												<span class="text-xs font-semibold text-on-surface-variant bg-surface-container px-2.5 py-1 rounded-lg inline-block">
+													{departmentOpts.find(d => d.value === item.department_id)?.label || '-'}
+												</span>
+											{:else}
+												<span class="text-xs text-on-surface-variant/50 italic">- Dept -</span>
+											{/if}
 										</td>
 										<td class="p-3">
-											<button 
-												type="button" 
-												onclick={() => openItemModal(i)} 
-												class="w-full text-left px-2 py-1.5 rounded-lg bg-surface-container/60 hover:bg-primary/10 hover:text-primary border border-surface-variant/30 hover:border-primary/50 transition-all font-semibold text-xs uppercase flex items-center justify-between gap-1 group/btn cursor-pointer" 
-												title="Klik untuk buka modal detail baris"
-											>
-												<span class="truncate">{item.satuan || '-'}</span>
-												<span class="material-symbols-outlined text-[13px] text-on-surface-variant group-hover/btn:text-primary">arrow_drop_down</span>
-											</button>
+											<span class="text-xs font-medium text-on-surface-variant truncate block max-w-[120px]" title={accounts.find(a => a.id === item.akun_pendapatan)?.name}>
+												{accounts.find(a => a.id === item.akun_pendapatan)?.name || '-'}
+											</span>
+										</td>
+										<td class="p-3 text-right">
+											<span class="font-mono font-bold text-sm text-on-surface">{formatQty(item.qty)}</span>
+										</td>
+										<td class="p-3 text-center">
+											<span class="text-xs font-bold uppercase tracking-wider text-on-surface-variant bg-surface-container px-2 py-0.5 rounded">
+												{item.satuan || '-'}
+											</span>
+										</td>
+										<td class="p-3 text-right">
+											<span class="font-mono text-sm text-on-surface">{formatCurrency(item.harga)}</span>
 										</td>
 										<td class="p-3">
-											<button 
-												type="button" 
-												onclick={() => openItemModal(i)} 
-												class="w-full text-right px-2 py-1.5 rounded-lg bg-surface-container/60 hover:bg-primary/10 hover:text-primary border border-surface-variant/30 hover:border-primary/50 transition-all font-mono font-bold text-sm flex items-center justify-end gap-1 group/btn cursor-pointer" 
-												title="Klik untuk buka modal detail baris"
-											>
-												<span>{formatCurrency(item.harga)}</span>
-												<span class="material-symbols-outlined text-[13px] opacity-0 group-hover/btn:opacity-100 text-primary">edit</span>
-											</button>
-										</td>
-										<td class="p-3">
-											<select bind:value={item.pajak_id} class="w-full min-w-[90px] bg-surface-container rounded-lg px-2.5 py-1.5 text-xs font-medium border border-surface-variant/30 focus:border-primary focus:ring-1 focus:ring-primary outline-none cursor-pointer">
-												<option value="">- Pajak -</option>
-												{#each taxes as t}<option value={t.id}>{t.name}</option>{/each}
-											</select>
+											{#if item.pajak_id}
+												{@const tax = taxes.find(t => t.id === item.pajak_id)}
+												<span class="px-2 py-0.5 bg-teal-50 text-teal-700 dark:bg-teal-950/50 dark:text-teal-300 rounded font-semibold text-[11px] whitespace-nowrap">
+													{tax?.name || 'PPN'} ({tax?.rate || tax?.value || 0}%)
+												</span>
+											{:else}
+												<span class="text-on-surface-variant/50 text-[11px]">-</span>
+											{/if}
 										</td>
 										<td class="p-3 text-right">
 											<div class="flex flex-col items-end">
@@ -981,7 +962,7 @@
 												{/if}
 											</div>
 										</td>
-										<td class="p-3 text-center">
+										<td class="p-3 text-center" onclick={(e) => e.stopPropagation()}>
 											<div class="flex items-center justify-center gap-1">
 												<button 
 													type="button" 
@@ -993,7 +974,7 @@
 												</button>
 												<button 
 													type="button" 
-													onclick={() => removeItem(i)} 
+													onclick={(e) => { e.stopPropagation(); removeItem(i); }} 
 													class="w-7 h-7 rounded-lg bg-surface-container hover:bg-error/10 hover:text-error flex items-center justify-center text-on-surface-variant transition-colors" 
 													disabled={form.items.length === 1}
 													title="Hapus Baris"
