@@ -5,53 +5,52 @@ import { formatAuditUser } from '$lib/server/auth';
 
 export const load: PageServerLoad = async ({ url }) => {
 	const prIdsParam = url.searchParams.get('pr_ids') || url.searchParams.get('pr_id');
-	if (!prIdsParam) {
-		throw redirect(302, '/pms/transactions/pr?error=pr_required');
-	}
 
 	const parsedIds = prIdsParam
-		.split(',')
-		.map(s => parseInt(s.trim()))
-		.filter(n => !isNaN(n) && n > 0);
-
-	if (parsedIds.length === 0) {
-		throw redirect(302, '/pms/transactions/pr?error=pr_required');
-	}
+		? prIdsParam
+			.split(',')
+			.map(s => parseInt(s.trim()))
+			.filter(n => !isNaN(n) && n > 0)
+		: [];
 
 	try {
-		const prList = await sql`
-			SELECT id, pr_number, project_id, site_id, category, notes, department, requested_by
-			FROM procurement.purchase_request 
-			WHERE id IN ${sql(parsedIds)}
-			ORDER BY id ASC
-		`;
-		if (prList.length === 0) {
-			throw redirect(302, '/pms/transactions/pr?error=pr_required');
+		let initialPR: any = null;
+		let initialPRs: any[] = [];
+		let initialItems: any[] = [];
+
+		if (parsedIds.length > 0) {
+			const prList = await sql`
+				SELECT id, pr_number, project_id, site_id, category, notes, department, requested_by
+				FROM procurement.purchase_request 
+				WHERE id IN ${sql(parsedIds)}
+				ORDER BY id ASC
+			`;
+			if (prList.length > 0) {
+				initialPR = prList[0];
+				initialPRs = prList;
+
+				initialItems = await sql`
+					SELECT 
+						prl.id as pr_line_id,
+						prl.pr_id,
+						pr.pr_number,
+						prl.item_id,
+						m.material_code,
+						m.name,
+						m.spec,
+						m.brand,
+						m.uom,
+						m.stock,
+						m.standard_price as unit_price,
+						prl.qty_requested as qty_ordered
+					FROM procurement.purchase_request_line prl
+					JOIN procurement.purchase_request pr ON pr.id = prl.pr_id
+					JOIN master.m_materials m ON m.id = prl.item_id
+					WHERE prl.pr_id IN ${sql(parsedIds)}
+					ORDER BY prl.pr_id ASC, prl.id ASC
+				`;
+			}
 		}
-
-		const initialPR = prList[0];
-		const initialPRs = prList;
-
-		const initialItems = await sql`
-			SELECT 
-				prl.id as pr_line_id,
-				prl.pr_id,
-				pr.pr_number,
-				prl.item_id,
-				m.material_code,
-				m.name,
-				m.spec,
-				m.brand,
-				m.uom,
-				m.stock,
-				m.standard_price as unit_price,
-				prl.qty_requested as qty_ordered
-			FROM procurement.purchase_request_line prl
-			JOIN procurement.purchase_request pr ON pr.id = prl.pr_id
-			JOIN master.m_materials m ON m.id = prl.item_id
-			WHERE prl.pr_id IN ${sql(parsedIds)}
-			ORDER BY prl.pr_id ASC, prl.id ASC
-		`;
 
 		const vendors = await sql`
 			SELECT id, kode_kustomer, nama_kustomer, COALESCE(alamat, '') as alamat 
@@ -85,7 +84,7 @@ export const load: PageServerLoad = async ({ url }) => {
 				OR pr.status = 'PENDING' 
 				OR pr.status = 'DRAFT' 
 				OR pr.status = 'APPROVED'
-				OR pr.id IN ${sql(parsedIds)}
+				${parsedIds.length > 0 ? sql`OR pr.id IN ${sql(parsedIds)}` : sql``}
 			  )
 			ORDER BY m.name
 		`;
@@ -142,10 +141,6 @@ export const actions: Actions = {
 			items = JSON.parse(itemsRaw);
 		} catch {
 			items = [];
-		}
-
-		if (submittedPrIds.length === 0 && items.every((itm: any) => !itm.pr_id)) {
-			return fail(400, { success: false, message: 'Referensi Purchase Request (PR) wajib ada untuk membuat PO!' });
 		}
 
 		if (!vendorId) {

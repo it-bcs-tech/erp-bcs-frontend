@@ -261,6 +261,27 @@
 				<span class="material-symbols-outlined text-xs">arrow_forward</span>
 			</a>
 		</div>
+	{:else}
+		<div class="p-4 rounded-2xl bg-surface-container-low border border-slate-200/60 dark:border-slate-800/60 text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs">
+			<div class="flex items-start sm:items-center gap-3">
+				<div class="w-9 h-9 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0">
+					<span class="material-symbols-outlined text-lg">edit_document</span>
+				</div>
+				<div>
+					<p class="font-bold text-on-surface">Pembuatan Purchase Order Manual</p>
+					<p class="text-[11px] text-on-surface-variant mt-0.5">
+						PO ini dibuat secara langsung tanpa memilih PR terlebih dahulu. Pilihan material tetap difilter otomatis dari PR yang berstatus Open/Aktif.
+					</p>
+				</div>
+			</div>
+			<a
+				href="/pms/transactions/pr"
+				class="text-[11px] font-bold text-amber-700 dark:text-amber-300 hover:underline flex items-center gap-1 self-start sm:self-auto shrink-0"
+			>
+				<span>Pilih dari PR</span>
+				<span class="material-symbols-outlined text-xs">arrow_forward</span>
+			</a>
+		</div>
 	{/if}
 
 	<form method="POST" action="?/create" use:enhance={() => {

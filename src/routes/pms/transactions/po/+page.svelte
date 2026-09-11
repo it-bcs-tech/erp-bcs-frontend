@@ -46,6 +46,16 @@
 				Penerbitan pesanan resmi pembelian kepada vendor & supplier dengan kalkulasi diskon & PPN 11%
 			</p>
 		</div>
+
+		<div class="flex items-center gap-3">
+			<a
+				href="/pms/transactions/po/create"
+				class="inline-flex items-center gap-2 bg-amber-600 hover:bg-amber-700 text-white text-xs sm:text-sm font-bold px-4 py-2.5 rounded-xl shadow-xs transition-colors"
+			>
+				<span class="material-symbols-outlined text-lg">add</span>
+				<span>Buat PO Baru</span>
+			</a>
+		</div>
 	</header>
 
 	<!-- Search & Filter Bar -->
@@ -113,6 +123,15 @@
 							<td colspan="9" class="py-12 text-center text-on-surface-variant">
 								<span class="material-symbols-outlined text-4xl text-slate-300 dark:text-slate-600 mb-2">shopping_cart</span>
 								<p class="text-xs font-semibold">Tidak ada data Purchase Order.</p>
+								<div class="mt-3">
+									<a
+										href="/pms/transactions/po/create"
+										class="inline-flex items-center gap-1.5 text-xs font-bold text-amber-600 hover:text-amber-700 dark:text-amber-400 dark:hover:text-amber-300"
+									>
+										<span class="material-symbols-outlined text-base">add</span>
+										<span>Buat PO Sekarang</span>
+									</a>
+								</div>
 							</td>
 						</tr>
 					{:else}
