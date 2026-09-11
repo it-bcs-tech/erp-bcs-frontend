@@ -523,10 +523,10 @@ export const actions: Actions = {
 						VALUES (${tripId}, 'SCHEDULED')
 					`;
 
-					// Update unit status to ON_DUTY_REGULER
+					// Update unit status to ON_DUTY
 					await sql`
 						UPDATE fleet.unit
-						SET current_state = 'ON_DUTY_REGULER'
+						SET current_state = 'ON_DUTY'
 						WHERE id = ${assignment.unitId}
 					`;
 
@@ -799,7 +799,7 @@ export const actions: Actions = {
 				// 3. Update unit current_state
 				await sql`
 					UPDATE fleet.unit
-					SET current_state = 'ON_DUTY_NGEPOK'
+					SET current_state = 'ON_DUTY'
 					WHERE id = ${unitId}
 				`;
 			});
@@ -1067,7 +1067,7 @@ export const actions: Actions = {
 				// 3. Update fleet.unit current_state
 				await sql`
 					UPDATE fleet.unit
-					SET current_state = 'DEDICATED_ONSITE'
+					SET current_state = 'ON_DUTY'
 					WHERE id = ${unitId}
 				`;
 			});
