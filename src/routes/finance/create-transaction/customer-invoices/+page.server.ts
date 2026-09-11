@@ -117,7 +117,8 @@ export const actions: Actions = {
 			for (const item of invoice.items) {
 				const qty = parseFloat(item.qty) || 0;
 				const harga = parseFloat(item.harga) || 0;
-				const lineTotal = qty * harga;
+				const diskon = parseFloat(item.diskon) || 0;
+				const lineTotal = Math.max(0, (qty * harga) - diskon);
 				subtotal += lineTotal;
 				const rate = item.pajak_id ? (taxRateMap.get(item.pajak_id) ?? 0) : 0;
 				taxAmount += (lineTotal * rate) / 100;
@@ -178,7 +179,8 @@ export const actions: Actions = {
 				for (const item of invoice.items) {
 					const qty = parseFloat(item.qty) || 0;
 					const harga = parseFloat(item.harga) || 0;
-					const lineTotal = qty * harga;
+					const diskon = parseFloat(item.diskon) || 0;
+					const lineTotal = Math.max(0, (qty * harga) - diskon);
 					const rate = item.pajak_id ? (taxRateMap.get(item.pajak_id) ?? 0) : 0;
 					await tx`
 						INSERT INTO finance.invoice_line (

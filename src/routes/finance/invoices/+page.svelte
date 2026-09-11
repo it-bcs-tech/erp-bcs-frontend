@@ -198,6 +198,9 @@
 										<button onclick={() => openPreview(invoice.id)} class="w-8 h-8 rounded-full bg-surface-container hover:bg-blue-100 hover:text-blue-700 text-on-surface-variant flex items-center justify-center transition-colors" title="Lihat Detail">
 											<span class="material-symbols-outlined text-[18px]">visibility</span>
 										</button>
+										<a href="/finance/invoices/{invoice.id}/print?kop=true" target="_blank" rel="noopener noreferrer" class="w-8 h-8 rounded-full bg-surface-container hover:bg-indigo-100 hover:text-indigo-700 text-on-surface-variant flex items-center justify-center transition-colors" title="Print Invoice (Kop)">
+											<span class="material-symbols-outlined text-[18px]">print</span>
+										</a>
 										{#if invoice.status === 'DRAFT'}
 											<a href="/finance/invoices/{invoice.id}/edit" class="w-8 h-8 rounded-full bg-surface-container hover:bg-amber-100 hover:text-amber-700 text-on-surface-variant flex items-center justify-center transition-colors" title="Edit Invoice">
 												<span class="material-symbols-outlined text-[18px]">edit</span>
@@ -255,9 +258,25 @@
 						</div>
 					</div>
 					<div class="flex items-center gap-2">
-						<a href="/finance/invoices/{previewData.invoice.id}/print" target="_blank" rel="noopener noreferrer" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-bold flex items-center gap-2 transition-colors shadow-sm">
-							<span class="material-symbols-outlined text-[18px]">print</span>
-							Print / PDF
+						<a 
+							href="/finance/invoices/{previewData.invoice.id}/print?kop=true" 
+							target="_blank" 
+							rel="noopener noreferrer" 
+							class="px-3.5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 transition-colors shadow-sm"
+							title="Cetak Faktur Lengkap dengan Logo & Kop Resmi"
+						>
+							<span class="material-symbols-outlined text-[16px]">print</span>
+							Print Kop
+						</a>
+						<a 
+							href="/finance/invoices/{previewData.invoice.id}/print?kop=false" 
+							target="_blank" 
+							rel="noopener noreferrer" 
+							class="px-3.5 py-2 bg-surface-container-high hover:bg-surface-container-highest text-on-surface rounded-xl text-xs font-bold flex items-center gap-1.5 transition-colors border border-surface-variant/30 shadow-sm"
+							title="Cetak Faktur di atas Kertas Kop Surat Fisik (Pre-printed)"
+						>
+							<span class="material-symbols-outlined text-[16px]">crop_portrait</span>
+							Print Tanpa Kop
 						</a>
 						<button onclick={() => showPreviewModal = false} class="w-10 h-10 rounded-full bg-surface-container hover:bg-surface-container-high flex items-center justify-center text-on-surface-variant transition-colors">
 							<span class="material-symbols-outlined text-xl">close</span>

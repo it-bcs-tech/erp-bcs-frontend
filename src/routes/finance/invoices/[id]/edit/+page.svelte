@@ -38,6 +38,7 @@
 			satuan: line.uom || '',
 			qty: Number(line.quantity) || 0,
 			harga: Number(line.unit_price) || 0,
+			diskon: 0,
 			pajak_id: line.tax_id || ''
 		}))
 	});
@@ -55,12 +56,19 @@
 	let dnFetchError = $state('');
 
 	// Derived calculations
-	const subtotal = $derived(form.items.reduce((sum: number, item: any) => sum + (item.qty * item.harga), 0));
+	const subtotal = $derived(form.items.reduce((sum: number, item: any) => {
+		const gross = (parseFloat(item.qty) || 0) * (parseFloat(item.harga) || 0);
+		const disc = parseFloat(item.diskon) || 0;
+		return sum + Math.max(0, gross - disc);
+	}, 0));
 	
 	const taxTotal = $derived(form.items.reduce((sum: number, item: any) => {
+		const gross = (parseFloat(item.qty) || 0) * (parseFloat(item.harga) || 0);
+		const disc = parseFloat(item.diskon) || 0;
+		const lineDpp = Math.max(0, gross - disc);
 		const tax = taxes.find((t: any) => t.id === item.pajak_id);
-		const rate = tax ? tax.rate / 100 : 0;
-		return sum + (item.qty * item.harga * rate);
+		const rate = tax ? (parseFloat(tax.rate || tax.value || 0) / 100) : 0;
+		return sum + (lineDpp * rate);
 	}, 0));
 
 	const grandTotal = $derived(subtotal + taxTotal - form.uang_muka);
@@ -221,7 +229,7 @@
 		const combined = [...newItems, ...manualItems];
 		form.items = combined.length > 0 ? combined : [{
 			id: crypto.randomUUID(), department_id: '', project_id: '', akun_pendapatan: '', akun_piutang: '',
-			deskripsi: '', qty: 1, satuan: 'Ton', harga: 0, pajak_id: ''
+			deskripsi: '', qty: 1, satuan: 'Ton', harga: 0, diskon: 0, pajak_id: ''
 		}];
 
 		showDnModal = false;
@@ -229,12 +237,95 @@
 
 	const STANDARD_UOMS = ['Ton', 'Kg', 'Trip', 'M3', 'Dus', 'Sak', 'Rit', 'Pcs', 'Unit', 'Box', 'Bulan', 'Hari'];
 
+	// Reference Document types and numbers
+	let refOrderType = $state('PO');
+	let refOrderNumber = $state('');
+	let refLhpType = $state('LHP');
+	let refLhpNumber = $state('');
+
+	function syncOrderRef() {
+		if (refOrderType === 'CUSTOM') {
+			form.no_po_spk = refOrderNumber.trim();
+		} else {
+			const cleanNum = refOrderNumber.trim();
+			if (!cleanNum) {
+				form.no_po_spk = '';
+			} else if (cleanNum.toLowerCase().startsWith(refOrderType.toLowerCase())) {
+				form.no_po_spk = cleanNum;
+			} else {
+				form.no_po_spk = `${refOrderType} - ${cleanNum}`;
+			}
+		}
+	}
+
+	function parseOrderRef(val: string) {
+		if (!val) {
+			refOrderNumber = '';
+			return;
+		}
+		const m = val.match(/^(PO|SPK|SPH|Quotation)[\s\-:]*(.*)$/i);
+		if (m) {
+			const rawType = m[1].toUpperCase();
+			if (rawType === 'PO') refOrderType = 'PO';
+			else if (rawType === 'SPK') refOrderType = 'SPK';
+			else if (rawType === 'SPH') refOrderType = 'SPH';
+			else if (rawType === 'QUOTATION') refOrderType = 'Quotation';
+			refOrderNumber = m[2] || '';
+		} else {
+			refOrderType = 'CUSTOM';
+			refOrderNumber = val;
+		}
+	}
+
+	function syncLhpRef() {
+		if (refLhpType === 'CUSTOM') {
+			form.no_lhp = refLhpNumber.trim();
+		} else {
+			const cleanNum = refLhpNumber.trim();
+			if (!cleanNum) {
+				form.no_lhp = '';
+			} else if (cleanNum.toLowerCase().startsWith(refLhpType.toLowerCase())) {
+				form.no_lhp = cleanNum;
+			} else {
+				form.no_lhp = `${refLhpType} - ${cleanNum}`;
+			}
+		}
+	}
+
+	function parseLhpRef(val: string) {
+		if (!val) {
+			refLhpNumber = '';
+			return;
+		}
+		const m = val.match(/^(LHP|RR|GR)[\s\-:]*(.*)$/i);
+		if (m) {
+			const rawType = m[1].toUpperCase();
+			if (rawType === 'LHP') refLhpType = 'LHP';
+			else if (rawType === 'RR') refLhpType = 'RR';
+			else if (rawType === 'GR') refLhpType = 'GR';
+			refLhpNumber = m[2] || '';
+		} else {
+			refLhpType = 'CUSTOM';
+			refLhpNumber = val;
+		}
+	}
+
+	// Initialize reference values from form
+	parseOrderRef(form.no_po_spk);
+	parseLhpRef(form.no_lhp);
+
 	let editingItemIndex = $state<number | null>(null);
 	let modalItemData = $state({
+		deskripsi: '',
+		department_id: '',
+		project_id: '',
+		akun_pendapatan: '',
 		qty: 1,
 		satuanSelect: 'Ton',
 		customSatuan: '',
-		harga: 0
+		harga: 0,
+		diskon: 0,
+		pajak_id: ''
 	});
 
 	function openItemModal(index: number) {
@@ -243,10 +334,16 @@
 		editingItemIndex = index;
 		const isStandard = STANDARD_UOMS.includes(item.satuan);
 		modalItemData = {
+			deskripsi: item.deskripsi || '',
+			department_id: item.department_id ? item.department_id.toString() : '',
+			project_id: item.project_id ? item.project_id.toString() : '',
+			akun_pendapatan: item.akun_pendapatan ? item.akun_pendapatan.toString() : '',
 			qty: item.qty ?? 1,
 			satuanSelect: isStandard ? item.satuan : 'CUSTOM',
 			customSatuan: isStandard ? '' : (item.satuan || ''),
-			harga: item.harga ?? 0
+			harga: item.harga ?? 0,
+			diskon: item.diskon ?? 0,
+			pajak_id: item.pajak_id ? item.pajak_id.toString() : ''
 		};
 	}
 
@@ -256,9 +353,15 @@
 			? (modalItemData.customSatuan.trim() || 'Pcs')
 			: modalItemData.satuanSelect;
 
+		form.items[editingItemIndex].deskripsi = modalItemData.deskripsi.trim();
+		form.items[editingItemIndex].department_id = modalItemData.department_id;
+		form.items[editingItemIndex].project_id = modalItemData.project_id;
+		form.items[editingItemIndex].akun_pendapatan = modalItemData.akun_pendapatan;
 		form.items[editingItemIndex].qty = parseFloat(Number(modalItemData.qty).toFixed(3)) || 0;
 		form.items[editingItemIndex].satuan = finalSatuan;
 		form.items[editingItemIndex].harga = Number(modalItemData.harga) || 0;
+		form.items[editingItemIndex].diskon = Number(modalItemData.diskon) || 0;
+		form.items[editingItemIndex].pajak_id = modalItemData.pajak_id;
 
 		editingItemIndex = null;
 	}
@@ -267,10 +370,21 @@
 		editingItemIndex = null;
 	}
 
+	let modalGross = $derived((Number(modalItemData.qty) || 0) * (Number(modalItemData.harga) || 0));
+	let modalDiscountAmount = $derived(Number(modalItemData.diskon) || 0);
+	let modalSubtotal = $derived(Math.max(0, modalGross - modalDiscountAmount));
+	let modalTaxRate = $derived.by(() => {
+		if (!modalItemData.pajak_id) return 0;
+		const tax = taxes.find((t: any) => t.id.toString() === modalItemData.pajak_id.toString());
+		return tax ? parseFloat(tax.rate || tax.value || 0) : 0;
+	});
+	let modalTaxAmount = $derived((modalSubtotal * modalTaxRate) / 100);
+	let modalTotal = $derived(modalSubtotal + modalTaxAmount);
+
 	function addItem() {
 		form.items.push({
 			department_id: '', project_id: '', akun_pendapatan: '', akun_piutang: '',
-			deskripsi: '', qty: 1, satuan: 'Ton', harga: 0, pajak_id: ''
+			deskripsi: '', qty: 1, satuan: 'Ton', harga: 0, diskon: 0, pajak_id: ''
 		});
 	}
 
@@ -393,20 +507,20 @@
 	</div>
 {/if}
 
-<!-- ===================== QUICK ITEM EDIT MODAL ===================== -->
+<!-- ===================== COMPREHENSIVE ITEM EDIT MODAL ===================== -->
 {#if editingItemIndex !== null}
 	<div class="fixed inset-0 z-[80] flex items-center justify-center p-4">
 		<div class="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onclick={closeItemModal} role="presentation"></div>
-		<div class="relative w-full max-w-lg bg-surface-container-lowest rounded-3xl shadow-2xl border border-surface-container overflow-hidden">
+		<div class="relative w-full max-w-2xl bg-surface-container-lowest rounded-3xl shadow-2xl border border-surface-container overflow-hidden max-h-[90vh] flex flex-col">
 			<!-- Header -->
-			<div class="p-6 border-b border-surface-container bg-surface-container-low/50 flex items-center justify-between">
+			<div class="p-6 border-b border-surface-container bg-surface-container-low/50 flex items-center justify-between shrink-0">
 				<div>
 					<h3 class="text-lg font-black text-on-surface flex items-center gap-2">
 						<span class="material-symbols-outlined text-primary">edit_note</span>
-						Ubah Qty, Satuan & Harga
+						Detail & Edit Invoice Line Item
 					</h3>
-					<p class="text-xs text-on-surface-variant mt-0.5 max-w-sm truncate" title={form.items[editingItemIndex]?.deskripsi}>
-						{form.items[editingItemIndex]?.deskripsi || `Item #${editingItemIndex + 1}`}
+					<p class="text-xs text-on-surface-variant mt-0.5">
+						Atur rincian deskripsi pekerjaan, departemen, kuantitas, harga, diskon, dan perpajakan untuk baris #{editingItemIndex + 1}
 					</p>
 				</div>
 				<button type="button" onclick={closeItemModal} class="w-8 h-8 rounded-full bg-surface-container hover:bg-surface-container-high flex items-center justify-center text-on-surface-variant transition-colors">
@@ -414,17 +528,66 @@
 				</button>
 			</div>
 
-			<!-- Body -->
-			<div class="p-6 space-y-5">
-				<!-- Quantity & Satuan in 2 cols -->
+			<!-- Body (Scrollable if screen small) -->
+			<div class="p-6 space-y-5 overflow-y-auto flex-1">
+				<!-- 1. Posisi Paling Atas: Deskripsi / Keterangan Pekerjaan -->
+				<div>
+					<label for="modal-deskripsi" class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-1.5">
+						Deskripsi / Keterangan Pekerjaan <span class="text-error">*</span>
+					</label>
+					<textarea 
+						id="modal-deskripsi" 
+						bind:value={modalItemData.deskripsi} 
+						rows="2" 
+						class="w-full bg-surface-container rounded-xl px-3.5 py-2.5 text-sm font-medium text-on-surface border-2 border-transparent focus:border-primary focus:bg-surface-container-lowest outline-none transition-all placeholder:text-on-surface-variant/50" 
+						placeholder="Contoh: Angkutan Semen Curah Karawang - Cilegon / Jasa Sewa Unit..."
+					></textarea>
+				</div>
+
+				<!-- 2. Kategori/Departemen Layanan & Akun Pendapatan -->
 				<div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+					<div>
+						<label for="modal-dept" class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-1.5">
+							Departemen / Layanan
+						</label>
+						<select 
+							id="modal-dept" 
+							bind:value={modalItemData.department_id} 
+							class="w-full bg-surface-container rounded-xl px-3.5 py-2.5 text-xs font-bold text-on-surface border-2 border-transparent focus:border-primary outline-none transition-all cursor-pointer"
+						>
+							<option value="">-- Pilih Departemen --</option>
+							{#each departmentOpts as d}
+								<option value={d.value}>{d.label}</option>
+							{/each}
+						</select>
+					</div>
+
+					<div>
+						<label for="modal-akun" class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-1.5">
+							Akun Pendapatan
+						</label>
+						<select 
+							id="modal-akun" 
+							bind:value={modalItemData.akun_pendapatan} 
+							class="w-full bg-surface-container rounded-xl px-3.5 py-2.5 text-xs font-bold text-on-surface border-2 border-transparent focus:border-primary outline-none transition-all cursor-pointer"
+						>
+							<option value="">-- Pilih Akun --</option>
+							{#each accounts as a}
+								<option value={a.id}>{a.name}</option>
+							{/each}
+						</select>
+					</div>
+				</div>
+
+				<!-- 3. Quantity, Satuan & Harga Satuan -->
+				<div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
 					<!-- Quantity -->
 					<div>
-						<label for="modal-edit-qty" class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-1.5">
+						<label for="modal-qty" class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-1.5">
 							Quantity (Qty) <span class="text-error">*</span>
 						</label>
 						<input 
-							id="modal-edit-qty" 
+							id="modal-qty" 
 							type="number" 
 							bind:value={modalItemData.qty} 
 							step="0.001" 
@@ -432,23 +595,23 @@
 							class="w-full bg-surface-container rounded-xl px-3.5 py-2.5 text-base font-bold font-mono text-on-surface border-2 border-transparent focus:border-primary focus:bg-surface-container-lowest outline-none transition-all text-right" 
 							placeholder="0.000"
 						/>
-						<p class="text-[10px] text-on-surface-variant mt-1 italic">Mendukung 3 digit desimal (cth: 12.345)</p>
+						<p class="text-[10px] text-on-surface-variant mt-1 italic">3 digit desimal (12.345)</p>
 					</div>
 
 					<!-- Satuan (UOM) -->
 					<div>
-						<label for="modal-edit-satuan" class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-1.5">
+						<label for="modal-satuan" class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-1.5">
 							Satuan / UOM <span class="text-error">*</span>
 						</label>
 						<select 
-							id="modal-edit-satuan" 
+							id="modal-satuan" 
 							bind:value={modalItemData.satuanSelect} 
 							class="w-full bg-surface-container rounded-xl px-3.5 py-2.5 text-sm font-bold text-on-surface border-2 border-transparent focus:border-primary outline-none transition-all cursor-pointer"
 						>
 							{#each STANDARD_UOMS as uom}
 								<option value={uom}>{uom}</option>
 							{/each}
-							<option value="CUSTOM">-- Lainnya (Ketik Manual) --</option>
+							<option value="CUSTOM">-- Lainnya (Manual) --</option>
 						</select>
 
 						{#if modalItemData.satuanSelect === 'CUSTOM'}
@@ -457,53 +620,109 @@
 									type="text" 
 									bind:value={modalItemData.customSatuan} 
 									placeholder="Ketik satuan..." 
-									class="w-full bg-surface-container-lowest border-2 border-primary/50 rounded-xl px-3 py-1.5 text-sm font-semibold uppercase text-on-surface outline-none focus:border-primary"
+									class="w-full bg-surface-container-lowest border-2 border-primary/50 rounded-xl px-3 py-1.5 text-xs font-semibold uppercase text-on-surface outline-none focus:border-primary"
 								/>
 							</div>
 						{/if}
 					</div>
-				</div>
 
-				<!-- Harga Satuan -->
-				<div>
-					<label for="modal-edit-harga" class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-1.5">
-						Harga Satuan (Rp) <span class="text-error">*</span>
-					</label>
-					<div class="relative">
-						<span class="absolute left-3.5 top-1/2 -translate-y-1/2 text-sm font-bold text-on-surface-variant font-mono">Rp</span>
-						<input 
-							id="modal-edit-harga" 
-							type="number" 
-							bind:value={modalItemData.harga} 
-							min="0" 
-							step="any"
-							class="w-full bg-surface-container rounded-xl pl-11 pr-4 py-2.5 text-base font-bold font-mono text-on-surface border-2 border-transparent focus:border-primary focus:bg-surface-container-lowest outline-none transition-all text-right" 
-							placeholder="0"
-						/>
-					</div>
-					<p class="text-xs text-on-surface-variant font-medium mt-1 text-right">
-						{formatCurrency(modalItemData.harga || 0)}
-					</p>
-				</div>
-
-				<!-- Live Line Total Preview Bento -->
-				<div class="p-4 rounded-2xl bg-blue-50/70 dark:bg-blue-950/30 border border-blue-200/60 dark:border-blue-800/60 flex items-center justify-between">
+					<!-- Harga Satuan -->
 					<div>
-						<span class="text-xs font-bold text-blue-700 dark:text-blue-300 uppercase tracking-wider">Subtotal Baris</span>
-						<p class="text-xs text-on-surface-variant mt-0.5">
-							{formatQty(modalItemData.qty || 0)} {modalItemData.satuanSelect === 'CUSTOM' ? (modalItemData.customSatuan || 'Satuan') : modalItemData.satuanSelect} × {formatCurrency(modalItemData.harga || 0)}
+						<label for="modal-harga" class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-1.5">
+							Harga Satuan (Rp) <span class="text-error">*</span>
+						</label>
+						<div class="relative">
+							<span class="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-on-surface-variant font-mono">Rp</span>
+							<input 
+								id="modal-harga" 
+								type="number" 
+								bind:value={modalItemData.harga} 
+								min="0" 
+								step="any" 
+								class="w-full bg-surface-container rounded-xl pl-9 pr-3 py-2.5 text-base font-bold font-mono text-on-surface border-2 border-transparent focus:border-primary focus:bg-surface-container-lowest outline-none transition-all text-right" 
+								placeholder="0"
+							/>
+						</div>
+						<p class="text-[11px] text-on-surface-variant font-medium mt-1 text-right">
+							{formatCurrency(modalItemData.harga || 0)}
 						</p>
 					</div>
-					<div class="text-right">
-						<span class="text-xl font-black text-blue-700 dark:text-blue-400 font-mono">
-							{formatCurrency((Number(modalItemData.qty) || 0) * (Number(modalItemData.harga) || 0))}
-						</span>
+				</div>
+
+				<!-- 4. Diskon & Pajak (PPN) -->
+				<div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+					<div>
+						<label for="modal-diskon" class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-1.5">
+							Potongan Diskon (Rp)
+						</label>
+						<div class="relative">
+							<span class="absolute left-3.5 top-1/2 -translate-y-1/2 text-xs font-bold text-on-surface-variant font-mono">Rp</span>
+							<input 
+								id="modal-diskon" 
+								type="number" 
+								bind:value={modalItemData.diskon} 
+								min="0" 
+								step="any" 
+								class="w-full bg-surface-container rounded-xl pl-9 pr-4 py-2.5 text-sm font-bold font-mono text-on-surface border-2 border-transparent focus:border-primary focus:bg-surface-container-lowest outline-none transition-all text-right" 
+								placeholder="0"
+							/>
+						</div>
+						<p class="text-[11px] text-on-surface-variant font-medium mt-1 text-right">
+							{formatCurrency(modalItemData.diskon || 0)}
+						</p>
+					</div>
+
+					<div>
+						<label for="modal-pajak" class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-1.5">
+							Pajak (PPN)
+						</label>
+						<select 
+							id="modal-pajak" 
+							bind:value={modalItemData.pajak_id} 
+							class="w-full bg-surface-container rounded-xl px-3.5 py-2.5 text-xs font-bold text-on-surface border-2 border-transparent focus:border-primary outline-none transition-all cursor-pointer"
+						>
+							<option value="">- Tanpa Pajak (0%) -</option>
+							{#each taxes as t}
+								<option value={t.id}>{t.name} ({t.rate || t.value || 0}%)</option>
+							{/each}
+						</select>
+						<p class="text-[11px] text-on-surface-variant mt-1">
+							Tarif: <strong>{modalTaxRate}%</strong> (+ {formatCurrency(modalTaxAmount)})
+						</p>
+					</div>
+				</div>
+
+				<!-- 5. Live Summary Bento Preview -->
+				<div class="p-4 rounded-2xl bg-surface-container border border-surface-variant/30 space-y-2">
+					<div class="flex items-center justify-between text-xs text-on-surface-variant">
+						<span>Gross ({formatQty(modalItemData.qty || 0)} × {formatCurrency(modalItemData.harga || 0)}):</span>
+						<span class="font-mono font-bold">{formatCurrency(modalGross)}</span>
+					</div>
+					{#if modalDiscountAmount > 0}
+						<div class="flex items-center justify-between text-xs text-rose-600">
+							<span>Potongan Diskon:</span>
+							<span class="font-mono font-bold">- {formatCurrency(modalDiscountAmount)}</span>
+						</div>
+					{/if}
+					<div class="flex items-center justify-between text-xs text-on-surface-variant">
+						<span>Dasar Pengenaan Pajak (DPP):</span>
+						<span class="font-mono font-bold">{formatCurrency(modalSubtotal)}</span>
+					</div>
+					{#if modalTaxAmount > 0}
+						<div class="flex items-center justify-between text-xs text-teal-600 dark:text-teal-400">
+							<span>PPN ({modalTaxRate}%):</span>
+							<span class="font-mono font-bold">+ {formatCurrency(modalTaxAmount)}</span>
+						</div>
+					{/if}
+					<div class="border-t border-surface-variant/30 pt-2 flex items-center justify-between">
+						<span class="text-xs font-bold text-on-surface uppercase tracking-wider">Subtotal / Total Baris:</span>
+						<span class="text-lg font-black text-primary font-mono">{formatCurrency(modalTotal)}</span>
 					</div>
 				</div>
 			</div>
 
 			<!-- Footer Actions -->
-			<div class="p-4 border-t border-surface-container bg-surface-container-low/30 flex items-center justify-end gap-3">
+			<div class="p-4 border-t border-surface-container bg-surface-container-low/30 flex items-center justify-end gap-3 shrink-0">
 				<button 
 					type="button" 
 					onclick={closeItemModal} 
@@ -517,7 +736,7 @@
 					class="px-5 py-2 bg-primary text-on-primary rounded-xl text-sm font-bold hover:opacity-90 shadow-sm flex items-center gap-2 transition-all"
 				>
 					<span class="material-symbols-outlined text-[18px]">check</span>
-					Terapkan Nilai
+					Terapkan ke Baris
 				</button>
 			</div>
 		</div>
@@ -611,12 +830,63 @@
 						/>
 					</div>
 					<div>
-						<label class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-1">No PO / SPK <span class="text-error">*</span></label>
-						<input type="text" bind:value={form.no_po_spk} class="w-full bg-surface-container rounded-xl px-4 py-2.5 text-sm font-medium border-none focus:ring-2 focus:ring-primary outline-none" placeholder="No PO Pelanggan" />
+						<label class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-1">
+							Dokumen Order / Kontrak <span class="text-error">*</span>
+						</label>
+						<div class="flex rounded-xl overflow-hidden bg-surface-container border border-surface-variant/30 focus-within:ring-2 focus-within:ring-primary">
+							<select 
+								bind:value={refOrderType} 
+								onchange={syncOrderRef}
+								class="bg-surface-container-high text-xs font-bold text-on-surface px-3 py-2.5 outline-none border-r border-surface-variant/30 cursor-pointer shrink-0"
+							>
+								<option value="PO">PO</option>
+								<option value="SPK">SPK</option>
+								<option value="SPH">SPH</option>
+								<option value="Quotation">Quotation</option>
+								<option value="CUSTOM">Lainnya</option>
+							</select>
+							<input 
+								type="text" 
+								bind:value={refOrderNumber} 
+								oninput={syncOrderRef}
+								class="flex-1 bg-transparent px-3.5 py-2.5 text-sm font-medium outline-none text-on-surface placeholder:text-on-surface-variant/50" 
+								placeholder={refOrderType === 'CUSTOM' ? 'Nomor referensi manual...' : `Nomor ${refOrderType} pelanggan...`} 
+							/>
+						</div>
+						{#if form.no_po_spk}
+							<p class="text-[10px] text-on-surface-variant mt-1 font-mono">
+								Tersimpan: <strong class="text-primary">{form.no_po_spk}</strong>
+							</p>
+						{/if}
 					</div>
 					<div>
-						<label class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-1">No LHP (Laporan Hasil Penjualan)</label>
-						<input type="text" bind:value={form.no_lhp} class="w-full bg-surface-container rounded-xl px-4 py-2.5 text-sm font-medium border-none focus:ring-2 focus:ring-primary outline-none" placeholder="Contoh: LHP/2026/09/001 (Opsional)" />
+						<label class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-1">
+							Dokumen Penerimaan / Pengiriman (LHP / Penerimaan)
+						</label>
+						<div class="flex rounded-xl overflow-hidden bg-surface-container border border-surface-variant/30 focus-within:ring-2 focus-within:ring-primary">
+							<select 
+								bind:value={refLhpType} 
+								onchange={syncLhpRef}
+								class="bg-surface-container-high text-xs font-bold text-on-surface px-3 py-2.5 outline-none border-r border-surface-variant/30 cursor-pointer shrink-0"
+							>
+								<option value="LHP">LHP</option>
+								<option value="RR">RR</option>
+								<option value="GR">GR</option>
+								<option value="CUSTOM">Lainnya</option>
+							</select>
+							<input 
+								type="text" 
+								bind:value={refLhpNumber} 
+								oninput={syncLhpRef}
+								class="flex-1 bg-transparent px-3.5 py-2.5 text-sm font-medium outline-none text-on-surface placeholder:text-on-surface-variant/50" 
+								placeholder={refLhpType === 'CUSTOM' ? 'Nomor dokumen manual...' : `Nomor ${refLhpType}... (Opsional)`} 
+							/>
+						</div>
+						{#if form.no_lhp}
+							<p class="text-[10px] text-on-surface-variant mt-1 font-mono">
+								Tersimpan: <strong class="text-primary">{form.no_lhp}</strong>
+							</p>
+						{/if}
 					</div>
 				</div>
 			</div>
@@ -722,12 +992,33 @@
 											</select>
 										</td>
 										<td class="p-3 text-right">
-											<span class="text-sm font-black text-on-surface">{formatCurrency(item.qty * item.harga)}</span>
+											<div class="flex flex-col items-end">
+												<span class="text-sm font-black text-on-surface">{formatCurrency(Math.max(0, (item.qty * item.harga) - (item.diskon || 0)))}</span>
+												{#if item.diskon > 0}
+													<span class="text-[10px] text-rose-500 font-bold font-mono">Disc -{formatCurrency(item.diskon)}</span>
+												{/if}
+											</div>
 										</td>
 										<td class="p-3 text-center">
-											<button onclick={() => removeItem(i)} class="text-error opacity-0 group-hover:opacity-100 transition-opacity hover:bg-error-container p-1.5 rounded-lg" disabled={form.items.length === 1}>
-												<span class="material-symbols-outlined text-sm">delete</span>
-											</button>
+											<div class="flex items-center justify-center gap-1">
+												<button 
+													type="button" 
+													onclick={() => openItemModal(i)} 
+													class="w-7 h-7 rounded-lg bg-surface-container hover:bg-primary/10 hover:text-primary flex items-center justify-center text-on-surface-variant transition-colors" 
+													title="Detail & Edit Baris (Modal)"
+												>
+													<span class="material-symbols-outlined text-[16px]">edit_note</span>
+												</button>
+												<button 
+													type="button" 
+													onclick={() => removeItem(i)} 
+													class="w-7 h-7 rounded-lg bg-surface-container hover:bg-error/10 hover:text-error flex items-center justify-center text-on-surface-variant transition-colors" 
+													disabled={form.items.length === 1}
+													title="Hapus Baris"
+												>
+													<span class="material-symbols-outlined text-[16px]">delete</span>
+												</button>
+											</div>
 										</td>
 									</tr>
 								{/each}
