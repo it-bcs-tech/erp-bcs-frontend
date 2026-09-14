@@ -141,30 +141,30 @@
 	{/if}
 
 	<!-- Printable A4 Paper Container -->
-	<div class="p-4 sm:p-8 flex justify-center">
-		<main class="print-container bg-white text-black shadow-2xl rounded-sm p-8 sm:p-12 w-full max-w-[210mm] min-h-[297mm] flex flex-col justify-between text-xs leading-normal">
+	<div class="p-2 sm:p-6 flex justify-center">
+		<main class="print-container bg-white text-black shadow-2xl rounded-sm p-6 sm:p-8 w-full max-w-[210mm] min-h-[297mm] flex flex-col justify-between text-xs leading-normal">
 			
 			<div>
 				<!-- 1. KOP SURAT / PRE-PRINTED GAP -->
 				{#if kopMode === 'kop'}
-					<header class="flex justify-between items-end border-b-[3px] border-slate-900 pb-4 mb-6 gap-6">
-						<div class="flex items-center gap-3.5">
+					<header class="flex justify-between items-end border-b-2 border-slate-900 pb-2 mb-3 gap-4">
+						<div class="flex items-center gap-3">
 							<img 
 								src="https://bcs-logistics.co.id/assets/images/logoo.png" 
 								alt="BCS Logistics Logo" 
-								class="h-10 object-contain"
+								class="h-8 object-contain"
 								onerror={(e) => (e.currentTarget as HTMLElement).style.display = 'none'}
 							/>
 							<div>
-								<h2 class="text-xl font-black tracking-tight text-blue-950 uppercase leading-none">
+								<h2 class="text-lg font-black tracking-tight text-blue-950 uppercase leading-none">
 									PT. BUANA CENTRA SWAKARSA
 								</h2>
-								<p class="text-[9px] font-bold text-slate-700 mt-1 uppercase tracking-widest">
+								<p class="text-[8px] font-bold text-slate-700 mt-0.5 uppercase tracking-widest">
 									Integrated Logistics, Transportation & Warehousing Services
 								</p>
 							</div>
 						</div>
-						<div class="text-right text-[9px] text-slate-700 max-w-xs leading-tight">
+						<div class="text-right text-[8px] text-slate-700 max-w-xs leading-tight">
 							<p class="font-bold text-slate-900">Head Office : BCS Logistics Center</p>
 							<p>Jl. Raya Merak KM. 115, Gerem, Grogol, Cilegon, Banten 42438</p>
 							<p>Telp: +62 254 571234 / 570555 | Email: corporate@bcsgroup.co.id</p>
@@ -172,62 +172,62 @@
 						</div>
 					</header>
 				{:else}
-					<!-- Empty spacing (~4.0cm) calibrated for physical letterhead stationary -->
-					<div class="h-[4.0cm] relative flex items-center justify-center border-b border-dashed border-slate-300 mb-6 group">
-						<span class="no-print text-[11px] font-semibold text-slate-400 bg-slate-50 px-3 py-1 rounded-full border border-slate-200">
-							✂ Ruang Kosong Terkalibrasi (4.0 cm) untuk Kertas Kop Surat Fisik
+					<!-- Empty spacing calibrated for physical letterhead stationary -->
+					<div class="h-[3.6cm] relative flex items-center justify-center border-b border-dashed border-slate-300 mb-3 group">
+						<span class="no-print text-[10px] font-semibold text-slate-400 bg-slate-50 px-3 py-0.5 rounded-full border border-slate-200">
+							✂ Ruang Kosong Terkalibrasi untuk Kertas Kop Surat Fisik
 						</span>
 					</div>
 				{/if}
 
 				<!-- 2. DOCUMENT TITLE & METADATA -->
-				<div class="flex justify-between items-start border-b border-slate-200 pb-4 mb-5">
+				<div class="flex justify-between items-start border-b border-slate-200 pb-2 mb-3">
 					<div>
-						<h1 class="text-2xl font-black uppercase tracking-wider text-slate-900">LAPORAN PENERIMAAN BARANG</h1>
-						<p class="text-xs font-bold text-slate-500 tracking-widest mt-0.5">GOODS RECEIPT SHEET / LPB (WRS)</p>
+						<h1 class="text-lg font-black uppercase tracking-wider text-slate-900 leading-tight">LAPORAN PENERIMAAN BARANG</h1>
+						<p class="text-[10px] font-bold text-slate-500 tracking-widest mt-0.5">GOODS RECEIPT SHEET / LPB (WRS)</p>
 					</div>
 					<div class="text-right space-y-0.5">
-						<div class="text-sm font-black font-mono text-slate-900">
+						<div class="text-xs font-black font-mono text-slate-900">
 							No. LPB: <span class="text-blue-900 font-extrabold">{data.wrs.grNumber}</span>
 						</div>
-						<div class="text-[11px] text-slate-700">
+						<div class="text-[10px] text-slate-700">
 							Tanggal Terima: <strong>{formatDate(data.wrs.date)}</strong>
 						</div>
 						{#if data.wrs.poNumber}
-							<div class="text-[11px] text-slate-700 font-mono">
-								No. PO Terkait: <strong class="text-emerald-800">{data.wrs.poNumber}</strong>
+							<div class="text-[10px] text-slate-700 font-mono">
+								No. PO: <strong class="text-emerald-800">{data.wrs.poNumber}</strong>
 							</div>
 						{/if}
 						{#if data.wrs.vendorDeliveryNumber}
-							<div class="text-[11px] text-slate-700 font-mono">
-								Surat Jalan Vendor: <strong>{data.wrs.vendorDeliveryNumber}</strong>
+							<div class="text-[10px] text-slate-700 font-mono">
+								Surat Jalan: <strong>{data.wrs.vendorDeliveryNumber}</strong>
 							</div>
 						{/if}
 					</div>
 				</div>
 
 				<!-- 3. SUPPLIER & WAREHOUSE LOCATION INFO -->
-				<div class="grid grid-cols-2 gap-6 mb-6">
+				<div class="grid grid-cols-2 gap-3 mb-3">
 					<!-- Supplier Box -->
-					<div class="bg-slate-50 p-3.5 rounded-lg border border-slate-200">
-						<h3 class="text-[10px] font-black uppercase tracking-wider text-slate-500 mb-1.5 border-b border-slate-200 pb-1">
+					<div class="bg-slate-50 p-2.5 rounded-lg border border-slate-200">
+						<h3 class="text-[9px] font-black uppercase tracking-wider text-slate-500 mb-1 border-b border-slate-200 pb-0.5">
 							Pemasok / Vendor (Supplier)
 						</h3>
-						<p class="font-black text-sm text-slate-900">{data.wrs.supplierName || '-'}</p>
+						<p class="font-black text-xs text-slate-900">{data.wrs.supplierName || '-'}</p>
 						{#if data.wrs.vendorCode && data.wrs.vendorCode !== '-'}
-							<p class="text-[10px] text-slate-500 font-mono mb-1">Kode Vendor: {data.wrs.vendorCode}</p>
+							<p class="text-[9.5px] text-slate-500 font-mono">Kode Vendor: {data.wrs.vendorCode}</p>
 						{/if}
-						<p class="text-xs text-slate-700 whitespace-pre-wrap leading-relaxed mt-1">
+						<p class="text-[10px] text-slate-700 whitespace-pre-wrap leading-tight mt-0.5">
 							{data.wrs.vendorAddress || 'Alamat vendor tidak tersedia'}
 						</p>
 					</div>
 
 					<!-- Warehouse Receiving Location -->
-					<div class="bg-slate-50 p-3.5 rounded-lg border border-slate-200">
-						<h3 class="text-[10px] font-black uppercase tracking-wider text-slate-500 mb-1.5 border-b border-slate-200 pb-1">
+					<div class="bg-slate-50 p-2.5 rounded-lg border border-slate-200">
+						<h3 class="text-[9px] font-black uppercase tracking-wider text-slate-500 mb-1 border-b border-slate-200 pb-0.5">
 							Lokasi Gudang & Petugas Penerima
 						</h3>
-						<div class="grid grid-cols-2 gap-y-1.5 gap-x-2 text-xs">
+						<div class="grid grid-cols-2 gap-y-1 gap-x-2 text-[10px]">
 							<span class="text-slate-500">Gudang Penerima:</span>
 							<span class="font-bold text-slate-900 text-right truncate">
 								{data.wrs.siteName || 'Gudang Utama Cilegon'}
@@ -243,26 +243,26 @@
 								{data.wrs.status || 'RECEIVED'}
 							</span>
 
-							<span class="text-slate-500">Waktu Rekam Sistem:</span>
-							<span class="font-bold font-mono text-[11px] text-slate-700 text-right">
+							<span class="text-slate-500">Waktu Sistem:</span>
+							<span class="font-bold font-mono text-[10px] text-slate-700 text-right">
 								{data.wrs.createdAt || '-'}
 							</span>
 						</div>
 					</div>
 				</div>
 
-				<!-- 4. ITEM LIST TABLE -->
-				<table class="w-full border-collapse border border-slate-300 mb-4 text-xs">
+				<!-- 4. ITEM LIST TABLE (Compact layout for up to 10+ rows) -->
+				<table class="w-full border-collapse border border-slate-300 mb-2.5 text-[10px]">
 					<thead>
 						<tr class="bg-slate-100 text-slate-900 font-bold border-b border-slate-300">
-							<th class="border border-slate-300 p-2 w-10 text-center">No</th>
-							<th class="border border-slate-300 p-2 text-left">Kode & Nama Material / Barang</th>
-							<th class="border border-slate-300 p-2 text-left">Spesifikasi / Brand</th>
-							<th class="border border-slate-300 p-2 text-right w-20">Qty PO</th>
-							<th class="border border-slate-300 p-2 text-right w-24">Qty Diterima</th>
-							<th class="border border-slate-300 p-2 text-right w-20">Selisih</th>
-							<th class="border border-slate-300 p-2 text-center w-16">Satuan</th>
-							<th class="border border-slate-300 p-2 text-center w-24">Kondisi Fisik</th>
+							<th class="border border-slate-300 py-1.5 px-2 w-8 text-center">No</th>
+							<th class="border border-slate-300 py-1.5 px-2 text-left">Kode & Nama Material / Barang</th>
+							<th class="border border-slate-300 py-1.5 px-2 text-left">Spesifikasi / Brand</th>
+							<th class="border border-slate-300 py-1.5 px-2 text-right w-16">Qty PO</th>
+							<th class="border border-slate-300 py-1.5 px-2 text-right w-20">Diterima</th>
+							<th class="border border-slate-300 py-1.5 px-2 text-right w-16">Selisih</th>
+							<th class="border border-slate-300 py-1.5 px-2 text-center w-14">Satuan</th>
+							<th class="border border-slate-300 py-1.5 px-2 text-center w-20">Kondisi</th>
 						</tr>
 					</thead>
 					<tbody>
@@ -271,31 +271,31 @@
 							{@const received = parseFloat(itm.qtyReceived) || 0}
 							{@const diff = ordered - received}
 							<tr class="border-b border-slate-200">
-								<td class="border border-slate-300 p-2 text-center font-mono">{i + 1}</td>
-								<td class="border border-slate-300 p-2">
-									<p class="font-bold text-slate-900">{itm.name}</p>
-									<p class="text-[10px] text-slate-500 font-mono mt-0.5">{itm.materialCode}</p>
+								<td class="border border-slate-300 py-1 px-2 text-center font-mono">{i + 1}</td>
+								<td class="border border-slate-300 py-1 px-2">
+									<p class="font-bold text-slate-900 text-[10.5px] leading-tight">{itm.name}</p>
+									<p class="text-[9px] text-slate-500 font-mono">{itm.materialCode}</p>
 								</td>
-								<td class="border border-slate-300 p-2 text-slate-700">
+								<td class="border border-slate-300 py-1 px-2 text-slate-700 leading-tight">
 									<p>{itm.spec || '-'}</p>
 									{#if itm.brand}
-										<p class="text-[10px] text-slate-500 italic mt-0.5">Brand: {itm.brand}</p>
+										<p class="text-[9px] text-slate-500 italic">Brand: {itm.brand}</p>
 									{/if}
 								</td>
-								<td class="border border-slate-300 p-2 text-right font-mono text-slate-600">
+								<td class="border border-slate-300 py-1 px-2 text-right font-mono text-slate-600">
 									{ordered > 0 ? formatQty(ordered) : '-'}
 								</td>
-								<td class="border border-slate-300 p-2 text-right font-mono font-bold text-blue-950">
+								<td class="border border-slate-300 py-1 px-2 text-right font-mono font-bold text-blue-950">
 									{formatQty(received)}
 								</td>
-								<td class="border border-slate-300 p-2 text-right font-mono {diff > 0 ? 'text-amber-700 font-bold' : 'text-slate-400'}">
+								<td class="border border-slate-300 py-1 px-2 text-right font-mono {diff > 0 ? 'text-amber-700 font-bold' : 'text-slate-400'}">
 									{ordered > 0 ? (diff === 0 ? '0' : (diff > 0 ? `-${formatQty(diff)}` : `+${formatQty(Math.abs(diff))}`)) : '-'}
 								</td>
-								<td class="border border-slate-300 p-2 text-center uppercase font-semibold text-[11px]">
+								<td class="border border-slate-300 py-1 px-2 text-center uppercase font-semibold text-[9.5px]">
 									{itm.uom || 'PCS'}
 								</td>
-								<td class="border border-slate-300 p-2 text-center">
-									<span class="inline-block px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
+								<td class="border border-slate-300 py-1 px-2 text-center">
+									<span class="inline-block px-1.5 py-0.2 rounded text-[9px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
 										BAIK
 									</span>
 								</td>
@@ -303,73 +303,73 @@
 						{/each}
 					</tbody>
 					<tfoot>
-						<tr class="bg-slate-50 font-bold border-t border-slate-300">
-							<td colspan="3" class="p-2 text-right text-slate-700">Total Kuantitas:</td>
-							<td class="p-2 text-right font-mono text-slate-700">{formatQty(totalQtyOrdered)}</td>
-							<td class="p-2 text-right font-mono text-blue-900 font-black">{formatQty(totalQtyReceived)}</td>
-							<td colspan="3" class="p-2"></td>
+						<tr class="bg-slate-50 font-bold border-t border-slate-300 text-[10px]">
+							<td colspan="3" class="py-1 px-2 text-right text-slate-700">Total Kuantitas:</td>
+							<td class="py-1 px-2 text-right font-mono text-slate-700">{formatQty(totalQtyOrdered)}</td>
+							<td class="py-1 px-2 text-right font-mono text-blue-900 font-black">{formatQty(totalQtyReceived)}</td>
+							<td colspan="3" class="py-1 px-2"></td>
 						</tr>
 					</tfoot>
 				</table>
 
 				<!-- 5. NOTES / REMARKS -->
 				{#if data.wrs.notes}
-					<div class="p-3 bg-slate-50 rounded-lg border border-slate-200 mt-4 mb-6">
-						<p class="text-[10px] font-black uppercase tracking-wider text-slate-500 mb-1">
+					<div class="p-2 bg-slate-50 rounded-lg border border-slate-200 mt-2 mb-2 text-[10px]">
+						<p class="text-[8.5px] font-black uppercase tracking-wider text-slate-500 mb-0.5">
 							Catatan Pemeriksaan & Berita Acara Penerimaan:
 						</p>
-						<p class="text-xs text-slate-700 whitespace-pre-wrap leading-relaxed">{data.wrs.notes}</p>
+						<p class="text-slate-700 whitespace-pre-wrap leading-tight">{data.wrs.notes}</p>
 					</div>
 				{/if}
 
-				<!-- 6. 3-COLUMN AUTHORIZED SIGNATURES -->
-				<div class="grid grid-cols-3 gap-6 mt-8 pt-4 border-t border-slate-200 text-center">
+				<!-- 6. 3-COLUMN AUTHORIZED SIGNATURES (Guaranteed on same page) -->
+				<div class="signature-block break-inside-avoid grid grid-cols-3 gap-3 mt-3 pt-2 border-t border-slate-200 text-center">
 					<!-- Kolom 1: Diterima Oleh (Gudang) -->
-					<div class="flex flex-col justify-between items-center h-32">
+					<div class="flex flex-col justify-between items-center h-20">
 						<div>
-							<p class="text-xs font-bold text-slate-700">Diterima Oleh,</p>
-							<p class="text-[10px] text-slate-500">Petugas Gudang (Warehouse)</p>
+							<p class="text-[10.5px] font-bold text-slate-700 leading-tight">Diterima Oleh,</p>
+							<p class="text-[9px] text-slate-500">Petugas Gudang (Warehouse)</p>
 						</div>
 						<div>
-							<p class="font-bold text-xs text-slate-900 border-b border-slate-800 inline-block px-4 pb-0.5">
+							<p class="font-bold text-[10.5px] text-slate-900 border-b border-slate-800 inline-block px-3 pb-0.5">
 								( {data.wrs.receivedByName || data.wrs.receivedBy || 'Petugas Gudang'} )
 							</p>
-							<p class="text-[9px] text-slate-500 mt-0.5">Tgl: {formatDate(data.wrs.date)}</p>
+							<p class="text-[8px] text-slate-500 mt-0.5">Tgl: {formatDate(data.wrs.date)}</p>
 						</div>
 					</div>
 
 					<!-- Kolom 2: Diperiksa Oleh (QC / Supervisor) -->
-					<div class="flex flex-col justify-between items-center h-32">
+					<div class="flex flex-col justify-between items-center h-20">
 						<div>
-							<p class="text-xs font-bold text-slate-700">Diperiksa Oleh,</p>
-							<p class="text-[10px] text-slate-500">QC / Supervisor Gudang</p>
+							<p class="text-[10.5px] font-bold text-slate-700 leading-tight">Diperiksa Oleh,</p>
+							<p class="text-[9px] text-slate-500">QC / Supervisor Gudang</p>
 						</div>
 						<div>
-							<p class="font-bold text-xs text-slate-900 border-b border-slate-800 inline-block px-4 pb-0.5">
+							<p class="font-bold text-[10.5px] text-slate-900 border-b border-slate-800 inline-block px-3 pb-0.5">
 								( .................................................. )
 							</p>
-							<p class="text-[9px] text-slate-500 mt-0.5">Tanda Tangan & Tanggal</p>
+							<p class="text-[8px] text-slate-500 mt-0.5">Tanda Tangan & Tanggal</p>
 						</div>
 					</div>
 
 					<!-- Kolom 3: Mengetahui (Purchasing / Logistics) -->
-					<div class="flex flex-col justify-between items-center h-32">
+					<div class="flex flex-col justify-between items-center h-20">
 						<div>
-							<p class="text-xs font-bold text-slate-700">Mengetahui,</p>
-							<p class="text-[10px] text-slate-500">Purchasing / Logistics Dept</p>
+							<p class="text-[10.5px] font-bold text-slate-700 leading-tight">Mengetahui,</p>
+							<p class="text-[9px] text-slate-500">Purchasing / Logistics Dept</p>
 						</div>
 						<div>
-							<p class="font-bold text-xs text-slate-900 border-b border-slate-800 inline-block px-4 pb-0.5">
+							<p class="font-bold text-[10.5px] text-slate-900 border-b border-slate-800 inline-block px-3 pb-0.5">
 								( .................................................. )
 							</p>
-							<p class="text-[9px] text-slate-500 mt-0.5">Authorized Signature</p>
+							<p class="text-[8px] text-slate-500 mt-0.5">Authorized Signature</p>
 						</div>
 					</div>
 				</div>
 			</div>
 
 			<!-- 7. PRINT FOOTER TIMESTAMP -->
-			<footer class="mt-8 pt-2 border-t border-slate-200 text-center text-[9px] text-slate-400">
+			<footer class="mt-3 pt-1 border-t border-slate-200 text-center text-[8px] text-slate-400">
 				Dokumen Resmi PT. Buana Centra Swakarsa • Dicetak secara sistem pada {new Date().toLocaleString('id-ID')}
 			</footer>
 
@@ -381,7 +381,7 @@
 	@media print {
 		@page {
 			size: A4 portrait;
-			margin: 10mm 15mm;
+			margin: 0;
 		}
 
 		:global(aside),
@@ -394,6 +394,7 @@
 			display: none !important;
 		}
 
+		:global(html),
 		:global(body),
 		:global(main),
 		:global(#app),
@@ -405,20 +406,27 @@
 			width: 100% !important;
 			max-width: none !important;
 			box-shadow: none !important;
+			-webkit-print-color-adjust: exact;
+			print-color-adjust: exact;
 		}
 
 		.print-container {
-			position: absolute !important;
-			top: 0 !important;
-			left: 0 !important;
-			right: 0 !important;
+			position: relative !important;
 			width: 100% !important;
 			max-width: 100% !important;
-			min-height: 100% !important;
-			padding: 0 !important;
-			margin: 0 !important;
+			min-height: 100vh !important;
+			margin: 0 auto !important;
+			padding: 10mm 15mm !important;
+			box-sizing: border-box !important;
 			box-shadow: none !important;
+			border: none !important;
 			border-radius: 0 !important;
+		}
+
+		.signature-block,
+		.break-inside-avoid {
+			break-inside: avoid !important;
+			page-break-inside: avoid !important;
 		}
 	}
 </style>

@@ -346,32 +346,32 @@
 	</section>
 
 	<!-- SECTION 7: LEMBAR TANDA TANGAN PENGESAHAN -->
-	<section class="pt-2 page-break-inside-avoid">
+	<section class="pt-2 signature-block break-inside-avoid page-break-inside-avoid">
 		<div class="grid grid-cols-3 gap-4 text-center text-xs">
-			<div class="p-3 border border-slate-300 rounded-lg flex flex-col justify-between h-36">
-				<p class="font-bold text-slate-700">Dilaporkan Oleh,</p>
+			<div class="p-2.5 border border-slate-300 rounded-lg flex flex-col justify-between h-24">
+				<p class="font-bold text-slate-700 text-[11px]">Dilaporkan Oleh,</p>
 				<div>
 					<div class="border-b border-slate-400 w-3/4 mx-auto mb-1"></div>
-					<p class="font-bold text-slate-900">{inc.driver_name !== 'No Driver' ? inc.driver_name : 'Pelapor Lapangan'}</p>
-					<p class="text-[10px] text-slate-500">Pengemudi / Petugas Lapangan</p>
+					<p class="font-bold text-slate-900 text-xs">{inc.driver_name !== 'No Driver' ? inc.driver_name : 'Pelapor Lapangan'}</p>
+					<p class="text-[9.5px] text-slate-500">Pengemudi / Petugas Lapangan</p>
 				</div>
 			</div>
 
-			<div class="p-3 border border-slate-300 rounded-lg flex flex-col justify-between h-36">
-				<p class="font-bold text-slate-700">Diselidiki & Diverifikasi Oleh,</p>
+			<div class="p-2.5 border border-slate-300 rounded-lg flex flex-col justify-between h-24">
+				<p class="font-bold text-slate-700 text-[11px]">Diselidiki & Diverifikasi Oleh,</p>
 				<div>
 					<div class="border-b border-slate-400 w-3/4 mx-auto mb-1"></div>
-					<p class="font-bold text-slate-900">{inc.analysis?.verified_by || inc.pic_followup || 'Tim Investigasi QHSE'}</p>
-					<p class="text-[10px] text-slate-500">QHSE Officer / Specialist</p>
+					<p class="font-bold text-slate-900 text-xs">{inc.analysis?.verified_by || inc.pic_followup || 'Tim Investigasi QHSE'}</p>
+					<p class="text-[9.5px] text-slate-500">QHSE Officer / Specialist</p>
 				</div>
 			</div>
 
-			<div class="p-3 border border-slate-300 rounded-lg flex flex-col justify-between h-36">
-				<p class="font-bold text-slate-700">Disetujui Oleh,</p>
+			<div class="p-2.5 border border-slate-300 rounded-lg flex flex-col justify-between h-24">
+				<p class="font-bold text-slate-700 text-[11px]">Disetujui Oleh,</p>
 				<div>
 					<div class="border-b border-slate-400 w-3/4 mx-auto mb-1"></div>
-					<p class="font-bold text-slate-900">Head of QHSE & Operation</p>
-					<p class="text-[10px] text-slate-500">Manajemen PT BCS Logistics</p>
+					<p class="font-bold text-slate-900 text-xs">Head of QHSE & Operation</p>
+					<p class="text-[9.5px] text-slate-500">Manajemen PT BCS Logistics</p>
 				</div>
 			</div>
 		</div>
@@ -379,6 +379,11 @@
 </div>
 
 <style>
+	@page {
+		size: A4 portrait;
+		margin: 0;
+	}
+
 	@media print {
 		.no-print {
 			display: none !important;
@@ -392,16 +397,16 @@
 		.print-container {
 			box-shadow: none !important;
 			border: none !important;
-			margin: 0 !important;
-			padding: 0 !important;
+			margin: 0 auto !important;
+			padding: 10mm 15mm !important;
 			max-width: 100% !important;
+			width: 100% !important;
+			box-sizing: border-box !important;
+			position: relative !important;
 		}
-		@page {
-			size: A4 portrait;
-			margin: 1.2cm;
-		}
-		.page-break-inside-avoid {
-			page-break-inside: avoid;
+		.page-break-inside-avoid, .signature-block, .break-inside-avoid {
+			break-inside: avoid !important;
+			page-break-inside: avoid !important;
 		}
 	}
 </style>

@@ -268,13 +268,14 @@
 				<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
 				<script src="https://cdn.tailwindcss.com"><\/script>
 				<style>
-					@page { size: A4 portrait; margin: 10mm 10mm 10mm 10mm; }
-					body { font-family: 'Plus Jakarta Sans', sans-serif; background: white; color: black; }
+					@page { size: A4 portrait; margin: 0; }
+					body { font-family: 'Plus Jakarta Sans', sans-serif; background: white; color: black; padding: 10mm 15mm; margin: 0; box-sizing: border-box; }
 					.page-break { page-break-after: always; }
+					.break-inside-avoid { break-inside: avoid !important; page-break-inside: avoid !important; }
 				</style>
 			</head>
-			<body class="p-4">
-				\${printContent.innerHTML}
+			<body>
+				${printContent.innerHTML}
 			</body>
 			</html>
 		`);
