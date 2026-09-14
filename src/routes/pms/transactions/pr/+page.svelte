@@ -3,10 +3,20 @@
 	import { formatDateId, getCategoryBadge } from '$lib/utils/pms';
 	import { fly } from 'svelte/transition';
 	import { cubicOut } from 'svelte/easing';
+	import PmsPrintModal from '$lib/components/pms/PmsPrintModal.svelte';
 
 	let { data } = $props();
 	let searchQuery = $state('');
 	let selectedPrIds = $state<number[]>([]);
+
+	let showPrintModal = $state(false);
+	let selectedPR = $state<any>(null);
+
+	function openPrintModal(pr: any, e?: MouseEvent) {
+		if (e) e.stopPropagation();
+		selectedPR = pr;
+		showPrintModal = true;
+	}
 
 	let counterBadgeEl = $state<HTMLElement | null>(null);
 	let isBumping = $state(false);
@@ -319,6 +329,14 @@
 								</td>
 								<td class="py-3.5 px-4 text-right">
 									<div class="flex items-center justify-end gap-1.5">
+										<button
+											type="button"
+											onclick={(e) => openPrintModal(pr, e)}
+											class="p-1.5 text-on-surface-variant hover:text-amber-600 dark:hover:text-amber-400 hover:bg-surface-container-high rounded-lg transition-colors cursor-pointer"
+											title="Cetak PR (Pratinjau)"
+										>
+											<span class="material-symbols-outlined text-base">print</span>
+										</button>
 										<a
 											href="/pms/transactions/pr/{pr.id}"
 											onclick={(e) => e.stopPropagation()}
@@ -402,3 +420,13 @@
 		</div>
 	{/if}
 </div>
+
+{#if selectedPR}
+	<PmsPrintModal
+		isOpen={showPrintModal}
+		title="Pratinjau Cetak Purchase Requisition"
+		docNumber={selectedPR.prNumber}
+		printUrl={`/pms/transactions/pr/${selectedPR.id}/print`}
+		onClose={() => { showPrintModal = false; selectedPR = null; }}
+	/>
+{/if}

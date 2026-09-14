@@ -1,11 +1,20 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
 	import { formatDateId, formatRupiah, getCategoryBadge, getPOStatusBadge } from '$lib/utils/pms';
+	import PmsPrintModal from '$lib/components/pms/PmsPrintModal.svelte';
 
 	let { data } = $props();
 	let searchQuery = $state('');
 	let statusFilter = $state('');
 	let categoryFilter = $state('');
+
+	let showPrintModal = $state(false);
+	let selectedPO = $state<any>(null);
+
+	function openPrintModal(po: any) {
+		selectedPO = po;
+		showPrintModal = true;
+	}
 
 	let filteredOrders = $derived.by(() => {
 		let list = data.orders || [];
@@ -191,6 +200,14 @@
 								</td>
 								<td class="py-3.5 px-4 text-right">
 									<div class="flex items-center justify-end gap-1.5">
+										<button
+											type="button"
+											onclick={() => openPrintModal(po)}
+											class="p-1.5 text-on-surface-variant hover:text-emerald-600 dark:hover:text-emerald-400 hover:bg-surface-container-high rounded-lg transition-colors cursor-pointer"
+											title="Cetak PO (Pratinjau)"
+										>
+											<span class="material-symbols-outlined text-base">print</span>
+										</button>
 										<a
 											href="/pms/transactions/po/{po.id}"
 											class="inline-flex items-center gap-1 px-2.5 py-1 bg-surface border border-slate-200 dark:border-slate-700 hover:bg-surface-container-high text-on-surface-variant hover:text-on-surface rounded-lg text-xs font-bold transition-colors shadow-xs"
@@ -231,3 +248,13 @@
 		</div>
 	</div>
 </div>
+
+{#if selectedPO}
+	<PmsPrintModal
+		isOpen={showPrintModal}
+		title="Pratinjau Cetak Purchase Order"
+		docNumber={selectedPO.poNumber}
+		printUrl={`/pms/transactions/po/${selectedPO.id}/print`}
+		onClose={() => { showPrintModal = false; selectedPO = null; }}
+	/>
+{/if}

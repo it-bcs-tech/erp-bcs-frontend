@@ -1,8 +1,17 @@
 <script lang="ts">
 	import { formatDateId, formatNumber } from '$lib/utils/pms';
+	import PmsPrintModal from '$lib/components/pms/PmsPrintModal.svelte';
 
 	let { data } = $props();
 	let searchQuery = $state('');
+
+	let showPrintModal = $state(false);
+	let selectedWRS = $state<any>(null);
+
+	function openPrintModal(wrs: any) {
+		selectedWRS = wrs;
+		showPrintModal = true;
+	}
 
 	let filteredReceipts = $derived.by(() => {
 		let list = data.receipts || [];
@@ -129,6 +138,14 @@
 								</td>
 								<td class="py-3.5 px-4 text-right">
 									<div class="flex items-center justify-end gap-1.5">
+										<button
+											type="button"
+											onclick={() => openPrintModal(wrs)}
+											class="p-1.5 text-on-surface-variant hover:text-blue-600 dark:hover:text-blue-400 hover:bg-surface-container-high rounded-lg transition-colors cursor-pointer"
+											title="Cetak LPB / WRS (Pratinjau)"
+										>
+											<span class="material-symbols-outlined text-base">print</span>
+										</button>
 										<a
 											href="/pms/transactions/wrs/{wrs.id}"
 											class="inline-flex items-center gap-1 px-2.5 py-1 bg-surface border border-slate-200 dark:border-slate-700 hover:bg-surface-container-high text-on-surface-variant hover:text-on-surface rounded-lg text-xs font-bold transition-colors shadow-xs"
@@ -147,3 +164,13 @@
 		</div>
 	</div>
 </div>
+
+{#if selectedWRS}
+	<PmsPrintModal
+		isOpen={showPrintModal}
+		title="Pratinjau Cetak Laporan Penerimaan Barang (WRS)"
+		docNumber={selectedWRS.grNumber}
+		printUrl={`/pms/transactions/wrs/${selectedWRS.id}/print`}
+		onClose={() => { showPrintModal = false; selectedWRS = null; }}
+	/>
+{/if}

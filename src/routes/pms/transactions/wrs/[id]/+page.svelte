@@ -1,11 +1,14 @@
 <script lang="ts">
 	import { formatDateId, formatNumber } from '$lib/utils/pms';
+	import PmsPrintModal from '$lib/components/pms/PmsPrintModal.svelte';
 
 	let { data } = $props();
 
 	let totalQty = $derived(
 		(data.items || []).reduce((sum: number, itm: any) => sum + (parseFloat(itm.qtyReceived) || 0), 0)
 	);
+
+	let showPrintModal = $state(false);
 </script>
 
 <svelte:head>
@@ -49,15 +52,14 @@
 
 		<!-- Action Buttons -->
 		<div class="flex flex-wrap items-center gap-2">
-			<a
-				href="/pms/transactions/wrs/{data.wrs.id}/print"
-				target="_blank"
-				rel="noopener noreferrer"
+			<button
+				type="button"
+				onclick={() => showPrintModal = true}
 				class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-surface text-on-surface-variant hover:text-on-surface text-xs font-bold transition-colors shadow-xs cursor-pointer"
 			>
 				<span class="material-symbols-outlined text-base">print</span>
 				<span>Cetak LPB</span>
-			</a>
+			</button>
 
 			<a
 				href="/pms/transactions/wrs/{data.wrs.id}/edit"
@@ -220,3 +222,11 @@
 		</div>
 	</div>
 </div>
+
+<PmsPrintModal
+	isOpen={showPrintModal}
+	title="Pratinjau Cetak Laporan Penerimaan Barang (WRS)"
+	docNumber={data.wrs.grNumber}
+	printUrl={`/pms/transactions/wrs/${data.wrs.id}/print`}
+	onClose={() => showPrintModal = false}
+/>

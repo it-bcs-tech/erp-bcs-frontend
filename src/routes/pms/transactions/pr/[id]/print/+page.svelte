@@ -3,21 +3,25 @@
 	let { data } = $props();
 
 	let kopMode = $state<'kop' | 'no-kop'>('kop');
+	let isEmbedded = $state(false);
 
 	onMount(() => {
 		const searchParams = new URLSearchParams(window.location.search);
+		isEmbedded = searchParams.get('embedded') === 'true';
 		if (searchParams.get('kop') === 'false') {
 			kopMode = 'no-kop';
 		} else {
 			kopMode = 'kop';
 		}
 
-		// Auto trigger print
-		const timer = setTimeout(() => {
-			window.print();
-		}, 500);
+		// Auto trigger print only if not embedded
+		if (!isEmbedded) {
+			const timer = setTimeout(() => {
+				window.print();
+			}, 500);
 
-		return () => clearTimeout(timer);
+			return () => clearTimeout(timer);
+		}
 	});
 
 	function printNow(mode?: 'kop' | 'no-kop') {
@@ -47,9 +51,10 @@
 </svelte:head>
 
 <!-- Shell Container -->
-<div class="min-h-screen bg-slate-100 dark:bg-slate-950 font-sans text-slate-800">
-	<!-- Top Sticky Action Bar (Hidden on Print) -->
-	<header class="no-print bg-slate-900 text-white px-6 py-3.5 flex flex-wrap items-center justify-between gap-4 shadow-xl sticky top-0 z-50">
+<div class="min-h-screen font-sans text-slate-800 {isEmbedded ? 'bg-transparent p-0' : 'bg-slate-100 dark:bg-slate-950 p-4 sm:p-8 flex justify-center'}">
+	<!-- Top Sticky Action Bar (Hidden on Print and when Embedded) -->
+	{#if !isEmbedded}
+		<header class="no-print bg-slate-900 text-white px-6 py-3.5 flex flex-wrap items-center justify-between gap-4 shadow-xl sticky top-0 z-50">
 		<div class="flex items-center gap-3">
 			<a 
 				href="/pms/transactions/pr/{data.pr.id}" 
@@ -115,6 +120,7 @@
 			</button>
 		</div>
 	</header>
+	{/if}
 
 	<!-- Printable A4 Paper Container -->
 	<div class="p-4 sm:p-8 flex justify-center">
