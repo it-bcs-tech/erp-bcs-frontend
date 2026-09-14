@@ -150,6 +150,128 @@ export const load: PageServerLoad = async () => {
 				).toFixed(1)
 			: '4.8';
 
+		// 12. Master 16 Trainer Resmi PT Buana Centra Swakarsa (Spreadsheet Master)
+		const masterTrainers = [
+			{ id: 1, name: 'Ikhnaton', title: 'Manager QHSE', department: 'QHSE & Safety', type: 'Internal' },
+			{ id: 2, name: 'Firman Fadholi', title: 'Supervisor QHSE', department: 'QHSE & Safety', type: 'Internal' },
+			{ id: 3, name: 'Dr. Zaenul Abidin', title: 'Dokter Perusahaan', department: 'Kesehatan Kerja / HSE', type: 'Internal' },
+			{ id: 4, name: 'Jayusman', title: 'Manager Sub-Project', department: 'Operations', type: 'Internal' },
+			{ id: 5, name: 'Guntoro', title: 'Supervisor Procurement', department: 'Procurement', type: 'Internal' },
+			{ id: 6, name: 'Andi Riswanto', title: 'Manager Transport (Maintenance & Asset)', department: 'Transport & Asset', type: 'Internal' },
+			{ id: 7, name: 'Rahmadi Irawan', title: 'Head Mechanic', department: 'Workshop & Maintenance', type: 'Internal' },
+			{ id: 8, name: 'Endang Sujana', title: 'Head Mechanic', department: 'Workshop & Maintenance', type: 'Internal' },
+			{ id: 9, name: 'Arnaja', title: 'Manager Finance', department: 'Finance & Accounting', type: 'Internal' },
+			{ id: 10, name: 'Suhendar', title: 'Supervisor Finance', department: 'Finance & Accounting', type: 'Internal' },
+			{ id: 11, name: 'Windy', title: 'Benefit Supervisor', department: 'Human Capital', type: 'Internal' },
+			{ id: 12, name: 'Joni', title: 'Licensing Specialist', department: 'Legal & Licensing', type: 'Internal' },
+			{ id: 13, name: 'Jemian', title: 'Supervisor Project Labour 1', department: 'Labour Project 1', type: 'Internal' },
+			{ id: 14, name: 'Aria Danu', title: 'Foreman', department: 'Operations', type: 'Internal' },
+			{ id: 15, name: 'Rendra', title: 'Foreman', department: 'Operations', type: 'Internal' },
+			{ id: 16, name: 'Holili', title: 'Manager Project Labour 1', department: 'Labour Project 1', type: 'Internal' }
+		];
+
+		// 13. Competency Gap Report Data (Spreadsheet TNA Master Sheet 1746120362 & Kamus Kompetensi 157495735)
+		const competencyGapList = [
+			{
+				department: 'Operations',
+				positionTitle: 'Driver Tronton / Trailer',
+				employeeName: 'Guntoro Muhamad',
+				payrollId: 'EMP-0042',
+				aspect: 'Core Competency',
+				competencyCode: 'A01',
+				competencyName: 'Achievement Orientation',
+				requiredLevel: 3,
+				actualLevel: 3,
+				gap: 0,
+				status: 'Qualified',
+				recommendation: '-'
+			},
+			{
+				department: 'Operations',
+				positionTitle: 'Driver Tronton / Trailer',
+				employeeName: 'Guntoro Muhamad',
+				payrollId: 'EMP-0042',
+				aspect: 'Behavioral Competency',
+				competencyCode: 'E06',
+				competencyName: 'Safety Awareness & SWP',
+				requiredLevel: 3,
+				actualLevel: 2,
+				gap: -1,
+				status: 'Gap Competency',
+				recommendation: 'Re-Induksi Keselamatan & SWP (CRS-2026-001)'
+			},
+			{
+				department: 'Operations',
+				positionTitle: 'Driver Angkutan Berat',
+				employeeName: 'Ahmad Fauzi',
+				payrollId: 'EMP-0012',
+				aspect: 'Technical Competency',
+				competencyCode: 'D01',
+				competencyName: 'Fatigue Management & Jam Aman',
+				requiredLevel: 4,
+				actualLevel: 3,
+				gap: -1,
+				status: 'Gap Competency',
+				recommendation: 'Refreshment Fatigue Management (CRS-2026-006)'
+			},
+			{
+				department: 'Workshop & Maintenance',
+				positionTitle: 'Mekanik & Teknisi Armada',
+				employeeName: 'Rahmadi Irawan',
+				payrollId: 'EMP-0089',
+				aspect: 'Technical Competency',
+				competencyCode: 'M02',
+				competencyName: 'Diagnosa Mesin Diesel Euro 4 Common Rail',
+				requiredLevel: 4,
+				actualLevel: 2,
+				gap: -2,
+				status: 'Gap Competency',
+				recommendation: 'Preventive Maintenance Mesin Diesel Euro 4 (CRS-2026-007)'
+			},
+			{
+				department: 'Labour Project 1 & Warehouse',
+				positionTitle: 'Operator Forklift',
+				employeeName: 'Joni Pranoto',
+				payrollId: 'EMP-0078',
+				aspect: 'Technical Competency',
+				competencyCode: 'W03',
+				competencyName: 'K3 Pergudangan & SIO Forklift Kemnaker',
+				requiredLevel: 3,
+				actualLevel: 2,
+				gap: -1,
+				status: 'Gap Competency',
+				recommendation: 'Sertifikasi Operator SIO Forklift Kelas 2 (CRS-2026-008)'
+			},
+			{
+				department: 'Finance & Operations',
+				positionTitle: 'Supervisor Finance & Kasir',
+				employeeName: 'Suhendar',
+				payrollId: 'EMP-0010',
+				aspect: 'Technical Competency',
+				competencyCode: 'F01',
+				competencyName: 'Budgeting & Cost Control Operasional',
+				requiredLevel: 4,
+				actualLevel: 4,
+				gap: 0,
+				status: 'Qualified',
+				recommendation: '-'
+			},
+			{
+				department: 'QHSE & Safety',
+				positionTitle: 'Safety Officer',
+				employeeName: 'Firman Fadholi',
+				payrollId: 'EMP-0002',
+				aspect: 'Technical Competency',
+				competencyCode: 'S02',
+				competencyName: 'JSA & HIRADC Risk Assessment',
+				requiredLevel: 4,
+				actualLevel: 4,
+				gap: 0,
+				status: 'Qualified',
+				recommendation: '-'
+			}
+		];
+
 		return {
 			metrics: {
 				totalCourses,
@@ -159,10 +281,13 @@ export const load: PageServerLoad = async () => {
 				activeLearners: 135,
 				complianceRate: 94.5
 			},
+			masterTrainers,
+			competencyGapList,
 			courses: coursesRows.map((c) => ({
 				id: c.id,
 				title: c.title,
 				category: c.category,
+				based: c.based || 'Mandatory',
 				level: c.level,
 				status: c.status,
 				durationHours: Number(c.duration_hours),
@@ -171,6 +296,10 @@ export const load: PageServerLoad = async () => {
 				completionRate: Number(c.completion_rate),
 				rating: Number(c.rating),
 				instructor: c.instructor,
+				trainerType: c.trainer_type || 'Internal',
+				costTrainer: Number(c.cost_trainer || 0),
+				costTrainee: Number(c.cost_trainee || 0),
+				department: c.department || 'Operations',
 				description: c.description,
 				tags: c.tags || [],
 				passingGrade: c.passing_grade || 75,
@@ -192,6 +321,11 @@ export const load: PageServerLoad = async () => {
 				courseId: s.course_id,
 				title: s.title,
 				trainer: s.trainer,
+				trainerType: s.trainer_type || 'Internal',
+				costTrainer: Number(s.cost_trainer || 0),
+				costTrainee: Number(s.cost_trainee || 0),
+				department: s.department || 'Operations',
+				based: s.based || 'Mandatory',
 				sessionType: s.session_type,
 				locationOrLink: s.location_or_link,
 				sessionDate: s.session_date ? s.session_date.toISOString().split('T')[0] : '',
@@ -283,14 +417,19 @@ export const actions = {
 	createCourse: async ({ request }) => {
 		const formData = await request.formData();
 		const title = formData.get('title')?.toString().trim();
-		const category = formData.get('category')?.toString().trim() || 'Operations';
+		const category = formData.get('category')?.toString().trim() || 'Safety';
+		const based = formData.get('based')?.toString().trim() || 'Mandatory';
 		const level = formData.get('level')?.toString().trim() || 'Beginner';
-		const instructor = formData.get('instructor')?.toString().trim() || 'Internal Trainer BCS';
+		const instructor = formData.get('instructor')?.toString().trim() || 'Syarochman';
+		const trainerType = formData.get('trainerType')?.toString().trim() || 'Internal';
+		const costTrainer = Number(formData.get('costTrainer')) || (trainerType === 'Internal' ? 500000 : 2500000);
+		const costTrainee = Number(formData.get('costTrainee')) || 0;
+		const department = formData.get('department')?.toString().trim() || 'All Dept';
 		const durationHours = Number(formData.get('durationHours')) || 2.0;
 		const passingGrade = Number(formData.get('passingGrade')) || 75;
 		const description = formData.get('description')?.toString().trim() || '';
 		const tagsInput = formData.get('tags')?.toString().trim() || '';
-		const tags = tagsInput ? tagsInput.split(',').map((t) => t.trim()) : ['LMS'];
+		const tags = tagsInput ? tagsInput.split(',').map((t) => t.trim()) : ['LMS', based];
 
 		if (!title) {
 			return { success: false, message: 'Judul kursus wajib diisi.' };
@@ -301,9 +440,11 @@ export const actions = {
 		try {
 			await sql`
 				INSERT INTO hris.lms_courses (
-					id, title, category, level, status, duration_hours, instructor, description, tags, passing_grade
+					id, title, category, based, level, status, duration_hours, instructor,
+					trainer_type, cost_trainer, cost_trainee, department, description, tags, passing_grade
 				) VALUES (
-					${id}, ${title}, ${category}, ${level}, 'Published', ${durationHours}, ${instructor}, ${description}, ${tags}, ${passingGrade}
+					${id}, ${title}, ${category}, ${based}, ${level}, 'Published', ${durationHours}, ${instructor},
+					${trainerType}, ${costTrainer}, ${costTrainee}, ${department}, ${description}, ${tags}, ${passingGrade}
 				);
 			`;
 
@@ -359,7 +500,13 @@ export const actions = {
 	createSession: async ({ request }) => {
 		const formData = await request.formData();
 		const title = formData.get('title')?.toString().trim();
+		const courseId = formData.get('courseId')?.toString().trim() || null;
 		const trainer = formData.get('trainer')?.toString().trim();
+		const trainerType = formData.get('trainerType')?.toString().trim() || 'Internal';
+		const costTrainer = Number(formData.get('costTrainer')) || (trainerType === 'Internal' ? 500000 : 2500000);
+		const costTrainee = Number(formData.get('costTrainee')) || 0;
+		const department = formData.get('department')?.toString().trim() || 'Operations';
+		const based = formData.get('based')?.toString().trim() || 'Mandatory';
 		const sessionType = formData.get('sessionType')?.toString() || 'OFFLINE';
 		const locationOrLink = formData.get('locationOrLink')?.toString().trim();
 		const sessionDate = formData.get('sessionDate')?.toString();
@@ -377,10 +524,12 @@ export const actions = {
 		try {
 			await sql`
 				INSERT INTO hris.lms_sessions (
-					id, title, trainer, session_type, location_or_link, session_date,
+					id, course_id, title, trainer, trainer_type, cost_trainer, cost_trainee,
+					department, based, session_type, location_or_link, session_date,
 					start_time, end_time, target_role, quota, status
 				) VALUES (
-					${id}, ${title}, ${trainer}, ${sessionType}, ${locationOrLink}, ${sessionDate},
+					${id}, ${courseId}, ${title}, ${trainer}, ${trainerType}, ${costTrainer}, ${costTrainee},
+					${department}, ${based}, ${sessionType}, ${locationOrLink}, ${sessionDate},
 					${startTime}, ${endTime}, ${targetRole}, ${quota}, 'SCHEDULED'
 				);
 			`;

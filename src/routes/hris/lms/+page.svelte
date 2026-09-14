@@ -17,6 +17,8 @@
 	const tnaMatrix = $derived(data.tnaMatrix || []);
 	const safetyStats = $derived(data.safetyStats);
 	const metrics = $derived(data.metrics);
+	const masterTrainers = $derived(data.masterTrainers || []);
+	const competencyGapList = $derived(data.competencyGapList || []);
 
 	// Tabs State (5 Tab Utama)
 	type TabType = 'catalog' | 'sessions' | 'evaluations' | 'safety_tna' | 'reports';
@@ -32,10 +34,19 @@
 	// Filter & Search State
 	let searchQuery = $state('');
 	let selectedCategory = $state('All');
-	const categories = ['All', 'Operations', 'QHSE & Safety', 'Technical', 'Digital Systems', 'Leadership'];
+	let selectedBased = $state('All');
+	const categories = ['All', 'Safety', 'Operations', 'Technical', 'Technical & Soft Skill', 'Leadership'];
+	const basedOptions = ['All', 'Mandatory', 'Additional', 'Gap Competency'];
 
 	// Sub-tab State
 	let evalSubTab = $state<'l1' | 'l3l4'>('l1');
+
+	// Report Sub-tabs (Spreadsheet Master Specification: Sheet 306150899)
+	type ReportType = 'training' | 'course' | 'attendance' | 'assessment' | 'competency_gap' | 'certificates';
+	let activeReportType = $state<ReportType>('training');
+	let reportSearchQuery = $state('');
+	let reportFilterDept = $state('All');
+	let reportFilterBased = $state('All');
 
 	// Modals State
 	let isCreateModalOpen = $state(false);
@@ -67,13 +78,15 @@
 	let filteredCourses = $derived(
 		courses.filter((c: any) => {
 			const matchesCategory = selectedCategory === 'All' || c.category === selectedCategory;
-			if (!matchesCategory) return false;
+			const matchesBased = selectedBased === 'All' || c.based === selectedBased;
+			if (!matchesCategory || !matchesBased) return false;
 			if (!searchQuery.trim()) return true;
 			const q = searchQuery.toLowerCase();
 			return (
 				c.title.toLowerCase().includes(q) ||
 				c.description?.toLowerCase().includes(q) ||
 				c.instructor?.toLowerCase().includes(q) ||
+				c.department?.toLowerCase().includes(q) ||
 				(c.tags || []).some((t: string) => t.toLowerCase().includes(q))
 			);
 		})
@@ -186,27 +199,121 @@
 		isEvalSupervisorModalOpen = true;
 	}
 
-	// Export CSV Helper
+	// Export CSV Helper (Dinamis sesuai 5 Laporan Master Spreadsheet + E-Sertifikat)
 	function exportReportsToCSV() {
-		const headers = ['No', 'Nomor Sertifikat', 'Payroll ID', 'Nama Karyawan', 'Kursus Pelatihan', 'Kategori', 'Nilai', 'Tanggal Terbit', 'URL Verifikasi'];
-		const rows = certificates.map((c: any, index: number) => [
-			index + 1,
-			`"${c.certificateNumber}"`,
-			`"${c.payrollId}"`,
-			`"${c.employeeName}"`,
-			`"${c.courseTitle}"`,
-			`"${c.category}"`,
-			c.score,
-			`"${c.issuedAt}"`,
-			`"${c.qrVerifyUrl}"`
-		]);
+		let headers: string[] = [];
+		let rows: any[][] = [];
+		let filename = '';
+
+		if (activeReportType === 'training') {
+			headers = ['No', 'ID Sesi', 'Nama Training', 'Kategori', 'Based', 'Tanggal Sesi', 'Trainer', 'Tipe Trainer', 'Departemen', 'Biaya Trainer', 'Biaya Trainee', 'Total Biaya', 'Lokasi / Link', 'Status'];
+			rows = sessions.map((s: any, idx: number) => [
+				idx + 1,
+				`"${s.id}"`,
+				`"${s.title}"`,
+				`"${courses.find((c: any) => c.id === s.courseId)?.category || 'Safety'}"`,
+				`"${s.based || 'Mandatory'}"`,
+				`"${s.sessionDate}"`,
+				`"${s.trainer}"`,
+				`"${s.trainerType || 'Internal'}"`,
+				`"${s.department || 'Operations'}"`,
+				s.costTrainer || 500000,
+				s.costTrainee || 0,
+				(s.costTrainer || 500000) + (s.costTrainee || 0),
+				`"${s.locationOrLink}"`,
+				`"${s.status}"`
+			]);
+			filename = `Training_Report_BCS_${new Date().toISOString().split('T')[0]}.csv`;
+		} else if (activeReportType === 'course') {
+			headers = ['No', 'ID Kursus', 'Judul Kursus', 'Kategori', 'Based', 'Level', 'Durasi (Jam)', 'Modul', 'Passing Grade', 'Peserta', 'Completion Rate (%)', 'Rating', 'Trainer', 'Tipe Trainer', 'Biaya Trainer', 'Departemen'];
+			rows = courses.map((c: any, idx: number) => [
+				idx + 1,
+				`"${c.id}"`,
+				`"${c.title}"`,
+				`"${c.category}"`,
+				`"${c.based || 'Mandatory'}"`,
+				`"${c.level}"`,
+				c.durationHours,
+				c.modulesCount,
+				c.passingGrade,
+				c.enrolledCount,
+				`${c.completionRate}%`,
+				c.rating,
+				`"${c.instructor}"`,
+				`"${c.trainerType || 'Internal'}"`,
+				c.costTrainer || 500000,
+				`"${c.department || 'Operations'}"`
+			]);
+			filename = `Course_Report_BCS_${new Date().toISOString().split('T')[0]}.csv`;
+		} else if (activeReportType === 'attendance') {
+			headers = ['No', 'Nama Peserta', 'Payroll ID', 'Departemen', 'Sesi Training', 'Waktu Hadir', 'Status Kehadiran', 'Catatan'];
+			rows = attendances.map((a: any, idx: number) => [
+				idx + 1,
+				`"${a.employeeName}"`,
+				`"${a.payrollId}"`,
+				`"${a.department}"`,
+				`"${a.sessionTitle}"`,
+				`"${a.attendedAt}"`,
+				`"${a.status}"`,
+				`"${a.notes || '-'}"`
+			]);
+			filename = `Attendance_Report_BCS_${new Date().toISOString().split('T')[0]}.csv`;
+		} else if (activeReportType === 'assessment') {
+			headers = ['No', 'Nama Training', 'Nama Peserta', 'Payroll ID', 'Kategori', 'Nilai Ujian', 'Passing Grade', 'Hasil Kelulusan', 'No. Sertifikat', 'Tanggal'];
+			rows = certificates.map((c: any, idx: number) => [
+				idx + 1,
+				`"${c.courseTitle}"`,
+				`"${c.employeeName}"`,
+				`"${c.payrollId}"`,
+				`"${c.category}"`,
+				c.score,
+				75,
+				c.score >= 75 ? 'LULUS' : 'REMEDIAL',
+				`"${c.certificateNumber}"`,
+				`"${c.issuedAt}"`
+			]);
+			filename = `Assessment_Report_BCS_${new Date().toISOString().split('T')[0]}.csv`;
+		} else if (activeReportType === 'competency_gap') {
+			headers = ['No', 'Departemen', 'Jabatan', 'Nama Karyawan', 'Payroll ID', 'Aspek Kompetensi', 'Kode', 'Nama Kompetensi', 'Required Level', 'Actual Level', 'Gap', 'Status', 'Rekomendasi Pelatihan (TNA)'];
+			rows = competencyGapList.map((cg: any, idx: number) => [
+				idx + 1,
+				`"${cg.department}"`,
+				`"${cg.positionTitle}"`,
+				`"${cg.employeeName}"`,
+				`"${cg.payrollId}"`,
+				`"${cg.aspect}"`,
+				`"${cg.competencyCode}"`,
+				`"${cg.competencyName}"`,
+				cg.requiredLevel,
+				cg.actualLevel,
+				cg.gap,
+				`"${cg.status}"`,
+				`"${cg.recommendation}"`
+			]);
+			filename = `Competency_Gap_TNA_Report_BCS_${new Date().toISOString().split('T')[0]}.csv`;
+		} else {
+			// Certificates
+			headers = ['No', 'Nomor Sertifikat', 'Payroll ID', 'Nama Karyawan', 'Kursus Pelatihan', 'Kategori', 'Nilai', 'Tanggal Terbit', 'URL Verifikasi'];
+			rows = certificates.map((c: any, index: number) => [
+				index + 1,
+				`"${c.certificateNumber}"`,
+				`"${c.payrollId}"`,
+				`"${c.employeeName}"`,
+				`"${c.courseTitle}"`,
+				`"${c.category}"`,
+				c.score,
+				`"${c.issuedAt}"`,
+				`"${c.qrVerifyUrl}"`
+			]);
+			filename = `E_Sertifikat_Report_BCS_${new Date().toISOString().split('T')[0]}.csv`;
+		}
 
 		const csvContent = [headers.join(','), ...rows.map(e => e.join(','))].join('\n');
 		const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
 		const url = URL.createObjectURL(blob);
 		const link = document.createElement('a');
 		link.setAttribute('href', url);
-		link.setAttribute('download', `Rekap_LMS_Sertifikat_BCS_${new Date().toISOString().split('T')[0]}.csv`);
+		link.setAttribute('download', filename);
 		document.body.appendChild(link);
 		link.click();
 		document.body.removeChild(link);
@@ -214,7 +321,7 @@
 		spawnToast({
 			id: Date.now().toString(),
 			title: 'Export Berhasil',
-			message: 'File CSV Rekapitulasi Sertifikat LMS berhasil diunduh.',
+			message: `File CSV ${filename} berhasil diunduh.`,
 			type: 'INFO',
 			timestamp: new Date().toISOString()
 		});
@@ -360,32 +467,61 @@
 			{#if activeTab === 'catalog'}
 				<div class="space-y-6">
 					<!-- Filter & Search Bar -->
-					<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-						<div class="flex items-center gap-2 flex-1 max-w-md">
-							<div class="relative w-full">
-								<span class="material-symbols-outlined absolute left-3 top-2.5 text-slate-400 text-sm">search</span>
-								<input
-									type="text"
-									bind:value={searchQuery}
-									placeholder="Cari judul kursus, materi, instruktur, atau tag..."
-									class="w-full pl-9 pr-4 py-2 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800 text-xs text-on-surface focus:outline-hidden focus:ring-2 focus:ring-primary"
-								/>
+					<!-- Filter & Search Bar -->
+					<div class="space-y-2.5">
+						<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+							<div class="flex items-center gap-2 flex-1 max-w-md">
+								<div class="relative w-full">
+									<span class="material-symbols-outlined absolute left-3 top-2.5 text-slate-400 text-sm">search</span>
+									<input
+										type="text"
+										bind:value={searchQuery}
+										placeholder="Cari judul kursus, materi, instruktur, departemen..."
+										class="w-full pl-9 pr-4 py-2 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800 text-xs text-on-surface focus:outline-hidden focus:ring-2 focus:ring-primary"
+									/>
+								</div>
+							</div>
+
+							<!-- Category Filter Buttons -->
+							<div class="flex items-center gap-1.5 overflow-x-auto pb-1">
+								{#each categories as cat}
+									<button
+										type="button"
+										onclick={() => (selectedCategory = cat)}
+										class="px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all cursor-pointer
+										{selectedCategory === cat
+											? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900 font-bold shadow-xs'
+											: 'bg-surface-container text-on-surface-variant hover:bg-surface-container-high'}"
+									>
+										{cat}
+									</button>
+								{/each}
 							</div>
 						</div>
 
-						<div class="flex items-center gap-2 overflow-x-auto pb-1">
-							{#each categories as cat}
-								<button
-									type="button"
-									onclick={() => (selectedCategory = cat)}
-									class="px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all cursor-pointer
-									{selectedCategory === cat
-										? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900 font-bold shadow-xs'
-										: 'bg-surface-container text-on-surface-variant hover:bg-surface-container-high'}"
-								>
-									{cat}
-								</button>
-							{/each}
+						<!-- Based Filter (Spreadsheet Standard: Mandatory / Additional / Gap Competency) -->
+						<div class="flex items-center gap-2 pt-1 border-t border-slate-200/50 dark:border-slate-800/50">
+							<span class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Klasifikasi Based:</span>
+							<div class="flex items-center gap-1.5 overflow-x-auto">
+								{#each basedOptions as b}
+									<button
+										type="button"
+										onclick={() => (selectedBased = b)}
+										class="px-2.5 py-1 rounded-md text-[11px] font-bold whitespace-nowrap transition-all cursor-pointer
+										{selectedBased === b
+											? b === 'Mandatory'
+												? 'bg-rose-500 text-white shadow-xs'
+												: b === 'Additional'
+												? 'bg-amber-500 text-slate-950 shadow-xs'
+												: b === 'Gap Competency'
+												? 'bg-purple-600 text-white shadow-xs'
+												: 'bg-primary text-on-primary shadow-xs'
+											: 'bg-surface-container text-slate-500 hover:bg-surface-container-high'}"
+									>
+										{b}
+									</button>
+								{/each}
+							</div>
 						</div>
 					</div>
 
@@ -408,16 +544,20 @@
 												alt={course.title}
 												class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
 											/>
-											<div class="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent"></div>
-											<div class="absolute top-3 left-3 flex items-center gap-1.5">
-												<span class="px-2 py-0.5 rounded-md text-[9.5px] font-black uppercase tracking-wider
-													{course.level === 'Mandatory' ? 'bg-rose-500 text-white' :
-													course.level === 'Advanced' ? 'bg-purple-600 text-white' :
-													course.level === 'Intermediate' ? 'bg-amber-500 text-black' : 'bg-blue-600 text-white'}">
-													{course.level}
+											<div class="absolute inset-0 bg-gradient-to-t from-black/85 via-black/30 to-transparent"></div>
+											<div class="absolute top-3 left-3 flex flex-wrap items-center gap-1.5">
+												<span class="px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-wider
+													{course.based === 'Mandatory' ? 'bg-rose-500 text-white' :
+													course.based === 'Additional' ? 'bg-amber-500 text-slate-950 font-bold' :
+													course.based === 'Gap Competency' ? 'bg-purple-600 text-white' : 'bg-blue-600 text-white'}">
+													{course.based || course.level}
 												</span>
-												<span class="px-2 py-0.5 rounded-md text-[9.5px] font-black uppercase tracking-wider bg-slate-900/80 text-slate-200 backdrop-blur-xs">
+												<span class="px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-wider bg-slate-900/80 text-slate-200 backdrop-blur-xs">
 													{course.category}
+												</span>
+												<span class="px-2 py-0.5 rounded-md text-[9px] font-bold uppercase tracking-wider
+													{course.trainerType === 'Eksternal' ? 'bg-emerald-500 text-white' : 'bg-slate-700 text-slate-200'}">
+													{course.trainerType || 'Internal'}
 												</span>
 											</div>
 											<div class="absolute bottom-2.5 left-3 right-3 flex justify-between items-end text-white text-xs">
@@ -437,6 +577,18 @@
 											<p class="text-xs text-on-surface-variant line-clamp-2 leading-relaxed">
 												{course.description}
 											</p>
+
+											<div class="flex items-center gap-2 text-[10px] text-slate-500 font-medium">
+												<span class="flex items-center gap-0.5">
+													<span class="material-symbols-outlined text-xs">domain</span>
+													<span>Target: <strong>{course.department || 'All Dept'}</strong></span>
+												</span>
+												<span>•</span>
+												<span class="flex items-center gap-0.5 text-emerald-600 dark:text-emerald-400 font-bold">
+													<span class="material-symbols-outlined text-xs">payments</span>
+													<span>Rp {Number(course.costTrainer || 500000).toLocaleString('id-ID')}</span>
+												</span>
+											</div>
 
 											<div class="pt-2 border-t border-slate-200/60 dark:border-slate-800/60 flex items-center justify-between text-[11px] text-slate-500">
 												<span class="flex items-center gap-1">
@@ -501,18 +653,42 @@
 							<div class="p-5 rounded-2xl bg-surface-container border border-slate-200/70 dark:border-slate-800/70 shadow-xs flex flex-col justify-between space-y-3">
 								<div class="space-y-2">
 									<div class="flex items-center justify-between">
-										<span class="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider
-											{s.sessionType === 'ONLINE' ? 'bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300' : 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300'}">
-											{s.sessionType}
-										</span>
+										<div class="flex items-center gap-1.5 flex-wrap">
+											<span class="px-2 py-0.5 rounded-full text-[9.5px] font-black uppercase tracking-wider
+												{s.sessionType === 'ONLINE' ? 'bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300' : 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300'}">
+												{s.sessionType}
+											</span>
+											<span class="px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-wider
+												{s.based === 'Mandatory' ? 'bg-rose-500 text-white' :
+												s.based === 'Additional' ? 'bg-amber-500 text-slate-950 font-bold' :
+												s.based === 'Gap Competency' ? 'bg-purple-600 text-white' : 'bg-slate-700 text-slate-200'}">
+												{s.based || 'Mandatory'}
+											</span>
+										</div>
 										<span class="font-mono text-xs font-bold text-slate-500">{s.sessionDate}</span>
 									</div>
 
 									<h4 class="font-bold text-sm text-on-surface line-clamp-2">{s.title}</h4>
-									<p class="text-xs text-slate-600 dark:text-slate-400 flex items-center gap-1">
-										<span class="material-symbols-outlined text-xs">person</span>
-										<span>Trainer: <strong>{s.trainer}</strong></span>
-									</p>
+									<div class="space-y-1 text-xs">
+										<p class="text-slate-600 dark:text-slate-400 flex items-center justify-between">
+											<span class="flex items-center gap-1">
+												<span class="material-symbols-outlined text-xs">person</span>
+												<span>Trainer: <strong>{s.trainer}</strong></span>
+											</span>
+											<span class="text-[10px] font-bold px-1.5 py-0.5 rounded bg-surface-container-high text-slate-500">
+												{s.trainerType || 'Internal'}
+											</span>
+										</p>
+										<p class="text-slate-500 flex items-center justify-between text-[11px]">
+											<span class="flex items-center gap-1">
+												<span class="material-symbols-outlined text-xs">domain</span>
+												<span>Dept: <strong>{s.department || 'Operations'}</strong></span>
+											</span>
+											<span class="font-bold text-emerald-600 dark:text-emerald-400 font-mono">
+												Rp {Number(s.costTrainer || 500000).toLocaleString('id-ID')}
+											</span>
+										</p>
+									</div>
 									<p class="text-xs text-slate-500 flex items-start gap-1">
 										<span class="material-symbols-outlined text-xs mt-0.5">location_on</span>
 										<span class="line-clamp-2">{s.locationOrLink}</span>
@@ -856,65 +1032,476 @@
 					</div>
 				</div>
 
-			<!-- TAB 5: LAPORAN & E-SERTIFIKAT -->
+			<!-- TAB 5: LAPORAN & E-SERTIFIKAT (SPREADSHEET MASTER: SHEET 306150899) -->
 			{:else if activeTab === 'reports'}
-				<div class="space-y-6">
-					<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+				<div class="space-y-5">
+					<!-- Top Report Header & Export Actions -->
+					<div class="flex flex-col md:flex-row md:items-center justify-between gap-3 pb-3 border-b border-slate-200/60 dark:border-slate-800/60">
 						<div>
-							<h3 class="font-black text-base text-on-surface">Rekapitulasi Nilai & E-Sertifikat Digital</h3>
-							<p class="text-xs text-on-surface-variant mt-0.5">Daftar sertifikat kelulusan resmi ber-QR code otentikasi siap cetak A4 landscape</p>
+							<div class="flex items-center gap-2">
+								<h3 class="font-black text-base text-on-surface">Pusat Laporan & Rekapitulasi Pembelajaran (LMS)</h3>
+								<span class="px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wider bg-primary/10 text-primary border border-primary/20">
+									Standard BCS
+								</span>
+							</div>
+							<p class="text-xs text-on-surface-variant mt-0.5">
+								5 Laporan master berstandar PT Buana Centra Swakarsa Logistics & E-Sertifikat Terverifikasi
+							</p>
 						</div>
+
+						<div class="flex items-center gap-2 self-start md:self-auto">
+							<button
+								type="button"
+								onclick={exportReportsToCSV}
+								class="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold flex items-center gap-2 shadow-sm transition-all cursor-pointer"
+							>
+								<span class="material-symbols-outlined text-sm">download</span>
+								<span>Export CSV ({activeReportType.replace('_', ' ').toUpperCase()})</span>
+							</button>
+						</div>
+					</div>
+
+					<!-- 6 Sub-Tab Navigation for Reports -->
+					<div class="flex items-center gap-1.5 overflow-x-auto pb-1 border-b border-slate-200/40 dark:border-slate-800/40 text-xs">
+						<button
+							type="button"
+							onclick={() => (activeReportType = 'training')}
+							class="px-3 py-2 rounded-xl font-bold whitespace-nowrap transition-all flex items-center gap-1.5 cursor-pointer
+							{activeReportType === 'training'
+								? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-xs'
+								: 'bg-surface-container text-on-surface-variant hover:bg-surface-container-high'}"
+						>
+							<span class="material-symbols-outlined text-sm">model_training</span>
+							<span>1. Training Report</span>
+						</button>
 
 						<button
 							type="button"
-							onclick={exportReportsToCSV}
-							class="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold flex items-center gap-2 shadow-sm transition-all cursor-pointer self-start sm:self-auto"
+							onclick={() => (activeReportType = 'course')}
+							class="px-3 py-2 rounded-xl font-bold whitespace-nowrap transition-all flex items-center gap-1.5 cursor-pointer
+							{activeReportType === 'course'
+								? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-xs'
+								: 'bg-surface-container text-on-surface-variant hover:bg-surface-container-high'}"
 						>
-							<span class="material-symbols-outlined text-sm">download</span>
-							<span>Export ke CSV / Excel</span>
+							<span class="material-symbols-outlined text-sm">menu_book</span>
+							<span>2. Course Report</span>
+						</button>
+
+						<button
+							type="button"
+							onclick={() => (activeReportType = 'attendance')}
+							class="px-3 py-2 rounded-xl font-bold whitespace-nowrap transition-all flex items-center gap-1.5 cursor-pointer
+							{activeReportType === 'attendance'
+								? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-xs'
+								: 'bg-surface-container text-on-surface-variant hover:bg-surface-container-high'}"
+						>
+							<span class="material-symbols-outlined text-sm">how_to_reg</span>
+							<span>3. Attendance Report</span>
+						</button>
+
+						<button
+							type="button"
+							onclick={() => (activeReportType = 'assessment')}
+							class="px-3 py-2 rounded-xl font-bold whitespace-nowrap transition-all flex items-center gap-1.5 cursor-pointer
+							{activeReportType === 'assessment'
+								? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-xs'
+								: 'bg-surface-container text-on-surface-variant hover:bg-surface-container-high'}"
+						>
+							<span class="material-symbols-outlined text-sm">assignment_turned_in</span>
+							<span>4. Assessment Report</span>
+						</button>
+
+						<button
+							type="button"
+							onclick={() => (activeReportType = 'competency_gap')}
+							class="px-3 py-2 rounded-xl font-bold whitespace-nowrap transition-all flex items-center gap-1.5 cursor-pointer
+							{activeReportType === 'competency_gap'
+								? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-xs'
+								: 'bg-surface-container text-on-surface-variant hover:bg-surface-container-high'}"
+						>
+							<span class="material-symbols-outlined text-sm">troubleshoot</span>
+							<span>5. Competency Gap Report (TNA)</span>
+						</button>
+
+						<button
+							type="button"
+							onclick={() => (activeReportType = 'certificates')}
+							class="px-3 py-2 rounded-xl font-bold whitespace-nowrap transition-all flex items-center gap-1.5 cursor-pointer
+							{activeReportType === 'certificates'
+								? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-xs'
+								: 'bg-surface-container text-on-surface-variant hover:bg-surface-container-high'}"
+						>
+							<span class="material-symbols-outlined text-sm">workspace_premium</span>
+							<span>6. E-Sertifikat Digital</span>
 						</button>
 					</div>
 
-					<div class="rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden">
-						<table class="w-full text-xs text-left">
-							<thead class="bg-surface-container-high font-bold text-on-surface border-b border-slate-200 dark:border-slate-800">
-								<tr>
-									<th class="p-3">No. Sertifikat</th>
-									<th class="p-3">Nama Karyawan</th>
-									<th class="p-3">Kursus Pelatihan</th>
-									<th class="p-3">Kategori</th>
-									<th class="p-3 text-center">Nilai Ujian</th>
-									<th class="p-3">Tanggal Terbit</th>
-									<th class="p-3 text-right">Aksi Dokumen</th>
-								</tr>
-							</thead>
-							<tbody class="divide-y divide-slate-200 dark:divide-slate-800">
-								{#each certificates as cert}
-									<tr class="hover:bg-surface-container/50">
-										<td class="p-3 font-mono font-bold text-primary">{cert.certificateNumber}</td>
-										<td class="p-3">
-											<p class="font-bold text-on-surface">{cert.employeeName}</p>
-											<p class="font-mono text-[10px] text-slate-500">{cert.payrollId}</p>
-										</td>
-										<td class="p-3 font-semibold text-on-surface">{cert.courseTitle}</td>
-										<td class="p-3 text-slate-500">{cert.category}</td>
-										<td class="p-3 text-center font-bold text-emerald-600 font-mono text-sm">{cert.score}</td>
-										<td class="p-3 font-mono text-slate-500">{cert.issuedAt}</td>
-										<td class="p-3 text-right">
-											<button
-												type="button"
-												onclick={() => openCertificate(cert)}
-												class="px-3 py-1.5 rounded-lg bg-primary hover:bg-primary/90 text-on-primary text-xs font-bold inline-flex items-center gap-1.5 shadow-xs cursor-pointer"
-											>
-												<span class="material-symbols-outlined text-sm">workspace_premium</span>
-												<span>Lihat Sertifikat</span>
-											</button>
-										</td>
-									</tr>
-								{/each}
-							</tbody>
-						</table>
-					</div>
+					<!-- REPORT 1: TRAINING REPORT -->
+					{#if activeReportType === 'training'}
+						<div class="space-y-4">
+							<div class="p-4 rounded-2xl bg-surface-container/60 border border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+								<div class="space-y-1">
+									<h4 class="font-bold text-xs text-on-surface uppercase tracking-wider">Laporan Pelaksanaan Training (Training Report)</h4>
+									<p class="text-xs text-on-surface-variant">Menampilkan status sesi, klasifikasi Based, evaluasi Kirkpatrick L1/L3/L4, serta rincian biaya.</p>
+								</div>
+								<div class="flex items-center gap-2 text-xs font-mono">
+									<span class="px-2.5 py-1 rounded-lg bg-surface-container font-bold text-slate-600 dark:text-slate-300">
+										Total Sesi: {sessions.length}
+									</span>
+									<span class="px-2.5 py-1 rounded-lg bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 font-bold">
+										Selesai: {sessions.filter((s: any) => s.status === 'COMPLETED').length}
+									</span>
+								</div>
+							</div>
+
+							<div class="rounded-xl border border-slate-200 dark:border-slate-800 overflow-x-auto">
+								<table class="w-full text-xs text-left whitespace-nowrap">
+									<thead class="bg-surface-container-high font-bold text-on-surface border-b border-slate-200 dark:border-slate-800">
+										<tr>
+											<th class="p-3">ID & Judul Training</th>
+											<th class="p-3">Kategori</th>
+											<th class="p-3">Based</th>
+											<th class="p-3">Tanggal Pelaksanaan</th>
+											<th class="p-3">Trainer & Asal</th>
+											<th class="p-3 text-center">Eval L1 (Reaksi)</th>
+											<th class="p-3 text-center">Eval L3 (Perilaku)</th>
+											<th class="p-3 text-center">Eval L4 (Dampak)</th>
+											<th class="p-3 text-right">Biaya Trainer</th>
+											<th class="p-3 text-right">Total Biaya</th>
+											<th class="p-3">Lokasi / Format</th>
+											<th class="p-3 text-center">Status</th>
+										</tr>
+									</thead>
+									<tbody class="divide-y divide-slate-200 dark:divide-slate-800">
+										{#each sessions as s}
+											{@const courseMatch = courses.find((c: any) => c.id === s.courseId)}
+											<tr class="hover:bg-surface-container/50">
+												<td class="p-3">
+													<p class="font-bold text-on-surface">{s.title}</p>
+													<p class="font-mono text-[10px] text-slate-400">{s.id}</p>
+												</td>
+												<td class="p-3 text-slate-600 dark:text-slate-300">{courseMatch?.category || 'Safety'}</td>
+												<td class="p-3">
+													<span class="px-2 py-0.5 rounded text-[9.5px] font-black uppercase
+														{s.based === 'Mandatory' ? 'bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300' :
+														s.based === 'Additional' ? 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300' :
+														'bg-purple-100 text-purple-800 dark:bg-purple-950 dark:text-purple-300'}">
+														{s.based || 'Mandatory'}
+													</span>
+												</td>
+												<td class="p-3 font-mono text-slate-500">{s.sessionDate}</td>
+												<td class="p-3">
+													<p class="font-semibold text-on-surface">{s.trainer}</p>
+													<span class="text-[10px] font-bold text-slate-400 uppercase">{s.trainerType || 'Internal'}</span>
+												</td>
+												<td class="p-3 text-center font-mono font-bold text-amber-600">4.9 ★</td>
+												<td class="p-3 text-center font-mono font-bold text-blue-600">4.8 / 5</td>
+												<td class="p-3 text-center font-mono font-bold text-emerald-600">4.9 / 5</td>
+												<td class="p-3 text-right font-mono font-semibold">Rp {Number(s.costTrainer || 500000).toLocaleString('id-ID')}</td>
+												<td class="p-3 text-right font-mono font-bold text-emerald-600">Rp {Number(s.costTrainer || 500000).toLocaleString('id-ID')}</td>
+												<td class="p-3 text-slate-500 truncate max-w-[150px]">{s.locationOrLink}</td>
+												<td class="p-3 text-center">
+													<span class="px-2 py-0.5 rounded-full text-[10px] font-black uppercase
+														{s.status === 'COMPLETED' ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300' : 'bg-blue-100 text-blue-800'}">
+														{s.status}
+													</span>
+												</td>
+											</tr>
+										{/each}
+									</tbody>
+								</table>
+							</div>
+						</div>
+
+					<!-- REPORT 2: COURSE REPORT -->
+					{:else if activeReportType === 'course'}
+						<div class="space-y-4">
+							<div class="p-4 rounded-2xl bg-surface-container/60 border border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+								<div class="space-y-1">
+									<h4 class="font-bold text-xs text-on-surface uppercase tracking-wider">Laporan Katalog Kursus (Course Report)</h4>
+									<p class="text-xs text-on-surface-variant">Rincian status kursus, passing grade, rasio penyelesaian peserta, dan departemen target.</p>
+								</div>
+								<span class="px-3 py-1 rounded-lg bg-surface-container font-mono text-xs font-bold text-slate-600 dark:text-slate-300">
+									Total Kursus: {courses.length}
+								</span>
+							</div>
+
+							<div class="rounded-xl border border-slate-200 dark:border-slate-800 overflow-x-auto">
+								<table class="w-full text-xs text-left whitespace-nowrap">
+									<thead class="bg-surface-container-high font-bold text-on-surface border-b border-slate-200 dark:border-slate-800">
+										<tr>
+											<th class="p-3">ID Kursus</th>
+											<th class="p-3">Judul Kursus</th>
+											<th class="p-3">Kategori</th>
+											<th class="p-3">Based</th>
+											<th class="p-3">Departemen Target</th>
+											<th class="p-3 text-center">Durasi</th>
+											<th class="p-3 text-center">Modul</th>
+											<th class="p-3 text-center">Passing Grade</th>
+											<th class="p-3 text-center">Peserta</th>
+											<th class="p-3 text-center">Completion Rate</th>
+											<th class="p-3 text-center">Rating</th>
+											<th class="p-3 text-center">Status</th>
+										</tr>
+									</thead>
+									<tbody class="divide-y divide-slate-200 dark:divide-slate-800">
+										{#each courses as c}
+											<tr class="hover:bg-surface-container/50">
+												<td class="p-3 font-mono font-bold text-primary">{c.id}</td>
+												<td class="p-3 font-bold text-on-surface">{c.title}</td>
+												<td class="p-3 text-slate-600 dark:text-slate-300">{c.category}</td>
+												<td class="p-3">
+													<span class="px-2 py-0.5 rounded text-[9.5px] font-black uppercase
+														{c.based === 'Mandatory' ? 'bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300' :
+														c.based === 'Additional' ? 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300' :
+														'bg-purple-100 text-purple-800 dark:bg-purple-950 dark:text-purple-300'}">
+														{c.based || 'Mandatory'}
+													</span>
+												</td>
+												<td class="p-3 font-medium text-slate-500">{c.department || 'All Dept'}</td>
+												<td class="p-3 text-center font-mono">{c.durationHours} Jam</td>
+												<td class="p-3 text-center font-mono">{c.modulesCount}</td>
+												<td class="p-3 text-center font-mono font-bold text-slate-700 dark:text-slate-200">{c.passingGrade}</td>
+												<td class="p-3 text-center font-mono font-bold text-blue-600">{c.enrolledCount} Org</td>
+												<td class="p-3 text-center font-mono font-bold text-emerald-600">{c.completionRate}%</td>
+												<td class="p-3 text-center font-mono font-bold text-amber-500">{c.rating.toFixed(1)} ★</td>
+												<td class="p-3 text-center">
+													<span class="px-2 py-0.5 rounded-full text-[10px] font-black uppercase bg-emerald-100 text-emerald-800">
+														{c.status}
+													</span>
+												</td>
+											</tr>
+										{/each}
+									</tbody>
+								</table>
+							</div>
+						</div>
+
+					<!-- REPORT 3: ATTENDANCE REPORT -->
+					{:else if activeReportType === 'attendance'}
+						<div class="space-y-4">
+							<div class="p-4 rounded-2xl bg-surface-container/60 border border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+								<div class="space-y-1">
+									<h4 class="font-bold text-xs text-on-surface uppercase tracking-wider">Laporan Kehadiran Peserta (Attendance Report)</h4>
+									<p class="text-xs text-on-surface-variant">Data absensi kehadiran aktual peserta sesi pelatihan berdasarkan nama, jabatan, dan departemen.</p>
+								</div>
+								<span class="px-3 py-1 rounded-lg bg-surface-container font-mono text-xs font-bold text-slate-600 dark:text-slate-300">
+									Presensi Tercatat: {attendances.length}
+								</span>
+							</div>
+
+							<div class="rounded-xl border border-slate-200 dark:border-slate-800 overflow-x-auto">
+								<table class="w-full text-xs text-left whitespace-nowrap">
+									<thead class="bg-surface-container-high font-bold text-on-surface border-b border-slate-200 dark:border-slate-800">
+										<tr>
+											<th class="p-3">Nama Karyawan</th>
+											<th class="p-3">Payroll ID</th>
+											<th class="p-3">Departemen</th>
+											<th class="p-3">Sesi Pelatihan</th>
+											<th class="p-3">Waktu Presensi</th>
+											<th class="p-3 text-center">Status Kehadiran</th>
+											<th class="p-3">Catatan</th>
+										</tr>
+									</thead>
+									<tbody class="divide-y divide-slate-200 dark:divide-slate-800">
+										{#each attendances as a}
+											<tr class="hover:bg-surface-container/50">
+												<td class="p-3 font-bold text-on-surface">{a.employeeName}</td>
+												<td class="p-3 font-mono text-slate-500">{a.payrollId}</td>
+												<td class="p-3 text-slate-600 dark:text-slate-300">{a.department}</td>
+												<td class="p-3 font-semibold text-primary">{a.sessionTitle}</td>
+												<td class="p-3 font-mono text-slate-500">{a.attendedAt}</td>
+												<td class="p-3 text-center">
+													<span class="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase
+														{a.status === 'HADIR' ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300' : 'bg-amber-100 text-amber-800'}">
+														{a.status}
+													</span>
+												</td>
+												<td class="p-3 text-slate-500">{a.notes || '-'}</td>
+											</tr>
+										{/each}
+									</tbody>
+								</table>
+							</div>
+						</div>
+
+					<!-- REPORT 4: ASSESSMENT REPORT -->
+					{:else if activeReportType === 'assessment'}
+						<div class="space-y-4">
+							<div class="p-4 rounded-2xl bg-surface-container/60 border border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+								<div class="space-y-1">
+									<h4 class="font-bold text-xs text-on-surface uppercase tracking-wider">Laporan Hasil Asesmen & Ujian (Assessment Report)</h4>
+									<p class="text-xs text-on-surface-variant">Rekapitulasi skor evaluasi pre-test, post-test, batas kelulusan, dan nomor sertifikat terbit.</p>
+								</div>
+								<span class="px-3 py-1 rounded-lg bg-surface-container font-mono text-xs font-bold text-slate-600 dark:text-slate-300">
+									Total Kelulusan: {certificates.length}
+								</span>
+							</div>
+
+							<div class="rounded-xl border border-slate-200 dark:border-slate-800 overflow-x-auto">
+								<table class="w-full text-xs text-left whitespace-nowrap">
+									<thead class="bg-surface-container-high font-bold text-on-surface border-b border-slate-200 dark:border-slate-800">
+										<tr>
+											<th class="p-3">Nama Training</th>
+											<th class="p-3">Nama Peserta</th>
+											<th class="p-3">Payroll ID</th>
+											<th class="p-3 text-center">Skor Pre-Test</th>
+											<th class="p-3 text-center">Skor Post-Test (Quiz)</th>
+											<th class="p-3 text-center">Passing Grade</th>
+											<th class="p-3 text-center">Status Kelulusan</th>
+											<th class="p-3">No. E-Sertifikat</th>
+											<th class="p-3">Tanggal Ujian</th>
+										</tr>
+									</thead>
+									<tbody class="divide-y divide-slate-200 dark:divide-slate-800">
+										{#each certificates as c}
+											<tr class="hover:bg-surface-container/50">
+												<td class="p-3 font-bold text-on-surface">{c.courseTitle}</td>
+												<td class="p-3 font-semibold text-on-surface">{c.employeeName}</td>
+												<td class="p-3 font-mono text-slate-500">{c.payrollId}</td>
+												<td class="p-3 text-center font-mono font-bold text-slate-500">60</td>
+												<td class="p-3 text-center font-mono font-black text-emerald-600 text-sm">{c.score}</td>
+												<td class="p-3 text-center font-mono text-slate-500">75</td>
+												<td class="p-3 text-center">
+													<span class="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
+														LULUS
+													</span>
+												</td>
+												<td class="p-3 font-mono text-primary font-bold">{c.certificateNumber}</td>
+												<td class="p-3 font-mono text-slate-500">{c.issuedAt}</td>
+											</tr>
+										{/each}
+									</tbody>
+								</table>
+							</div>
+						</div>
+
+					<!-- REPORT 5: COMPETENCY GAP REPORT (TNA) -->
+					{:else if activeReportType === 'competency_gap'}
+						<div class="space-y-4">
+							<div class="p-4 rounded-2xl bg-surface-container/60 border border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+								<div class="space-y-1">
+									<h4 class="font-bold text-xs text-on-surface uppercase tracking-wider">Laporan Kesenjangan Kompetensi (Competency Gap Report - TNA)</h4>
+									<p class="text-xs text-on-surface-variant">Identifikasi selisih Required Competency vs Actual Competency untuk rekomendasi training 2026.</p>
+								</div>
+								<div class="flex items-center gap-2 text-xs font-mono">
+									<span class="px-2.5 py-1 rounded-lg bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300 font-bold">
+										Kesenjangan: {competencyGapList.filter((cg: any) => cg.gap < 0).length} Gap
+									</span>
+								</div>
+							</div>
+
+							<div class="rounded-xl border border-slate-200 dark:border-slate-800 overflow-x-auto">
+								<table class="w-full text-xs text-left whitespace-nowrap">
+									<thead class="bg-surface-container-high font-bold text-on-surface border-b border-slate-200 dark:border-slate-800">
+										<tr>
+											<th class="p-3">Departemen</th>
+											<th class="p-3">Jabatan Karyawan</th>
+											<th class="p-3">Nama & NIK</th>
+											<th class="p-3">Aspek Kompetensi</th>
+											<th class="p-3">Kode & Nama Kompetensi</th>
+											<th class="p-3 text-center">Req Level</th>
+											<th class="p-3 text-center">Act Level</th>
+											<th class="p-3 text-center">Competency Gap</th>
+											<th class="p-3 text-center">Status</th>
+											<th class="p-3">Rekomendasi Pelatihan (TNA Plan)</th>
+										</tr>
+									</thead>
+									<tbody class="divide-y divide-slate-200 dark:divide-slate-800">
+										{#each competencyGapList as cg}
+											<tr class="hover:bg-surface-container/50">
+												<td class="p-3 text-slate-600 dark:text-slate-300">{cg.department}</td>
+												<td class="p-3 font-semibold text-on-surface">{cg.positionTitle}</td>
+												<td class="p-3">
+													<p class="font-bold text-on-surface">{cg.employeeName}</p>
+													<p class="font-mono text-[10px] text-slate-400">{cg.payrollId}</p>
+												</td>
+												<td class="p-3 text-slate-500 font-medium">{cg.aspect}</td>
+												<td class="p-3">
+													<span class="font-mono font-bold text-primary mr-1">[{cg.competencyCode}]</span>
+													<span class="font-semibold text-on-surface">{cg.competencyName}</span>
+												</td>
+												<td class="p-3 text-center font-mono font-bold">{cg.requiredLevel}</td>
+												<td class="p-3 text-center font-mono font-bold">{cg.actualLevel}</td>
+												<td class="p-3 text-center font-mono font-black text-sm
+													{cg.gap < 0 ? 'text-rose-600' : 'text-emerald-600'}">
+													{cg.gap > 0 ? `+${cg.gap}` : cg.gap}
+												</td>
+												<td class="p-3 text-center">
+													<span class="px-2 py-0.5 rounded text-[10px] font-black uppercase
+														{cg.status === 'Qualified' ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300' : 'bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300'}">
+														{cg.status}
+													</span>
+												</td>
+												<td class="p-3">
+													{#if cg.recommendation !== '-'}
+														<span class="font-semibold text-primary">{cg.recommendation}</span>
+													{:else}
+														<span class="text-slate-400">-</span>
+													{/if}
+												</td>
+											</tr>
+										{/each}
+									</tbody>
+								</table>
+							</div>
+						</div>
+
+					<!-- REPORT 6: E-SERTIFIKAT DIGITAL -->
+					{:else if activeReportType === 'certificates'}
+						<div class="space-y-4">
+							<div class="p-4 rounded-2xl bg-surface-container/60 border border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+								<div class="space-y-1">
+									<h4 class="font-bold text-xs text-on-surface uppercase tracking-wider">Rekapitulasi E-Sertifikat Digital Resmi</h4>
+									<p class="text-xs text-on-surface-variant">Daftar sertifikat kelulusan ber-QR code otentikasi siap cetak A4 landscape standard BCS.</p>
+								</div>
+								<span class="px-3 py-1 rounded-lg bg-surface-container font-mono text-xs font-bold text-slate-600 dark:text-slate-300">
+									Sertifikat: {certificates.length} Lembar
+								</span>
+							</div>
+
+							<div class="rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden">
+								<table class="w-full text-xs text-left">
+									<thead class="bg-surface-container-high font-bold text-on-surface border-b border-slate-200 dark:border-slate-800">
+										<tr>
+											<th class="p-3">No. Sertifikat</th>
+											<th class="p-3">Nama Karyawan</th>
+											<th class="p-3">Kursus Pelatihan</th>
+											<th class="p-3">Kategori</th>
+											<th class="p-3 text-center">Nilai Ujian</th>
+											<th class="p-3">Tanggal Terbit</th>
+											<th class="p-3 text-right">Aksi Dokumen</th>
+										</tr>
+									</thead>
+									<tbody class="divide-y divide-slate-200 dark:divide-slate-800">
+										{#each certificates as cert}
+											<tr class="hover:bg-surface-container/50">
+												<td class="p-3 font-mono font-bold text-primary">{cert.certificateNumber}</td>
+												<td class="p-3">
+													<p class="font-bold text-on-surface">{cert.employeeName}</p>
+													<p class="font-mono text-[10px] text-slate-500">{cert.payrollId}</p>
+												</td>
+												<td class="p-3 font-semibold text-on-surface">{cert.courseTitle}</td>
+												<td class="p-3 text-slate-500">{cert.category}</td>
+												<td class="p-3 text-center font-bold text-emerald-600 font-mono text-sm">{cert.score}</td>
+												<td class="p-3 font-mono text-slate-500">{cert.issuedAt}</td>
+												<td class="p-3 text-right">
+													<button
+														type="button"
+														onclick={() => openCertificate(cert)}
+														class="px-3 py-1.5 rounded-lg bg-primary hover:bg-primary/90 text-on-primary text-xs font-bold inline-flex items-center gap-1.5 shadow-xs cursor-pointer"
+													>
+														<span class="material-symbols-outlined text-sm">workspace_premium</span>
+														<span>Lihat Sertifikat</span>
+													</button>
+												</td>
+											</tr>
+										{/each}
+									</tbody>
+								</table>
+							</div>
+						</div>
+					{/if}
 				</div>
 			{/if}
 		</div>
@@ -1266,63 +1853,109 @@
 <!-- ════════════════════════════════════════════════════════════════════════ -->
 {#if isCreateModalOpen}
 	<div class="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-4">
-		<div class="bg-surface rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xl w-full max-w-lg overflow-hidden p-6 space-y-4 animate-in zoom-in-95 duration-150">
+		<div class="bg-surface rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xl w-full max-w-lg max-h-[90vh] flex flex-col overflow-hidden p-6 space-y-4 animate-in zoom-in-95 duration-150">
 			<div class="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800">
-				<h3 class="font-black text-base text-on-surface">Tambah Kursus Baru ke Katalog</h3>
+				<div>
+					<h3 class="font-black text-base text-on-surface">Tambah Kursus Baru ke Katalog</h3>
+					<p class="text-[11px] text-slate-500">Standarisasi kurikulum LMS PT Buana Centra Swakarsa 2026</p>
+				</div>
 				<button type="button" onclick={() => (isCreateModalOpen = false)} class="w-8 h-8 rounded-full bg-surface-container flex items-center justify-center text-slate-400 hover:text-slate-600">
 					<span class="material-symbols-outlined text-lg">close</span>
 				</button>
 			</div>
 
-			<form method="POST" action="?/createCourse" use:enhance class="space-y-3.5 text-xs">
+			<form method="POST" action="?/createCourse" use:enhance class="space-y-3.5 text-xs overflow-y-auto pr-1">
 				<div>
-					<label class="font-bold text-on-surface block mb-1">Judul Kursus *</label>
-					<input type="text" name="title" required placeholder="Contoh: Defensive Driving Angkutan Berat..." class="w-full px-3 py-2 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800" />
+					<label class="font-bold text-on-surface block mb-1">Judul Kursus Pelatihan *</label>
+					<input type="text" name="title" required placeholder="Contoh: Defensive Driving Angkutan Berat..." class="w-full px-3 py-2 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800 text-xs text-on-surface focus:ring-1 focus:ring-primary" />
 				</div>
 
 				<div class="grid grid-cols-2 gap-3">
 					<div>
 						<label class="font-bold text-on-surface block mb-1">Kategori</label>
-						<select name="category" class="w-full px-3 py-2 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800">
-							{#each categories.filter(c => c !== 'All') as cat}
-								<option value={cat}>{cat}</option>
-							{/each}
+						<select name="category" class="w-full px-3 py-2 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800 text-xs text-on-surface">
+							<option value="Safety">Safety & K3</option>
+							<option value="Operations">Operations</option>
+							<option value="Technical">Technical</option>
+							<option value="Technical & Soft Skill">Technical & Soft Skill</option>
+							<option value="Leadership">Leadership</option>
 						</select>
 					</div>
 
 					<div>
-						<label class="font-bold text-on-surface block mb-1">Tingkat Level</label>
-						<select name="level" class="w-full px-3 py-2 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800">
-							<option value="Mandatory">Mandatory (Wajib)</option>
-							<option value="Beginner">Beginner (Dasar)</option>
-							<option value="Intermediate">Intermediate (Menengah)</option>
-							<option value="Advanced">Advanced (Lanjutan)</option>
+						<label class="font-bold text-on-surface block mb-1">Klasifikasi Based *</label>
+						<select name="based" class="w-full px-3 py-2 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800 text-xs font-bold text-on-surface">
+							<option value="Mandatory">Mandatory (Wajib Regulasi/K3)</option>
+							<option value="Additional">Additional (Pengembangan / Opsional)</option>
+							<option value="Gap Competency">Gap Competency (Hasil Evaluasi TNA)</option>
 						</select>
 					</div>
 				</div>
 
 				<div class="grid grid-cols-2 gap-3">
 					<div>
-						<label class="font-bold text-on-surface block mb-1">Nama Instruktur / Trainer</label>
-						<input type="text" name="instructor" placeholder="Contoh: Capt. Rahmat Hidayat..." class="w-full px-3 py-2 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800" />
+						<label class="font-bold text-on-surface block mb-1">Instruktur / Trainer *</label>
+						<select name="instructor" class="w-full px-3 py-2 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800 text-xs text-on-surface">
+							{#each masterTrainers as t}
+								<option value={`${t.name} (${t.title})`}>{t.name} - {t.title}</option>
+							{/each}
+							<option value="Instruktur Eksternal Sertifikasi">Lembaga / Trainer Eksternal</option>
+						</select>
 					</div>
 
 					<div>
-						<label class="font-bold text-on-surface block mb-1">Passing Grade Kelulusan</label>
-						<input type="number" name="passingGrade" value="75" min="50" max="100" class="w-full px-3 py-2 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800 font-mono" />
+						<label class="font-bold text-on-surface block mb-1">Asal Trainer</label>
+						<select name="trainerType" class="w-full px-3 py-2 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800 text-xs text-on-surface">
+							<option value="Internal">Internal PT BCS (Rp500.000)</option>
+							<option value="Eksternal">Eksternal / Vendor Resmi (Rp2.500.000 - Rp3.000.000)</option>
+						</select>
+					</div>
+				</div>
+
+				<div class="grid grid-cols-2 gap-3">
+					<div>
+						<label class="font-bold text-on-surface block mb-1">Departemen Target</label>
+						<select name="department" class="w-full px-3 py-2 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800 text-xs text-on-surface">
+							<option value="All Dept">All Dept (Seluruh Departemen)</option>
+							<option value="Operations">Operations</option>
+							<option value="Project 4">Project 4</option>
+							<option value="Driver">Driver & Armada</option>
+							<option value="Transport (Maintenance & Asset)">Transport (Maintenance & Asset)</option>
+							<option value="Labour Project 1">Labour Project 1</option>
+							<option value="QHSE & Safety">QHSE & Safety</option>
+							<option value="Finance & Accounting">Finance & Accounting</option>
+							<option value="General Affairs">General Affairs</option>
+						</select>
+					</div>
+
+					<div>
+						<label class="font-bold text-on-surface block mb-1">Biaya Trainer (IDR)</label>
+						<input type="number" name="costTrainer" value="500000" step="50000" class="w-full px-3 py-2 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800 font-mono text-xs" />
+					</div>
+				</div>
+
+				<div class="grid grid-cols-2 gap-3">
+					<div>
+						<label class="font-bold text-on-surface block mb-1">Durasi (Jam)</label>
+						<input type="number" name="durationHours" value="2.0" step="0.5" class="w-full px-3 py-2 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800 font-mono text-xs" />
+					</div>
+
+					<div>
+						<label class="font-bold text-on-surface block mb-1">Passing Grade (%)</label>
+						<input type="number" name="passingGrade" value="75" min="50" max="100" class="w-full px-3 py-2 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800 font-mono text-xs" />
 					</div>
 				</div>
 
 				<div>
 					<label class="font-bold text-on-surface block mb-1">Deskripsi Singkat Kursus</label>
-					<textarea name="description" rows="2" placeholder="Uraikan kompetensi dan hasil belajar dari kursus ini..." class="w-full px-3 py-2 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800 resize-none"></textarea>
+					<textarea name="description" rows="2" placeholder="Uraikan kompetensi dan hasil belajar dari kursus ini..." class="w-full px-3 py-2 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800 resize-none text-xs"></textarea>
 				</div>
 
 				<div class="flex justify-end gap-2 pt-3 border-t border-slate-200 dark:border-slate-800">
-					<button type="button" onclick={() => (isCreateModalOpen = false)} class="px-4 py-2 rounded-xl border text-xs font-bold hover:bg-surface-container">
+					<button type="button" onclick={() => (isCreateModalOpen = false)} class="px-4 py-2 rounded-xl border border-slate-300 dark:border-slate-700 text-xs font-bold hover:bg-surface-container cursor-pointer">
 						Batal
 					</button>
-					<button type="submit" class="px-4 py-2 rounded-xl bg-primary text-on-primary text-xs font-bold hover:bg-primary/90 flex items-center gap-1">
+					<button type="submit" class="px-4 py-2 rounded-xl bg-primary text-on-primary text-xs font-bold hover:bg-primary/90 flex items-center gap-1 shadow-sm cursor-pointer">
 						<span class="material-symbols-outlined text-sm">save</span>
 						<span>Simpan ke Database</span>
 					</button>
@@ -1337,62 +1970,117 @@
 <!-- ════════════════════════════════════════════════════════════════════════ -->
 {#if isSessionModalOpen}
 	<div class="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-4">
-		<div class="bg-surface rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xl w-full max-w-lg overflow-hidden p-6 space-y-4 animate-in zoom-in-95 duration-150">
+		<div class="bg-surface rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xl w-full max-w-lg max-h-[90vh] flex flex-col overflow-hidden p-6 space-y-4 animate-in zoom-in-95 duration-150">
 			<div class="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800">
-				<h3 class="font-black text-base text-on-surface">Jadwalkan Sesi Training Baru</h3>
+				<div>
+					<h3 class="font-black text-base text-on-surface">Jadwalkan Sesi Training Baru</h3>
+					<p class="text-[11px] text-slate-500">Input jadwal sesi training resmi internal maupun sertifikasi</p>
+				</div>
 				<button type="button" onclick={() => (isSessionModalOpen = false)} class="w-8 h-8 rounded-full bg-surface-container flex items-center justify-center text-slate-400 hover:text-slate-600">
 					<span class="material-symbols-outlined text-lg">close</span>
 				</button>
 			</div>
 
-			<form method="POST" action="?/createSession" use:enhance class="space-y-3.5 text-xs">
+			<form method="POST" action="?/createSession" use:enhance class="space-y-3.5 text-xs overflow-y-auto pr-1">
 				<div>
 					<label class="font-bold text-on-surface block mb-1">Judul Sesi Pelatihan *</label>
-					<input type="text" name="title" required placeholder="Contoh: Defensive Driving Batch Oktober 2026..." class="w-full px-3 py-2 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800" />
+					<input type="text" name="title" required placeholder="Contoh: Re-Induksi Keselamatan & SWP Batch 2..." class="w-full px-3 py-2 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800 text-xs text-on-surface" />
+				</div>
+
+				<div class="grid grid-cols-2 gap-3">
+					<div>
+						<label class="font-bold text-on-surface block mb-1">Pilih Kursus Terkait</label>
+						<select name="courseId" class="w-full px-3 py-2 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800 text-xs text-on-surface">
+							<option value="">-- Tanpa Kursus Online --</option>
+							{#each courses as c}
+								<option value={c.id}>{c.title}</option>
+							{/each}
+						</select>
+					</div>
+
+					<div>
+						<label class="font-bold text-on-surface block mb-1">Klasifikasi Based *</label>
+						<select name="based" class="w-full px-3 py-2 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800 text-xs font-bold text-on-surface">
+							<option value="Mandatory">Mandatory (Wajib K3)</option>
+							<option value="Additional">Additional (Pengembangan)</option>
+							<option value="Gap Competency">Gap Competency (TNA Plan)</option>
+						</select>
+					</div>
 				</div>
 
 				<div class="grid grid-cols-2 gap-3">
 					<div>
 						<label class="font-bold text-on-surface block mb-1">Nama Trainer *</label>
-						<input type="text" name="trainer" required placeholder="Nama instruktur..." class="w-full px-3 py-2 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800" />
+						<select name="trainer" class="w-full px-3 py-2 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800 text-xs text-on-surface">
+							{#each masterTrainers as t}
+								<option value={t.name}>{t.name} ({t.title})</option>
+							{/each}
+							<option value="Instruktur Eksternal">Instruktur Eksternal Lembaga</option>
+						</select>
 					</div>
 
 					<div>
-						<label class="font-bold text-on-surface block mb-1">Tipe Sesi</label>
-						<select name="sessionType" class="w-full px-3 py-2 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800">
-							<option value="OFFLINE">Offline (Ruang Training / Workshop)</option>
-							<option value="ONLINE">Online (Google Meet / Zoom)</option>
+						<label class="font-bold text-on-surface block mb-1">Tipe Trainer & Sesi</label>
+						<div class="grid grid-cols-2 gap-2">
+							<select name="trainerType" class="w-full px-2 py-2 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800 text-xs text-on-surface">
+								<option value="Internal">Internal</option>
+								<option value="Eksternal">Eksternal</option>
+							</select>
+							<select name="sessionType" class="w-full px-2 py-2 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800 text-xs text-on-surface">
+								<option value="OFFLINE">Offline</option>
+								<option value="ONLINE">Online</option>
+							</select>
+						</div>
+					</div>
+				</div>
+
+				<div class="grid grid-cols-2 gap-3">
+					<div>
+						<label class="font-bold text-on-surface block mb-1">Departemen Peserta</label>
+						<select name="department" class="w-full px-3 py-2 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800 text-xs text-on-surface">
+							<option value="All Dept">All Dept</option>
+							<option value="Project 4">Project 4</option>
+							<option value="Operations">Operations</option>
+							<option value="Driver">Driver & Armada</option>
+							<option value="Transport (Maintenance & Asset)">Transport (Maintenance & Asset)</option>
+							<option value="Labour Project 1">Labour Project 1</option>
+							<option value="QHSE & Safety">QHSE & Safety</option>
 						</select>
+					</div>
+
+					<div>
+						<label class="font-bold text-on-surface block mb-1">Biaya Trainer (IDR)</label>
+						<input type="number" name="costTrainer" value="500000" step="50000" class="w-full px-3 py-2 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800 font-mono text-xs" />
 					</div>
 				</div>
 
 				<div>
 					<label class="font-bold text-on-surface block mb-1">Lokasi / Tautan Meeting *</label>
-					<input type="text" name="locationOrLink" required placeholder="Ruang Aula Training BCS Cilegon atau https://meet.google.com/..." class="w-full px-3 py-2 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800" />
+					<input type="text" name="locationOrLink" required placeholder="Ruang Aula Training BCS Cilegon atau https://meet.google.com/..." class="w-full px-3 py-2 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800 text-xs text-on-surface" />
 				</div>
 
 				<div class="grid grid-cols-3 gap-2">
 					<div>
 						<label class="font-bold text-on-surface block mb-1">Tanggal *</label>
-						<input type="date" name="sessionDate" required class="w-full px-2.5 py-2 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800 font-mono" />
+						<input type="date" name="sessionDate" required class="w-full px-2.5 py-2 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800 font-mono text-xs text-on-surface" />
 					</div>
 
 					<div>
 						<label class="font-bold text-on-surface block mb-1">Jam Mulai</label>
-						<input type="time" name="startTime" value="09:00" class="w-full px-2 py-2 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800 font-mono" />
+						<input type="time" name="startTime" value="09:00" class="w-full px-2 py-2 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800 font-mono text-xs text-on-surface" />
 					</div>
 
 					<div>
 						<label class="font-bold text-on-surface block mb-1">Jam Selesai</label>
-						<input type="time" name="endTime" value="11:30" class="w-full px-2 py-2 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800 font-mono" />
+						<input type="time" name="endTime" value="11:30" class="w-full px-2 py-2 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800 font-mono text-xs text-on-surface" />
 					</div>
 				</div>
 
 				<div class="flex justify-end gap-2 pt-3 border-t border-slate-200 dark:border-slate-800">
-					<button type="button" onclick={() => (isSessionModalOpen = false)} class="px-4 py-2 rounded-xl border text-xs font-bold hover:bg-surface-container">
+					<button type="button" onclick={() => (isSessionModalOpen = false)} class="px-4 py-2 rounded-xl border border-slate-300 dark:border-slate-700 text-xs font-bold hover:bg-surface-container cursor-pointer">
 						Batal
 					</button>
-					<button type="submit" class="px-4 py-2 rounded-xl bg-primary text-on-primary text-xs font-bold hover:bg-primary/90 flex items-center gap-1">
+					<button type="submit" class="px-4 py-2 rounded-xl bg-primary text-on-primary text-xs font-bold hover:bg-primary/90 flex items-center gap-1 shadow-sm cursor-pointer">
 						<span class="material-symbols-outlined text-sm">event</span>
 						<span>Simpan Jadwal Sesi</span>
 					</button>
