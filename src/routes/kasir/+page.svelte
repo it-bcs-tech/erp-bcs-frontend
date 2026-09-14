@@ -24,9 +24,13 @@
 				<span>{today} • Manajemen pencairan UJO supir, klaim ritase surat jalan, dan closing kasir</span>
 			</p>
 		</div>
-		<div class="flex items-center gap-3">
-			<a href="/kasir/ujo" class="bg-amber-600 hover:bg-amber-700 text-white px-4 py-2.5 rounded-xl text-sm font-bold shadow-xs flex items-center gap-2 transition-colors">
-				<span class="material-symbols-outlined text-lg">payments</span>
+		<div class="flex items-center gap-2.5">
+			<a href="/kasir/kas-operasional" class="px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-surface text-on-surface hover:bg-surface-container text-xs font-bold transition-colors flex items-center gap-2 shadow-2xs">
+				<span class="material-symbols-outlined text-base text-emerald-600">account_balance_wallet</span>
+				<span>Kas Operasional</span>
+			</a>
+			<a href="/kasir/ujo" class="bg-amber-600 hover:bg-amber-700 text-white px-4 py-2.5 rounded-xl text-xs font-bold shadow-xs flex items-center gap-2 transition-colors">
+				<span class="material-symbols-outlined text-base">payments</span>
 				<span>Proses UJO</span>
 			</a>
 		</div>
@@ -34,20 +38,29 @@
 
 	<!-- Summary Cards (Bento) -->
 	<div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-		<div class="p-5 rounded-2xl bg-surface-container-low border border-slate-200/60 dark:border-slate-800/60 shadow-xs">
-			<p class="text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-1">Total UJO Cair</p>
-			<div class="flex items-end justify-between">
-				<h3 class="text-xl font-black text-rose-600 font-mono">{formatCurrency(cashSummary.cashOut)}</h3>
-				<span class="material-symbols-outlined text-2xl text-rose-500/50">arrow_downward</span>
+		<div class="p-5 rounded-2xl bg-surface-container-low border border-slate-200/60 dark:border-slate-800/60 shadow-xs flex flex-col justify-between">
+			<div>
+				<p class="text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-1">Saldo Kas Operasional</p>
+				<div class="flex items-end justify-between">
+					<h3 class="text-xl font-black {cashSummary.netCash >= 0 ? 'text-emerald-600' : 'text-rose-600'} font-mono">{formatCurrency(cashSummary.netCash)}</h3>
+					<span class="material-symbols-outlined text-2xl {cashSummary.netCash >= 0 ? 'text-emerald-500/50' : 'text-rose-500/50'}">account_balance_wallet</span>
+				</div>
 			</div>
+			<a href="/kasir/kas-operasional" class="text-xs font-bold text-emerald-600 mt-2 flex items-center gap-1 hover:underline">
+				<span>Kelola Kas</span>
+				<span class="material-symbols-outlined text-sm">arrow_forward</span>
+			</a>
 		</div>
 
-		<div class="p-5 rounded-2xl bg-surface-container-low border border-slate-200/60 dark:border-slate-800/60 shadow-xs">
-			<p class="text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-1">Net Cash Kasir</p>
-			<div class="flex items-end justify-between">
-				<h3 class="text-xl font-black {cashSummary.netCash >= 0 ? 'text-emerald-600' : 'text-rose-600'} font-mono">{formatCurrency(cashSummary.netCash)}</h3>
-				<span class="material-symbols-outlined text-2xl {cashSummary.netCash >= 0 ? 'text-emerald-500/50' : 'text-rose-500/50'}">account_balance</span>
+		<div class="p-5 rounded-2xl bg-surface-container-low border border-slate-200/60 dark:border-slate-800/60 shadow-xs flex flex-col justify-between">
+			<div>
+				<p class="text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-1">Drop Dana Masuk</p>
+				<div class="flex items-end justify-between">
+					<h3 class="text-xl font-black text-emerald-600 font-mono">{formatCurrency(cashSummary.cashIn)}</h3>
+					<span class="material-symbols-outlined text-2xl text-emerald-500/50">arrow_upward</span>
+				</div>
 			</div>
+			<p class="text-[11px] text-on-surface-variant mt-2">Dari Finance & Topup</p>
 		</div>
 
 		<div class="p-5 rounded-2xl bg-surface-container-low border border-amber-500/20 shadow-xs flex flex-col justify-between">
@@ -188,6 +201,45 @@
 						<span class="w-2.5 h-2.5 rounded-full bg-rose-400"></span>
 						<span class="text-xs font-bold text-on-surface-variant">Pengeluaran</span>
 					</div>
+				</div>
+			</div>
+
+			<!-- Recent Cash Ledger Mutations -->
+			<div class="rounded-2xl bg-surface-container-low border border-slate-200/60 dark:border-slate-800/60 shadow-xs flex flex-col overflow-hidden">
+				<div class="px-5 py-4 border-b border-slate-200/60 dark:border-slate-800/60 flex items-center justify-between bg-slate-50/50 dark:bg-slate-800/30">
+					<h2 class="text-sm font-bold text-on-surface flex items-center gap-2">
+						<span class="material-symbols-outlined text-emerald-600 text-lg">account_balance_wallet</span>
+						<span>Mutasi Kas Terakhir</span>
+					</h2>
+					<a href="/kasir/kas-operasional" class="text-xs font-bold text-emerald-600 hover:underline">Lihat Buku Kas</a>
+				</div>
+				<div class="p-4 space-y-2.5">
+					{#if recentTransactions.length === 0}
+						<p class="text-center text-xs font-medium text-on-surface-variant py-4">Belum ada catatan mutasi kas.</p>
+					{/if}
+					{#each recentTransactions as tx}
+						<div class="flex items-center justify-between p-3 rounded-xl bg-surface border border-slate-200/60 dark:border-slate-800/60 hover:bg-surface-container transition-colors">
+							<div class="flex items-center gap-2.5">
+								<div class="w-8 h-8 rounded-lg flex items-center justify-center font-bold flex-shrink-0 {tx.direction === 'IN' ? 'bg-emerald-500/10 text-emerald-600' : 'bg-rose-500/10 text-rose-600'}">
+									<span class="material-symbols-outlined text-base">
+										{tx.direction === 'IN' ? 'arrow_downward' : 'arrow_upward'}
+									</span>
+								</div>
+								<div>
+									<p class="text-xs font-bold text-on-surface line-clamp-1">{tx.description}</p>
+									<p class="text-[10px] text-on-surface-variant flex items-center gap-1.5 mt-0.5 font-mono">
+										<span>{new Date(tx.date).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}</span>
+										{#if tx.ref}<span>· Ref: {tx.ref}</span>{/if}
+									</p>
+								</div>
+							</div>
+							<div class="text-right whitespace-nowrap">
+								<p class="text-xs font-black font-mono {tx.direction === 'IN' ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}">
+									{tx.direction === 'IN' ? '+' : '-'}{formatCurrency(tx.amount)}
+								</p>
+							</div>
+						</div>
+					{/each}
 				</div>
 			</div>
 		</div>

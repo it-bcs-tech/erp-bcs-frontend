@@ -37,6 +37,10 @@
 				<span class="material-symbols-outlined text-[20px]">space_dashboard</span>
 				<span class="text-sm">Overview</span>
 			</a>
+			<a class="flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200 hover:translate-x-1 {$page.url.pathname.includes('/kasir/kas-operasional') ? 'bg-surface-container-highest text-emerald-600 dark:text-emerald-400 font-bold' : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container font-medium text-sm'}" href="/kasir/kas-operasional">
+				<span class="material-symbols-outlined text-[20px]">account_balance_wallet</span>
+				<span class="text-sm">Kas & Saldo Operasional</span>
+			</a>
 
 			<div class="pt-3 pb-1 px-4">
 				<p class="text-[9px] font-black text-on-surface-variant/50 uppercase tracking-[0.2em]">Fleet Settlements</p>

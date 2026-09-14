@@ -58,9 +58,10 @@ export const load: PageServerLoad = async () => {
 };
 
 export const actions: Actions = {
-	payUjo: async ({ request }) => {
+	payUjo: async ({ request, locals }) => {
 		const data = await request.formData();
 		const orderId = data.get('orderId') as string;
+		const user = locals?.user?.name || 'Kasir Operasional';
 
 		if (!orderId) {
 			return fail(400, { message: 'Order ID tidak ditemukan.' });
@@ -68,12 +69,38 @@ export const actions: Actions = {
 
 		try {
 			await sql.begin(async (sql) => {
-				// 1. Mark UJO as Paid
-				await sql`
+				// 1. Mark UJO as Paid and record to ledger
+				const caUpdated = await sql`
 					UPDATE finance.cash_advance 
 					SET payment_status = 'PAID'
 					WHERE sales_order_id = ${orderId}
+					RETURNING estimated_ujo
 				`;
+
+				if (caUpdated.length > 0) {
+					const ujoAmount = parseFloat(caUpdated[0].estimated_ujo) || 0;
+					if (ujoAmount > 0) {
+						await sql`
+							INSERT INTO finance.kasir_cash_ledger (
+								direction,
+								category,
+								amount,
+								reference_id,
+								reference_type,
+								description,
+								performed_by
+							) VALUES (
+								'OUT',
+								'PENCAIRAN_UJO',
+								${ujoAmount},
+								${orderId},
+								'SALES_ORDER',
+								${'Pencairan UJO Supir untuk Order ' + orderId},
+								${user}
+							)
+						`;
+					}
+				}
 
 				// 2. Fetch the order details to see if it needs auto-dispatching
 				const orderData = await sql`

@@ -67,28 +67,69 @@ export const load: PageServerLoad = async () => {
 			LIMIT 5
 		`;
 
+		// Cash Ledger Totals
+		const totalsResult = await sql`
+			SELECT 
+				COALESCE(SUM(CASE WHEN direction = 'IN' THEN amount ELSE 0 END), 0) as "cashIn",
+				COALESCE(SUM(CASE WHEN direction = 'OUT' THEN amount ELSE 0 END), 0) as "cashOut"
+			FROM finance.kasir_cash_ledger
+		`;
+		const cashIn = parseFloat(totalsResult[0].cashIn) || 0;
+		const cashOutLedger = parseFloat(totalsResult[0].cashOut) || 0;
+		const cashOut = cashOutLedger > 0 ? cashOutLedger : totalUjoPaid;
+		const netCash = cashIn - cashOut;
+
+		// Recent Mutations from Ledger
+		const recentTransactions = await sql`
+			SELECT 
+				id,
+				transaction_date as "date",
+				direction,
+				category,
+				amount,
+				reference_id as "ref",
+				description,
+				performed_by as "by"
+			FROM finance.kasir_cash_ledger
+			ORDER BY transaction_date DESC, created_at DESC
+			LIMIT 6
+		`;
+
+		// 7 Days Flow
+		const dayNamesIndo: Record<string, string> = {
+			'Mon': 'Sen', 'Tue': 'Sel', 'Wed': 'Rab', 'Thu': 'Kam', 'Fri': 'Jum', 'Sat': 'Sab', 'Sun': 'Min'
+		};
+		const weeklyRaw = await sql`
+			SELECT 
+				TO_CHAR(d.day, 'Dy') as day_abbr,
+				COALESCE(SUM(CASE WHEN l.direction = 'IN' THEN l.amount ELSE 0 END), 0) as cash_in,
+				COALESCE(SUM(CASE WHEN l.direction = 'OUT' THEN l.amount ELSE 0 END), 0) as cash_out
+			FROM GENERATE_SERIES(CURRENT_DATE - INTERVAL '6 days', CURRENT_DATE, '1 day') AS d(day)
+			LEFT JOIN finance.kasir_cash_ledger l ON DATE(l.transaction_date) = DATE(d.day)
+			GROUP BY d.day
+			ORDER BY d.day ASC
+		`;
+
+		const weeklyChart = weeklyRaw.map((w: any) => ({
+			day: dayNamesIndo[w.day_abbr] || w.day_abbr,
+			cashIn: parseFloat(w.cash_in) || 0,
+			cashOut: parseFloat(w.cash_out) || 0
+		}));
+
 		return {
 			today,
 			cashSummary: {
-				cashIn: 0, // Need full finance tables for this
-				cashOut: totalUjoPaid,
-				netCash: -totalUjoPaid,
+				cashIn,
+				cashOut,
+				netCash,
 				pendingUjo: parseInt(pendingUjoCountResult[0].count),
 				pendingDn: parseInt(pendingDnCountResult[0].count)
 			},
 			pendingUjoRequests: pendingUjoRequests as any[],
 			pendingDNSettlements: pendingDNSettlements as any[],
-			pendingInvoices: [], // Kasir Invoicing is out of scope for now
-			recentTransactions: [], // Will require finance transaction table
-			weeklyChart: [
-				{ day: 'Sen', cashIn: 0, cashOut: 0 },
-				{ day: 'Sel', cashIn: 0, cashOut: 0 },
-				{ day: 'Rab', cashIn: 0, cashOut: 0 },
-				{ day: 'Kam', cashIn: 0, cashOut: 0 },
-				{ day: 'Jum', cashIn: 0, cashOut: 0 },
-				{ day: 'Sab', cashIn: 0, cashOut: 0 },
-				{ day: 'Min', cashIn: 0, cashOut: 0 },
-			],
+			pendingInvoices: [],
+			recentTransactions: recentTransactions as any[],
+			weeklyChart
 		};
 	} catch (error) {
 		console.error("Kasir Dashboard Error:", error);

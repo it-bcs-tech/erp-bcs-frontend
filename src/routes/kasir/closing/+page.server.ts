@@ -43,9 +43,10 @@ export const load: PageServerLoad = async () => {
 };
 
 export const actions: Actions = {
-	settleClosing: async ({ request }) => {
+	settleClosing: async ({ request, locals }) => {
 		const data = await request.formData();
 		const orderId = data.get('orderId') as string;
+		const user = locals?.user?.name || 'Kasir Operasional';
 
 		if (!orderId) {
 			return fail(400, { message: 'Order ID tidak ditemukan.' });
@@ -62,11 +63,37 @@ export const actions: Actions = {
 					RETURNING assigned_unit_id, contract_id, tgl_muat, berat_muatan
 				`;
 
-				await sql`
+				const caUpdated = await sql`
 					UPDATE finance.cash_advance
 					SET extra_cost_payment_status = 'PAID'
 					WHERE sales_order_id = ${orderId}
+					RETURNING extra_cost, extra_cost_desc
 				`;
+
+				if (caUpdated.length > 0) {
+					const extraCost = parseFloat(caUpdated[0].extra_cost) || 0;
+					if (extraCost > 0) {
+						await sql`
+							INSERT INTO finance.kasir_cash_ledger (
+								direction,
+								category,
+								amount,
+								reference_id,
+								reference_type,
+								description,
+								performed_by
+							) VALUES (
+								'OUT',
+								'EXTRA_COST_CLOSING',
+								${extraCost},
+								${orderId},
+								'CLOSING',
+								${'Pembayaran Extra Cost Closing Order ' + orderId + (caUpdated[0].extra_cost_desc ? ': ' + caUpdated[0].extra_cost_desc : '')},
+								${user}
+							)
+						`;
+					}
+				}
 
 				if (orderData.length > 0) {
 					const unitId = orderData[0].assigned_unit_id;
