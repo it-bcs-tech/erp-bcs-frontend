@@ -49,14 +49,15 @@
 
 		<!-- Action Buttons -->
 		<div class="flex flex-wrap items-center gap-2">
-			<button
-				type="button"
-				onclick={() => window.print()}
+			<a
+				href="/pms/transactions/wrs/{data.wrs.id}/print"
+				target="_blank"
+				rel="noopener noreferrer"
 				class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-surface text-on-surface-variant hover:text-on-surface text-xs font-bold transition-colors shadow-xs cursor-pointer"
 			>
 				<span class="material-symbols-outlined text-base">print</span>
 				<span>Cetak LPB</span>
-			</button>
+			</a>
 
 			<a
 				href="/pms/transactions/wrs/{data.wrs.id}/edit"
