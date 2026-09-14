@@ -19,6 +19,9 @@
 	const metrics = $derived(data.metrics);
 	const masterTrainers = $derived(data.masterTrainers || []);
 	const competencyGapList = $derived(data.competencyGapList || []);
+	const competencyLibrary = $derived(data.competencyLibrary || []);
+	const jobStandards = $derived(data.jobStandards || []);
+	const employeeAssessments = $derived(data.employeeAssessments || []);
 
 	// Tabs State (5 Tab Utama)
 	type TabType = 'catalog' | 'sessions' | 'evaluations' | 'safety_tna' | 'reports';
@@ -27,7 +30,7 @@
 		{ id: 'catalog', label: 'Katalog & Kursus', icon: 'auto_stories' },
 		{ id: 'sessions', label: 'Sesi Training & Absensi', icon: 'event_available' },
 		{ id: 'evaluations', label: 'Evaluasi Kirkpatrick', icon: 'rate_review' },
-		{ id: 'safety_tna', label: 'Safety & TNA', icon: 'health_and_safety' },
+		{ id: 'safety_tna', label: 'Kamus & Asesmen Kompetensi (TNA)', icon: 'psychology' },
 		{ id: 'reports', label: 'Laporan & E-Sertifikat', icon: 'workspace_premium' }
 	];
 
@@ -40,6 +43,13 @@
 
 	// Sub-tab State
 	let evalSubTab = $state<'l1' | 'l3l4'>('l1');
+
+	// TNA Sub-tabs
+	type TnaSubTab = 'assessments' | 'library' | 'standards' | 'safety';
+	let tnaSubTab = $state<TnaSubTab>('assessments');
+	let tnaSearchQuery = $state('');
+	let tnaFilterDept = $state('All');
+	let tnaFilterStatus = $state('All');
 
 	// Report Sub-tabs (Spreadsheet Master Specification: Sheet 306150899)
 	type ReportType = 'training' | 'course' | 'attendance' | 'assessment' | 'competency_gap' | 'certificates';
@@ -57,6 +67,45 @@
 	let isRequestModalOpen = $state(false);
 	let isSafetyTestModalOpen = $state(false);
 	let isCertModalOpen = $state(false);
+
+	// TNA Modals State
+	let isAssessmentModalOpen = $state(false);
+	let isCompetencyModalOpen = $state(false);
+	let isJobStandardModalOpen = $state(false);
+	let isLevelIndicatorModalOpen = $state(false);
+	let selectedCompetencyForIndicator = $state<any>(null);
+
+	// TNA Assessment form helper state
+	let assessmentForm = $state({
+		payrollId: 'EMP-0042',
+		employeeName: 'Guntoro Muhamad',
+		positionTitle: 'Driver Tronton / Trailer',
+		department: 'Operations',
+		competencyCode: 'E06',
+		requiredLevel: 3,
+		actualLevel: 2,
+		assessorName: 'Ikhnaton (Manager QHSE)',
+		notes: 'Perlu penguatan pemahaman SWP keselamatan berkendara'
+	});
+
+	let competencyForm = $state({
+		code: '',
+		name: '',
+		aspect: 'Technical Competency',
+		defaultCourseId: '',
+		level1: '',
+		level2: '',
+		level3: '',
+		level4: '',
+		level5: ''
+	});
+
+	let jobStandardForm = $state({
+		positionTitle: '',
+		department: 'Operations',
+		competencyCode: '',
+		requiredLevel: 3
+	});
 
 	// Active Selections
 	let activeCourseForPlayer = $state<any>(null);
@@ -88,6 +137,25 @@
 				c.instructor?.toLowerCase().includes(q) ||
 				c.department?.toLowerCase().includes(q) ||
 				(c.tags || []).some((t: string) => t.toLowerCase().includes(q))
+			);
+		})
+	);
+
+	// Filtered Employee Assessments (TNA Gap Tracking)
+	let filteredEmployeeAssessments = $derived(
+		employeeAssessments.filter((a: any) => {
+			if (tnaFilterDept !== 'All' && a.department !== tnaFilterDept) return false;
+			if (tnaFilterStatus === 'GAP' && a.gap >= 0) return false;
+			if (tnaFilterStatus === 'QUALIFIED' && a.gap < 0) return false;
+			if (tnaFilterStatus === 'ASSIGNED' && a.trainingStatus !== 'ASSIGNED') return false;
+			if (!tnaSearchQuery.trim()) return true;
+			const q = tnaSearchQuery.toLowerCase();
+			return (
+				a.employeeName.toLowerCase().includes(q) ||
+				a.payrollId.toLowerCase().includes(q) ||
+				a.positionTitle.toLowerCase().includes(q) ||
+				a.competencyName.toLowerCase().includes(q) ||
+				a.competencyCode.toLowerCase().includes(q)
 			);
 		})
 	);
@@ -914,122 +982,537 @@
 					{/if}
 				</div>
 
-			<!-- TAB 4: SAFETY K3 & TRAINING NEED ANALYSIS (TNA) -->
+			<!-- TAB 4: KAMUS & ASESMEN KOMPETENSI (TNA) -->
 			{:else if activeTab === 'safety_tna'}
 				<div class="space-y-6">
-					<!-- Panel 1: Annual Safety Test -->
-					<div class="p-5 rounded-2xl bg-gradient-to-r from-emerald-900/30 via-slate-900/40 to-slate-900/40 border border-emerald-500/30 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-						<div class="space-y-1">
-							<div class="flex items-center gap-2">
-								<span class="material-symbols-outlined text-emerald-400 text-xl">security</span>
-								<h3 class="font-black text-base text-white">Annual Safety Test {safetyStats?.year || 2026} (Kepatuhan Wajib K3)</h3>
-								<span class="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-500 text-slate-950 uppercase">Mandatory K3</span>
-							</div>
-							<p class="text-xs text-slate-300">
-								Status kepatuhan: <strong>{safetyStats?.passedDrivers}</strong> dari <strong>{safetyStats?.totalTargetDrivers}</strong> driver ({safetyStats?.complianceRate}%) telah lulus uji keselamatan berkendara berkala.
-							</p>
-						</div>
-
-						<button
-							type="button"
-							onclick={() => isSafetyTestModalOpen = true}
-							class="px-4 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-black flex items-center gap-2 shadow-md transition-all cursor-pointer self-start sm:self-auto"
-						>
-							<span class="material-symbols-outlined text-sm">quiz</span>
-							<span>Mulai Ujian Safety Mandiri</span>
-						</button>
-					</div>
-
-					<!-- Panel 2: Training by Request -->
-					<div class="space-y-3 pt-2">
-						<div class="flex items-center justify-between">
-							<div>
-								<h4 class="font-black text-sm text-on-surface uppercase tracking-wider">Training by Request (Pengajuan Kebutuhan Pelatihan)</h4>
-								<p class="text-xs text-on-surface-variant">Formulir pengajuan usulan pelatihan tahunan oleh Head Department ke HRD</p>
-							</div>
+					<!-- Sub-navigasi TNA (Segmented Sub-Tab Bar) -->
+					<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-1.5 rounded-2xl bg-surface-container-high/60 border border-slate-200/60 dark:border-slate-800/60">
+						<div class="flex items-center gap-1.5 overflow-x-auto">
+							<button
+								type="button"
+								onclick={() => (tnaSubTab = 'assessments')}
+								class="px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-2
+								{tnaSubTab === 'assessments'
+									? 'bg-primary text-on-primary shadow-xs'
+									: 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container'}"
+							>
+								<span class="material-symbols-outlined text-sm">fact_check</span>
+								<span>Asesmen TNA & Penugasan Personal</span>
+								{#if employeeAssessments.filter((a) => a.gap < 0).length > 0}
+									<span class="px-1.5 py-0.2 rounded-full text-[10px] font-black bg-rose-500 text-white">
+										{employeeAssessments.filter((a) => a.gap < 0).length} GAP
+									</span>
+								{/if}
+							</button>
 
 							<button
 								type="button"
-								onclick={() => isRequestModalOpen = true}
-								class="px-3.5 py-2 rounded-xl border border-slate-300 dark:border-slate-700 hover:bg-surface-container text-xs font-bold text-on-surface flex items-center gap-1.5 transition-all cursor-pointer"
+								onclick={() => (tnaSubTab = 'library')}
+								class="px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-2
+								{tnaSubTab === 'library'
+									? 'bg-primary text-on-primary shadow-xs'
+									: 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container'}"
 							>
-								<span class="material-symbols-outlined text-sm">post_add</span>
-								<span>+ Ajukan Kebutuhan Training</span>
+								<span class="material-symbols-outlined text-sm">menu_book</span>
+								<span>Kamus Kompetensi ({competencyLibrary.length})</span>
+							</button>
+
+							<button
+								type="button"
+								onclick={() => (tnaSubTab = 'standards')}
+								class="px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-2
+								{tnaSubTab === 'standards'
+									? 'bg-primary text-on-primary shadow-xs'
+									: 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container'}"
+							>
+								<span class="material-symbols-outlined text-sm">stairs</span>
+								<span>Standar Jabatan ({jobStandards.length})</span>
+							</button>
+
+							<button
+								type="button"
+								onclick={() => (tnaSubTab = 'safety')}
+								class="px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-2
+								{tnaSubTab === 'safety'
+									? 'bg-primary text-on-primary shadow-xs'
+									: 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container'}"
+							>
+								<span class="material-symbols-outlined text-sm">health_and_safety</span>
+								<span>Safety Test & Request</span>
 							</button>
 						</div>
 
-						<div class="rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden">
-							<table class="w-full text-xs text-left">
-								<thead class="bg-surface-container-high font-bold text-on-surface border-b border-slate-200 dark:border-slate-800">
-									<tr>
-										<th class="p-3">No. Request</th>
-										<th class="p-3">Departemen</th>
-										<th class="p-3">Judul Pelatihan Diusulkan</th>
-										<th class="p-3">Pengusul</th>
-										<th class="p-3 text-center">Urgensi</th>
-										<th class="p-3 text-center">Target Selesai</th>
-										<th class="p-3 text-center">Status HRD</th>
-									</tr>
-								</thead>
-								<tbody class="divide-y divide-slate-200 dark:divide-slate-800">
-									{#each trainingRequests as req}
-										<tr class="hover:bg-surface-container/50">
-											<td class="p-3 font-mono font-bold text-on-surface">{req.id}</td>
-											<td class="p-3 font-medium text-slate-500">{req.deptName}</td>
-											<td class="p-3 font-bold text-on-surface">{req.trainingTitle}</td>
-											<td class="p-3 text-slate-600 dark:text-slate-300">{req.requestedBy}</td>
-											<td class="p-3 text-center">
-												<span class="px-2 py-0.5 rounded-md text-[10px] font-black uppercase
-													{req.urgency === 'CRITICAL' ? 'bg-rose-100 text-rose-800 font-bold' :
-													req.urgency === 'HIGH' ? 'bg-amber-100 text-amber-800' : 'bg-slate-100 text-slate-800'}">
-													{req.urgency}
-												</span>
-											</td>
-											<td class="p-3 text-center font-mono text-slate-500">{req.targetCompletionDate || '-'}</td>
-											<td class="p-3 text-center">
-												<span class="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase
-													{req.status === 'APPROVED' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}">
-													{req.status}
-												</span>
-											</td>
-										</tr>
-									{/each}
-								</tbody>
-							</table>
+						<div class="text-[11px] text-slate-500 font-medium px-2">
+							Modul Kompetensi Terintegrasi Portal BCS Academy
 						</div>
 					</div>
 
-					<!-- Panel 3: TNA Matrix -->
-					<div class="space-y-3 pt-2">
-						<h4 class="font-black text-sm text-on-surface uppercase tracking-wider">Matrix Training Need Analysis (TNA) & Competency Gap</h4>
-						<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-							{#each tnaMatrix as roleGroup}
-								<div class="p-4 rounded-2xl bg-surface-container border border-slate-200 dark:border-slate-800 space-y-3">
-									<div class="border-b border-slate-200 dark:border-slate-800 pb-2">
-										<h5 class="font-black text-sm text-on-surface">{roleGroup.role}</h5>
-										<p class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">{roleGroup.department}</p>
+					<!-- ═══════════════════════════════════════════════════════════ -->
+					<!-- SUB-VIEW 1: ASESMEN TNA & PENUGASAN PERSONAL (CORE FEATURE) -->
+					<!-- ═══════════════════════════════════════════════════════════ -->
+					{#if tnaSubTab === 'assessments'}
+						<div class="space-y-6">
+							<!-- Banner Ringkasan GAP & Pelatihan Personal -->
+							<div class="p-5 rounded-2xl bg-gradient-to-r from-blue-900/20 via-indigo-900/20 to-purple-900/20 border border-blue-500/20 flex flex-col md:flex-row md:items-center justify-between gap-4">
+								<div class="space-y-1">
+									<div class="flex items-center gap-2">
+										<span class="material-symbols-outlined text-blue-500 text-xl">psychology_alt</span>
+										<h4 class="font-black text-sm text-on-surface">Alur Pelatihan Berbasis GAP Kompetensi (TNA Closed-Loop)</h4>
+										<span class="px-2 py-0.5 rounded-full text-[9px] font-black uppercase bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300 border border-blue-300 dark:border-blue-800">
+											Auto-Assign
+										</span>
 									</div>
+									<p class="text-xs text-on-surface-variant max-w-3xl leading-relaxed">
+										Karyawan yang dinilai berada di bawah standar jabatan (<strong class="text-rose-600">GAP &lt; 0</strong>) secara otomatis direkomendasikan kursus terkait. Klik tombol <span class="font-bold text-indigo-600 dark:text-indigo-400">"Tugaskan ke Portal"</span> untuk langsung mengirimkan penugasan wajib ke akun BCS Academy milik karyawan.
+									</p>
+								</div>
 
-									<div class="space-y-2 text-xs">
-										{#each roleGroup.competencies as comp}
-											<div class="p-2.5 rounded-xl bg-surface-container-high/60 flex items-center justify-between gap-3">
-												<div class="space-y-0.5">
-													<p class="font-bold text-on-surface">{comp.name}</p>
-													<p class="text-[10px] text-slate-500">Target: {comp.requiredScore} | Aktual: <strong class="text-on-surface">{comp.actualScore}</strong></p>
-												</div>
+								<button
+									type="button"
+									onclick={() => (isAssessmentModalOpen = true)}
+									class="px-4 py-2.5 rounded-xl bg-primary text-on-primary text-xs font-black flex items-center gap-2 shadow-sm hover:opacity-90 transition-all cursor-pointer self-start md:self-auto shrink-0"
+								>
+									<span class="material-symbols-outlined text-sm">add_task</span>
+									<span>+ Input Asesmen Aktual Karyawan</span>
+								</button>
+							</div>
 
-												<span class="px-2 py-0.5 rounded-md text-[10px] font-black uppercase
-													{comp.status === 'Qualified' ? 'bg-emerald-100 text-emerald-800' :
-													comp.status === 'Need Training' ? 'bg-amber-100 text-amber-800' : 'bg-rose-100 text-rose-800'}">
-													{comp.status}
-												</span>
-											</div>
-										{/each}
+							<!-- Metric Cards TNA -->
+							<div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+								<div class="p-3.5 rounded-2xl bg-surface-container border border-slate-200/60 dark:border-slate-800/60">
+									<p class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Total Asesmen Riil</p>
+									<p class="text-xl font-black text-on-surface mt-1 font-mono">{employeeAssessments.length}</p>
+									<p class="text-[10px] text-slate-400">Karyawan Teridentifikasi</p>
+								</div>
+
+								<div class="p-3.5 rounded-2xl bg-surface-container border border-slate-200/60 dark:border-slate-800/60">
+									<p class="text-[10px] font-bold text-emerald-600 uppercase tracking-wider">Qualified (Standar Terpenuhi)</p>
+									<p class="text-xl font-black text-emerald-600 mt-1 font-mono">{employeeAssessments.filter((a) => a.gap >= 0).length}</p>
+									<p class="text-[10px] text-emerald-500">Nilai Aktual &ge; Standar</p>
+								</div>
+
+								<div class="p-3.5 rounded-2xl bg-surface-container border border-rose-500/30">
+									<p class="text-[10px] font-bold text-rose-600 uppercase tracking-wider">Gap Competency (Perlu Pelatihan)</p>
+									<p class="text-xl font-black text-rose-600 mt-1 font-mono">{employeeAssessments.filter((a) => a.gap < 0).length}</p>
+									<p class="text-[10px] text-rose-500">Nilai Aktual &lt; Standar</p>
+								</div>
+
+								<div class="p-3.5 rounded-2xl bg-surface-container border border-indigo-500/30">
+									<p class="text-[10px] font-bold text-indigo-600 dark:text-indigo-400 uppercase tracking-wider">Ditugaskan ke Portal</p>
+									<p class="text-xl font-black text-indigo-600 dark:text-indigo-400 mt-1 font-mono">
+										{employeeAssessments.filter((a) => a.trainingStatus === 'ASSIGNED' || a.trainingStatus === 'COMPLETED').length}
+									</p>
+									<p class="text-[10px] text-indigo-500">Sinkron BCS Academy</p>
+								</div>
+							</div>
+
+							<!-- Filter & Search Toolbar -->
+							<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+								<div class="flex items-center gap-2 flex-1 max-w-md">
+									<div class="relative w-full">
+										<span class="material-symbols-outlined absolute left-3 top-2.5 text-slate-400 text-sm">search</span>
+										<input
+											type="text"
+											bind:value={tnaSearchQuery}
+											placeholder="Cari nama karyawan, NIP, posisi, atau kompetensi..."
+											class="w-full pl-9 pr-3 py-2 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800 text-xs focus:ring-1 focus:ring-primary outline-hidden"
+										/>
 									</div>
 								</div>
-							{/each}
+
+								<div class="flex items-center gap-2">
+									<select
+										bind:value={tnaFilterDept}
+										class="px-3 py-2 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800 text-xs text-on-surface"
+									>
+										<option value="All">Semua Departemen</option>
+										<option value="Operations">Operations</option>
+										<option value="Workshop & Maintenance">Workshop & Maintenance</option>
+										<option value="Labour Project 1 & Warehouse">Labour Project 1 & Warehouse</option>
+										<option value="Finance & Operations">Finance & Operations</option>
+										<option value="QHSE & Safety">QHSE & Safety</option>
+									</select>
+
+									<select
+										bind:value={tnaFilterStatus}
+										class="px-3 py-2 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800 text-xs text-on-surface"
+									>
+										<option value="All">Semua Status GAP</option>
+										<option value="GAP">Hanya GAP Competency</option>
+										<option value="QUALIFIED">Hanya Qualified</option>
+										<option value="ASSIGNED">Sudah Ditugaskan Portal</option>
+									</select>
+								</div>
+							</div>
+
+							<!-- Tabel Asesmen & Penugasan Pelatihan Personal -->
+							<div class="rounded-2xl border border-slate-200/60 dark:border-slate-800/60 overflow-hidden shadow-xs">
+								<div class="overflow-x-auto">
+									<table class="w-full text-xs text-left">
+										<thead class="bg-surface-container-high font-bold text-on-surface border-b border-slate-200/60 dark:border-slate-800/60">
+											<tr>
+												<th class="p-3">Karyawan</th>
+												<th class="p-3">Kompetensi yang Diuji</th>
+												<th class="p-3 text-center">Standar</th>
+												<th class="p-3 text-center">Aktual</th>
+												<th class="p-3 text-center">GAP</th>
+												<th class="p-3">Pelatihan Personal (Rekomendasi GAP)</th>
+												<th class="p-3 text-center">Status Portal Karyawan</th>
+												<th class="p-3 text-right">Aksi Penugasan</th>
+											</tr>
+										</thead>
+										<tbody class="divide-y divide-slate-200/60 dark:divide-slate-800/60">
+											{#each filteredEmployeeAssessments as item}
+												<tr class="hover:bg-surface-container/50 transition-colors">
+													<!-- Karyawan -->
+													<td class="p-3">
+														<p class="font-bold text-on-surface">{item.employeeName}</p>
+														<div class="flex items-center gap-1.5 text-[10px] text-slate-500">
+															<span class="font-mono">{item.payrollId}</span>
+															<span>•</span>
+															<span>{item.positionTitle}</span>
+														</div>
+														<p class="text-[9px] text-slate-400">{item.department}</p>
+													</td>
+
+													<!-- Kompetensi -->
+													<td class="p-3">
+														<div class="flex items-center gap-1.5">
+															<span class="font-mono font-bold text-primary">{item.competencyCode}</span>
+															<span class="font-bold text-on-surface">{item.competencyName}</span>
+														</div>
+														<span class="px-2 py-0.2 rounded-md text-[9px] font-bold uppercase tracking-wider
+															{item.competencyAspect === 'Core Competency' ? 'bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300' :
+															item.competencyAspect === 'Behavioral Competency' ? 'bg-purple-100 text-purple-800 dark:bg-purple-950 dark:text-purple-300' :
+															'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300'}">
+															{item.competencyAspect}
+														</span>
+													</td>
+
+													<!-- Standar Level -->
+													<td class="p-3 text-center font-bold text-slate-600 dark:text-slate-300">
+														<span class="inline-flex items-center justify-center w-6 h-6 rounded-lg bg-surface-container border font-mono font-black text-xs">
+															{item.requiredLevel}
+														</span>
+													</td>
+
+													<!-- Aktual Level -->
+													<td class="p-3 text-center font-bold text-on-surface">
+														<span class="inline-flex items-center justify-center w-6 h-6 rounded-lg bg-surface-container-high border font-mono font-black text-xs">
+															{item.actualLevel}
+														</span>
+													</td>
+
+													<!-- GAP -->
+													<td class="p-3 text-center">
+														{#if item.gap >= 0}
+															<span class="px-2.5 py-1 rounded-full text-[10px] font-black uppercase bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800 flex items-center justify-center gap-1 mx-auto max-w-fit">
+																<span class="material-symbols-outlined text-xs">check</span>
+																Qualified (+{item.gap})
+															</span>
+														{:else}
+															<span class="px-2.5 py-1 rounded-full text-[10px] font-black uppercase bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300 border border-rose-300 dark:border-rose-800 flex items-center justify-center gap-1 mx-auto max-w-fit animate-pulse">
+																<span class="material-symbols-outlined text-xs">warning</span>
+																GAP ({item.gap})
+															</span>
+														{/if}
+													</td>
+
+													<!-- Pelatihan Rekomendasi GAP -->
+													<td class="p-3">
+														{#if item.assignedCourseTitle}
+															<div class="space-y-0.5">
+																<p class="font-bold text-on-surface text-xs leading-snug">{item.assignedCourseTitle}</p>
+																<p class="font-mono text-[10px] text-slate-500">{item.assignedCourseId}</p>
+															</div>
+														{:else}
+															<span class="text-slate-400 italic text-[11px]">-</span>
+														{/if}
+													</td>
+
+													<!-- Status di Portal Karyawan -->
+													<td class="p-3 text-center">
+														{#if item.trainingStatus === 'ASSIGNED'}
+															<div class="space-y-1">
+																<span class="px-2 py-0.5 rounded-full text-[9px] font-black uppercase bg-indigo-100 text-indigo-800 dark:bg-indigo-950 dark:text-indigo-300 border border-indigo-300 dark:border-indigo-800 inline-block">
+																	Ditugaskan (Portal)
+																</span>
+																<div class="w-20 bg-slate-200 dark:bg-slate-700 h-1.5 rounded-full mx-auto overflow-hidden">
+																	<div class="bg-indigo-600 h-full rounded-full" style="width: {item.progressPercent}%"></div>
+																</div>
+																<p class="text-[9px] font-mono text-slate-500">{item.progressPercent}% Selesai</p>
+															</div>
+														{:else if item.trainingStatus === 'COMPLETED'}
+															<span class="px-2.5 py-1 rounded-full text-[9px] font-black uppercase bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 inline-flex items-center gap-1">
+																<span class="material-symbols-outlined text-xs">verified</span>
+																Lulus Pelatihan
+															</span>
+														{:else if item.gap < 0}
+															<span class="px-2 py-0.5 rounded-full text-[9px] font-bold uppercase bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 border border-amber-300">
+																Belum Ditugaskan
+															</span>
+														{:else}
+															<span class="text-slate-400 text-[10px]">-</span>
+														{/if}
+													</td>
+
+													<!-- Aksi Penugasan Personal -->
+													<td class="p-3 text-right">
+														{#if item.gap < 0}
+															<form method="POST" action="?/assignPersonalTraining" use:enhance class="inline-block">
+																<input type="hidden" name="assessmentId" value={item.id} />
+																<input type="hidden" name="payrollId" value={item.payrollId} />
+																<input type="hidden" name="employeeName" value={item.employeeName} />
+																<input type="hidden" name="competencyCode" value={item.competencyCode} />
+																<input type="hidden" name="courseId" value={item.assignedCourseId} />
+
+																<button
+																	type="submit"
+																	class="px-3 py-1.5 rounded-xl text-[11px] font-bold transition-all cursor-pointer shadow-xs flex items-center gap-1.5 ml-auto
+																	{item.trainingStatus === 'ASSIGNED'
+																		? 'bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-on-surface'
+																		: 'bg-indigo-600 hover:bg-indigo-500 text-white'}"
+																>
+																	<span class="material-symbols-outlined text-sm">
+																		{item.trainingStatus === 'ASSIGNED' ? 'replay' : 'send_to_mobile'}
+																	</span>
+																	<span>{item.trainingStatus === 'ASSIGNED' ? 'Tugaskan Ulang' : '🎯 Tugaskan ke Portal'}</span>
+																</button>
+															</form>
+														{:else}
+															<span class="text-emerald-600 dark:text-emerald-400 font-bold text-[11px] flex items-center justify-end gap-1">
+																<span class="material-symbols-outlined text-sm">check_circle</span>
+																<span>Memenuhi Standar</span>
+															</span>
+														{/if}
+													</td>
+												</tr>
+											{/each}
+
+											{#if filteredEmployeeAssessments.length === 0}
+												<tr>
+													<td colspan="8" class="p-8 text-center text-slate-400">
+														<span class="material-symbols-outlined text-4xl block mb-2 text-slate-300">search_off</span>
+														<p class="font-bold">Tidak ada data asesmen karyawan yang cocok dengan filter pencarian.</p>
+													</td>
+												</tr>
+											{/if}
+										</tbody>
+									</table>
+								</div>
+							</div>
 						</div>
-					</div>
+
+					<!-- ═══════════════════════════════════════════════════════════ -->
+					<!-- SUB-VIEW 2: KAMUS KOMPETENSI RESMI (LIBRARY)                -->
+					<!-- ═══════════════════════════════════════════════════════════ -->
+					{:else if tnaSubTab === 'library'}
+						<div class="space-y-6">
+							<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-200/60 dark:border-slate-800/60">
+								<div>
+									<h4 class="font-black text-sm text-on-surface uppercase tracking-wider">Kamus Kompetensi Resmi PT BCS Logistics</h4>
+									<p class="text-xs text-on-surface-variant">Standar taksonomi kompetensi Core, Behavioral, dan Technical bersumber dari Master Spreadsheet Kamus Kompetensi</p>
+								</div>
+
+								<button
+									type="button"
+									onclick={() => (isCompetencyModalOpen = true)}
+									class="px-3.5 py-2 rounded-xl bg-primary text-on-primary text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer self-start sm:self-auto shadow-xs"
+								>
+									<span class="material-symbols-outlined text-sm">add_circle</span>
+									<span>+ Tambah Kamus Kompetensi</span>
+								</button>
+							</div>
+
+							<!-- Grid Kartu Kamus Kompetensi -->
+							<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+								{#each competencyLibrary as comp}
+									<div class="p-4 rounded-2xl bg-surface-container border border-slate-200/60 dark:border-slate-800/60 space-y-3 flex flex-col justify-between hover:border-slate-300 dark:hover:border-slate-700 transition-all">
+										<div class="space-y-2">
+											<div class="flex items-center justify-between">
+												<span class="px-2 py-0.5 rounded-lg text-xs font-mono font-black bg-primary/10 text-primary border border-primary/20">
+													{comp.code}
+												</span>
+												<span class="px-2 py-0.5 rounded-full text-[9px] font-bold uppercase
+													{comp.aspect === 'Core Competency' ? 'bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300' :
+													comp.aspect === 'Behavioral Competency' ? 'bg-purple-100 text-purple-800 dark:bg-purple-950 dark:text-purple-300' :
+													'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300'}">
+													{comp.aspect}
+												</span>
+											</div>
+
+											<div>
+												<h5 class="font-black text-sm text-on-surface">{comp.name}</h5>
+											</div>
+
+											<div class="p-2.5 rounded-xl bg-surface-container-high/60 text-[11px] space-y-1">
+												<p class="text-slate-400 text-[10px] font-bold uppercase tracking-wider">Default Kursus LMS Saat GAP:</p>
+												<p class="font-semibold text-primary">{comp.defaultCourseTitle}</p>
+												<p class="font-mono text-[9px] text-slate-500">{comp.defaultCourseId || 'Belum di-mapping'}</p>
+											</div>
+										</div>
+
+										<div class="pt-2 border-t border-slate-200/60 dark:border-slate-800/60 flex items-center justify-between">
+											<button
+												type="button"
+												onclick={() => {
+													selectedCompetencyForIndicator = comp;
+													isLevelIndicatorModalOpen = true;
+												}}
+												class="px-3 py-1.5 rounded-xl bg-surface-container-highest hover:bg-slate-200 dark:hover:bg-slate-700 text-on-surface text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer"
+											>
+												<span class="material-symbols-outlined text-sm">rubric</span>
+												<span>Lihat Indikator Level 1-5</span>
+											</button>
+
+											<span class="text-[10px] text-slate-400 font-mono">5 Level Rubrik</span>
+										</div>
+									</div>
+								{/each}
+							</div>
+						</div>
+
+					<!-- ═══════════════════════════════════════════════════════════ -->
+					<!-- SUB-VIEW 3: STANDAR KOMPETENSI JABATAN (JOB STANDARDS)      -->
+					<!-- ═══════════════════════════════════════════════════════════ -->
+					{:else if tnaSubTab === 'standards'}
+						<div class="space-y-6">
+							<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-200/60 dark:border-slate-800/60">
+								<div>
+									<h4 class="font-black text-sm text-on-surface uppercase tracking-wider">Standar Kompetensi Jabatan (Required Level)</h4>
+									<p class="text-xs text-on-surface-variant">Matriks level kemahiran minimal yang harus dikuasai oleh masing-masing posisi kerja di PT BCS</p>
+								</div>
+
+								<button
+									type="button"
+									onclick={() => (isJobStandardModalOpen = true)}
+									class="px-3.5 py-2 rounded-xl bg-primary text-on-primary text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer self-start sm:self-auto shadow-xs"
+								>
+									<span class="material-symbols-outlined text-sm">tune</span>
+									<span>+ Tetapkan Standar Jabatan</span>
+								</button>
+							</div>
+
+							<div class="rounded-2xl border border-slate-200/60 dark:border-slate-800/60 overflow-hidden shadow-xs">
+								<table class="w-full text-xs text-left">
+									<thead class="bg-surface-container-high font-bold text-on-surface border-b border-slate-200/60 dark:border-slate-800/60">
+										<tr>
+											<th class="p-3">Posisi / Jabatan</th>
+											<th class="p-3">Departemen</th>
+											<th class="p-3">Kode Kompetensi</th>
+											<th class="p-3">Nama Kompetensi</th>
+											<th class="p-3 text-center">Standar Target (Required)</th>
+											<th class="p-3">Default Kursus LMS</th>
+										</tr>
+									</thead>
+									<tbody class="divide-y divide-slate-200/60 dark:divide-slate-800/60">
+										{#each jobStandards as std}
+											<tr class="hover:bg-surface-container/50">
+												<td class="p-3 font-bold text-on-surface">{std.positionTitle}</td>
+												<td class="p-3 text-slate-500 font-medium">{std.department}</td>
+												<td class="p-3 font-mono font-bold text-primary">{std.competencyCode}</td>
+												<td class="p-3 font-semibold text-on-surface">{std.competencyName}</td>
+												<td class="p-3 text-center">
+													<span class="inline-flex items-center justify-center px-2.5 py-1 rounded-lg bg-blue-100 dark:bg-blue-950 text-blue-800 dark:text-blue-300 font-mono font-black text-xs border border-blue-200 dark:border-blue-800">
+														Level {std.requiredLevel} / 5
+													</span>
+												</td>
+												<td class="p-3 text-slate-600 dark:text-slate-300 font-medium">{std.defaultCourseTitle}</td>
+											</tr>
+										{/each}
+									</tbody>
+								</table>
+							</div>
+						</div>
+
+					<!-- ═══════════════════════════════════════════════════════════ -->
+					<!-- SUB-VIEW 4: SAFETY TEST & TRAINING REQUEST                 -->
+					<!-- ═══════════════════════════════════════════════════════════ -->
+					{:else if tnaSubTab === 'safety'}
+						<div class="space-y-6">
+							<!-- Panel 1: Annual Safety Test -->
+							<div class="p-5 rounded-2xl bg-gradient-to-r from-emerald-900/30 via-slate-900/40 to-slate-900/40 border border-emerald-500/30 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+								<div class="space-y-1">
+									<div class="flex items-center gap-2">
+										<span class="material-symbols-outlined text-emerald-400 text-xl">security</span>
+										<h3 class="font-black text-base text-white">Annual Safety Test {safetyStats?.year || 2026} (Kepatuhan Wajib K3)</h3>
+										<span class="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-500 text-slate-950 uppercase">Mandatory K3</span>
+									</div>
+									<p class="text-xs text-slate-300">
+										Status kepatuhan: <strong>{safetyStats?.passedDrivers}</strong> dari <strong>{safetyStats?.totalTargetDrivers}</strong> driver ({safetyStats?.complianceRate}%) telah lulus uji keselamatan berkendara berkala.
+									</p>
+								</div>
+
+								<button
+									type="button"
+									onclick={() => (isSafetyTestModalOpen = true)}
+									class="px-4 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-black flex items-center gap-2 shadow-md transition-all cursor-pointer self-start sm:self-auto"
+								>
+									<span class="material-symbols-outlined text-sm">quiz</span>
+									<span>Mulai Ujian Safety Mandiri</span>
+								</button>
+							</div>
+
+							<!-- Panel 2: Training by Request -->
+							<div class="space-y-3 pt-2">
+								<div class="flex items-center justify-between">
+									<div>
+										<h4 class="font-black text-sm text-on-surface uppercase tracking-wider">Training by Request (Pengajuan Kebutuhan Pelatihan)</h4>
+										<p class="text-xs text-on-surface-variant">Formulir pengajuan usulan pelatihan tahunan oleh Head Department ke HRD</p>
+									</div>
+
+									<button
+										type="button"
+										onclick={() => (isRequestModalOpen = true)}
+										class="px-3.5 py-2 rounded-xl border border-slate-300 dark:border-slate-700 hover:bg-surface-container text-xs font-bold text-on-surface flex items-center gap-1.5 transition-all cursor-pointer"
+									>
+										<span class="material-symbols-outlined text-sm">post_add</span>
+										<span>+ Ajukan Kebutuhan Training</span>
+									</button>
+								</div>
+
+								<div class="rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden">
+									<table class="w-full text-xs text-left">
+										<thead class="bg-surface-container-high font-bold text-on-surface border-b border-slate-200 dark:border-slate-800">
+											<tr>
+												<th class="p-3">No. Request</th>
+												<th class="p-3">Departemen</th>
+												<th class="p-3">Judul Pelatihan Diusulkan</th>
+												<th class="p-3">Pengusul</th>
+												<th class="p-3 text-center">Urgensi</th>
+												<th class="p-3 text-center">Target Selesai</th>
+												<th class="p-3 text-center">Status HRD</th>
+											</tr>
+										</thead>
+										<tbody class="divide-y divide-slate-200 dark:divide-slate-800">
+											{#each trainingRequests as req}
+												<tr class="hover:bg-surface-container/50">
+													<td class="p-3 font-mono font-bold text-on-surface">{req.id}</td>
+													<td class="p-3 font-medium text-slate-500">{req.deptName}</td>
+													<td class="p-3 font-bold text-on-surface">{req.trainingTitle}</td>
+													<td class="p-3 text-slate-600 dark:text-slate-300">{req.requestedBy}</td>
+													<td class="p-3 text-center">
+														<span class="px-2 py-0.5 rounded-md text-[10px] font-black uppercase
+															{req.urgency === 'CRITICAL' ? 'bg-rose-100 text-rose-800 font-bold' :
+															req.urgency === 'HIGH' ? 'bg-amber-100 text-amber-800' : 'bg-slate-100 text-slate-800'}">
+															{req.urgency}
+														</span>
+													</td>
+													<td class="p-3 text-center font-mono text-slate-500">{req.targetCompletionDate || '-'}</td>
+													<td class="p-3 text-center">
+														<span class="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase
+															{req.status === 'APPROVED' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}">
+															{req.status}
+														</span>
+													</td>
+												</tr>
+											{/each}
+										</tbody>
+									</table>
+								</div>
+							</div>
+						</div>
+					{/if}
 				</div>
 
 			<!-- TAB 5: LAPORAN & E-SERTIFIKAT (SPREADSHEET MASTER: SHEET 306150899) -->
@@ -2459,6 +2942,439 @@
 						<p class="text-[9px] text-slate-500">Direktur SDM & Operasional</p>
 					</div>
 				</div>
+			</div>
+		</div>
+	</div>
+{/if}
+
+<!-- ════════════════════════════════════════════════════════════════════════ -->
+<!-- MODAL 9: INPUT ASESMEN AKTUAL KARYAWAN TNA                              -->
+<!-- ════════════════════════════════════════════════════════════════════════ -->
+{#if isAssessmentModalOpen}
+	<div class="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
+		<div class="bg-surface rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xl w-full max-w-xl overflow-hidden p-6 space-y-4 animate-in zoom-in-95 duration-150 my-8">
+			<div class="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800">
+				<div>
+					<h3 class="font-black text-base text-on-surface">Input Evaluasi TNA & Asesmen Karyawan</h3>
+					<p class="text-xs text-on-surface-variant">Penilaian kemahiran aktual karyawan terhadap standar jabatan</p>
+				</div>
+				<button type="button" onclick={() => (isAssessmentModalOpen = false)} class="w-8 h-8 rounded-full bg-surface-container flex items-center justify-center text-slate-400 hover:text-slate-600">
+					<span class="material-symbols-outlined text-lg">close</span>
+				</button>
+			</div>
+
+			<form method="POST" action="?/submitEmployeeAssessment" use:enhance class="space-y-4 text-xs">
+				<div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+					<div class="space-y-1">
+						<label class="font-bold text-slate-500 uppercase tracking-wider text-[10px]">Payroll ID / NIP *</label>
+						<input
+							type="text"
+							name="payrollId"
+							bind:value={assessmentForm.payrollId}
+							required
+							class="w-full px-3 py-2 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800 text-xs font-mono"
+							placeholder="EMP-0042"
+						/>
+					</div>
+
+					<div class="space-y-1">
+						<label class="font-bold text-slate-500 uppercase tracking-wider text-[10px]">Nama Karyawan *</label>
+						<input
+							type="text"
+							name="employeeName"
+							bind:value={assessmentForm.employeeName}
+							required
+							class="w-full px-3 py-2 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800 text-xs font-bold"
+							placeholder="Guntoro Muhamad"
+						/>
+					</div>
+				</div>
+
+				<div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+					<div class="space-y-1">
+						<label class="font-bold text-slate-500 uppercase tracking-wider text-[10px]">Jabatan / Posisi *</label>
+						<input
+							type="text"
+							name="positionTitle"
+							bind:value={assessmentForm.positionTitle}
+							required
+							class="w-full px-3 py-2 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800 text-xs"
+							placeholder="Driver Tronton / Trailer"
+						/>
+					</div>
+
+					<div class="space-y-1">
+						<label class="font-bold text-slate-500 uppercase tracking-wider text-[10px]">Departemen *</label>
+						<select
+							name="department"
+							bind:value={assessmentForm.department}
+							class="w-full px-3 py-2 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800 text-xs"
+						>
+							<option value="Operations">Operations</option>
+							<option value="Workshop & Maintenance">Workshop & Maintenance</option>
+							<option value="Labour Project 1 & Warehouse">Labour Project 1 & Warehouse</option>
+							<option value="Finance & Operations">Finance & Operations</option>
+							<option value="QHSE & Safety">QHSE & Safety</option>
+						</select>
+					</div>
+				</div>
+
+				<div class="space-y-1">
+					<label class="font-bold text-slate-500 uppercase tracking-wider text-[10px]">Kompetensi yang Dinilai *</label>
+					<select
+						name="competencyCode"
+						bind:value={assessmentForm.competencyCode}
+						onchange={() => {
+							const matched = jobStandards.find((j: any) => j.competencyCode === assessmentForm.competencyCode);
+							if (matched) {
+								assessmentForm.requiredLevel = matched.requiredLevel;
+							}
+						}}
+						class="w-full px-3 py-2 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800 text-xs font-bold"
+					>
+						{#each competencyLibrary as comp}
+							<option value={comp.code}>[{comp.code}] {comp.name} ({comp.aspect})</option>
+						{/each}
+					</select>
+				</div>
+
+				<!-- Scoring Matrix Level -->
+				<div class="p-4 rounded-2xl bg-surface-container-high/60 border border-slate-200/60 dark:border-slate-800/60 space-y-3">
+					<div class="grid grid-cols-2 gap-4">
+						<div class="space-y-1">
+							<label class="font-bold text-slate-500 uppercase tracking-wider text-[10px]">Standar Target (Required)</label>
+							<select
+								name="requiredLevel"
+								bind:value={assessmentForm.requiredLevel}
+								class="w-full px-3 py-2 rounded-xl bg-surface border border-slate-200 dark:border-slate-800 text-xs font-mono font-bold"
+							>
+								<option value={1}>Level 1 - Pemula / SOP Dasar</option>
+								<option value={2}>Level 2 - Rutin Mandiri</option>
+								<option value={3}>Level 3 - Problem Solving Operasional</option>
+								<option value={4}>Level 4 - Evaluasi & Supervisi</option>
+								<option value={5}>Level 5 - Expert / Inovator</option>
+							</select>
+						</div>
+
+						<div class="space-y-1">
+							<label class="font-bold text-slate-500 uppercase tracking-wider text-[10px]">Nilai Aktual Karyawan (Actual)</label>
+							<select
+								name="actualLevel"
+								bind:value={assessmentForm.actualLevel}
+								class="w-full px-3 py-2 rounded-xl bg-surface border border-slate-200 dark:border-slate-800 text-xs font-mono font-bold"
+							>
+								<option value={1}>Level 1 - Pemula / SOP Dasar</option>
+								<option value={2}>Level 2 - Rutin Mandiri</option>
+								<option value={3}>Level 3 - Problem Solving Operasional</option>
+								<option value={4}>Level 4 - Evaluasi & Supervisi</option>
+								<option value={5}>Level 5 - Expert / Inovator</option>
+							</select>
+						</div>
+					</div>
+
+					<!-- Realtime GAP Indicator Preview -->
+					<div class="p-3 rounded-xl bg-surface flex items-center justify-between border border-slate-200 dark:border-slate-800">
+						<div>
+							<span class="text-[10px] text-slate-400 font-bold uppercase">Kalkulasi GAP:</span>
+							<p class="text-xs font-medium text-slate-600 dark:text-slate-300">
+								Aktual ({assessmentForm.actualLevel}) - Standar ({assessmentForm.requiredLevel}) = 
+								<strong class="font-mono text-sm {Number(assessmentForm.actualLevel) - Number(assessmentForm.requiredLevel) >= 0 ? 'text-emerald-600' : 'text-rose-600'}">
+									{Number(assessmentForm.actualLevel) - Number(assessmentForm.requiredLevel) >= 0 ? `+${Number(assessmentForm.actualLevel) - Number(assessmentForm.requiredLevel)}` : Number(assessmentForm.actualLevel) - Number(assessmentForm.requiredLevel)}
+								</strong>
+							</p>
+						</div>
+
+						<div>
+							{#if Number(assessmentForm.actualLevel) - Number(assessmentForm.requiredLevel) >= 0}
+								<span class="px-3 py-1 rounded-full text-[10px] font-black uppercase bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 border border-emerald-300">
+									✓ Qualified
+								</span>
+							{:else}
+								<span class="px-3 py-1 rounded-full text-[10px] font-black uppercase bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300 border border-rose-300 animate-pulse">
+									⚠ Gap Competency
+								</span>
+							{/if}
+						</div>
+					</div>
+				</div>
+
+				<div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+					<div class="space-y-1">
+						<label class="font-bold text-slate-500 uppercase tracking-wider text-[10px]">Nama Assessor / Atasan *</label>
+						<input
+							type="text"
+							name="assessorName"
+							bind:value={assessmentForm.assessorName}
+							required
+							class="w-full px-3 py-2 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800 text-xs"
+						/>
+					</div>
+
+					<div class="space-y-1">
+						<label class="font-bold text-slate-500 uppercase tracking-wider text-[10px]">Catatan Asesmen</label>
+						<input
+							type="text"
+							name="notes"
+							bind:value={assessmentForm.notes}
+							class="w-full px-3 py-2 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800 text-xs"
+							placeholder="Catatan observasi lapangan..."
+						/>
+					</div>
+				</div>
+
+				<div class="flex justify-end gap-2 pt-3 border-t border-slate-200 dark:border-slate-800">
+					<button type="button" onclick={() => (isAssessmentModalOpen = false)} class="px-4 py-2 rounded-xl border text-xs font-bold hover:bg-surface-container">
+						Batal
+					</button>
+					<button type="submit" class="px-5 py-2 rounded-xl bg-primary text-on-primary text-xs font-bold shadow-xs hover:opacity-90 flex items-center gap-1.5">
+						<span class="material-symbols-outlined text-sm">save</span>
+						<span>Simpan Hasil Asesmen TNA</span>
+					</button>
+				</div>
+			</form>
+		</div>
+	</div>
+{/if}
+
+<!-- ════════════════════════════════════════════════════════════════════════ -->
+<!-- MODAL 10: TAMBAH KAMUS KOMPETENSI RESMI (LIBRARY)                       -->
+<!-- ════════════════════════════════════════════════════════════════════════ -->
+{#if isCompetencyModalOpen}
+	<div class="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
+		<div class="bg-surface rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xl w-full max-w-xl overflow-hidden p-6 space-y-4 animate-in zoom-in-95 duration-150 my-8">
+			<div class="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800">
+				<div>
+					<h3 class="font-black text-base text-on-surface">Tambah Kamus Kompetensi Baru</h3>
+					<p class="text-xs text-on-surface-variant">Taksonomi kompetensi standar PT Buana Centra Swakarsa</p>
+				</div>
+				<button type="button" onclick={() => (isCompetencyModalOpen = false)} class="w-8 h-8 rounded-full bg-surface-container flex items-center justify-center text-slate-400 hover:text-slate-600">
+					<span class="material-symbols-outlined text-lg">close</span>
+				</button>
+			</div>
+
+			<form method="POST" action="?/saveCompetency" use:enhance class="space-y-4 text-xs">
+				<div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+					<div class="space-y-1">
+						<label class="font-bold text-slate-500 uppercase tracking-wider text-[10px]">Kode Kompetensi *</label>
+						<input
+							type="text"
+							name="code"
+							bind:value={competencyForm.code}
+							required
+							class="w-full px-3 py-2 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800 text-xs font-mono font-bold uppercase"
+							placeholder="misal: Q10"
+						/>
+					</div>
+
+					<div class="space-y-1">
+						<label class="font-bold text-slate-500 uppercase tracking-wider text-[10px]">Aspek Kompetensi *</label>
+						<select
+							name="aspect"
+							bind:value={competencyForm.aspect}
+							class="w-full px-3 py-2 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800 text-xs"
+						>
+							<option value="Core Competency">Core Competency</option>
+							<option value="Behavioral Competency">Behavioral Competency</option>
+							<option value="Technical Competency">Technical Competency</option>
+						</select>
+					</div>
+				</div>
+
+				<div class="space-y-1">
+					<label class="font-bold text-slate-500 uppercase tracking-wider text-[10px]">Nama Kompetensi *</label>
+					<input
+						type="text"
+						name="name"
+						bind:value={competencyForm.name}
+						required
+						class="w-full px-3 py-2 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800 text-xs font-bold"
+						placeholder="misal: Organization Development & Talent Management"
+					/>
+				</div>
+
+				<div class="space-y-1">
+					<label class="font-bold text-slate-500 uppercase tracking-wider text-[10px]">Default Kursus LMS Saat Terjadi GAP</label>
+					<select
+						name="defaultCourseId"
+						bind:value={competencyForm.defaultCourseId}
+						class="w-full px-3 py-2 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800 text-xs"
+					>
+						<option value="">-- Pilih Kursus Rekomendasi --</option>
+						{#each courses as c}
+							<option value={c.id}>[{c.id}] {c.title} ({c.category})</option>
+						{/each}
+					</select>
+				</div>
+
+				<!-- Indikator Perilaku Level 1-5 -->
+				<div class="space-y-2 pt-2 border-t border-slate-200 dark:border-slate-800">
+					<p class="font-bold text-on-surface uppercase tracking-wider text-[10px]">Deskripsi Rubrik Perilaku (Level 1 s.d. Level 5):</p>
+					
+					<div class="space-y-2">
+						<input type="text" name="level1" placeholder="Level 1: Mengetahui dan memahami SOP dasar..." class="w-full px-3 py-1.5 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800 text-xs" />
+						<input type="text" name="level2" placeholder="Level 2: Mampu menerapkan dalam pekerjaan mandiri..." class="w-full px-3 py-1.5 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800 text-xs" />
+						<input type="text" name="level3" placeholder="Level 3: Mampu menyelesaikan masalah operasional & memodifikasi prosedur..." class="w-full px-3 py-1.5 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800 text-xs" />
+						<input type="text" name="level4" placeholder="Level 4: Mampu menganalisa peluang peningkatan sistem dan membimbing rekan..." class="w-full px-3 py-1.5 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800 text-xs" />
+						<input type="text" name="level5" placeholder="Level 5: Menjadi rujukan ahli (SME) dan perumus inovasi strategis..." class="w-full px-3 py-1.5 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800 text-xs" />
+					</div>
+				</div>
+
+				<div class="flex justify-end gap-2 pt-3 border-t border-slate-200 dark:border-slate-800">
+					<button type="button" onclick={() => (isCompetencyModalOpen = false)} class="px-4 py-2 rounded-xl border text-xs font-bold hover:bg-surface-container">
+						Batal
+					</button>
+					<button type="submit" class="px-5 py-2 rounded-xl bg-primary text-on-primary text-xs font-bold shadow-xs hover:opacity-90 flex items-center gap-1.5">
+						<span class="material-symbols-outlined text-sm">check_circle</span>
+						<span>Simpan ke Kamus Kompetensi</span>
+					</button>
+				</div>
+			</form>
+		</div>
+	</div>
+{/if}
+
+<!-- ════════════════════════════════════════════════════════════════════════ -->
+<!-- MODAL 11: TETAPKAN STANDAR KOMPETENSI JABATAN                           -->
+<!-- ════════════════════════════════════════════════════════════════════════ -->
+{#if isJobStandardModalOpen}
+	<div class="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-4">
+		<div class="bg-surface rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xl w-full max-w-md overflow-hidden p-6 space-y-4 animate-in zoom-in-95 duration-150">
+			<div class="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800">
+				<div>
+					<h3 class="font-black text-base text-on-surface">Tetapkan Standar Jabatan</h3>
+					<p class="text-xs text-on-surface-variant">Required Level minimal untuk posisi/jabatan</p>
+				</div>
+				<button type="button" onclick={() => (isJobStandardModalOpen = false)} class="w-8 h-8 rounded-full bg-surface-container flex items-center justify-center text-slate-400 hover:text-slate-600">
+					<span class="material-symbols-outlined text-lg">close</span>
+				</button>
+			</div>
+
+			<form method="POST" action="?/saveJobStandard" use:enhance class="space-y-4 text-xs">
+				<div class="space-y-1">
+					<label class="font-bold text-slate-500 uppercase tracking-wider text-[10px]">Posisi / Jabatan *</label>
+					<input
+						type="text"
+						name="positionTitle"
+						bind:value={jobStandardForm.positionTitle}
+						required
+						class="w-full px-3 py-2 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800 text-xs font-bold"
+						placeholder="misal: Driver Trailer Tronton"
+					/>
+				</div>
+
+				<div class="space-y-1">
+					<label class="font-bold text-slate-500 uppercase tracking-wider text-[10px]">Departemen *</label>
+					<select
+						name="department"
+						bind:value={jobStandardForm.department}
+						class="w-full px-3 py-2 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800 text-xs"
+					>
+						<option value="Operations">Operations</option>
+						<option value="Workshop & Maintenance">Workshop & Maintenance</option>
+						<option value="Labour Project 1 & Warehouse">Labour Project 1 & Warehouse</option>
+						<option value="Finance & Operations">Finance & Operations</option>
+						<option value="QHSE & Safety">QHSE & Safety</option>
+					</select>
+				</div>
+
+				<div class="space-y-1">
+					<label class="font-bold text-slate-500 uppercase tracking-wider text-[10px]">Pilih Kompetensi Wajib *</label>
+					<select
+						name="competencyCode"
+						bind:value={jobStandardForm.competencyCode}
+						required
+						class="w-full px-3 py-2 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800 text-xs"
+					>
+						<option value="">-- Pilih Kompetensi --</option>
+						{#each competencyLibrary as comp}
+							<option value={comp.code}>[{comp.code}] {comp.name} ({comp.aspect})</option>
+						{/each}
+					</select>
+				</div>
+
+				<div class="space-y-1">
+					<label class="font-bold text-slate-500 uppercase tracking-wider text-[10px]">Target Required Level (1 s.d. 5) *</label>
+					<select
+						name="requiredLevel"
+						bind:value={jobStandardForm.requiredLevel}
+						class="w-full px-3 py-2 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800 text-xs font-mono font-bold"
+					>
+						<option value={1}>Level 1 - Pemula / SOP Dasar</option>
+						<option value={2}>Level 2 - Rutin Mandiri</option>
+						<option value={3}>Level 3 - Problem Solving Operasional</option>
+						<option value={4}>Level 4 - Evaluasi & Supervisi</option>
+						<option value={5}>Level 5 - Expert / Inovator</option>
+					</select>
+				</div>
+
+				<div class="flex justify-end gap-2 pt-3 border-t border-slate-200 dark:border-slate-800">
+					<button type="button" onclick={() => (isJobStandardModalOpen = false)} class="px-4 py-2 rounded-xl border text-xs font-bold hover:bg-surface-container">
+						Batal
+					</button>
+					<button type="submit" class="px-5 py-2 rounded-xl bg-primary text-on-primary text-xs font-bold shadow-xs hover:opacity-90 flex items-center gap-1.5">
+						<span class="material-symbols-outlined text-sm">save</span>
+						<span>Simpan Standar Jabatan</span>
+					</button>
+				</div>
+			</form>
+		</div>
+	</div>
+{/if}
+
+<!-- ════════════════════════════════════════════════════════════════════════ -->
+<!-- MODAL 12: LIHAT RUBRIK INDIKATOR LEVEL 1-5                              -->
+<!-- ════════════════════════════════════════════════════════════════════════ -->
+{#if isLevelIndicatorModalOpen && selectedCompetencyForIndicator}
+	<div class="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-4">
+		<div class="bg-surface rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xl w-full max-w-lg overflow-hidden p-6 space-y-4 animate-in zoom-in-95 duration-150">
+			<div class="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800">
+				<div>
+					<div class="flex items-center gap-2">
+						<span class="font-mono font-black text-xs px-2 py-0.5 rounded-md bg-primary/10 text-primary border border-primary/20">
+							{selectedCompetencyForIndicator.code}
+						</span>
+						<h3 class="font-black text-base text-on-surface">{selectedCompetencyForIndicator.name}</h3>
+					</div>
+					<p class="text-xs text-on-surface-variant mt-0.5">{selectedCompetencyForIndicator.aspect} • Rubrik Perilaku Resmi PT BCS</p>
+				</div>
+				<button type="button" onclick={() => (isLevelIndicatorModalOpen = false)} class="w-8 h-8 rounded-full bg-surface-container flex items-center justify-center text-slate-400 hover:text-slate-600">
+					<span class="material-symbols-outlined text-lg">close</span>
+				</button>
+			</div>
+
+			<!-- Level 1 s.d. Level 5 Indicators -->
+			<div class="space-y-2.5 max-h-[60vh] overflow-y-auto pr-1">
+				{#each (selectedCompetencyForIndicator.levelIndicators || []) as ind}
+					<div class="p-3 rounded-2xl bg-surface-container-high/60 border border-slate-200/60 dark:border-slate-800/60 space-y-1">
+						<div class="flex items-center justify-between">
+							<span class="px-2 py-0.5 rounded-md text-[10px] font-black uppercase font-mono bg-blue-100 dark:bg-blue-950 text-blue-800 dark:text-blue-300">
+								Level {ind.level}
+							</span>
+							<span class="text-[10px] text-slate-400 font-bold">
+								{ind.level === 1 ? 'Pemula (Basic SOP)' :
+								 ind.level === 2 ? 'Aplikasi Rutin' :
+								 ind.level === 3 ? 'Problem Solving' :
+								 ind.level === 4 ? 'Supervisi & Analisa' : 'Subject Matter Expert'}
+							</span>
+						</div>
+						<p class="text-xs text-on-surface leading-relaxed">{ind.desc}</p>
+					</div>
+				{/each}
+			</div>
+
+			<!-- Default Course Info -->
+			<div class="p-3 rounded-2xl bg-primary/5 border border-primary/20 flex items-center justify-between">
+				<div>
+					<p class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Default Kursus Penutupan GAP:</p>
+					<p class="font-bold text-xs text-primary">{selectedCompetencyForIndicator.defaultCourseTitle}</p>
+				</div>
+				<span class="font-mono text-[10px] text-slate-400">{selectedCompetencyForIndicator.defaultCourseId || '-'}</span>
+			</div>
+
+			<div class="flex justify-end pt-2 border-t border-slate-200 dark:border-slate-800">
+				<button type="button" onclick={() => (isLevelIndicatorModalOpen = false)} class="px-5 py-2 rounded-xl bg-surface-container border text-xs font-bold text-on-surface hover:bg-surface-container-highest">
+					Tutup
+				</button>
 			</div>
 		</div>
 	</div>

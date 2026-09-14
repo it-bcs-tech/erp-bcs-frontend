@@ -90,47 +90,42 @@ export const load: PageServerLoad = async () => {
 			ORDER BY issued_at DESC;
 		`;
 
-		// 9. Data TNA (Training Need Analysis) Matrix
-		const tnaMatrix = [
-			{
-				role: 'Pengemudi Truk Berat (Driver Tronton/Trailer)',
-				department: 'Operations',
-				competencies: [
-					{ name: 'Defensive Driving & K3 Lalu Lintas', requiredScore: 85, actualScore: 88, status: 'Qualified' },
-					{ name: 'Pemeriksaan Pra-Jalan (P2H) Kendaraan', requiredScore: 80, actualScore: 78, status: 'Need Training' },
-					{ name: 'Pengoperasian Mobile Apps & e-DO', requiredScore: 75, actualScore: 92, status: 'Qualified' },
-					{ name: 'Penanganan Bahan Kimia B3', requiredScore: 80, actualScore: 65, status: 'Critical Gap' }
-				]
-			},
-			{
-				role: 'Mekanik & Teknisi Armada',
-				department: 'Workshop & Maintenance',
-				competencies: [
-					{ name: 'Diagnosa Mesin Diesel Euro 4 Common Rail', requiredScore: 85, actualScore: 72, status: 'Critical Gap' },
-					{ name: 'Perawatan Sistem Rem Angin & Suspensi', requiredScore: 85, actualScore: 86, status: 'Qualified' },
-					{ name: 'Digital Work Order ERP', requiredScore: 75, actualScore: 80, status: 'Qualified' }
-				]
-			},
-			{
-				role: 'Staff & Petugas Gudang (Warehouse)',
-				department: 'Warehouse & Logistics',
-				competencies: [
-					{ name: 'K3 Pergudangan & APD Wajib', requiredScore: 80, actualScore: 85, status: 'Qualified' },
-					{ name: 'Pengoperasian Forklift & Pallet Stacker', requiredScore: 85, actualScore: 82, status: 'Need Training' },
-					{ name: 'SOP Penanganan Tumpahan B3 (Spill Kit)', requiredScore: 80, actualScore: 68, status: 'Critical Gap' }
-				]
-			},
-			{
-				role: 'Kasir & Admin Operasional',
-				department: 'Finance & Operations',
-				competencies: [
-					{ name: 'SOP Pelaporan Uang Jalan Operasional (UJO)', requiredScore: 85, actualScore: 90, status: 'Qualified' },
-					{ name: 'Verifikasi Fisik & Digital Surat Jalan', requiredScore: 80, actualScore: 88, status: 'Qualified' }
-				]
-			}
-		];
+		// 9. Kamus Kompetensi Resmi PT BCS (Competency Library)
+		const competencyLibraryRows = await sql`
+			SELECT c.*, cr.title as default_course_title
+			FROM hris.lms_competency_library c
+			LEFT JOIN hris.lms_courses cr ON cr.id = c.default_course_id
+			ORDER BY c.code ASC;
+		`;
 
-		// 10. Annual Safety Test Summary
+		// 10. Standar Kompetensi Jabatan (Job Standards)
+		const jobStandardsRows = await sql`
+			SELECT j.*, c.name as competency_name, c.aspect as competency_aspect, cr.title as default_course_title
+			FROM hris.lms_job_competencies j
+			JOIN hris.lms_competency_library c ON c.code = j.competency_code
+			LEFT JOIN hris.lms_courses cr ON cr.id = c.default_course_id
+			ORDER BY j.department, j.position_title, j.competency_code ASC;
+		`;
+
+		// 11. Asesmen TNA Aktual Karyawan & Pelacakan GAP
+		const employeeAssessmentsRows = await sql`
+			SELECT 
+				a.*,
+				c.name as competency_name,
+				c.aspect as competency_aspect,
+				c.default_course_id,
+				cr.title as assigned_course_title,
+				e.progress_percent,
+				e.status as enrollment_status,
+				e.deadline as training_deadline
+			FROM hris.lms_employee_assessments a
+			JOIN hris.lms_competency_library c ON c.code = a.competency_code
+			LEFT JOIN hris.lms_courses cr ON cr.id = COALESCE(a.assigned_course_id, c.default_course_id)
+			LEFT JOIN hris.lms_enrollments e ON e.payroll_id = a.payroll_id AND e.course_id = COALESCE(a.assigned_course_id, c.default_course_id)
+			ORDER BY a.department, a.employee_name, a.competency_code ASC;
+		`;
+
+		// 12. Annual Safety Test Summary
 		const safetyStats = {
 			year: 2026,
 			totalTargetDrivers: 140,
@@ -401,6 +396,47 @@ export const load: PageServerLoad = async () => {
 				issuedAt: c.issued_at ? c.issued_at.toISOString().split('T')[0] : '',
 				validUntil: c.valid_until ? c.valid_until.toISOString().split('T')[0] : '',
 				qrVerifyUrl: c.qr_verify_url
+			})),
+			competencyLibrary: competencyLibraryRows.map((c) => ({
+				code: c.code,
+				name: c.name,
+				aspect: c.aspect,
+				levelIndicators: typeof c.level_indicators === 'string' ? JSON.parse(c.level_indicators) : c.level_indicators,
+				defaultCourseId: c.default_course_id,
+				defaultCourseTitle: c.default_course_title || 'Belum di-mapping'
+			})),
+			jobStandards: jobStandardsRows.map((j) => ({
+				id: j.id,
+				positionTitle: j.position_title,
+				department: j.department,
+				competencyCode: j.competency_code,
+				competencyName: j.competency_name,
+				competencyAspect: j.competency_aspect,
+				requiredLevel: Number(j.required_level),
+				defaultCourseTitle: j.default_course_title || '-'
+			})),
+			employeeAssessments: employeeAssessmentsRows.map((a) => ({
+				id: a.id,
+				payrollId: a.payroll_id,
+				employeeName: a.employee_name,
+				positionTitle: a.position_title,
+				department: a.department,
+				competencyCode: a.competency_code,
+				competencyName: a.competency_name,
+				competencyAspect: a.competency_aspect,
+				requiredLevel: Number(a.required_level),
+				actualLevel: Number(a.actual_level),
+				gap: Number(a.gap),
+				status: a.status,
+				assessorName: a.assessor_name,
+				assessmentDate: a.assessment_date ? a.assessment_date.toISOString().split('T')[0] : '',
+				assignedCourseId: a.assigned_course_id || a.default_course_id,
+				assignedCourseTitle: a.assigned_course_title || 'Kursus Terkait GAP',
+				trainingStatus: a.training_status || 'NONE',
+				progressPercent: a.progress_percent !== null && a.progress_percent !== undefined ? Number(a.progress_percent) : (a.training_status === 'ASSIGNED' ? 15 : 0),
+				enrollmentStatus: a.enrollment_status || (a.training_status === 'ASSIGNED' ? 'ENROLLED' : 'NOT_ENROLLED'),
+				trainingDeadline: a.training_deadline ? a.training_deadline.toISOString().split('T')[0] : '',
+				reassessmentStatus: a.reassessment_status
 			})),
 			tnaMatrix,
 			safetyStats,
@@ -730,5 +766,215 @@ export const actions = {
 			success: true,
 			message: `Selamat! Ujian Kepatuhan Safety K3 Tahunan 2026 atas nama ${employeeName} (${payrollId}) dinyatakan LULUS dengan skor ${score}/100.`
 		};
+	},
+
+	// 10. Tambah/Edit Kamus Kompetensi Resmi (Competency Library)
+	saveCompetency: async ({ request }) => {
+		const formData = await request.formData();
+		const code = formData.get('code')?.toString().trim().toUpperCase();
+		const name = formData.get('name')?.toString().trim();
+		const aspect = formData.get('aspect')?.toString().trim() || 'Technical Competency';
+		const defaultCourseId = formData.get('defaultCourseId')?.toString().trim() || null;
+
+		const level1 = formData.get('level1')?.toString().trim() || 'Memahami dasar prosedur dan SOP kerja dasar.';
+		const level2 = formData.get('level2')?.toString().trim() || 'Mampu mengaplikasikan dalam tugas rutin mandiri.';
+		const level3 = formData.get('level3')?.toString().trim() || 'Mampu memodifikasi dan menyelesaikan kendala operasional.';
+		const level4 = formData.get('level4')?.toString().trim() || 'Mampu menganalisa peningkatan sistem dan membimbing tim.';
+		const level5 = formData.get('level5')?.toString().trim() || 'Menjadi rujukan ahli (SME) dan inovator strategi perusahaan.';
+
+		if (!code || !name) {
+			return { success: false, message: 'Kode dan Nama Kompetensi wajib diisi.' };
+		}
+
+		const levelIndicators = [
+			{ level: 1, desc: level1 },
+			{ level: 2, desc: level2 },
+			{ level: 3, desc: level3 },
+			{ level: 4, desc: level4 },
+			{ level: 5, desc: level5 }
+		];
+
+		try {
+			await sql`
+				INSERT INTO hris.lms_competency_library (
+					code, name, aspect, level_indicators, default_course_id
+				) VALUES (
+					${code}, ${name}, ${aspect}, ${JSON.stringify(levelIndicators)}::jsonb, ${defaultCourseId}
+				)
+				ON CONFLICT (code) DO UPDATE SET
+					name = EXCLUDED.name,
+					aspect = EXCLUDED.aspect,
+					level_indicators = EXCLUDED.level_indicators,
+					default_course_id = EXCLUDED.default_course_id;
+			`;
+			return { success: true, message: `Kamus kompetensi [${code}] ${name} berhasil disimpan.` };
+		} catch (e: any) {
+			return { success: false, message: `Gagal menyimpan kompetensi: ${e?.message || 'Error database'}` };
+		}
+	},
+
+	// 11. Tetapkan Standar Kompetensi Jabatan (Required Level)
+	saveJobStandard: async ({ request }) => {
+		const formData = await request.formData();
+		const positionTitle = formData.get('positionTitle')?.toString().trim();
+		const department = formData.get('department')?.toString().trim();
+		const competencyCode = formData.get('competencyCode')?.toString().trim().toUpperCase();
+		const requiredLevel = Number(formData.get('requiredLevel')) || 3;
+
+		if (!positionTitle || !department || !competencyCode) {
+			return { success: false, message: 'Posisi, Departemen, dan Kode Kompetensi wajib diisi.' };
+		}
+
+		try {
+			await sql`
+				INSERT INTO hris.lms_job_competencies (
+					position_title, department, competency_code, required_level
+				) VALUES (
+					${positionTitle}, ${department}, ${competencyCode}, ${requiredLevel}
+				)
+				ON CONFLICT (position_title, competency_code) DO UPDATE SET
+					department = EXCLUDED.department,
+					required_level = EXCLUDED.required_level;
+			`;
+			return { success: true, message: `Standar jabatan ${positionTitle} untuk kompetensi [${competencyCode}] (Target Level: ${requiredLevel}) berhasil diperbarui.` };
+		} catch (e: any) {
+			return { success: false, message: `Gagal menyimpan standar jabatan: ${e?.message || 'Error database'}` };
+		}
+	},
+
+	// 12. Input Evaluasi Aktual Karyawan TNA (Atasan/Assessor)
+	submitEmployeeAssessment: async ({ request }) => {
+		const formData = await request.formData();
+		const payrollId = formData.get('payrollId')?.toString().trim().toUpperCase();
+		const employeeName = formData.get('employeeName')?.toString().trim();
+		const positionTitle = formData.get('positionTitle')?.toString().trim() || 'Driver Angkutan Berat';
+		const department = formData.get('department')?.toString().trim() || 'Operations';
+		const competencyCode = formData.get('competencyCode')?.toString().trim().toUpperCase();
+		const requiredLevel = Number(formData.get('requiredLevel')) || 3;
+		const actualLevel = Number(formData.get('actualLevel')) || 3;
+		const assessorName = formData.get('assessorName')?.toString().trim() || 'Supervisor Lapangan';
+		const notes = formData.get('notes')?.toString().trim() || '';
+
+		if (!payrollId || !employeeName || !competencyCode) {
+			return { success: false, message: 'Harap lengkapi data karyawan dan kompetensi asesmen.' };
+		}
+
+		const gap = actualLevel - requiredLevel;
+		const status = gap >= 0 ? 'Qualified' : 'Gap Competency';
+
+		try {
+			await sql`
+				INSERT INTO hris.lms_employee_assessments (
+					payroll_id, employee_name, position_title, department,
+					competency_code, required_level, actual_level, status,
+					assessor_name, assessment_date, notes
+				) VALUES (
+					${payrollId}, ${employeeName}, ${positionTitle}, ${department},
+					${competencyCode}, ${requiredLevel}, ${actualLevel}, ${status},
+					${assessorName}, CURRENT_DATE, ${notes}
+				)
+				ON CONFLICT (payroll_id, competency_code) DO UPDATE SET
+					employee_name = EXCLUDED.employee_name,
+					position_title = EXCLUDED.position_title,
+					department = EXCLUDED.department,
+					required_level = EXCLUDED.required_level,
+					actual_level = EXCLUDED.actual_level,
+					status = EXCLUDED.status,
+					assessor_name = EXCLUDED.assessor_name,
+					assessment_date = CURRENT_DATE,
+					notes = EXCLUDED.notes;
+			`;
+			return {
+				success: true,
+				message: `Asesmen TNA untuk ${employeeName} [${competencyCode}] berhasil disimpan. Status: ${status} (GAP: ${gap}).`
+			};
+		} catch (e: any) {
+			return { success: false, message: `Gagal menyimpan asesmen karyawan: ${e?.message || 'Error database'}` };
+		}
+	},
+
+	// 13. Auto-Assign Pelatihan Personal ke Akun Karyawan di BCS Academy Portal
+	assignPersonalTraining: async ({ request }) => {
+		const formData = await request.formData();
+		const assessmentId = Number(formData.get('assessmentId')) || null;
+		const payrollId = formData.get('payrollId')?.toString().trim().toUpperCase();
+		const employeeName = formData.get('employeeName')?.toString().trim();
+		let courseId = formData.get('courseId')?.toString().trim();
+		const competencyCode = formData.get('competencyCode')?.toString().trim().toUpperCase();
+
+		if (!payrollId || !competencyCode) {
+			return { success: false, message: 'Data karyawan dan kode kompetensi tidak valid.' };
+		}
+
+		try {
+			// Cari default_course_id jika courseId belum dipilih
+			if (!courseId) {
+				const compRows = await sql`
+					SELECT default_course_id FROM hris.lms_competency_library WHERE code = ${competencyCode} LIMIT 1;
+				`;
+				if (compRows.length && compRows[0].default_course_id) {
+					courseId = compRows[0].default_course_id;
+				} else {
+					courseId = 'CRS-2026-001'; // Default fallback: Re-Induksi SWP
+				}
+			}
+
+			// Cek apakah sudah ada enrollment untuk payroll_id & course_id ini
+			const existing = await sql`
+				SELECT id FROM hris.lms_enrollments 
+				WHERE course_id = ${courseId} AND UPPER(payroll_id) = ${payrollId} LIMIT 1;
+			`;
+
+			let enrollmentId: number;
+			if (existing.length > 0) {
+				enrollmentId = existing[0].id;
+				await sql`
+					UPDATE hris.lms_enrollments
+					SET status = 'ENROLLED',
+						is_tna_gap = TRUE,
+						competency_code = ${competencyCode},
+						deadline = CURRENT_TIMESTAMP + INTERVAL '30 days'
+					WHERE id = ${enrollmentId};
+				`;
+			} else {
+				const res = await sql`
+					INSERT INTO hris.lms_enrollments (
+						course_id, payroll_id, employee_name, status, progress_percent,
+						is_tna_gap, competency_code, enrolled_at, deadline
+					) VALUES (
+						${courseId}, ${payrollId}, ${employeeName}, 'ENROLLED', 0,
+						TRUE, ${competencyCode}, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP + INTERVAL '30 days'
+					)
+					RETURNING id;
+				`;
+				enrollmentId = res[0].id;
+			}
+
+			// Update status di lms_employee_assessments
+			if (assessmentId) {
+				await sql`
+					UPDATE hris.lms_employee_assessments
+					SET assigned_course_id = ${courseId},
+						enrollment_id = ${enrollmentId},
+						training_status = 'ASSIGNED'
+					WHERE id = ${assessmentId};
+				`;
+			} else {
+				await sql`
+					UPDATE hris.lms_employee_assessments
+					SET assigned_course_id = ${courseId},
+						enrollment_id = ${enrollmentId},
+						training_status = 'ASSIGNED'
+					WHERE UPPER(payroll_id) = ${payrollId} AND competency_code = ${competencyCode};
+				`;
+			}
+
+			return {
+				success: true,
+				message: `Pelatihan personal [${courseId}] berhasil ditugaskan langsung ke akun portal karyawan ${employeeName} (${payrollId})!`
+			};
+		} catch (e: any) {
+			return { success: false, message: `Gagal menugaskan pelatihan personal: ${e?.message || 'Error database'}` };
+		}
 	}
 } satisfies Actions;
