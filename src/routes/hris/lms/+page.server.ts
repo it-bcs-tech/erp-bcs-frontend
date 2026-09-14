@@ -267,6 +267,28 @@ export const load: PageServerLoad = async () => {
 			}
 		];
 
+		// 14. Data TNA Matrix Ringkas
+		const tnaMatrix = [
+			{
+				role: 'Pengemudi Truk Berat (Driver Tronton/Trailer)',
+				department: 'Operations',
+				competencies: [
+					{ name: 'Defensive Driving & K3 Lalu Lintas', requiredScore: 85, actualScore: 88, status: 'Qualified' },
+					{ name: 'Pemeriksaan Pra-Jalan (P2H) Kendaraan', requiredScore: 80, actualScore: 78, status: 'Need Training' },
+					{ name: 'Pengoperasian Mobile Apps & e-DO', requiredScore: 75, actualScore: 92, status: 'Qualified' },
+					{ name: 'Penanganan Bahan Kimia B3', requiredScore: 80, actualScore: 65, status: 'Critical Gap' }
+				]
+			},
+			{
+				role: 'Mekanik & Teknisi Armada',
+				department: 'Workshop & Maintenance',
+				competencies: [
+					{ name: 'Diagnosa Mesin Euro 4 Common Rail', requiredScore: 80, actualScore: 60, status: 'Critical Gap' },
+					{ name: 'Safety Awareness & K3 Bengkel', requiredScore: 85, actualScore: 85, status: 'Qualified' }
+				]
+			}
+		];
+
 		return {
 			metrics: {
 				totalCourses,
