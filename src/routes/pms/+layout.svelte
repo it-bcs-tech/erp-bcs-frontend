@@ -18,8 +18,17 @@
 			user.email === 'superhyperadmin@bcs-logistics.co.id'
 		)
 	);
+
+	const isPrintRoute = $derived(
+		$page.url.pathname.endsWith('/print') || 
+		$page.url.pathname.includes('/print/') || 
+		$page.url.searchParams.has('embedded')
+	);
 </script>
 
+{#if isPrintRoute}
+	{@render children?.()}
+{:else}
 <div class="flex h-[calc(100vh-64px)] overflow-hidden bg-surface relative">
 	<!-- SideNavBar (Flat Standard PMS 6-Pillars) -->
 	<aside class="w-64 flex-shrink-0 h-full bg-surface-container-low flex flex-col p-4 gap-2 z-40 relative overflow-y-auto">
@@ -283,3 +292,4 @@
 	<!-- Chatbot AI Assistant -->
 	<Chatbot />
 </div>
+{/if}

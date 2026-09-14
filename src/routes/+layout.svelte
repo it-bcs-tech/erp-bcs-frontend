@@ -17,19 +17,26 @@
 			authUser.set(null);
 		}
 	});
+
+	const isPrintRoute = $derived(
+		$page.url.pathname.endsWith('/print') || 
+		$page.url.pathname.includes('/print/') || 
+		$page.url.searchParams.has('embedded')
+	);
 </script>
 
-{#if !$page.url.pathname.startsWith('/login')}
+{#if !$page.url.pathname.startsWith('/login') && !isPrintRoute}
 	<Header />
 {/if}
 
 {@render children()}
 
-{#if !$page.url.pathname.startsWith('/login')}
+{#if !$page.url.pathname.startsWith('/login') && !isPrintRoute}
 	<Footer />
 {/if}
 
 <!-- Global Toast Container -->
+{#if !isPrintRoute}
 <div class="fixed bottom-6 right-6 z-[100] flex flex-col gap-3 pointer-events-none">
 	{#each $activeToasts as toast (toast.toastId)}
 		<div 
@@ -54,3 +61,4 @@
 		</div>
 	{/each}
 </div>
+{/if}

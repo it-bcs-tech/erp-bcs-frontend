@@ -15,13 +15,27 @@
 		}
 
 		// Auto trigger print after brief delay if not embedded
+		const handleMessage = (e: MessageEvent) => {
+			if (e.data?.type === 'SET_KOP_MODE' && (e.data.kopMode === 'kop' || e.data.kopMode === 'no-kop')) {
+				kopMode = e.data.kopMode;
+			}
+		};
+		window.addEventListener('message', handleMessage);
+
 		if (!isEmbedded) {
 			const timer = setTimeout(() => {
 				window.print();
 			}, 500);
 
-			return () => clearTimeout(timer);
+			return () => {
+				clearTimeout(timer);
+				window.removeEventListener('message', handleMessage);
+			};
 		}
+
+		return () => {
+			window.removeEventListener('message', handleMessage);
+		};
 	});
 
 	function printNow(mode?: 'kop' | 'no-kop') {
@@ -81,7 +95,7 @@
 </svelte:head>
 
 <!-- Shell Container -->
-<div class="min-h-screen font-sans text-slate-800 {isEmbedded ? 'bg-transparent p-0' : 'bg-slate-100 dark:bg-slate-950 p-4 sm:p-8 flex justify-center'}">
+<div class="min-h-screen font-sans text-slate-800 {isEmbedded ? 'bg-slate-950/70' : 'bg-slate-100 dark:bg-slate-950'}">
 	<!-- Top Sticky Action Bar (Hidden on Print and when Embedded) -->
 	{#if !isEmbedded}
 		<header class="no-print bg-slate-900 text-white px-6 py-3.5 flex flex-wrap items-center justify-between gap-4 shadow-xl sticky top-0 z-50">
