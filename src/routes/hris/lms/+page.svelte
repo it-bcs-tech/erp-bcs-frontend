@@ -4,15 +4,29 @@
 	import type { PageData, ActionData } from './$types';
 
 	let { data, form }: { data: PageData; form: ActionData } = $props();
-	const { metrics, courses, learningPaths, trainingMatrix, myLearning, dataSource } = data;
 
-	// Tabs State
-	let activeTab = $state<'catalog' | 'paths' | 'matrix' | 'reports'>('catalog');
+	// Destructure data loader
+	const courses = $derived(data.courses || []);
+	const quizQuestions = $derived(data.quizQuestions || []);
+	const sessions = $derived(data.sessions || []);
+	const attendances = $derived(data.attendances || []);
+	const evaluationsL1 = $derived(data.evaluationsL1 || []);
+	const evaluationsL3L4 = $derived(data.evaluationsL3L4 || []);
+	const trainingRequests = $derived(data.trainingRequests || []);
+	const certificates = $derived(data.certificates || []);
+	const tnaMatrix = $derived(data.tnaMatrix || []);
+	const safetyStats = $derived(data.safetyStats);
+	const metrics = $derived(data.metrics);
+
+	// Tabs State (5 Tab Utama)
+	type TabType = 'catalog' | 'sessions' | 'evaluations' | 'safety_tna' | 'reports';
+	let activeTab = $state<TabType>('catalog');
 	const tabs = [
-		{ id: 'catalog', label: 'Katalog & Manajemen Kursus', icon: 'auto_stories' },
-		{ id: 'paths', label: 'Learning Paths', icon: 'route' },
-		{ id: 'matrix', label: 'Training Matrix & K3', icon: 'table_chart' },
-		{ id: 'reports', label: 'Rekap Kelulusan & Nilai', icon: 'workspace_premium' }
+		{ id: 'catalog', label: 'Katalog & Kursus', icon: 'auto_stories' },
+		{ id: 'sessions', label: 'Sesi Training & Absensi', icon: 'event_available' },
+		{ id: 'evaluations', label: 'Evaluasi Kirkpatrick', icon: 'rate_review' },
+		{ id: 'safety_tna', label: 'Safety & TNA', icon: 'health_and_safety' },
+		{ id: 'reports', label: 'Laporan & E-Sertifikat', icon: 'workspace_premium' }
 	];
 
 	// Filter & Search State
@@ -20,52 +34,190 @@
 	let selectedCategory = $state('All');
 	const categories = ['All', 'Operations', 'QHSE & Safety', 'Technical', 'Digital Systems', 'Leadership'];
 
+	// Sub-tab State
+	let evalSubTab = $state<'l1' | 'l3l4'>('l1');
+
 	// Modals State
 	let isCreateModalOpen = $state(false);
 	let isPlayerModalOpen = $state(false);
+	let isSessionModalOpen = $state(false);
+	let isAttendanceModalOpen = $state(false);
+	let isEvalSupervisorModalOpen = $state(false);
+	let isRequestModalOpen = $state(false);
+	let isSafetyTestModalOpen = $state(false);
 	let isCertModalOpen = $state(false);
+
+	// Active Selections
 	let activeCourseForPlayer = $state<any>(null);
+	let activeSessionForAttendance = $state<any>(null);
+	let activeEvalForSupervisor = $state<any>(null);
 	let activeCertData = $state<any>(null);
+
+	// Sequential Player Engine State
+	// Steps: 1 = Pre-Test, 2 = Modules (Materi), 3 = Post-Test, 4 = Evaluasi Level 1, 5 = Selesai / Sertifikat
+	let playerStep = $state<1 | 2 | 3 | 4 | 5>(1);
 	let activeModuleIndex = $state(0);
-	let activeQuizSubmitted = $state(false);
-	let quizAnswers = $state<Record<number, string>>({});
+	let preTestAnswered = $state<Record<number, string>>({});
+	let postTestAnswered = $state<Record<number, string>>({});
+	let preTestSubmitted = $state(false);
+	let postTestResult = $state<{ passed: boolean; score: number; certNumber?: string } | null>(null);
+	let evalL1Ratings = $state({ content: 5, instructor: 5, facility: 5, recommendation: 5, notes: '' });
 
 	// Filtered Courses in Catalog
 	let filteredCourses = $derived(
-		(courses || []).filter((c: any) => {
+		courses.filter((c: any) => {
 			const matchesCategory = selectedCategory === 'All' || c.category === selectedCategory;
 			if (!matchesCategory) return false;
 			if (!searchQuery.trim()) return true;
 			const q = searchQuery.toLowerCase();
 			return (
 				c.title.toLowerCase().includes(q) ||
-				c.description.toLowerCase().includes(q) ||
-				c.instructor.toLowerCase().includes(q) ||
+				c.description?.toLowerCase().includes(q) ||
+				c.instructor?.toLowerCase().includes(q) ||
 				(c.tags || []).some((t: string) => t.toLowerCase().includes(q))
 			);
 		})
 	);
 
-	// Filtered My Learning
-	let filteredMyLearning = $derived(
-		(myLearning || []).filter((m: any) => {
-			if (!searchQuery.trim()) return true;
-			const q = searchQuery.toLowerCase();
-			return m.title.toLowerCase().includes(q) || m.category.toLowerCase().includes(q);
-		})
+	// Filtered Questions for Active Course
+	let activePreTestQuestions = $derived(
+		quizQuestions.filter((q: any) => q.courseId === activeCourseForPlayer?.id && q.quizType === 'PRE_TEST')
+	);
+	let activePostTestQuestions = $derived(
+		quizQuestions.filter((q: any) => q.courseId === activeCourseForPlayer?.id && q.quizType === 'POST_TEST')
 	);
 
 	function openCoursePlayer(course: any) {
 		activeCourseForPlayer = course;
+		playerStep = 1;
 		activeModuleIndex = 0;
-		activeQuizSubmitted = false;
-		quizAnswers = {};
+		preTestAnswered = {};
+		postTestAnswered = {};
+		preTestSubmitted = false;
+		postTestResult = null;
+		evalL1Ratings = { content: 5, instructor: 5, facility: 5, recommendation: 5, notes: '' };
 		isPlayerModalOpen = true;
 	}
 
-	function openCertificate(item: any) {
-		activeCertData = item;
+	function handlePreTestSubmit() {
+		preTestSubmitted = true;
+		playerStep = 2; // Unlock step 2 (Materi Modul)
+		spawnToast({
+			id: Date.now().toString(),
+			title: 'Pre-Test Selesai',
+			message: 'Hasil pre-test tercatat. Modul materi kursus sekarang dapat dipelajari.',
+			type: 'INFO',
+			timestamp: new Date().toISOString()
+		});
+	}
+
+	function nextModule() {
+		if (activeCourseForPlayer && activeModuleIndex < (activeCourseForPlayer.modules?.length || 1) - 1) {
+			activeModuleIndex++;
+		} else {
+			// Seluruh modul materi tuntas -> Buka Post-Test
+			playerStep = 3;
+		}
+	}
+
+	function handleLocalPostTestSubmit() {
+		const totalQ = activePostTestQuestions.length || 1;
+		let correctCount = 0;
+		activePostTestQuestions.forEach((q: any) => {
+			if (postTestAnswered[q.id] === q.correctKey) {
+				correctCount++;
+			}
+		});
+		const calculatedScore = Math.round((correctCount / totalQ) * 100);
+		const passing = activeCourseForPlayer?.passingGrade || 75;
+		const passed = calculatedScore >= passing;
+		const certSeq = Math.floor(1000 + Math.random() * 9000);
+		const certNum = passed ? `CERT-BCS-2026-${certSeq}` : undefined;
+
+		postTestResult = {
+			passed,
+			score: calculatedScore,
+			certNumber: certNum
+		};
+
+		if (passed) {
+			playerStep = 4; // Langsung maju ke Evaluasi Level 1
+			spawnToast({
+				id: Date.now().toString(),
+				title: 'Lulus Post-Test!',
+				message: `Nilai Anda ${calculatedScore}/100. Harap isi form evaluasi kepuasan (Level 1).`,
+				type: 'INFO',
+				timestamp: new Date().toISOString()
+			});
+		} else {
+			spawnToast({
+				id: Date.now().toString(),
+				title: 'Belum Mencapai Passing Grade',
+				message: `Nilai Anda ${calculatedScore}/100 (Passing Grade: ${passing}). Silakan pelajari kembali materi dan lakukan remedial.`,
+				type: 'WARNING',
+				timestamp: new Date().toISOString()
+			});
+		}
+	}
+
+	function handleLocalEvalL1Submit() {
+		playerStep = 5;
+		spawnToast({
+			id: Date.now().toString(),
+			title: 'Evaluasi Tersimpan',
+			message: 'Terima kasih atas penilaian Anda! E-Sertifikat resmi Anda telah diterbitkan.',
+			type: 'INFO',
+			timestamp: new Date().toISOString()
+		});
+	}
+
+	function openCertificate(cert: any) {
+		activeCertData = cert;
 		isCertModalOpen = true;
+	}
+
+	function openAttendanceModal(session: any) {
+		activeSessionForAttendance = session;
+		isAttendanceModalOpen = true;
+	}
+
+	function openSupervisorModal(evalItem: any) {
+		activeEvalForSupervisor = evalItem;
+		isEvalSupervisorModalOpen = true;
+	}
+
+	// Export CSV Helper
+	function exportReportsToCSV() {
+		const headers = ['No', 'Nomor Sertifikat', 'Payroll ID', 'Nama Karyawan', 'Kursus Pelatihan', 'Kategori', 'Nilai', 'Tanggal Terbit', 'URL Verifikasi'];
+		const rows = certificates.map((c: any, index: number) => [
+			index + 1,
+			`"${c.certificateNumber}"`,
+			`"${c.payrollId}"`,
+			`"${c.employeeName}"`,
+			`"${c.courseTitle}"`,
+			`"${c.category}"`,
+			c.score,
+			`"${c.issuedAt}"`,
+			`"${c.qrVerifyUrl}"`
+		]);
+
+		const csvContent = [headers.join(','), ...rows.map(e => e.join(','))].join('\n');
+		const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+		const url = URL.createObjectURL(blob);
+		const link = document.createElement('a');
+		link.setAttribute('href', url);
+		link.setAttribute('download', `Rekap_LMS_Sertifikat_BCS_${new Date().toISOString().split('T')[0]}.csv`);
+		document.body.appendChild(link);
+		link.click();
+		document.body.removeChild(link);
+
+		spawnToast({
+			id: Date.now().toString(),
+			title: 'Export Berhasil',
+			message: 'File CSV Rekapitulasi Sertifikat LMS berhasil diunduh.',
+			type: 'INFO',
+			timestamp: new Date().toISOString()
+		});
 	}
 
 	$effect(() => {
@@ -79,6 +231,11 @@
 					timestamp: new Date().toISOString()
 				});
 				isCreateModalOpen = false;
+				isSessionModalOpen = false;
+				isAttendanceModalOpen = false;
+				isEvalSupervisorModalOpen = false;
+				isRequestModalOpen = false;
+				isSafetyTestModalOpen = false;
 			} else if (form.message) {
 				spawnToast({
 					id: Date.now().toString(),
@@ -98,439 +255,1076 @@
 
 <div class="flex flex-col h-full space-y-6">
 	<!-- Top Page Header -->
-	<header class="flex flex-col md:flex-row md:items-end justify-between gap-4">
+	<header class="flex flex-col md:flex-row md:items-center justify-between gap-4 flex-shrink-0">
 		<div>
 			<div class="flex items-center gap-2.5">
-				<div class="w-10 h-10 rounded-2xl bg-primary-container text-on-primary-container flex items-center justify-center shadow-xs">
-					<span class="material-symbols-outlined text-2xl">school</span>
-				</div>
-				<div>
-					<h1 class="text-2xl font-black text-on-surface tracking-tight">BCS Learning Management System (LMS)</h1>
-					<p class="text-on-surface-variant font-medium text-xs mt-0.5">
-						Portal Pelatihan Digital, Jalur Kompetensi Karyawan, Sertifikasi & Kepatuhan K3 Transportasi
-					</p>
-				</div>
+				<span class="material-symbols-outlined text-amber-600 dark:text-amber-400 text-2xl">school</span>
+				<h1 class="text-2xl font-black text-on-surface tracking-tight">Learning Management System (LMS)</h1>
+				<span class="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wider bg-emerald-100 text-emerald-800 dark:bg-emerald-950/80 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800">
+					Enterprise Academy
+				</span>
 			</div>
+			<p class="text-on-surface-variant font-medium text-sm mt-0.5">
+				Pusat pengembangan kompetensi, sertifikasi pengemudi, evaluasi multi-level Kirkpatrick, dan kepatuhan K3 PT BCS Logistics
+			</p>
 		</div>
 
 		<div class="flex items-center gap-3">
-			<span class="inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider px-3 py-1 rounded-full {dataSource === 'laravel' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300' : 'bg-primary-container/40 text-primary'}">
-				<span class="w-1.5 h-1.5 rounded-full {dataSource === 'laravel' ? 'bg-emerald-500' : 'bg-primary'}"></span>
-				{dataSource === 'laravel' ? 'Laravel API Sync' : 'Enterprise Engine'}
-			</span>
-
-			<button 
-				type="button"
-				class="bg-primary text-on-primary px-4 py-2.5 rounded-xl text-xs font-bold shadow-xs flex items-center gap-2 hover:bg-primary/90 transition-all cursor-pointer active:scale-95"
-				onclick={() => isCreateModalOpen = true}
+			<a
+				href="https://academy.bcslabs.tech"
+				target="_blank"
+				rel="noreferrer"
+				class="px-4 py-2 rounded-xl border border-slate-300 dark:border-slate-700 text-xs font-bold text-on-surface hover:bg-surface-container flex items-center gap-1.5 transition-all"
 			>
-				<span class="material-symbols-outlined text-lg">add_circle</span>
+				<span class="material-symbols-outlined text-sm">open_in_new</span>
+				<span>Portal Karyawan</span>
+			</a>
+
+			<button
+				type="button"
+				onclick={() => isCreateModalOpen = true}
+				class="px-4 py-2 rounded-xl bg-primary text-on-primary text-xs font-bold hover:bg-primary/90 flex items-center gap-1.5 shadow-sm transition-all cursor-pointer"
+			>
+				<span class="material-symbols-outlined text-sm">add_circle</span>
 				<span>Tambah Kursus Baru</span>
 			</button>
 		</div>
 	</header>
 
-	<!-- Top Metric KPI Cards -->
-	<div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
-		<div class="bg-surface-container-lowest p-5 rounded-2xl border border-slate-200/60 dark:border-slate-800/60 shadow-xs flex items-center justify-between">
-			<div>
-				<p class="text-[11px] font-bold text-on-surface-variant uppercase tracking-wider mb-1">Total Kursus</p>
-				<h3 class="text-2xl font-black text-on-surface">{metrics.totalCourses} Modul</h3>
-			</div>
-			<div class="w-11 h-11 rounded-2xl bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 flex items-center justify-center">
-				<span class="material-symbols-outlined text-2xl">menu_book</span>
-			</div>
+	<!-- KPI Metric Cards -->
+	<div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 flex-shrink-0">
+		<div class="p-4 rounded-2xl bg-surface-container-low border border-slate-200/60 dark:border-slate-800/60 shadow-xs">
+			<p class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Total Kursus</p>
+			<h3 class="text-xl font-black text-on-surface mt-1 font-mono">{metrics.totalCourses}</h3>
+			<p class="text-[10px] text-emerald-600 font-semibold mt-1">Aktif di Katalog</p>
 		</div>
 
-		<div class="bg-surface-container-lowest p-5 rounded-2xl border border-slate-200/60 dark:border-slate-800/60 shadow-xs flex items-center justify-between">
-			<div>
-				<p class="text-[11px] font-bold text-on-surface-variant uppercase tracking-wider mb-1">Peserta Aktif</p>
-				<h3 class="text-2xl font-black text-on-surface">{metrics.activeLearners} Orang</h3>
-			</div>
-			<div class="w-11 h-11 rounded-2xl bg-purple-50 dark:bg-purple-950/40 text-purple-600 dark:text-purple-400 flex items-center justify-center">
-				<span class="material-symbols-outlined text-2xl">groups</span>
-			</div>
+		<div class="p-4 rounded-2xl bg-surface-container-low border border-slate-200/60 dark:border-slate-800/60 shadow-xs">
+			<p class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Peserta Aktif</p>
+			<h3 class="text-xl font-black text-blue-600 dark:text-blue-400 mt-1 font-mono">{metrics.activeLearners}</h3>
+			<p class="text-[10px] text-slate-500 font-medium mt-1">Driver & Staff Lapangan</p>
 		</div>
 
-		<div class="bg-surface-container-lowest p-5 rounded-2xl border border-slate-200/60 dark:border-slate-800/60 shadow-xs flex items-center justify-between">
-			<div>
-				<p class="text-[11px] font-bold text-on-surface-variant uppercase tracking-wider mb-1">Kepatuhan Wajib K3</p>
-				<div class="flex items-baseline gap-1.5">
-					<h3 class="text-2xl font-black text-emerald-600 dark:text-emerald-400">{metrics.complianceRate}%</h3>
-					<span class="text-[10px] font-bold text-emerald-600">Optimal</span>
-				</div>
-			</div>
-			<div class="w-11 h-11 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
-				<span class="material-symbols-outlined text-2xl">verified</span>
-			</div>
+		<div class="p-4 rounded-2xl bg-surface-container-low border border-slate-200/60 dark:border-slate-800/60 shadow-xs">
+			<p class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Kepuasan Lvl 1</p>
+			<h3 class="text-xl font-black text-amber-600 dark:text-amber-400 mt-1 font-mono flex items-center gap-1">
+				<span>{metrics.avgSatisfaction}</span>
+				<span class="material-symbols-outlined text-sm text-amber-500">star</span>
+			</h3>
+			<p class="text-[10px] text-amber-600 font-medium mt-1">Reaksi Peserta Training</p>
 		</div>
 
-		<div class="bg-surface-container-lowest p-5 rounded-2xl border border-slate-200/60 dark:border-slate-800/60 shadow-xs flex items-center justify-between">
-			<div>
-				<p class="text-[11px] font-bold text-on-surface-variant uppercase tracking-wider mb-1">Rata-rata Skor Kuis</p>
-				<h3 class="text-2xl font-black text-primary">{metrics.avgQuizScore} / 100</h3>
-			</div>
-			<div class="w-11 h-11 rounded-2xl bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 flex items-center justify-center">
-				<span class="material-symbols-outlined text-2xl">workspace_premium</span>
-			</div>
+		<div class="p-4 rounded-2xl bg-surface-container-low border border-slate-200/60 dark:border-slate-800/60 shadow-xs">
+			<p class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Review Atasan</p>
+			<h3 class="text-xl font-black {metrics.pendingSupervisorReviews > 0 ? 'text-rose-600 dark:text-rose-400' : 'text-emerald-600'} mt-1 font-mono">
+				{metrics.pendingSupervisorReviews}
+			</h3>
+			<p class="text-[10px] text-slate-500 font-medium mt-1">Due Date H+3 Bulan</p>
+		</div>
+
+		<div class="p-4 rounded-2xl bg-surface-container-low border border-slate-200/60 dark:border-slate-800/60 shadow-xs">
+			<p class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Kepatuhan K3</p>
+			<h3 class="text-xl font-black text-emerald-600 dark:text-emerald-400 mt-1 font-mono">{metrics.complianceRate}%</h3>
+			<p class="text-[10px] text-emerald-600 font-medium mt-1">Safety Test 2026</p>
+		</div>
+
+		<div class="p-4 rounded-2xl bg-surface-container-low border border-slate-200/60 dark:border-slate-800/60 shadow-xs">
+			<p class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Sertifikat Terbit</p>
+			<h3 class="text-xl font-black text-purple-600 dark:text-purple-400 mt-1 font-mono">{metrics.totalCertificates}</h3>
+			<p class="text-[10px] text-purple-600 font-medium mt-1">E-Certificate Resmi</p>
 		</div>
 	</div>
 
-	<!-- Segmented Control Tabs & Filter Bar -->
-	<div class="p-4 rounded-2xl bg-surface-container-low border border-slate-200/60 dark:border-slate-800/60 flex flex-col md:flex-row gap-4 items-center justify-between shadow-xs">
-		<!-- Tabs -->
-		<div class="inline-flex p-1 rounded-2xl bg-surface-container border border-slate-200 dark:border-slate-800 overflow-x-auto max-w-full">
-			{#each tabs as t}
-				<button 
-					class="px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all flex items-center gap-2 cursor-pointer {activeTab === t.id ? 'bg-surface text-primary shadow-xs' : 'text-on-surface-variant hover:text-on-surface'}"
-					onclick={() => activeTab = t.id as any}
+	<!-- Main Workspace Card (5 Tabs) -->
+	<div class="rounded-2xl bg-surface-container-low border border-slate-200/60 dark:border-slate-800/60 overflow-hidden shadow-xs flex-1 flex flex-col min-h-0">
+		<!-- Navigation Tab Bar (Flat Standard) -->
+		<div class="border-b border-slate-200/60 dark:border-slate-800/60 bg-slate-50/70 dark:bg-slate-900/40 px-4 pt-2 flex items-center gap-2 overflow-x-auto">
+			{#each tabs as tab}
+				<button
+					type="button"
+					onclick={() => (activeTab = tab.id as TabType)}
+					class="flex items-center gap-2 px-4 py-2.5 text-xs font-bold transition-all border-b-2 cursor-pointer whitespace-nowrap
+					{activeTab === tab.id
+						? 'border-primary text-primary bg-surface-container-highest/60 rounded-t-xl'
+						: 'border-transparent text-on-surface-variant hover:text-on-surface hover:bg-surface-container/40 rounded-t-xl'}"
 				>
-					<span class="material-symbols-outlined text-base">{t.icon}</span>
-					<span>{t.label}</span>
+					<span class="material-symbols-outlined text-base">{tab.icon}</span>
+					<span>{tab.label}</span>
 				</button>
 			{/each}
 		</div>
 
-		<!-- Search & Category Filters -->
-		<div class="flex items-center gap-3 w-full md:w-auto">
+		<!-- Tab Content Area -->
+		<div class="p-6 flex-1 overflow-y-auto">
+			<!-- TAB 1: KATALOG & KURSUS -->
 			{#if activeTab === 'catalog'}
-				<select 
-					bind:value={selectedCategory} 
-					class="bg-surface border border-slate-200 dark:border-slate-700 text-on-surface rounded-xl py-2 px-3 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-primary/40 cursor-pointer"
-				>
-					{#each categories as cat}
-						<option value={cat}>{cat}</option>
-					{/each}
-				</select>
-			{/if}
+				<div class="space-y-6">
+					<!-- Filter & Search Bar -->
+					<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+						<div class="flex items-center gap-2 flex-1 max-w-md">
+							<div class="relative w-full">
+								<span class="material-symbols-outlined absolute left-3 top-2.5 text-slate-400 text-sm">search</span>
+								<input
+									type="text"
+									bind:value={searchQuery}
+									placeholder="Cari judul kursus, materi, instruktur, atau tag..."
+									class="w-full pl-9 pr-4 py-2 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800 text-xs text-on-surface focus:outline-hidden focus:ring-2 focus:ring-primary"
+								/>
+							</div>
+						</div>
 
-			<div class="relative w-full md:w-64 flex-shrink-0">
-				<span class="material-symbols-outlined absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-base">search</span>
-				<input 
-					type="text" 
-					bind:value={searchQuery}
-					placeholder="Cari materi, instruktur, topik..." 
-					class="w-full bg-surface border border-slate-200 dark:border-slate-700 text-on-surface rounded-xl py-2 pl-9 pr-4 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-primary/40"
-				/>
-			</div>
-		</div>
-	</div>
+						<div class="flex items-center gap-2 overflow-x-auto pb-1">
+							{#each categories as cat}
+								<button
+									type="button"
+									onclick={() => (selectedCategory = cat)}
+									class="px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all cursor-pointer
+									{selectedCategory === cat
+										? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900 font-bold shadow-xs'
+										: 'bg-surface-container text-on-surface-variant hover:bg-surface-container-high'}"
+								>
+									{cat}
+								</button>
+							{/each}
+						</div>
+					</div>
 
-	<!-- Main Content Area -->
-	<div class="flex-1">
-		<!-- TAB 1: KATALOG KURSUS -->
-		{#if activeTab === 'catalog'}
-			<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-				{#each filteredCourses as course}
-					<div class="bg-surface-container-lowest border border-slate-200/60 dark:border-slate-800/60 rounded-3xl p-6 shadow-xs flex flex-col justify-between hover:shadow-md transition-all duration-300 group">
+					<!-- Courses Grid -->
+					{#if filteredCourses.length === 0}
+						<div class="p-12 text-center rounded-2xl bg-surface-container border border-dashed border-slate-300 dark:border-slate-800">
+							<span class="material-symbols-outlined text-4xl text-slate-400">auto_stories</span>
+							<p class="font-bold text-sm text-on-surface mt-2">Tidak ada kursus yang sesuai kriteria</p>
+							<p class="text-xs text-on-surface-variant mt-1">Coba ubah kata kunci pencarian atau kategori filter.</p>
+						</div>
+					{:else}
+						<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+							{#each filteredCourses as course}
+								<div class="rounded-2xl bg-surface-container border border-slate-200/80 dark:border-slate-800/80 overflow-hidden flex flex-col justify-between group hover:border-primary/50 transition-all shadow-xs">
+									<div>
+										<!-- Thumbnail Banner -->
+										<div class="h-36 w-full bg-slate-800 relative overflow-hidden">
+											<img
+												src={course.thumbnailUrl || 'https://images.unsplash.com/photo-1519003722824-194d4455a60c?w=600'}
+												alt={course.title}
+												class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+											/>
+											<div class="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent"></div>
+											<div class="absolute top-3 left-3 flex items-center gap-1.5">
+												<span class="px-2 py-0.5 rounded-md text-[9.5px] font-black uppercase tracking-wider
+													{course.level === 'Mandatory' ? 'bg-rose-500 text-white' :
+													course.level === 'Advanced' ? 'bg-purple-600 text-white' :
+													course.level === 'Intermediate' ? 'bg-amber-500 text-black' : 'bg-blue-600 text-white'}">
+													{course.level}
+												</span>
+												<span class="px-2 py-0.5 rounded-md text-[9.5px] font-black uppercase tracking-wider bg-slate-900/80 text-slate-200 backdrop-blur-xs">
+													{course.category}
+												</span>
+											</div>
+											<div class="absolute bottom-2.5 left-3 right-3 flex justify-between items-end text-white text-xs">
+												<span class="font-mono text-[10px] text-slate-300">{course.id}</span>
+												<div class="flex items-center gap-1 text-amber-400 font-bold text-[11px]">
+													<span class="material-symbols-outlined text-xs">star</span>
+													<span>{course.rating.toFixed(1)}</span>
+												</div>
+											</div>
+										</div>
+
+										<!-- Content Details -->
+										<div class="p-4 space-y-2.5">
+											<h4 class="font-black text-sm text-on-surface line-clamp-2 leading-snug">
+												{course.title}
+											</h4>
+											<p class="text-xs text-on-surface-variant line-clamp-2 leading-relaxed">
+												{course.description}
+											</p>
+
+											<div class="pt-2 border-t border-slate-200/60 dark:border-slate-800/60 flex items-center justify-between text-[11px] text-slate-500">
+												<span class="flex items-center gap-1">
+													<span class="material-symbols-outlined text-xs">schedule</span>
+													<span>{course.durationHours} Jam</span>
+												</span>
+												<span class="flex items-center gap-1">
+													<span class="material-symbols-outlined text-xs">view_list</span>
+													<span>{course.modulesCount} Modul</span>
+												</span>
+												<span class="flex items-center gap-1">
+													<span class="material-symbols-outlined text-xs">group</span>
+													<span>{course.enrolledCount} Peserta</span>
+												</span>
+											</div>
+										</div>
+									</div>
+
+									<!-- Action Footer -->
+									<div class="p-4 pt-0 flex items-center justify-between gap-2 border-t border-slate-200/40 dark:border-slate-800/40 mt-2">
+										<span class="text-[10px] text-slate-400 truncate max-w-[130px]">
+											Instruktur: <strong class="text-slate-600 dark:text-slate-300">{course.instructor}</strong>
+										</span>
+
+										<button
+											type="button"
+											onclick={() => openCoursePlayer(course)}
+											class="px-3.5 py-1.5 rounded-xl bg-primary hover:bg-primary/90 text-on-primary text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer shadow-xs"
+										>
+											<span class="material-symbols-outlined text-sm">play_circle</span>
+											<span>Buka Player</span>
+										</button>
+									</div>
+								</div>
+							{/each}
+						</div>
+					{/if}
+				</div>
+
+			<!-- TAB 2: SESI TRAINING & ABSENSI -->
+			{:else if activeTab === 'sessions'}
+				<div class="space-y-6">
+					<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
 						<div>
-							<!-- Header Tag & Level -->
-							<div class="flex items-center justify-between mb-3.5">
-								<span class="px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider {course.category === 'Operations' ? 'bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300' : course.category === 'QHSE & Safety' ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300' : course.category === 'Technical' ? 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300' : 'bg-purple-100 text-purple-800 dark:bg-purple-950 dark:text-purple-300'}">
-									{course.category}
-								</span>
-								<span class="inline-flex items-center gap-1 text-[11px] font-bold text-amber-600">
-									<span class="material-symbols-outlined text-sm">star</span>
-									{course.rating}
-								</span>
-							</div>
-
-							<h3 class="font-extrabold text-base text-on-surface group-hover:text-primary transition-colors line-clamp-2 mb-2">
-								{course.title}
-							</h3>
-							<p class="text-xs text-on-surface-variant line-clamp-3 leading-relaxed mb-4">
-								{course.description}
-							</p>
-
-							<!-- Course Meta -->
-							<div class="grid grid-cols-3 gap-2 py-3 px-3.5 bg-surface-container-low rounded-2xl text-[11px] font-semibold text-on-surface-variant mb-4">
-								<div class="flex items-center gap-1.5">
-									<span class="material-symbols-outlined text-sm text-primary">schedule</span>
-									<span>{Math.round(course.durationMinutes / 60)} Jam</span>
-								</div>
-								<div class="flex items-center gap-1.5">
-									<span class="material-symbols-outlined text-sm text-primary">layers</span>
-									<span>{course.modulesCount} Bab</span>
-								</div>
-								<div class="flex items-center gap-1.5">
-									<span class="material-symbols-outlined text-sm text-primary">person</span>
-									<span>{course.enrolledCount} Siswa</span>
-								</div>
-							</div>
+							<h3 class="font-black text-base text-on-surface">Jadwal Sesi Pelatihan (Online & Offline)</h3>
+							<p class="text-xs text-on-surface-variant mt-0.5">Pantau pelaksanaan sesi training resmi dan input kehadiran peserta secara realtime</p>
 						</div>
 
-						<div class="pt-2 border-t border-surface-container flex items-center justify-between gap-3">
-							<div class="flex items-center gap-2">
-								<div class="w-7 h-7 rounded-full bg-primary-container text-on-primary-container font-black text-xs flex items-center justify-center">
-									{course.instructor[0]}
-								</div>
-								<span class="text-[11px] font-bold text-on-surface-variant truncate max-w-[130px]">{course.instructor}</span>
-							</div>
-
-							<button 
-								type="button"
-								class="bg-primary-container text-on-primary-container hover:bg-primary hover:text-on-primary px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer active:scale-95"
-								onclick={() => openCoursePlayer(course)}
-							>
-								<span>Buka Materi</span>
-								<span class="material-symbols-outlined text-sm">play_arrow</span>
-							</button>
-						</div>
-					</div>
-				{/each}
-			</div>
-
-		<!-- TAB 2: LAPORAN & REKAP KELULUSAN -->
-		{:else if activeTab === 'reports'}
-			<div class="bg-surface-container-lowest border border-slate-200/60 dark:border-slate-800/60 rounded-3xl overflow-hidden shadow-xs">
-				<div class="p-6 border-b border-surface-container flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-					<div>
-						<h3 class="font-extrabold text-base text-on-surface">Rekap Kelulusan Pelatihan & Nilai Karyawan</h3>
-						<p class="text-xs text-on-surface-variant mt-0.5">Daftar kelulusan modul pembelajaran mandiri dan sertifikasi terbitan BCS Academy.</p>
-					</div>
-					<div class="flex items-center gap-3">
-						<button onclick={() => window.print()} class="px-4 py-2 border border-slate-300 dark:border-slate-700 rounded-xl text-xs font-bold text-on-surface hover:bg-surface-container flex items-center gap-1.5">
-							<span class="material-symbols-outlined text-sm">print</span>
-							<span>Cetak Laporan Rekap</span>
+						<button
+							type="button"
+							onclick={() => isSessionModalOpen = true}
+							class="px-4 py-2 rounded-xl bg-primary text-on-primary text-xs font-bold hover:bg-primary/90 flex items-center gap-1.5 shadow-sm transition-all cursor-pointer self-start sm:self-auto"
+						>
+							<span class="material-symbols-outlined text-sm">event</span>
+							<span>Jadwalkan Sesi Baru</span>
 						</button>
 					</div>
-				</div>
 
-				<div class="overflow-x-auto">
-					<table class="w-full text-left text-xs">
-						<thead class="bg-surface-container-low border-b border-surface-container text-on-surface-variant font-bold uppercase tracking-wider text-[10px]">
-							<tr>
-								<th class="py-4 px-6">Karyawan</th>
-								<th class="py-4 px-4">Modul Kursus</th>
-								<th class="py-4 px-4">Kategori</th>
-								<th class="py-4 px-4">Tgl Selesai</th>
-								<th class="py-4 px-4">Nilai Kuis</th>
-								<th class="py-4 px-4">No. Sertifikat</th>
-								<th class="py-4 px-6 text-right">Aksi</th>
-							</tr>
-						</thead>
-						<tbody class="divide-y divide-surface-container font-medium">
-							{#each myLearning as row}
-								<tr class="hover:bg-surface-container-low transition-colors">
-									<td class="py-4 px-6">
-										<p class="font-bold text-on-surface">Karyawan PT BCS</p>
-										<p class="text-[10px] text-on-surface-variant">Divisi Operasional</p>
-									</td>
-									<td class="py-4 px-4 font-bold text-on-surface">{row.title}</td>
-									<td class="py-4 px-4">
-										<span class="px-2 py-0.5 rounded-md text-[10px] font-bold bg-primary-container/50 text-primary">
-											{row.category}
+					<!-- Sesi Training Cards -->
+					<div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+						{#each sessions as s}
+							<div class="p-5 rounded-2xl bg-surface-container border border-slate-200/70 dark:border-slate-800/70 shadow-xs flex flex-col justify-between space-y-3">
+								<div class="space-y-2">
+									<div class="flex items-center justify-between">
+										<span class="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider
+											{s.sessionType === 'ONLINE' ? 'bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300' : 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300'}">
+											{s.sessionType}
 										</span>
-									</td>
-									<td class="py-4 px-4 text-on-surface-variant">{row.lastAccessed}</td>
-									<td class="py-4 px-4">
-										{#if row.score}
-											<span class="font-black text-emerald-600 dark:text-emerald-400">{row.score} / 100</span>
-										{:else}
-											<span class="text-on-surface-variant italic">{row.progress}% (Berjalan)</span>
-										{/if}
-									</td>
-									<td class="py-4 px-4 font-mono text-[11px] text-on-surface-variant">
-										{row.certificateNumber || '-'}
-									</td>
-									<td class="py-4 px-6 text-right">
-										{#if row.hasCertificate}
-											<button 
-												type="button" 
-												onclick={() => openCertificate(row)}
-												class="text-xs font-bold text-primary hover:underline flex items-center gap-1 ml-auto"
-											>
-												<span class="material-symbols-outlined text-sm">workspace_premium</span>
-												<span>Sertifikat</span>
-											</button>
-										{:else}
-											<span class="text-xs text-on-surface-variant opacity-60">Proses</span>
-										{/if}
-									</td>
-								</tr>
-							{/each}
-						</tbody>
-					</table>
-				</div>
-			</div>
+										<span class="font-mono text-xs font-bold text-slate-500">{s.sessionDate}</span>
+									</div>
 
-		<!-- TAB 3: LEARNING PATHS -->
-		{:else if activeTab === 'paths'}
-			<div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-				{#each learningPaths as path}
-					<div class="bg-surface-container-lowest border border-slate-200/60 dark:border-slate-800/60 rounded-3xl p-6 shadow-xs flex flex-col justify-between">
-						<div>
-							<div class="w-12 h-12 rounded-2xl bg-primary-container text-on-primary-container flex items-center justify-center mb-4">
-								<span class="material-symbols-outlined text-2xl">route</span>
+									<h4 class="font-bold text-sm text-on-surface line-clamp-2">{s.title}</h4>
+									<p class="text-xs text-slate-600 dark:text-slate-400 flex items-center gap-1">
+										<span class="material-symbols-outlined text-xs">person</span>
+										<span>Trainer: <strong>{s.trainer}</strong></span>
+									</p>
+									<p class="text-xs text-slate-500 flex items-start gap-1">
+										<span class="material-symbols-outlined text-xs mt-0.5">location_on</span>
+										<span class="line-clamp-2">{s.locationOrLink}</span>
+									</p>
+								</div>
+
+								<div class="pt-3 border-t border-slate-200/60 dark:border-slate-800/60 flex items-center justify-between">
+									<div class="text-[11px] text-slate-500">
+										Jam: <strong>{s.startTime} - {s.endTime}</strong>
+										<div class="text-[10px] text-slate-400">Kuota: {s.actualAttendeeCount} / {s.quota} Peserta</div>
+									</div>
+
+									<button
+										type="button"
+										onclick={() => openAttendanceModal(s)}
+										class="px-3 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 hover:bg-surface-container-high text-xs font-bold text-on-surface flex items-center gap-1 transition-all cursor-pointer"
+									>
+										<span class="material-symbols-outlined text-xs">how_to_reg</span>
+										<span>Absensi</span>
+									</button>
+								</div>
 							</div>
-							<span class="text-[10px] font-black uppercase tracking-widest text-primary mb-1 block">Jalur Jabatan</span>
-							<h3 class="text-base font-extrabold text-on-surface mb-2">{path.title}</h3>
-							<p class="text-xs font-bold text-on-surface-variant mb-4">Target: {path.targetRole}</p>
-							
-							<div class="space-y-2 py-3 border-y border-surface-container text-xs text-on-surface-variant font-medium">
-								<div class="flex justify-between">
-									<span>Total Kursus Terintegrasi</span>
-									<span class="font-bold text-on-surface">{path.requiredCourses} Modul</span>
+						{/each}
+					</div>
+
+					<!-- Riwayat Kehadiran (Attendance Records Table) -->
+					<div class="space-y-3 pt-4">
+						<h4 class="font-black text-sm text-on-surface uppercase tracking-wider">Riwayat Kehadiran Peserta Sesi</h4>
+						<div class="rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden">
+							<table class="w-full text-xs text-left">
+								<thead class="bg-surface-container-high font-bold text-on-surface border-b border-slate-200 dark:border-slate-800">
+									<tr>
+										<th class="p-3">Sesi Pelatihan</th>
+										<th class="p-3">Payroll ID</th>
+										<th class="p-3">Nama Karyawan</th>
+										<th class="p-3">Departemen</th>
+										<th class="p-3 text-center">Status Kehadiran</th>
+										<th class="p-3">Waktu Presensi</th>
+										<th class="p-3">Catatan</th>
+									</tr>
+								</thead>
+								<tbody class="divide-y divide-slate-200 dark:divide-slate-800">
+									{#each attendances as a}
+										<tr class="hover:bg-surface-container/50">
+											<td class="p-3 font-semibold text-on-surface">{a.sessionTitle}</td>
+											<td class="p-3 font-mono text-slate-500">{a.payrollId}</td>
+											<td class="p-3 font-bold text-on-surface">{a.employeeName}</td>
+											<td class="p-3 text-slate-500">{a.department}</td>
+											<td class="p-3 text-center">
+												<span class="px-2 py-0.5 rounded-md text-[10px] font-black uppercase
+													{a.status === 'HADIR' ? 'bg-emerald-100 text-emerald-800' :
+													a.status === 'IZIN' ? 'bg-amber-100 text-amber-800' : 'bg-rose-100 text-rose-800'}">
+													{a.status}
+												</span>
+											</td>
+											<td class="p-3 font-mono text-slate-500">{a.attendedAt}</td>
+											<td class="p-3 text-slate-500 italic">{a.notes || '-'}</td>
+										</tr>
+									{/each}
+								</tbody>
+							</table>
+						</div>
+					</div>
+				</div>
+
+			<!-- TAB 3: EVALUASI KIRKPATRICK -->
+			{:else if activeTab === 'evaluations'}
+				<div class="space-y-6">
+					<!-- Sub-tab Selector -->
+					<div class="flex items-center gap-2 border-b border-slate-200 dark:border-slate-800 pb-3">
+						<button
+							type="button"
+							onclick={() => (evalSubTab = 'l1')}
+							class="px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5
+							{evalSubTab === 'l1'
+								? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-sm'
+								: 'bg-surface-container text-on-surface-variant hover:bg-surface-container-high'}"
+						>
+							<span class="material-symbols-outlined text-sm">sentiment_very_satisfied</span>
+							<span>Level 1: Reaksi & Kepuasan Peserta</span>
+						</button>
+
+						<button
+							type="button"
+							onclick={() => (evalSubTab = 'l3l4')}
+							class="px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5
+							{evalSubTab === 'l3l4'
+								? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-sm'
+								: 'bg-surface-container text-on-surface-variant hover:bg-surface-container-high'}"
+						>
+							<span class="material-symbols-outlined text-sm">supervisor_account</span>
+							<span>Level 3 & 4: Review Atasan Pasca-Training (H+3 Bulan)</span>
+						</button>
+					</div>
+
+					<!-- SUB-TAB 1: LEVEL 1 REACTION -->
+					{#if evalSubTab === 'l1'}
+						<div class="space-y-4">
+							<div class="p-4 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-between">
+								<div class="flex items-center gap-3">
+									<span class="material-symbols-outlined text-amber-500 text-2xl">insights</span>
+									<div>
+										<h4 class="font-black text-sm text-on-surface">Evaluasi Level 1 (Reaction) Kirkpatrick</h4>
+										<p class="text-xs text-on-surface-variant">Survei kepuasan peserta wajib diisi tepat setelah lulus post-test</p>
+									</div>
 								</div>
-								<div class="flex justify-between">
-									<span>Estimasi Total Waktu</span>
-									<span class="font-bold text-on-surface">{path.totalDurationHours} Jam</span>
+								<div class="text-right">
+									<span class="text-xs text-slate-500">Skor Rata-rata:</span>
+									<p class="font-black text-lg text-amber-600 font-mono flex items-center justify-end gap-1">
+										<span>{metrics.avgSatisfaction}</span>
+										<span class="material-symbols-outlined text-sm">star</span>
+									</p>
 								</div>
-								<div class="flex justify-between">
-									<span>Peserta Terdaftar</span>
-									<span class="font-bold text-on-surface">{path.enrolledLearners} Karyawan</span>
-								</div>
+							</div>
+
+							<div class="rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden">
+								<table class="w-full text-xs text-left">
+									<thead class="bg-surface-container-high font-bold text-on-surface border-b border-slate-200 dark:border-slate-800">
+										<tr>
+											<th class="p-3">Tanggal</th>
+											<th class="p-3">Nama Peserta</th>
+											<th class="p-3">Kursus Pelatihan</th>
+											<th class="p-3 text-center">Materi</th>
+											<th class="p-3 text-center">Instruktur</th>
+											<th class="p-3 text-center">Fasilitas</th>
+											<th class="p-3 text-center">Rekomendasi</th>
+											<th class="p-3">Catatan Feedback Peserta</th>
+										</tr>
+									</thead>
+									<tbody class="divide-y divide-slate-200 dark:divide-slate-800">
+										{#each evaluationsL1 as e}
+											<tr class="hover:bg-surface-container/50">
+												<td class="p-3 font-mono text-slate-500">{e.submittedAt}</td>
+												<td class="p-3 font-bold text-on-surface">{e.employeeName}</td>
+												<td class="p-3 font-semibold text-on-surface">{e.courseTitle}</td>
+												<td class="p-3 text-center font-bold text-amber-500">★ {e.contentRating}</td>
+												<td class="p-3 text-center font-bold text-amber-500">★ {e.instructorRating}</td>
+												<td class="p-3 text-center font-bold text-amber-500">★ {e.facilityRating}</td>
+												<td class="p-3 text-center font-bold text-amber-500">★ {e.recommendationRating}</td>
+												<td class="p-3 text-slate-600 dark:text-slate-300 italic max-w-xs truncate">"{e.feedbackNotes}"</td>
+											</tr>
+										{/each}
+									</tbody>
+								</table>
 							</div>
 						</div>
 
-						<div class="pt-4">
-							<div class="flex justify-between text-xs font-bold mb-1.5">
-								<span class="text-on-surface-variant">Rata-rata Kelulusan</span>
-								<span class="text-primary">{path.progressPercent}%</span>
+					<!-- SUB-TAB 2: LEVEL 3 & 4 ATASAN -->
+					{:else}
+						<div class="space-y-4">
+							<div class="p-4 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-between">
+								<div class="flex items-center gap-3">
+									<span class="material-symbols-outlined text-blue-500 text-2xl">verified_user</span>
+									<div>
+										<h4 class="font-black text-sm text-on-surface">Evaluasi Level 3 (Behavior) & Level 4 (Business Impact)</h4>
+										<p class="text-xs text-on-surface-variant">Penilaian efektivitas pelatihan di lapangan oleh atasan langsung pada H+3 bulan</p>
+									</div>
+								</div>
+								<div class="text-right">
+									<span class="text-xs text-slate-500">Antrian Pending:</span>
+									<p class="font-black text-lg text-rose-600 font-mono">{metrics.pendingSupervisorReviews} Karyawan</p>
+								</div>
 							</div>
-							<div class="w-full bg-surface-container rounded-full h-2 overflow-hidden mb-4">
-								<div class="bg-primary h-full rounded-full" style="width: {path.progressPercent}%"></div>
+
+							<div class="rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden">
+								<table class="w-full text-xs text-left">
+									<thead class="bg-surface-container-high font-bold text-on-surface border-b border-slate-200 dark:border-slate-800">
+										<tr>
+											<th class="p-3">Nama Karyawan</th>
+											<th class="p-3">Kursus Pelatihan</th>
+											<th class="p-3">Atasan Penilai</th>
+											<th class="p-3">Due Date (H+3 Bln)</th>
+											<th class="p-3 text-center">Status</th>
+											<th class="p-3 text-center">Skor Lvl 3 (SOP)</th>
+											<th class="p-3 text-center">Skor Lvl 4 (Bisnis)</th>
+											<th class="p-3 text-right">Aksi</th>
+										</tr>
+									</thead>
+									<tbody class="divide-y divide-slate-200 dark:divide-slate-800">
+										{#each evaluationsL3L4 as rev}
+											<tr class="hover:bg-surface-container/50">
+												<td class="p-3">
+													<p class="font-bold text-on-surface">{rev.employeeName}</p>
+													<p class="font-mono text-[10px] text-slate-500">{rev.payrollId}</p>
+												</td>
+												<td class="p-3 font-semibold text-on-surface">{rev.courseTitle}</td>
+												<td class="p-3 text-slate-600 dark:text-slate-300">{rev.supervisorName}</td>
+												<td class="p-3 font-mono {rev.status === 'PENDING' ? 'text-rose-600 font-bold' : 'text-slate-500'}">{rev.dueDate}</td>
+												<td class="p-3 text-center">
+													<span class="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase
+														{rev.status === 'COMPLETED' ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800 animate-pulse'}">
+														{rev.status}
+													</span>
+												</td>
+												<td class="p-3 text-center font-bold text-blue-600">
+													{rev.sopComplianceScore ? `${rev.sopComplianceScore}/5` : '-'}
+												</td>
+												<td class="p-3 text-center font-bold text-purple-600">
+													{rev.businessImpactScore ? `${rev.businessImpactScore}/5` : '-'}
+												</td>
+												<td class="p-3 text-right">
+													{#if rev.status === 'PENDING'}
+														<button
+															type="button"
+															onclick={() => openSupervisorModal(rev)}
+															class="px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold transition-all cursor-pointer shadow-xs"
+														>
+															Beri Penilaian
+														</button>
+													{:else}
+														<span class="text-[10px] text-emerald-600 font-bold flex items-center justify-end gap-1">
+															<span class="material-symbols-outlined text-xs">check_circle</span>
+															<span>Ternilai</span>
+														</span>
+													{/if}
+												</td>
+											</tr>
+										{/each}
+									</tbody>
+								</table>
 							</div>
-							<button class="w-full py-2.5 bg-surface-container hover:bg-surface-container-high text-on-surface rounded-xl text-xs font-bold transition-colors">
-								Kelola Jalur Pelatihan
+						</div>
+					{/if}
+				</div>
+
+			<!-- TAB 4: SAFETY K3 & TRAINING NEED ANALYSIS (TNA) -->
+			{:else if activeTab === 'safety_tna'}
+				<div class="space-y-6">
+					<!-- Panel 1: Annual Safety Test -->
+					<div class="p-5 rounded-2xl bg-gradient-to-r from-emerald-900/30 via-slate-900/40 to-slate-900/40 border border-emerald-500/30 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+						<div class="space-y-1">
+							<div class="flex items-center gap-2">
+								<span class="material-symbols-outlined text-emerald-400 text-xl">security</span>
+								<h3 class="font-black text-base text-white">Annual Safety Test {safetyStats?.year || 2026} (Kepatuhan Wajib K3)</h3>
+								<span class="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-500 text-slate-950 uppercase">Mandatory K3</span>
+							</div>
+							<p class="text-xs text-slate-300">
+								Status kepatuhan: <strong>{safetyStats?.passedDrivers}</strong> dari <strong>{safetyStats?.totalTargetDrivers}</strong> driver ({safetyStats?.complianceRate}%) telah lulus uji keselamatan berkendara berkala.
+							</p>
+						</div>
+
+						<button
+							type="button"
+							onclick={() => isSafetyTestModalOpen = true}
+							class="px-4 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-black flex items-center gap-2 shadow-md transition-all cursor-pointer self-start sm:self-auto"
+						>
+							<span class="material-symbols-outlined text-sm">quiz</span>
+							<span>Mulai Ujian Safety Mandiri</span>
+						</button>
+					</div>
+
+					<!-- Panel 2: Training by Request -->
+					<div class="space-y-3 pt-2">
+						<div class="flex items-center justify-between">
+							<div>
+								<h4 class="font-black text-sm text-on-surface uppercase tracking-wider">Training by Request (Pengajuan Kebutuhan Pelatihan)</h4>
+								<p class="text-xs text-on-surface-variant">Formulir pengajuan usulan pelatihan tahunan oleh Head Department ke HRD</p>
+							</div>
+
+							<button
+								type="button"
+								onclick={() => isRequestModalOpen = true}
+								class="px-3.5 py-2 rounded-xl border border-slate-300 dark:border-slate-700 hover:bg-surface-container text-xs font-bold text-on-surface flex items-center gap-1.5 transition-all cursor-pointer"
+							>
+								<span class="material-symbols-outlined text-sm">post_add</span>
+								<span>+ Ajukan Kebutuhan Training</span>
 							</button>
 						</div>
-					</div>
-				{/each}
-			</div>
 
-		<!-- TAB 4: TRAINING MATRIX -->
-		{:else if activeTab === 'matrix'}
-			<div class="bg-surface-container-lowest border border-slate-200/60 dark:border-slate-800/60 rounded-3xl overflow-hidden shadow-xs">
-				<div class="p-6 border-b border-surface-container flex justify-between items-center">
-					<div>
-						<h3 class="font-extrabold text-base text-on-surface">Matrix Pelatihan & Kepatuhan Standar Industri (K3/QHSE)</h3>
-						<p class="text-xs text-on-surface-variant mt-0.5">Pemetaan modul wajib berdasarkan posisi & level jabatan operasional BCS Logistics.</p>
+						<div class="rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden">
+							<table class="w-full text-xs text-left">
+								<thead class="bg-surface-container-high font-bold text-on-surface border-b border-slate-200 dark:border-slate-800">
+									<tr>
+										<th class="p-3">No. Request</th>
+										<th class="p-3">Departemen</th>
+										<th class="p-3">Judul Pelatihan Diusulkan</th>
+										<th class="p-3">Pengusul</th>
+										<th class="p-3 text-center">Urgensi</th>
+										<th class="p-3 text-center">Target Selesai</th>
+										<th class="p-3 text-center">Status HRD</th>
+									</tr>
+								</thead>
+								<tbody class="divide-y divide-slate-200 dark:divide-slate-800">
+									{#each trainingRequests as req}
+										<tr class="hover:bg-surface-container/50">
+											<td class="p-3 font-mono font-bold text-on-surface">{req.id}</td>
+											<td class="p-3 font-medium text-slate-500">{req.deptName}</td>
+											<td class="p-3 font-bold text-on-surface">{req.trainingTitle}</td>
+											<td class="p-3 text-slate-600 dark:text-slate-300">{req.requestedBy}</td>
+											<td class="p-3 text-center">
+												<span class="px-2 py-0.5 rounded-md text-[10px] font-black uppercase
+													{req.urgency === 'CRITICAL' ? 'bg-rose-100 text-rose-800 font-bold' :
+													req.urgency === 'HIGH' ? 'bg-amber-100 text-amber-800' : 'bg-slate-100 text-slate-800'}">
+													{req.urgency}
+												</span>
+											</td>
+											<td class="p-3 text-center font-mono text-slate-500">{req.targetCompletionDate || '-'}</td>
+											<td class="p-3 text-center">
+												<span class="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase
+													{req.status === 'APPROVED' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}">
+													{req.status}
+												</span>
+											</td>
+										</tr>
+									{/each}
+								</tbody>
+							</table>
+						</div>
 					</div>
-					<button class="px-3.5 py-2 border border-slate-300 dark:border-slate-700 rounded-xl text-xs font-bold text-on-surface hover:bg-surface-container">
-						Export Matrix (PDF/Excel)
-					</button>
-				</div>
 
-				<div class="overflow-x-auto">
-					<table class="w-full text-left text-xs">
-						<thead class="bg-surface-container-low border-b border-surface-container text-on-surface-variant font-bold uppercase tracking-wider text-[10px]">
-							<tr>
-								<th class="py-4 px-6">Posisi / Role</th>
-								<th class="py-4 px-4">K3 & B3 Gudang</th>
-								<th class="py-4 px-4">Defensive Driving</th>
-								<th class="py-4 px-4">Engine Maintenance</th>
-								<th class="py-4 px-4">Sistem ERP BCS</th>
-								<th class="py-4 px-4">Leadership</th>
-								<th class="py-4 px-6 text-right">Tingkat Kepatuhan</th>
-							</tr>
-						</thead>
-						<tbody class="divide-y divide-surface-container font-medium">
-							{#each trainingMatrix as row}
-								<tr class="hover:bg-surface-container-low transition-colors">
-									<td class="py-4 px-6 font-bold text-on-surface">{row.role}</td>
-									<td class="py-4 px-4">
-										<span class="px-2 py-1 rounded-md text-[10px] font-bold {row.k3.includes('Wajib') ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300' : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400'}">
-											{row.k3}
-										</span>
-									</td>
-									<td class="py-4 px-4">
-										<span class="px-2 py-1 rounded-md text-[10px] font-bold {row.defensive.includes('Wajib') ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300' : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400'}">
-											{row.defensive}
-										</span>
-									</td>
-									<td class="py-4 px-4">
-										<span class="px-2 py-1 rounded-md text-[10px] font-bold {row.maintenance.includes('Wajib') ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300' : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400'}">
-											{row.maintenance}
-										</span>
-									</td>
-									<td class="py-4 px-4">
-										<span class="px-2 py-1 rounded-md text-[10px] font-bold {row.erp.includes('Wajib') ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300' : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400'}">
-											{row.erp}
-										</span>
-									</td>
-									<td class="py-4 px-4">
-										<span class="px-2 py-1 rounded-md text-[10px] font-bold {row.leadership.includes('Wajib') ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300' : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400'}">
-											{row.leadership}
-										</span>
-									</td>
-									<td class="py-4 px-6 text-right font-black text-emerald-600 dark:text-emerald-400">
-										{row.compliance}%
-									</td>
-								</tr>
+					<!-- Panel 3: TNA Matrix -->
+					<div class="space-y-3 pt-2">
+						<h4 class="font-black text-sm text-on-surface uppercase tracking-wider">Matrix Training Need Analysis (TNA) & Competency Gap</h4>
+						<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+							{#each tnaMatrix as roleGroup}
+								<div class="p-4 rounded-2xl bg-surface-container border border-slate-200 dark:border-slate-800 space-y-3">
+									<div class="border-b border-slate-200 dark:border-slate-800 pb-2">
+										<h5 class="font-black text-sm text-on-surface">{roleGroup.role}</h5>
+										<p class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">{roleGroup.department}</p>
+									</div>
+
+									<div class="space-y-2 text-xs">
+										{#each roleGroup.competencies as comp}
+											<div class="p-2.5 rounded-xl bg-surface-container-high/60 flex items-center justify-between gap-3">
+												<div class="space-y-0.5">
+													<p class="font-bold text-on-surface">{comp.name}</p>
+													<p class="text-[10px] text-slate-500">Target: {comp.requiredScore} | Aktual: <strong class="text-on-surface">{comp.actualScore}</strong></p>
+												</div>
+
+												<span class="px-2 py-0.5 rounded-md text-[10px] font-black uppercase
+													{comp.status === 'Qualified' ? 'bg-emerald-100 text-emerald-800' :
+													comp.status === 'Need Training' ? 'bg-amber-100 text-amber-800' : 'bg-rose-100 text-rose-800'}">
+													{comp.status}
+												</span>
+											</div>
+										{/each}
+									</div>
+								</div>
 							{/each}
-						</tbody>
-					</table>
+						</div>
+					</div>
 				</div>
-			</div>
-		{/if}
+
+			<!-- TAB 5: LAPORAN & E-SERTIFIKAT -->
+			{:else if activeTab === 'reports'}
+				<div class="space-y-6">
+					<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+						<div>
+							<h3 class="font-black text-base text-on-surface">Rekapitulasi Nilai & E-Sertifikat Digital</h3>
+							<p class="text-xs text-on-surface-variant mt-0.5">Daftar sertifikat kelulusan resmi ber-QR code otentikasi siap cetak A4 landscape</p>
+						</div>
+
+						<button
+							type="button"
+							onclick={exportReportsToCSV}
+							class="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold flex items-center gap-2 shadow-sm transition-all cursor-pointer self-start sm:self-auto"
+						>
+							<span class="material-symbols-outlined text-sm">download</span>
+							<span>Export ke CSV / Excel</span>
+						</button>
+					</div>
+
+					<div class="rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden">
+						<table class="w-full text-xs text-left">
+							<thead class="bg-surface-container-high font-bold text-on-surface border-b border-slate-200 dark:border-slate-800">
+								<tr>
+									<th class="p-3">No. Sertifikat</th>
+									<th class="p-3">Nama Karyawan</th>
+									<th class="p-3">Kursus Pelatihan</th>
+									<th class="p-3">Kategori</th>
+									<th class="p-3 text-center">Nilai Ujian</th>
+									<th class="p-3">Tanggal Terbit</th>
+									<th class="p-3 text-right">Aksi Dokumen</th>
+								</tr>
+							</thead>
+							<tbody class="divide-y divide-slate-200 dark:divide-slate-800">
+								{#each certificates as cert}
+									<tr class="hover:bg-surface-container/50">
+										<td class="p-3 font-mono font-bold text-primary">{cert.certificateNumber}</td>
+										<td class="p-3">
+											<p class="font-bold text-on-surface">{cert.employeeName}</p>
+											<p class="font-mono text-[10px] text-slate-500">{cert.payrollId}</p>
+										</td>
+										<td class="p-3 font-semibold text-on-surface">{cert.courseTitle}</td>
+										<td class="p-3 text-slate-500">{cert.category}</td>
+										<td class="p-3 text-center font-bold text-emerald-600 font-mono text-sm">{cert.score}</td>
+										<td class="p-3 font-mono text-slate-500">{cert.issuedAt}</td>
+										<td class="p-3 text-right">
+											<button
+												type="button"
+												onclick={() => openCertificate(cert)}
+												class="px-3 py-1.5 rounded-lg bg-primary hover:bg-primary/90 text-on-primary text-xs font-bold inline-flex items-center gap-1.5 shadow-xs cursor-pointer"
+											>
+												<span class="material-symbols-outlined text-sm">workspace_premium</span>
+												<span>Lihat Sertifikat</span>
+											</button>
+										</td>
+									</tr>
+								{/each}
+							</tbody>
+						</table>
+					</div>
+				</div>
+			{/if}
+		</div>
 	</div>
 </div>
 
-<!-- ============================================== -->
-<!-- MODAL 1: TAMBAH KURSUS BARU                    -->
-<!-- ============================================== -->
-{#if isCreateModalOpen}
-	<div class="fixed inset-0 bg-black/50 backdrop-blur-sm z-[200] flex items-center justify-center p-4 animate-in fade-in duration-200">
-		<div class="bg-surface-container-lowest rounded-3xl w-full max-w-lg shadow-2xl p-6 border border-surface-container max-h-[90vh] overflow-y-auto">
-			<div class="flex justify-between items-center mb-4">
-				<h3 class="font-extrabold text-lg text-on-surface">Tambah Kursus Baru ke LMS</h3>
-				<button type="button" onclick={() => isCreateModalOpen = false} class="text-on-surface-variant hover:text-on-surface">
-					<span class="material-symbols-outlined">close</span>
+<!-- ════════════════════════════════════════════════════════════════════════ -->
+<!-- MODAL 1: SEQUENTIAL COURSE PLAYER (Pre-Test -> Modules -> Post-Test)    -->
+<!-- ════════════════════════════════════════════════════════════════════════ -->
+{#if isPlayerModalOpen && activeCourseForPlayer}
+	<div class="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-xs flex items-center justify-center p-4">
+		<div class="bg-surface rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xl w-full max-w-4xl h-[90vh] flex flex-col overflow-hidden animate-in zoom-in-95 duration-150">
+			<!-- Header -->
+			<div class="p-4 border-b border-slate-200 dark:border-slate-800 bg-surface-container flex items-center justify-between">
+				<div class="flex items-center gap-3">
+					<div class="w-10 h-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center font-bold">
+						<span class="material-symbols-outlined text-xl">play_lesson</span>
+					</div>
+					<div>
+						<h3 class="font-black text-sm text-on-surface">{activeCourseForPlayer.title}</h3>
+						<p class="text-xs text-on-surface-variant">Instruktur: {activeCourseForPlayer.instructor} • Passing Grade: {activeCourseForPlayer.passingGrade}</p>
+					</div>
+				</div>
+
+				<button
+					type="button"
+					onclick={() => (isPlayerModalOpen = false)}
+					class="w-8 h-8 rounded-full bg-surface-container-highest flex items-center justify-center text-on-surface-variant hover:text-on-surface cursor-pointer"
+				>
+					<span class="material-symbols-outlined text-lg">close</span>
 				</button>
 			</div>
 
-			<form method="POST" action="?/createCourse" use:enhance class="space-y-4">
+			<!-- Sequential Progress Bar -->
+			<div class="grid grid-cols-5 border-b border-slate-200 dark:border-slate-800 text-[11px] font-bold bg-surface-container-high/40">
+				<div class="p-2.5 text-center flex items-center justify-center gap-1.5 border-r border-slate-200 dark:border-slate-800
+					{playerStep === 1 ? 'bg-primary text-on-primary font-black' : playerStep > 1 ? 'text-emerald-600' : 'text-slate-400'}">
+					<span class="material-symbols-outlined text-xs">{playerStep > 1 ? 'check_circle' : 'looks_one'}</span>
+					<span>1. Pre-Test</span>
+				</div>
+
+				<div class="p-2.5 text-center flex items-center justify-center gap-1.5 border-r border-slate-200 dark:border-slate-800
+					{playerStep === 2 ? 'bg-primary text-on-primary font-black' : playerStep > 2 ? 'text-emerald-600' : 'text-slate-400'}">
+					<span class="material-symbols-outlined text-xs">{playerStep > 2 ? 'check_circle' : 'looks_two'}</span>
+					<span>2. Modul Materi</span>
+				</div>
+
+				<div class="p-2.5 text-center flex items-center justify-center gap-1.5 border-r border-slate-200 dark:border-slate-800
+					{playerStep === 3 ? 'bg-primary text-on-primary font-black' : playerStep > 3 ? 'text-emerald-600' : 'text-slate-400'}">
+					<span class="material-symbols-outlined text-xs">{playerStep > 3 ? 'check_circle' : 'looks_3'}</span>
+					<span>3. Post-Test</span>
+				</div>
+
+				<div class="p-2.5 text-center flex items-center justify-center gap-1.5 border-r border-slate-200 dark:border-slate-800
+					{playerStep === 4 ? 'bg-primary text-on-primary font-black' : playerStep > 4 ? 'text-emerald-600' : 'text-slate-400'}">
+					<span class="material-symbols-outlined text-xs">{playerStep > 4 ? 'check_circle' : 'looks_4'}</span>
+					<span>4. Evaluasi Lvl 1</span>
+				</div>
+
+				<div class="p-2.5 text-center flex items-center justify-center gap-1.5
+					{playerStep === 5 ? 'bg-emerald-600 text-white font-black' : 'text-slate-400'}">
+					<span class="material-symbols-outlined text-xs">workspace_premium</span>
+					<span>5. E-Sertifikat</span>
+				</div>
+			</div>
+
+			<!-- Player Content Body -->
+			<div class="flex-1 overflow-y-auto p-6">
+				<!-- STEP 1: PRE-TEST -->
+				{#if playerStep === 1}
+					<div class="max-w-2xl mx-auto space-y-6">
+						<div class="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30">
+							<h4 class="font-black text-sm text-on-surface">Langkah 1: Pre-Test Wajib</h4>
+							<p class="text-xs text-on-surface-variant mt-1 leading-relaxed">
+								Kerjakan soal pre-test di bawah ini untuk mengukur pemahaman awal Anda sebelum materi kursus dibuka.
+							</p>
+						</div>
+
+						<div class="space-y-4">
+							{#each activePreTestQuestions as q, idx}
+								<div class="p-4 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800 space-y-3">
+									<p class="font-bold text-sm text-on-surface">{idx + 1}. {q.questionText}</p>
+									<div class="space-y-2">
+										{#each q.options as opt}
+											<label class="flex items-center gap-3 p-2.5 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-surface-container-high cursor-pointer">
+												<input
+													type="radio"
+													name={`pre_${q.id}`}
+													value={opt.key}
+													bind:group={preTestAnswered[q.id]}
+													class="text-primary focus:ring-primary"
+												/>
+												<span class="text-xs text-on-surface"><strong>{opt.key}.</strong> {opt.text}</span>
+											</label>
+										{/each}
+									</div>
+								</div>
+							{/each}
+						</div>
+
+						<div class="flex justify-end pt-3">
+							<button
+								type="button"
+								onclick={handlePreTestSubmit}
+								class="px-6 py-2.5 rounded-xl bg-primary text-on-primary font-bold text-xs shadow-md hover:bg-primary/90 transition-all cursor-pointer"
+							>
+								Submit Pre-Test & Buka Modul Materi
+							</button>
+						</div>
+					</div>
+
+				<!-- STEP 2: MATERI MODUL -->
+				{:else if playerStep === 2}
+					{@const currentModule = activeCourseForPlayer.modules?.[activeModuleIndex] || { title: 'Materi Modul', type: 'VIDEO', contentBody: 'Materi pembelajaran.' }}
+					<div class="grid grid-cols-1 md:grid-cols-4 gap-6 h-full">
+						<!-- Sidebar Daftar Modul -->
+						<div class="space-y-2 border-r border-slate-200 dark:border-slate-800 pr-4">
+							<p class="text-xs font-black uppercase tracking-wider text-slate-500">Daftar Modul Kursus</p>
+							{#each activeCourseForPlayer.modules || [] as mod, idx}
+								<button
+									type="button"
+									onclick={() => (activeModuleIndex = idx)}
+									class="w-full text-left p-2.5 rounded-xl text-xs font-semibold flex items-center justify-between transition-all cursor-pointer
+									{activeModuleIndex === idx
+										? 'bg-primary text-on-primary font-bold shadow-xs'
+										: idx < activeModuleIndex
+										? 'bg-emerald-50 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300'
+										: 'bg-surface-container text-on-surface-variant'}"
+								>
+									<span class="truncate">{idx + 1}. {mod.title}</span>
+									<span class="material-symbols-outlined text-xs">{idx < activeModuleIndex ? 'check_circle' : 'play_arrow'}</span>
+								</button>
+							{/each}
+						</div>
+
+						<!-- Main Media Viewer -->
+						<div class="md:col-span-3 flex flex-col justify-between space-y-4">
+							<div class="space-y-4">
+								<div class="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-2">
+									<div>
+										<span class="px-2 py-0.5 rounded-md text-[9px] font-black uppercase bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300">
+											{currentModule.type}
+										</span>
+										<h4 class="font-black text-base text-on-surface mt-1">{currentModule.title}</h4>
+									</div>
+									<span class="text-xs text-slate-500">{currentModule.durationText}</span>
+								</div>
+
+								<!-- Player Window Mockup -->
+								{#if currentModule.type === 'VIDEO'}
+									<div class="w-full h-72 rounded-2xl bg-slate-950 flex flex-col items-center justify-center text-white relative overflow-hidden shadow-inner">
+										<span class="material-symbols-outlined text-6xl text-primary animate-pulse">play_circle</span>
+										<p class="font-bold text-sm mt-2">Video Pembelajaran Aktif</p>
+										<p class="text-xs text-slate-400">Tekan play untuk menyaksikan materi dan penjelasan instruktur</p>
+									</div>
+								{:else}
+									<div class="p-6 rounded-2xl bg-surface-container border border-slate-200 dark:border-slate-800 space-y-3">
+										<div class="flex items-center gap-2 text-primary font-bold text-xs">
+											<span class="material-symbols-outlined text-sm">description</span>
+											<span>Dokumen SOP / Panduan Standar Operasional</span>
+										</div>
+										<p class="text-xs text-on-surface leading-relaxed whitespace-pre-wrap">{currentModule.contentBody}</p>
+									</div>
+								{/if}
+							</div>
+
+							<div class="flex justify-between items-center pt-4 border-t border-slate-200 dark:border-slate-800">
+								<span class="text-xs text-slate-500">
+									Modul {activeModuleIndex + 1} dari {activeCourseForPlayer.modules?.length || 1}
+								</span>
+
+								<button
+									type="button"
+									onclick={nextModule}
+									class="px-5 py-2.5 rounded-xl bg-primary text-on-primary text-xs font-bold hover:bg-primary/90 flex items-center gap-1.5 shadow-xs cursor-pointer"
+								>
+									<span>{activeModuleIndex < (activeCourseForPlayer.modules?.length || 1) - 1 ? 'Lanjut ke Modul Berikutnya' : 'Selesai Modul & Buka Post-Test'}</span>
+									<span class="material-symbols-outlined text-xs">arrow_forward</span>
+								</button>
+							</div>
+						</div>
+					</div>
+
+				<!-- STEP 3: POST-TEST -->
+				{:else if playerStep === 3}
+					<div class="max-w-2xl mx-auto space-y-6">
+						<div class="p-4 rounded-2xl bg-primary/10 border border-primary/30">
+							<h4 class="font-black text-sm text-on-surface">Langkah 3: Post-Test Kelulusan</h4>
+							<p class="text-xs text-on-surface-variant mt-1 leading-relaxed">
+								Selesaikan pertanyaan post-test di bawah ini. Passing Grade kelulusan kursus ini adalah <strong>{activeCourseForPlayer.passingGrade}</strong>.
+							</p>
+						</div>
+
+						<div class="space-y-4">
+							{#each activePostTestQuestions as q, idx}
+								<div class="p-4 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800 space-y-3">
+									<p class="font-bold text-sm text-on-surface">{idx + 1}. {q.questionText}</p>
+									<div class="space-y-2">
+										{#each q.options as opt}
+											<label class="flex items-center gap-3 p-2.5 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-surface-container-high cursor-pointer">
+												<input
+													type="radio"
+													name={`post_${q.id}`}
+													value={opt.key}
+													bind:group={postTestAnswered[q.id]}
+													class="text-primary focus:ring-primary"
+												/>
+												<span class="text-xs text-on-surface"><strong>{opt.key}.</strong> {opt.text}</span>
+											</label>
+										{/each}
+									</div>
+								</div>
+							{/each}
+						</div>
+
+						<div class="flex justify-end pt-3">
+							<button
+								type="button"
+								onclick={handleLocalPostTestSubmit}
+								class="px-6 py-2.5 rounded-xl bg-emerald-600 text-white font-bold text-xs shadow-md hover:bg-emerald-500 transition-all cursor-pointer"
+							>
+								Submit Jawaban & Nilai Kelulusan
+							</button>
+						</div>
+					</div>
+
+				<!-- STEP 4: EVALUASI LEVEL 1 (REACTION) -->
+				{:else if playerStep === 4}
+					<div class="max-w-xl mx-auto space-y-6">
+						<div class="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 text-center space-y-1">
+							<span class="material-symbols-outlined text-emerald-600 text-4xl">check_circle</span>
+							<h4 class="font-black text-base text-on-surface">Selamat! Anda LULUS Post-Test</h4>
+							<p class="text-xs text-on-surface-variant">
+								Nilai Post-Test: <strong class="text-emerald-600 font-mono text-sm">{postTestResult?.score || 90}/100</strong>. Harap lengkapi evaluasi reaksi sebelum mengunduh sertifikat.
+							</p>
+						</div>
+
+						<div class="p-5 rounded-2xl bg-surface-container border border-slate-200 dark:border-slate-800 space-y-4">
+							<h5 class="font-black text-xs uppercase tracking-wider text-slate-500">Evaluasi Kepuasan Pelatihan (Kirkpatrick Level 1)</h5>
+
+							<div class="space-y-3 text-xs">
+								<div class="flex justify-between items-center">
+									<span>Kualitas & Manfaat Materi:</span>
+									<select bind:value={evalL1Ratings.content} class="px-3 py-1 rounded-lg bg-surface border border-slate-300 dark:border-slate-700">
+										<option value={5}>5 - Sangat Baik</option>
+										<option value={4}>4 - Baik</option>
+										<option value={3}>3 - Cukup</option>
+									</select>
+								</div>
+
+								<div class="flex justify-between items-center">
+									<span>Kompetensi & Cara Mengajar Instruktur:</span>
+									<select bind:value={evalL1Ratings.instructor} class="px-3 py-1 rounded-lg bg-surface border border-slate-300 dark:border-slate-700">
+										<option value={5}>5 - Sangat Baik</option>
+										<option value={4}>4 - Baik</option>
+										<option value={3}>3 - Cukup</option>
+									</select>
+								</div>
+
+								<div class="flex justify-between items-center">
+									<span>Kemudahan Akses Platform LMS / Fasilitas:</span>
+									<select bind:value={evalL1Ratings.facility} class="px-3 py-1 rounded-lg bg-surface border border-slate-300 dark:border-slate-700">
+										<option value={5}>5 - Sangat Baik</option>
+										<option value={4}>4 - Baik</option>
+										<option value={3}>3 - Cukup</option>
+									</select>
+								</div>
+
+								<div class="space-y-1 pt-2">
+									<label class="font-bold text-on-surface block">Komentar & Masukan Kualitatif:</label>
+									<textarea
+										bind:value={evalL1Ratings.notes}
+										rows="3"
+										placeholder="Uraikan saran perbaikan atau materi yang sangat bermanfaat bagi pekerjaan Anda..."
+										class="w-full p-2.5 rounded-xl bg-surface border border-slate-300 dark:border-slate-700 resize-none text-xs"
+									></textarea>
+								</div>
+							</div>
+
+							<button
+								type="button"
+								onclick={handleLocalEvalL1Submit}
+								class="w-full py-2.5 rounded-xl bg-primary text-on-primary font-bold text-xs shadow-md hover:bg-primary/90 transition-all cursor-pointer"
+							>
+								Simpan Evaluasi & Terbitkan E-Sertifikat
+							</button>
+						</div>
+					</div>
+
+				<!-- STEP 5: SELESAI / E-SERTIFIKAT -->
+				{:else if playerStep === 5}
+					<div class="max-w-md mx-auto text-center space-y-5 py-8">
+						<div class="w-16 h-16 rounded-3xl bg-emerald-500/20 text-emerald-600 flex items-center justify-center mx-auto">
+							<span class="material-symbols-outlined text-4xl">workspace_premium</span>
+						</div>
+
+						<div class="space-y-1">
+							<h3 class="font-black text-xl text-on-surface">Kursus Selesai & Terakreditasi!</h3>
+							<p class="text-xs text-on-surface-variant leading-relaxed">
+								Selamat kepada <strong>GUNTORO MUHAMAD</strong> atas keberhasilan menyelesaikan kursus <em>{activeCourseForPlayer.title}</em>. E-Sertifikat resmi Anda telah terbit di sistem HRIS.
+							</p>
+						</div>
+
+						<div class="p-4 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800 text-left text-xs space-y-1">
+							<p class="text-slate-500">Nomor Sertifikat: <strong class="font-mono text-primary">{postTestResult?.certNumber || 'CERT-BCS-2026-0889'}</strong></p>
+							<p class="text-slate-500">Nilai Akhir: <strong class="font-mono text-emerald-600">{postTestResult?.score || 95}/100</strong></p>
+							<p class="text-slate-500">Status Evaluasi Atasan: <span class="text-amber-600 font-bold">Dijadwalkan H+3 Bulan</span></p>
+						</div>
+
+						<div class="flex gap-3 justify-center pt-2">
+							<button
+								type="button"
+								onclick={() => (isPlayerModalOpen = false)}
+								class="px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 text-xs font-bold hover:bg-surface-container"
+							>
+								Tutup Player
+							</button>
+
+							<button
+								type="button"
+								onclick={() => {
+									isPlayerModalOpen = false;
+									openCertificate({
+										certificateNumber: postTestResult?.certNumber || 'CERT-BCS-2026-0889',
+										payrollId: 'EMP-0042',
+										employeeName: 'GUNTORO MUHAMAD',
+										courseTitle: activeCourseForPlayer.title,
+										category: activeCourseForPlayer.category,
+										score: postTestResult?.score || 95,
+										issuedAt: new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }),
+										qrVerifyUrl: `https://academy.bcslabs.tech/verify/${postTestResult?.certNumber || 'CERT-BCS-2026-0889'}`
+									});
+								}}
+								class="px-5 py-2.5 rounded-xl bg-primary text-on-primary text-xs font-bold hover:bg-primary/90 shadow-md flex items-center gap-1.5"
+							>
+								<span class="material-symbols-outlined text-sm">print</span>
+								<span>Buka & Cetak E-Sertifikat</span>
+							</button>
+						</div>
+					</div>
+				{/if}
+			</div>
+		</div>
+	</div>
+{/if}
+
+<!-- ════════════════════════════════════════════════════════════════════════ -->
+<!-- MODAL 2: TAMBAH KURSUS BARU (CREATE COURSE)                             -->
+<!-- ════════════════════════════════════════════════════════════════════════ -->
+{#if isCreateModalOpen}
+	<div class="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-4">
+		<div class="bg-surface rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xl w-full max-w-lg overflow-hidden p-6 space-y-4 animate-in zoom-in-95 duration-150">
+			<div class="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800">
+				<h3 class="font-black text-base text-on-surface">Tambah Kursus Baru ke Katalog</h3>
+				<button type="button" onclick={() => (isCreateModalOpen = false)} class="w-8 h-8 rounded-full bg-surface-container flex items-center justify-center text-slate-400 hover:text-slate-600">
+					<span class="material-symbols-outlined text-lg">close</span>
+				</button>
+			</div>
+
+			<form method="POST" action="?/createCourse" use:enhance class="space-y-3.5 text-xs">
 				<div>
-					<label class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-1.5">Judul Kursus</label>
-					<input type="text" name="title" required placeholder="cth: SOP Keselamatan Pengemudi Angkutan Berat" class="w-full bg-surface-container border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm" />
+					<label class="font-bold text-on-surface block mb-1">Judul Kursus *</label>
+					<input type="text" name="title" required placeholder="Contoh: Defensive Driving Angkutan Berat..." class="w-full px-3 py-2 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800" />
 				</div>
 
 				<div class="grid grid-cols-2 gap-3">
 					<div>
-						<label class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-1.5">Kategori</label>
-						<select name="category" required class="w-full bg-surface-container border border-slate-300 dark:border-slate-700 rounded-xl px-3 py-2.5 text-sm cursor-pointer">
-							<option value="Operations">Operations</option>
-							<option value="QHSE & Safety">QHSE & Safety</option>
-							<option value="Technical">Technical</option>
-							<option value="Digital Systems">Digital Systems</option>
-							<option value="Leadership">Leadership</option>
+						<label class="font-bold text-on-surface block mb-1">Kategori</label>
+						<select name="category" class="w-full px-3 py-2 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800">
+							{#each categories.filter(c => c !== 'All') as cat}
+								<option value={cat}>{cat}</option>
+							{/each}
 						</select>
 					</div>
 
 					<div>
-						<label class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-1.5">Tingkat Level</label>
-						<select name="level" class="w-full bg-surface-container border border-slate-300 dark:border-slate-700 rounded-xl px-3 py-2.5 text-sm cursor-pointer">
+						<label class="font-bold text-on-surface block mb-1">Tingkat Level</label>
+						<select name="level" class="w-full px-3 py-2 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800">
 							<option value="Mandatory">Mandatory (Wajib)</option>
-							<option value="Beginner">Beginner</option>
-							<option value="Intermediate">Intermediate</option>
-							<option value="Advanced">Advanced</option>
+							<option value="Beginner">Beginner (Dasar)</option>
+							<option value="Intermediate">Intermediate (Menengah)</option>
+							<option value="Advanced">Advanced (Lanjutan)</option>
 						</select>
 					</div>
 				</div>
 
 				<div class="grid grid-cols-2 gap-3">
 					<div>
-						<label class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-1.5">Estimasi Durasi (Menit)</label>
-						<input type="number" name="durationMinutes" value="120" class="w-full bg-surface-container border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm" />
+						<label class="font-bold text-on-surface block mb-1">Nama Instruktur / Trainer</label>
+						<input type="text" name="instructor" placeholder="Contoh: Capt. Rahmat Hidayat..." class="w-full px-3 py-2 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800" />
 					</div>
+
 					<div>
-						<label class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-1.5">Instruktur / Pemateri</label>
-						<input type="text" name="instructor" placeholder="cth: Ir. Bambang (QHSE)" class="w-full bg-surface-container border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm" />
+						<label class="font-bold text-on-surface block mb-1">Passing Grade Kelulusan</label>
+						<input type="number" name="passingGrade" value="75" min="50" max="100" class="w-full px-3 py-2 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800 font-mono" />
 					</div>
 				</div>
 
 				<div>
-					<label class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-1.5">Deskripsi Singkat & Target Kompetensi</label>
-					<textarea name="description" rows="3" placeholder="Jelaskan silabus dan sasaran pembelajaran materi ini..." class="w-full bg-surface-container border border-slate-300 dark:border-slate-700 rounded-xl p-3 text-sm"></textarea>
+					<label class="font-bold text-on-surface block mb-1">Deskripsi Singkat Kursus</label>
+					<textarea name="description" rows="2" placeholder="Uraikan kompetensi dan hasil belajar dari kursus ini..." class="w-full px-3 py-2 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800 resize-none"></textarea>
 				</div>
 
-				<div class="pt-4 border-t border-surface-container flex justify-end gap-3">
-					<button type="button" onclick={() => isCreateModalOpen = false} class="px-5 py-2.5 rounded-full font-bold text-on-surface-variant hover:bg-surface-container text-sm">
+				<div class="flex justify-end gap-2 pt-3 border-t border-slate-200 dark:border-slate-800">
+					<button type="button" onclick={() => (isCreateModalOpen = false)} class="px-4 py-2 rounded-xl border text-xs font-bold hover:bg-surface-container">
 						Batal
 					</button>
-					<button type="submit" class="bg-primary text-on-primary px-6 py-2.5 rounded-full font-bold shadow-md hover:shadow-lg transition-all text-sm">
-						Simpan Kursus
+					<button type="submit" class="px-4 py-2 rounded-xl bg-primary text-on-primary text-xs font-bold hover:bg-primary/90 flex items-center gap-1">
+						<span class="material-symbols-outlined text-sm">save</span>
+						<span>Simpan ke Database</span>
 					</button>
 				</div>
 			</form>
@@ -538,185 +1332,483 @@
 	</div>
 {/if}
 
-<!-- ============================================== -->
-<!-- MODAL 2: COURSE PLAYER & QUIZ ASSESSMENT       -->
-<!-- ============================================== -->
-{#if isPlayerModalOpen && activeCourseForPlayer}
-	<div class="fixed inset-0 bg-black/60 backdrop-blur-md z-[200] flex items-center justify-center p-4 animate-in fade-in duration-200">
-		<div class="bg-surface-container-lowest rounded-3xl w-full max-w-4xl shadow-2xl border border-surface-container h-[85vh] flex flex-col overflow-hidden">
-			<!-- Player Top Bar -->
-			<div class="p-4 px-6 border-b border-surface-container flex justify-between items-center bg-surface-container-low">
+<!-- ════════════════════════════════════════════════════════════════════════ -->
+<!-- MODAL 3: JADWAL SESI TRAINING BARU (CREATE SESSION)                     -->
+<!-- ════════════════════════════════════════════════════════════════════════ -->
+{#if isSessionModalOpen}
+	<div class="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-4">
+		<div class="bg-surface rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xl w-full max-w-lg overflow-hidden p-6 space-y-4 animate-in zoom-in-95 duration-150">
+			<div class="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800">
+				<h3 class="font-black text-base text-on-surface">Jadwalkan Sesi Training Baru</h3>
+				<button type="button" onclick={() => (isSessionModalOpen = false)} class="w-8 h-8 rounded-full bg-surface-container flex items-center justify-center text-slate-400 hover:text-slate-600">
+					<span class="material-symbols-outlined text-lg">close</span>
+				</button>
+			</div>
+
+			<form method="POST" action="?/createSession" use:enhance class="space-y-3.5 text-xs">
 				<div>
-					<span class="text-[10px] font-black uppercase tracking-wider text-primary">{activeCourseForPlayer.category}</span>
-					<h3 class="font-extrabold text-base text-on-surface">{activeCourseForPlayer.title}</h3>
-				</div>
-				<button type="button" onclick={() => isPlayerModalOpen = false} class="text-on-surface-variant hover:text-on-surface">
-					<span class="material-symbols-outlined">close</span>
-				</button>
-			</div>
-
-			<!-- Player Body: Split Screen -->
-			<div class="flex-1 flex flex-col md:flex-row overflow-hidden">
-				<!-- Left: Video / Content Player Canvas -->
-				<div class="flex-1 p-6 flex flex-col justify-between overflow-y-auto bg-slate-950 text-white">
-					{#if activeCourseForPlayer.modules[activeModuleIndex]?.type === 'QUIZ'}
-						<div class="space-y-6">
-							<div class="flex items-center gap-2 text-amber-400">
-								<span class="material-symbols-outlined">quiz</span>
-								<h4 class="font-extrabold text-lg">Evaluasi Akhir & Post-Test Kelulusan</h4>
-							</div>
-							<p class="text-xs text-slate-300">Jawab pertanyaan berikut untuk menyelesaikan kursus ini dan mendapatkan sertifikat.</p>
-							
-							<div class="space-y-4">
-								<div class="bg-slate-900/80 p-4 rounded-2xl border border-slate-800">
-									<p class="text-sm font-bold mb-3">1. Apa langkah pertama yang wajib dilakukan pengemudi sebelum memulai perjalanan (P2H)?</p>
-									<div class="space-y-2 text-xs">
-										<label class="flex items-center gap-3 p-2.5 bg-slate-800/60 rounded-xl cursor-pointer hover:bg-slate-800">
-											<input type="radio" name="q1" value="A" class="text-primary" />
-											<span>A. Memeriksa tekanan ban, rem angin, level oli mesin, dan kelengkapan surat kendaraan</span>
-										</label>
-										<label class="flex items-center gap-3 p-2.5 bg-slate-800/60 rounded-xl cursor-pointer hover:bg-slate-800">
-											<input type="radio" name="q1" value="B" class="text-primary" />
-											<span>B. Langsung memacu kendaraan dengan kecepatan maksimal di jalan tol</span>
-										</label>
-										<label class="flex items-center gap-3 p-2.5 bg-slate-800/60 rounded-xl cursor-pointer hover:bg-slate-800">
-											<input type="radio" name="q1" value="C" class="text-primary" />
-											<span>C. Mengabaikan indikator peringatan dashboard jika muatan ringan</span>
-										</label>
-									</div>
-								</div>
-
-								<div class="bg-slate-900/80 p-4 rounded-2xl border border-slate-800">
-									<p class="text-sm font-bold mb-3">2. Jarak aman minimal antar kendaraan muatan berat saat kondisi jalan basah adalah:</p>
-									<div class="space-y-2 text-xs">
-										<label class="flex items-center gap-3 p-2.5 bg-slate-800/60 rounded-xl cursor-pointer hover:bg-slate-800">
-											<input type="radio" name="q2" value="A" class="text-primary" />
-											<span>A. Minimal 50 - 100 meter (Aturan 4 Detik)</span>
-										</label>
-										<label class="flex items-center gap-3 p-2.5 bg-slate-800/60 rounded-xl cursor-pointer hover:bg-slate-800">
-											<input type="radio" name="q2" value="B" class="text-primary" />
-											<span>B. Menempel sedekat mungkin untuk memotong hambatan angin</span>
-										</label>
-									</div>
-								</div>
-							</div>
-
-							{#if activeQuizSubmitted}
-								<div class="p-4 bg-emerald-950/80 border border-emerald-500/40 rounded-2xl text-center space-y-2 animate-in zoom-in-95">
-									<span class="material-symbols-outlined text-3xl text-emerald-400">verified</span>
-									<h4 class="font-extrabold text-base text-emerald-300">Selamat! Anda Lulus dengan Nilai 100/100</h4>
-									<p class="text-xs text-slate-300">Sertifikat kelulusan digital telah diterbitkan otomatis dan tercatat di profil HRIS Anda.</p>
-								</div>
-							{:else}
-								<button 
-									type="button"
-									onclick={() => activeQuizSubmitted = true}
-									class="bg-emerald-600 hover:bg-emerald-500 text-white px-6 py-3 rounded-xl text-xs font-bold shadow-lg transition-all cursor-pointer"
-								>
-									Kirim Jawaban & Selesaikan Kuis
-								</button>
-							{/if}
-						</div>
-					{:else}
-						<!-- Video Screen Mockup -->
-						<div class="aspect-video w-full bg-slate-900 rounded-2xl border border-slate-800 flex flex-col items-center justify-center p-6 text-center space-y-3 relative overflow-hidden">
-							<div class="w-16 h-16 rounded-full bg-primary/20 text-primary flex items-center justify-center shadow-lg animate-pulse">
-								<span class="material-symbols-outlined text-3xl">smart_display</span>
-							</div>
-							<div>
-								<h4 class="font-bold text-sm text-white">{activeCourseForPlayer.modules[activeModuleIndex]?.title}</h4>
-								<p class="text-[11px] text-slate-400 mt-1">Durasi: {activeCourseForPlayer.modules[activeModuleIndex]?.duration} • Format: {activeCourseForPlayer.modules[activeModuleIndex]?.type}</p>
-							</div>
-							<div class="flex gap-3 pt-2">
-								<button class="bg-white/10 hover:bg-white/20 text-white px-4 py-1.5 rounded-full text-xs font-bold flex items-center gap-1.5">
-									<span class="material-symbols-outlined text-sm">play_arrow</span> Putar Video
-								</button>
-								<button class="bg-white/10 hover:bg-white/20 text-white px-4 py-1.5 rounded-full text-xs font-bold flex items-center gap-1.5">
-									<span class="material-symbols-outlined text-sm">download</span> Unduh PDF Modul
-								</button>
-							</div>
-						</div>
-
-						<div class="mt-4 flex justify-between items-center">
-							<span class="text-xs text-slate-400">Instruktur: {activeCourseForPlayer.instructor}</span>
-							<button 
-								type="button"
-								onclick={() => {
-									if (activeModuleIndex < activeCourseForPlayer.modules.length - 1) {
-										activeModuleIndex += 1;
-									}
-								}}
-								class="bg-primary text-on-primary px-4 py-2 rounded-xl text-xs font-bold hover:bg-primary/90 transition-colors flex items-center gap-1.5"
-							>
-								<span>Bab Selanjutnya</span>
-								<span class="material-symbols-outlined text-sm">arrow_forward</span>
-							</button>
-						</div>
-					{/if}
+					<label class="font-bold text-on-surface block mb-1">Judul Sesi Pelatihan *</label>
+					<input type="text" name="title" required placeholder="Contoh: Defensive Driving Batch Oktober 2026..." class="w-full px-3 py-2 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800" />
 				</div>
 
-				<!-- Right: Module Sidebar List -->
-				<div class="w-full md:w-72 bg-surface-container-low border-t md:border-t-0 md:border-l border-surface-container p-4 overflow-y-auto space-y-2">
-					<h4 class="text-xs font-black uppercase tracking-wider text-on-surface-variant mb-3">Daftar Bab & Evaluasi</h4>
-					{#each activeCourseForPlayer.modules as mod, i}
-						<button 
-							type="button"
-							onclick={() => activeModuleIndex = i}
-							class="w-full text-left p-3 rounded-2xl transition-all flex items-center gap-3 cursor-pointer {activeModuleIndex === i ? 'bg-primary text-on-primary shadow-xs font-bold' : 'hover:bg-surface-container text-on-surface font-medium'}"
-						>
-							<div class="w-6 h-6 rounded-lg flex items-center justify-center text-xs font-black {activeModuleIndex === i ? 'bg-white/20 text-white' : 'bg-surface-container-high text-on-surface-variant'}">
-								{i + 1}
-							</div>
-							<div class="flex-1 min-w-0">
-								<p class="text-xs truncate">{mod.title}</p>
-								<p class="text-[10px] opacity-70">{mod.duration} • {mod.type}</p>
-							</div>
-						</button>
-					{/each}
-				</div>
-			</div>
-		</div>
-	</div>
-{/if}
+				<div class="grid grid-cols-2 gap-3">
+					<div>
+						<label class="font-bold text-on-surface block mb-1">Nama Trainer *</label>
+						<input type="text" name="trainer" required placeholder="Nama instruktur..." class="w-full px-3 py-2 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800" />
+					</div>
 
-<!-- ============================================== -->
-<!-- MODAL 3: DIGITAL CERTIFICATE PREVIEW           -->
-<!-- ============================================== -->
-{#if isCertModalOpen && activeCertData}
-	<div class="fixed inset-0 bg-black/60 backdrop-blur-md z-[200] flex items-center justify-center p-4 animate-in fade-in duration-200">
-		<div class="bg-white text-slate-900 rounded-3xl w-full max-w-2xl shadow-2xl p-8 border-4 border-amber-500/30 relative overflow-hidden text-center space-y-6">
-			<div class="flex justify-between items-start">
-				<div class="text-left">
-					<span class="text-[10px] font-black uppercase tracking-widest text-amber-600">PT Buana Centra Swakarsa</span>
-					<h4 class="font-black text-xl text-slate-800">Sertifikat Kelulusan Pelatihan</h4>
+					<div>
+						<label class="font-bold text-on-surface block mb-1">Tipe Sesi</label>
+						<select name="sessionType" class="w-full px-3 py-2 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800">
+							<option value="OFFLINE">Offline (Ruang Training / Workshop)</option>
+							<option value="ONLINE">Online (Google Meet / Zoom)</option>
+						</select>
+					</div>
 				</div>
-				<button type="button" onclick={() => isCertModalOpen = false} class="text-slate-400 hover:text-slate-700">
-					<span class="material-symbols-outlined">close</span>
-				</button>
-			</div>
 
-			<div class="py-4 space-y-2">
-				<p class="text-xs text-slate-500 uppercase tracking-widest">Diberikan Kepada:</p>
-				<h2 class="text-2xl font-black text-slate-900 tracking-tight">Karyawan PT BCS Logistics</h2>
-				<p class="text-xs text-slate-600 max-w-md mx-auto">
-					Telah berhasil menyelesaikan seluruh modul pembelajaran, simulasi, dan post-test kelulusan pada pelatihan:
-				</p>
-				<div class="p-3 bg-amber-50 rounded-2xl border border-amber-200 text-amber-900 font-extrabold text-sm max-w-md mx-auto">
-					{activeCertData.title}
+				<div>
+					<label class="font-bold text-on-surface block mb-1">Lokasi / Tautan Meeting *</label>
+					<input type="text" name="locationOrLink" required placeholder="Ruang Aula Training BCS Cilegon atau https://meet.google.com/..." class="w-full px-3 py-2 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800" />
 				</div>
-			</div>
 
-			<div class="flex justify-between items-center text-xs text-slate-500 border-t border-slate-200 pt-4">
-				<div class="text-left">
-					<p class="font-bold text-slate-700">No. Sertifikat: {activeCertData.certificateNumber || 'CERT-BCS-2026'}</p>
-					<p class="text-[10px]">Terverifikasi di Database HRIS BCS</p>
+				<div class="grid grid-cols-3 gap-2">
+					<div>
+						<label class="font-bold text-on-surface block mb-1">Tanggal *</label>
+						<input type="date" name="sessionDate" required class="w-full px-2.5 py-2 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800 font-mono" />
+					</div>
+
+					<div>
+						<label class="font-bold text-on-surface block mb-1">Jam Mulai</label>
+						<input type="time" name="startTime" value="09:00" class="w-full px-2 py-2 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800 font-mono" />
+					</div>
+
+					<div>
+						<label class="font-bold text-on-surface block mb-1">Jam Selesai</label>
+						<input type="time" name="endTime" value="11:30" class="w-full px-2 py-2 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800 font-mono" />
+					</div>
 				</div>
-				<div class="flex gap-2">
-					<button onclick={() => window.print()} class="bg-slate-900 text-white px-4 py-2 rounded-xl font-bold text-xs flex items-center gap-1.5 shadow-sm">
-						<span class="material-symbols-outlined text-sm">print</span> Cetak Sertifikat
+
+				<div class="flex justify-end gap-2 pt-3 border-t border-slate-200 dark:border-slate-800">
+					<button type="button" onclick={() => (isSessionModalOpen = false)} class="px-4 py-2 rounded-xl border text-xs font-bold hover:bg-surface-container">
+						Batal
+					</button>
+					<button type="submit" class="px-4 py-2 rounded-xl bg-primary text-on-primary text-xs font-bold hover:bg-primary/90 flex items-center gap-1">
+						<span class="material-symbols-outlined text-sm">event</span>
+						<span>Simpan Jadwal Sesi</span>
 					</button>
 				</div>
+			</form>
+		</div>
+	</div>
+{/if}
+
+<!-- ════════════════════════════════════════════════════════════════════════ -->
+<!-- MODAL 4: CATAT ABSENSI PESERTA (MARK ATTENDANCE)                        -->
+<!-- ════════════════════════════════════════════════════════════════════════ -->
+{#if isAttendanceModalOpen && activeSessionForAttendance}
+	<div class="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-4">
+		<div class="bg-surface rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xl w-full max-w-md overflow-hidden p-6 space-y-4 animate-in zoom-in-95 duration-150">
+			<div class="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800">
+				<div>
+					<h3 class="font-black text-base text-on-surface">Input Kehadiran Peserta</h3>
+					<p class="text-xs text-on-surface-variant truncate max-w-xs">{activeSessionForAttendance.title}</p>
+				</div>
+				<button type="button" onclick={() => (isAttendanceModalOpen = false)} class="w-8 h-8 rounded-full bg-surface-container flex items-center justify-center text-slate-400 hover:text-slate-600">
+					<span class="material-symbols-outlined text-lg">close</span>
+				</button>
+			</div>
+
+			<form method="POST" action="?/markAttendance" use:enhance class="space-y-3.5 text-xs">
+				<input type="hidden" name="sessionId" value={activeSessionForAttendance.id} />
+
+				<div class="grid grid-cols-2 gap-3">
+					<div>
+						<label class="font-bold text-on-surface block mb-1">Payroll ID *</label>
+						<input type="text" name="payrollId" required placeholder="EMP-0042" class="w-full px-3 py-2 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800 font-mono" />
+					</div>
+
+					<div>
+						<label class="font-bold text-on-surface block mb-1">Departemen</label>
+						<input type="text" name="department" value="Operations" class="w-full px-3 py-2 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800" />
+					</div>
+				</div>
+
+				<div>
+					<label class="font-bold text-on-surface block mb-1">Nama Lengkap Peserta *</label>
+					<input type="text" name="employeeName" required placeholder="Nama karyawan / driver..." class="w-full px-3 py-2 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800" />
+				</div>
+
+				<div>
+					<label class="font-bold text-on-surface block mb-1">Status Kehadiran</label>
+					<select name="status" class="w-full px-3 py-2 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800 font-bold">
+						<option value="HADIR">HADIR</option>
+						<option value="IZIN">IZIN</option>
+						<option value="ALPA">ALPA</option>
+					</select>
+				</div>
+
+				<div>
+					<label class="font-bold text-on-surface block mb-1">Catatan Kehadiran</label>
+					<input type="text" name="notes" placeholder="Hadir tepat waktu / alasan izin..." class="w-full px-3 py-2 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800" />
+				</div>
+
+				<div class="flex justify-end gap-2 pt-3 border-t border-slate-200 dark:border-slate-800">
+					<button type="button" onclick={() => (isAttendanceModalOpen = false)} class="px-4 py-2 rounded-xl border text-xs font-bold hover:bg-surface-container">
+						Batal
+					</button>
+					<button type="submit" class="px-4 py-2 rounded-xl bg-primary text-on-primary text-xs font-bold hover:bg-primary/90 flex items-center gap-1">
+						<span class="material-symbols-outlined text-sm">check</span>
+						<span>Simpan Absensi</span>
+					</button>
+				</div>
+			</form>
+		</div>
+	</div>
+{/if}
+
+<!-- ════════════════════════════════════════════════════════════════════════ -->
+<!-- MODAL 5: EVALUASI ATASAN (KIRKPATRICK LEVEL 3 & LEVEL 4)                 -->
+<!-- ════════════════════════════════════════════════════════════════════════ -->
+{#if isEvalSupervisorModalOpen && activeEvalForSupervisor}
+	<div class="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-4">
+		<div class="bg-surface rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xl w-full max-w-lg overflow-hidden p-6 space-y-4 animate-in zoom-in-95 duration-150">
+			<div class="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800">
+				<div>
+					<h3 class="font-black text-base text-on-surface">Penilaian Pasca-Training Atasan (H+3 Bulan)</h3>
+					<p class="text-xs text-on-surface-variant">{activeEvalForSupervisor.employeeName} ({activeEvalForSupervisor.payrollId})</p>
+				</div>
+				<button type="button" onclick={() => (isEvalSupervisorModalOpen = false)} class="w-8 h-8 rounded-full bg-surface-container flex items-center justify-center text-slate-400 hover:text-slate-600">
+					<span class="material-symbols-outlined text-lg">close</span>
+				</button>
+			</div>
+
+			<form method="POST" action="?/submitEvaluationL3L4" use:enhance class="space-y-3.5 text-xs">
+				<input type="hidden" name="evalId" value={activeEvalForSupervisor.id} />
+
+				<div class="p-3 rounded-xl bg-surface-container text-xs space-y-1">
+					<p class="text-slate-500">Pelatihan: <strong class="text-on-surface">{activeEvalForSupervisor.courseTitle}</strong></p>
+					<p class="text-slate-500">Due Date Evaluasi: <strong class="font-mono text-rose-600">{activeEvalForSupervisor.dueDate}</strong></p>
+				</div>
+
+				<div class="space-y-3">
+					<div>
+						<label class="font-bold text-on-surface block mb-1">Level 3: Penerapan SOP & Kedisiplinan Kerja (1-5)</label>
+						<select name="sopComplianceScore" class="w-full px-3 py-2 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800">
+							<option value={5}>5 - Sangat Patuh & Selalu Mengikuti SOP</option>
+							<option value={4}>4 - Patuh dengan Pengawasan Minimal</option>
+							<option value={3}>3 - Cukup, Masih Perlu Diingatkan</option>
+						</select>
+					</div>
+
+					<div>
+						<label class="font-bold text-on-surface block mb-1">Level 3: Perubahan Perilaku Positif di Lapangan (1-5)</label>
+						<select name="behaviorScore" class="w-full px-3 py-2 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800">
+							<option value={5}>5 - Menunjukkan Inisiatif & Teladan bagi Rekan Kerja</option>
+							<option value={4}>4 - Terlihat Peningkatan Perilaku Kerja</option>
+							<option value={3}>3 - Perubahan Standar</option>
+						</select>
+					</div>
+
+					<div>
+						<label class="font-bold text-on-surface block mb-1">Level 4: Dampak Nyata pada Efisiensi & Bisnis (1-5)</label>
+						<select name="businessImpactScore" class="w-full px-3 py-2 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800">
+							<option value={5}>5 - Zero Incident & Penghematan Biaya/Waktu Signifikan</option>
+							<option value={4}>4 - Penurunan Klaim & Tidak Ada Pelanggaran SLA</option>
+							<option value={3}>3 - Dampak Normal</option>
+						</select>
+					</div>
+
+					<div>
+						<label class="font-bold text-on-surface block mb-1">Catatan Bukti Lapangan (Penurunan Insiden / Efisiensi)</label>
+						<textarea name="incidentReductionNotes" rows="2" placeholder="Contoh: Kepatuhan rute 100%, nihil klaim selisih muatan selama 3 bulan..." class="w-full px-3 py-2 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800 resize-none"></textarea>
+					</div>
+				</div>
+
+				<div class="flex justify-end gap-2 pt-3 border-t border-slate-200 dark:border-slate-800">
+					<button type="button" onclick={() => (isEvalSupervisorModalOpen = false)} class="px-4 py-2 rounded-xl border text-xs font-bold hover:bg-surface-container">
+						Batal
+					</button>
+					<button type="submit" class="px-4 py-2 rounded-xl bg-primary text-on-primary text-xs font-bold hover:bg-primary/90 flex items-center gap-1">
+						<span class="material-symbols-outlined text-sm">verified</span>
+						<span>Simpan Penilaian Atasan</span>
+					</button>
+				</div>
+			</form>
+		</div>
+	</div>
+{/if}
+
+<!-- ════════════════════════════════════════════════════════════════════════ -->
+<!-- MODAL 6: FORM PENGAJUAN TRAINING BY REQUEST                             -->
+<!-- ════════════════════════════════════════════════════════════════════════ -->
+{#if isRequestModalOpen}
+	<div class="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-4">
+		<div class="bg-surface rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xl w-full max-w-lg overflow-hidden p-6 space-y-4 animate-in zoom-in-95 duration-150">
+			<div class="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800">
+				<h3 class="font-black text-base text-on-surface">Pengajuan Kebutuhan Pelatihan (Dept Head)</h3>
+				<button type="button" onclick={() => (isRequestModalOpen = false)} class="w-8 h-8 rounded-full bg-surface-container flex items-center justify-center text-slate-400 hover:text-slate-600">
+					<span class="material-symbols-outlined text-lg">close</span>
+				</button>
+			</div>
+
+			<form method="POST" action="?/requestTraining" use:enhance class="space-y-3.5 text-xs">
+				<div class="grid grid-cols-2 gap-3">
+					<div>
+						<label class="font-bold text-on-surface block mb-1">Departemen Pengusul *</label>
+						<input type="text" name="deptName" required value="Operations & Dispatch" class="w-full px-3 py-2 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800" />
+					</div>
+
+					<div>
+						<label class="font-bold text-on-surface block mb-1">Nama Pengusul (Head Dept) *</label>
+						<input type="text" name="requestedBy" required placeholder="Nama Kepala Departemen..." class="w-full px-3 py-2 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800" />
+					</div>
+				</div>
+
+				<div>
+					<label class="font-bold text-on-surface block mb-1">Judul Pelatihan yang Dibutuhkan *</label>
+					<input type="text" name="trainingTitle" required placeholder="Contoh: Sertifikasi Penanganan Muatan B3..." class="w-full px-3 py-2 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800" />
+				</div>
+
+				<div class="grid grid-cols-3 gap-2">
+					<div>
+						<label class="font-bold text-on-surface block mb-1">Kategori</label>
+						<select name="category" class="w-full px-2 py-2 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800">
+							<option value="Technical">Technical</option>
+							<option value="QHSE & Safety">QHSE & Safety</option>
+							<option value="Operations">Operations</option>
+						</select>
+					</div>
+
+					<div>
+						<label class="font-bold text-on-surface block mb-1">Tingkat Urgensi</label>
+						<select name="urgency" class="w-full px-2 py-2 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800 font-bold">
+							<option value="NORMAL">Normal</option>
+							<option value="HIGH">Tinggi</option>
+							<option value="CRITICAL">Kritis / Audit</option>
+						</select>
+					</div>
+
+					<div>
+						<label class="font-bold text-on-surface block mb-1">Estimasi Peserta</label>
+						<input type="number" name="estimatedParticipants" value="10" min="1" class="w-full px-2 py-2 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800 font-mono" />
+					</div>
+				</div>
+
+				<div>
+					<label class="font-bold text-on-surface block mb-1">Justifikasi Kebutuhan & Target Kompetensi *</label>
+					<textarea name="justification" required rows="3" placeholder="Uraikan alasan urgensi (misal: syarat kepatuhan audit kustomer B3)..." class="w-full px-3 py-2 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800 resize-none"></textarea>
+				</div>
+
+				<div class="flex justify-end gap-2 pt-3 border-t border-slate-200 dark:border-slate-800">
+					<button type="button" onclick={() => (isRequestModalOpen = false)} class="px-4 py-2 rounded-xl border text-xs font-bold hover:bg-surface-container">
+						Batal
+					</button>
+					<button type="submit" class="px-4 py-2 rounded-xl bg-primary text-on-primary text-xs font-bold hover:bg-primary/90 flex items-center gap-1">
+						<span class="material-symbols-outlined text-sm">send</span>
+						<span>Kirim Pengajuan ke HRD</span>
+					</button>
+				</div>
+			</form>
+		</div>
+	</div>
+{/if}
+
+<!-- ════════════════════════════════════════════════════════════════════════ -->
+<!-- MODAL 7: UJIAN KEPATUHAN SAFETY K3 TAHUNAN                              -->
+<!-- ════════════════════════════════════════════════════════════════════════ -->
+{#if isSafetyTestModalOpen}
+	<div class="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-4">
+		<div class="bg-surface rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xl w-full max-w-lg overflow-hidden p-6 space-y-4 animate-in zoom-in-95 duration-150">
+			<div class="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800">
+				<div>
+					<h3 class="font-black text-base text-on-surface">Ujian Kepatuhan Safety K3 Tahunan 2026</h3>
+					<p class="text-xs text-on-surface-variant">Ujian wajib keselamatan kerja untuk pengemudi & staf operasional</p>
+				</div>
+				<button type="button" onclick={() => (isSafetyTestModalOpen = false)} class="w-8 h-8 rounded-full bg-surface-container flex items-center justify-center text-slate-400 hover:text-slate-600">
+					<span class="material-symbols-outlined text-lg">close</span>
+				</button>
+			</div>
+
+			<form method="POST" action="?/submitSafetyTest" use:enhance class="space-y-4 text-xs">
+				<div class="p-3 rounded-xl bg-surface-container space-y-2">
+					<p class="font-bold text-on-surface">Soal 1: Jika terjadi kebakaran kecil pada kabin armada, tindakan pemadaman yang tepat menggunakan APAR adalah:</p>
+					<div class="space-y-1.5">
+						<label class="flex items-center gap-2 cursor-pointer">
+							<input type="radio" name="sq1" checked class="text-primary" />
+							<span>Tarik pin, arahkan nozzle ke pangkal api, tekan tuas, dan sapukan merata</span>
+						</label>
+						<label class="flex items-center gap-2 cursor-pointer">
+							<input type="radio" name="sq1" class="text-primary" />
+							<span>Semprotkan ke ujung lidah api dari jarak jauh</span>
+						</label>
+					</div>
+				</div>
+
+				<div class="p-3 rounded-xl bg-surface-container space-y-2">
+					<p class="font-bold text-on-surface">Soal 2: Berapa jam maksimal waktu berkendara terus menerus tanpa istirahat sesuai regulasi keselamatan transportasi?</p>
+					<div class="space-y-1.5">
+						<label class="flex items-center gap-2 cursor-pointer">
+							<input type="radio" name="sq2" checked class="text-primary" />
+							<span>Maksimal 4 jam berturut-turut, wajib istirahat minimal 30 menit</span>
+						</label>
+						<label class="flex items-center gap-2 cursor-pointer">
+							<input type="radio" name="sq2" class="text-primary" />
+							<span>Boleh 8 jam jika tidak merasa mengantuk</span>
+						</label>
+					</div>
+				</div>
+
+				<div class="flex justify-end gap-2 pt-3 border-t border-slate-200 dark:border-slate-800">
+					<button type="button" onclick={() => (isSafetyTestModalOpen = false)} class="px-4 py-2 rounded-xl border text-xs font-bold hover:bg-surface-container">
+						Batal
+					</button>
+					<button type="submit" class="px-5 py-2 rounded-xl bg-emerald-600 text-white text-xs font-bold hover:bg-emerald-500 flex items-center gap-1">
+						<span class="material-symbols-outlined text-sm">verified</span>
+						<span>Kirim Jawaban Ujian K3</span>
+					</button>
+				</div>
+			</form>
+		</div>
+	</div>
+{/if}
+
+<!-- ════════════════════════════════════════════════════════════════════════ -->
+<!-- MODAL 8: E-SERTIFIKAT RESMI PT BCS LOGISTICS (SIAP CETAK A4 LANDSCAPE)   -->
+<!-- ════════════════════════════════════════════════════════════════════════ -->
+{#if isCertModalOpen && activeCertData}
+	<div class="fixed inset-0 z-50 bg-slate-950/85 backdrop-blur-md flex items-center justify-center p-4 overflow-y-auto">
+		<!-- Action Bar (Hidden during print) -->
+		<div class="no-print fixed top-4 right-4 z-50 flex items-center gap-3">
+			<button
+				type="button"
+				onclick={() => window.print()}
+				class="px-5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs flex items-center gap-2 shadow-lg transition-all cursor-pointer active:scale-95"
+			>
+				<span class="material-symbols-outlined text-base">print</span>
+				<span>Cetak Sertifikat Resmi (A4 Landscape)</span>
+			</button>
+
+			<button
+				type="button"
+				onclick={() => (isCertModalOpen = false)}
+				class="w-10 h-10 rounded-full bg-slate-800 hover:bg-slate-700 text-white flex items-center justify-center transition-colors cursor-pointer"
+			>
+				<span class="material-symbols-outlined text-xl">close</span>
+			</button>
+		</div>
+
+		<!-- Certificate Canvas (A4 Landscape: 297mm x 210mm) -->
+		<div class="print-container bg-white text-slate-900 mx-auto shadow-2xl relative overflow-hidden"
+			style="width: 297mm; min-height: 210mm; padding: 12mm 15mm; box-sizing: border-box; border: 8px double #1e3a8a;">
+			
+			<!-- Inner Decorative Border -->
+			<div class="h-full border-2 border-amber-600/40 p-8 flex flex-col justify-between relative">
+				<!-- Watermark Background Logo -->
+				<div class="absolute inset-0 flex items-center justify-center opacity-[0.04] pointer-events-none">
+					<img src="https://bcs-logistics.co.id/assets/images/logoo.png" alt="BCS Watermark" class="w-96 object-contain" />
+				</div>
+
+				<!-- Certificate Header -->
+				<div class="text-center space-y-1 relative">
+					<div class="flex justify-center mb-2">
+						<img src="https://bcs-logistics.co.id/assets/images/logoo.png" alt="BCS Logistics Logo" class="h-10 object-contain" />
+					</div>
+					<h2 class="text-xs font-black tracking-[0.3em] uppercase text-blue-950">PT. BUANA CENTRA SWAKARSA LOGISTICS</h2>
+					<h1 class="text-3xl font-serif font-black tracking-wider text-amber-700 uppercase mt-2">SERTIFIKAT KELULUSAN</h1>
+					<p class="text-[10px] font-mono tracking-widest text-slate-500 uppercase">NO. REGISTRASI: {activeCertData.certificateNumber}</p>
+				</div>
+
+				<!-- Certificate Body -->
+				<div class="text-center space-y-3 relative my-4">
+					<p class="text-xs font-medium text-slate-600">Diberikan secara sah dan terhormat kepada:</p>
+					<h3 class="text-2xl font-black font-serif tracking-tight text-slate-900 uppercase border-b-2 border-amber-600/40 inline-block px-8 pb-1">
+						{activeCertData.employeeName}
+					</h3>
+					<p class="text-xs font-mono text-slate-500">PAYROLL ID: {activeCertData.payrollId}</p>
+
+					<p class="text-xs text-slate-700 max-w-2xl mx-auto leading-relaxed pt-2">
+						Atas kelulusan dan keberhasilan menyelesaikan program sertifikasi kompetensi:
+					</p>
+					<h4 class="text-lg font-black text-blue-950 tracking-tight">
+						"{activeCertData.courseTitle}"
+					</h4>
+					<p class="text-xs font-bold text-slate-600">
+						Kategori: <span class="text-amber-700">{activeCertData.category}</span> • Nilai Kelulusan: <strong class="font-mono text-emerald-700">{activeCertData.score}/100</strong>
+					</p>
+				</div>
+
+				<!-- Certificate Footer Signatures & QR -->
+				<div class="grid grid-cols-3 items-end pt-4 border-t border-slate-300 relative text-xs">
+					<!-- QR Code Authentication -->
+					<div class="flex items-center gap-3">
+						<div class="w-16 h-16 bg-slate-100 border border-slate-300 p-1 flex items-center justify-center shadow-xs">
+							<img
+								src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(activeCertData.qrVerifyUrl || 'https://academy.bcslabs.tech')}`}
+								alt="QR Code Verification"
+								class="w-full h-full object-contain"
+							/>
+						</div>
+						<div class="text-[9px] text-slate-500 leading-tight">
+							<p class="font-bold text-slate-700">Digital Authenticated</p>
+							<p>Scan untuk verifikasi keaslian di Portal BCS Academy</p>
+							<p class="font-mono text-[8px] text-slate-400 truncate max-w-[140px]">{activeCertData.qrVerifyUrl}</p>
+						</div>
+					</div>
+
+					<!-- Date and City -->
+					<div class="text-center text-[11px] text-slate-600">
+						<p>Diterbitkan di Cilegon, Banten</p>
+						<p class="font-bold text-slate-900">{activeCertData.issuedAt}</p>
+					</div>
+
+					<!-- Signature -->
+					<div class="text-center flex flex-col items-center">
+						<p class="text-[10px] text-slate-500">PT. Buana Centra Swakarsa Logistics</p>
+						<div class="h-12 flex items-center justify-center">
+							<span class="font-serif italic text-blue-950 font-bold text-sm tracking-wider">[ Authorized Sign ]</span>
+						</div>
+						<p class="font-bold text-slate-900 border-b border-slate-800 pb-0.5 px-4 text-xs">Ir. Bambang Trihatmojo</p>
+						<p class="text-[9px] text-slate-500">Direktur SDM & Operasional</p>
+					</div>
+				</div>
 			</div>
 		</div>
 	</div>
 {/if}
+
+<style>
+	@page {
+		size: A4 landscape;
+		margin: 0;
+	}
+
+	@media print {
+		/* Sembunyikan semua elemen layout web */
+		:global(aside), :global(nav), :global(header) {
+			display: none !important;
+		}
+
+		:global(body) {
+			background: white !important;
+			color: black !important;
+			padding: 0 !important;
+			margin: 0 !important;
+			-webkit-print-color-adjust: exact;
+			print-color-adjust: exact;
+		}
+
+		.no-print {
+			display: none !important;
+		}
+
+		.print-container {
+			box-shadow: none !important;
+			margin: 0 auto !important;
+			padding: 10mm 15mm !important;
+			width: 100% !important;
+			min-height: 100vh !important;
+			box-sizing: border-box !important;
+			position: relative !important;
+		}
+	}
+</style>
