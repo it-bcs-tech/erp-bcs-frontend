@@ -75,6 +75,21 @@
 	let isLevelIndicatorModalOpen = $state(false);
 	let selectedCompetencyForIndicator = $state<any>(null);
 
+	// Kamus Kompetensi (170 items) Filter & Link Modal State
+	let compSearchQuery = $state('');
+	let compFilterAspect = $state('All');
+	let compFilterStatus = $state<'All' | 'Linked' | 'Unlinked'>('All');
+	let compCurrentPage = $state(1);
+	const compPerPage = 18;
+	let isLinkCourseModalOpen = $state(false);
+	let selectedCompForLink = $state<any>(null);
+
+	// Modal Pemilihan Kursus untuk TNA GAP
+	let isAssignCourseModalOpen = $state(false);
+	let selectedAssessmentForAssign = $state<any>(null);
+	let assignFormCourseId = $state('');
+	let assignFormSetDefault = $state(true);
+
 	// TNA Assessment form helper state
 	let assessmentForm = $state({
 		payrollId: 'EMP-0042',
@@ -160,7 +175,44 @@
 		})
 	);
 
-	// Filtered Questions for Active Course
+	// Derived Competency Aspects List
+	const competencyAspects = $derived([
+		'All',
+		...Array.from(new Set(competencyLibrary.map((c: any) => c.aspect).filter(Boolean)))
+	]);
+
+	// Filtered & Paged Competency Library
+	let filteredCompetencyLibrary = $derived(
+		competencyLibrary.filter((c: any) => {
+			if (compFilterAspect !== 'All' && c.aspect !== compFilterAspect) return false;
+			if (compFilterStatus === 'Linked' && !c.defaultCourseId) return false;
+			if (compFilterStatus === 'Unlinked' && c.defaultCourseId) return false;
+			if (!compSearchQuery.trim()) return true;
+			const q = compSearchQuery.toLowerCase();
+			return (
+				c.name.toLowerCase().includes(q) ||
+				c.code.toLowerCase().includes(q) ||
+				(c.defaultCourseTitle && c.defaultCourseTitle.toLowerCase().includes(q))
+			);
+		})
+	);
+
+	let totalCompPages = $derived(Math.ceil(filteredCompetencyLibrary.length / compPerPage) || 1);
+	let pagedCompetencyLibrary = $derived(
+		filteredCompetencyLibrary.slice((compCurrentPage - 1) * compPerPage, compCurrentPage * compPerPage)
+	);
+
+	function openLinkCourseModal(comp: any) {
+		selectedCompForLink = comp;
+		isLinkCourseModalOpen = true;
+	}
+
+	function openAssignCourseModal(assessment: any) {
+		selectedAssessmentForAssign = assessment;
+		assignFormCourseId = assessment.assignedCourseId || '';
+		assignFormSetDefault = true;
+		isAssignCourseModalOpen = true;
+	}
 	let activePreTestQuestions = $derived(
 		quizQuestions.filter((q: any) => q.courseId === activeCourseForPlayer?.id && q.quizType === 'PRE_TEST')
 	);
@@ -1225,6 +1277,11 @@
 																<p class="font-bold text-on-surface text-xs leading-snug">{item.assignedCourseTitle}</p>
 																<p class="font-mono text-[10px] text-slate-500">{item.assignedCourseId}</p>
 															</div>
+														{:else if item.gap < 0}
+															<div class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-500/10 text-amber-700 dark:text-amber-300 text-[10px] font-semibold border border-amber-500/20">
+																<span class="material-symbols-outlined text-xs">warning</span>
+																<span>Belum Ada Materi</span>
+															</div>
 														{:else}
 															<span class="text-slate-400 italic text-[11px]">-</span>
 														{/if}
@@ -1259,26 +1316,50 @@
 													<!-- Aksi Penugasan Personal -->
 													<td class="p-3 text-right">
 														{#if item.gap < 0}
-															<form method="POST" action="?/assignPersonalTraining" use:enhance class="inline-block">
-																<input type="hidden" name="assessmentId" value={item.id} />
-																<input type="hidden" name="payrollId" value={item.payrollId} />
-																<input type="hidden" name="employeeName" value={item.employeeName} />
-																<input type="hidden" name="competencyCode" value={item.competencyCode} />
-																<input type="hidden" name="courseId" value={item.assignedCourseId} />
-
+															{#if !item.assignedCourseId}
+																<!-- Belum ada materi kursus: Tampilkan tombol Hubungkan Kursus -->
 																<button
-																	type="submit"
-																	class="px-3 py-1.5 rounded-xl text-[11px] font-bold transition-all cursor-pointer shadow-xs flex items-center gap-1.5 ml-auto
-																	{item.trainingStatus === 'ASSIGNED'
-																		? 'bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-on-surface'
-																		: 'bg-indigo-600 hover:bg-indigo-500 text-white'}"
+																	type="button"
+																	onclick={() => openAssignCourseModal(item)}
+																	class="px-3 py-1.5 rounded-xl text-[11px] font-bold bg-amber-500 hover:bg-amber-600 text-white transition-all cursor-pointer shadow-xs flex items-center gap-1.5 ml-auto"
 																>
-																	<span class="material-symbols-outlined text-sm">
-																		{item.trainingStatus === 'ASSIGNED' ? 'replay' : 'send_to_mobile'}
-																	</span>
-																	<span>{item.trainingStatus === 'ASSIGNED' ? 'Tugaskan Ulang' : '🎯 Tugaskan ke Portal'}</span>
+																	<span class="material-symbols-outlined text-sm">add_link</span>
+																	<span>Pilih/Hubungkan Kursus</span>
 																</button>
-															</form>
+															{:else}
+																<!-- Sudah ada materi kursus: Tugaskan / Tugaskan Ulang + tombol Ubah -->
+																<div class="flex items-center justify-end gap-1.5">
+																	<form method="POST" action="?/assignPersonalTraining" use:enhance class="inline-block">
+																		<input type="hidden" name="assessmentId" value={item.id} />
+																		<input type="hidden" name="payrollId" value={item.payrollId} />
+																		<input type="hidden" name="employeeName" value={item.employeeName} />
+																		<input type="hidden" name="competencyCode" value={item.competencyCode} />
+																		<input type="hidden" name="courseId" value={item.assignedCourseId} />
+
+																		<button
+																			type="submit"
+																			class="px-3 py-1.5 rounded-xl text-[11px] font-bold transition-all cursor-pointer shadow-xs flex items-center gap-1.5
+																			{item.trainingStatus === 'ASSIGNED'
+																				? 'bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-on-surface'
+																				: 'bg-indigo-600 hover:bg-indigo-500 text-white'}"
+																		>
+																			<span class="material-symbols-outlined text-sm">
+																				{item.trainingStatus === 'ASSIGNED' ? 'replay' : 'send_to_mobile'}
+																			</span>
+																			<span>{item.trainingStatus === 'ASSIGNED' ? 'Tugaskan Ulang' : '🎯 Tugaskan ke Portal'}</span>
+																		</button>
+																	</form>
+
+																	<button
+																		type="button"
+																		title="Ganti Kursus Rekomendasi"
+																		onclick={() => openAssignCourseModal(item)}
+																		class="w-7 h-7 rounded-xl bg-surface-container hover:bg-surface-container-highest border border-slate-200 dark:border-slate-800 text-slate-500 hover:text-on-surface flex items-center justify-center transition-all cursor-pointer"
+																	>
+																		<span class="material-symbols-outlined text-xs">edit</span>
+																	</button>
+																</div>
+															{/if}
 														{:else}
 															<span class="text-emerald-600 dark:text-emerald-400 font-bold text-[11px] flex items-center justify-end gap-1">
 																<span class="material-symbols-outlined text-sm">check_circle</span>
@@ -1304,52 +1385,164 @@
 						</div>
 
 					<!-- ═══════════════════════════════════════════════════════════ -->
-					<!-- SUB-VIEW 2: KAMUS KOMPETENSI RESMI (LIBRARY)                -->
+					<!-- SUB-VIEW 2: KAMUS KOMPETENSI RESMI (170+ ITEMS)             -->
 					<!-- ═══════════════════════════════════════════════════════════ -->
 					{:else if tnaSubTab === 'library'}
 						<div class="space-y-6">
-							<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-200/60 dark:border-slate-800/60">
+							<!-- Header & Summary Stats -->
+							<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-3 border-b border-slate-200/60 dark:border-slate-800/60">
 								<div>
-									<h4 class="font-black text-sm text-on-surface uppercase tracking-wider">Kamus Kompetensi Resmi PT BCS Logistics</h4>
-									<p class="text-xs text-on-surface-variant">Standar taksonomi kompetensi Core, Behavioral, dan Technical bersumber dari Master Spreadsheet Kamus Kompetensi</p>
+									<div class="flex items-center gap-2">
+										<h4 class="font-black text-sm text-on-surface uppercase tracking-wider">Kamus Kompetensi Resmi PT BCS Logistics</h4>
+										<span class="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase bg-primary/10 text-primary border border-primary/20">
+											{competencyLibrary.length} Kompetensi
+										</span>
+									</div>
+									<p class="text-xs text-on-surface-variant mt-0.5">Taksonomi resmi Level 1 s.d. Level 5 bersumber dari Master Spreadsheet Kamus Kompetensi BCS</p>
 								</div>
 
-								<button
-									type="button"
-									onclick={() => (isCompetencyModalOpen = true)}
-									class="px-3.5 py-2 rounded-xl bg-primary text-on-primary text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer self-start sm:self-auto shadow-xs"
-								>
-									<span class="material-symbols-outlined text-sm">add_circle</span>
-									<span>+ Tambah Kamus Kompetensi</span>
-								</button>
+								<div class="flex items-center gap-2">
+									<button
+										type="button"
+										onclick={() => (isCompetencyModalOpen = true)}
+										class="px-3.5 py-2 rounded-xl bg-primary text-on-primary text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer shadow-xs shrink-0"
+									>
+										<span class="material-symbols-outlined text-sm">add_circle</span>
+										<span>+ Tambah Manual</span>
+									</button>
+								</div>
+							</div>
+
+							<!-- Metric Mini-Bar -->
+							<div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+								<div class="p-3 rounded-2xl bg-surface-container border border-slate-200/60 dark:border-slate-800/60 flex items-center justify-between">
+									<div>
+										<p class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Total Kamus</p>
+										<p class="text-xl font-black text-on-surface font-mono">{competencyLibrary.length}</p>
+									</div>
+									<span class="material-symbols-outlined text-2xl text-slate-400">library_books</span>
+								</div>
+
+								<div class="p-3 rounded-2xl bg-surface-container border border-emerald-500/20 flex items-center justify-between">
+									<div>
+										<p class="text-[10px] font-bold text-emerald-600 uppercase tracking-wider">Materi Kursus Terhubung</p>
+										<p class="text-xl font-black text-emerald-600 font-mono">
+											{competencyLibrary.filter((c: any) => c.defaultCourseId).length}
+										</p>
+									</div>
+									<span class="material-symbols-outlined text-2xl text-emerald-500">link</span>
+								</div>
+
+								<div class="p-3 rounded-2xl bg-surface-container border border-amber-500/20 flex items-center justify-between">
+									<div>
+										<p class="text-[10px] font-bold text-amber-600 uppercase tracking-wider">Belum Terhubung Materi</p>
+										<p class="text-xl font-black text-amber-600 font-mono">
+											{competencyLibrary.filter((c: any) => !c.defaultCourseId).length}
+										</p>
+									</div>
+									<span class="material-symbols-outlined text-2xl text-amber-500">link_off</span>
+								</div>
+							</div>
+
+							<!-- Filter & Search Toolbar -->
+							<div class="flex flex-col lg:flex-row lg:items-center justify-between gap-3 bg-surface-container/60 p-3 rounded-2xl border border-slate-200/60 dark:border-slate-800/60">
+								<div class="relative flex-1">
+									<span class="material-symbols-outlined absolute left-3 top-2.5 text-slate-400 text-sm">search</span>
+									<input
+										type="text"
+										bind:value={compSearchQuery}
+										oninput={() => (compCurrentPage = 1)}
+										placeholder="Cari kode (misal: A01, I11), nama kompetensi, atau kursus..."
+										class="w-full pl-9 pr-3 py-2 rounded-xl bg-surface border border-slate-200 dark:border-slate-800 text-xs focus:ring-1 focus:ring-primary outline-hidden"
+									/>
+								</div>
+
+								<div class="flex flex-wrap items-center gap-2">
+									<!-- Filter Aspek -->
+									<select
+										bind:value={compFilterAspect}
+										onchange={() => (compCurrentPage = 1)}
+										class="px-3 py-2 rounded-xl bg-surface border border-slate-200 dark:border-slate-800 text-xs text-on-surface font-medium"
+									>
+										{#each competencyAspects as asp}
+											<option value={asp}>{asp === 'All' ? 'Semua Aspek Kompetensi' : asp}</option>
+										{/each}
+									</select>
+
+									<!-- Filter Status Materi -->
+									<select
+										bind:value={compFilterStatus}
+										onchange={() => (compCurrentPage = 1)}
+										class="px-3 py-2 rounded-xl bg-surface border border-slate-200 dark:border-slate-800 text-xs text-on-surface font-medium"
+									>
+										<option value="All">Semua Status Materi</option>
+										<option value="Linked">Terhubung Materi Kursus</option>
+										<option value="Unlinked">Belum Terhubung Materi</option>
+									</select>
+								</div>
 							</div>
 
 							<!-- Grid Kartu Kamus Kompetensi -->
 							<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-								{#each competencyLibrary as comp}
-									<div class="p-4 rounded-2xl bg-surface-container border border-slate-200/60 dark:border-slate-800/60 space-y-3 flex flex-col justify-between hover:border-slate-300 dark:hover:border-slate-700 transition-all">
-										<div class="space-y-2">
-											<div class="flex items-center justify-between">
-												<span class="px-2 py-0.5 rounded-lg text-xs font-mono font-black bg-primary/10 text-primary border border-primary/20">
+								{#each pagedCompetencyLibrary as comp}
+									<div class="p-4 rounded-2xl bg-surface-container border border-slate-200/60 dark:border-slate-800/60 space-y-3 flex flex-col justify-between hover:border-slate-300 dark:hover:border-slate-700 transition-all shadow-xs">
+										<div class="space-y-2.5">
+											<div class="flex items-start justify-between gap-2">
+												<span class="px-2.5 py-0.5 rounded-lg text-xs font-mono font-black bg-primary/10 text-primary border border-primary/20">
 													{comp.code}
 												</span>
-												<span class="px-2 py-0.5 rounded-full text-[9px] font-bold uppercase
-													{comp.aspect === 'Core Competency' ? 'bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300' :
-													comp.aspect === 'Behavioral Competency' ? 'bg-purple-100 text-purple-800 dark:bg-purple-950 dark:text-purple-300' :
+												<span class="px-2 py-0.5 rounded-full text-[9px] font-bold text-right leading-tight line-clamp-1
+													{comp.aspect.includes('Core') ? 'bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300' :
+													comp.aspect.includes('Behavioral') ? 'bg-purple-100 text-purple-800 dark:bg-purple-950 dark:text-purple-300' :
+													comp.aspect.includes('Task') ? 'bg-indigo-100 text-indigo-800 dark:bg-indigo-950 dark:text-indigo-300' :
+													comp.aspect.includes('QHSE') ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300' :
 													'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300'}">
 													{comp.aspect}
 												</span>
 											</div>
 
 											<div>
-												<h5 class="font-black text-sm text-on-surface">{comp.name}</h5>
+												<h5 class="font-black text-sm text-on-surface leading-snug">{comp.name}</h5>
 											</div>
 
-											<div class="p-2.5 rounded-xl bg-surface-container-high/60 text-[11px] space-y-1">
-												<p class="text-slate-400 text-[10px] font-bold uppercase tracking-wider">Default Kursus LMS Saat GAP:</p>
-												<p class="font-semibold text-primary">{comp.defaultCourseTitle}</p>
-												<p class="font-mono text-[9px] text-slate-500">{comp.defaultCourseId || 'Belum di-mapping'}</p>
-											</div>
+											<!-- Status Materi Kursus -->
+											{#if comp.defaultCourseId}
+												<div class="p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-[11px] space-y-1">
+													<div class="flex items-center justify-between">
+														<span class="text-emerald-700 dark:text-emerald-400 text-[10px] font-bold uppercase tracking-wider flex items-center gap-1">
+															<span class="material-symbols-outlined text-xs">check_circle</span>
+															Materi Terhubung:
+														</span>
+														<button
+															type="button"
+															onclick={() => openLinkCourseModal(comp)}
+															class="text-[10px] text-primary hover:underline font-bold cursor-pointer"
+														>
+															Ubah
+														</button>
+													</div>
+													<p class="font-bold text-on-surface leading-snug">{comp.defaultCourseTitle}</p>
+													<p class="font-mono text-[9px] text-slate-500">{comp.defaultCourseId}</p>
+												</div>
+											{:else}
+												<div class="p-2.5 rounded-xl bg-surface-container-high/60 border border-dashed border-slate-300 dark:border-slate-700 text-[11px] space-y-1.5">
+													<div class="flex items-center justify-between">
+														<span class="text-amber-600 dark:text-amber-400 text-[10px] font-bold uppercase tracking-wider flex items-center gap-1">
+															<span class="material-symbols-outlined text-xs">info</span>
+															Belum Terhubung Materi
+														</span>
+													</div>
+													<p class="text-[11px] text-slate-400">Belum ada modul pelatihan yang dipetakan ke kompetensi ini.</p>
+													<button
+														type="button"
+														onclick={() => openLinkCourseModal(comp)}
+														class="w-full py-1.5 rounded-lg bg-primary/10 hover:bg-primary/20 text-primary font-bold text-[11px] flex items-center justify-center gap-1 transition-all cursor-pointer"
+													>
+														<span class="material-symbols-outlined text-xs">add_link</span>
+														<span>Hubungkan Materi Kursus</span>
+													</button>
+												</div>
+											{/if}
 										</div>
 
 										<div class="pt-2 border-t border-slate-200/60 dark:border-slate-800/60 flex items-center justify-between">
@@ -1370,6 +1563,51 @@
 									</div>
 								{/each}
 							</div>
+
+							{#if filteredCompetencyLibrary.length === 0}
+								<div class="p-12 text-center rounded-2xl bg-surface-container border border-slate-200/60 dark:border-slate-800/60">
+									<span class="material-symbols-outlined text-4xl text-slate-300 block mb-2">search_off</span>
+									<p class="font-bold text-sm text-on-surface">Tidak ada kompetensi yang sesuai kriteria pencarian</p>
+									<p class="text-xs text-slate-400 mt-1">Coba sesuaikan kata kunci atau filter aspek di atas.</p>
+								</div>
+							{/if}
+
+							<!-- Pagination Controls -->
+							{#if totalCompPages > 1}
+								<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-4 border-t border-slate-200/60 dark:border-slate-800/60">
+									<p class="text-xs text-on-surface-variant">
+										Menampilkan <strong class="text-on-surface font-mono">{(compCurrentPage - 1) * compPerPage + 1}</strong>
+										s.d. <strong class="text-on-surface font-mono">{Math.min(compCurrentPage * compPerPage, filteredCompetencyLibrary.length)}</strong>
+										dari <strong class="text-on-surface font-mono">{filteredCompetencyLibrary.length}</strong> kompetensi
+									</p>
+
+									<div class="flex items-center gap-2">
+										<button
+											type="button"
+											disabled={compCurrentPage === 1}
+											onclick={() => (compCurrentPage = Math.max(1, compCurrentPage - 1))}
+											class="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-surface text-xs font-bold text-on-surface disabled:opacity-40 disabled:cursor-not-allowed hover:bg-surface-container transition-all cursor-pointer flex items-center gap-1"
+										>
+											<span class="material-symbols-outlined text-xs">chevron_left</span>
+											<span>Sebelumnya</span>
+										</button>
+
+										<span class="px-3 py-1.5 rounded-xl bg-surface-container-high font-mono text-xs font-bold text-on-surface">
+											Hal {compCurrentPage} / {totalCompPages}
+										</span>
+
+										<button
+											type="button"
+											disabled={compCurrentPage === totalCompPages}
+											onclick={() => (compCurrentPage = Math.min(totalCompPages, compCurrentPage + 1))}
+											class="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-surface text-xs font-bold text-on-surface disabled:opacity-40 disabled:cursor-not-allowed hover:bg-surface-container transition-all cursor-pointer flex items-center gap-1"
+										>
+											<span>Selanjutnya</span>
+											<span class="material-symbols-outlined text-xs">chevron_right</span>
+										</button>
+									</div>
+								</div>
+							{/if}
 						</div>
 
 					<!-- ═══════════════════════════════════════════════════════════ -->
@@ -3376,6 +3614,194 @@
 					Tutup
 				</button>
 			</div>
+		</div>
+	</div>
+{/if}
+
+<!-- ════════════════════════════════════════════════════════════════════════ -->
+<!-- MODAL 13: HUBUNGKAN MATERI KURSUS KE KAMUS KOMPETENSI                     -->
+<!-- ════════════════════════════════════════════════════════════════════════ -->
+{#if isLinkCourseModalOpen && selectedCompForLink}
+	<div class="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-4">
+		<div class="bg-surface rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xl w-full max-w-lg overflow-hidden p-6 space-y-4 animate-in zoom-in-95 duration-150">
+			<div class="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800">
+				<div>
+					<div class="flex items-center gap-2">
+						<span class="font-mono font-black text-xs px-2 py-0.5 rounded-md bg-primary/10 text-primary border border-primary/20">
+							{selectedCompForLink.code}
+						</span>
+						<h3 class="font-black text-base text-on-surface">Hubungkan Materi Kursus</h3>
+					</div>
+					<p class="text-xs text-on-surface-variant mt-0.5">{selectedCompForLink.name}</p>
+				</div>
+				<button type="button" onclick={() => (isLinkCourseModalOpen = false)} class="w-8 h-8 rounded-full bg-surface-container flex items-center justify-center text-slate-400 hover:text-slate-600">
+					<span class="material-symbols-outlined text-lg">close</span>
+				</button>
+			</div>
+
+			<form
+				method="POST"
+				action="?/linkCourseToCompetency"
+				use:enhance={() => {
+					return async ({ update }) => {
+						await update();
+						isLinkCourseModalOpen = false;
+					};
+				}}
+				class="space-y-4"
+			>
+				<input type="hidden" name="competencyCode" value={selectedCompForLink.code} />
+
+				<div class="space-y-1.5">
+					<label for="linkCourseId" class="block text-xs font-bold text-on-surface">Pilih Kursus dari Katalog LMS PT BCS</label>
+					<select
+						id="linkCourseId"
+						name="courseId"
+						value={selectedCompForLink.defaultCourseId || ''}
+						class="w-full px-3 py-2 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800 text-xs text-on-surface focus:ring-1 focus:ring-primary"
+					>
+						<option value="">-- Tidak Terhubung / Lepas Hubungan --</option>
+						{#each courses as c}
+							<option value={c.id}>[{c.id}] {c.title} ({c.category})</option>
+						{/each}
+					</select>
+					<p class="text-[11px] text-slate-400">
+						Jika dihubungkan, kursus ini otomatis menjadi rekomendasi pelatihan saat karyawan memiliki GAP pada kompetensi ini.
+					</p>
+				</div>
+
+				<div class="p-3 rounded-2xl bg-surface-container border border-slate-200 dark:border-slate-800 text-xs space-y-1">
+					<p class="font-bold text-on-surface">Aspek: <span class="font-normal text-slate-500">{selectedCompForLink.aspect}</span></p>
+					<p class="font-bold text-on-surface">Materi Saat Ini: <span class="font-normal text-primary">{selectedCompForLink.defaultCourseTitle || 'Belum terhubung'}</span></p>
+				</div>
+
+				<div class="flex justify-end gap-2 pt-3 border-t border-slate-200 dark:border-slate-800">
+					<button
+						type="button"
+						onclick={() => (isLinkCourseModalOpen = false)}
+						class="px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-800 text-xs font-bold text-on-surface hover:bg-surface-container cursor-pointer"
+					>
+						Batal
+					</button>
+					<button
+						type="submit"
+						class="px-5 py-2 rounded-xl bg-primary text-on-primary text-xs font-bold flex items-center gap-1.5 shadow-sm hover:opacity-90 cursor-pointer"
+					>
+						<span class="material-symbols-outlined text-sm">save</span>
+						<span>Simpan Pemetaan</span>
+					</button>
+				</div>
+			</form>
+		</div>
+	</div>
+{/if}
+
+<!-- ════════════════════════════════════════════════════════════════════════ -->
+<!-- MODAL 14: PILIH & TUGASKAN KURSUS UNTUK TNA GAP KARYAWAN                  -->
+<!-- ════════════════════════════════════════════════════════════════════════ -->
+{#if isAssignCourseModalOpen && selectedAssessmentForAssign}
+	<div class="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-4">
+		<div class="bg-surface rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xl w-full max-w-lg overflow-hidden p-6 space-y-4 animate-in zoom-in-95 duration-150">
+			<div class="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800">
+				<div>
+					<div class="flex items-center gap-2">
+						<span class="px-2 py-0.5 rounded-md text-xs font-black uppercase bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300 border border-rose-300">
+							GAP {selectedAssessmentForAssign.gap}
+						</span>
+						<h3 class="font-black text-base text-on-surface">Pilih & Tugaskan Kursus Pelatihan</h3>
+					</div>
+					<p class="text-xs text-on-surface-variant mt-0.5">Penugasan Personal Berbasis Training Needs Analysis (TNA)</p>
+				</div>
+				<button type="button" onclick={() => (isAssignCourseModalOpen = false)} class="w-8 h-8 rounded-full bg-surface-container flex items-center justify-center text-slate-400 hover:text-slate-600">
+					<span class="material-symbols-outlined text-lg">close</span>
+				</button>
+			</div>
+
+			<!-- Ringkasan Karyawan & Kompetensi GAP -->
+			<div class="p-3.5 rounded-2xl bg-surface-container border border-slate-200/60 dark:border-slate-800/60 space-y-2 text-xs">
+				<div class="flex items-center justify-between">
+					<span class="text-slate-400 font-medium">Karyawan:</span>
+					<span class="font-bold text-on-surface">{selectedAssessmentForAssign.employeeName} ({selectedAssessmentForAssign.payrollId})</span>
+				</div>
+				<div class="flex items-center justify-between">
+					<span class="text-slate-400 font-medium">Jabatan & Dept:</span>
+					<span class="font-medium text-on-surface">{selectedAssessmentForAssign.positionTitle} • {selectedAssessmentForAssign.department}</span>
+				</div>
+				<div class="flex items-center justify-between pt-1 border-t border-slate-200/40 dark:border-slate-800/40">
+					<span class="text-slate-400 font-medium">Kompetensi yang Kurang:</span>
+					<span class="font-bold text-primary">[{selectedAssessmentForAssign.competencyCode}] {selectedAssessmentForAssign.competencyName}</span>
+				</div>
+				<div class="flex items-center justify-between">
+					<span class="text-slate-400 font-medium">Level Target vs Riil:</span>
+					<span class="font-mono font-bold text-rose-600">
+						Standar Level {selectedAssessmentForAssign.requiredLevel} &rarr; Aktual Level {selectedAssessmentForAssign.actualLevel}
+					</span>
+				</div>
+			</div>
+
+			<form
+				method="POST"
+				action="?/assignPersonalTraining"
+				use:enhance={() => {
+					return async ({ update }) => {
+						await update();
+						isAssignCourseModalOpen = false;
+					};
+				}}
+				class="space-y-4"
+			>
+				<input type="hidden" name="assessmentId" value={selectedAssessmentForAssign.id} />
+				<input type="hidden" name="payrollId" value={selectedAssessmentForAssign.payrollId} />
+				<input type="hidden" name="employeeName" value={selectedAssessmentForAssign.employeeName} />
+				<input type="hidden" name="competencyCode" value={selectedAssessmentForAssign.competencyCode} />
+
+				<div class="space-y-1.5">
+					<label for="assignCourseSelect" class="block text-xs font-bold text-on-surface">Pilih Kursus Pelatihan Penutup GAP</label>
+					<select
+						id="assignCourseSelect"
+						name="courseId"
+						bind:value={assignFormCourseId}
+						required
+						class="w-full px-3 py-2 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800 text-xs text-on-surface focus:ring-1 focus:ring-primary"
+					>
+						<option value="" disabled>-- Pilih Kursus yang Relevan --</option>
+						{#each courses as c}
+							<option value={c.id}>[{c.id}] {c.title} • {c.category}</option>
+						{/each}
+					</select>
+				</div>
+
+				<div class="flex items-center gap-2 p-2.5 rounded-xl bg-surface-container-high/60 border border-slate-200 dark:border-slate-800">
+					<input
+						type="checkbox"
+						id="setDefaultCheck"
+						name="setAsDefault"
+						bind:checked={assignFormSetDefault}
+						class="w-4 h-4 rounded-md text-primary focus:ring-primary border-slate-300 dark:border-slate-700 cursor-pointer"
+					/>
+					<label for="setDefaultCheck" class="text-xs text-on-surface cursor-pointer select-none">
+						Jadikan kursus ini materi rekomendasi permanen untuk <strong>[{selectedAssessmentForAssign.competencyCode}]</strong> ke depannya.
+					</label>
+				</div>
+
+				<div class="flex justify-end gap-2 pt-3 border-t border-slate-200 dark:border-slate-800">
+					<button
+						type="button"
+						onclick={() => (isAssignCourseModalOpen = false)}
+						class="px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-800 text-xs font-bold text-on-surface hover:bg-surface-container cursor-pointer"
+					>
+						Batal
+					</button>
+					<button
+						type="submit"
+						disabled={!assignFormCourseId}
+						class="px-5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed text-white text-xs font-bold flex items-center gap-1.5 shadow-sm cursor-pointer"
+					>
+						<span class="material-symbols-outlined text-sm">send_to_mobile</span>
+						<span>Simpan & Tugaskan ke Portal BCS Academy</span>
+					</button>
+				</div>
+			</form>
 		</div>
 	</div>
 {/if}

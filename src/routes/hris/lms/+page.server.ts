@@ -423,9 +423,19 @@ export const load: PageServerLoad = async () => {
 				code: c.code,
 				name: c.name,
 				aspect: c.aspect,
-				levelIndicators: typeof c.level_indicators === 'string' ? JSON.parse(c.level_indicators) : c.level_indicators,
-				defaultCourseId: c.default_course_id,
-				defaultCourseTitle: c.default_course_title || 'Belum di-mapping'
+				levelIndicators: (() => {
+					let raw = typeof c.level_indicators === 'string' ? JSON.parse(c.level_indicators) : c.level_indicators;
+					if (Array.isArray(raw)) return raw;
+					if (raw && typeof raw === 'object') {
+						return [1, 2, 3, 4, 5].map((lvl) => ({
+							level: lvl,
+							desc: raw[lvl] || raw[String(lvl)] || ''
+						}));
+					}
+					return [];
+				})(),
+				defaultCourseId: c.default_course_id || null,
+				defaultCourseTitle: c.default_course_title || null
 			})),
 			jobStandards: jobStandardsRows.map((j) => ({
 				id: j.id,
@@ -452,8 +462,8 @@ export const load: PageServerLoad = async () => {
 				status: a.status,
 				assessorName: a.assessor_name,
 				assessmentDate: a.assessment_date ? a.assessment_date.toISOString().split('T')[0] : '',
-				assignedCourseId: a.assigned_course_id || a.default_course_id,
-				assignedCourseTitle: a.assigned_course_title || 'Kursus Terkait GAP',
+				assignedCourseId: a.assigned_course_id || a.default_course_id || null,
+				assignedCourseTitle: a.assigned_course_title || null,
 				trainingStatus: a.training_status || 'NONE',
 				progressPercent: a.progress_percent !== null && a.progress_percent !== undefined ? Number(a.progress_percent) : (a.training_status === 'ASSIGNED' ? 15 : 0),
 				enrollmentStatus: a.enrollment_status || (a.training_status === 'ASSIGNED' ? 'ENROLLED' : 'NOT_ENROLLED'),
@@ -921,8 +931,9 @@ export const actions = {
 		const assessmentId = Number(formData.get('assessmentId')) || null;
 		const payrollId = formData.get('payrollId')?.toString().trim().toUpperCase();
 		const employeeName = formData.get('employeeName')?.toString().trim();
-		let courseId = formData.get('courseId')?.toString().trim();
+		let courseId = formData.get('courseId')?.toString().trim() || null;
 		const competencyCode = formData.get('competencyCode')?.toString().trim().toUpperCase();
+		const setAsDefault = formData.get('setAsDefault') === 'on' || formData.get('setAsDefault') === 'true';
 
 		if (!payrollId || !competencyCode) {
 			return { success: false, message: 'Data karyawan dan kode kompetensi tidak valid.' };
@@ -936,9 +947,23 @@ export const actions = {
 				`;
 				if (compRows.length && compRows[0].default_course_id) {
 					courseId = compRows[0].default_course_id;
-				} else {
-					courseId = 'CRS-2026-001'; // Default fallback: Re-Induksi SWP
 				}
+			}
+
+			if (!courseId) {
+				return {
+					success: false,
+					message: `Kompetensi [${competencyCode}] belum terhubung materi kursus. Silakan hubungkan kursus terlebih dahulu.`
+				};
+			}
+
+			// Simpan sebagai default_course_id jika dicentang
+			if (setAsDefault) {
+				await sql`
+					UPDATE hris.lms_competency_library
+					SET default_course_id = ${courseId}
+					WHERE code = ${competencyCode};
+				`;
 			}
 
 			// Cek apakah sudah ada enrollment untuk payroll_id & course_id ini
@@ -997,6 +1022,33 @@ export const actions = {
 			};
 		} catch (e: any) {
 			return { success: false, message: `Gagal menugaskan pelatihan personal: ${e?.message || 'Error database'}` };
+		}
+	},
+
+	// 14. Hubungkan Kursus Materi ke Kamus Kompetensi
+	linkCourseToCompetency: async ({ request }) => {
+		const formData = await request.formData();
+		const competencyCode = formData.get('competencyCode')?.toString().trim().toUpperCase();
+		const courseId = formData.get('courseId')?.toString().trim() || null;
+
+		if (!competencyCode) {
+			return { success: false, message: 'Kode kompetensi wajib diisi.' };
+		}
+
+		try {
+			await sql`
+				UPDATE hris.lms_competency_library
+				SET default_course_id = ${courseId}
+				WHERE code = ${competencyCode};
+			`;
+			return {
+				success: true,
+				message: courseId
+					? `Kompetensi [${competencyCode}] berhasil dihubungkan dengan kursus ${courseId}.`
+					: `Hubungan kursus untuk kompetensi [${competencyCode}] berhasil dilepas.`
+			};
+		} catch (e: any) {
+			return { success: false, message: `Gagal memperbarui hubungan kursus: ${e?.message || 'Error database'}` };
 		}
 	}
 } satisfies Actions;
