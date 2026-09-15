@@ -125,7 +125,29 @@ export const load: PageServerLoad = async () => {
 			ORDER BY a.department, a.employee_name, a.competency_code ASC;
 		`;
 
-		// 12. Annual Safety Test Summary
+		// 12. Master Data Jabatan & Karyawan Aktif untuk Form Asesmen Grid Atasan
+		const masterTitlesRows = await sql`
+			SELECT title_code, title 
+			FROM master.m_title 
+			WHERE active = 'Y' 
+			ORDER BY title ASC;
+		`;
+
+		const activeEmployeesRows = await sql`
+			SELECT 
+				k.payroll_id, 
+				k.nama_karyawan, 
+				k.title as title_code, 
+				t.title as position_title,
+				COALESCE(d.dept_name, 'General') as department
+			FROM master.m_karyawan k
+			LEFT JOIN master.m_title t ON t.title_code = k.title
+			LEFT JOIN master.m_dept d ON d.dept_code = k.dept_id
+			WHERE k.aktif = 'Y'
+			ORDER BY k.nama_karyawan ASC;
+		`;
+
+		// 13. Annual Safety Test Summary
 		const safetyStats = {
 			year: 2026,
 			totalTargetDrivers: 140,
@@ -462,6 +484,8 @@ export const load: PageServerLoad = async () => {
 				status: a.status,
 				assessorName: a.assessor_name,
 				assessmentDate: a.assessment_date ? a.assessment_date.toISOString().split('T')[0] : '',
+				period: a.period || '2026-S1',
+				notes: a.notes || '',
 				assignedCourseId: a.assigned_course_id || a.default_course_id || null,
 				assignedCourseTitle: a.assigned_course_title || null,
 				trainingStatus: a.training_status || 'NONE',
@@ -470,6 +494,18 @@ export const load: PageServerLoad = async () => {
 				trainingDeadline: a.training_deadline ? a.training_deadline.toISOString().split('T')[0] : '',
 				reassessmentStatus: a.reassessment_status
 			})),
+			masterTitles: masterTitlesRows.map((t) => ({
+				code: t.title_code,
+				title: t.title
+			})),
+			activeEmployees: activeEmployeesRows.map((e) => ({
+				payrollId: e.payroll_id,
+				name: e.nama_karyawan,
+				titleCode: e.title_code,
+				positionTitle: e.position_title || e.title_code,
+				department: e.department
+			})),
+			assessmentPeriods: ['2026-S1', '2026-S2', '2025-Annual'],
 			tnaMatrix,
 			safetyStats,
 			dataSource: 'postgresql' as const
@@ -989,8 +1025,8 @@ export const actions = {
 						course_id, payroll_id, employee_name, status, progress_percent,
 						is_tna_gap, competency_code, enrolled_at, deadline
 					) VALUES (
-						${courseId}, ${payrollId}, ${employeeName}, 'ENROLLED', 0,
-						TRUE, ${competencyCode}, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP + INTERVAL '30 days'
+						${courseId}, ${payrollId}, ${employeeName || ''}, 'ENROLLED', 0,
+						TRUE, ${competencyCode || ''}, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP + INTERVAL '30 days'
 					)
 					RETURNING id;
 				`;
@@ -1049,6 +1085,157 @@ export const actions = {
 			};
 		} catch (e: any) {
 			return { success: false, message: `Gagal memperbarui hubungan kursus: ${e?.message || 'Error database'}` };
+		}
+	},
+
+	// 15. Submit Penilaian Asesmen Tim Kolektif (Batch Evaluation oleh Atasan)
+	submitBatchAssessment: async ({ request }) => {
+		const formData = await request.formData();
+		const assessorName = formData.get('assessorName')?.toString().trim() || 'Atasan / Supervisor Unit';
+		const period = formData.get('period')?.toString().trim() || '2026-S1';
+		const positionTitle = formData.get('positionTitle')?.toString().trim();
+		const department = formData.get('department')?.toString().trim() || 'General';
+		const notes = formData.get('notes')?.toString().trim() || '';
+		const evaluationsRaw = formData.get('evaluations')?.toString();
+
+		if (!positionTitle || !evaluationsRaw) {
+			return { success: false, message: 'Jabatan dan butir penilaian wajib diisi.' };
+		}
+
+		try {
+			const evaluations: Array<{
+				payrollId: string;
+				employeeName: string;
+				competencyCode: string;
+				requiredLevel: number;
+				actualLevel: number;
+			}> = JSON.parse(evaluationsRaw);
+
+			if (!Array.isArray(evaluations) || evaluations.length === 0) {
+				return { success: false, message: 'Tidak ada data penilaian yang dikirim.' };
+			}
+
+			// Ambil mapping default course untuk kompetensi-kompetensi ini
+			const libraryRows = await sql`
+				SELECT code, default_course_id 
+				FROM hris.lms_competency_library;
+			`;
+			const courseMap = new Map<string, string | null>();
+			for (const r of libraryRows) {
+				courseMap.set(r.code, r.default_course_id || null);
+			}
+
+			let gapCount = 0;
+			let qualifiedCount = 0;
+
+			for (const item of evaluations) {
+				const gap = Number(item.actualLevel) - Number(item.requiredLevel);
+				const status = gap < 0 ? 'Gap Competency' : 'Qualified';
+				const defaultCourseId = courseMap.get(item.competencyCode) || null;
+
+				let trainingStatus = 'NONE';
+				let enrollmentId: number | null = null;
+
+				// Jika ada GAP negatif dan ada kursus materi, langsung auto-assign ke lms_enrollments
+				if (gap < 0 && defaultCourseId) {
+					gapCount++;
+					const enrolled = await sql`
+						INSERT INTO hris.lms_enrollments (
+							course_id, payroll_id, employee_name, status, progress_percent,
+							is_tna_gap, competency_code, enrolled_at, deadline
+						) VALUES (
+							${defaultCourseId}, ${item.payrollId}, ${item.employeeName}, 'ENROLLED', 0,
+							TRUE, ${item.competencyCode}, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP + INTERVAL '30 days'
+						)
+						ON CONFLICT (course_id, payroll_id)
+						DO UPDATE SET 
+							is_tna_gap = TRUE,
+							competency_code = EXCLUDED.competency_code
+						RETURNING id;
+					`;
+					enrollmentId = enrolled[0]?.id || null;
+					trainingStatus = 'ASSIGNED';
+				} else if (gap >= 0) {
+					qualifiedCount++;
+				}
+
+				// UPSERT ke hris.lms_employee_assessments dengan index period
+				await sql`
+					INSERT INTO hris.lms_employee_assessments (
+						payroll_id, employee_name, position_title, department,
+						competency_code, required_level, actual_level, status,
+						assessor_name, assessment_date, period, notes,
+						assigned_course_id, enrollment_id, training_status
+					) VALUES (
+						${item.payrollId}, ${item.employeeName}, ${positionTitle}, ${department},
+						${item.competencyCode}, ${item.requiredLevel}, ${item.actualLevel}, ${status},
+						${assessorName}, CURRENT_DATE, ${period}, ${notes},
+						${defaultCourseId}, ${enrollmentId}, ${trainingStatus}
+					)
+					ON CONFLICT (payroll_id, competency_code, period)
+					DO UPDATE SET
+						actual_level = EXCLUDED.actual_level,
+						required_level = EXCLUDED.required_level,
+						status = EXCLUDED.status,
+						assessor_name = EXCLUDED.assessor_name,
+						assessment_date = CURRENT_DATE,
+						notes = EXCLUDED.notes,
+						assigned_course_id = COALESCE(EXCLUDED.assigned_course_id, hris.lms_employee_assessments.assigned_course_id),
+						enrollment_id = COALESCE(EXCLUDED.enrollment_id, hris.lms_employee_assessments.enrollment_id),
+						training_status = CASE 
+							WHEN EXCLUDED.status = 'Gap Competency' AND EXCLUDED.assigned_course_id IS NOT NULL THEN 'ASSIGNED'
+							ELSE hris.lms_employee_assessments.training_status
+						END;
+				`;
+			}
+
+			return {
+				success: true,
+				message: `Asesmen tim periode ${period} untuk jabatan "${positionTitle}" berhasil disimpan! (${qualifiedCount} Kompeten, ${gapCount} Gap otomatis ditugaskan kursus).`
+			};
+		} catch (e: any) {
+			logError('LMS_BATCH_ASSESSMENT_FAIL', e?.message);
+			return { success: false, message: `Gagal menyimpan asesmen kolektif: ${e?.message || 'Error database'}` };
+		}
+	},
+
+	// 16. Simpan Standar Kompetensi Jabatan oleh Tim HR
+	saveJobCompetencies: async ({ request }) => {
+		const formData = await request.formData();
+		const positionTitle = formData.get('positionTitle')?.toString().trim();
+		const department = formData.get('department')?.toString().trim() || 'General';
+		const competenciesRaw = formData.get('competencies')?.toString();
+
+		if (!positionTitle || !competenciesRaw) {
+			return { success: false, message: 'Jabatan dan daftar kompetensi wajib diisi.' };
+		}
+
+		try {
+			const competencies: Array<{ code: string; requiredLevel: number }> = JSON.parse(competenciesRaw);
+
+			// Hapus standar lama untuk jabatan ini
+			await sql`
+				DELETE FROM hris.lms_job_competencies 
+				WHERE position_title = ${positionTitle};
+			`;
+
+			// Insert standar baru
+			for (const c of competencies) {
+				if (c.code && c.requiredLevel >= 1 && c.requiredLevel <= 5) {
+					await sql`
+						INSERT INTO hris.lms_job_competencies (position_title, department, competency_code, required_level)
+						VALUES (${positionTitle}, ${department}, ${c.code}, ${c.requiredLevel});
+					`;
+				}
+			}
+
+			return {
+				success: true,
+				message: `Standar kompetensi untuk jabatan "${positionTitle}" berhasil diperbarui (${competencies.length} kompetensi tersimpan).`
+			};
+		} catch (e: any) {
+			logError('LMS_SAVE_JOB_COMPETENCIES_FAIL', e?.message);
+			return { success: false, message: `Gagal menyimpan standar jabatan: ${e?.message || 'Error database'}` };
 		}
 	}
 } satisfies Actions;

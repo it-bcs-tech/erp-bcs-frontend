@@ -22,6 +22,9 @@
 	const competencyLibrary = $derived(data.competencyLibrary || []);
 	const jobStandards = $derived(data.jobStandards || []);
 	const employeeAssessments = $derived(data.employeeAssessments || []);
+	const masterTitles = $derived((data as any).masterTitles || []);
+	const activeEmployees = $derived((data as any).activeEmployees || []);
+	const assessmentPeriods = $derived((data as any).assessmentPeriods || ['2026-S1', '2026-S2', '2025-Annual']);
 
 	// Tabs State (5 Tab Utama)
 	type TabType = 'catalog' | 'sessions' | 'evaluations' | 'safety_tna' | 'reports';
@@ -45,11 +48,84 @@
 	let evalSubTab = $state<'l1' | 'l3l4'>('l1');
 
 	// TNA Sub-tabs
-	type TnaSubTab = 'assessments' | 'library' | 'standards' | 'safety';
-	let tnaSubTab = $state<TnaSubTab>('assessments');
+	type TnaSubTab = 'grid_assessment' | 'assessments' | 'standards' | 'library' | 'safety';
+	let tnaSubTab = $state<TnaSubTab>('grid_assessment');
 	let tnaSearchQuery = $state('');
 	let tnaFilterDept = $state('All');
 	let tnaFilterStatus = $state('All');
+
+	// Grid Assessment (Penilaian Kolektif Atasan) State
+	let selectedGridPosition = $state('STORAGE KEEPER');
+	let selectedGridPeriod = $state('2026-S1');
+	let gridAssessorName = $state('Jayusman (Supervisor Operasional)');
+	let gridDepartment = $state('Workshop & Maintenance');
+	let gridNotes = $state('Penilaian berkala Storage Keeper Maintenance mengacu pada pengamatan harian di gudang dan workshop.');
+	let gridSearchComp = $state('');
+
+	// Daftar jabatan unik yang memiliki standar kompetensi
+	const positionsWithStandards = $derived.by(() => {
+		const set = new Set<string>();
+		jobStandards.forEach((s: any) => set.add(s.positionTitle));
+		return Array.from(set);
+	});
+
+	// Kompetensi untuk jabatan yang dipilih di grid
+	const currentGridCompetencies = $derived.by(() => {
+		if (!selectedGridPosition) return [];
+		return jobStandards.filter(
+			(s: any) => s.positionTitle.toLowerCase() === selectedGridPosition.toLowerCase()
+		);
+	});
+
+	// Karyawan aktif yang memegang jabatan yang dipilih
+	const currentGridEmployees = $derived.by(() => {
+		if (!selectedGridPosition) return [];
+		const matched = activeEmployees.filter(
+			(e: any) =>
+				e.positionTitle.toLowerCase() === selectedGridPosition.toLowerCase() ||
+				e.titleCode.toLowerCase() === selectedGridPosition.toLowerCase()
+		);
+		// Fallback jika belum ada di master m_karyawan lokal, tampilkan asesi Storage Keeper
+		if (matched.length === 0 && selectedGridPosition === 'STORAGE KEEPER') {
+			return [
+				{ payrollId: '0401.0255', name: 'DARWIS', positionTitle: 'STORAGE KEEPER', department: 'Workshop & Maintenance' },
+				{ payrollId: '0401.0273', name: 'ABSORI', positionTitle: 'STORAGE KEEPER', department: 'Workshop & Maintenance' },
+				{ payrollId: '1007.1240', name: 'SAHIFULLOH', positionTitle: 'STORAGE KEEPER', department: 'Procurement' },
+				{ payrollId: 'SK-001', name: 'Fauzul Martin', positionTitle: 'STORAGE KEEPER', department: 'Workshop & Maintenance' },
+				{ payrollId: 'SK-002', name: 'Dedi Haryanto', positionTitle: 'STORAGE KEEPER', department: 'Workshop & Maintenance' }
+			];
+		}
+		return matched;
+	});
+
+	// State Rating Grid: key `${payrollId}_${competencyCode}` -> rating (1..5)
+	let gridRatings = $state<Record<string, number>>({});
+
+	function getRating(payrollId: string, compCode: string, defaultLevel: number): number {
+		const key = `${payrollId}_${compCode}`;
+		if (gridRatings[key] !== undefined) {
+			return gridRatings[key];
+		}
+		const existing = employeeAssessments.find(
+			(a: any) => a.payrollId === payrollId && a.competencyCode === compCode && a.period === selectedGridPeriod
+		);
+		if (existing) {
+			gridRatings[key] = existing.actualLevel;
+			return existing.actualLevel;
+		}
+		gridRatings[key] = defaultLevel;
+		return defaultLevel;
+	}
+
+	function setRating(payrollId: string, compCode: string, level: number) {
+		gridRatings[`${payrollId}_${compCode}`] = level;
+	}
+
+	function setAllToTarget(payrollId: string) {
+		currentGridCompetencies.forEach((c: any) => {
+			gridRatings[`${payrollId}_${c.competencyCode}`] = c.requiredLevel;
+		});
+	}
 
 	// Report Sub-tabs (Spreadsheet Master Specification: Sheet 306150899)
 	type ReportType = 'training' | 'course' | 'attendance' | 'assessment' | 'competency_gap' | 'certificates';
@@ -1042,6 +1118,21 @@
 						<div class="flex items-center gap-1.5 overflow-x-auto">
 							<button
 								type="button"
+								onclick={() => (tnaSubTab = 'grid_assessment')}
+								class="px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-2
+								{tnaSubTab === 'grid_assessment'
+									? 'bg-primary text-on-primary shadow-xs'
+									: 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container'}"
+							>
+								<span class="material-symbols-outlined text-sm">grid_view</span>
+								<span>Form Asesmen Atasan (Batch Grid)</span>
+								<span class="px-1.5 py-0.2 rounded-full text-[10px] font-black bg-emerald-500 text-white">
+									Baru
+								</span>
+							</button>
+
+							<button
+								type="button"
 								onclick={() => (tnaSubTab = 'assessments')}
 								class="px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-2
 								{tnaSubTab === 'assessments'
@@ -1049,24 +1140,12 @@
 									: 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container'}"
 							>
 								<span class="material-symbols-outlined text-sm">fact_check</span>
-								<span>Asesmen TNA & Penugasan Personal</span>
+								<span>Hasil Asesmen TNA ({employeeAssessments.length})</span>
 								{#if employeeAssessments.filter((a) => a.gap < 0).length > 0}
 									<span class="px-1.5 py-0.2 rounded-full text-[10px] font-black bg-rose-500 text-white">
 										{employeeAssessments.filter((a) => a.gap < 0).length} GAP
 									</span>
 								{/if}
-							</button>
-
-							<button
-								type="button"
-								onclick={() => (tnaSubTab = 'library')}
-								class="px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-2
-								{tnaSubTab === 'library'
-									? 'bg-primary text-on-primary shadow-xs'
-									: 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container'}"
-							>
-								<span class="material-symbols-outlined text-sm">menu_book</span>
-								<span>Kamus Kompetensi ({competencyLibrary.length})</span>
 							</button>
 
 							<button
@@ -1083,6 +1162,18 @@
 
 							<button
 								type="button"
+								onclick={() => (tnaSubTab = 'library')}
+								class="px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-2
+								{tnaSubTab === 'library'
+									? 'bg-primary text-on-primary shadow-xs'
+									: 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container'}"
+							>
+								<span class="material-symbols-outlined text-sm">menu_book</span>
+								<span>Kamus Kompetensi ({competencyLibrary.length})</span>
+							</button>
+
+							<button
+								type="button"
 								onclick={() => (tnaSubTab = 'safety')}
 								class="px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-2
 								{tnaSubTab === 'safety'
@@ -1095,14 +1186,392 @@
 						</div>
 
 						<div class="text-[11px] text-slate-500 font-medium px-2">
-							Modul Kompetensi Terintegrasi Portal BCS Academy
+							Modul Penilaian Kompetensi Terintegrasi Portal BCS Academy
 						</div>
 					</div>
 
+					<!-- ═══════════════════════════════════════════════════════════════ -->
+					<!-- SUB-VIEW 0: FORM ASESMEN KOLEKTIF ATASAN (BATCH EVALUATION GRID) -->
+					<!-- ═══════════════════════════════════════════════════════════════ -->
+					{#if tnaSubTab === 'grid_assessment'}
+						<div class="space-y-6">
+							<!-- Banner Header Asesmen Google Form Style -->
+							<div class="p-6 rounded-3xl bg-gradient-to-br from-indigo-900/30 via-slate-900/40 to-blue-900/20 border border-indigo-500/20 shadow-xl space-y-4">
+								<div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+									<div class="space-y-1.5">
+										<div class="flex items-center gap-2 flex-wrap">
+											<span class="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase bg-indigo-500 text-white shadow-xs tracking-wider">
+												Form Asesmen Atasan
+											</span>
+											<span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase bg-surface-container border border-slate-700 text-slate-300">
+												Batch Grid Evaluation
+											</span>
+										</div>
+										<h3 class="text-lg font-black text-on-surface tracking-tight">
+											COMPETENCY ASSESSMENT FORM — {selectedGridPosition}
+										</h3>
+										<p class="text-xs text-on-surface-variant max-w-3xl leading-relaxed">
+											Formulir evaluasi kompetensi atasan langsung untuk mengukur kemampuan nyata bawahan di lapangan berdasarkan Kamus Kompetensi PT Buana Centra Swakarsa (Level 1 s.d. 5). Skor yang berada di bawah target standar jabatan secara otomatis menugaskan kursus TNA penunjang.
+										</p>
+									</div>
+
+									<div class="flex items-center gap-2 self-start md:self-center">
+										<button
+											type="button"
+											onclick={() => {
+												currentGridEmployees.forEach((emp: any) => setAllToTarget(emp.payrollId));
+											}}
+											class="px-3 py-2 rounded-xl bg-surface-container-highest hover:bg-slate-700 text-on-surface text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 border border-slate-700"
+										>
+											<span class="material-symbols-outlined text-sm text-emerald-400">task_alt</span>
+											<span>Set Semua ke Standar HR</span>
+										</button>
+									</div>
+								</div>
+
+								<!-- Filter & Parameter Panel -->
+								<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 pt-3 border-t border-slate-200/20 dark:border-slate-800/60">
+									<!-- Pilih Jabatan -->
+									<div class="space-y-1">
+										<label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+											Posisi / Jabatan yang Dinilai *
+										</label>
+										<select
+											bind:value={selectedGridPosition}
+											class="w-full px-3 py-2 rounded-xl bg-surface-container border border-slate-700 text-xs font-bold text-on-surface focus:ring-2 focus:ring-primary focus:outline-hidden"
+										>
+											{#each positionsWithStandards as pos}
+												<option value={pos}>{pos}</option>
+											{/each}
+											{#if !positionsWithStandards.includes('STORAGE KEEPER')}
+												<option value="STORAGE KEEPER">STORAGE KEEPER (Maintenance & Gudang)</option>
+											{/if}
+										</select>
+									</div>
+
+									<!-- Nama Asesor -->
+									<div class="space-y-1">
+										<label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+											Nama Asesor (Atasan Penilai) *
+										</label>
+										<input
+											type="text"
+											bind:value={gridAssessorName}
+											placeholder="Nama Lengkap Atasan"
+											class="w-full px-3 py-2 rounded-xl bg-surface-container border border-slate-700 text-xs font-medium text-on-surface focus:ring-2 focus:ring-primary focus:outline-hidden"
+										/>
+									</div>
+
+									<!-- Periode Penilaian -->
+									<div class="space-y-1">
+										<label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+											Periode Asesmen *
+										</label>
+										<select
+											bind:value={selectedGridPeriod}
+											class="w-full px-3 py-2 rounded-xl bg-surface-container border border-slate-700 text-xs font-bold text-on-surface focus:ring-2 focus:ring-primary focus:outline-hidden"
+										>
+											{#each assessmentPeriods as prd}
+												<option value={prd}>{prd}</option>
+											{/each}
+										</select>
+									</div>
+
+									<!-- Departemen -->
+									<div class="space-y-1">
+										<label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+											Departemen / Unit Kerja
+										</label>
+										<input
+											type="text"
+											bind:value={gridDepartment}
+											class="w-full px-3 py-2 rounded-xl bg-surface-container border border-slate-700 text-xs font-medium text-on-surface focus:ring-2 focus:ring-primary focus:outline-hidden"
+										/>
+									</div>
+								</div>
+							</div>
+
+							<!-- Legend Skala Level 1 s.d. 5 -->
+							<div class="p-3.5 rounded-2xl bg-surface-container border border-slate-200/60 dark:border-slate-800/60 flex flex-wrap items-center justify-between gap-3 text-xs">
+								<div class="flex items-center gap-2 font-bold text-on-surface text-[11px]">
+									<span class="material-symbols-outlined text-base text-primary">info</span>
+									<span>Panduan Skala Kemahiran:</span>
+								</div>
+								<div class="flex items-center gap-2 flex-wrap text-[11px]">
+									<span class="px-2 py-0.5 rounded-lg bg-slate-800 border border-slate-700 text-slate-300 font-mono">
+										<strong>1</strong>: SOP Dasar
+									</span>
+									<span class="px-2 py-0.5 rounded-lg bg-slate-800 border border-slate-700 text-slate-300 font-mono">
+										<strong>2</strong>: Rutin Mandiri
+									</span>
+									<span class="px-2 py-0.5 rounded-lg bg-slate-800 border border-slate-700 text-slate-300 font-mono">
+										<strong>3</strong>: Problem Solving
+									</span>
+									<span class="px-2 py-0.5 rounded-lg bg-slate-800 border border-slate-700 text-slate-300 font-mono">
+										<strong>4</strong>: Supervisi & Analisis
+									</span>
+									<span class="px-2 py-0.5 rounded-lg bg-slate-800 border border-slate-700 text-slate-300 font-mono">
+										<strong>5</strong>: Inovator / Ahli
+									</span>
+								</div>
+								<div class="flex items-center gap-3 text-[11px]">
+									<span class="flex items-center gap-1 text-emerald-400 font-bold">
+										<span class="w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block"></span>
+										<span>≥ Target (Qualified)</span>
+									</span>
+									<span class="flex items-center gap-1 text-rose-400 font-bold">
+										<span class="w-2.5 h-2.5 rounded-full bg-rose-500 inline-block"></span>
+										<span>&lt; Target (Gap TNA)</span>
+									</span>
+								</div>
+							</div>
+
+							<!-- Main Grid Matrix Evaluation Table -->
+							{#if currentGridCompetencies.length === 0}
+								<div class="p-12 text-center rounded-3xl bg-surface-container border border-slate-200/60 dark:border-slate-800/60 space-y-3">
+									<span class="material-symbols-outlined text-5xl text-slate-400">rule_settings</span>
+									<h4 class="font-bold text-base text-on-surface">Belum ada Standar Kompetensi untuk Jabatan ini</h4>
+									<p class="text-xs text-on-surface-variant max-w-md mx-auto">
+										Tim HR belum menetapkan daftar kompetensi untuk posisi "{selectedGridPosition}". Klik tombol di bawah untuk menambahkannya.
+									</p>
+									<button
+										type="button"
+										onclick={() => {
+											jobStandardForm.positionTitle = selectedGridPosition;
+											isJobStandardModalOpen = true;
+										}}
+										class="px-4 py-2 rounded-xl bg-primary text-on-primary text-xs font-bold shadow-xs hover:opacity-90 inline-flex items-center gap-1.5 cursor-pointer"
+									>
+										<span class="material-symbols-outlined text-sm">add_circle</span>
+										<span>Atur Standar Kompetensi {selectedGridPosition}</span>
+									</button>
+								</div>
+							{:else if currentGridEmployees.length === 0}
+								<div class="p-12 text-center rounded-3xl bg-surface-container border border-slate-200/60 dark:border-slate-800/60 space-y-3">
+									<span class="material-symbols-outlined text-5xl text-slate-400">group_off</span>
+									<h4 class="font-bold text-base text-on-surface">Tidak ada bawahan aktif pada jabatan ini</h4>
+									<p class="text-xs text-on-surface-variant max-w-md mx-auto">
+										Belum ada karyawan aktif yang tercatat dengan jabatan "{selectedGridPosition}".
+									</p>
+								</div>
+							{:else}
+								<!-- Search bar kompetensi di dalam grid -->
+								<div class="flex items-center justify-between gap-3">
+									<div class="flex items-center gap-2">
+										<span class="text-xs font-bold text-on-surface">
+											Menilai {currentGridEmployees.length} Karyawan pada {currentGridCompetencies.length} Unit Kompetensi
+										</span>
+									</div>
+									<div class="relative w-64">
+										<span class="material-symbols-outlined absolute left-3 top-2.5 text-slate-400 text-sm">search</span>
+										<input
+											type="text"
+											bind:value={gridSearchComp}
+											placeholder="Cari kompetensi..."
+											class="w-full pl-9 pr-3 py-1.5 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800 text-xs text-on-surface focus:outline-hidden"
+										/>
+									</div>
+								</div>
+
+								<!-- Tabel Matrix Grid Penilaian -->
+								<div class="rounded-3xl border border-slate-200/60 dark:border-slate-800/60 overflow-hidden shadow-xl bg-surface">
+									<div class="overflow-x-auto max-h-[600px]">
+										<table class="w-full text-xs text-left border-collapse">
+											<thead class="sticky top-0 z-20 bg-surface-container-high border-b border-slate-200/80 dark:border-slate-800/80 shadow-xs">
+												<tr>
+													<th class="p-3.5 font-black text-on-surface w-10 text-center border-r border-slate-200/40 dark:border-slate-800/40">
+														#
+													</th>
+													<th class="p-3.5 font-black text-on-surface min-w-[260px] border-r border-slate-200/40 dark:border-slate-800/40">
+														Unit Kompetensi & Aspek
+													</th>
+													<th class="p-3.5 font-black text-on-surface text-center w-28 border-r border-slate-200/40 dark:border-slate-800/40">
+														Standar HR
+													</th>
+													{#each currentGridEmployees as emp}
+														<th class="p-3.5 font-bold text-on-surface text-center min-w-[190px] border-r border-slate-200/40 dark:border-slate-800/40 last:border-r-0 bg-surface-container/60">
+															<div class="space-y-1">
+																<div class="font-black text-xs text-on-surface leading-snug">{emp.name}</div>
+																<div class="text-[10px] text-slate-400 font-mono">{emp.payrollId}</div>
+																<button
+																	type="button"
+																	onclick={() => setAllToTarget(emp.payrollId)}
+																	class="px-2 py-0.5 rounded-md bg-surface-container-highest hover:bg-slate-700 text-[9px] font-bold text-slate-300 transition-all cursor-pointer"
+																	title="Set semua nilai karyawan ini ke target standar"
+																>
+																	Set Target
+																</button>
+															</div>
+														</th>
+													{/each}
+												</tr>
+											</thead>
+
+											<tbody class="divide-y divide-slate-200/40 dark:divide-slate-800/40">
+												{#each currentGridCompetencies.filter((c: any) => !gridSearchComp || c.competencyName.toLowerCase().includes(gridSearchComp.toLowerCase()) || c.competencyCode.toLowerCase().includes(gridSearchComp.toLowerCase())) as comp, idx}
+													{@const compObj = competencyLibrary.find((l: any) => l.code === comp.competencyCode)}
+													<tr class="hover:bg-surface-container/30 transition-colors">
+														<td class="p-3 text-center text-slate-400 font-mono text-[11px] border-r border-slate-200/40 dark:border-slate-800/40">
+															{idx + 1}
+														</td>
+
+														<!-- Nama Kompetensi & Tombol Info Indikator Level 1-5 -->
+														<td class="p-3 border-r border-slate-200/40 dark:border-slate-800/40">
+															<div class="space-y-0.5">
+																<div class="flex items-center gap-2">
+																	<span class="font-mono text-[10px] font-black text-indigo-400">
+																		{comp.competencyCode}
+																	</span>
+																	<span class="font-bold text-xs text-on-surface">
+																		{comp.competencyName}
+																	</span>
+																	{#if compObj}
+																		<button
+																			type="button"
+																			onclick={() => {
+																				selectedCompetencyForIndicator = compObj;
+																				isLevelIndicatorModalOpen = true;
+																			}}
+																			class="w-5 h-5 rounded-full bg-surface-container hover:bg-primary/20 hover:text-primary flex items-center justify-center text-slate-400 transition-all cursor-pointer"
+																			title="Lihat Indikator Level 1 s.d. 5"
+																		>
+																			<span class="material-symbols-outlined text-xs">info</span>
+																		</button>
+																	{/if}
+																</div>
+																<div class="text-[10px] text-slate-500 font-medium">
+																	{comp.competencyAspect || 'Kompetensi Jabatan'}
+																</div>
+															</div>
+														</td>
+
+														<!-- Target Level HR -->
+														<td class="p-3 text-center border-r border-slate-200/40 dark:border-slate-800/40">
+															<span class="px-2.5 py-1 rounded-xl text-xs font-mono font-black bg-indigo-100 dark:bg-indigo-950/80 text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800 inline-block">
+																Level {comp.requiredLevel}
+															</span>
+														</td>
+
+														<!-- Kolom Penilaian Tiap Karyawan -->
+														{#each currentGridEmployees as emp}
+															{@const currentVal = getRating(emp.payrollId, comp.competencyCode, comp.requiredLevel)}
+															{@const isQualified = currentVal >= comp.requiredLevel}
+															<td class="p-2.5 text-center border-r border-slate-200/40 dark:border-slate-800/40 last:border-r-0 {isQualified ? 'bg-emerald-950/5' : 'bg-rose-950/10'}">
+																<div class="inline-flex items-center justify-center p-1 rounded-2xl bg-surface-container border {isQualified ? 'border-emerald-500/30' : 'border-rose-500/40'} gap-1 shadow-2xs">
+																	{#each [1, 2, 3, 4, 5] as lvl}
+																		<button
+																			type="button"
+																			onclick={() => setRating(emp.payrollId, comp.competencyCode, lvl)}
+																			class="w-6 h-6 rounded-xl font-mono text-[11px] font-black transition-all cursor-pointer flex items-center justify-center
+																			{currentVal === lvl
+																				? lvl >= comp.requiredLevel
+																					? 'bg-emerald-500 text-white shadow-xs scale-105'
+																					: 'bg-rose-500 text-white shadow-xs scale-105'
+																				: 'text-slate-400 hover:text-on-surface hover:bg-surface-container-highest'}"
+																		>
+																			{lvl}
+																		</button>
+																	{/each}
+																</div>
+															</td>
+														{/each}
+													</tr>
+												{/each}
+											</tbody>
+
+											<!-- Real-time Summary Footer -->
+											<tfoot class="sticky bottom-0 z-20 bg-surface-container-highest border-t-2 border-slate-700 shadow-md">
+												<tr class="font-bold">
+													<td colspan="3" class="p-3 text-right text-xs uppercase tracking-wider text-slate-300 border-r border-slate-700">
+														Ringkasan Hasil Evaluasi Tim:
+													</td>
+													{#each currentGridEmployees as emp}
+														{@const scores = currentGridCompetencies.map((c: any) => getRating(emp.payrollId, c.competencyCode, c.requiredLevel))}
+														{@const avg = scores.length ? (scores.reduce((a: number, b: number) => a + b, 0) / scores.length).toFixed(1) : 0}
+														{@const gaps = currentGridCompetencies.filter((c: any) => getRating(emp.payrollId, c.competencyCode, c.requiredLevel) < c.requiredLevel).length}
+														{@const qual = currentGridCompetencies.length - gaps}
+														<td class="p-2.5 text-center border-r border-slate-700 last:border-r-0">
+															<div class="space-y-1">
+																<div class="text-xs font-mono font-black text-on-surface">
+																	Rata-rata: <span class="text-primary">{avg}</span>
+																</div>
+																<div class="flex items-center justify-center gap-1.5 text-[10px]">
+																	<span class="px-1.5 py-0.2 rounded-md bg-emerald-500/20 text-emerald-400 font-bold">
+																		{qual} Sesuai
+																	</span>
+																	{#if gaps > 0}
+																		<span class="px-1.5 py-0.2 rounded-md bg-rose-500/20 text-rose-400 font-black">
+																			{gaps} Gap TNA
+																		</span>
+																	{/if}
+																</div>
+															</div>
+														</td>
+													{/each}
+												</tr>
+											</tfoot>
+										</table>
+									</div>
+								</div>
+
+								<!-- Catatan Evaluasi Atasan & Submit Bar -->
+								<div class="p-6 rounded-3xl bg-surface-container border border-slate-200/60 dark:border-slate-800/60 space-y-4">
+									<div class="space-y-1">
+										<label class="text-xs font-bold text-on-surface flex items-center gap-2">
+											<span class="material-symbols-outlined text-sm text-primary">notes</span>
+											<span>Catatan Pengamatan Lapangan & Rekomendasi Atasan (Opsional)</span>
+										</label>
+										<textarea
+											bind:value={gridNotes}
+											rows={3}
+											placeholder="Tuliskan catatan umum mengenai kedisiplinan, pengamatan keselamatan kerja, atau aspek yang perlu ditingkatkan oleh tim..."
+											class="w-full p-3 rounded-2xl bg-surface border border-slate-200 dark:border-slate-800 text-xs text-on-surface focus:ring-2 focus:ring-primary focus:outline-hidden"
+										></textarea>
+									</div>
+
+									<form method="POST" action="?/submitBatchAssessment" use:enhance class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-2 border-t border-slate-200/40 dark:border-slate-800/40">
+										<!-- Hidden Fields untuk Server Action -->
+										<input type="hidden" name="assessorName" value={gridAssessorName} />
+										<input type="hidden" name="period" value={selectedGridPeriod} />
+										<input type="hidden" name="positionTitle" value={selectedGridPosition} />
+										<input type="hidden" name="department" value={gridDepartment} />
+										<input type="hidden" name="notes" value={gridNotes} />
+										<input
+											type="hidden"
+											name="evaluations"
+											value={JSON.stringify(
+												currentGridEmployees.flatMap((emp: any) =>
+													currentGridCompetencies.map((comp: any) => ({
+														payrollId: emp.payrollId,
+														employeeName: emp.name,
+														competencyCode: comp.competencyCode,
+														requiredLevel: comp.requiredLevel,
+														actualLevel: getRating(emp.payrollId, comp.competencyCode, comp.requiredLevel)
+													}))
+												)
+											)}
+										/>
+
+										<div class="text-xs text-slate-400">
+											Setelah submit, sistem otomatis mengkalkulasi GAP TNA dan menugaskan kursus bagi karyawan dengan nilai di bawah standar.
+										</div>
+
+										<button
+											type="submit"
+											class="px-6 py-3 rounded-2xl bg-primary text-on-primary text-xs font-black shadow-lg hover:opacity-90 transition-all flex items-center justify-center gap-2 cursor-pointer self-stretch sm:self-auto"
+										>
+											<span class="material-symbols-outlined text-base">send</span>
+											<span>Submit Hasil Asesmen Tim (Batch)</span>
+										</button>
+									</form>
+								</div>
+							{/if}
+						</div>
+
 					<!-- ═══════════════════════════════════════════════════════════ -->
-					<!-- SUB-VIEW 1: ASESMEN TNA & PENUGASAN PERSONAL (CORE FEATURE) -->
+					<!-- SUB-VIEW 1: ASESMEN TNA & PENUGASAN PERSONAL (HASIL/STATUS) -->
 					<!-- ═══════════════════════════════════════════════════════════ -->
-					{#if tnaSubTab === 'assessments'}
+					{:else if tnaSubTab === 'assessments'}
 						<div class="space-y-6">
 							<!-- Banner Ringkasan GAP & Pelatihan Personal -->
 							<div class="p-5 rounded-2xl bg-gradient-to-r from-blue-900/20 via-indigo-900/20 to-purple-900/20 border border-blue-500/20 flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -3493,11 +3962,17 @@
 					<input
 						type="text"
 						name="positionTitle"
+						list="masterTitlesList"
 						bind:value={jobStandardForm.positionTitle}
 						required
 						class="w-full px-3 py-2 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800 text-xs font-bold"
-						placeholder="misal: Driver Trailer Tronton"
+						placeholder="Pilih atau ketik jabatan, misal: STORAGE KEEPER"
 					/>
+					<datalist id="masterTitlesList">
+						{#each masterTitles as t}
+							<option value={t.title}>{t.title} ({t.code})</option>
+						{/each}
+					</datalist>
 				</div>
 
 				<div class="space-y-1">
