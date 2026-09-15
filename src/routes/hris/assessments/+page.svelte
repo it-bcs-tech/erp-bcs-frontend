@@ -72,18 +72,7 @@
 	// Karyawan Bawahan Langsung yang Memegang Jabatan Tersebut
 	const currentSubordinateEmployees = $derived.by(() => {
 		if (!selectedSubordinatePosition) return [];
-		const matched = activeEmployees.filter((e: any) => e.titleCode === selectedSubordinatePosition.code);
-		// Sediakan fallback sample jika data master belum lengkap
-		if (matched.length === 0 && selectedSubordinatePosition.title.toUpperCase().includes('STORAGE')) {
-			return [
-				{ payrollId: '0401.0255', name: 'DARWIS', positionTitle: 'STORAGE KEEPER', department: 'Workshop & Maintenance' },
-				{ payrollId: '0401.0273', name: 'ABSORI', positionTitle: 'STORAGE KEEPER', department: 'Workshop & Maintenance' },
-				{ payrollId: '1007.1240', name: 'SAHIFULLOH', positionTitle: 'STORAGE KEEPER', department: 'Procurement' },
-				{ payrollId: 'SK-001', name: 'Fauzul Martin', positionTitle: 'STORAGE KEEPER', department: 'Workshop & Maintenance' },
-				{ payrollId: 'SK-002', name: 'Dedi Haryanto', positionTitle: 'STORAGE KEEPER', department: 'Workshop & Maintenance' }
-			];
-		}
-		return matched;
+		return activeEmployees.filter((e: any) => e.titleCode === selectedSubordinatePosition.code);
 	});
 
 	// Rating State (Safe Pure Function & Event Handler Mutation)
