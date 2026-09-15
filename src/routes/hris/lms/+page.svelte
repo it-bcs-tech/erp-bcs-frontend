@@ -110,10 +110,8 @@
 			(a: any) => a.payrollId === payrollId && a.competencyCode === compCode && a.period === selectedGridPeriod
 		);
 		if (existing) {
-			gridRatings[key] = existing.actualLevel;
 			return existing.actualLevel;
 		}
-		gridRatings[key] = defaultLevel;
 		return defaultLevel;
 	}
 
