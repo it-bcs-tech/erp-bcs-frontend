@@ -23,6 +23,7 @@
 	const jobStandards = $derived(data.jobStandards || []);
 	const employeeAssessments = $derived(data.employeeAssessments || []);
 	const masterTitles = $derived((data as any).masterTitles || []);
+	const divisions = $derived((data as any).divisions || []);
 	const activeEmployees = $derived((data as any).activeEmployees || []);
 	const assessmentPeriods = $derived((data as any).assessmentPeriods || ['2026-S1', '2026-S2', '2025-Annual']);
 
@@ -120,10 +121,79 @@
 
 	let jobStandardForm = $state({
 		positionTitle: '',
-		department: 'Operations',
-		competencyCode: '',
-		requiredLevel: 3
+		division: 'OPERATION'
 	});
+	let selectedCompStandards = $state<Record<string, { selected: boolean; requiredLevel: number }>>({});
+	let compModalSearchQuery = $state('');
+	let compModalSelectedAspect = $state('All');
+
+	// List kompetensi terpilih untuk dikirim ke backend
+	const selectedCompStandardsList = $derived.by(() => {
+		return Object.entries(selectedCompStandards)
+			.filter(([_, val]) => val.selected)
+			.map(([code, val]) => ({
+				competencyCode: code,
+				requiredLevel: val.requiredLevel
+			}));
+	});
+
+	// Filtered kompetensi untuk modal picker
+	const filteredModalCompetencies = $derived.by(() => {
+		return competencyLibrary.filter((c: any) => {
+			const matchSearch = compModalSearchQuery === '' ||
+				c.name.toLowerCase().includes(compModalSearchQuery.toLowerCase()) ||
+				c.code.toLowerCase().includes(compModalSearchQuery.toLowerCase());
+			const matchAspect = compModalSelectedAspect === 'All' || c.aspect === compModalSelectedAspect;
+			return matchSearch && matchAspect;
+		});
+	});
+
+	function toggleModalCompSelection(code: string) {
+		if (!selectedCompStandards[code]) {
+			selectedCompStandards[code] = { selected: true, requiredLevel: 3 };
+		} else {
+			selectedCompStandards[code].selected = !selectedCompStandards[code].selected;
+		}
+	}
+
+	function setModalCompLevel(code: string, level: number) {
+		if (!selectedCompStandards[code]) {
+			selectedCompStandards[code] = { selected: true, requiredLevel: level };
+		} else {
+			selectedCompStandards[code].requiredLevel = level;
+		}
+	}
+
+	function selectAllFilteredModalComps() {
+		filteredModalCompetencies.forEach((c: any) => {
+			if (!selectedCompStandards[c.code]) {
+				selectedCompStandards[c.code] = { selected: true, requiredLevel: 3 };
+			} else {
+				selectedCompStandards[c.code].selected = true;
+			}
+		});
+	}
+
+	function clearAllModalComps() {
+		selectedCompStandards = {};
+	}
+
+	function openJobStandardModal(positionTitle?: string, divisionName?: string) {
+		jobStandardForm.positionTitle = positionTitle || '';
+		jobStandardForm.division = divisionName || (divisions[0]?.name || 'OPERATION');
+		selectedCompStandards = {};
+		compModalSearchQuery = '';
+		compModalSelectedAspect = 'All';
+
+		if (positionTitle) {
+			const existing = jobStandards.filter((j: any) => j.positionTitle.toLowerCase() === positionTitle.toLowerCase());
+			existing.forEach((e: any) => {
+				selectedCompStandards[e.competencyCode] = { selected: true, requiredLevel: e.requiredLevel };
+			});
+		}
+
+		isJobStandardModalOpen = true;
+	}
 
 	// Active Selections
 	let activeCourseForPlayer = $state<any>(null);
@@ -1630,12 +1700,12 @@
 							<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-200/60 dark:border-slate-800/60">
 								<div>
 									<h4 class="font-black text-sm text-on-surface uppercase tracking-wider">Standar Kompetensi Jabatan (Required Level)</h4>
-									<p class="text-xs text-on-surface-variant">Matriks level kemahiran minimal yang harus dikuasai oleh masing-masing posisi kerja di PT BCS</p>
+									<p class="text-xs text-on-surface-variant">Matriks level kemahiran minimal yang harus dikuasai oleh masing-masing posisi kerja per divisi di PT BCS</p>
 								</div>
 
 								<button
 									type="button"
-									onclick={() => (isJobStandardModalOpen = true)}
+									onclick={() => openJobStandardModal()}
 									class="px-3.5 py-2 rounded-xl bg-primary text-on-primary text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer self-start sm:self-auto shadow-xs"
 								>
 									<span class="material-symbols-outlined text-sm">tune</span>
@@ -1643,36 +1713,88 @@
 								</button>
 							</div>
 
-							<div class="rounded-2xl border border-slate-200/60 dark:border-slate-800/60 overflow-hidden shadow-xs">
-								<table class="w-full text-xs text-left">
-									<thead class="bg-surface-container-high font-bold text-on-surface border-b border-slate-200/60 dark:border-slate-800/60">
-										<tr>
-											<th class="p-3">Posisi / Jabatan</th>
-											<th class="p-3">Departemen</th>
-											<th class="p-3">Kode Kompetensi</th>
-											<th class="p-3">Nama Kompetensi</th>
-											<th class="p-3 text-center">Standar Target (Required)</th>
-											<th class="p-3">Default Kursus LMS</th>
-										</tr>
-									</thead>
-									<tbody class="divide-y divide-slate-200/60 dark:divide-slate-800/60">
-										{#each jobStandards as std}
-											<tr class="hover:bg-surface-container/50">
-												<td class="p-3 font-bold text-on-surface">{std.positionTitle}</td>
-												<td class="p-3 text-slate-500 font-medium">{std.department}</td>
-												<td class="p-3 font-mono font-bold text-primary">{std.competencyCode}</td>
-												<td class="p-3 font-semibold text-on-surface">{std.competencyName}</td>
-												<td class="p-3 text-center">
-													<span class="inline-flex items-center justify-center px-2.5 py-1 rounded-lg bg-blue-100 dark:bg-blue-950 text-blue-800 dark:text-blue-300 font-mono font-black text-xs border border-blue-200 dark:border-blue-800">
-														Level {std.requiredLevel} / 5
-													</span>
-												</td>
-												<td class="p-3 text-slate-600 dark:text-slate-300 font-medium">{std.defaultCourseTitle}</td>
+							{#if jobStandards.length === 0}
+								<div class="p-12 text-center rounded-3xl bg-surface-container border border-slate-200/60 dark:border-slate-800/60 space-y-3">
+									<div class="w-14 h-14 rounded-2xl bg-primary/10 text-primary flex items-center justify-center mx-auto">
+										<span class="material-symbols-outlined text-3xl">playlist_add_check</span>
+									</div>
+									<h4 class="font-bold text-base text-on-surface">Data Standar Jabatan Masih Kosong</h4>
+									<p class="text-xs text-on-surface-variant max-w-md mx-auto">
+										Belum ada standar kompetensi yang ditetapkan. Silakan klik tombol di bawah untuk menetapkan kompetensi wajib dan target level bagi masing-masing jabatan.
+									</p>
+									<button
+										type="button"
+										onclick={() => openJobStandardModal()}
+										class="px-4 py-2 rounded-xl bg-primary text-on-primary text-xs font-bold inline-flex items-center gap-1.5 shadow-sm hover:opacity-90 cursor-pointer"
+									>
+										<span class="material-symbols-outlined text-sm">add_circle</span>
+										<span>Mulai Tetapkan Standar Jabatan</span>
+									</button>
+								</div>
+							{:else}
+								<div class="rounded-2xl border border-slate-200/60 dark:border-slate-800/60 overflow-hidden shadow-xs">
+									<table class="w-full text-xs text-left">
+										<thead class="bg-surface-container-high font-bold text-on-surface border-b border-slate-200/60 dark:border-slate-800/60">
+											<tr>
+												<th class="p-3">Posisi / Jabatan</th>
+												<th class="p-3">Divisi</th>
+												<th class="p-3">Kode Kompetensi</th>
+												<th class="p-3">Nama Kompetensi</th>
+												<th class="p-3 text-center">Standar Target (Required)</th>
+												<th class="p-3">Default Kursus LMS</th>
+												<th class="p-3 text-center">Aksi</th>
 											</tr>
-										{/each}
-									</tbody>
-								</table>
-							</div>
+										</thead>
+										<tbody class="divide-y divide-slate-200/60 dark:divide-slate-800/60">
+											{#each jobStandards as std}
+												<tr class="hover:bg-surface-container/50">
+													<td class="p-3 font-bold text-on-surface">{std.positionTitle}</td>
+													<td class="p-3">
+														<span class="px-2 py-0.5 rounded-lg bg-surface border border-slate-200 dark:border-slate-700 text-[11px] font-semibold text-on-surface">
+															{std.division || std.department}
+														</span>
+													</td>
+													<td class="p-3 font-mono font-bold text-primary">{std.competencyCode}</td>
+													<td class="p-3 font-semibold text-on-surface">{std.competencyName}</td>
+													<td class="p-3 text-center">
+														<span class="inline-flex items-center justify-center px-2.5 py-1 rounded-lg bg-blue-100 dark:bg-blue-950 text-blue-800 dark:text-blue-300 font-mono font-black text-xs border border-blue-200 dark:border-blue-800">
+															Level {std.requiredLevel} / 5
+														</span>
+													</td>
+													<td class="p-3 text-slate-600 dark:text-slate-300 font-medium">{std.defaultCourseTitle}</td>
+													<td class="p-3 text-center">
+														<div class="flex items-center justify-center gap-1">
+															<button
+																type="button"
+																onclick={() => openJobStandardModal(std.positionTitle, std.division)}
+																class="p-1 rounded-lg text-slate-400 hover:text-primary hover:bg-surface-container transition-all cursor-pointer"
+																title="Edit / Atur Kompetensi Jabatan ini"
+															>
+																<span class="material-symbols-outlined text-sm">edit</span>
+															</button>
+															<form method="POST" action="?/deleteJobStandard" use:enhance class="inline">
+																<input type="hidden" name="id" value={std.id} />
+																<button
+																	type="submit"
+																	class="p-1 rounded-lg text-slate-400 hover:text-rose-500 hover:bg-surface-container transition-all cursor-pointer"
+																	title="Hapus Standar ini"
+																	onclick={(e) => {
+																		if (!confirm(`Hapus standar kompetensi [${std.competencyCode}] untuk posisi ${std.positionTitle}?`)) {
+																			e.preventDefault();
+																		}
+																	}}
+																>
+																	<span class="material-symbols-outlined text-sm">delete</span>
+																</button>
+															</form>
+														</div>
+													</td>
+												</tr>
+											{/each}
+										</tbody>
+									</table>
+								</div>
+							{/if}
 						</div>
 
 					<!-- ═══════════════════════════════════════════════════════════ -->
@@ -3488,89 +3610,202 @@
 <!-- ════════════════════════════════════════════════════════════════════════ -->
 {#if isJobStandardModalOpen}
 	<div class="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-4">
-		<div class="bg-surface rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xl w-full max-w-md overflow-hidden p-6 space-y-4 animate-in zoom-in-95 duration-150">
-			<div class="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800">
-				<div>
-					<h3 class="font-black text-base text-on-surface">Tetapkan Standar Jabatan</h3>
-					<p class="text-xs text-on-surface-variant">Required Level minimal untuk posisi/jabatan</p>
+		<div class="bg-surface rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xl w-full max-w-3xl max-h-[92vh] flex flex-col overflow-hidden animate-in zoom-in-95 duration-150">
+			<!-- Header Modal -->
+			<div class="flex items-center justify-between p-5 border-b border-slate-200 dark:border-slate-800">
+				<div class="space-y-0.5">
+					<div class="flex items-center gap-2">
+						<span class="material-symbols-outlined text-primary text-xl">tune</span>
+						<h3 class="font-black text-base text-on-surface">Tetapkan Standar Kompetensi Jabatan</h3>
+					</div>
+					<p class="text-xs text-on-surface-variant">Pilih divisi, jabatan, dan tentukan target level kompetensi wajib secara multi-select</p>
 				</div>
-				<button type="button" onclick={() => (isJobStandardModalOpen = false)} class="w-8 h-8 rounded-full bg-surface-container flex items-center justify-center text-slate-400 hover:text-slate-600">
+				<button type="button" onclick={() => (isJobStandardModalOpen = false)} class="w-8 h-8 rounded-full bg-surface-container flex items-center justify-center text-slate-400 hover:text-slate-600 cursor-pointer">
 					<span class="material-symbols-outlined text-lg">close</span>
 				</button>
 			</div>
 
-			<form method="POST" action="?/saveJobStandard" use:enhance class="space-y-4 text-xs">
-				<div class="space-y-1">
-					<label class="font-bold text-slate-500 uppercase tracking-wider text-[10px]">Posisi / Jabatan *</label>
-					<input
-						type="text"
-						name="positionTitle"
-						list="masterTitlesList"
-						bind:value={jobStandardForm.positionTitle}
-						required
-						class="w-full px-3 py-2 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800 text-xs font-bold"
-						placeholder="Pilih atau ketik jabatan, misal: STORAGE KEEPER"
-					/>
-					<datalist id="masterTitlesList">
-						{#each masterTitles as t}
-							<option value={t.title}>{t.title} ({t.code})</option>
+			<!-- Form Batch Multi-Select -->
+			<form method="POST" action="?/saveJobStandardsBatch" use:enhance class="flex flex-col flex-1 overflow-hidden">
+				<!-- Area Atas: Pilihan Jabatan & Divisi -->
+				<div class="p-5 bg-surface-container-low border-b border-slate-200/60 dark:border-slate-800/60 grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+					<div class="space-y-1">
+						<label class="font-bold text-slate-500 uppercase tracking-wider text-[10px]">Posisi / Jabatan *</label>
+						<input
+							type="text"
+							name="positionTitle"
+							list="masterTitlesList"
+							bind:value={jobStandardForm.positionTitle}
+							required
+							class="w-full px-3 py-2 rounded-xl bg-surface border border-slate-200 dark:border-slate-800 text-xs font-bold text-on-surface focus:ring-2 focus:ring-primary focus:outline-hidden"
+							placeholder="Pilih atau ketik jabatan, misal: STORAGE KEEPER"
+							onchange={(e) => {
+								const val = (e.target as HTMLInputElement).value;
+								if (val) {
+									const existing = jobStandards.filter((j: any) => j.positionTitle.toLowerCase() === val.toLowerCase());
+									if (existing.length > 0) {
+										existing.forEach((item: any) => {
+											selectedCompStandards[item.competencyCode] = { selected: true, requiredLevel: item.requiredLevel };
+										});
+									}
+								}
+							}}
+						/>
+						<datalist id="masterTitlesList">
+							{#each masterTitles as t}
+								<option value={t.title}>{t.title} ({t.code})</option>
+							{/each}
+						</datalist>
+					</div>
+
+					<div class="space-y-1">
+						<label class="font-bold text-slate-500 uppercase tracking-wider text-[10px]">Divisi Perusahaan *</label>
+						<select
+							name="division"
+							bind:value={jobStandardForm.division}
+							class="w-full px-3 py-2 rounded-xl bg-surface border border-slate-200 dark:border-slate-800 text-xs font-bold text-on-surface focus:ring-2 focus:ring-primary focus:outline-hidden"
+						>
+							{#each divisions as div}
+								<option value={div.name}>{div.name} ({div.code})</option>
+							{/each}
+							{#if divisions.length === 0}
+								<option value="OPERATION">OPERATION (DV_41)</option>
+								<option value="HUMAN CAPITAL & DEVELOPMENT">HUMAN CAPITAL & DEVELOPMENT (DV_37)</option>
+								<option value="FINANCE">FINANCE (DV_36)</option>
+								<option value="QHSE">QHSE (DV_38)</option>
+								<option value="MAINTENANCE & ASSET">MAINTENANCE & ASSET (DV_18)</option>
+							{/if}
+						</select>
+					</div>
+				</div>
+
+				<!-- Area Tengah: Filter & Multi-Select Picker Kompetensi -->
+				<div class="p-5 flex flex-col flex-1 overflow-hidden space-y-3">
+					<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+						<div class="flex items-center gap-2">
+							<span class="font-bold text-on-surface">Pilih Kompetensi Wajib:</span>
+							<span class="px-2.5 py-0.5 rounded-full text-[11px] font-black bg-primary/10 text-primary border border-primary/20">
+								{selectedCompStandardsList.length} Dipilih
+							</span>
+						</div>
+
+						<div class="flex items-center gap-2 flex-wrap">
+							<button
+								type="button"
+								onclick={() => selectAllFilteredModalComps()}
+								class="px-2.5 py-1 rounded-lg bg-surface-container-high hover:bg-slate-700 text-[11px] font-bold text-on-surface transition-all cursor-pointer"
+							>
+								Pilih Semua ({filteredModalCompetencies.length})
+							</button>
+							<button
+								type="button"
+								onclick={() => clearAllModalComps()}
+								class="px-2.5 py-1 rounded-lg bg-surface-container text-[11px] font-bold text-slate-400 hover:text-rose-400 transition-all cursor-pointer"
+							>
+								Kosongkan
+							</button>
+						</div>
+					</div>
+
+					<!-- Search & Filter Aspek -->
+					<div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
+						<div class="sm:col-span-2 relative">
+							<span class="material-symbols-outlined absolute left-3 top-2 text-slate-400 text-sm">search</span>
+							<input
+								type="text"
+								bind:value={compModalSearchQuery}
+								placeholder="Cari kode atau nama kompetensi..."
+								class="w-full pl-8 pr-3 py-1.5 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800 text-xs text-on-surface focus:outline-hidden"
+							/>
+						</div>
+						<select
+							bind:value={compModalSelectedAspect}
+							class="px-3 py-1.5 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800 text-xs text-on-surface"
+						>
+							<option value="All">Semua Aspek</option>
+							<option value="Core Competency">Core Competency</option>
+							<option value="Behavioral Competency">Behavioral Competency</option>
+							<option value="Technical Competency">Technical Competency</option>
+						</select>
+					</div>
+
+					<!-- List Checklist Multi-Select dengan Pengaturan Level per Baris -->
+					<div class="flex-1 overflow-y-auto divide-y divide-slate-200/60 dark:divide-slate-800/60 rounded-2xl border border-slate-200/60 dark:border-slate-800/60 bg-surface">
+						{#each filteredModalCompetencies as comp}
+							{@const isChecked = selectedCompStandards[comp.code]?.selected || false}
+							{@const currentLevel = selectedCompStandards[comp.code]?.requiredLevel || 3}
+							<div class="p-3 flex items-center justify-between gap-3 hover:bg-surface-container/40 transition-colors {isChecked ? 'bg-primary/5' : ''}">
+								<label class="flex items-center gap-3 cursor-pointer flex-1 min-w-0">
+									<input
+										type="checkbox"
+										checked={isChecked}
+										onchange={() => toggleModalCompSelection(comp.code)}
+										class="w-4 h-4 rounded-md border-slate-400 text-primary focus:ring-primary cursor-pointer"
+									/>
+									<div class="min-w-0">
+										<div class="flex items-center gap-2 flex-wrap">
+											<span class="px-1.5 py-0.5 rounded-md font-mono text-[10px] font-black bg-surface-container-high border border-slate-700 text-primary">
+												{comp.code}
+											</span>
+											<span class="text-[10px] text-slate-400 font-semibold">{comp.aspect}</span>
+										</div>
+										<p class="text-xs font-bold text-on-surface truncate">{comp.name}</p>
+									</div>
+								</label>
+
+								<!-- Dropdown Target Level untuk kompetensi ini -->
+								<div class="flex items-center gap-1.5 shrink-0">
+									<span class="text-[10px] font-bold text-slate-400">Target Level:</span>
+									<select
+										disabled={!isChecked}
+										value={currentLevel}
+										onchange={(e) => setModalCompLevel(comp.code, Number((e.target as HTMLSelectElement).value))}
+										class="px-2 py-1 rounded-lg text-xs font-mono font-bold border border-slate-200 dark:border-slate-700 bg-surface-container text-on-surface disabled:opacity-40 disabled:cursor-not-allowed"
+									>
+										<option value={1}>L1 (SOP Dasar)</option>
+										<option value={2}>L2 (Mandiri)</option>
+										<option value={3}>L3 (Problem Solving)</option>
+										<option value={4}>L4 (Supervisi/Analisis)</option>
+										<option value={5}>L5 (Expert/Inovator)</option>
+									</select>
+								</div>
+							</div>
 						{/each}
-					</datalist>
+
+						{#if filteredModalCompetencies.length === 0}
+							<div class="p-8 text-center text-xs text-slate-400">
+								Tidak ditemukan kompetensi yang cocok dengan kata kunci pencarian.
+							</div>
+						{/if}
+					</div>
 				</div>
 
-				<div class="space-y-1">
-					<label class="font-bold text-slate-500 uppercase tracking-wider text-[10px]">Departemen *</label>
-					<select
-						name="department"
-						bind:value={jobStandardForm.department}
-						class="w-full px-3 py-2 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800 text-xs"
-					>
-						<option value="Operations">Operations</option>
-						<option value="Workshop & Maintenance">Workshop & Maintenance</option>
-						<option value="Labour Project 1 & Warehouse">Labour Project 1 & Warehouse</option>
-						<option value="Finance & Operations">Finance & Operations</option>
-						<option value="QHSE & Safety">QHSE & Safety</option>
-					</select>
-				</div>
+				<!-- Hidden Data untuk Server Action -->
+				<input type="hidden" name="standards" value={JSON.stringify(selectedCompStandardsList)} />
 
-				<div class="space-y-1">
-					<label class="font-bold text-slate-500 uppercase tracking-wider text-[10px]">Pilih Kompetensi Wajib *</label>
-					<select
-						name="competencyCode"
-						bind:value={jobStandardForm.competencyCode}
-						required
-						class="w-full px-3 py-2 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800 text-xs"
-					>
-						<option value="">-- Pilih Kompetensi --</option>
-						{#each competencyLibrary as comp}
-							<option value={comp.code}>[{comp.code}] {comp.name} ({comp.aspect})</option>
-						{/each}
-					</select>
-				</div>
+				<!-- Footer Modal -->
+				<div class="p-4 bg-surface-container-low border-t border-slate-200/60 dark:border-slate-800/60 flex items-center justify-between gap-3">
+					<div class="text-[11px] text-slate-400 font-medium">
+						Target level standar akan dipakai sebagai pembanding GAP pada form asesmen atasan langsung.
+					</div>
 
-				<div class="space-y-1">
-					<label class="font-bold text-slate-500 uppercase tracking-wider text-[10px]">Target Required Level (1 s.d. 5) *</label>
-					<select
-						name="requiredLevel"
-						bind:value={jobStandardForm.requiredLevel}
-						class="w-full px-3 py-2 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800 text-xs font-mono font-bold"
-					>
-						<option value={1}>Level 1 - Pemula / SOP Dasar</option>
-						<option value={2}>Level 2 - Rutin Mandiri</option>
-						<option value={3}>Level 3 - Problem Solving Operasional</option>
-						<option value={4}>Level 4 - Evaluasi & Supervisi</option>
-						<option value={5}>Level 5 - Expert / Inovator</option>
-					</select>
-				</div>
-
-				<div class="flex justify-end gap-2 pt-3 border-t border-slate-200 dark:border-slate-800">
-					<button type="button" onclick={() => (isJobStandardModalOpen = false)} class="px-4 py-2 rounded-xl border text-xs font-bold hover:bg-surface-container">
-						Batal
-					</button>
-					<button type="submit" class="px-5 py-2 rounded-xl bg-primary text-on-primary text-xs font-bold shadow-xs hover:opacity-90 flex items-center gap-1.5">
-						<span class="material-symbols-outlined text-sm">save</span>
-						<span>Simpan Standar Jabatan</span>
-					</button>
+					<div class="flex items-center gap-2">
+						<button
+							type="button"
+							onclick={() => (isJobStandardModalOpen = false)}
+							class="px-4 py-2 rounded-xl border border-slate-300 dark:border-slate-700 text-xs font-bold hover:bg-surface-container cursor-pointer"
+						>
+							Batal
+						</button>
+						<button
+							type="submit"
+							disabled={!jobStandardForm.positionTitle || selectedCompStandardsList.length === 0}
+							class="px-5 py-2 rounded-xl bg-primary text-on-primary text-xs font-bold shadow-md hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1.5 cursor-pointer transition-all"
+						>
+							<span class="material-symbols-outlined text-sm">save</span>
+							<span>Simpan Standar ({selectedCompStandardsList.length} Kompetensi)</span>
+						</button>
+					</div>
 				</div>
 			</form>
 		</div>

@@ -100,11 +100,11 @@ export const load: PageServerLoad = async () => {
 
 		// 10. Standar Kompetensi Jabatan (Job Standards)
 		const jobStandardsRows = await sql`
-			SELECT j.*, c.name as competency_name, c.aspect as competency_aspect, cr.title as default_course_title
+			SELECT j.*, COALESCE(j.division, j.department) as division_name, c.name as competency_name, c.aspect as competency_aspect, cr.title as default_course_title
 			FROM hris.lms_job_competencies j
 			JOIN hris.lms_competency_library c ON c.code = j.competency_code
 			LEFT JOIN hris.lms_courses cr ON cr.id = c.default_course_id
-			ORDER BY j.department, j.position_title, j.competency_code ASC;
+			ORDER BY COALESCE(j.division, j.department), j.position_title, j.competency_code ASC;
 		`;
 
 		// 11. Asesmen TNA Aktual Karyawan & Pelacakan GAP
@@ -131,6 +131,13 @@ export const load: PageServerLoad = async () => {
 			FROM master.m_title 
 			WHERE active = 'Y' 
 			ORDER BY title ASC;
+		`;
+
+		const divisionsRows = await sql`
+			SELECT DISTINCT div_code, div_name 
+			FROM master.m_division 
+			WHERE active = 'Y' 
+			ORDER BY div_name ASC;
 		`;
 
 		const activeEmployeesRows = await sql`
@@ -462,7 +469,8 @@ export const load: PageServerLoad = async () => {
 			jobStandards: jobStandardsRows.map((j) => ({
 				id: j.id,
 				positionTitle: j.position_title,
-				department: j.department,
+				division: j.division_name || j.department || 'General',
+				department: j.division_name || j.department || 'General',
 				competencyCode: j.competency_code,
 				competencyName: j.competency_name,
 				competencyAspect: j.competency_aspect,
@@ -497,6 +505,10 @@ export const load: PageServerLoad = async () => {
 			masterTitles: masterTitlesRows.map((t) => ({
 				code: t.title_code,
 				title: t.title
+			})),
+			divisions: divisionsRows.map((d: any) => ({
+				code: d.div_code,
+				name: d.div_name
 			})),
 			activeEmployees: activeEmployeesRows.map((e) => ({
 				payrollId: e.payroll_id,
@@ -881,32 +893,86 @@ export const actions = {
 		}
 	},
 
-	// 11. Tetapkan Standar Kompetensi Jabatan (Required Level)
+	// 11. Tetapkan Standar Kompetensi Jabatan (Batch Multi-Select)
+	saveJobStandardsBatch: async ({ request }) => {
+		const formData = await request.formData();
+		const positionTitle = formData.get('positionTitle')?.toString().trim();
+		const division = formData.get('division')?.toString().trim() || formData.get('department')?.toString().trim() || 'General';
+		const standardsRaw = formData.get('standards')?.toString();
+
+		if (!positionTitle || !standardsRaw) {
+			return { success: false, message: 'Posisi jabatan dan butir kompetensi wajib diisi.' };
+		}
+
+		try {
+			const standards: Array<{ competencyCode: string; requiredLevel: number }> = JSON.parse(standardsRaw);
+			if (!Array.isArray(standards) || standards.length === 0) {
+				return { success: false, message: 'Pilih minimal satu butir kompetensi wajib.' };
+			}
+
+			for (const item of standards) {
+				const reqLevel = Math.min(5, Math.max(1, Number(item.requiredLevel) || 3));
+				await sql`
+					INSERT INTO hris.lms_job_competencies (
+						position_title, department, division, competency_code, required_level
+					) VALUES (
+						${positionTitle}, ${division}, ${division}, ${item.competencyCode.toUpperCase()}, ${reqLevel}
+					)
+					ON CONFLICT (position_title, competency_code) DO UPDATE SET
+						department = EXCLUDED.department,
+						division = EXCLUDED.division,
+						required_level = EXCLUDED.required_level;
+				`;
+			}
+
+			return {
+				success: true,
+				message: `Berhasil menetapkan ${standards.length} standar kompetensi untuk jabatan "${positionTitle}" (Divisi: ${division}).`
+			};
+		} catch (e: any) {
+			return { success: false, message: `Gagal menyimpan standar jabatan: ${e?.message || 'Error database'}` };
+		}
+	},
+
+	// Single save (Backward compatibility)
 	saveJobStandard: async ({ request }) => {
 		const formData = await request.formData();
 		const positionTitle = formData.get('positionTitle')?.toString().trim();
-		const department = formData.get('department')?.toString().trim();
+		const division = formData.get('division')?.toString().trim() || formData.get('department')?.toString().trim() || 'General';
 		const competencyCode = formData.get('competencyCode')?.toString().trim().toUpperCase();
 		const requiredLevel = Number(formData.get('requiredLevel')) || 3;
 
-		if (!positionTitle || !department || !competencyCode) {
-			return { success: false, message: 'Posisi, Departemen, dan Kode Kompetensi wajib diisi.' };
+		if (!positionTitle || !competencyCode) {
+			return { success: false, message: 'Posisi dan Kode Kompetensi wajib diisi.' };
 		}
 
 		try {
 			await sql`
 				INSERT INTO hris.lms_job_competencies (
-					position_title, department, competency_code, required_level
+					position_title, department, division, competency_code, required_level
 				) VALUES (
-					${positionTitle}, ${department}, ${competencyCode}, ${requiredLevel}
+					${positionTitle}, ${division}, ${division}, ${competencyCode}, ${requiredLevel}
 				)
 				ON CONFLICT (position_title, competency_code) DO UPDATE SET
 					department = EXCLUDED.department,
+					division = EXCLUDED.division,
 					required_level = EXCLUDED.required_level;
 			`;
 			return { success: true, message: `Standar jabatan ${positionTitle} untuk kompetensi [${competencyCode}] (Target Level: ${requiredLevel}) berhasil diperbarui.` };
 		} catch (e: any) {
 			return { success: false, message: `Gagal menyimpan standar jabatan: ${e?.message || 'Error database'}` };
+		}
+	},
+
+	deleteJobStandard: async ({ request }) => {
+		const formData = await request.formData();
+		const id = Number(formData.get('id'));
+		if (!id) return { success: false, message: 'ID standar jabatan tidak valid.' };
+		try {
+			await sql`DELETE FROM hris.lms_job_competencies WHERE id = ${id}`;
+			return { success: true, message: 'Standar kompetensi jabatan berhasil dihapus.' };
+		} catch (e: any) {
+			return { success: false, message: `Gagal menghapus standar: ${e?.message || 'Error database'}` };
 		}
 	},
 
