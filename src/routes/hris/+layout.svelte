@@ -23,6 +23,7 @@
 	const currentPath = $derived($page.url.pathname);
 	const isLaravelConnected = $derived(
 		!currentPath.startsWith('/hris/lms') &&
+		!currentPath.startsWith('/hris/assessments') &&
 		!currentPath.startsWith('/hris/org-chart') &&
 		!currentPath.startsWith('/hris/certifications') &&
 		!currentPath.startsWith('/hris/recruitment')
@@ -156,6 +157,16 @@
 			>
 				<span class="material-symbols-outlined text-[20px]">assessment</span>
 				<span class="text-sm">Performance & KPI</span>
+			</a>
+
+			<a
+				class="flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200 hover:translate-x-1 {isActive('/hris/assessments')
+					? 'bg-surface-container-highest text-primary font-bold'
+					: 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container font-medium text-sm'}"
+				href="/hris/assessments"
+			>
+				<span class="material-symbols-outlined text-[20px]">fact_check</span>
+				<span class="text-sm">Asesmen Kompetensi Tim</span>
 			</a>
 
 			<a
