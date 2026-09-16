@@ -2,6 +2,8 @@
 	import { page } from '$app/stores';
 	import Chatbot from '$lib/components/Chatbot.svelte';
 
+	import { authUser, hasMenuAccess } from '$lib/stores/auth';
+
 	let { children } = $props();
 
 	function isActive(path: string) {
@@ -11,7 +13,7 @@
 		return $page.url.pathname.startsWith(path);
 	}
 
-	const user = $derived($page.data?.user);
+	const user = $derived($page.data?.user || $authUser);
 	const isAdmin = $derived(
 		user && (
 			['superadmin', 'administrator', 'superhyperadmin', 'super_admin'].includes(user.role?.toLowerCase()) ||
@@ -49,65 +51,77 @@
 		</div>
 
 		<nav class="flex-1 space-y-1">
-			<a
-				class="flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200 hover:translate-x-1 {isActive('/finance') && $page.url.pathname === '/finance'
-					? 'bg-surface-container-highest text-teal-600 dark:text-teal-400 font-bold'
-					: 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container font-medium text-sm'}"
-				href="/finance"
-			>
-				<span class="material-symbols-outlined text-[20px]">dashboard</span>
-				<span class="text-sm">Overview</span>
-			</a>
+			{#if hasMenuAccess(user, 'finance', 'finance.overview')}
+				<a
+					class="flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200 hover:translate-x-1 {isActive('/finance') && $page.url.pathname === '/finance'
+						? 'bg-surface-container-highest text-teal-600 dark:text-teal-400 font-bold'
+						: 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container font-medium text-sm'}"
+					href="/finance"
+				>
+					<span class="material-symbols-outlined text-[20px]">dashboard</span>
+					<span class="text-sm">Overview</span>
+				</a>
+			{/if}
 
-			<a
-				class="flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200 hover:translate-x-1 {isActive('/finance/create-transaction')
-					? 'bg-surface-container-highest text-teal-600 dark:text-teal-400 font-bold'
-					: 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container font-medium text-sm'}"
-				href="/finance/create-transaction"
-			>
-				<span class="material-symbols-outlined text-[20px]">add_box</span>
-				<span class="text-sm">Transaction Center</span>
-			</a>
+			{#if hasMenuAccess(user, 'finance', 'finance.create-transaction')}
+				<a
+					class="flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200 hover:translate-x-1 {isActive('/finance/create-transaction')
+						? 'bg-surface-container-highest text-teal-600 dark:text-teal-400 font-bold'
+						: 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container font-medium text-sm'}"
+					href="/finance/create-transaction"
+				>
+					<span class="material-symbols-outlined text-[20px]">add_box</span>
+					<span class="text-sm">Transaction Center</span>
+				</a>
+			{/if}
 
 			<!-- Section: Invoicing & Receivables -->
-			<div class="pt-3 pb-1 px-4">
-				<p class="text-[9px] font-black text-on-surface-variant/50 uppercase tracking-[0.2em]">Receivables & Invoicing</p>
-			</div>
+			{#if hasMenuAccess(user, 'finance', 'finance.invoices')}
+				<div class="pt-3 pb-1 px-4">
+					<p class="text-[9px] font-black text-on-surface-variant/50 uppercase tracking-[0.2em]">Receivables & Invoicing</p>
+				</div>
 
-			<a
-				class="flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200 hover:translate-x-1 {isActive('/finance/invoices')
-					? 'bg-surface-container-highest text-teal-600 dark:text-teal-400 font-bold'
-					: 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container font-medium text-sm'}"
-				href="/finance/invoices"
-			>
-				<span class="material-symbols-outlined text-[20px]">receipt_long</span>
-				<span class="text-sm">Customer Invoices</span>
-			</a>
+				<a
+					class="flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200 hover:translate-x-1 {isActive('/finance/invoices')
+						? 'bg-surface-container-highest text-teal-600 dark:text-teal-400 font-bold'
+						: 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container font-medium text-sm'}"
+					href="/finance/invoices"
+				>
+					<span class="material-symbols-outlined text-[20px]">receipt_long</span>
+					<span class="text-sm">Customer Invoices</span>
+				</a>
+			{/if}
 
 			<!-- Section: Payables & Expenses -->
-			<div class="pt-3 pb-1 px-4">
-				<p class="text-[9px] font-black text-on-surface-variant/50 uppercase tracking-[0.2em]">Payables & Expenses</p>
-			</div>
+			{#if hasMenuAccess(user, 'finance', 'finance.vendor-bills') || hasMenuAccess(user, 'finance', 'finance.payments')}
+				<div class="pt-3 pb-1 px-4">
+					<p class="text-[9px] font-black text-on-surface-variant/50 uppercase tracking-[0.2em]">Payables & Expenses</p>
+				</div>
+			{/if}
 
-			<a
-				class="flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200 hover:translate-x-1 {isActive('/finance/vendor-bills')
-					? 'bg-surface-container-highest text-teal-600 dark:text-teal-400 font-bold'
-					: 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container font-medium text-sm'}"
-				href="/finance/vendor-bills"
-			>
-				<span class="material-symbols-outlined text-[20px]">shopping_cart_checkout</span>
-				<span class="text-sm">Vendor Bills</span>
-			</a>
+			{#if hasMenuAccess(user, 'finance', 'finance.vendor-bills')}
+				<a
+					class="flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200 hover:translate-x-1 {isActive('/finance/vendor-bills')
+						? 'bg-surface-container-highest text-teal-600 dark:text-teal-400 font-bold'
+						: 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container font-medium text-sm'}"
+					href="/finance/vendor-bills"
+				>
+					<span class="material-symbols-outlined text-[20px]">shopping_cart_checkout</span>
+					<span class="text-sm">Vendor Bills</span>
+				</a>
+			{/if}
 
-			<a
-				class="flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200 hover:translate-x-1 {isActive('/finance/payments')
-					? 'bg-surface-container-highest text-teal-600 dark:text-teal-400 font-bold'
-					: 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container font-medium text-sm'}"
-				href="/finance/payments"
-			>
-				<span class="material-symbols-outlined text-[20px]">payments</span>
-				<span class="text-sm">Payment History</span>
-			</a>
+			{#if hasMenuAccess(user, 'finance', 'finance.payments')}
+				<a
+					class="flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200 hover:translate-x-1 {isActive('/finance/payments')
+						? 'bg-surface-container-highest text-teal-600 dark:text-teal-400 font-bold'
+						: 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container font-medium text-sm'}"
+					href="/finance/payments"
+				>
+					<span class="material-symbols-outlined text-[20px]">payments</span>
+					<span class="text-sm">Payment History</span>
+				</a>
+			{/if}
 		</nav>
 	</aside>
 

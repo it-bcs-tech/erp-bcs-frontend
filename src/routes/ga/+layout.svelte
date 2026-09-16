@@ -2,9 +2,11 @@
 	import { page } from '$app/stores';
 	import Chatbot from '$lib/components/Chatbot.svelte';
 
+	import { authUser, hasMenuAccess } from '$lib/stores/auth';
+
 	let { children } = $props();
 
-	const user = $derived($page.data?.user);
+	const user = $derived($page.data?.user || $authUser);
 	const isAdmin = $derived(
 		user && (
 			['superadmin', 'administrator', 'superhyperadmin', 'super_admin'].includes(user.role?.toLowerCase()) ||
@@ -41,67 +43,81 @@
 
 		<nav class="flex-1 space-y-1">
 			<!-- Overview / Dashboard -->
-			<a
-				class="flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200 hover:translate-x-1 {isActive('/ga')
-					? 'bg-surface-container-highest text-cyan-700 dark:text-cyan-300 font-bold'
-					: 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container font-medium text-sm'}"
-				href="/ga"
-			>
-				<span class="material-symbols-outlined text-[20px]">space_dashboard</span>
-				<span class="text-sm">Overview & KPI</span>
-			</a>
+			{#if hasMenuAccess(user, 'ga', 'ga.dashboard')}
+				<a
+					class="flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200 hover:translate-x-1 {isActive('/ga')
+						? 'bg-surface-container-highest text-cyan-700 dark:text-cyan-300 font-bold'
+						: 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container font-medium text-sm'}"
+					href="/ga"
+				>
+					<span class="material-symbols-outlined text-[20px]">space_dashboard</span>
+					<span class="text-sm">Overview & KPI</span>
+				</a>
+			{/if}
 
-			<div class="pt-3 pb-1 px-4">
-				<p class="text-[9px] font-black text-on-surface-variant/50 uppercase tracking-[0.2em]">Tata Kelola Aset</p>
-			</div>
+			{#if hasMenuAccess(user, 'ga', 'ga.assets') || hasMenuAccess(user, 'ga', 'ga.permits')}
+				<div class="pt-3 pb-1 px-4">
+					<p class="text-[9px] font-black text-on-surface-variant/50 uppercase tracking-[0.2em]">Tata Kelola Aset</p>
+				</div>
+			{/if}
 
 			<!-- Master Aset & Inventaris (KR 7.1) -->
-			<a
-				class="flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200 hover:translate-x-1 {isActive('/ga/assets')
-					? 'bg-surface-container-highest text-cyan-700 dark:text-cyan-300 font-bold'
-					: 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container font-medium text-sm'}"
-				href="/ga/assets"
-			>
-				<span class="material-symbols-outlined text-[20px]">inventory_2</span>
-				<span class="text-sm">Master Aset (KR 7.1)</span>
-			</a>
+			{#if hasMenuAccess(user, 'ga', 'ga.assets')}
+				<a
+					class="flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200 hover:translate-x-1 {isActive('/ga/assets')
+						? 'bg-surface-container-highest text-cyan-700 dark:text-cyan-300 font-bold'
+						: 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container font-medium text-sm'}"
+					href="/ga/assets"
+				>
+					<span class="material-symbols-outlined text-[20px]">inventory_2</span>
+					<span class="text-sm">Master Aset (KR 7.1)</span>
+				</a>
+			{/if}
 
 			<!-- Legalitas & Perizinan Armada (KR 7.2) -->
-			<a
-				class="flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200 hover:translate-x-1 {isActive('/ga/permits')
-					? 'bg-surface-container-highest text-cyan-700 dark:text-cyan-300 font-bold'
-					: 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container font-medium text-sm'}"
-				href="/ga/permits"
-			>
-				<span class="material-symbols-outlined text-[20px]">badge</span>
-				<span class="text-sm">Legalitas Armada (KR 7.2)</span>
-			</a>
+			{#if hasMenuAccess(user, 'ga', 'ga.permits')}
+				<a
+					class="flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200 hover:translate-x-1 {isActive('/ga/permits')
+						? 'bg-surface-container-highest text-cyan-700 dark:text-cyan-300 font-bold'
+						: 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container font-medium text-sm'}"
+					href="/ga/permits"
+				>
+					<span class="material-symbols-outlined text-[20px]">badge</span>
+					<span class="text-sm">Legalitas Armada (KR 7.2)</span>
+				</a>
+			{/if}
 
-			<div class="pt-3 pb-1 px-4">
-				<p class="text-[9px] font-black text-on-surface-variant/50 uppercase tracking-[0.2em]">Operasional GA</p>
-			</div>
+			{#if hasMenuAccess(user, 'ga', 'ga.facilities') || hasMenuAccess(user, 'ga', 'ga.stationery')}
+				<div class="pt-3 pb-1 px-4">
+					<p class="text-[9px] font-black text-on-surface-variant/50 uppercase tracking-[0.2em]">Operasional GA</p>
+				</div>
+			{/if}
 
 			<!-- Facility Maintenance (KR 7.3) -->
-			<a
-				class="flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200 hover:translate-x-1 {isActive('/ga/facilities')
-					? 'bg-surface-container-highest text-cyan-700 dark:text-cyan-300 font-bold'
-					: 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container font-medium text-sm'}"
-				href="/ga/facilities"
-			>
-				<span class="material-symbols-outlined text-[20px]">home_repair_service</span>
-				<span class="text-sm">Facility Maintenance (KR 7.3)</span>
-			</a>
+			{#if hasMenuAccess(user, 'ga', 'ga.facilities')}
+				<a
+					class="flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200 hover:translate-x-1 {isActive('/ga/facilities')
+						? 'bg-surface-container-highest text-cyan-700 dark:text-cyan-300 font-bold'
+						: 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container font-medium text-sm'}"
+					href="/ga/facilities"
+				>
+					<span class="material-symbols-outlined text-[20px]">home_repair_service</span>
+					<span class="text-sm">Facility Maintenance (KR 7.3)</span>
+				</a>
+			{/if}
 
 			<!-- Request ATK & Perlengkapan (KR 7.4) -->
-			<a
-				class="flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200 hover:translate-x-1 {isActive('/ga/stationery')
-					? 'bg-surface-container-highest text-cyan-700 dark:text-cyan-300 font-bold'
-					: 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container font-medium text-sm'}"
-				href="/ga/stationery"
-			>
-				<span class="material-symbols-outlined text-[20px]">edit_document</span>
-				<span class="text-sm">Request & Stok ATK (KR 7.4)</span>
-			</a>
+			{#if hasMenuAccess(user, 'ga', 'ga.stationery')}
+				<a
+					class="flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200 hover:translate-x-1 {isActive('/ga/stationery')
+						? 'bg-surface-container-highest text-cyan-700 dark:text-cyan-300 font-bold'
+						: 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container font-medium text-sm'}"
+					href="/ga/stationery"
+				>
+					<span class="material-symbols-outlined text-[20px]">edit_document</span>
+					<span class="text-sm">Request & Stok ATK (KR 7.4)</span>
+				</a>
+			{/if}
 		</nav>
 	</aside>
 

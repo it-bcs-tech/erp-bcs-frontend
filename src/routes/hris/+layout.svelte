@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { page } from '$app/stores';
 	import Chatbot from '$lib/components/Chatbot.svelte';
+	import { authUser, hasMenuAccess } from '$lib/stores/auth';
 
 	let { children } = $props();
 
@@ -11,7 +12,7 @@
 		return $page.url.pathname.startsWith(path);
 	}
 
-	const user = $derived($page.data?.user);
+	const user = $derived($page.data?.user || $authUser);
 	const isAdmin = $derived(
 		user && (
 			['superadmin', 'administrator', 'superhyperadmin', 'super_admin'].includes(user.role?.toLowerCase()) ||
@@ -49,6 +50,7 @@
 		</div>
 
 		<nav class="flex-1 space-y-1">
+			{#if hasMenuAccess(user, 'hris', 'hris.overview')}
 			<a
 				class="flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200 hover:translate-x-1 {isActive('/hris') && $page.url.pathname === '/hris'
 					? 'bg-surface-container-highest text-primary font-bold'
@@ -58,12 +60,16 @@
 				<span class="material-symbols-outlined text-[20px]">dashboard</span>
 				<span class="text-sm">Overview</span>
 			</a>
+			{/if}
 
 			<!-- Section: Personnel & Careers -->
+			{#if hasMenuAccess(user, 'hris', 'hris.employees') || hasMenuAccess(user, 'hris', 'hris.recruitment') || hasMenuAccess(user, 'hris', 'hris.lifecycle')}
 			<div class="pt-3 pb-1 px-4">
 				<p class="text-[9px] font-black text-on-surface-variant/50 uppercase tracking-[0.2em]">Personnel & Careers</p>
 			</div>
+			{/if}
 
+			{#if hasMenuAccess(user, 'hris', 'hris.employees')}
 			<a
 				class="flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200 hover:translate-x-1 {isActive('/hris/employees')
 					? 'bg-surface-container-highest text-primary font-bold'
@@ -73,7 +79,9 @@
 				<span class="material-symbols-outlined text-[20px]">badge</span>
 				<span class="text-sm">Employees</span>
 			</a>
+			{/if}
 
+			{#if hasMenuAccess(user, 'hris', 'hris.recruitment')}
 			<a
 				class="flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200 hover:translate-x-1 {isActive('/hris/recruitment')
 					? 'bg-surface-container-highest text-primary font-bold'
@@ -83,7 +91,9 @@
 				<span class="material-symbols-outlined text-[20px]">person_search</span>
 				<span class="text-sm">Recruitment & ATS</span>
 			</a>
+			{/if}
 
+			{#if hasMenuAccess(user, 'hris', 'hris.lifecycle')}
 			<a
 				class="flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200 hover:translate-x-1 {isActive('/hris/lifecycle')
 					? 'bg-surface-container-highest text-primary font-bold'
@@ -93,12 +103,16 @@
 				<span class="material-symbols-outlined text-[20px]">manage_accounts</span>
 				<span class="text-sm">Lifecycle & Actions</span>
 			</a>
+			{/if}
 
 			<!-- Section: Time & Attendance -->
+			{#if hasMenuAccess(user, 'hris', 'hris.attendance') || hasMenuAccess(user, 'hris', 'hris.leave')}
 			<div class="pt-3 pb-1 px-4">
 				<p class="text-[9px] font-black text-on-surface-variant/50 uppercase tracking-[0.2em]">Time & Attendance</p>
 			</div>
+			{/if}
 
+			{#if hasMenuAccess(user, 'hris', 'hris.attendance')}
 			<a
 				class="flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200 hover:translate-x-1 {isActive('/hris/attendance')
 					? 'bg-surface-container-highest text-primary font-bold'
@@ -108,7 +122,9 @@
 				<span class="material-symbols-outlined text-[20px]">how_to_reg</span>
 				<span class="text-sm">Attendance</span>
 			</a>
+			{/if}
 
+			{#if hasMenuAccess(user, 'hris', 'hris.leave')}
 			<a
 				class="flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200 hover:translate-x-1 {isActive('/hris/leave')
 					? 'bg-surface-container-highest text-primary font-bold'
@@ -118,12 +134,16 @@
 				<span class="material-symbols-outlined text-[20px]">pending_actions</span>
 				<span class="text-sm">Leave Requests</span>
 			</a>
+			{/if}
 
 			<!-- Section: Compensation & Benefits -->
+			{#if hasMenuAccess(user, 'hris', 'hris.payroll') || hasMenuAccess(user, 'hris', 'hris.loans')}
 			<div class="pt-3 pb-1 px-4">
 				<p class="text-[9px] font-black text-on-surface-variant/50 uppercase tracking-[0.2em]">Compensation & Benefits</p>
 			</div>
+			{/if}
 
+			{#if hasMenuAccess(user, 'hris', 'hris.payroll')}
 			<a
 				class="flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200 hover:translate-x-1 {isActive('/hris/payroll') && !isActive('/hris/payroll/loans')
 					? 'bg-surface-container-highest text-primary font-bold'
@@ -133,7 +153,9 @@
 				<span class="material-symbols-outlined text-[20px]">payments</span>
 				<span class="text-sm">Payroll & Slips</span>
 			</a>
+			{/if}
 
+			{#if hasMenuAccess(user, 'hris', 'hris.loans')}
 			<a
 				class="flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200 hover:translate-x-1 {isActive('/hris/payroll/loans')
 					? 'bg-surface-container-highest text-primary font-bold'
@@ -143,12 +165,16 @@
 				<span class="material-symbols-outlined text-[20px]">account_balance_wallet</span>
 				<span class="text-sm">Employee Loans</span>
 			</a>
+			{/if}
 
 			<!-- Section: Talent & Organization -->
+			{#if hasMenuAccess(user, 'hris', 'hris.performance') || hasMenuAccess(user, 'hris', 'hris.assessments') || hasMenuAccess(user, 'hris', 'hris.lms') || hasMenuAccess(user, 'hris', 'hris.org-chart') || hasMenuAccess(user, 'hris', 'hris.certifications')}
 			<div class="pt-3 pb-1 px-4">
 				<p class="text-[9px] font-black text-on-surface-variant/50 uppercase tracking-[0.2em]">Talent & Organization</p>
 			</div>
+			{/if}
 
+			{#if hasMenuAccess(user, 'hris', 'hris.performance')}
 			<a
 				class="flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200 hover:translate-x-1 {isActive('/hris/performance')
 					? 'bg-surface-container-highest text-primary font-bold'
@@ -158,7 +184,9 @@
 				<span class="material-symbols-outlined text-[20px]">assessment</span>
 				<span class="text-sm">Performance & KPI</span>
 			</a>
+			{/if}
 
+			{#if hasMenuAccess(user, 'hris', 'hris.assessments')}
 			<a
 				class="flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200 hover:translate-x-1 {isActive('/hris/assessments')
 					? 'bg-surface-container-highest text-primary font-bold'
@@ -168,7 +196,9 @@
 				<span class="material-symbols-outlined text-[20px]">fact_check</span>
 				<span class="text-sm">Team Competency Assessment</span>
 			</a>
+			{/if}
 
+			{#if hasMenuAccess(user, 'hris', 'hris.lms')}
 			<a
 				class="flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200 hover:translate-x-1 {isActive('/hris/lms')
 					? 'bg-surface-container-highest text-primary font-bold'
@@ -178,7 +208,9 @@
 				<span class="material-symbols-outlined text-[20px]">school</span>
 				<span class="text-sm">LMS & Training</span>
 			</a>
+			{/if}
 
+			{#if hasMenuAccess(user, 'hris', 'hris.org-chart')}
 			<a
 				class="flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200 hover:translate-x-1 {isActive('/hris/org-chart')
 					? 'bg-surface-container-highest text-primary font-bold'
@@ -188,7 +220,9 @@
 				<span class="material-symbols-outlined text-[20px]">account_tree</span>
 				<span class="text-sm">Org Chart & Hierarchy</span>
 			</a>
+			{/if}
 
+			{#if hasMenuAccess(user, 'hris', 'hris.certifications')}
 			<a
 				class="flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200 hover:translate-x-1 {isActive('/hris/certifications')
 					? 'bg-surface-container-highest text-primary font-bold'
@@ -198,6 +232,7 @@
 				<span class="material-symbols-outlined text-[20px]">verified</span>
 				<span class="text-sm">Document Expiry & Certs</span>
 			</a>
+			{/if}
 		</nav>
 	</aside>
 

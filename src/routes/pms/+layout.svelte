@@ -2,6 +2,8 @@
 	import { page } from '$app/stores';
 	import Chatbot from '$lib/components/Chatbot.svelte';
 
+	import { authUser, hasMenuAccess } from '$lib/stores/auth';
+
 	let { children } = $props();
 
 	function isActive(path: string) {
@@ -10,7 +12,7 @@
 		}
 		return $page.url.pathname.startsWith(path);
 	}
-	const user = $derived($page.data?.user);
+	const user = $derived($page.data?.user || $authUser);
 	const isAdmin = $derived(
 		user && (
 			['superadmin', 'administrator', 'superhyperadmin', 'super_admin'].includes(user.role?.toLowerCase()) ||
@@ -49,220 +51,268 @@
 
 		<nav class="flex-1 space-y-1">
 			<!-- 1. Dashboard -->
-			<a
-				class="flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200 hover:translate-x-1 {isActive('/pms')
-					? 'bg-surface-container-highest text-amber-600 dark:text-amber-400 font-bold'
-					: 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container font-medium text-sm'}"
-				href="/pms"
-			>
-				<span class="material-symbols-outlined text-[20px]">dashboard</span>
-				<span class="text-sm">Dashboard Resume</span>
-			</a>
+			{#if hasMenuAccess(user, 'pms', 'pms.dashboard')}
+				<a
+					class="flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200 hover:translate-x-1 {isActive('/pms')
+						? 'bg-surface-container-highest text-amber-600 dark:text-amber-400 font-bold'
+						: 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container font-medium text-sm'}"
+					href="/pms"
+				>
+					<span class="material-symbols-outlined text-[20px]">dashboard</span>
+					<span class="text-sm">Dashboard Resume</span>
+				</a>
+			{/if}
 
 			<!-- 2. Master Data Section -->
-			<div class="pt-3 pb-1 px-4">
-				<p class="text-[9px] font-black text-on-surface-variant/50 uppercase tracking-[0.2em]">Master Data</p>
-			</div>
+			{#if hasMenuAccess(user, 'pms', 'pms.master-vendors') || hasMenuAccess(user, 'pms', 'pms.master-sites') || hasMenuAccess(user, 'pms', 'pms.master-projects') || hasMenuAccess(user, 'pms', 'pms.master-materials')}
+				<div class="pt-3 pb-1 px-4">
+					<p class="text-[9px] font-black text-on-surface-variant/50 uppercase tracking-[0.2em]">Master Data</p>
+				</div>
+			{/if}
 
-			<a
-				class="flex items-center gap-3 px-4 py-2 rounded-xl transition-all duration-200 hover:translate-x-1 {isActive('/pms/master/vendors')
-					? 'bg-surface-container-highest text-amber-600 dark:text-amber-400 font-bold'
-					: 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container font-medium text-sm'}"
-				href="/pms/master/vendors"
-			>
-				<span class="material-symbols-outlined text-[18px]">storefront</span>
-				<span class="text-xs font-semibold">Master Vendor</span>
-			</a>
+			{#if hasMenuAccess(user, 'pms', 'pms.master-vendors')}
+				<a
+					class="flex items-center gap-3 px-4 py-2 rounded-xl transition-all duration-200 hover:translate-x-1 {isActive('/pms/master/vendors')
+						? 'bg-surface-container-highest text-amber-600 dark:text-amber-400 font-bold'
+						: 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container font-medium text-sm'}"
+					href="/pms/master/vendors"
+				>
+					<span class="material-symbols-outlined text-[18px]">storefront</span>
+					<span class="text-xs font-semibold">Master Vendor</span>
+				</a>
+			{/if}
 
-			<a
-				class="flex items-center gap-3 px-4 py-2 rounded-xl transition-all duration-200 hover:translate-x-1 {isActive('/pms/master/sites')
-					? 'bg-surface-container-highest text-amber-600 dark:text-amber-400 font-bold'
-					: 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container font-medium text-sm'}"
-				href="/pms/master/sites"
-			>
-				<span class="material-symbols-outlined text-[18px]">location_city</span>
-				<span class="text-xs font-semibold">Master Site / Lokasi</span>
-			</a>
+			{#if hasMenuAccess(user, 'pms', 'pms.master-sites')}
+				<a
+					class="flex items-center gap-3 px-4 py-2 rounded-xl transition-all duration-200 hover:translate-x-1 {isActive('/pms/master/sites')
+						? 'bg-surface-container-highest text-amber-600 dark:text-amber-400 font-bold'
+						: 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container font-medium text-sm'}"
+					href="/pms/master/sites"
+				>
+					<span class="material-symbols-outlined text-[18px]">location_city</span>
+					<span class="text-xs font-semibold">Master Site / Lokasi</span>
+				</a>
+			{/if}
 
-			<a
-				class="flex items-center gap-3 px-4 py-2 rounded-xl transition-all duration-200 hover:translate-x-1 {isActive('/pms/master/projects')
-					? 'bg-surface-container-highest text-amber-600 dark:text-amber-400 font-bold'
-					: 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container font-medium text-sm'}"
-				href="/pms/master/projects"
-			>
-				<span class="material-symbols-outlined text-[18px]">folder_special</span>
-				<span class="text-xs font-semibold">Master Project</span>
-			</a>
+			{#if hasMenuAccess(user, 'pms', 'pms.master-projects')}
+				<a
+					class="flex items-center gap-3 px-4 py-2 rounded-xl transition-all duration-200 hover:translate-x-1 {isActive('/pms/master/projects')
+						? 'bg-surface-container-highest text-amber-600 dark:text-amber-400 font-bold'
+						: 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container font-medium text-sm'}"
+					href="/pms/master/projects"
+				>
+					<span class="material-symbols-outlined text-[18px]">folder_special</span>
+					<span class="text-xs font-semibold">Master Project</span>
+				</a>
+			{/if}
 
-			<a
-				class="flex items-center gap-3 px-4 py-2 rounded-xl transition-all duration-200 hover:translate-x-1 {isActive('/pms/master/materials')
-					? 'bg-surface-container-highest text-amber-600 dark:text-amber-400 font-bold'
-					: 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container font-medium text-sm'}"
-				href="/pms/master/materials"
-			>
-				<span class="material-symbols-outlined text-[18px]">category</span>
-				<span class="text-xs font-semibold">Master Material</span>
-			</a>
+			{#if hasMenuAccess(user, 'pms', 'pms.master-materials')}
+				<a
+					class="flex items-center gap-3 px-4 py-2 rounded-xl transition-all duration-200 hover:translate-x-1 {isActive('/pms/master/materials')
+						? 'bg-surface-container-highest text-amber-600 dark:text-amber-400 font-bold'
+						: 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container font-medium text-sm'}"
+					href="/pms/master/materials"
+				>
+					<span class="material-symbols-outlined text-[18px]">category</span>
+					<span class="text-xs font-semibold">Master Material</span>
+				</a>
+			{/if}
 
 			<!-- 3. Transactions Section -->
-			<div class="pt-3 pb-1 px-4">
-				<p class="text-[9px] font-black text-on-surface-variant/50 uppercase tracking-[0.2em]">Transaksi Pengadaan</p>
-			</div>
+			{#if hasMenuAccess(user, 'pms', 'pms.transactions-pr') || hasMenuAccess(user, 'pms', 'pms.transactions-po') || hasMenuAccess(user, 'pms', 'pms.transactions-wrs') || hasMenuAccess(user, 'pms', 'pms.transactions-outstanding') || hasMenuAccess(user, 'pms', 'pms.transactions-service-sheets') || hasMenuAccess(user, 'pms', 'pms.transactions-delivery-notes')}
+				<div class="pt-3 pb-1 px-4">
+					<p class="text-[9px] font-black text-on-surface-variant/50 uppercase tracking-[0.2em]">Transaksi Pengadaan</p>
+				</div>
+			{/if}
 
-			<a
-				class="flex items-center gap-3 px-4 py-2 rounded-xl transition-all duration-200 hover:translate-x-1 {isActive('/pms/transactions/pr')
-					? 'bg-surface-container-highest text-amber-600 dark:text-amber-400 font-bold'
-					: 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container font-medium text-sm'}"
-				href="/pms/transactions/pr"
-			>
-				<span class="material-symbols-outlined text-[18px]">assignment</span>
-				<span class="text-xs font-semibold">Purchase Request (PR)</span>
-			</a>
+			{#if hasMenuAccess(user, 'pms', 'pms.transactions-pr')}
+				<a
+					class="flex items-center gap-3 px-4 py-2 rounded-xl transition-all duration-200 hover:translate-x-1 {isActive('/pms/transactions/pr')
+						? 'bg-surface-container-highest text-amber-600 dark:text-amber-400 font-bold'
+						: 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container font-medium text-sm'}"
+					href="/pms/transactions/pr"
+				>
+					<span class="material-symbols-outlined text-[18px]">assignment</span>
+					<span class="text-xs font-semibold">Purchase Request (PR)</span>
+				</a>
+			{/if}
 
-			<a
-				class="flex items-center gap-3 px-4 py-2 rounded-xl transition-all duration-200 hover:translate-x-1 {isActive('/pms/transactions/po')
-					? 'bg-surface-container-highest text-amber-600 dark:text-amber-400 font-bold'
-					: 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container font-medium text-sm'}"
-				href="/pms/transactions/po"
-			>
-				<span class="material-symbols-outlined text-[18px]">shopping_cart</span>
-				<span class="text-xs font-semibold">Purchase Order (PO)</span>
-			</a>
+			{#if hasMenuAccess(user, 'pms', 'pms.transactions-po')}
+				<a
+					class="flex items-center gap-3 px-4 py-2 rounded-xl transition-all duration-200 hover:translate-x-1 {isActive('/pms/transactions/po')
+						? 'bg-surface-container-highest text-amber-600 dark:text-amber-400 font-bold'
+						: 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container font-medium text-sm'}"
+					href="/pms/transactions/po"
+				>
+					<span class="material-symbols-outlined text-[18px]">shopping_cart</span>
+					<span class="text-xs font-semibold">Purchase Order (PO)</span>
+				</a>
+			{/if}
 
-			<a
-				class="flex items-center gap-3 px-4 py-2 rounded-xl transition-all duration-200 hover:translate-x-1 {isActive('/pms/transactions/wrs')
-					? 'bg-surface-container-highest text-amber-600 dark:text-amber-400 font-bold'
-					: 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container font-medium text-sm'}"
-				href="/pms/transactions/wrs"
-			>
-				<span class="material-symbols-outlined text-[18px]">receipt_long</span>
-				<span class="text-xs font-semibold">WRS / LPB Gudang</span>
-			</a>
+			{#if hasMenuAccess(user, 'pms', 'pms.transactions-wrs')}
+				<a
+					class="flex items-center gap-3 px-4 py-2 rounded-xl transition-all duration-200 hover:translate-x-1 {isActive('/pms/transactions/wrs')
+						? 'bg-surface-container-highest text-amber-600 dark:text-amber-400 font-bold'
+						: 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container font-medium text-sm'}"
+					href="/pms/transactions/wrs"
+				>
+					<span class="material-symbols-outlined text-[18px]">receipt_long</span>
+					<span class="text-xs font-semibold">WRS / LPB Gudang</span>
+				</a>
+			{/if}
 
-			<a
-				class="flex items-center gap-3 px-4 py-2 rounded-xl transition-all duration-200 hover:translate-x-1 {isActive('/pms/transactions/outstanding')
-					? 'bg-surface-container-highest text-amber-600 dark:text-amber-400 font-bold'
-					: 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container font-medium text-sm'}"
-				href="/pms/transactions/outstanding"
-			>
-				<span class="material-symbols-outlined text-[18px]">pending_actions</span>
-				<span class="text-xs font-semibold">Outstanding (OS) Hub</span>
-			</a>
+			{#if hasMenuAccess(user, 'pms', 'pms.transactions-outstanding')}
+				<a
+					class="flex items-center gap-3 px-4 py-2 rounded-xl transition-all duration-200 hover:translate-x-1 {isActive('/pms/transactions/outstanding')
+						? 'bg-surface-container-highest text-amber-600 dark:text-amber-400 font-bold'
+						: 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container font-medium text-sm'}"
+					href="/pms/transactions/outstanding"
+				>
+					<span class="material-symbols-outlined text-[18px]">pending_actions</span>
+					<span class="text-xs font-semibold">Outstanding (OS) Hub</span>
+				</a>
+			{/if}
 
-			<a
-				class="flex items-center gap-3 px-4 py-2 rounded-xl transition-all duration-200 hover:translate-x-1 {isActive('/pms/transactions/service-sheets')
-					? 'bg-surface-container-highest text-amber-600 dark:text-amber-400 font-bold'
-					: 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container font-medium text-sm'}"
-				href="/pms/transactions/service-sheets"
-			>
-				<span class="material-symbols-outlined text-[18px]">build</span>
-				<span class="text-xs font-semibold">Supply Slip (SS / WO)</span>
-			</a>
+			{#if hasMenuAccess(user, 'pms', 'pms.transactions-service-sheets')}
+				<a
+					class="flex items-center gap-3 px-4 py-2 rounded-xl transition-all duration-200 hover:translate-x-1 {isActive('/pms/transactions/service-sheets')
+						? 'bg-surface-container-highest text-amber-600 dark:text-amber-400 font-bold'
+						: 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container font-medium text-sm'}"
+					href="/pms/transactions/service-sheets"
+				>
+					<span class="material-symbols-outlined text-[18px]">build</span>
+					<span class="text-xs font-semibold">Supply Slip (SS / WO)</span>
+				</a>
+			{/if}
 
-			<a
-				class="flex items-center gap-3 px-4 py-2 rounded-xl transition-all duration-200 hover:translate-x-1 {isActive('/pms/transactions/delivery-notes')
-					? 'bg-surface-container-highest text-amber-600 dark:text-amber-400 font-bold'
-					: 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container font-medium text-sm'}"
-				href="/pms/transactions/delivery-notes"
-			>
-				<span class="material-symbols-outlined text-[18px]">local_shipping</span>
-				<span class="text-xs font-semibold">Delivery Notes (DN)</span>
-			</a>
+			{#if hasMenuAccess(user, 'pms', 'pms.transactions-delivery-notes')}
+				<a
+					class="flex items-center gap-3 px-4 py-2 rounded-xl transition-all duration-200 hover:translate-x-1 {isActive('/pms/transactions/delivery-notes')
+						? 'bg-surface-container-highest text-amber-600 dark:text-amber-400 font-bold'
+						: 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container font-medium text-sm'}"
+					href="/pms/transactions/delivery-notes"
+				>
+					<span class="material-symbols-outlined text-[18px]">local_shipping</span>
+					<span class="text-xs font-semibold">Delivery Notes (DN)</span>
+				</a>
+			{/if}
 
 			<!-- 4. History Section -->
-			<div class="pt-3 pb-1 px-4">
-				<p class="text-[9px] font-black text-on-surface-variant/50 uppercase tracking-[0.2em]">Riwayat Pengadaan</p>
-			</div>
+			{#if hasMenuAccess(user, 'pms', 'pms.history-materials') || hasMenuAccess(user, 'pms', 'pms.history-vendors') || hasMenuAccess(user, 'pms', 'pms.history-remarks')}
+				<div class="pt-3 pb-1 px-4">
+					<p class="text-[9px] font-black text-on-surface-variant/50 uppercase tracking-[0.2em]">Riwayat Pengadaan</p>
+				</div>
+			{/if}
 
-			<a
-				class="flex items-center gap-3 px-4 py-2 rounded-xl transition-all duration-200 hover:translate-x-1 {isActive('/pms/history/materials')
-					? 'bg-surface-container-highest text-amber-600 dark:text-amber-400 font-bold'
-					: 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container font-medium text-sm'}"
-				href="/pms/history/materials"
-			>
-				<span class="material-symbols-outlined text-[18px]">history</span>
-				<span class="text-xs font-semibold">by Material</span>
-			</a>
+			{#if hasMenuAccess(user, 'pms', 'pms.history-materials')}
+				<a
+					class="flex items-center gap-3 px-4 py-2 rounded-xl transition-all duration-200 hover:translate-x-1 {isActive('/pms/history/materials')
+						? 'bg-surface-container-highest text-amber-600 dark:text-amber-400 font-bold'
+						: 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container font-medium text-sm'}"
+					href="/pms/history/materials"
+				>
+					<span class="material-symbols-outlined text-[18px]">history</span>
+					<span class="text-xs font-semibold">by Material</span>
+				</a>
+			{/if}
 
-			<a
-				class="flex items-center gap-3 px-4 py-2 rounded-xl transition-all duration-200 hover:translate-x-1 {isActive('/pms/history/vendors')
-					? 'bg-surface-container-highest text-amber-600 dark:text-amber-400 font-bold'
-					: 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container font-medium text-sm'}"
-				href="/pms/history/vendors"
-			>
-				<span class="material-symbols-outlined text-[18px]">person_pin</span>
-				<span class="text-xs font-semibold">by Vendor</span>
-			</a>
+			{#if hasMenuAccess(user, 'pms', 'pms.history-vendors')}
+				<a
+					class="flex items-center gap-3 px-4 py-2 rounded-xl transition-all duration-200 hover:translate-x-1 {isActive('/pms/history/vendors')
+						? 'bg-surface-container-highest text-amber-600 dark:text-amber-400 font-bold'
+						: 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container font-medium text-sm'}"
+					href="/pms/history/vendors"
+				>
+					<span class="material-symbols-outlined text-[18px]">person_pin</span>
+					<span class="text-xs font-semibold">by Vendor</span>
+				</a>
+			{/if}
 
-			<a
-				class="flex items-center gap-3 px-4 py-2 rounded-xl transition-all duration-200 hover:translate-x-1 {isActive('/pms/history/remarks')
-					? 'bg-surface-container-highest text-amber-600 dark:text-amber-400 font-bold'
-					: 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container font-medium text-sm'}"
-				href="/pms/history/remarks"
-			>
-				<span class="material-symbols-outlined text-[18px]">notes</span>
-				<span class="text-xs font-semibold">by Remarks</span>
-			</a>
+			{#if hasMenuAccess(user, 'pms', 'pms.history-remarks')}
+				<a
+					class="flex items-center gap-3 px-4 py-2 rounded-xl transition-all duration-200 hover:translate-x-1 {isActive('/pms/history/remarks')
+						? 'bg-surface-container-highest text-amber-600 dark:text-amber-400 font-bold'
+						: 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container font-medium text-sm'}"
+					href="/pms/history/remarks"
+				>
+					<span class="material-symbols-outlined text-[18px]">notes</span>
+					<span class="text-xs font-semibold">by Remarks</span>
+				</a>
+			{/if}
 
 			<!-- 5. Reports & Analytics -->
-			<div class="pt-3 pb-1 px-4">
-				<p class="text-[9px] font-black text-on-surface-variant/50 uppercase tracking-[0.2em]">Laporan & Analitik</p>
-			</div>
+			{#if hasMenuAccess(user, 'pms', 'pms.reports-yearly-matrix') || hasMenuAccess(user, 'pms', 'pms.reports-lead-time') || hasMenuAccess(user, 'pms', 'pms.reports-transactions')}
+				<div class="pt-3 pb-1 px-4">
+					<p class="text-[9px] font-black text-on-surface-variant/50 uppercase tracking-[0.2em]">Laporan & Analitik</p>
+				</div>
+			{/if}
 
-			<a
-				class="flex items-center gap-3 px-4 py-2 rounded-xl transition-all duration-200 hover:translate-x-1 {isActive('/pms/reports/yearly-matrix')
-					? 'bg-surface-container-highest text-amber-600 dark:text-amber-400 font-bold'
-					: 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container font-medium text-sm'}"
-				href="/pms/reports/yearly-matrix"
-			>
-				<span class="material-symbols-outlined text-[18px]">calendar_month</span>
-				<span class="text-xs font-semibold">Yearly Matrix (Jan-Dec)</span>
-			</a>
+			{#if hasMenuAccess(user, 'pms', 'pms.reports-yearly-matrix')}
+				<a
+					class="flex items-center gap-3 px-4 py-2 rounded-xl transition-all duration-200 hover:translate-x-1 {isActive('/pms/reports/yearly-matrix')
+						? 'bg-surface-container-highest text-amber-600 dark:text-amber-400 font-bold'
+						: 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container font-medium text-sm'}"
+					href="/pms/reports/yearly-matrix"
+				>
+					<span class="material-symbols-outlined text-[18px]">calendar_month</span>
+					<span class="text-xs font-semibold">Yearly Matrix (Jan-Dec)</span>
+				</a>
+			{/if}
 
-			<a
-				class="flex items-center gap-3 px-4 py-2 rounded-xl transition-all duration-200 hover:translate-x-1 {isActive('/pms/reports/lead-time')
-					? 'bg-surface-container-highest text-amber-600 dark:text-amber-400 font-bold'
-					: 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container font-medium text-sm'}"
-				href="/pms/reports/lead-time"
-			>
-				<span class="material-symbols-outlined text-[18px]">timelapse</span>
-				<span class="text-xs font-semibold">Lead Time Tracking</span>
-			</a>
+			{#if hasMenuAccess(user, 'pms', 'pms.reports-lead-time')}
+				<a
+					class="flex items-center gap-3 px-4 py-2 rounded-xl transition-all duration-200 hover:translate-x-1 {isActive('/pms/reports/lead-time')
+						? 'bg-surface-container-highest text-amber-600 dark:text-amber-400 font-bold'
+						: 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container font-medium text-sm'}"
+					href="/pms/reports/lead-time"
+				>
+					<span class="material-symbols-outlined text-[18px]">timelapse</span>
+					<span class="text-xs font-semibold">Lead Time Tracking</span>
+				</a>
+			{/if}
 
-			<a
-				class="flex items-center gap-3 px-4 py-2 rounded-xl transition-all duration-200 hover:translate-x-1 {isActive('/pms/reports/transactions')
-					? 'bg-surface-container-highest text-amber-600 dark:text-amber-400 font-bold'
-					: 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container font-medium text-sm'}"
-				href="/pms/reports/transactions"
-			>
-				<span class="material-symbols-outlined text-[18px]">table_chart</span>
-				<span class="text-xs font-semibold">Detail PO & Rekap SS/DN</span>
-			</a>
+			{#if hasMenuAccess(user, 'pms', 'pms.reports-transactions')}
+				<a
+					class="flex items-center gap-3 px-4 py-2 rounded-xl transition-all duration-200 hover:translate-x-1 {isActive('/pms/reports/transactions')
+						? 'bg-surface-container-highest text-amber-600 dark:text-amber-400 font-bold'
+						: 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container font-medium text-sm'}"
+					href="/pms/reports/transactions"
+				>
+					<span class="material-symbols-outlined text-[18px]">table_chart</span>
+					<span class="text-xs font-semibold">Detail PO & Rekap SS/DN</span>
+				</a>
+			{/if}
 
 			<!-- 6. Inventory & Stock -->
-			<div class="pt-3 pb-1 px-4">
-				<p class="text-[9px] font-black text-on-surface-variant/50 uppercase tracking-[0.2em]">Inventori & Gudang</p>
-			</div>
+			{#if hasMenuAccess(user, 'pms', 'pms.inventory-on-hand') || hasMenuAccess(user, 'pms', 'pms.inventory-stock-history')}
+				<div class="pt-3 pb-1 px-4">
+					<p class="text-[9px] font-black text-on-surface-variant/50 uppercase tracking-[0.2em]">Inventori & Gudang</p>
+				</div>
+			{/if}
 
-			<a
-				class="flex items-center gap-3 px-4 py-2 rounded-xl transition-all duration-200 hover:translate-x-1 {isActive('/pms/inventory/on-hand')
-					? 'bg-surface-container-highest text-amber-600 dark:text-amber-400 font-bold'
-					: 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container font-medium text-sm'}"
-				href="/pms/inventory/on-hand"
-			>
-				<span class="material-symbols-outlined text-[18px]">warehouse</span>
-				<span class="text-xs font-semibold">Stok On Hand</span>
-			</a>
+			{#if hasMenuAccess(user, 'pms', 'pms.inventory-on-hand')}
+				<a
+					class="flex items-center gap-3 px-4 py-2 rounded-xl transition-all duration-200 hover:translate-x-1 {isActive('/pms/inventory/on-hand')
+						? 'bg-surface-container-highest text-amber-600 dark:text-amber-400 font-bold'
+						: 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container font-medium text-sm'}"
+					href="/pms/inventory/on-hand"
+				>
+					<span class="material-symbols-outlined text-[18px]">warehouse</span>
+					<span class="text-xs font-semibold">Stok On Hand</span>
+				</a>
+			{/if}
 
-			<a
-				class="flex items-center gap-3 px-4 py-2 rounded-xl transition-all duration-200 hover:translate-x-1 {isActive('/pms/inventory/stock-history')
-					? 'bg-surface-container-highest text-amber-600 dark:text-amber-400 font-bold'
-					: 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container font-medium text-sm'}"
-				href="/pms/inventory/stock-history"
-			>
-				<span class="material-symbols-outlined text-[18px]">swap_horiz</span>
-				<span class="text-xs font-semibold">Kartu Stok / Mutasi</span>
-			</a>
+			{#if hasMenuAccess(user, 'pms', 'pms.inventory-stock-history')}
+				<a
+					class="flex items-center gap-3 px-4 py-2 rounded-xl transition-all duration-200 hover:translate-x-1 {isActive('/pms/inventory/stock-history')
+						? 'bg-surface-container-highest text-amber-600 dark:text-amber-400 font-bold'
+						: 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container font-medium text-sm'}"
+					href="/pms/inventory/stock-history"
+				>
+					<span class="material-symbols-outlined text-[18px]">swap_horiz</span>
+					<span class="text-xs font-semibold">Kartu Stok / Mutasi</span>
+				</a>
+			{/if}
 		</nav>
 	</aside>
 

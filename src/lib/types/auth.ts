@@ -27,27 +27,116 @@ export const ALL_MODULES: ModuleId[] = ['fms', 'maintenance', 'ocs', 'hris', 'ma
 
 /** Definisi Sub-menu per modul untuk keperluan Menu-Level RBAC */
 export const MODULE_MENUS: Record<string, { id: string; name: string }[]> = {
+	fms: [
+		{ id: 'fms.overview', name: 'Overview' },
+		{ id: 'fms.vehicles', name: 'Vehicles & Trucks' },
+		{ id: 'fms.drivers', name: 'Drivers & SIM' },
+		{ id: 'fms.trips', name: 'Trips & Routes' },
+		{ id: 'fms.maintenance', name: 'Maintenance' },
+		{ id: 'fms.tires', name: 'Tire Management' },
+		{ id: 'fms.fuel', name: 'Fuel Management' },
+		{ id: 'fms.documents', name: 'Fleet Documents' },
+		{ id: 'fms.incidents', name: 'Incident Logs' },
+		{ id: 'fms.reports', name: 'Fleet Reports' },
+		{ id: 'fms.live-map', name: 'Live GPS Map' },
+		{ id: 'fms.route-history', name: 'Route Playback' },
+		{ id: 'fms.rest-area', name: 'Rest Area & Geofence' }
+	],
+	hris: [
+		{ id: 'hris.overview', name: 'Overview' },
+		{ id: 'hris.employees', name: 'Employees' },
+		{ id: 'hris.recruitment', name: 'Recruitment & ATS' },
+		{ id: 'hris.lifecycle', name: 'Lifecycle & Actions' },
+		{ id: 'hris.attendance', name: 'Attendance' },
+		{ id: 'hris.leave', name: 'Leave Requests' },
+		{ id: 'hris.payroll', name: 'Payroll & Slips' },
+		{ id: 'hris.loans', name: 'Employee Loans' },
+		{ id: 'hris.performance', name: 'Performance & KPI' },
+		{ id: 'hris.assessments', name: 'Team Competency Assessment' },
+		{ id: 'hris.lms', name: 'LMS & Training' },
+		{ id: 'hris.org-chart', name: 'Org Chart & Hierarchy' },
+		{ id: 'hris.certifications', name: 'Document Expiry & Certs' }
+	],
+	finance: [
+		{ id: 'finance.overview', name: 'Overview' },
+		{ id: 'finance.create-transaction', name: 'Transaction Center' },
+		{ id: 'finance.invoices', name: 'Customer Invoices' },
+		{ id: 'finance.vendor-bills', name: 'Vendor Bills' },
+		{ id: 'finance.payments', name: 'Payment History' }
+	],
+	kasir: [
+		{ id: 'kasir.overview', name: 'Overview' },
+		{ id: 'kasir.kas-operasional', name: 'Kas & Saldo Operasional' },
+		{ id: 'kasir.ujo', name: 'Pencairan UJO' },
+		{ id: 'kasir.surat-jalan', name: 'Surat Jalan Balik (DN)' },
+		{ id: 'kasir.closing', name: 'Closing Kasbon UJO' }
+	],
+	marketing: [
+		{ id: 'marketing.overview', name: 'Overview' },
+		{ id: 'marketing.customers', name: 'Customers' },
+		{ id: 'marketing.orders', name: 'Orders & Delivery' },
+		{ id: 'marketing.contracts', name: 'Customer Contracts' },
+		{ id: 'marketing.pipeline', name: 'Sales Pipeline' },
+		{ id: 'marketing.reports', name: 'Performance Reports' }
+	],
+	pms: [
+		{ id: 'pms.dashboard', name: 'Dashboard Resume' },
+		{ id: 'pms.master-vendors', name: 'Master Vendor' },
+		{ id: 'pms.master-sites', name: 'Master Site / Lokasi' },
+		{ id: 'pms.master-projects', name: 'Master Project' },
+		{ id: 'pms.master-materials', name: 'Master Material' },
+		{ id: 'pms.transactions-pr', name: 'Purchase Request (PR)' },
+		{ id: 'pms.transactions-po', name: 'Purchase Order (PO)' },
+		{ id: 'pms.transactions-wrs', name: 'WRS / LPB Gudang' },
+		{ id: 'pms.transactions-outstanding', name: 'Outstanding (OS) Hub' },
+		{ id: 'pms.transactions-service-sheets', name: 'Supply Slip (SS / WO)' },
+		{ id: 'pms.transactions-delivery-notes', name: 'Delivery Notes (DN)' },
+		{ id: 'pms.history-materials', name: 'History by Material' },
+		{ id: 'pms.history-vendors', name: 'History by Vendor' },
+		{ id: 'pms.history-remarks', name: 'History by Remarks' },
+		{ id: 'pms.reports-yearly-matrix', name: 'Yearly Matrix (Jan-Dec)' },
+		{ id: 'pms.reports-lead-time', name: 'Lead Time Tracking' },
+		{ id: 'pms.reports-transactions', name: 'Detail PO & Rekap SS/DN' },
+		{ id: 'pms.inventory-on-hand', name: 'Stok On Hand' },
+		{ id: 'pms.inventory-stock-history', name: 'Kartu Riwayat Stok' }
+	],
+	dms: [
+		{ id: 'dms.dashboard', name: 'Overview & Horizon' },
+		{ id: 'dms.documents', name: 'All Documents' },
+		{ id: 'dms.register', name: 'Register Document' },
+		{ id: 'dms.master-types', name: 'Document Types' },
+		{ id: 'dms.master-locations', name: 'Storage Locations' },
+		{ id: 'dms.master-issuers', name: 'Issuing Authorities' },
+		{ id: 'dms.master-notaries', name: 'Notaries' }
+	],
+	qhse: [
+		{ id: 'qhse.overview', name: 'Overview & KPI' },
+		{ id: 'qhse.incidents', name: 'Insiden & CAR (Lagging)' },
+		{ id: 'qhse.inspections', name: 'Inspeksi & Proaktif (Leading)' },
+		{ id: 'qhse.safety-enablement', name: 'Safety Briefing & APD' },
+		{ id: 'qhse.quality', name: 'SOP & Complain System' }
+	],
 	ga: [
 		{ id: 'ga.dashboard', name: 'Dashboard GA' },
-		{ id: 'ga.assets', name: 'Master Aset' },
-		{ id: 'ga.permits', name: 'Legalitas & Perizinan' },
-		{ id: 'ga.facilities', name: 'Facility Maintenance' },
-		{ id: 'ga.stationery', name: 'Request ATK' }
+		{ id: 'ga.assets', name: 'Master Aset (KR 7.1)' },
+		{ id: 'ga.permits', name: 'Legalitas Armada (KR 7.2)' },
+		{ id: 'ga.facilities', name: 'Facility Maintenance (KR 7.3)' },
+		{ id: 'ga.stationery', name: 'Request ATK & Perlengkapan (KR 7.4)' }
 	],
 	ocs: [
-		{ id: 'ocs.dashboard', name: 'Dashboard' },
-		{ id: 'ocs.dispatch', name: 'Dispatch' },
+		{ id: 'ocs.dashboard', name: 'Overview' },
+		{ id: 'ocs.dispatch', name: 'Dispatch Operations' },
+		{ id: 'ocs.pod', name: 'e-POD (Surat Jalan Balik)' },
 		{ id: 'ocs.ujo', name: 'Uang Jalan (UJO)' },
 		{ id: 'ocs.assign-driver', name: 'Assign Driver' },
 		{ id: 'ocs.daily-targets', name: 'Target Harian' },
-		{ id: 'ocs.rute', name: 'Master Rute (UJO)' }
+		{ id: 'ocs.rute', name: 'Master Routes & Tolls' }
 	],
 	maintenance: [
 		{ id: 'maintenance.dashboard', name: 'Dashboard Utama' },
 		{ id: 'maintenance.inspections', name: 'Daftar Inspeksi (Mobile)' },
 		{ id: 'maintenance.work-orders', name: 'Work Orders (Mechanic)' }
 	]
-	// Modul lain bisa ditambahkan di sini secara bertahap saat UI menu siap
 };
 
 /** Level sequence minimum untuk akses OCS (Supervisor = 4) */

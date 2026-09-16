@@ -2,6 +2,8 @@
 	import { page } from '$app/stores';
 	import Chatbot from '$lib/components/Chatbot.svelte';
 
+	import { authUser, hasMenuAccess } from '$lib/stores/auth';
+
 	let { children } = $props();
 
 	function isActive(path: string) {
@@ -11,7 +13,7 @@
 		return $page.url.pathname.startsWith(path);
 	}
 
-	const user = $derived($page.data?.user);
+	const user = $derived($page.data?.user || $authUser);
 	const isAdmin = $derived(
 		user && (
 			['superadmin', 'administrator', 'superhyperadmin', 'super_admin'].includes(user.role?.toLowerCase()) ||
@@ -41,85 +43,103 @@
 
 		<!-- Nav Items (Flat Menu Design) -->
 		<nav class="flex-1 space-y-1">
-			<a
-				class="flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200 hover:translate-x-1 {isActive('/dms/dashboard')
-					? 'bg-surface-container-highest text-indigo-600 dark:text-indigo-400 font-bold'
-					: 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container font-medium text-sm'}"
-				href="/dms/dashboard"
-			>
-				<span class="material-symbols-outlined text-[20px]">dashboard</span>
-				<span class="text-sm">Overview & Horizon</span>
-			</a>
+			{#if hasMenuAccess(user, 'dms', 'dms.dashboard')}
+				<a
+					class="flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200 hover:translate-x-1 {isActive('/dms/dashboard')
+						? 'bg-surface-container-highest text-indigo-600 dark:text-indigo-400 font-bold'
+						: 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container font-medium text-sm'}"
+					href="/dms/dashboard"
+				>
+					<span class="material-symbols-outlined text-[20px]">dashboard</span>
+					<span class="text-sm">Overview & Horizon</span>
+				</a>
+			{/if}
 
 			<!-- Section: Documents & Archives -->
-			<div class="pt-3 pb-1 px-4">
-				<p class="text-[9px] font-black text-on-surface-variant/50 uppercase tracking-[0.2em]">Documents & Archives</p>
-			</div>
+			{#if hasMenuAccess(user, 'dms', 'dms.documents') || hasMenuAccess(user, 'dms', 'dms.register')}
+				<div class="pt-3 pb-1 px-4">
+					<p class="text-[9px] font-black text-on-surface-variant/50 uppercase tracking-[0.2em]">Documents & Archives</p>
+				</div>
+			{/if}
 
-			<a
-				class="flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200 hover:translate-x-1 {$page.url.pathname === '/dms/transactions/documents'
-					? 'bg-surface-container-highest text-indigo-600 dark:text-indigo-400 font-bold'
-					: 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container font-medium text-sm'}"
-				href="/dms/transactions/documents"
-			>
-				<span class="material-symbols-outlined text-[20px]">folder_shared</span>
-				<span class="text-sm">All Documents</span>
-			</a>
+			{#if hasMenuAccess(user, 'dms', 'dms.documents')}
+				<a
+					class="flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200 hover:translate-x-1 {$page.url.pathname === '/dms/transactions/documents'
+						? 'bg-surface-container-highest text-indigo-600 dark:text-indigo-400 font-bold'
+						: 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container font-medium text-sm'}"
+					href="/dms/transactions/documents"
+				>
+					<span class="material-symbols-outlined text-[20px]">folder_shared</span>
+					<span class="text-sm">All Documents</span>
+				</a>
+			{/if}
 
-			<a
-				class="flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200 hover:translate-x-1 {$page.url.pathname.includes('/dms/transactions/documents/create')
-					? 'bg-surface-container-highest text-indigo-600 dark:text-indigo-400 font-bold'
-					: 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container font-medium text-sm'}"
-				href="/dms/transactions/documents/create"
-			>
-				<span class="material-symbols-outlined text-[20px]">upload_file</span>
-				<span class="text-sm">Register Document</span>
-			</a>
+			{#if hasMenuAccess(user, 'dms', 'dms.register')}
+				<a
+					class="flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200 hover:translate-x-1 {$page.url.pathname.includes('/dms/transactions/documents/create')
+						? 'bg-surface-container-highest text-indigo-600 dark:text-indigo-400 font-bold'
+						: 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container font-medium text-sm'}"
+					href="/dms/transactions/documents/create"
+				>
+					<span class="material-symbols-outlined text-[20px]">upload_file</span>
+					<span class="text-sm">Register Document</span>
+				</a>
+			{/if}
 
 			<!-- Section: Master Data -->
-			<div class="pt-3 pb-1 px-4">
-				<p class="text-[9px] font-black text-on-surface-variant/50 uppercase tracking-[0.2em]">Master Data</p>
-			</div>
+			{#if hasMenuAccess(user, 'dms', 'dms.master-types') || hasMenuAccess(user, 'dms', 'dms.master-locations') || hasMenuAccess(user, 'dms', 'dms.master-issuers') || hasMenuAccess(user, 'dms', 'dms.master-notaries')}
+				<div class="pt-3 pb-1 px-4">
+					<p class="text-[9px] font-black text-on-surface-variant/50 uppercase tracking-[0.2em]">Master Data</p>
+				</div>
+			{/if}
 
-			<a
-				class="flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200 hover:translate-x-1 {$page.url.pathname.includes('/dms/master/types')
-					? 'bg-surface-container-highest text-indigo-600 dark:text-indigo-400 font-bold'
-					: 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container font-medium text-sm'}"
-				href="/dms/master/types"
-			>
-				<span class="material-symbols-outlined text-[20px]">category</span>
-				<span class="text-sm">Document Types</span>
-			</a>
+			{#if hasMenuAccess(user, 'dms', 'dms.master-types')}
+				<a
+					class="flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200 hover:translate-x-1 {$page.url.pathname.includes('/dms/master/types')
+						? 'bg-surface-container-highest text-indigo-600 dark:text-indigo-400 font-bold'
+						: 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container font-medium text-sm'}"
+					href="/dms/master/types"
+				>
+					<span class="material-symbols-outlined text-[20px]">category</span>
+					<span class="text-sm">Document Types</span>
+				</a>
+			{/if}
 
-			<a
-				class="flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200 hover:translate-x-1 {$page.url.pathname.includes('/dms/master/locations')
-					? 'bg-surface-container-highest text-indigo-600 dark:text-indigo-400 font-bold'
-					: 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container font-medium text-sm'}"
-				href="/dms/master/locations"
-			>
-				<span class="material-symbols-outlined text-[20px]">inventory_2</span>
-				<span class="text-sm">Storage Locations</span>
-			</a>
+			{#if hasMenuAccess(user, 'dms', 'dms.master-locations')}
+				<a
+					class="flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200 hover:translate-x-1 {$page.url.pathname.includes('/dms/master/locations')
+						? 'bg-surface-container-highest text-indigo-600 dark:text-indigo-400 font-bold'
+						: 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container font-medium text-sm'}"
+					href="/dms/master/locations"
+				>
+					<span class="material-symbols-outlined text-[20px]">inventory_2</span>
+					<span class="text-sm">Storage Locations</span>
+				</a>
+			{/if}
 
-			<a
-				class="flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200 hover:translate-x-1 {$page.url.pathname.includes('/dms/master/issuers')
-					? 'bg-surface-container-highest text-indigo-600 dark:text-indigo-400 font-bold'
-					: 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container font-medium text-sm'}"
-				href="/dms/master/issuers"
-			>
-				<span class="material-symbols-outlined text-[20px]">account_balance</span>
-				<span class="text-sm">Issuing Authorities</span>
-			</a>
+			{#if hasMenuAccess(user, 'dms', 'dms.master-issuers')}
+				<a
+					class="flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200 hover:translate-x-1 {$page.url.pathname.includes('/dms/master/issuers')
+						? 'bg-surface-container-highest text-indigo-600 dark:text-indigo-400 font-bold'
+						: 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container font-medium text-sm'}"
+					href="/dms/master/issuers"
+				>
+					<span class="material-symbols-outlined text-[20px]">account_balance</span>
+					<span class="text-sm">Issuing Authorities</span>
+				</a>
+			{/if}
 
-			<a
-				class="flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200 hover:translate-x-1 {$page.url.pathname.includes('/dms/master/notaries')
-					? 'bg-surface-container-highest text-indigo-600 dark:text-indigo-400 font-bold'
-					: 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container font-medium text-sm'}"
-				href="/dms/master/notaries"
-			>
-				<span class="material-symbols-outlined text-[20px]">gavel</span>
-				<span class="text-sm">Notaries</span>
-			</a>
+			{#if hasMenuAccess(user, 'dms', 'dms.master-notaries')}
+				<a
+					class="flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200 hover:translate-x-1 {$page.url.pathname.includes('/dms/master/notaries')
+						? 'bg-surface-container-highest text-indigo-600 dark:text-indigo-400 font-bold'
+						: 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container font-medium text-sm'}"
+					href="/dms/master/notaries"
+				>
+					<span class="material-symbols-outlined text-[20px]">gavel</span>
+					<span class="text-sm">Notaries</span>
+				</a>
+			{/if}
 		</nav>
 	</aside>
 

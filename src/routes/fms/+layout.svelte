@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { page } from '$app/stores';
 	import FaridaChat from '$lib/components/FaridaChat.svelte';
+	import { authUser, hasMenuAccess } from '$lib/stores/auth';
 
 	let { children } = $props();
 
@@ -11,7 +12,7 @@
 		return $page.url.pathname.startsWith(path);
 	}
 
-	const user = $derived($page.data?.user);
+	const user = $derived($page.data?.user || $authUser);
 	const isAdmin = $derived(
 		user && (
 			['superadmin', 'administrator', 'superhyperadmin', 'super_admin'].includes(user.role?.toLowerCase()) ||
@@ -43,6 +44,7 @@
 		</div>
 
 		<nav class="flex-1 space-y-1">
+			{#if hasMenuAccess(user, 'fms', 'fms.overview')}
 			<a
 				class="flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200 hover:translate-x-1 {isActive('/fms') && $page.url.pathname === '/fms'
 					? 'bg-surface-container-highest text-blue-600 dark:text-blue-400 font-bold'
@@ -52,12 +54,16 @@
 				<span class="material-symbols-outlined text-[20px]">dashboard</span>
 				<span class="text-sm">Overview</span>
 			</a>
+			{/if}
 
 			<!-- Section: Main & Fleet Units -->
+			{#if hasMenuAccess(user, 'fms', 'fms.vehicles') || hasMenuAccess(user, 'fms', 'fms.drivers') || hasMenuAccess(user, 'fms', 'fms.trips') || hasMenuAccess(user, 'fms', 'fms.maintenance') || hasMenuAccess(user, 'fms', 'fms.tires')}
 			<div class="pt-3 pb-1 px-4">
 				<p class="text-[9px] font-black text-on-surface-variant/50 uppercase tracking-[0.2em]">Fleet & Units</p>
 			</div>
+			{/if}
 
+			{#if hasMenuAccess(user, 'fms', 'fms.vehicles')}
 			<a
 				class="flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200 hover:translate-x-1 {isActive('/fms/vehicles')
 					? 'bg-surface-container-highest text-blue-600 dark:text-blue-400 font-bold'
@@ -67,7 +73,9 @@
 				<span class="material-symbols-outlined text-[20px]">local_shipping</span>
 				<span class="text-sm">Vehicles & Trucks</span>
 			</a>
+			{/if}
 
+			{#if hasMenuAccess(user, 'fms', 'fms.drivers')}
 			<a
 				class="flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200 hover:translate-x-1 {isActive('/fms/drivers')
 					? 'bg-surface-container-highest text-blue-600 dark:text-blue-400 font-bold'
@@ -77,7 +85,9 @@
 				<span class="material-symbols-outlined text-[20px]">badge</span>
 				<span class="text-sm">Drivers & SIM</span>
 			</a>
+			{/if}
 
+			{#if hasMenuAccess(user, 'fms', 'fms.trips')}
 			<a
 				class="flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200 hover:translate-x-1 {isActive('/fms/trips')
 					? 'bg-surface-container-highest text-blue-600 dark:text-blue-400 font-bold'
@@ -87,7 +97,9 @@
 				<span class="material-symbols-outlined text-[20px]">route</span>
 				<span class="text-sm">Trips & Routes</span>
 			</a>
+			{/if}
 
+			{#if hasMenuAccess(user, 'fms', 'fms.maintenance')}
 			<a
 				class="flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200 hover:translate-x-1 {isActive('/fms/maintenance')
 					? 'bg-surface-container-highest text-blue-600 dark:text-blue-400 font-bold'
@@ -97,7 +109,9 @@
 				<span class="material-symbols-outlined text-[20px]">build</span>
 				<span class="text-sm">Maintenance</span>
 			</a>
+			{/if}
 
+			{#if hasMenuAccess(user, 'fms', 'fms.tires')}
 			<a
 				class="flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200 hover:translate-x-1 {isActive('/fms/tires')
 					? 'bg-surface-container-highest text-blue-600 dark:text-blue-400 font-bold'
@@ -107,12 +121,16 @@
 				<span class="material-symbols-outlined text-[20px]">tire_repair</span>
 				<span class="text-sm">Tire Management</span>
 			</a>
+			{/if}
 
 			<!-- Section: Operations & Assets -->
+			{#if hasMenuAccess(user, 'fms', 'fms.fuel') || hasMenuAccess(user, 'fms', 'fms.documents') || hasMenuAccess(user, 'fms', 'fms.incidents') || hasMenuAccess(user, 'fms', 'fms.reports')}
 			<div class="pt-3 pb-1 px-4">
 				<p class="text-[9px] font-black text-on-surface-variant/50 uppercase tracking-[0.2em]">Operations & Assets</p>
 			</div>
+			{/if}
 
+			{#if hasMenuAccess(user, 'fms', 'fms.fuel')}
 			<a
 				class="flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200 hover:translate-x-1 {isActive('/fms/fuel')
 					? 'bg-surface-container-highest text-blue-600 dark:text-blue-400 font-bold'
@@ -122,7 +140,9 @@
 				<span class="material-symbols-outlined text-[20px]">local_gas_station</span>
 				<span class="text-sm">Fuel Management</span>
 			</a>
+			{/if}
 
+			{#if hasMenuAccess(user, 'fms', 'fms.documents')}
 			<a
 				class="flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200 hover:translate-x-1 {isActive('/fms/documents')
 					? 'bg-surface-container-highest text-blue-600 dark:text-blue-400 font-bold'
@@ -132,7 +152,9 @@
 				<span class="material-symbols-outlined text-[20px]">folder_open</span>
 				<span class="text-sm">Fleet Documents</span>
 			</a>
+			{/if}
 
+			{#if hasMenuAccess(user, 'fms', 'fms.incidents')}
 			<a
 				class="flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200 hover:translate-x-1 {isActive('/fms/incidents')
 					? 'bg-surface-container-highest text-blue-600 dark:text-blue-400 font-bold'
@@ -142,7 +164,9 @@
 				<span class="material-symbols-outlined text-[20px]">report_problem</span>
 				<span class="text-sm">Incident Logs</span>
 			</a>
+			{/if}
 
+			{#if hasMenuAccess(user, 'fms', 'fms.reports')}
 			<a
 				class="flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200 hover:translate-x-1 {isActive('/fms/reports')
 					? 'bg-surface-container-highest text-blue-600 dark:text-blue-400 font-bold'
@@ -152,12 +176,16 @@
 				<span class="material-symbols-outlined text-[20px]">bar_chart</span>
 				<span class="text-sm">Fleet Reports</span>
 			</a>
+			{/if}
 
 			<!-- Section: Tracking & Telematics -->
+			{#if hasMenuAccess(user, 'fms', 'fms.live-map') || hasMenuAccess(user, 'fms', 'fms.route-history') || hasMenuAccess(user, 'fms', 'fms.rest-area')}
 			<div class="pt-3 pb-1 px-4">
 				<p class="text-[9px] font-black text-on-surface-variant/50 uppercase tracking-[0.2em]">Tracking & Telematics</p>
 			</div>
+			{/if}
 
+			{#if hasMenuAccess(user, 'fms', 'fms.live-map')}
 			<a
 				class="flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200 hover:translate-x-1 {isActive('/fms/live-map')
 					? 'bg-surface-container-highest text-blue-600 dark:text-blue-400 font-bold'
@@ -167,7 +195,9 @@
 				<span class="material-symbols-outlined text-[20px]">map</span>
 				<span class="text-sm">Live GPS Map</span>
 			</a>
+			{/if}
 
+			{#if hasMenuAccess(user, 'fms', 'fms.route-history')}
 			<a
 				class="flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200 hover:translate-x-1 {isActive('/fms/route-history')
 					? 'bg-surface-container-highest text-blue-600 dark:text-blue-400 font-bold'
@@ -177,7 +207,9 @@
 				<span class="material-symbols-outlined text-[20px]">history</span>
 				<span class="text-sm">Route Playback</span>
 			</a>
+			{/if}
 
+			{#if hasMenuAccess(user, 'fms', 'fms.rest-area')}
 			<a
 				class="flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200 hover:translate-x-1 {isActive('/fms/rest-area')
 					? 'bg-surface-container-highest text-blue-600 dark:text-blue-400 font-bold'
@@ -187,6 +219,7 @@
 				<span class="material-symbols-outlined text-[20px]">local_cafe</span>
 				<span class="text-sm">Rest Areas & Geofence</span>
 			</a>
+			{/if}
 		</nav>
 	</aside>
 

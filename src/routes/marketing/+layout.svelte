@@ -2,10 +2,12 @@
 	import { page } from '$app/stores';
 	import Chatbot from '$lib/components/Chatbot.svelte';
 
+	import { authUser, hasMenuAccess } from '$lib/stores/auth';
+
 	let { children } = $props();
 	let isSidebarExpanded = $state(true);
 
-	const user = $derived($page.data?.user);
+	const user = $derived($page.data?.user || $authUser);
 	const isAdmin = $derived(
 		user && (
 			['superadmin', 'administrator', 'superhyperadmin', 'super_admin'].includes(user.role?.toLowerCase()) ||
@@ -34,44 +36,57 @@
 		</div>
 
 		<nav class="flex-1 flex flex-col space-y-1">
-			<a class="flex items-center {isSidebarExpanded ? 'justify-start px-4' : 'justify-center'} gap-3 py-2.5 rounded-xl transition-all duration-200 hover:translate-x-1 {$page.url.pathname === '/marketing' ? 'bg-surface-container-highest text-rose-600 dark:text-rose-400 font-bold' : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container font-medium text-sm'}" href="/marketing" title="Overview">
-				<span class="material-symbols-outlined text-[20px]">dashboard</span>
-				{#if isSidebarExpanded}<span class="text-sm whitespace-nowrap">Overview</span>{/if}
-			</a>
-			<a class="flex items-center {isSidebarExpanded ? 'justify-start px-4' : 'justify-center'} gap-3 py-2.5 rounded-xl transition-all duration-200 hover:translate-x-1 {$page.url.pathname.includes('/marketing/customers') ? 'bg-surface-container-highest text-rose-600 dark:text-rose-400 font-bold' : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container font-medium text-sm'}" href="/marketing/customers" title="Customers">
-				<span class="material-symbols-outlined text-[20px]">group</span>
-				{#if isSidebarExpanded}<span class="text-sm whitespace-nowrap">Customers</span>{/if}
-			</a>
+			{#if hasMenuAccess(user, 'marketing', 'marketing.overview')}
+				<a class="flex items-center {isSidebarExpanded ? 'justify-start px-4' : 'justify-center'} gap-3 py-2.5 rounded-xl transition-all duration-200 hover:translate-x-1 {$page.url.pathname === '/marketing' ? 'bg-surface-container-highest text-rose-600 dark:text-rose-400 font-bold' : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container font-medium text-sm'}" href="/marketing" title="Overview">
+					<span class="material-symbols-outlined text-[20px]">dashboard</span>
+					{#if isSidebarExpanded}<span class="text-sm whitespace-nowrap">Overview</span>{/if}
+				</a>
+			{/if}
 
-			<a class="flex items-center {isSidebarExpanded ? 'justify-start px-4' : 'justify-center'} gap-3 py-2.5 rounded-xl transition-all duration-200 hover:translate-x-1 {$page.url.pathname.includes('/marketing/orders') ? 'bg-surface-container-highest text-rose-600 dark:text-rose-400 font-bold' : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container font-medium text-sm'}" href="/marketing/orders" title="Orders / DO">
-				<span class="material-symbols-outlined text-[20px]">receipt_long</span>
-				{#if isSidebarExpanded}<span class="text-sm whitespace-nowrap">Orders & Delivery</span>{/if}
-			</a>
+			{#if hasMenuAccess(user, 'marketing', 'marketing.customers')}
+				<a class="flex items-center {isSidebarExpanded ? 'justify-start px-4' : 'justify-center'} gap-3 py-2.5 rounded-xl transition-all duration-200 hover:translate-x-1 {$page.url.pathname.includes('/marketing/customers') ? 'bg-surface-container-highest text-rose-600 dark:text-rose-400 font-bold' : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container font-medium text-sm'}" href="/marketing/customers" title="Customers">
+					<span class="material-symbols-outlined text-[20px]">group</span>
+					{#if isSidebarExpanded}<span class="text-sm whitespace-nowrap">Customers</span>{/if}
+				</a>
+			{/if}
+
+			{#if hasMenuAccess(user, 'marketing', 'marketing.orders')}
+				<a class="flex items-center {isSidebarExpanded ? 'justify-start px-4' : 'justify-center'} gap-3 py-2.5 rounded-xl transition-all duration-200 hover:translate-x-1 {$page.url.pathname.includes('/marketing/orders') ? 'bg-surface-container-highest text-rose-600 dark:text-rose-400 font-bold' : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container font-medium text-sm'}" href="/marketing/orders" title="Orders / DO">
+					<span class="material-symbols-outlined text-[20px]">receipt_long</span>
+					{#if isSidebarExpanded}<span class="text-sm whitespace-nowrap">Orders & Delivery</span>{/if}
+				</a>
+			{/if}
 			
-			<a class="flex items-center {isSidebarExpanded ? 'justify-start px-4' : 'justify-center'} gap-3 py-2.5 rounded-xl transition-all duration-200 hover:translate-x-1 {$page.url.pathname.includes('/marketing/contracts') ? 'bg-surface-container-highest text-rose-600 dark:text-rose-400 font-bold' : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container font-medium text-sm'}" href="/marketing/contracts" title="Master Kontrak">
-				<span class="material-symbols-outlined text-[20px]">handshake</span>
-				{#if isSidebarExpanded}<span class="text-sm whitespace-nowrap">Customer Contracts</span>{/if}
-			</a>
+			{#if hasMenuAccess(user, 'marketing', 'marketing.contracts')}
+				<a class="flex items-center {isSidebarExpanded ? 'justify-start px-4' : 'justify-center'} gap-3 py-2.5 rounded-xl transition-all duration-200 hover:translate-x-1 {$page.url.pathname.includes('/marketing/contracts') ? 'bg-surface-container-highest text-rose-600 dark:text-rose-400 font-bold' : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container font-medium text-sm'}" href="/marketing/contracts" title="Master Kontrak">
+					<span class="material-symbols-outlined text-[20px]">handshake</span>
+					{#if isSidebarExpanded}<span class="text-sm whitespace-nowrap">Customer Contracts</span>{/if}
+				</a>
+			{/if}
 
 			<!-- Section Divider: CRM -->
-			<div class="pt-3 pb-1 {isSidebarExpanded ? 'px-4' : 'px-0 text-center'}">
-				<p class="text-[9px] font-black text-on-surface-variant/50 uppercase tracking-[0.2em]">{isSidebarExpanded ? 'CRM & Pipeline' : '...'}</p>
-			</div>
+			{#if hasMenuAccess(user, 'marketing', 'marketing.pipeline')}
+				<div class="pt-3 pb-1 {isSidebarExpanded ? 'px-4' : 'px-0 text-center'}">
+					<p class="text-[9px] font-black text-on-surface-variant/50 uppercase tracking-[0.2em]">{isSidebarExpanded ? 'CRM & Pipeline' : '...'}</p>
+				</div>
 
-			<a class="flex items-center {isSidebarExpanded ? 'justify-start px-4' : 'justify-center'} gap-3 py-2.5 rounded-xl transition-all duration-200 hover:translate-x-1 {$page.url.pathname.includes('/marketing/pipeline') ? 'bg-surface-container-highest text-rose-600 dark:text-rose-400 font-bold' : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container font-medium text-sm'}" href="/marketing/pipeline" title="Sales Pipeline">
-				<span class="material-symbols-outlined text-[20px]">view_kanban</span>
-				{#if isSidebarExpanded}<span class="text-sm whitespace-nowrap">Sales Pipeline</span>{/if}
-			</a>
+				<a class="flex items-center {isSidebarExpanded ? 'justify-start px-4' : 'justify-center'} gap-3 py-2.5 rounded-xl transition-all duration-200 hover:translate-x-1 {$page.url.pathname.includes('/marketing/pipeline') ? 'bg-surface-container-highest text-rose-600 dark:text-rose-400 font-bold' : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container font-medium text-sm'}" href="/marketing/pipeline" title="Sales Pipeline">
+					<span class="material-symbols-outlined text-[20px]">view_kanban</span>
+					{#if isSidebarExpanded}<span class="text-sm whitespace-nowrap">Sales Pipeline</span>{/if}
+				</a>
+			{/if}
 
 			<!-- Section Divider: Analytics -->
-			<div class="pt-3 pb-1 {isSidebarExpanded ? 'px-4' : 'px-0 text-center'}">
-				<p class="text-[9px] font-black text-on-surface-variant/50 uppercase tracking-[0.2em]">{isSidebarExpanded ? 'Analytics' : '...'}</p>
-			</div>
+			{#if hasMenuAccess(user, 'marketing', 'marketing.reports')}
+				<div class="pt-3 pb-1 {isSidebarExpanded ? 'px-4' : 'px-0 text-center'}">
+					<p class="text-[9px] font-black text-on-surface-variant/50 uppercase tracking-[0.2em]">{isSidebarExpanded ? 'Analytics' : '...'}</p>
+				</div>
 
-			<a class="flex items-center {isSidebarExpanded ? 'justify-start px-4' : 'justify-center'} gap-3 py-2.5 rounded-xl transition-all duration-200 hover:translate-x-1 {$page.url.pathname.includes('/marketing/reports') ? 'bg-surface-container-highest text-rose-600 dark:text-rose-400 font-bold' : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container font-medium text-sm'}" href="/marketing/reports" title="Reports">
-				<span class="material-symbols-outlined text-[20px]">bar_chart</span>
-				{#if isSidebarExpanded}<span class="text-sm whitespace-nowrap">Performance Reports</span>{/if}
-			</a>
+				<a class="flex items-center {isSidebarExpanded ? 'justify-start px-4' : 'justify-center'} gap-3 py-2.5 rounded-xl transition-all duration-200 hover:translate-x-1 {$page.url.pathname.includes('/marketing/reports') ? 'bg-surface-container-highest text-rose-600 dark:text-rose-400 font-bold' : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container font-medium text-sm'}" href="/marketing/reports" title="Reports">
+					<span class="material-symbols-outlined text-[20px]">bar_chart</span>
+					{#if isSidebarExpanded}<span class="text-sm whitespace-nowrap">Performance Reports</span>{/if}
+				</a>
+			{/if}
 
 			<!-- Spacer -->
 			<div class="flex-1"></div>

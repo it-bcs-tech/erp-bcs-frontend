@@ -209,6 +209,12 @@
 		if (!Array.isArray(targetArr)) return false;
 		return !targetArr.includes(mod) && targetArr.some(m => typeof m === 'string' && m.startsWith(`${mod}.`));
 	}
+
+	function getSelectedSubmenuCount(targetArr: string[] | null | undefined, mod: string): number {
+		if (!Array.isArray(targetArr)) return 0;
+		if (targetArr.includes(mod)) return MODULE_MENUS[mod]?.length || 1;
+		return targetArr.filter(m => typeof m === 'string' && m.startsWith(`${mod}.`)).length;
+	}
 </script>
 
 <div class="px-6 py-8 max-w-7xl mx-auto min-h-screen">
@@ -417,9 +423,12 @@
 								<button 
 									type="button" 
 									onclick={() => handleModuleClick(mod, 'new')}
-									class="relative px-3 py-2 border rounded-lg text-xs font-bold transition-all uppercase {hasModuleSelected(newSelectedModules, mod) ? (isModulePartial(newSelectedModules, mod) ? 'bg-primary-container/50 text-on-primary-container border-primary border-dashed' : 'bg-primary-container text-on-primary-container border-primary') : 'border-slate-300 dark:border-slate-700 text-on-surface hover:bg-surface-container'}"
+									class="relative px-3 py-2 border rounded-lg text-xs font-bold transition-all uppercase flex items-center justify-center gap-1 {hasModuleSelected(newSelectedModules, mod) ? (isModulePartial(newSelectedModules, mod) ? 'bg-primary-container/50 text-on-primary-container border-primary border-dashed' : 'bg-primary-container text-on-primary-container border-primary') : 'border-slate-300 dark:border-slate-700 text-on-surface hover:bg-surface-container'}"
 								>
-									{mod}
+									<span>{mod}</span>
+									{#if getSelectedSubmenuCount(newSelectedModules, mod) > 0}
+										<span class="text-[10px] font-mono opacity-80">({getSelectedSubmenuCount(newSelectedModules, mod)})</span>
+									{/if}
 									{#if MODULE_MENUS[mod]}
 										<span class="absolute top-1 right-1 w-1.5 h-1.5 rounded-full bg-amber-500" title="Has Sub-menus"></span>
 									{/if}
@@ -495,9 +504,12 @@
 								<button 
 									type="button" 
 									onclick={() => handleModuleClick(mod, 'edit')}
-									class="relative px-3 py-2 border rounded-lg text-xs font-bold transition-all uppercase {hasModuleSelected(editSelectedModules, mod) ? (isModulePartial(editSelectedModules, mod) ? 'bg-primary-container/50 text-on-primary-container border-primary border-dashed' : 'bg-primary-container text-on-primary-container border-primary') : 'border-slate-300 dark:border-slate-700 text-on-surface hover:bg-surface-container'}"
+									class="relative px-3 py-2 border rounded-lg text-xs font-bold transition-all uppercase flex items-center justify-center gap-1 {hasModuleSelected(editSelectedModules, mod) ? (isModulePartial(editSelectedModules, mod) ? 'bg-primary-container/50 text-on-primary-container border-primary border-dashed' : 'bg-primary-container text-on-primary-container border-primary') : 'border-slate-300 dark:border-slate-700 text-on-surface hover:bg-surface-container'}"
 								>
-									{mod}
+									<span>{mod}</span>
+									{#if getSelectedSubmenuCount(editSelectedModules, mod) > 0}
+										<span class="text-[10px] font-mono opacity-80">({getSelectedSubmenuCount(editSelectedModules, mod)})</span>
+									{/if}
 									{#if MODULE_MENUS[mod]}
 										<span class="absolute top-1 right-1 w-1.5 h-1.5 rounded-full bg-amber-500" title="Has Sub-menus"></span>
 									{/if}
@@ -528,16 +540,34 @@
 	{@const menus = MODULE_MENUS[activeMenuSelectionModal] || []}
 	{@const rawTarget = menuSelectionTarget === 'new' ? newSelectedModules : editSelectedModules}
 	{@const targetArray = Array.isArray(rawTarget) ? rawTarget : []}
+	{@const isFullAccess = targetArray.includes(activeMenuSelectionModal)}
+	{@const selectedCount = isFullAccess ? menus.length : targetArray.filter(m => typeof m === 'string' && m.startsWith(`${activeMenuSelectionModal}.`)).length}
 	
-	<div class="fixed inset-0 bg-black/40 backdrop-blur-sm z-[200] flex items-center justify-center p-4 animate-in fade-in duration-200">
-		<div class="bg-surface-container-lowest rounded-3xl w-full max-w-sm shadow-2xl p-6 border border-surface-container">
-			<h3 class="font-bold text-lg mb-1 uppercase tracking-tight text-on-surface">Hak Akses: {activeMenuSelectionModal}</h3>
-			<p class="text-[10px] text-on-surface-variant mb-4">Pilih menu mana saja yang boleh dibuka oleh user ini.</p>
+	<div class="fixed inset-0 bg-black/50 backdrop-blur-xs z-[200] flex items-center justify-center p-4 animate-in fade-in duration-200">
+		<div class="bg-surface-container-lowest rounded-3xl w-full max-w-md max-h-[85vh] flex flex-col shadow-2xl p-6 border border-surface-container">
+			<div class="flex items-center justify-between pb-3 border-b border-surface-container">
+				<div>
+					<div class="flex items-center gap-2">
+						<h3 class="font-bold text-base uppercase tracking-tight text-on-surface">Hak Akses: {activeMenuSelectionModal}</h3>
+						<span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20">
+							{selectedCount} / {menus.length} Menu
+						</span>
+					</div>
+					<p class="text-[11px] text-on-surface-variant mt-0.5">Pilih sub-menu yang dapat diakses oleh user ini.</p>
+				</div>
+				<button 
+					type="button" 
+					onclick={() => activeMenuSelectionModal = null} 
+					class="w-7 h-7 rounded-full bg-surface-container flex items-center justify-center text-slate-400 hover:text-on-surface cursor-pointer transition-colors"
+				>
+					<span class="material-symbols-outlined text-sm">close</span>
+				</button>
+			</div>
 			
-			<div class="space-y-1 mb-6">
-				<label class="flex items-center gap-3 px-3 py-2 hover:bg-surface-container rounded-xl cursor-pointer transition-colors border border-transparent {targetArray.includes(activeMenuSelectionModal) ? 'bg-primary-container/30 border-primary/20' : ''}">
+			<div class="py-3 flex items-center justify-between gap-2">
+				<label class="flex items-center gap-2.5 px-3 py-1.5 hover:bg-surface-container rounded-xl cursor-pointer transition-colors border border-transparent {isFullAccess ? 'bg-primary-container/40 border-primary/30 text-on-primary-container font-bold' : 'text-on-surface'}">
 					<input type="checkbox" 
-						checked={targetArray.includes(activeMenuSelectionModal)} 
+						checked={isFullAccess} 
 						onchange={(e) => {
 							let newArr = [...targetArray.filter(m => typeof m === 'string' && m !== activeMenuSelectionModal && !m.startsWith(`${activeMenuSelectionModal}.`))];
 							if (e.currentTarget.checked) {
@@ -546,18 +576,44 @@
 							if (menuSelectionTarget === 'new') newSelectedModules = newArr;
 							else editSelectedModules = newArr;
 						}}
-						class="w-4 h-4 rounded text-primary focus:ring-primary"
+						class="w-4 h-4 rounded text-primary focus:ring-primary cursor-pointer"
 					>
-					<span class="font-bold text-sm text-on-surface">Full Access (Semua Menu)</span>
+					<span class="text-xs">Full Access (Semua)</span>
 				</label>
 				
-				<div class="h-px bg-surface-container my-3 mx-2"></div>
-				
+				<div class="flex items-center gap-1.5">
+					<button
+						type="button"
+						onclick={() => {
+							let newArr = [...targetArray.filter(m => typeof m === 'string' && m !== activeMenuSelectionModal && !m.startsWith(`${activeMenuSelectionModal}.`))];
+							menus.forEach(m => newArr.push(m.id));
+							if (menuSelectionTarget === 'new') newSelectedModules = newArr;
+							else editSelectedModules = newArr;
+						}}
+						class="px-2.5 py-1 text-[10px] font-bold rounded-lg bg-surface-container hover:bg-surface-container-high text-on-surface transition-colors cursor-pointer"
+					>
+						Pilih Semua
+					</button>
+					<button
+						type="button"
+						onclick={() => {
+							let newArr = [...targetArray.filter(m => typeof m === 'string' && m !== activeMenuSelectionModal && !m.startsWith(`${activeMenuSelectionModal}.`))];
+							if (menuSelectionTarget === 'new') newSelectedModules = newArr;
+							else editSelectedModules = newArr;
+						}}
+						class="px-2.5 py-1 text-[10px] font-bold rounded-lg bg-surface-container text-slate-400 hover:text-rose-500 transition-colors cursor-pointer"
+					>
+						Kosongkan
+					</button>
+				</div>
+			</div>
+			
+			<div class="flex-1 overflow-y-auto max-h-[50vh] pr-1.5 space-y-1 divide-y divide-surface-container/40 border-t border-b border-surface-container py-2">
 				{#each menus as menu}
-					<label class="flex items-center gap-3 px-3 py-2 hover:bg-surface-container rounded-xl cursor-pointer transition-colors {targetArray.includes(activeMenuSelectionModal) ? 'opacity-50' : ''}">
+					<label class="flex items-center gap-3 px-3 py-2 hover:bg-surface-container rounded-xl cursor-pointer transition-colors pt-2 {isFullAccess ? 'opacity-50 cursor-not-allowed' : ''}">
 						<input type="checkbox" 
-							disabled={targetArray.includes(activeMenuSelectionModal)}
-							checked={targetArray.includes(menu.id) || targetArray.includes(activeMenuSelectionModal)}
+							disabled={isFullAccess}
+							checked={targetArray.includes(menu.id) || isFullAccess}
 							onchange={(e) => {
 								let newArr = [...targetArray];
 								if (e.currentTarget.checked) {
@@ -568,16 +624,17 @@
 								if (menuSelectionTarget === 'new') newSelectedModules = newArr;
 								else editSelectedModules = newArr;
 							}}
-							class="w-4 h-4 rounded text-primary focus:ring-primary"
+							class="w-4 h-4 rounded text-primary focus:ring-primary cursor-pointer"
 						>
-						<span class="text-sm font-medium text-on-surface">{menu.name}</span>
+						<span class="text-xs font-medium text-on-surface">{menu.name}</span>
+						<span class="ml-auto text-[10px] font-mono text-slate-400">{menu.id}</span>
 					</label>
 				{/each}
 			</div>
 			
-			<div class="flex justify-end gap-2 border-t border-surface-container pt-4">
-				<button type="button" onclick={() => activeMenuSelectionModal = null} class="bg-primary text-on-primary px-6 py-2.5 rounded-full text-sm font-bold shadow-md hover:shadow-lg active:scale-95 transition-all">
-					Simpan Pilihan
+			<div class="flex justify-end gap-2 pt-4">
+				<button type="button" onclick={() => activeMenuSelectionModal = null} class="bg-primary text-on-primary px-6 py-2 rounded-full text-xs font-bold shadow-md hover:shadow-lg active:scale-95 transition-all cursor-pointer">
+					Selesai
 				</button>
 			</div>
 		</div>

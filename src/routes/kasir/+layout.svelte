@@ -2,9 +2,11 @@
 	import { page } from '$app/stores';
 	import Chatbot from '$lib/components/Chatbot.svelte';
 
+	import { authUser, hasMenuAccess } from '$lib/stores/auth';
+
 	let { children } = $props();
 
-	const user = $derived($page.data?.user);
+	const user = $derived($page.data?.user || $authUser);
 	const isAdmin = $derived(
 		user && (
 			['superadmin', 'administrator', 'superhyperadmin', 'super_admin'].includes(user.role?.toLowerCase()) ||
@@ -33,31 +35,43 @@
 		</div>
 
 		<nav class="flex-1 space-y-1">
-			<a class="flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200 hover:translate-x-1 {$page.url.pathname === '/kasir' ? 'bg-surface-container-highest text-emerald-600 dark:text-emerald-400 font-bold' : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container font-medium text-sm'}" href="/kasir">
-				<span class="material-symbols-outlined text-[20px]">space_dashboard</span>
-				<span class="text-sm">Overview</span>
-			</a>
-			<a class="flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200 hover:translate-x-1 {$page.url.pathname.includes('/kasir/kas-operasional') ? 'bg-surface-container-highest text-emerald-600 dark:text-emerald-400 font-bold' : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container font-medium text-sm'}" href="/kasir/kas-operasional">
-				<span class="material-symbols-outlined text-[20px]">account_balance_wallet</span>
-				<span class="text-sm">Kas & Saldo Operasional</span>
-			</a>
+			{#if hasMenuAccess(user, 'kasir', 'kasir.overview')}
+				<a class="flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200 hover:translate-x-1 {$page.url.pathname === '/kasir' ? 'bg-surface-container-highest text-emerald-600 dark:text-emerald-400 font-bold' : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container font-medium text-sm'}" href="/kasir">
+					<span class="material-symbols-outlined text-[20px]">space_dashboard</span>
+					<span class="text-sm">Overview</span>
+				</a>
+			{/if}
+			{#if hasMenuAccess(user, 'kasir', 'kasir.kas-operasional')}
+				<a class="flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200 hover:translate-x-1 {$page.url.pathname.includes('/kasir/kas-operasional') ? 'bg-surface-container-highest text-emerald-600 dark:text-emerald-400 font-bold' : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container font-medium text-sm'}" href="/kasir/kas-operasional">
+					<span class="material-symbols-outlined text-[20px]">account_balance_wallet</span>
+					<span class="text-sm">Kas & Saldo Operasional</span>
+				</a>
+			{/if}
 
-			<div class="pt-3 pb-1 px-4">
-				<p class="text-[9px] font-black text-on-surface-variant/50 uppercase tracking-[0.2em]">Fleet Settlements</p>
-			</div>
+			{#if hasMenuAccess(user, 'kasir', 'kasir.ujo') || hasMenuAccess(user, 'kasir', 'kasir.surat-jalan') || hasMenuAccess(user, 'kasir', 'kasir.closing')}
+				<div class="pt-3 pb-1 px-4">
+					<p class="text-[9px] font-black text-on-surface-variant/50 uppercase tracking-[0.2em]">Fleet Settlements</p>
+				</div>
+			{/if}
 
-			<a class="flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200 hover:translate-x-1 {$page.url.pathname.includes('/kasir/ujo') ? 'bg-surface-container-highest text-emerald-600 dark:text-emerald-400 font-bold' : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container font-medium text-sm'}" href="/kasir/ujo">
-				<span class="material-symbols-outlined text-[20px]">payments</span>
-				<span class="text-sm">Pencairan UJO</span>
-			</a>
-			<a class="flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200 hover:translate-x-1 {$page.url.pathname.includes('/kasir/surat-jalan') ? 'bg-surface-container-highest text-emerald-600 dark:text-emerald-400 font-bold' : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container font-medium text-sm'}" href="/kasir/surat-jalan">
-				<span class="material-symbols-outlined text-[20px]">edit_document</span>
-				<span class="text-sm">Surat Jalan Balik (DN)</span>
-			</a>
-			<a class="flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200 hover:translate-x-1 {$page.url.pathname.includes('/kasir/closing') ? 'bg-surface-container-highest text-emerald-600 dark:text-emerald-400 font-bold' : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container font-medium text-sm'}" href="/kasir/closing">
-				<span class="material-symbols-outlined text-[20px]">assignment_turned_in</span>
-				<span class="text-sm">Closing Kasbon UJO</span>
-			</a>
+			{#if hasMenuAccess(user, 'kasir', 'kasir.ujo')}
+				<a class="flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200 hover:translate-x-1 {$page.url.pathname.includes('/kasir/ujo') ? 'bg-surface-container-highest text-emerald-600 dark:text-emerald-400 font-bold' : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container font-medium text-sm'}" href="/kasir/ujo">
+					<span class="material-symbols-outlined text-[20px]">payments</span>
+					<span class="text-sm">Pencairan UJO</span>
+				</a>
+			{/if}
+			{#if hasMenuAccess(user, 'kasir', 'kasir.surat-jalan')}
+				<a class="flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200 hover:translate-x-1 {$page.url.pathname.includes('/kasir/surat-jalan') ? 'bg-surface-container-highest text-emerald-600 dark:text-emerald-400 font-bold' : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container font-medium text-sm'}" href="/kasir/surat-jalan">
+					<span class="material-symbols-outlined text-[20px]">edit_document</span>
+					<span class="text-sm">Surat Jalan Balik (DN)</span>
+				</a>
+			{/if}
+			{#if hasMenuAccess(user, 'kasir', 'kasir.closing')}
+				<a class="flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200 hover:translate-x-1 {$page.url.pathname.includes('/kasir/closing') ? 'bg-surface-container-highest text-emerald-600 dark:text-emerald-400 font-bold' : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container font-medium text-sm'}" href="/kasir/closing">
+					<span class="material-symbols-outlined text-[20px]">assignment_turned_in</span>
+					<span class="text-sm">Closing Kasbon UJO</span>
+				</a>
+			{/if}
 		</nav>
 	</aside>
 
