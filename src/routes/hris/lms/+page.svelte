@@ -24,8 +24,8 @@
 	const employeeAssessments = $derived(data.employeeAssessments || []);
 	const masterTitles = $derived((data as any).masterTitles || []);
 	const divisions = $derived((data as any).divisions || []);
-	const activeEmployees = $derived((data as any).activeEmployees || []);
-	const assessmentPeriods = $derived((data as any).assessmentPeriods || ['2026-S1', '2026-S2', '2025-Annual']);
+	const currentYear = new Date().getFullYear();
+	const assessmentPeriods = $derived((data as any).assessmentPeriods || [String(currentYear), String(currentYear - 1), String(currentYear - 2)]);
 
 	// Tabs State (5 Tab Utama)
 	type TabType = 'catalog' | 'sessions' | 'evaluations' | 'safety_tna' | 'reports';

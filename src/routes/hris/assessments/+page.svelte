@@ -15,7 +15,8 @@
 	const jobStandards = $derived((data as any).jobStandards || []);
 	const competencyLibrary = $derived((data as any).competencyLibrary || []);
 	const existingAssessments = $derived((data as any).existingAssessments || []);
-	const assessmentPeriods = $derived((data as any).assessmentPeriods || ['2026-S1', '2026-S2', '2025-Annual']);
+	const currentYear = new Date().getFullYear();
+	const assessmentPeriods = $derived((data as any).assessmentPeriods || [String(currentYear), String(currentYear - 1), String(currentYear - 2)]);
 	const currentUser = $derived((data as any).currentUser);
 
 	// State Asesor Terpilih
@@ -62,7 +63,7 @@
 	});
 
 	// State Periode
-	let selectedPeriod = $state('2026-S1');
+	let selectedPeriod = $state(String(new Date().getFullYear()));
 	let assessmentNotes = $state('Penilaian berkala bawahan langsung mengacu pada pengamatan kondisi nyata di lapangan.');
 	let compSearchQuery = $state('');
 

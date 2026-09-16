@@ -161,11 +161,15 @@ export const load: PageServerLoad = async ({ locals }) => {
 				gap: Number(a.gap),
 				status: a.status,
 				assessorName: a.assessor_name,
-				period: a.period || '2026-S1',
+				period: a.period || String(new Date().getFullYear()),
 				assessmentDate: a.assessment_date ? a.assessment_date.toISOString().split('T')[0] : '',
 				notes: a.notes || ''
 			})),
-			assessmentPeriods: ['2026-S1', '2026-S2', '2025-Annual']
+			assessmentPeriods: [
+				String(new Date().getFullYear()),
+				String(new Date().getFullYear() - 1),
+				String(new Date().getFullYear() - 2)
+			]
 		};
 	} catch (err: any) {
 		logError('DIRECT_ASSESSMENT_LOAD_ERROR', err?.message);
@@ -178,7 +182,7 @@ export const actions = {
 	submitBatchAssessment: async ({ request }) => {
 		const formData = await request.formData();
 		const assessorName = formData.get('assessorName')?.toString().trim() || 'Atasan Langsung';
-		const period = formData.get('period')?.toString().trim() || '2026-S1';
+		const period = formData.get('period')?.toString().trim() || String(new Date().getFullYear());
 		const positionTitle = formData.get('positionTitle')?.toString().trim();
 		const department = formData.get('department')?.toString().trim() || 'General';
 		const notes = formData.get('notes')?.toString().trim() || '';

@@ -389,7 +389,7 @@ export const load: PageServerLoad = async () => {
 				status: a.status,
 				assessorName: a.assessor_name,
 				assessmentDate: a.assessment_date ? a.assessment_date.toISOString().split('T')[0] : '',
-				period: a.period || '2026-S1',
+				period: a.period || String(new Date().getFullYear()),
 				notes: a.notes || '',
 				assignedCourseId: a.assigned_course_id || a.default_course_id || null,
 				assignedCourseTitle: a.assigned_course_title || null,
@@ -414,7 +414,11 @@ export const load: PageServerLoad = async () => {
 				positionTitle: e.position_title || e.title_code,
 				department: e.department
 			})),
-			assessmentPeriods: ['2026-S1', '2026-S2', '2025-Annual'],
+			assessmentPeriods: [
+				String(new Date().getFullYear()),
+				String(new Date().getFullYear() - 1),
+				String(new Date().getFullYear() - 2)
+			],
 			tnaMatrix,
 			safetyStats,
 			dataSource: 'postgresql' as const
@@ -1055,7 +1059,7 @@ export const actions = {
 	submitBatchAssessment: async ({ request }) => {
 		const formData = await request.formData();
 		const assessorName = formData.get('assessorName')?.toString().trim() || 'Atasan / Supervisor Unit';
-		const period = formData.get('period')?.toString().trim() || '2026-S1';
+		const period = formData.get('period')?.toString().trim() || String(new Date().getFullYear());
 		const positionTitle = formData.get('positionTitle')?.toString().trim();
 		const department = formData.get('department')?.toString().trim() || 'General';
 		const notes = formData.get('notes')?.toString().trim() || '';
