@@ -166,7 +166,7 @@
 				href="/hris/assessments"
 			>
 				<span class="material-symbols-outlined text-[20px]">fact_check</span>
-				<span class="text-sm">Asesmen Kompetensi Tim</span>
+				<span class="text-sm">Team Competency Assessment</span>
 			</a>
 
 			<a

@@ -194,129 +194,26 @@ export const load: PageServerLoad = async () => {
 			{ id: 16, name: 'Holili', title: 'Manager Project Labour 1', department: 'Labour Project 1', type: 'Internal' }
 		];
 
-		// 13. Competency Gap Report Data (Spreadsheet TNA Master Sheet 1746120362 & Kamus Kompetensi 157495735)
-		const competencyGapList = [
-			{
-				department: 'Operations',
-				positionTitle: 'Driver Tronton / Trailer',
-				employeeName: 'Guntoro Muhamad',
-				payrollId: 'EMP-0042',
-				aspect: 'Core Competency',
-				competencyCode: 'A01',
-				competencyName: 'Achievement Orientation',
-				requiredLevel: 3,
-				actualLevel: 3,
-				gap: 0,
-				status: 'Qualified',
-				recommendation: '-'
-			},
-			{
-				department: 'Operations',
-				positionTitle: 'Driver Tronton / Trailer',
-				employeeName: 'Guntoro Muhamad',
-				payrollId: 'EMP-0042',
-				aspect: 'Behavioral Competency',
-				competencyCode: 'E06',
-				competencyName: 'Safety Awareness & SWP',
-				requiredLevel: 3,
-				actualLevel: 2,
-				gap: -1,
-				status: 'Gap Competency',
-				recommendation: 'Re-Induksi Keselamatan & SWP (CRS-2026-001)'
-			},
-			{
-				department: 'Operations',
-				positionTitle: 'Driver Angkutan Berat',
-				employeeName: 'Ahmad Fauzi',
-				payrollId: 'EMP-0012',
-				aspect: 'Technical Competency',
-				competencyCode: 'D01',
-				competencyName: 'Fatigue Management & Jam Aman',
-				requiredLevel: 4,
-				actualLevel: 3,
-				gap: -1,
-				status: 'Gap Competency',
-				recommendation: 'Refreshment Fatigue Management (CRS-2026-006)'
-			},
-			{
-				department: 'Workshop & Maintenance',
-				positionTitle: 'Mekanik & Teknisi Armada',
-				employeeName: 'Rahmadi Irawan',
-				payrollId: 'EMP-0089',
-				aspect: 'Technical Competency',
-				competencyCode: 'M02',
-				competencyName: 'Diagnosa Mesin Diesel Euro 4 Common Rail',
-				requiredLevel: 4,
-				actualLevel: 2,
-				gap: -2,
-				status: 'Gap Competency',
-				recommendation: 'Preventive Maintenance Mesin Diesel Euro 4 (CRS-2026-007)'
-			},
-			{
-				department: 'Labour Project 1 & Warehouse',
-				positionTitle: 'Operator Forklift',
-				employeeName: 'Joni Pranoto',
-				payrollId: 'EMP-0078',
-				aspect: 'Technical Competency',
-				competencyCode: 'W03',
-				competencyName: 'K3 Pergudangan & SIO Forklift Kemnaker',
-				requiredLevel: 3,
-				actualLevel: 2,
-				gap: -1,
-				status: 'Gap Competency',
-				recommendation: 'Sertifikasi Operator SIO Forklift Kelas 2 (CRS-2026-008)'
-			},
-			{
-				department: 'Finance & Operations',
-				positionTitle: 'Supervisor Finance & Kasir',
-				employeeName: 'Suhendar',
-				payrollId: 'EMP-0010',
-				aspect: 'Technical Competency',
-				competencyCode: 'F01',
-				competencyName: 'Budgeting & Cost Control Operasional',
-				requiredLevel: 4,
-				actualLevel: 4,
-				gap: 0,
-				status: 'Qualified',
-				recommendation: '-'
-			},
-			{
-				department: 'QHSE & Safety',
-				positionTitle: 'Safety Officer',
-				employeeName: 'Firman Fadholi',
-				payrollId: 'EMP-0002',
-				aspect: 'Technical Competency',
-				competencyCode: 'S02',
-				competencyName: 'JSA & HIRADC Risk Assessment',
-				requiredLevel: 4,
-				actualLevel: 4,
-				gap: 0,
-				status: 'Qualified',
-				recommendation: '-'
-			}
-		];
+		// 13. Competency Gap Report Data (Dihasilkan secara dinamis dari riwayat asesmen riil)
+		const competencyGapList = employeeAssessmentsRows
+			.filter((a) => a.gap < 0)
+			.map((a) => ({
+				department: a.department || 'General',
+				positionTitle: a.position_title,
+				employeeName: a.employee_name,
+				payrollId: a.payroll_id,
+				aspect: a.competency_aspect || 'Competency',
+				competencyCode: a.competency_code,
+				competencyName: a.competency_name,
+				requiredLevel: Number(a.required_level),
+				actualLevel: Number(a.actual_level),
+				gap: Number(a.gap),
+				status: a.status,
+				recommendation: a.assigned_course_title || '-'
+			}));
 
 		// 14. Data TNA Matrix Ringkas
-		const tnaMatrix = [
-			{
-				role: 'Pengemudi Truk Berat (Driver Tronton/Trailer)',
-				department: 'Operations',
-				competencies: [
-					{ name: 'Defensive Driving & K3 Lalu Lintas', requiredScore: 85, actualScore: 88, status: 'Qualified' },
-					{ name: 'Pemeriksaan Pra-Jalan (P2H) Kendaraan', requiredScore: 80, actualScore: 78, status: 'Need Training' },
-					{ name: 'Pengoperasian Mobile Apps & e-DO', requiredScore: 75, actualScore: 92, status: 'Qualified' },
-					{ name: 'Penanganan Bahan Kimia B3', requiredScore: 80, actualScore: 65, status: 'Critical Gap' }
-				]
-			},
-			{
-				role: 'Mekanik & Teknisi Armada',
-				department: 'Workshop & Maintenance',
-				competencies: [
-					{ name: 'Diagnosa Mesin Euro 4 Common Rail', requiredScore: 80, actualScore: 60, status: 'Critical Gap' },
-					{ name: 'Safety Awareness & K3 Bengkel', requiredScore: 85, actualScore: 85, status: 'Qualified' }
-				]
-			}
-		];
+		const tnaMatrix: any[] = [];
 
 		return {
 			metrics: {

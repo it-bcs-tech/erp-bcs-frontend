@@ -34,7 +34,7 @@
 		{ id: 'catalog', label: 'Katalog & Kursus', icon: 'auto_stories' },
 		{ id: 'sessions', label: 'Sesi Training & Absensi', icon: 'event_available' },
 		{ id: 'evaluations', label: 'Evaluasi Kirkpatrick', icon: 'rate_review' },
-		{ id: 'safety_tna', label: 'Kamus & Asesmen Kompetensi (TNA)', icon: 'psychology' },
+		{ id: 'safety_tna', label: 'Competency & TNA Assessment', icon: 'psychology' },
 		{ id: 'reports', label: 'Laporan & E-Sertifikat', icon: 'workspace_premium' }
 	];
 
@@ -1118,7 +1118,7 @@
 								class="px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-500/20 border border-indigo-500/30"
 							>
 								<span class="material-symbols-outlined text-sm">assignment_ind</span>
-								<span>Form Asesmen Atasan Langsung</span>
+								<span>Direct Supervisor Assessment</span>
 								<span class="material-symbols-outlined text-xs">arrow_forward</span>
 							</a>
 
@@ -1131,7 +1131,7 @@
 									: 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container'}"
 							>
 								<span class="material-symbols-outlined text-sm">fact_check</span>
-								<span>Hasil Asesmen TNA ({employeeAssessments.length})</span>
+								<span>TNA Assessment Results ({employeeAssessments.length})</span>
 								{#if employeeAssessments.filter((a) => a.gap < 0).length > 0}
 									<span class="px-1.5 py-0.2 rounded-full text-[10px] font-black bg-rose-500 text-white">
 										{employeeAssessments.filter((a) => a.gap < 0).length} GAP
@@ -1207,14 +1207,14 @@
 									class="px-4 py-2.5 rounded-xl bg-primary text-on-primary text-xs font-black flex items-center gap-2 shadow-sm hover:opacity-90 transition-all cursor-pointer self-start md:self-auto shrink-0"
 								>
 									<span class="material-symbols-outlined text-sm">add_task</span>
-									<span>+ Input Asesmen Aktual Karyawan</span>
+									<span>+ Input Employee Assessment</span>
 								</button>
 							</div>
 
 							<!-- Metric Cards TNA -->
 							<div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
 								<div class="p-3.5 rounded-2xl bg-surface-container border border-slate-200/60 dark:border-slate-800/60">
-									<p class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Total Asesmen Riil</p>
+									<p class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Total Assessments</p>
 									<p class="text-xl font-black text-on-surface mt-1 font-mono">{employeeAssessments.length}</p>
 									<p class="text-[10px] text-slate-400">Karyawan Teridentifikasi</p>
 								</div>
@@ -2185,7 +2185,7 @@
 						<div class="space-y-4">
 							<div class="p-4 rounded-2xl bg-surface-container/60 border border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
 								<div class="space-y-1">
-									<h4 class="font-bold text-xs text-on-surface uppercase tracking-wider">Laporan Hasil Asesmen & Ujian (Assessment Report)</h4>
+									<h4 class="font-bold text-xs text-on-surface uppercase tracking-wider">Assessment & Examination Report</h4>
 									<p class="text-xs text-on-surface-variant">Rekapitulasi skor evaluasi pre-test, post-test, batas kelulusan, dan nomor sertifikat terbit.</p>
 								</div>
 								<span class="px-3 py-1 rounded-lg bg-surface-container font-mono text-xs font-bold text-slate-600 dark:text-slate-300">
@@ -3327,8 +3327,8 @@
 		<div class="bg-surface rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xl w-full max-w-xl overflow-hidden p-6 space-y-4 animate-in zoom-in-95 duration-150 my-8">
 			<div class="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800">
 				<div>
-					<h3 class="font-black text-base text-on-surface">Input Evaluasi TNA & Asesmen Karyawan</h3>
-					<p class="text-xs text-on-surface-variant">Penilaian kemahiran aktual karyawan terhadap standar jabatan</p>
+					<h3 class="font-black text-base text-on-surface">Input TNA Evaluation & Employee Assessment</h3>
+					<p class="text-xs text-on-surface-variant">Assessment of employee actual proficiency against job standard</p>
 				</div>
 				<button type="button" onclick={() => (isAssessmentModalOpen = false)} class="w-8 h-8 rounded-full bg-surface-container flex items-center justify-center text-slate-400 hover:text-slate-600">
 					<span class="material-symbols-outlined text-lg">close</span>
@@ -3483,7 +3483,7 @@
 					</div>
 
 					<div class="space-y-1">
-						<label class="font-bold text-slate-500 uppercase tracking-wider text-[10px]">Catatan Asesmen</label>
+						<label class="font-bold text-slate-500 uppercase tracking-wider text-[10px]">Assessment Notes</label>
 						<input
 							type="text"
 							name="notes"
@@ -3500,7 +3500,7 @@
 					</button>
 					<button type="submit" class="px-5 py-2 rounded-xl bg-primary text-on-primary text-xs font-bold shadow-xs hover:opacity-90 flex items-center gap-1.5">
 						<span class="material-symbols-outlined text-sm">save</span>
-						<span>Simpan Hasil Asesmen TNA</span>
+						<span>Save TNA Assessment</span>
 					</button>
 				</div>
 			</form>

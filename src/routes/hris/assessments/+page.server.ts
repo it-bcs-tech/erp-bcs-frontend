@@ -277,11 +277,11 @@ export const actions = {
 
 			return {
 				success: true,
-				message: `Asesmen bawahan langsung periode ${period} untuk jabatan "${positionTitle}" berhasil disimpan! (${qualifiedCount} Kompeten, ${gapCount} Gap otomatis ditugaskan pelatihan TNA).`
+				message: `Direct assessment for period ${period} (${positionTitle}) successfully saved! (${qualifiedCount} Qualified, ${gapCount} Gap assigned to TNA training).`
 			};
 		} catch (e: any) {
 			logError('DIRECT_BATCH_ASSESSMENT_FAIL', e?.message);
-			return { success: false, message: `Gagal menyimpan asesmen atasan langsung: ${e?.message || 'Error database'}` };
+			return { success: false, message: `Failed to save direct assessment: ${e?.message || 'Database error'}` };
 		}
 	}
 } satisfies Actions;

@@ -119,9 +119,9 @@
 					<span class="material-symbols-outlined text-xl">fact_check</span>
 				</div>
 				<div>
-					<h2 class="text-xl font-black text-on-surface tracking-tight">Asesmen Kompetensi Tim (Atasan Langsung)</h2>
+					<h2 class="text-xl font-black text-on-surface tracking-tight">Team Competency Assessment (Direct Supervisor)</h2>
 					<p class="text-xs text-on-surface-variant font-medium">
-						Penilaian kemahiran bawahan langsung (Level 1) sesuai Kamus Kompetensi PT BCS
+						Evaluation of direct subordinates (Level 1) based on PT BCS Competency Dictionary
 					</p>
 				</div>
 			</div>
@@ -136,7 +136,7 @@
 				{activeViewTab === 'form' ? 'bg-primary text-on-primary shadow-xs' : 'text-slate-400 hover:text-on-surface'}"
 			>
 				<span class="material-symbols-outlined text-sm">grid_view</span>
-				<span>Lembar Evaluasi Grid</span>
+				<span>Assessment Grid Form</span>
 			</button>
 			<button
 				type="button"
@@ -145,7 +145,7 @@
 				{activeViewTab === 'history' ? 'bg-primary text-on-primary shadow-xs' : 'text-slate-400 hover:text-on-surface'}"
 			>
 				<span class="material-symbols-outlined text-sm">history</span>
-				<span>Riwayat Penilaian ({existingAssessments.length})</span>
+				<span>Assessment History ({existingAssessments.length})</span>
 			</button>
 		</div>
 	</div>
@@ -206,7 +206,7 @@
 				<!-- 3. Periode Penilaian -->
 				<div class="space-y-1.5">
 					<label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
-						Periode Asesmen *
+						Assessment Period *
 					</label>
 					<select
 						bind:value={selectedPeriod}
@@ -502,7 +502,7 @@
 						class="px-6 py-3 rounded-2xl bg-primary text-on-primary text-xs font-black shadow-lg hover:opacity-90 transition-all flex items-center justify-center gap-2 cursor-pointer self-stretch sm:self-auto"
 					>
 						<span class="material-symbols-outlined text-base">send</span>
-						<span>Simpan Asesmen Bawahan Langsung</span>
+						<span>Submit Direct Assessment</span>
 					</button>
 				</form>
 			</div>
