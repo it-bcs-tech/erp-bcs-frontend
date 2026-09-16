@@ -1,7 +1,12 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
+	import { notifySuccess, notifyError } from '$lib/stores/notifications';
 
 	let { data } = $props();
+
+	// Submission Feedback State
+	let isSubmitting = $state(false);
+	let notificationAlert = $state<{ type: 'success' | 'error'; title: string; message: string } | null>(null);
 
 	// Derived Data
 	const activeAssessors = $derived((data as any).activeAssessors || []);
@@ -471,7 +476,76 @@
 					></textarea>
 				</div>
 
-				<form method="POST" action="?/submitBatchAssessment" use:enhance class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-2 border-t border-slate-200/40 dark:border-slate-800/40">
+				{#if notificationAlert}
+					<div class="p-4 rounded-2xl flex items-start justify-between gap-3 text-xs transition-all {notificationAlert.type === 'success' ? 'bg-emerald-500/10 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400' : 'bg-rose-500/10 border border-rose-500/30 text-rose-600 dark:text-rose-400'}">
+						<div class="flex items-start gap-2.5">
+							<span class="material-symbols-outlined text-lg mt-0.5">
+								{notificationAlert.type === 'success' ? 'check_circle' : 'error'}
+							</span>
+							<div>
+								<h5 class="font-bold text-sm">{notificationAlert.title}</h5>
+								<p class="mt-0.5 leading-relaxed">{notificationAlert.message}</p>
+							</div>
+						</div>
+						<button 
+							type="button" 
+							onclick={() => (notificationAlert = null)}
+							class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
+						>
+							<span class="material-symbols-outlined text-base">close</span>
+						</button>
+					</div>
+				{/if}
+
+				<form 
+					method="POST" 
+					action="?/submitBatchAssessment" 
+					use:enhance={() => {
+						isSubmitting = true;
+						notificationAlert = null;
+						return async ({ result, update }) => {
+							isSubmitting = false;
+							if (result.type === 'success') {
+								const resData = result.data as any;
+								if (resData?.success === false) {
+									const msg = resData?.message || 'Gagal menyimpan hasil asesmen.';
+									notifyError('Submission Failed', msg);
+									notificationAlert = {
+										type: 'error',
+										title: 'Submission Error',
+										message: msg
+									};
+								} else {
+									const msg = resData?.message || 'Hasil asesmen bawahan langsung berhasil disimpan ke database!';
+									notifySuccess('Assessment Saved', msg);
+									notificationAlert = {
+										type: 'success',
+										title: 'Assessment Saved Successfully',
+										message: msg
+									};
+									await update();
+								}
+							} else if (result.type === 'failure') {
+								const msg = (result.data as any)?.message || 'Gagal menyimpan hasil asesmen. Silakan periksa kembali data Anda.';
+								notifyError('Submission Failed', msg);
+								notificationAlert = {
+									type: 'error',
+									title: 'Submission Error',
+									message: msg
+								};
+							} else if (result.type === 'error') {
+								const msg = (result.error as any)?.message || 'Terjadi kesalahan sistem saat menyimpan asesmen.';
+								notifyError('Server Error', msg);
+								notificationAlert = {
+									type: 'error',
+									title: 'System Error',
+									message: msg
+								};
+							}
+						};
+					}}
+					class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-2 border-t border-slate-200/40 dark:border-slate-800/40"
+				>
 					<input type="hidden" name="assessorName" value={currentAssessor?.name} />
 					<input type="hidden" name="period" value={selectedPeriod} />
 					<input type="hidden" name="positionTitle" value={selectedSubordinatePosition.title} />
@@ -499,10 +573,16 @@
 
 					<button
 						type="submit"
-						class="px-6 py-3 rounded-2xl bg-primary text-on-primary text-xs font-black shadow-lg hover:opacity-90 transition-all flex items-center justify-center gap-2 cursor-pointer self-stretch sm:self-auto"
+						disabled={isSubmitting}
+						class="px-6 py-3 rounded-2xl bg-primary text-on-primary text-xs font-black shadow-lg hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2 cursor-pointer self-stretch sm:self-auto"
 					>
-						<span class="material-symbols-outlined text-base">send</span>
-						<span>Submit Direct Assessment</span>
+						{#if isSubmitting}
+							<span class="material-symbols-outlined text-base animate-spin">progress_activity</span>
+							<span>Menyimpan Assessment...</span>
+						{:else}
+							<span class="material-symbols-outlined text-base">send</span>
+							<span>Submit Direct Assessment</span>
+						{/if}
 					</button>
 				</form>
 			</div>

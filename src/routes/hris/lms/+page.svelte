@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
-	import { spawnToast } from '$lib/stores/notifications';
+	import { spawnToast, notifySuccess, notifyError } from '$lib/stores/notifications';
 	import type { PageData, ActionData } from './$types';
 
 	let { data, form }: { data: PageData; form: ActionData } = $props();
@@ -93,6 +93,9 @@
 	let selectedAssessmentForAssign = $state<any>(null);
 	let assignFormCourseId = $state('');
 	let assignFormSetDefault = $state(true);
+	let isSubmittingAssessment = $state(false);
+	let isSubmittingJobStandard = $state(false);
+	let isSubmittingAssignTraining = $state(false);
 
 	// TNA Assessment form helper state
 	let assessmentForm = $state({
@@ -1411,7 +1414,28 @@
 															{:else}
 																<!-- Sudah ada materi kursus: Tugaskan / Tugaskan Ulang + tombol Ubah -->
 																<div class="flex items-center justify-end gap-1.5">
-																	<form method="POST" action="?/assignPersonalTraining" use:enhance class="inline-block">
+																	<form
+																		method="POST"
+																		action="?/assignPersonalTraining"
+																		use:enhance={() => {
+																			return async ({ result, update }) => {
+																				if (result.type === 'success') {
+																					const resData = result.data as any;
+																					if (resData?.success === false) {
+																						notifyError('Gagal Menugaskan', resData?.message || 'Gagal menugaskan materi.');
+																					} else {
+																						notifySuccess('Pelatihan Ditugaskan', resData?.message || 'Materi berhasil ditugaskan ke portal karyawan.');
+																						await update();
+																					}
+																				} else if (result.type === 'failure') {
+																					notifyError('Gagal Menugaskan', 'Data tidak valid.');
+																				} else if (result.type === 'error') {
+																					notifyError('Kesalahan Server', 'Gagal memproses penugasan.');
+																				}
+																			};
+																		}}
+																		class="inline-block"
+																	>
 																		<input type="hidden" name="assessmentId" value={item.id} />
 																		<input type="hidden" name="payrollId" value={item.payrollId} />
 																		<input type="hidden" name="employeeName" value={item.employeeName} />
@@ -3335,7 +3359,32 @@
 				</button>
 			</div>
 
-			<form method="POST" action="?/submitEmployeeAssessment" use:enhance class="space-y-4 text-xs">
+			<form
+				method="POST"
+				action="?/submitEmployeeAssessment"
+				use:enhance={() => {
+					isSubmittingAssessment = true;
+					return async ({ result, update }) => {
+						isSubmittingAssessment = false;
+						if (result.type === 'success') {
+							const resData = result.data as any;
+							if (resData?.success === false) {
+								notifyError('Gagal Menyimpan Asesmen', resData?.message || 'Terjadi kesalahan saat menyimpan asesmen.');
+							} else {
+								notifySuccess('Asesmen Berhasil Disimpan', resData?.message || 'Data evaluasi karyawan berhasil disimpan ke database.');
+								isAssessmentModalOpen = false;
+								await update();
+							}
+						} else if (result.type === 'failure') {
+							const resData = result.data as any;
+							notifyError('Gagal Menyimpan Asesmen', resData?.message || 'Formulir asesmen tidak valid.');
+						} else if (result.type === 'error') {
+							notifyError('Kesalahan Server', (result.error as any)?.message || 'Terjadi kesalahan sistem pada server.');
+						}
+					};
+				}}
+				class="space-y-4 text-xs"
+			>
 				<div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
 					<div class="space-y-1">
 						<label class="font-bold text-slate-500 uppercase tracking-wider text-[10px]">Payroll ID / NIP *</label>
@@ -3498,9 +3547,18 @@
 					<button type="button" onclick={() => (isAssessmentModalOpen = false)} class="px-4 py-2 rounded-xl border text-xs font-bold hover:bg-surface-container">
 						Batal
 					</button>
-					<button type="submit" class="px-5 py-2 rounded-xl bg-primary text-on-primary text-xs font-bold shadow-xs hover:opacity-90 flex items-center gap-1.5">
-						<span class="material-symbols-outlined text-sm">save</span>
-						<span>Save TNA Assessment</span>
+					<button
+						type="submit"
+						disabled={isSubmittingAssessment}
+						class="px-5 py-2 rounded-xl bg-primary text-on-primary text-xs font-bold shadow-xs hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5 cursor-pointer"
+					>
+						{#if isSubmittingAssessment}
+							<span class="material-symbols-outlined text-sm animate-spin">progress_activity</span>
+							<span>Menyimpan Asesmen...</span>
+						{:else}
+							<span class="material-symbols-outlined text-sm">save</span>
+							<span>Save TNA Assessment</span>
+						{/if}
 					</button>
 				</div>
 			</form>
@@ -3626,7 +3684,32 @@
 			</div>
 
 			<!-- Form Batch Multi-Select -->
-			<form method="POST" action="?/saveJobStandardsBatch" use:enhance class="flex flex-col flex-1 overflow-hidden">
+			<form
+				method="POST"
+				action="?/saveJobStandardsBatch"
+				use:enhance={() => {
+					isSubmittingJobStandard = true;
+					return async ({ result, update }) => {
+						isSubmittingJobStandard = false;
+						if (result.type === 'success') {
+							const resData = result.data as any;
+							if (resData?.success === false) {
+								notifyError('Gagal Menetapkan Standar', resData?.message || 'Terjadi kesalahan sistem.');
+							} else {
+								notifySuccess('Standar Jabatan Disimpan', resData?.message || 'Standar kompetensi jabatan berhasil disimpan ke database.');
+								isJobStandardModalOpen = false;
+								await update();
+							}
+						} else if (result.type === 'failure') {
+							const resData = result.data as any;
+							notifyError('Gagal Menetapkan Standar', resData?.message || 'Formulir standar tidak valid.');
+						} else if (result.type === 'error') {
+							notifyError('Kesalahan Server', (result.error as any)?.message || 'Terjadi kesalahan sistem.');
+						}
+					};
+				}}
+				class="flex flex-col flex-1 overflow-hidden"
+			>
 				<!-- Area Atas: Pilihan Jabatan & Divisi -->
 				<div class="p-5 bg-surface-container-low border-b border-slate-200/60 dark:border-slate-800/60 grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
 					<div class="space-y-1">
@@ -3799,11 +3882,16 @@
 						</button>
 						<button
 							type="submit"
-							disabled={!jobStandardForm.positionTitle || selectedCompStandardsList.length === 0}
+							disabled={isSubmittingJobStandard || !jobStandardForm.positionTitle || selectedCompStandardsList.length === 0}
 							class="px-5 py-2 rounded-xl bg-primary text-on-primary text-xs font-bold shadow-md hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1.5 cursor-pointer transition-all"
 						>
-							<span class="material-symbols-outlined text-sm">save</span>
-							<span>Simpan Standar ({selectedCompStandardsList.length} Kompetensi)</span>
+							{#if isSubmittingJobStandard}
+								<span class="material-symbols-outlined text-sm animate-spin">progress_activity</span>
+								<span>Menyimpan Standar...</span>
+							{:else}
+								<span class="material-symbols-outlined text-sm">save</span>
+								<span>Simpan Standar ({selectedCompStandardsList.length} Kompetensi)</span>
+							{/if}
 						</button>
 					</div>
 				</div>
@@ -3996,9 +4084,24 @@
 				method="POST"
 				action="?/assignPersonalTraining"
 				use:enhance={() => {
-					return async ({ update }) => {
-						await update();
-						isAssignCourseModalOpen = false;
+					isSubmittingAssignTraining = true;
+					return async ({ result, update }) => {
+						isSubmittingAssignTraining = false;
+						if (result.type === 'success') {
+							const resData = result.data as any;
+							if (resData?.success === false) {
+								notifyError('Gagal Menugaskan Pelatihan', resData?.message || 'Terjadi kesalahan sistem.');
+							} else {
+								notifySuccess('Pelatihan Ditugaskan', resData?.message || 'Materi pelatihan berhasil ditugaskan ke karyawan.');
+								isAssignCourseModalOpen = false;
+								await update();
+							}
+						} else if (result.type === 'failure') {
+							const resData = result.data as any;
+							notifyError('Gagal Menugaskan', resData?.message || 'Pilihan kursus tidak valid.');
+						} else if (result.type === 'error') {
+							notifyError('Kesalahan Server', (result.error as any)?.message || 'Terjadi kesalahan server.');
+						}
 					};
 				}}
 				class="space-y-4"
@@ -4047,11 +4150,16 @@
 					</button>
 					<button
 						type="submit"
-						disabled={!assignFormCourseId}
+						disabled={!assignFormCourseId || isSubmittingAssignTraining}
 						class="px-5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed text-white text-xs font-bold flex items-center gap-1.5 shadow-sm cursor-pointer"
 					>
-						<span class="material-symbols-outlined text-sm">send_to_mobile</span>
-						<span>Simpan & Tugaskan ke Portal BCS Academy</span>
+						{#if isSubmittingAssignTraining}
+							<span class="material-symbols-outlined text-sm animate-spin">progress_activity</span>
+							<span>Menugaskan...</span>
+						{:else}
+							<span class="material-symbols-outlined text-sm">send_to_mobile</span>
+							<span>Simpan & Tugaskan ke Portal BCS Academy</span>
+						{/if}
 					</button>
 				</div>
 			</form>

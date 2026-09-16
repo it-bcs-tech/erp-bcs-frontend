@@ -5,7 +5,7 @@ export interface AppNotification {
 	id: string;
 	title: string;
 	message: string;
-	type: 'INFO' | 'WARNING' | 'CRITICAL';
+	type: 'INFO' | 'WARNING' | 'CRITICAL' | 'SUCCESS';
 	timestamp: string;
 	isRead?: boolean;
 }
@@ -98,4 +98,24 @@ export function removeToast(toastId: string) {
 
 export function markAllAsRead() {
 	unreadCount.set(0);
+}
+
+export function notifySuccess(title: string, message: string) {
+	spawnToast({
+		id: `toast-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+		title,
+		message,
+		type: 'SUCCESS',
+		timestamp: 'Just now'
+	});
+}
+
+export function notifyError(title: string, message: string) {
+	spawnToast({
+		id: `toast-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+		title,
+		message,
+		type: 'CRITICAL',
+		timestamp: 'Just now'
+	});
 }
