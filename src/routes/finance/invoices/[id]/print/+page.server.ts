@@ -11,13 +11,14 @@ export const load: PageServerLoad = async ({ params }) => {
 			SELECT 
 				i.*,
 				c.kode_kustomer as customer_code,
-				c.nama_kustomer as customer_name,
-				c.alamat as customer_address,
+				COALESCE(c.nama_kustomer, v.nama_vendor) as customer_name,
+				COALESCE(c.alamat, v.alamat) as customer_address,
 				b.bank_name,
 				b.account_number,
 				b.account_name
 			FROM finance.invoice i
 			LEFT JOIN master.m_customer c ON c.id = i.partner_id
+			LEFT JOIN master.m_vendor v ON v.id = i.partner_id
 			LEFT JOIN master.m_bank_account b ON b.id = i.bank_account_id
 			WHERE i.id = ${invoiceId}
 		`;

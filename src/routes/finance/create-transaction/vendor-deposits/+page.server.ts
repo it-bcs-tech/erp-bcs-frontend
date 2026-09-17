@@ -5,10 +5,10 @@ import { fail, redirect } from '@sveltejs/kit';
 export const load: PageServerLoad = async () => {
 	try {
 		const vendors = await sql`
-			SELECT id, kode_kustomer as code, nama_kustomer as name 
-			FROM master.m_customer 
-			WHERE UPPER(kategori) = 'VENDOR' OR kode_kustomer LIKE 'V%' OR kode_kustomer LIKE 'VND-%'
-			ORDER BY nama_kustomer ASC
+			SELECT id, kode_vendor as code, nama_vendor as name 
+			FROM master.m_vendor 
+			WHERE is_active = true
+			ORDER BY nama_vendor ASC
 		`;
 
 		const accounts = await sql`

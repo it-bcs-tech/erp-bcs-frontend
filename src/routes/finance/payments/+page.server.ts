@@ -14,10 +14,11 @@ export const load: PageServerLoad = async ({ url }) => {
 				p.reference,
 				p.status,
 				p.type,
-				c.nama_kustomer as partner_name,
+				COALESCE(c.nama_kustomer, v.nama_vendor, '-') as partner_name,
 				a.name as account_name
 			FROM finance.payment p
 			LEFT JOIN master.m_customer c ON c.id = p.partner_id
+			LEFT JOIN master.m_vendor v ON v.id = p.partner_id
 			LEFT JOIN finance.account a ON a.id = p.account_id
 			ORDER BY p.date DESC, p.created_at DESC
 		`;

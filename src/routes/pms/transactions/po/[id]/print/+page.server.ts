@@ -16,8 +16,8 @@ export const load: PageServerLoad = async ({ params }) => {
 				to_char(po.date, 'YYYY-MM-DD') as date,
 				to_char(po.created_at, 'YYYY-MM-DD HH24:MI') as "createdAt",
 				po.vendor_id as "vendorId",
-				c.nama_kustomer as "vendorName",
-				COALESCE(c.kode_kustomer, '-') as "vendorCode",
+				c.nama_vendor as "vendorName",
+				COALESCE(c.kode_vendor, '-') as "vendorCode",
 				c.alamat as "vendorAddress",
 				po.project_id as "projectId",
 				p.project_name as "projectName",
@@ -38,6 +38,7 @@ export const load: PageServerLoad = async ({ params }) => {
 				po.ref_no as "refNo",
 				po.status,
 				po.notes,
+				po.wrs_notes as "wrsNotes",
 				po.created_by as "createdBy",
 				COALESCE(mk.nama_karyawan, 
 					CASE 
@@ -53,7 +54,7 @@ export const load: PageServerLoad = async ({ params }) => {
 				) as "createdByPayroll"
 			FROM procurement.purchase_order po
 			LEFT JOIN master.m_karyawan mk ON mk.payroll_id = po.created_by OR mk.payroll_id = SUBSTRING(po.created_by FROM '\\(([^)]+)\\)') OR mk.nama_karyawan = po.created_by
-			LEFT JOIN master.m_customer c ON c.id = po.vendor_id
+			LEFT JOIN master.m_vendor c ON c.id = po.vendor_id
 			LEFT JOIN master.m_project p ON p.id = po.project_id
 			LEFT JOIN master.m_lokasi l ON l.id = po.site_id
 			WHERE po.id = ${poId}

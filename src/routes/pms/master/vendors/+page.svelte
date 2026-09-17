@@ -89,7 +89,12 @@
 									{v.kodeVendor}
 								</span>
 							</td>
-							<td class="py-3.5 px-5 font-bold text-on-surface text-sm">{v.namaVendor}</td>
+							<td class="py-3.5 px-5 font-bold text-on-surface text-sm">
+								{v.namaVendor}
+								{#if v.alias}
+									<span class="ml-1.5 px-1.5 py-0.5 rounded text-[10px] font-bold bg-slate-100 dark:bg-slate-800 text-on-surface-variant">({v.alias})</span>
+								{/if}
+							</td>
 							<td class="py-3.5 px-5 text-on-surface">{v.contactPerson}</td>
 							<td class="py-3.5 px-5">
 								<div class="flex flex-col gap-0.5 font-mono text-[11px]">
@@ -99,7 +104,12 @@
 									{/if}
 								</div>
 							</td>
-							<td class="py-3.5 px-5 text-on-surface-variant max-w-xs truncate">{v.alamat}</td>
+							<td class="py-3.5 px-5 text-on-surface-variant max-w-xs truncate">
+								<div>{v.alamat}</div>
+								{#if v.termsOfPayment && v.termsOfPayment !== '-'}
+									<span class="inline-block text-[10px] font-bold text-amber-600 dark:text-amber-400 mt-0.5">TOP: {v.termsOfPayment}</span>
+								{/if}
+							</td>
 							<td class="py-3.5 px-5 text-center">
 								<span class="inline-flex items-center gap-1.5 text-xs font-bold px-2.5 py-0.5 rounded-full border {v.is_active ? 'bg-emerald-100 text-emerald-800 border-emerald-300' : 'bg-slate-100 text-slate-700 border-slate-300'}">
 									<span class="w-1.5 h-1.5 rounded-full {v.is_active ? 'bg-emerald-500' : 'bg-slate-400'}"></span>

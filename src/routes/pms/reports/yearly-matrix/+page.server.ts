@@ -24,14 +24,14 @@ export const load: PageServerLoad = async ({ url }) => {
 		} else if (groupBy === 'VENDOR') {
 			rawData = await sql`
 				SELECT 
-					c.nama_kustomer as entity_name,
-					c.kode_kustomer as entity_code,
+					c.nama_vendor as entity_name,
+					c.kode_vendor as entity_code,
 					EXTRACT(MONTH FROM po.date)::int as month,
 					SUM(po.total_amount) as total
 				FROM procurement.purchase_order po
-				LEFT JOIN master.m_customer c ON c.id = po.vendor_id
+				LEFT JOIN master.m_vendor c ON c.id = po.vendor_id
 				WHERE EXTRACT(YEAR FROM po.date) = ${year}
-				GROUP BY c.nama_kustomer, c.kode_kustomer, EXTRACT(MONTH FROM po.date)
+				GROUP BY c.nama_vendor, c.kode_vendor, EXTRACT(MONTH FROM po.date)
 				ORDER BY entity_name
 			`;
 		} else if (groupBy === 'SITE') {

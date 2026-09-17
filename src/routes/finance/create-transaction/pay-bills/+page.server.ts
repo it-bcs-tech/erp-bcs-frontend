@@ -6,10 +6,10 @@ export const load: PageServerLoad = async () => {
 	try {
 		// Fetch Vendors
 		const vendors = await sql`
-			SELECT id, kode_kustomer as code, nama_kustomer as name 
-			FROM master.m_customer 
-			WHERE UPPER(kategori) = 'VENDOR' OR kode_kustomer LIKE 'V%' OR kode_kustomer LIKE 'VND-%'
-			ORDER BY nama_kustomer ASC
+			SELECT id, kode_vendor as code, nama_vendor as name 
+			FROM master.m_vendor 
+			WHERE is_active = true
+			ORDER BY nama_vendor ASC
 		`;
 
 		// Fetch Bank / Cash accounts
@@ -35,8 +35,9 @@ export const load: PageServerLoad = async () => {
 					JOIN finance.payment p ON p.id = pa.payment_id
 					WHERE pa.invoice_id = i.id AND p.status != 'CANCELLED'
 				), 0) as paid_amount,
-				c.nama_kustomer as vendor_name
+				COALESCE(v.nama_vendor, c.nama_kustomer, '-') as vendor_name
 			FROM finance.invoice i
+			LEFT JOIN master.m_vendor v ON v.id = i.partner_id
 			LEFT JOIN master.m_customer c ON c.id = i.partner_id
 			WHERE i.type = 'IN_INVOICE' AND i.status != 'PAID' AND i.status != 'CANCELLED'
 			ORDER BY i.due_date ASC

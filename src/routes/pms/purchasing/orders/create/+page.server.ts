@@ -14,10 +14,10 @@ export const load: PageServerLoad = async ({ cookies }) => {
 	try {
 		// Fetch Vendors
 		const vendors = await sql`
-			SELECT id, nama_kustomer as name 
-			FROM master.m_customer 
-			WHERE kategori = 'Vendor' AND is_active = true
-			ORDER BY nama_kustomer ASC
+			SELECT id, nama_vendor as name 
+			FROM master.m_vendor 
+			WHERE is_active = true
+			ORDER BY nama_vendor ASC
 		`;
 
 		// Fetch items (materials) for manual adding

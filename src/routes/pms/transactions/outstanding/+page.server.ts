@@ -38,12 +38,12 @@ export const load: PageServerLoad = async ({ url }) => {
 				pol.item_id as "itemId",
 				po.po_number as "poNumber",
 				to_char(po.date, 'YYYY-MM-DD') as "poDate",
-				COALESCE(c.nama_kustomer, '-') as "vendorName",
+				COALESCE(c.nama_vendor, '-') as "vendorName",
 				pol.qty_ordered as "qtyOrdered",
 				pol.unit_price as "unitPrice"
 			FROM procurement.purchase_order_line pol
 			JOIN procurement.purchase_order po ON po.id = pol.po_id
-			LEFT JOIN master.m_customer c ON c.id = po.vendor_id
+			LEFT JOIN master.m_vendor c ON c.id = po.vendor_id
 			ORDER BY po.date DESC, po.id DESC
 		`;
 
@@ -75,7 +75,7 @@ export const load: PageServerLoad = async ({ url }) => {
 				po.id as po_id,
 				po.po_number as "poNumber",
 				to_char(po.date, 'YYYY-MM-DD') as "poDate",
-				c.nama_kustomer as "vendorName",
+				c.nama_vendor as "vendorName",
 				p.project_name as "projectName",
 				l.loc_name as "siteName",
 				m.material_code as "materialCode",
@@ -94,7 +94,7 @@ export const load: PageServerLoad = async ({ url }) => {
 			FROM procurement.purchase_order_line pol
 			JOIN procurement.purchase_order po ON po.id = pol.po_id
 			JOIN master.m_materials m ON m.id = pol.item_id
-			LEFT JOIN master.m_customer c ON c.id = po.vendor_id
+			LEFT JOIN master.m_vendor c ON c.id = po.vendor_id
 			LEFT JOIN master.m_project p ON p.id = po.project_id
 			LEFT JOIN master.m_lokasi l ON l.id = po.site_id
 			WHERE po.status IN ('CONFIRMED', 'PARTIAL_RECEIVED', 'APPROVED')
@@ -118,7 +118,7 @@ export const load: PageServerLoad = async ({ url }) => {
 			SELECT 
 				po.po_number as "poNumber",
 				to_char(po.date, 'YYYY-MM-DD') as "poDate",
-				c.nama_kustomer as "vendorName",
+				c.nama_vendor as "vendorName",
 				m.material_code as "materialCode",
 				m.name as "materialName",
 				m.uom,
@@ -129,7 +129,7 @@ export const load: PageServerLoad = async ({ url }) => {
 			FROM procurement.purchase_order_line pol
 			JOIN procurement.purchase_order po ON po.id = pol.po_id
 			JOIN master.m_materials m ON m.id = pol.item_id
-			LEFT JOIN master.m_customer c ON c.id = po.vendor_id
+			LEFT JOIN master.m_vendor c ON c.id = po.vendor_id
 			ORDER BY po.id DESC
 			LIMIT 50
 		`;

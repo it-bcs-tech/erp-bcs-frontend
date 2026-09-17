@@ -16,13 +16,13 @@ export const load: PageServerLoad = async ({ params }) => {
 				to_char(gr.date, 'YYYY-MM-DD') as date,
 				gr.po_id as "poId",
 				po.po_number as "poNumber",
-				c.nama_kustomer as "supplierName",
+				c.nama_vendor as "supplierName",
 				gr.site_id as "siteId",
 				gr.vendor_delivery_number as "vendorDeliveryNumber",
 				gr.notes
 			FROM procurement.goods_receipt gr
 			LEFT JOIN procurement.purchase_order po ON po.id = gr.po_id
-			LEFT JOIN master.m_customer c ON c.id = COALESCE(gr.supplier_id, po.vendor_id)
+			LEFT JOIN master.m_vendor c ON c.id = COALESCE(gr.supplier_id, po.vendor_id)
 			WHERE gr.id = ${wrsId}
 		`;
 

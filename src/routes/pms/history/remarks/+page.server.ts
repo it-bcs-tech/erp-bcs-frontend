@@ -10,13 +10,13 @@ export const load: PageServerLoad = async ({ url }) => {
 				po.id,
 				po.po_number as "poNumber",
 				to_char(po.date, 'YYYY-MM-DD') as "poDate",
-				c.nama_kustomer as "vendorName",
+				c.nama_vendor as "vendorName",
 				COALESCE(po.notes, '-') as remarks,
 				COALESCE(po.wrs_notes, '-') as "wrsNotes",
 				po.total_amount as "totalAmount",
 				po.status
 			FROM procurement.purchase_order po
-			LEFT JOIN master.m_customer c ON c.id = po.vendor_id
+			LEFT JOIN master.m_vendor c ON c.id = po.vendor_id
 			WHERE po.notes IS NOT NULL AND po.notes != ''
 			ORDER BY po.date DESC
 		`;

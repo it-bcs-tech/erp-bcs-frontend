@@ -77,9 +77,9 @@ export const load: PageServerLoad = async ({ params }) => {
 				po.po_number as "poNumber",
 				to_char(po.date, 'YYYY-MM-DD') as date,
 				po.status,
-				c.nama_kustomer as "vendorName"
+				c.nama_vendor as "vendorName"
 			FROM procurement.purchase_order po
-			LEFT JOIN master.m_customer c ON c.id = po.vendor_id
+			LEFT JOIN master.m_vendor c ON c.id = po.vendor_id
 			JOIN procurement.purchase_order_line pol ON pol.po_id = po.id
 			JOIN procurement.purchase_request_line prl ON prl.id = pol.pr_line_id
 			WHERE prl.pr_id = ${prId}

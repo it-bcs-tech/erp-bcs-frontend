@@ -14,10 +14,10 @@ export const load: PageServerLoad = async ({ url }) => {
 				to_char(po.date, 'YYYY-MM-DD') as date,
 				po.vendor_id,
 				po.site_id,
-				c.nama_kustomer as vendor_name,
+				c.nama_vendor as vendor_name,
 				l.loc_name as site_name
 			FROM procurement.purchase_order po
-			LEFT JOIN master.m_customer c ON c.id = po.vendor_id
+			LEFT JOIN master.m_vendor c ON c.id = po.vendor_id
 			LEFT JOIN master.m_lokasi l ON l.id = po.site_id
 			WHERE po.status IN ('CONFIRMED', 'PARTIAL_RECEIVED', 'APPROVED')
 			ORDER BY po.id DESC
@@ -32,10 +32,10 @@ export const load: PageServerLoad = async ({ url }) => {
 			const [foundPO] = await sql`
 				SELECT 
 					po.id, po.po_number, po.vendor_id, po.site_id, 
-					c.nama_kustomer as vendor_name, l.loc_name as site_name,
+					c.nama_vendor as vendor_name, l.loc_name as site_name,
 					po.wrs_notes
 				FROM procurement.purchase_order po
-				LEFT JOIN master.m_customer c ON c.id = po.vendor_id
+				LEFT JOIN master.m_vendor c ON c.id = po.vendor_id
 				LEFT JOIN master.m_lokasi l ON l.id = po.site_id
 				WHERE po.id = ${poIdParam}
 			`;

@@ -104,12 +104,12 @@ export const load: PageServerLoad = async () => {
 		const recentPOs = await sql`
 			SELECT 
 				po.id, po.po_number, to_char(po.date, 'YYYY-MM-DD') as date,
-				c.nama_kustomer as vendor, po.total_amount, po.status,
+				c.nama_vendor as vendor, po.total_amount, po.status,
 				COUNT(pol.id) as item_count
 			FROM procurement.purchase_order po
-			LEFT JOIN master.m_customer c ON c.id = po.vendor_id
+			LEFT JOIN master.m_vendor c ON c.id = po.vendor_id
 			LEFT JOIN procurement.purchase_order_line pol ON pol.po_id = po.id
-			GROUP BY po.id, c.nama_kustomer
+			GROUP BY po.id, c.nama_vendor
 			ORDER BY po.date DESC, po.id DESC
 			LIMIT 5
 		`;

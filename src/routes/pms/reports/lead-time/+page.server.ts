@@ -12,7 +12,7 @@ export const load: PageServerLoad = async () => {
 				to_char(pr.date, 'YYYY-MM-DD') as "prDate",
 				gr.gr_number as "grNumber",
 				to_char(gr.date, 'YYYY-MM-DD') as "grDate",
-				c.nama_kustomer as "vendorName",
+				c.nama_vendor as "vendorName",
 				p.project_name as "projectName",
 				COALESCE(po.date - pr.date, 0) as "daysPrToPo",
 				COALESCE(gr.date - po.date, 0) as "daysPoToGr",
@@ -22,9 +22,9 @@ export const load: PageServerLoad = async () => {
 			LEFT JOIN procurement.purchase_request_line prl ON prl.id = pol.pr_line_id
 			LEFT JOIN procurement.purchase_request pr ON pr.id = prl.pr_id
 			LEFT JOIN procurement.goods_receipt gr ON gr.po_id = po.id
-			LEFT JOIN master.m_customer c ON c.id = po.vendor_id
+			LEFT JOIN master.m_vendor c ON c.id = po.vendor_id
 			LEFT JOIN master.m_project p ON p.id = po.project_id
-			GROUP BY po.id, po.po_number, po.date, pr.pr_number, pr.date, gr.gr_number, gr.date, c.nama_kustomer, p.project_name
+			GROUP BY po.id, po.po_number, po.date, pr.pr_number, pr.date, gr.gr_number, gr.date, c.nama_vendor, p.project_name
 			ORDER BY po.date DESC
 		`;
 

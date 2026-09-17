@@ -26,9 +26,9 @@ export const load: PageServerLoad = async ({ cookies }) => {
 				po.id, 
 				po.po_number, 
 				po.date, 
-				c.nama_kustomer as vendor_name
+				c.nama_vendor as vendor_name
 			FROM procurement.purchase_order po
-			LEFT JOIN master.m_customer c ON c.id = po.vendor_id
+			LEFT JOIN master.m_vendor c ON c.id = po.vendor_id
 			WHERE po.status = 'CONFIRMED'
 			ORDER BY po.created_at DESC
 		`;

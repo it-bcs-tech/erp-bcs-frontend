@@ -13,14 +13,15 @@ export const load: PageServerLoad = async ({ url }) => {
 				i.due_date,
 				i.total_amount,
 				i.status,
-				c.nama_kustomer as vendor_name,
+				COALESCE(v.nama_vendor, c.nama_kustomer, '-') as vendor_name,
 				COALESCE(SUM(pa.amount), 0) as paid_amount
 			FROM finance.invoice i
+			LEFT JOIN master.m_vendor v ON v.id = i.partner_id
 			LEFT JOIN master.m_customer c ON c.id = i.partner_id
 			LEFT JOIN finance.payment_allocation pa ON pa.invoice_id = i.id
 			  AND pa.payment_id IN (SELECT id FROM finance.payment WHERE status != 'CANCELLED')
 			WHERE i.type = 'VENDOR_BILL'
-			GROUP BY i.id, c.nama_kustomer
+			GROUP BY i.id, v.nama_vendor, c.nama_kustomer
 			ORDER BY i.date DESC, i.created_at DESC
 		`;
 

@@ -31,10 +31,10 @@ export const load: PageServerLoad = async ({ url }) => {
 		const types = await sql`SELECT code, name FROM master.m_material_types ORDER BY name`;
 		const sites = await sql`SELECT id, loc_code, loc_name FROM master.m_lokasi ORDER BY loc_code`;
 		const vendors = await sql`
-			SELECT id, kode_kustomer as code, nama_kustomer as name 
-			FROM master.m_customer 
-			WHERE (UPPER(kategori) = 'VENDOR' OR kode_kustomer LIKE 'V%' OR kode_kustomer LIKE 'VND-%') AND is_active = true 
-			ORDER BY nama_kustomer ASC
+			SELECT id, kode_vendor as code, nama_vendor as name 
+			FROM master.m_vendor 
+			WHERE is_active = true 
+			ORDER BY nama_vendor ASC
 		`;
 
 		const vendorPrices = await sql`
@@ -42,13 +42,13 @@ export const load: PageServerLoad = async ({ url }) => {
 				mp.id,
 				mp.material_id as "materialId",
 				mp.vendor_id as "vendorId",
-				c.nama_kustomer as "vendorName",
-				COALESCE(c.kode_kustomer, '-') as "vendorCode",
+				c.nama_vendor as "vendorName",
+				COALESCE(c.kode_vendor, '-') as "vendorCode",
 				mp.price,
 				to_char(mp.effective_date, 'YYYY-MM-DD') as "effectiveDate",
 				COALESCE(mp.notes, '-') as notes
 			FROM master.m_material_prices mp
-			JOIN master.m_customer c ON c.id = mp.vendor_id
+			JOIN master.m_vendor c ON c.id = mp.vendor_id
 			ORDER BY mp.id DESC
 		`;
 

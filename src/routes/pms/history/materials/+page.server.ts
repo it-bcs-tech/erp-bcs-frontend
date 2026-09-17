@@ -19,13 +19,13 @@ export const load: PageServerLoad = async ({ url }) => {
 				pol.qty_ordered as "qtyOrdered",
 				pol.unit_price as "unitPrice",
 				pol.total,
-				c.nama_kustomer as "vendorName",
+				c.nama_vendor as "vendorName",
 				COALESCE(po.notes, '-') as remarks
 			FROM procurement.purchase_order_line pol
 			JOIN procurement.purchase_order po ON po.id = pol.po_id
 			JOIN master.m_materials m ON m.id = pol.item_id
 			LEFT JOIN master.m_project p ON p.id = po.project_id
-			LEFT JOIN master.m_customer c ON c.id = po.vendor_id
+			LEFT JOIN master.m_vendor c ON c.id = po.vendor_id
 			ORDER BY po.date DESC, pol.id DESC
 		`;
 

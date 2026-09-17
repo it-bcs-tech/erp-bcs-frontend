@@ -14,8 +14,8 @@ export const load: PageServerLoad = async ({ url }) => {
 				po.po_number as "poNumber",
 				to_char(po.date, 'YYYY-MM-DD') as date,
 				COALESCE(po.category, 'SUPPORTING') as category,
-				c.nama_kustomer as "vendorName",
-				COALESCE(c.kode_kustomer, '-') as "vendorCode",
+				c.nama_vendor as "vendorName",
+				COALESCE(c.kode_vendor, '-') as "vendorCode",
 				p.project_name as "projectName",
 				l.loc_name as "siteName",
 				po.subtotal,
@@ -48,11 +48,11 @@ export const load: PageServerLoad = async ({ url }) => {
 				COALESCE(SUM(pol.qty_ordered), 0) as total_qty_ordered
 			FROM procurement.purchase_order po
 			LEFT JOIN master.m_karyawan mk ON mk.payroll_id = po.created_by OR mk.payroll_id = SUBSTRING(po.created_by FROM '\\(([^)]+)\\)') OR mk.nama_karyawan = po.created_by
-			LEFT JOIN master.m_customer c ON c.id = po.vendor_id
+			LEFT JOIN master.m_vendor c ON c.id = po.vendor_id
 			LEFT JOIN master.m_project p ON p.id = po.project_id
 			LEFT JOIN master.m_lokasi l ON l.id = po.site_id
 			LEFT JOIN procurement.purchase_order_line pol ON pol.po_id = po.id
-			GROUP BY po.id, c.nama_kustomer, c.kode_kustomer, p.project_name, l.loc_name, po.created_by, mk.nama_karyawan, mk.payroll_id
+			GROUP BY po.id, c.nama_vendor, c.kode_vendor, p.project_name, l.loc_name, po.created_by, mk.nama_karyawan, mk.payroll_id
 			ORDER BY po.id DESC
 		`;
 

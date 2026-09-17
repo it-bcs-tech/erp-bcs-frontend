@@ -22,8 +22,8 @@ export const load: PageServerLoad = async ({ url }) => {
 					po.id as po_id,
 					po.po_number,
 					to_char(po.date, 'YYYY-MM-DD') as po_date,
-					COALESCE(c.nama_kustomer, '-') as vendor_name,
-					COALESCE(c.kode_kustomer, '-') as vendor_code,
+					COALESCE(c.nama_vendor, '-') as vendor_name,
+					COALESCE(c.kode_vendor, '-') as vendor_code,
 					COALESCE(p.project_name, 'General') as project_name,
 					COALESCE(l.loc_name, 'Gudang Pusat') as site_name,
 					po.status as po_status,
@@ -43,7 +43,7 @@ export const load: PageServerLoad = async ({ url }) => {
 				FROM procurement.purchase_order po
 				JOIN procurement.purchase_order_line pol ON pol.po_id = po.id
 				JOIN master.m_materials m ON m.id = pol.item_id
-				LEFT JOIN master.m_customer c ON c.id = po.vendor_id
+				LEFT JOIN master.m_vendor c ON c.id = po.vendor_id
 				LEFT JOIN master.m_project p ON p.id = po.project_id
 				LEFT JOIN master.m_lokasi l ON l.id = po.site_id
 				WHERE po.date >= ${startDate}::date AND po.date <= ${endDate}::date

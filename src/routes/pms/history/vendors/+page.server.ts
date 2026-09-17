@@ -7,18 +7,17 @@ export const load: PageServerLoad = async ({ url }) => {
 
 		const vendorsHistory = await sql`
 			SELECT 
-				c.id,
-				c.kode_kustomer as "vendorCode",
-				c.nama_kustomer as "vendorName",
-				COALESCE(c.alamat, '-') as alamat,
-				COALESCE(c.phone, c.tlp, '-') as phone,
-				COALESCE(c.email, '-') as email,
+				v.id,
+				v.kode_vendor as "vendorCode",
+				v.nama_vendor as "vendorName",
+				COALESCE(v.alamat, '-') as alamat,
+				COALESCE(v.phone, '-') as phone,
+				COALESCE(v.email, '-') as email,
 				COUNT(po.id) as "totalPO",
 				COALESCE(SUM(po.total_amount), 0) as "totalValue"
-			FROM master.m_customer c
-			LEFT JOIN procurement.purchase_order po ON po.vendor_id = c.id
-			WHERE UPPER(c.kategori) = 'VENDOR' OR c.kode_kustomer LIKE 'V%' OR c.kode_kustomer LIKE 'VND-%'
-			GROUP BY c.id, c.kode_kustomer, c.nama_kustomer, c.alamat, c.phone, c.tlp, c.email
+			FROM master.m_vendor v
+			LEFT JOIN procurement.purchase_order po ON po.vendor_id = v.id
+			GROUP BY v.id, v.kode_vendor, v.nama_vendor, v.alamat, v.phone, v.email
 			ORDER BY "totalValue" DESC
 		`;
 

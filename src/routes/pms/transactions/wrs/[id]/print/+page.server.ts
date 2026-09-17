@@ -20,8 +20,8 @@ export const load: PageServerLoad = async ({ params }) => {
 				to_char(po.date, 'YYYY-MM-DD') as "poDate",
 				po.status as "poStatus",
 				c.id as "vendorId",
-				c.nama_kustomer as "supplierName",
-				COALESCE(c.kode_kustomer, '-') as "vendorCode",
+				c.nama_vendor as "supplierName",
+				COALESCE(c.kode_vendor, '-') as "vendorCode",
 				c.alamat as "vendorAddress",
 				l.loc_name as "siteName",
 				l.loc_code as "siteCode",
@@ -43,7 +43,7 @@ export const load: PageServerLoad = async ({ params }) => {
 				) as "receivedByPayroll"
 			FROM procurement.goods_receipt gr
 			LEFT JOIN procurement.purchase_order po ON po.id = gr.po_id
-			LEFT JOIN master.m_customer c ON c.id = COALESCE(gr.supplier_id, po.vendor_id)
+			LEFT JOIN master.m_vendor c ON c.id = COALESCE(gr.supplier_id, po.vendor_id)
 			LEFT JOIN master.m_lokasi l ON l.id = COALESCE(gr.site_id, po.site_id)
 			LEFT JOIN master.m_karyawan mk ON mk.payroll_id = gr.created_by OR mk.payroll_id = SUBSTRING(gr.created_by FROM '\\(([^)]+)\\)') OR mk.nama_karyawan = gr.created_by
 			WHERE gr.id = ${wrsId}

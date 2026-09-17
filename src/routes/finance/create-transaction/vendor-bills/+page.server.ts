@@ -4,12 +4,12 @@ import { error } from '@sveltejs/kit';
 
 export const load: PageServerLoad = async () => {
 	try {
-		// Fetch Vendors (from m_customer where kategori = 'Vendor')
+		// Fetch Vendors (from master.m_vendor)
 		const vendors = await sql`
-			SELECT id, nama_kustomer as name 
-			FROM master.m_customer 
-			WHERE kategori = 'Vendor' AND is_active = true
-			ORDER BY nama_kustomer ASC
+			SELECT id, nama_vendor as name 
+			FROM master.m_vendor 
+			WHERE is_active = true
+			ORDER BY nama_vendor ASC
 		`;
 
 		// Fetch COA (Only expenses or payables usually, but we fetch all for now, maybe type='EXPENSE')

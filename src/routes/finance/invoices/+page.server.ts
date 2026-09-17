@@ -22,9 +22,10 @@ export const load: PageServerLoad = async ({ url }) => {
 				i.due_date,
 				i.total_amount,
 				i.status,
-				c.nama_kustomer as customer_name
+				COALESCE(c.nama_kustomer, v.nama_vendor, '-') as customer_name
 			FROM finance.invoice i
 			LEFT JOIN master.m_customer c ON c.id = i.partner_id
+			LEFT JOIN master.m_vendor v ON v.id = i.partner_id
 			WHERE i.date >= ${startDate} AND i.date <= ${endDate}
 			ORDER BY i.date DESC, i.created_at DESC
 		`;

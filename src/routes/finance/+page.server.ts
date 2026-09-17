@@ -41,12 +41,13 @@ export const load: PageServerLoad = async () => {
 				i.invoice_number,
 				to_char(i.date, 'YYYY-MM-DD') as date,
 				to_char(i.due_date, 'YYYY-MM-DD') as due_date,
-				c.nama_kustomer as partner_name,
+				COALESCE(c.nama_kustomer, v.nama_vendor, '-') as partner_name,
 				i.total_amount,
 				i.status,
 				i.type
 			FROM finance.invoice i
 			LEFT JOIN master.m_customer c ON c.id = i.partner_id
+			LEFT JOIN master.m_vendor v ON v.id = i.partner_id
 			ORDER BY i.date DESC, i.id DESC
 			LIMIT 6
 		`;
@@ -57,12 +58,13 @@ export const load: PageServerLoad = async () => {
 				p.id,
 				p.payment_number,
 				to_char(p.date, 'YYYY-MM-DD') as date,
-				c.nama_kustomer as partner_name,
+				COALESCE(c.nama_kustomer, v.nama_vendor, '-') as partner_name,
 				p.amount,
 				p.type,
 				p.status
 			FROM finance.payment p
 			LEFT JOIN master.m_customer c ON c.id = p.partner_id
+			LEFT JOIN master.m_vendor v ON v.id = p.partner_id
 			ORDER BY p.date DESC, p.id DESC
 			LIMIT 5
 		`;

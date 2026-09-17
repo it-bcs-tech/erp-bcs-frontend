@@ -9,16 +9,21 @@ export const load: PageServerLoad = async ({ url }) => {
 		const vendors = await sql`
 			SELECT 
 				id,
-				kode_kustomer as "kodeVendor",
-				nama_kustomer as "namaVendor",
+				kode_vendor as "kodeVendor",
+				nama_vendor as "namaVendor",
+				alias,
 				COALESCE(contact_person, '-') as "contactPerson",
-				COALESCE(phone, tlp, '-') as phone,
+				COALESCE(phone, '-') as phone,
 				COALESCE(email, '-') as email,
 				COALESCE(alamat, '-') as alamat,
+				COALESCE(city, '-') as city,
+				COALESCE(terms_of_payment, '-') as "termsOfPayment",
+				bank_name as "bankName",
+				bank_account_no as "bankAccountNo",
+				bank_account_name as "bankAccountName",
 				is_active
-			FROM master.m_customer
-			WHERE UPPER(kategori) = 'VENDOR' OR kode_kustomer LIKE 'V%' OR kode_kustomer LIKE 'VND-%'
-			ORDER BY nama_kustomer ASC
+			FROM master.m_vendor
+			ORDER BY nama_vendor ASC
 		`;
 
 		let filtered = vendors;
@@ -45,10 +50,16 @@ export const actions: Actions = {
 		const formData = await request.formData();
 		const kode = (formData.get('kodeVendor') as string || '').trim().toUpperCase();
 		const nama = (formData.get('namaVendor') as string || '').trim();
+		const alias = (formData.get('alias') as string || '').trim();
 		const contact = (formData.get('contactPerson') as string || '').trim();
 		const phone = (formData.get('phone') as string || '').trim();
 		const email = (formData.get('email') as string || '').trim();
 		const alamat = (formData.get('alamat') as string || '').trim();
+		const city = (formData.get('city') as string || '').trim();
+		const terms = (formData.get('termsOfPayment') as string || '').trim();
+		const bankName = (formData.get('bankName') as string || '').trim();
+		const bankAccountNo = (formData.get('bankAccountNo') as string || '').trim();
+		const bankAccountName = (formData.get('bankAccountName') as string || '').trim();
 
 		if (!nama) {
 			return fail(400, { success: false, message: 'Nama Vendor wajib diisi!' });
@@ -56,25 +67,33 @@ export const actions: Actions = {
 
 		try {
 			await sql`
-				INSERT INTO master.m_customer (
-					kode_kustomer,
-					nama_kustomer,
+				INSERT INTO master.m_vendor (
+					kode_vendor,
+					nama_vendor,
+					alias,
 					contact_person,
 					phone,
-					tlp,
 					email,
 					alamat,
-					kategori,
+					city,
+					terms_of_payment,
+					bank_name,
+					bank_account_no,
+					bank_account_name,
 					is_active
 				) VALUES (
 					${kode || `VND-${Date.now().toString().slice(-6)}`},
 					${nama},
-					${contact},
-					${phone},
-					${phone},
-					${email},
-					${alamat},
-					'Vendor',
+					${alias || null},
+					${contact || null},
+					${phone || null},
+					${email || null},
+					${alamat || null},
+					${city || null},
+					${terms || null},
+					${bankName || null},
+					${bankAccountNo || null},
+					${bankAccountName || null},
 					true
 				)
 			`;
