@@ -21,6 +21,12 @@ export const load: PageServerLoad = async ({ url }) => {
 				t.depart_time,
 				t.arrive_time,
 				t.created_at,
+				so.status as so_status,
+				(
+					SELECT notes FROM fleet.trip_checkpoint 
+					WHERE trip_id = t.id AND event = 'NOTE' AND notes LIKE '%Tiba di Pool Tujuan%' 
+					ORDER BY recorded_at DESC LIMIT 1
+				) as pool_arrival_note,
 				COALESCE(
 					(SELECT json_agg(json_build_object('status', sl.status, 'created_at', sl.created_at) ORDER BY sl.created_at ASC)
 					 FROM fleet.trip_status_log sl WHERE sl.trip_id = t.id),
@@ -35,6 +41,7 @@ export const load: PageServerLoad = async ({ url }) => {
 			LEFT JOIN fleet.unit u ON t.unit_id = u.id
 			LEFT JOIN master.m_drivers d ON d.id = t.driver_id
 			LEFT JOIN master.m_karyawan k ON k.id = d.karyawan_id
+			LEFT JOIN marketing.sales_order so ON so.assigned_unit_id = t.unit_id AND so.tgl_muat::date = t.tgl_trip::date
 			ORDER BY t.created_at DESC
 		`;
 
@@ -58,8 +65,13 @@ export const load: PageServerLoad = async ({ url }) => {
 				mappedStatus = 'Completed';
 				progress = 100;
 			} else if (t.status === 'RETURNING') {
-				mappedStatus = 'In Transit';
-				progress = 90;
+				if (t.so_status === 'CLOSING' || t.pool_arrival_note) {
+					mappedStatus = 'Waiting Cashier';
+					progress = 95;
+				} else {
+					mappedStatus = 'In Transit';
+					progress = 90;
+				}
 			} else if (t.status === 'AT_DESTINATION') {
 				mappedStatus = 'In Transit';
 				progress = 75;
@@ -98,27 +110,29 @@ export const load: PageServerLoad = async ({ url }) => {
 				const start = logMap.get(startStatus);
 				let end = logMap.get(endStatus);
 				let isOngoing = false;
-				
-				if (!start) return null;
 
+				if (!start) return null;
 				if (!end) {
-					end = new Date().toISOString();
-					isOngoing = true;
+					if (t.status === startStatus) {
+						end = new Date();
+						isOngoing = true;
+					} else {
+						return null;
+					}
 				}
-				
+
 				const diffMs = new Date(end).getTime() - new Date(start).getTime();
-				const totalMins = Math.floor(diffMs / 60000);
-				const h = Math.floor(totalMins / 60);
-				const m = totalMins % 60;
-				let str = h > 0 ? `${h}j ${m}m` : `${m}m`;
-				
-				const startFmt = formatTime(start);
-				const endFmt = isOngoing ? 'Sekarang' : formatTime(end);
-				
-				return {
-					value: str,
-					tooltip: `${startFmt} s/d ${endFmt}`
-				};
+				if (diffMs < 0) return null;
+
+				const diffMinutes = Math.floor(diffMs / 60000);
+				const hours = Math.floor(diffMinutes / 60);
+				const mins = diffMinutes % 60;
+
+				let text = '';
+				if (hours > 0) text += `${hours}h `;
+				text += `${mins}m`;
+				if (isOngoing) text += ' (ongoing)';
+				return text;
 			};
 
 			const notesList = Array.isArray(t.notes) ? t.notes : [];
@@ -174,12 +188,12 @@ export const load: PageServerLoad = async ({ url }) => {
 				},
 				{ 
 					step: 'RETURNING', 
-					label: 'Returning to Pool', 
+					label: mappedStatus === 'Waiting Cashier' ? 'At Pool (Menunggu Kasir)' : 'Returning to Pool', 
 					time: logMap.get('RETURNING') ? formatTime(logMap.get('RETURNING')) : null, 
 					completed: completedStatuses['RETURNING'], 
 					active: t.status === 'RETURNING',
 					duration: calcDuration('RETURNING', 'COMPLETED'),
-					note: notesMap.get('RETURNING') || null
+					note: t.pool_arrival_note ? { note: t.pool_arrival_note } : (notesMap.get('RETURNING') || null)
 				}
 			];
 
@@ -193,15 +207,15 @@ export const load: PageServerLoad = async ({ url }) => {
 				status: mappedStatus,
 				progress,
 				departedAt: t.depart_time ? new Date(t.depart_time).toLocaleString('id-ID') : '-',
-				eta: '-',
-				distance: '-',
-				cargo: t.cargo || '-',
+				eta: arriveTime ? arriveTime : (t.depart_time ? 'Est. 4h' : '-'),
+				cargo: t.cargo || 'General Cargo',
 				history
 			};
 		});
 
+		// Metrics
 		const metrics = {
-			activeTrips: allTrips.filter(t => t.status === 'In Transit').length,
+			activeTrips: allTrips.filter(t => t.status === 'In Transit' || t.status === 'Waiting Cashier').length,
 			completedToday: allTrips.filter(t => t.status === 'Completed').length,
 			scheduled: allTrips.filter(t => t.status === 'Scheduled').length,
 			delayed: allTrips.filter(t => t.status === 'Delayed').length

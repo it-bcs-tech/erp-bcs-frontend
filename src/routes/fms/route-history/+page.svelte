@@ -695,8 +695,8 @@
 							</td>
 							<td class="py-3.5 px-5 text-right">
 								<div class="flex items-center justify-end gap-2">
-									<button class="px-3 py-1.5 rounded-lg bg-blue-600/10 text-blue-600 hover:bg-blue-600/20 transition-colors text-xs font-bold flex items-center gap-1.5 cursor-pointer" onclick={() => openPlayback(trip.id)} title="Play route animation">
-										<span class="material-symbols-outlined text-[16px]">play_circle</span>
+									<button class="px-3 py-1.5 rounded-lg bg-blue-600/10 text-blue-600 hover:bg-blue-600/20 transition-colors text-xs font-bold flex items-center gap-1.5 cursor-pointer" onclick={() => openPlayback(trip.dbId || trip.id)} title="Play route animation">
+										<span class="material-symbols-outlined text-sm">play_arrow</span>
 										<span>Playback</span>
 									</button>
 								</div>

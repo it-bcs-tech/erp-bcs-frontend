@@ -418,8 +418,8 @@ export async function runGeofenceEngine() {
 					if (pool.latitude && pool.longitude) {
 						const dist = haversine(gps.lat, gps.lon, parseFloat(pool.latitude), parseFloat(pool.longitude));
 						if (dist <= pool.radius) {
-							// Apakah ini pool tujuan yang sebenarnya?
-							if (String(pool.id) === String(trip.pool_tujuan_id)) {
+							// Apakah ini pool tujuan yang sebenarnya (atau jika tidak ditentukan secara spesifik)?
+							if (!trip.pool_tujuan_id || String(pool.id) === String(trip.pool_tujuan_id)) {
 								arrivedAtDestinationPool = true;
 								minDistance = dist;
 								matchedPoolName = pool.nama_pool;
@@ -433,9 +433,20 @@ export async function runGeofenceEngine() {
 				}
 
 				if (arrivedAtDestinationPool) {
-					// HANYA update Sales Order ke CLOSING. Kasir yang akan mengubah Trip dan SO menjadi COMPLETED.
-					const noteMsg = `Auto-pilot: Tiba di Pool Tujuan (${matchedPoolName}). Menunggu Kasir`;
-					await sql`INSERT INTO fleet.trip_checkpoint (trip_id, event, lat, lon, notes) VALUES (${trip.id}, 'NOTE', ${gps.lat}, ${gps.lon}, ${noteMsg})`;
+					// SOP Kasir: Unit tiba di Pool Tujuan -> ubah Sales Order ke CLOSING & catat checkpoint (Menunggu Kasir)
+					// Status Trip tetap RETURNING dan status unit tetap ON_DUTY sampai Kasir menginput surat jalan & closing
+					const existingNote = await sql`
+						SELECT 1 FROM fleet.trip_checkpoint 
+						WHERE trip_id = ${trip.id} 
+						  AND event = 'NOTE' 
+						  AND notes LIKE '%Tiba di Pool Tujuan%' 
+						LIMIT 1
+					`;
+
+					if (existingNote.length === 0) {
+						const noteMsg = `Auto-pilot: Tiba di Pool Tujuan (${matchedPoolName}). Menunggu Closing Kasir`;
+						await sql`INSERT INTO fleet.trip_checkpoint (trip_id, event, lat, lon, notes) VALUES (${trip.id}, 'NOTE', ${gps.lat}, ${gps.lon}, ${noteMsg})`;
+					}
 					
 					try {
 						await sql`
@@ -449,7 +460,7 @@ export async function runGeofenceEngine() {
 						console.error("Auto closing update error:", err);
 					}
 
-					logs.push(`[GEOFENCE-ARRIVE-POOL] Truk ${trip.nomor_unit} tiba di Pool Tujuan (${matchedPoolName}, ${minDistance.toFixed(0)}m). SO -> CLOSING`);
+					logs.push(`[GEOFENCE-ARRIVE-POOL] Truk ${trip.nomor_unit} tiba di Pool Tujuan (${matchedPoolName}, ${minDistance.toFixed(0)}m). SO -> CLOSING (Menunggu Kasir)`);
 					updatedCount++;
 				}
 			}

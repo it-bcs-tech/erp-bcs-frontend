@@ -12,27 +12,44 @@ export const GET: RequestHandler = async ({ params }) => {
 			return json({ success: false, error: 'Missing trip ID' }, { status: 400 });
 		}
 
-		// Also fetch origin and destination for completeness
-		const tripData = await sql`
-			SELECT 
-				t.id, u.nomor_unit as unit, t.status,
-				o.latitude as origin_lat, o.longitude as origin_lon, o.nama_kustomer as origin_name,
-				d.latitude as dest_lat, d.longitude as dest_lon, d.nama_kustomer as dest_name
-			FROM fleet.trip t
-			LEFT JOIN fleet.unit u ON u.id = t.unit_id
-			LEFT JOIN master.m_customer o ON o.id = t.origin_id
-			LEFT JOIN master.m_customer d ON d.id = t.destination_id
-			WHERE t.id = ${tripId}
-		`;
+		// Support both numeric id (bigint) and no_surat_tugas (string)
+		let tripData;
+		if (/^\d+$/.test(tripId)) {
+			tripData = await sql`
+				SELECT 
+					t.id, u.nomor_unit as unit, t.status,
+					o.latitude as origin_lat, o.longitude as origin_lon, o.nama_kustomer as origin_name,
+					d.latitude as dest_lat, d.longitude as dest_lon, d.nama_kustomer as dest_name
+				FROM fleet.trip t
+				LEFT JOIN fleet.unit u ON u.id = t.unit_id
+				LEFT JOIN master.m_customer o ON o.id = t.origin_id
+				LEFT JOIN master.m_customer d ON d.id = t.destination_id
+				WHERE t.id = ${tripId}
+			`;
+		} else {
+			tripData = await sql`
+				SELECT 
+					t.id, u.nomor_unit as unit, t.status,
+					o.latitude as origin_lat, o.longitude as origin_lon, o.nama_kustomer as origin_name,
+					d.latitude as dest_lat, d.longitude as dest_lon, d.nama_kustomer as dest_name
+				FROM fleet.trip t
+				LEFT JOIN fleet.unit u ON u.id = t.unit_id
+				LEFT JOIN master.m_customer o ON o.id = t.origin_id
+				LEFT JOIN master.m_customer d ON d.id = t.destination_id
+				WHERE t.no_surat_tugas = ${tripId}
+			`;
+		}
 
 		if (tripData.length === 0) {
 			return json({ success: false, error: 'Trip not found' }, { status: 404 });
 		}
 
+		const realTripId = tripData[0].id;
+
 		const paths = await sql`
 			SELECT lat, lon, speed, recorded_at 
 			FROM fleet.trip_path 
-			WHERE trip_id = ${tripId}
+			WHERE trip_id = ${realTripId}
 			ORDER BY recorded_at ASC
 		`;
 
@@ -40,14 +57,14 @@ export const GET: RequestHandler = async ({ params }) => {
 			SELECT r.nama_rest_area, r.polygon_points, l.enter_time, l.exit_time, l.duration_minutes
 			FROM fleet.trip_rest_area_log l
 			JOIN master.m_rest_area r ON r.id = l.rest_area_id
-			WHERE l.trip_id = ${tripId}
+			WHERE l.trip_id = ${realTripId}
 			ORDER BY l.enter_time ASC
 		`;
 
 		const checkpoints = await sql`
 			SELECT event, lat, lon, notes, recorded_at
 			FROM fleet.trip_checkpoint
-			WHERE trip_id = ${tripId} AND lat IS NOT NULL AND lon IS NOT NULL
+			WHERE trip_id = ${realTripId} AND lat IS NOT NULL AND lon IS NOT NULL
 			ORDER BY recorded_at ASC
 		`;
 

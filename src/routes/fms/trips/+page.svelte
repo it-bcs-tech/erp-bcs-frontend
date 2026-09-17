@@ -184,14 +184,14 @@
 	<div class="p-4 rounded-2xl bg-surface-container-low border border-slate-200/60 dark:border-slate-800/60 flex flex-col md:flex-row gap-4 items-center justify-between shadow-xs">
 		<!-- Tabs (Segmented Control Status Trip) -->
 		<div class="inline-flex p-1 rounded-2xl bg-surface-container border border-slate-200 dark:border-slate-800 overflow-x-auto max-w-full">
-			{#each ['All', 'In Transit', 'Completed', 'Scheduled', 'Delayed'] as st}
+			{#each ['All', 'In Transit', 'Waiting Cashier', 'Completed', 'Scheduled', 'Delayed'] as st}
 				<button
 					class="px-3.5 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all cursor-pointer {statusFilter === st
 						? 'bg-surface text-blue-600 dark:text-blue-400 shadow-xs'
 						: 'text-on-surface-variant hover:text-on-surface'}"
 					onclick={() => { statusFilter = st; handleStatusChange(); }}
 				>
-					{st === 'All' ? 'Semua Status' : st}
+					{st === 'All' ? 'Semua Status' : (st === 'Waiting Cashier' ? 'Menunggu Kasir' : st)}
 				</button>
 			{/each}
 		</div>
@@ -272,7 +272,11 @@
 								</div>
 							</td>
 							<td class="py-4 px-6">
-								{#if trip.status === 'In Transit'}
+								{#if trip.status === 'Waiting Cashier'}
+									<span class="inline-flex items-center gap-1.5 text-amber-600 dark:text-amber-400 font-bold text-[11px] bg-amber-500/10 px-2.5 py-1 rounded-md uppercase tracking-wider border border-amber-500/20">
+										<span class="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span> Menunggu Kasir
+									</span>
+								{:else if trip.status === 'In Transit'}
 									<span class="inline-flex items-center gap-1.5 text-blue-600 dark:text-blue-400 font-bold text-[11px] bg-blue-500/10 px-2.5 py-1 rounded-md uppercase tracking-wider border border-blue-500/20">
 										<span class="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse"></span> In Transit
 									</span>
@@ -552,7 +556,11 @@
 						<div>
 							<div class="flex items-center gap-2">
 								<h2 class="text-xl font-black text-on-surface tracking-tight font-mono">{selectedTrip.id}</h2>
-								{#if selectedTrip.status === 'In Transit'}
+								{#if selectedTrip.status === 'Waiting Cashier'}
+									<span class="inline-flex items-center gap-1.5 text-amber-600 text-[10px] font-bold bg-amber-500/10 px-2 py-0.5 rounded-md border border-amber-500/20">
+										<span class="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span> Menunggu Closing Kasir
+									</span>
+								{:else if selectedTrip.status === 'In Transit'}
 									<span class="inline-flex items-center gap-1.5 text-blue-600 text-[10px] font-bold bg-blue-500/10 px-2 py-0.5 rounded-md border border-blue-500/20">
 										<span class="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse"></span> In Transit
 									</span>
