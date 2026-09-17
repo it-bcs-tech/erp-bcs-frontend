@@ -99,7 +99,12 @@
 									{p.category}
 								</span>
 							</td>
-							<td class="py-3.5 px-5 text-on-surface-variant max-w-xs">{p.remarks}</td>
+							<td class="py-3.5 px-5 text-on-surface-variant max-w-xs">
+								<p class="font-medium text-on-surface">{p.remarks}</p>
+								{#if p.description && p.description !== p.remarks && p.description !== '-'}
+									<p class="text-[10px] text-slate-400 dark:text-slate-500 mt-0.5">{p.description}</p>
+								{/if}
+							</td>
 							<td class="py-3.5 px-5 text-center">
 								<span class="inline-flex items-center gap-1.5 text-xs font-bold px-2.5 py-0.5 rounded-full border {p.is_active ? 'bg-emerald-100 text-emerald-800 border-emerald-300' : 'bg-slate-100 text-slate-700 border-slate-300'}">
 									<span class="w-1.5 h-1.5 rounded-full {p.is_active ? 'bg-emerald-500' : 'bg-slate-400'}"></span>

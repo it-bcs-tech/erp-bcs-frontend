@@ -13,13 +13,14 @@ export const load: PageServerLoad = async ({ url }) => {
 				p.project_name as "projectName",
 				COALESCE(p.category::text, 'General') as category,
 				COALESCE(p.remarks, p.description, '-') as remarks,
+				p.description,
 				l.id as site_id,
 				COALESCE(l.loc_name, 'Semua Site') as "siteName",
 				COALESCE(l.alias, l.loc_code, '-') as "siteAlias",
 				p.is_active
 			FROM master.m_project p
 			LEFT JOIN master.m_lokasi l ON l.id = p.site_id
-			ORDER BY p.id DESC
+			ORDER BY p.id ASC
 		`;
 
 		const sites = await sql`
