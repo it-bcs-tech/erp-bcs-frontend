@@ -114,7 +114,10 @@
 						{/if}
 					</div>
 					<div class="p-2 border-t border-surface-container bg-surface-container-lowest sticky bottom-0">
-						<button class="w-full text-center text-xs font-bold text-primary py-2 hover:bg-surface-container-low rounded-lg transition-colors">
+						<button 
+							onclick={() => { goto('/admin/active-users'); isNotificationsOpen = false; }}
+							class="w-full text-center text-xs font-bold text-primary py-2 hover:bg-surface-container-low rounded-lg transition-colors cursor-pointer"
+						>
 							View All Activity
 						</button>
 					</div>
@@ -205,6 +208,13 @@
 					<!-- Actions -->
 					<div class="p-2">
 						{#if admin}
+							<button 
+								onclick={() => { goto('/admin/active-users'); isProfileOpen = false; }}
+								class="w-full flex items-center gap-3 px-4 py-2 text-on-surface hover:bg-surface-container-low rounded-xl transition-colors text-sm font-semibold mb-1 cursor-pointer"
+							>
+								<span class="material-symbols-outlined text-[18px] text-emerald-600">monitor_heart</span>
+								Live Monitor Pengguna
+							</button>
 							<button 
 								onclick={() => { goto('/admin/users'); isProfileOpen = false; }}
 								class="w-full flex items-center gap-3 px-4 py-2 text-on-surface hover:bg-surface-container-low rounded-xl transition-colors text-sm font-semibold mb-1 cursor-pointer"

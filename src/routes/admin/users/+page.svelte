@@ -228,9 +228,17 @@
 				<span class="w-1.5 h-1.5 rounded-full {data.dataSource === 'laravel' ? 'bg-emerald-500' : 'bg-amber-500'}"></span>
 				{data.dataSource === 'laravel' ? 'Laravel API' : 'Svelte Fallback'}
 			</span>
+			<a 
+				href="/admin/active-users"
+				class="bg-surface-container hover:bg-surface-container-high text-on-surface border border-slate-200/60 dark:border-slate-700/60 px-4 py-2.5 rounded-full font-bold shadow-xs hover:shadow-md transition-all flex items-center gap-2 transform active:scale-95 text-sm"
+			>
+				<span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+				<span class="material-symbols-outlined text-sm text-emerald-600">monitor_heart</span>
+				Live Monitor
+			</a>
 			<button 
 				onclick={() => showAddModal = true}
-				class="bg-primary text-on-primary px-5 py-2.5 rounded-full font-bold shadow-md hover:shadow-lg transition-all flex items-center gap-2 transform active:scale-95"
+				class="bg-primary text-on-primary px-5 py-2.5 rounded-full font-bold shadow-md hover:shadow-lg transition-all flex items-center gap-2 transform active:scale-95 text-sm"
 			>
 				<span class="material-symbols-outlined text-sm">person_add</span>
 				Add New User

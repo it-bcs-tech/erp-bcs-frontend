@@ -2,6 +2,7 @@
 	import '../app.css';
 	import Header from '$lib/components/Header.svelte';
 	import Footer from '$lib/components/Footer.svelte';
+	import PresenceTracker from '$lib/components/PresenceTracker.svelte';
 	import { page } from '$app/stores';
 	import { activeToasts, removeToast } from '$lib/stores/notifications';
 	import { authUser } from '$lib/stores/auth';
@@ -27,6 +28,7 @@
 
 {#if !$page.url.pathname.startsWith('/login') && !isPrintRoute}
 	<Header />
+	<PresenceTracker />
 {/if}
 
 {@render children()}

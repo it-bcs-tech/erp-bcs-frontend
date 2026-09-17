@@ -92,6 +92,16 @@ export function spawnToast(notif: AppNotification) {
 	}, 5000);
 }
 
+export function addToast(opts: { title: string; message: string; type?: 'INFO' | 'WARNING' | 'CRITICAL' | 'SUCCESS' }) {
+	spawnToast({
+		id: Math.random().toString(36).substring(2, 9),
+		title: opts.title,
+		message: opts.message,
+		type: opts.type || 'INFO',
+		timestamp: new Date().toISOString()
+	});
+}
+
 export function removeToast(toastId: string) {
 	activeToasts.update(toasts => toasts.filter(t => t.toastId !== toastId));
 }
