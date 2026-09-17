@@ -21,7 +21,23 @@ export const load: PageServerLoad = async ({ url }) => {
 				t.depart_time,
 				t.arrive_time,
 				t.created_at,
-				so.status as so_status,
+				COALESCE(
+					(
+						SELECT so.status 
+						FROM finance.cash_advance ca 
+						JOIN marketing.sales_order so ON so.id = ca.sales_order_id 
+						WHERE ca.trip_id = t.id 
+						LIMIT 1
+					),
+					(
+						SELECT so.status 
+						FROM marketing.sales_order so 
+						WHERE so.assigned_unit_id = t.unit_id 
+						  AND so.tgl_muat::date = t.tgl_trip::date 
+						ORDER BY so.created_at DESC 
+						LIMIT 1
+					)
+				) as so_status,
 				(
 					SELECT notes FROM fleet.trip_checkpoint 
 					WHERE trip_id = t.id AND event = 'NOTE' AND notes LIKE '%Tiba di Pool Tujuan%' 
@@ -41,7 +57,6 @@ export const load: PageServerLoad = async ({ url }) => {
 			LEFT JOIN fleet.unit u ON t.unit_id = u.id
 			LEFT JOIN master.m_drivers d ON d.id = t.driver_id
 			LEFT JOIN master.m_karyawan k ON k.id = d.karyawan_id
-			LEFT JOIN marketing.sales_order so ON so.assigned_unit_id = t.unit_id AND so.tgl_muat::date = t.tgl_trip::date
 			ORDER BY t.created_at DESC
 		`;
 
