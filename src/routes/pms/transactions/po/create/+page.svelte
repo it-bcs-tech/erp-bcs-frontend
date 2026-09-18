@@ -44,9 +44,7 @@
 	let selectedVendor = $derived(data.vendors?.find((v: any) => String(v.id) === String(vendorId)));
 	let selectedProject = $derived(data.projects?.find((p: any) => String(p.id) === String(projectId)));
 	let selectedSite = $derived(data.sites?.find((s: any) => String(s.id) === String(siteId)));
-	let chosenAlias = $derived(
-		selectedSite?.alias || selectedProject?.alias || 'GEN'
-	);
+	let projectAlias = $derived(selectedProject?.alias || 'GEN');
 
 	function updatePoNumber() {
 		const catCode = selectedProject?.cat_code || (selectedProject?.category ? getCategoryCode(selectedProject.category) : 'GEN');
@@ -55,7 +53,7 @@
 			counter,
 			categoryCode: catCode,
 			vendorAlias,
-			siteAlias: chosenAlias,
+			projectAlias,
 			date
 		});
 	}
@@ -64,7 +62,6 @@
 		const curDate = date;
 		const curVendor = vendorId;
 		const curProj = projectId;
-		const curSite = siteId;
 		const curCounter = counter;
 
 		if (!isPoNumberManual) {
@@ -363,7 +360,7 @@
 								</span>
 							</div>
 							<p class="text-[11px] text-on-surface-variant font-medium mt-0.5">
-								Format: <code class="font-mono text-amber-700 dark:text-amber-300 font-bold">[Counter]-[Kategori]/BCS-[Vendor]/[Site/Project]/[Romawi]/[YYYY]</code>
+								Format: <code class="font-mono text-amber-700 dark:text-amber-300 font-bold">[Counter]-[Kategori]/BCS-[Vendor]/[Project]/[Romawi]/[YYYY]</code>
 							</p>
 						</div>
 					</div>

@@ -90,7 +90,7 @@ export function generatePoNumber(params: {
 	counter: number | string;
 	categoryCode?: string | null;
 	vendorAlias?: string | null;
-	siteAlias?: string | null;
+	projectAlias?: string | null;
 	date?: string | Date | null;
 }): string {
 	const d = params.date ? (typeof params.date === 'string' ? new Date(params.date) : params.date) : new Date();
@@ -107,7 +107,7 @@ export function generatePoNumber(params: {
 
 	const cat = (params.categoryCode || 'GEN').trim().toUpperCase();
 	const vnd = (params.vendorAlias || 'VND').trim().toUpperCase();
-	const siteOrProj = (params.siteAlias || 'GEN').trim().toUpperCase();
+	const proj = (params.projectAlias || 'GEN').trim().toUpperCase();
 
-	return `${cnt}-${cat}/BCS-${vnd}/${siteOrProj}/${romanMonth}/${yyyy}`;
+	return `${cnt}-${cat}/BCS-${vnd}/${proj}/${romanMonth}/${yyyy}`;
 }

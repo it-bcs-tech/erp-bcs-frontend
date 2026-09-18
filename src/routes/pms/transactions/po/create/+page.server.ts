@@ -240,13 +240,6 @@ export const actions: Actions = {
 					}
 				}
 
-				let siteAlias: string | null = null;
-				if (siteId) {
-					const [st] = await sql`SELECT alias FROM master.m_lokasi WHERE id = ${siteId}`;
-					if (st?.alias) siteAlias = st.alias;
-				}
-				const chosenAlias = siteAlias || projectAlias || 'GEN';
-
 				let vendorAlias = 'VND';
 				if (vendorId) {
 					const [vnd] = await sql`SELECT alias, kode_vendor FROM master.m_vendor WHERE id = ${vendorId}`;
@@ -259,7 +252,7 @@ export const actions: Actions = {
 					counter: seq,
 					categoryCode: catCode,
 					vendorAlias,
-					siteAlias: chosenAlias,
+					projectAlias: projectAlias || 'GEN',
 					date: poDate
 				});
 			}
