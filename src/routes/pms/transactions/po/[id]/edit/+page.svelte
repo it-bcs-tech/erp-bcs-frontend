@@ -74,8 +74,8 @@
 		{ value: '', label: '-- Bebas / Non-Project --' },
 		...data.projects.map((p: any) => ({
 			value: p.id,
-			label: p.project_name,
-			sublabel: `Kode: ${p.project_code || '-'} | Alias: ${p.alias || '-'}`
+			label: p.project_code ? `${p.project_name} (${p.project_code})` : p.project_name,
+			searchTerms: `${p.project_name} ${p.project_code || ''}`
 		}))
 	]);
 
@@ -83,9 +83,10 @@
 		{ value: '', label: '-- Pilih Lokasi Site Penerima --' },
 		...data.sites.map((s: any) => ({
 			value: s.id,
-			label: s.contact_person ? `${s.loc_name} - ${s.contact_person}` : `${s.loc_name} - (Tanpa PIC)`,
-			sublabel: `Kode: ${s.loc_code || '-'} | Alias: ${s.alias || '-'} | Kota: ${s.city || '-'}`,
-			searchTerms: `${s.loc_name} ${s.contact_person || ''} ${s.alias || ''} ${s.city || ''}`
+			label: s.contact_person
+				? `${s.loc_name} - ${s.contact_person} (${s.loc_code || '-'})`
+				: `${s.loc_name} (${s.loc_code || '-'})`,
+			searchTerms: `${s.loc_name} ${s.contact_person || ''} ${s.loc_code || ''}`
 		}))
 	]);
 

@@ -24,7 +24,7 @@
 	const orderTypeOpts = ORDER_TYPES.map(t => ({
 		value: t.value,
 		label: t.label,
-		sublabel: t.desc
+		searchTerms: `${t.label} ${t.code}`
 	}));
 
 	let selectedProject = $derived(data.projects?.find((p: any) => String(p.id) === String(projectId)));
@@ -62,9 +62,8 @@
 		{ value: '', label: '-- Pilih Departemen --' },
 		...(data.departments || []).map((d: any) => ({
 			value: d.dept_name,
-			label: d.dept_name,
-			sublabel: `Kode: ${d.dept_code} | Alias: ${d.alias || '-'}`,
-			searchTerms: `${d.dept_name} ${d.dept_code} ${d.alias || ''}`
+			label: d.dept_code ? `${d.dept_name} (${d.dept_code})` : d.dept_name,
+			searchTerms: `${d.dept_name} ${d.dept_code || ''}`
 		}))
 	]);
 
@@ -72,8 +71,8 @@
 		{ value: '', label: '-- Bebas / Non-Project --' },
 		...data.projects.map((p: any) => ({
 			value: p.id,
-			label: p.project_name,
-			sublabel: `Kode: ${p.project_code || '-'} | Alias: ${p.alias || '-'}`
+			label: p.project_code ? `${p.project_name} (${p.project_code})` : p.project_name,
+			searchTerms: `${p.project_name} ${p.project_code || ''}`
 		}))
 	]);
 
@@ -81,9 +80,10 @@
 		{ value: '', label: '-- Pilih Lokasi Site Tujuan --' },
 		...data.sites.map((s: any) => ({
 			value: s.id,
-			label: s.contact_person ? `${s.loc_name} - ${s.contact_person}` : `${s.loc_name} - (Tanpa PIC)`,
-			sublabel: `Kode: ${s.loc_code || '-'} | Alias: ${s.alias || '-'} | Kota: ${s.city || '-'}`,
-			searchTerms: `${s.loc_name} ${s.contact_person || ''} ${s.alias || ''} ${s.city || ''}`
+			label: s.contact_person
+				? `${s.loc_name} - ${s.contact_person} (${s.loc_code || '-'})`
+				: `${s.loc_name} (${s.loc_code || '-'})`,
+			searchTerms: `${s.loc_name} ${s.contact_person || ''} ${s.loc_code || ''}`
 		}))
 	]);
 

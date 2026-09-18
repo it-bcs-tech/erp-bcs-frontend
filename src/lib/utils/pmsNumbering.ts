@@ -8,10 +8,10 @@
  */
 
 export const ORDER_TYPES = [
-	{ value: 'RO', code: 'RO', label: 'RO - Reguler Order', desc: 'Pesanan reguler / rutin operasional' },
-	{ value: 'BO', code: 'BO', label: 'BO - By Order', desc: 'Pesanan khusus berdasarkan order/permintaan proyek' },
-	{ value: 'ES', code: 'ES', label: 'ES - Emergency Stock', desc: 'Kebutuhan darurat / stok mendesak' },
-	{ value: 'IO', code: 'IO', label: 'IO - Internal Order', desc: 'Kebutuhan internal antar departemen/unit' }
+	{ value: 'RO', code: 'RO', label: 'Reguler Order', desc: 'Pesanan reguler / rutin operasional' },
+	{ value: 'BO', code: 'BO', label: 'By Order', desc: 'Pesanan khusus berdasarkan order/permintaan proyek' },
+	{ value: 'ES', code: 'ES', label: 'Emergency Stock', desc: 'Kebutuhan darurat / stok mendesak' },
+	{ value: 'IO', code: 'IO', label: 'Internal Order', desc: 'Kebutuhan internal antar departemen/unit' }
 ] as const;
 
 export type OrderTypeValue = (typeof ORDER_TYPES)[number]['value'];
