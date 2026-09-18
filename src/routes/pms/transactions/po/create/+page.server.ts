@@ -2,6 +2,7 @@ import type { PageServerLoad, Actions } from './$types';
 import sql from '$lib/server/db';
 import { fail, redirect } from '@sveltejs/kit';
 import { formatAuditUser } from '$lib/server/auth';
+import { generatePoNumber, getPaymentTermCode } from '$lib/utils/pmsNumbering';
 
 export const load: PageServerLoad = async ({ url }) => {
 	const prIdsParam = url.searchParams.get('pr_ids') || url.searchParams.get('pr_id');
@@ -58,8 +59,27 @@ export const load: PageServerLoad = async ({ url }) => {
 			WHERE is_active = true
 			ORDER BY nama_vendor
 		`;
-		const projects = await sql`SELECT id, project_code, project_name FROM master.m_project WHERE is_active = true ORDER BY project_name`;
-		const sites = await sql`SELECT id, loc_code, loc_name FROM master.m_lokasi ORDER BY loc_code`;
+		const projects = await sql`
+			SELECT id, project_code, project_name, alias, cat_code, category 
+			FROM master.m_project 
+			WHERE is_active = true 
+			ORDER BY project_name
+		`;
+		const sites = await sql`
+			SELECT id, loc_code, loc_name, alias, contact_person, phone, address_1, city 
+			FROM master.m_lokasi 
+			ORDER BY loc_name
+		`;
+
+		// Hitung counter urut untuk bulan berjalan
+		const now = new Date();
+		const [seqRow] = await sql`
+			SELECT COUNT(*) as count 
+			FROM procurement.purchase_order 
+			WHERE EXTRACT(YEAR FROM date) = ${now.getFullYear()} 
+			  AND EXTRACT(MONTH FROM date) = ${now.getMonth() + 1}
+		`;
+		const nextCounter = parseInt(seqRow?.count || '0') + 1;
 		const materials = await sql`
 			SELECT DISTINCT 
 				m.id, 
@@ -99,6 +119,7 @@ export const load: PageServerLoad = async ({ url }) => {
 			projects,
 			sites,
 			materials,
+			nextCounter,
 			initialPR,
 			initialPRs,
 			initialItems,
@@ -107,34 +128,37 @@ export const load: PageServerLoad = async ({ url }) => {
 	} catch (err: any) {
 		if (err?.status === 302 || err?.status === 303 || err?.location) throw err;
 		console.error('Error loading PO create dependencies:', err);
-		return { vendors: [], projects: [], sites: [], materials: [], initialPR: null, initialPRs: [], initialItems: [], vendorPrices: [] };
+		return { vendors: [], projects: [], sites: [], materials: [], nextCounter: 1, initialPR: null, initialPRs: [], initialItems: [], vendorPrices: [] };
 	}
 };
 
 export const actions: Actions = {
 	create: async ({ request, locals }) => {
 		const formData = await request.formData();
-		const date = formData.get('date') as string || new Date().toISOString().split('T')[0];
+		const date = (formData.get('date') as string) || new Date().toISOString().split('T')[0];
 		const vendorId = formData.get('vendorId') as string;
 		const createdBy = locals.user?.payrollId || locals.user?.name || 'SYSTEM';
 		const projectId = formData.get('projectId') ? parseInt(formData.get('projectId') as string) : null;
 		const siteId = formData.get('siteId') ? parseInt(formData.get('siteId') as string) : null;
-		const category = (formData.get('category') as string || 'SUPPORTING').trim();
-		const shipmentDate = formData.get('shipmentDate') as string || null;
-		const shipmentLocation = (formData.get('shipmentLocation') as string || '').trim();
-		const refNo = (formData.get('refNo') as string || '').trim();
-		const dueDate = formData.get('dueDate') as string || null;
-		const currency = (formData.get('currency') as string || 'IDR').trim();
-		const discountPercent = parseFloat(formData.get('discountPercent') as string || '0');
-		const vatPercent = parseFloat(formData.get('vatPercent') as string || '11');
-		const notes = (formData.get('notes') as string || '').trim();
-		const wrsNotes = (formData.get('wrsNotes') as string || '').trim();
-		const prIdsRaw = (formData.get('prIds') as string || formData.get('prId') as string || '').trim();
+		const category = ((formData.get('category') as string) || 'SUPPORTING').trim();
+		const paymentTerm = ((formData.get('paymentTerm') as string) || '30 Hari').trim();
+		const poType = ((formData.get('poType') as string) || 'P').trim().toUpperCase();
+		let poNumber = ((formData.get('poNumber') as string) || '').trim();
+		const shipmentDate = (formData.get('shipmentDate') as string) || null;
+		const shipmentLocation = ((formData.get('shipmentLocation') as string) || '').trim();
+		const refNo = ((formData.get('refNo') as string) || '').trim();
+		const dueDate = (formData.get('dueDate') as string) || null;
+		const currency = ((formData.get('currency') as string) || 'IDR').trim();
+		const discountPercent = parseFloat((formData.get('discountPercent') as string) || '0');
+		const vatPercent = parseFloat((formData.get('vatPercent') as string) || '11');
+		const notes = ((formData.get('notes') as string) || '').trim();
+		const wrsNotes = ((formData.get('wrsNotes') as string) || '').trim();
+		const prIdsRaw = ((formData.get('prIds') as string) || (formData.get('prId') as string) || '').trim();
 		const submittedPrIds = prIdsRaw
 			.split(',')
 			.map(s => parseInt(s.trim()))
 			.filter(n => !isNaN(n) && n > 0);
-		const itemsRaw = formData.get('items') as string || '[]';
+		const itemsRaw = (formData.get('items') as string) || '[]';
 
 		let items: any[] = [];
 		try {
@@ -164,16 +188,41 @@ export const actions: Actions = {
 		const totalAmount = netSubtotal + taxAmount;
 
 		try {
-			// Auto Generate PO Number: PO-YYMM-XXXX
-			const now = new Date();
-			const yymm = `${now.getFullYear().toString().slice(-2)}${(now.getMonth() + 1).toString().padStart(2, '0')}`;
-			const [seqRow] = await sql`SELECT COUNT(*) as count FROM procurement.purchase_order`;
-			const seq = (parseInt(seqRow?.count || '0') + 1).toString().padStart(4, '0');
-			const poNumber = `PO-${yymm}-${seq}`;
+			// Auto Generate PO Number jika kosong: [Counter]-[Tipe]/BCS-[Term]/[Alias]/[Romawi]/[YYYY]
+			if (!poNumber) {
+				const poDate = new Date(date);
+				const [seqRow] = await sql`
+					SELECT COUNT(*) as count 
+					FROM procurement.purchase_order 
+					WHERE EXTRACT(YEAR FROM date) = ${poDate.getFullYear()} 
+					  AND EXTRACT(MONTH FROM date) = ${poDate.getMonth() + 1}
+				`;
+				const seq = parseInt(seqRow?.count || '0') + 1;
+
+				// Cari alias project atau site
+				let chosenAlias = 'GEN';
+				if (projectId) {
+					const [proj] = await sql`SELECT alias FROM master.m_project WHERE id = ${projectId}`;
+					if (proj?.alias) chosenAlias = proj.alias;
+				}
+				if (chosenAlias === 'GEN' && siteId) {
+					const [st] = await sql`SELECT alias FROM master.m_lokasi WHERE id = ${siteId}`;
+					if (st?.alias) chosenAlias = st.alias;
+				}
+
+				poNumber = generatePoNumber({
+					counter: seq,
+					poType,
+					termCode: getPaymentTermCode(paymentTerm),
+					alias: chosenAlias,
+					date: poDate
+				});
+			}
 
 			const [po] = await sql`
 				INSERT INTO procurement.purchase_order (
 					po_number,
+					payment_term,
 					date,
 					vendor_id,
 					created_by,
@@ -195,6 +244,7 @@ export const actions: Actions = {
 					wrs_notes
 				) VALUES (
 					${poNumber},
+					${paymentTerm},
 					${date},
 					${vendorId},
 					${createdBy},

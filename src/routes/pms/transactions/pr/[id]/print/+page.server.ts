@@ -13,6 +13,7 @@ export const load: PageServerLoad = async ({ params }) => {
 			SELECT 
 				pr.id,
 				pr.pr_number as "prNumber",
+				COALESCE(pr.order_type, 'RO') as "orderType",
 				to_char(pr.date, 'YYYY-MM-DD') as date,
 				to_char(pr.required_date, 'YYYY-MM-DD') as "requiredDate",
 				to_char(pr.created_at, 'YYYY-MM-DD HH24:MI') as "createdAt",
@@ -37,9 +38,15 @@ export const load: PageServerLoad = async ({ params }) => {
 				pr.project_id as "projectId",
 				p.project_name as "projectName",
 				COALESCE(p.project_code, 'PRJ-' || p.id) as "projectCode",
+				p.alias as "projectAlias",
 				pr.site_id as "siteId",
 				l.loc_name as "siteName",
-				l.loc_code as "siteCode"
+				l.loc_code as "siteCode",
+				l.alias as "siteAlias",
+				l.contact_person as "sitePic",
+				l.phone as "sitePhone",
+				l.address_1 as "siteAddress",
+				l.city as "siteCity"
 			FROM procurement.purchase_request pr
 			LEFT JOIN master.m_karyawan mk ON mk.payroll_id = pr.created_by OR mk.payroll_id = SUBSTRING(pr.created_by FROM '\\(([^)]+)\\)') OR mk.nama_karyawan = pr.created_by
 			LEFT JOIN master.m_project p ON p.id = pr.project_id

@@ -2,6 +2,7 @@
 	import { enhance } from '$app/forms';
 	import { formatRupiah, formatNumber } from '$lib/utils/pms';
 	import SearchableSelect from '$lib/components/SearchableSelect.svelte';
+	import { generatePoNumber, getPaymentTermCode, PO_PAYMENT_TERMS } from '$lib/utils/pmsNumbering';
 
 	let { data } = $props();
 	let isSubmitting = $state(false);
@@ -19,6 +20,7 @@
 	let refNo = $state(prNumbers ? `PR REF: ${prNumbers}` : '');
 	let dueDate = $state('');
 	let paymentTerm = $state('30 Hari');
+	let poType = $state('P');
 	let currency = $state('IDR');
 	let discountPercent = $state(0);
 	let vatPercent = $state(11);
@@ -28,18 +30,44 @@
 	let notes = $state(combinedNotes);
 	let wrsNotes = $state('');
 
-	const paymentTermOpts = [
-		{ value: 'Cash', days: 0, label: 'Cash / Tunai' },
-		{ value: '7 Hari', days: 7, label: '7 Hari' },
-		{ value: '14 Hari', days: 14, label: '14 Hari' },
-		{ value: '30 Hari', days: 30, label: '30 Hari' },
-		{ value: '60 Hari', days: 60, label: '60 Hari' },
-		{ value: '90 Hari', days: 90, label: '90 Hari' }
-	];
+	// Penomoran PO Otomatis
+	let counter = $state<number>(data.nextCounter || 1);
+	let isPoNumberManual = $state(false);
+	let poNumber = $state('');
+
+	const paymentTermOpts = PO_PAYMENT_TERMS;
+
+	let selectedProject = $derived(data.projects?.find((p: any) => String(p.id) === String(projectId)));
+	let selectedSite = $derived(data.sites?.find((s: any) => String(s.id) === String(siteId)));
+	let chosenAlias = $derived(
+		selectedProject?.alias || selectedSite?.alias || 'GEN'
+	);
+
+	function updatePoNumber() {
+		poNumber = generatePoNumber({
+			counter,
+			poType,
+			termCode: getPaymentTermCode(paymentTerm),
+			alias: chosenAlias,
+			date
+		});
+	}
+
+	$effect(() => {
+		const curDate = date;
+		const curTerm = paymentTerm;
+		const curAlias = chosenAlias;
+		const curType = poType;
+		const curCounter = counter;
+
+		if (!isPoNumberManual) {
+			updatePoNumber();
+		}
+	});
 
 	function updateDueDateFromTerm(term: string, baseDate: string) {
 		if (!baseDate) return;
-		const opt = paymentTermOpts.find(o => o.value === term);
+		const opt = paymentTermOpts.find(o => o.value === term || o.code === term);
 		const days = opt ? opt.days : 0;
 		const d = new Date(baseDate);
 		d.setDate(d.getDate() + days);
@@ -79,16 +107,17 @@
 		...data.projects.map((p: any) => ({
 			value: p.id,
 			label: p.project_name,
-			sublabel: p.project_code
+			sublabel: `Kode: ${p.project_code || '-'} | Alias: ${p.alias || '-'}`
 		}))
 	]);
 
 	let siteOpts = $derived([
-		{ value: '', label: '-- Semua Site --' },
+		{ value: '', label: '-- Pilih Lokasi Site Penerima --' },
 		...data.sites.map((s: any) => ({
 			value: s.id,
-			label: s.loc_name,
-			sublabel: s.loc_code
+			label: s.contact_person ? `${s.loc_name} - ${s.contact_person}` : `${s.loc_name} - (Tanpa PIC)`,
+			sublabel: `Kode: ${s.loc_code || '-'} | Alias: ${s.alias || '-'} | Kota: ${s.city || '-'}`,
+			searchTerms: `${s.loc_name} ${s.contact_person || ''} ${s.alias || ''} ${s.city || ''}`
 		}))
 	]);
 
@@ -296,7 +325,57 @@
 
 		<div class="space-y-6">
 			<!-- Section 1: Informasi Header PO -->
-			<div class="p-6 rounded-2xl bg-surface-container-low border border-slate-200/60 dark:border-slate-800/60 shadow-xs space-y-4">
+			<div class="p-6 rounded-2xl bg-surface-container-low border border-slate-200/60 dark:border-slate-800/60 shadow-xs space-y-5">
+				<!-- PO Number Banner (Auto Generated) -->
+				<div class="p-4 rounded-xl bg-amber-500/10 border border-amber-500/25 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+					<div class="flex items-center gap-3">
+						<div class="w-10 h-10 rounded-xl bg-amber-500/20 text-amber-700 dark:text-amber-400 flex items-center justify-center shrink-0">
+							<span class="material-symbols-outlined text-[22px]">tag</span>
+						</div>
+						<div>
+							<div class="flex items-center gap-2">
+								<span class="text-xs font-bold text-on-surface uppercase tracking-wider">Nomor Purchase Order (PO)</span>
+								<span class="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider {isPoNumberManual ? 'bg-amber-200 text-amber-900 dark:bg-amber-900/50 dark:text-amber-200' : 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-300'}">
+									{isPoNumberManual ? 'Manual Edit' : 'Auto Generated'}
+								</span>
+							</div>
+							<p class="text-[11px] text-on-surface-variant font-medium mt-0.5">
+								Format: <code class="font-mono text-amber-700 dark:text-amber-300 font-bold">[Counter]-[Tipe]/BCS-[Term]/[Alias]/[Romawi]/[YYYY]</code>
+							</p>
+						</div>
+					</div>
+					<div class="flex items-center gap-2 w-full sm:w-auto">
+						<select
+							name="poType"
+							bind:value={poType}
+							class="bg-surface border border-slate-300 dark:border-slate-700 text-on-surface font-mono font-bold text-xs rounded-xl px-2.5 py-2 focus:ring-2 focus:ring-amber-500 outline-none"
+							title="Tipe PO (P: Purchasing Barang, J: Jasa)"
+						>
+							<option value="P">P (Purchasing)</option>
+							<option value="J">J (Jasa)</option>
+						</select>
+						<input
+							type="text"
+							name="poNumber"
+							bind:value={poNumber}
+							oninput={() => { isPoNumberManual = true; }}
+							placeholder="e.g. 321-P/BCS-DP/LTN/IX/2026"
+							class="w-full sm:w-72 bg-surface border border-slate-300 dark:border-slate-700 text-on-surface font-mono font-black text-sm rounded-xl px-3.5 py-2 focus:ring-2 focus:ring-amber-500 outline-none shadow-xs"
+						/>
+						{#if isPoNumberManual}
+							<button
+								type="button"
+								onclick={() => { isPoNumberManual = false; updatePoNumber(); }}
+								class="px-2.5 py-2 rounded-xl bg-slate-200 hover:bg-slate-300 dark:bg-slate-700 dark:hover:bg-slate-600 text-on-surface text-xs font-bold transition-colors shrink-0 flex items-center gap-1 cursor-pointer"
+								title="Reset ke format penomoran otomatis"
+							>
+								<span class="material-symbols-outlined text-[16px]">restart_alt</span>
+								<span class="text-[11px]">Auto</span>
+							</button>
+						{/if}
+					</div>
+				</div>
+
 				<h3 class="text-sm font-bold text-on-surface uppercase tracking-wider border-b border-slate-200/60 dark:border-slate-800/60 pb-3 flex items-center gap-2">
 					<span class="material-symbols-outlined text-amber-600">shopping_cart</span>
 					<span>Informasi Order & Vendor</span>
@@ -368,7 +447,7 @@
 							name="siteId"
 							options={siteOpts}
 							bind:value={siteId}
-							placeholder="-- Semua Site --"
+							placeholder="-- Pilih Site Penerima --"
 							btnClass="bg-surface border border-slate-200 dark:border-slate-700 text-xs font-normal"
 						/>
 					</div>
@@ -388,13 +467,14 @@
 
 					<div>
 						<label class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-1.5">
-							Jatuh Tempo Pembayaran
+							Term Pembayaran (Payment Term)
 						</label>
 						<div class="grid grid-cols-2 gap-2">
 							<select
+								name="paymentTerm"
 								bind:value={paymentTerm}
 								onchange={(e) => onPaymentTermChange((e.target as HTMLSelectElement).value)}
-								class="w-full bg-surface border border-slate-200 dark:border-slate-700 text-on-surface rounded-xl px-3 py-2.5 text-xs font-semibold focus:ring-2 focus:ring-amber-500 outline-none cursor-pointer"
+								class="w-full bg-surface border border-slate-200 dark:border-slate-700 text-on-surface rounded-xl px-2.5 py-2.5 text-xs font-bold focus:ring-2 focus:ring-amber-500 outline-none cursor-pointer"
 							>
 								{#each paymentTermOpts as t}
 									<option value={t.value}>{t.label}</option>
@@ -404,11 +484,38 @@
 								type="date"
 								name="dueDate"
 								bind:value={dueDate}
-								class="w-full bg-surface border border-slate-200 dark:border-slate-700 text-on-surface rounded-xl px-4 py-2.5 text-xs font-medium focus:ring-2 focus:ring-amber-500 outline-none"
+								title="Jatuh Tempo Pembayaran"
+								class="w-full bg-surface border border-slate-200 dark:border-slate-700 text-on-surface rounded-xl px-3 py-2.5 text-xs font-medium focus:ring-2 focus:ring-amber-500 outline-none"
 							/>
 						</div>
 					</div>
 				</div>
+
+				<!-- Info Card PIC Site Penerima jika dipilih -->
+				{#if selectedSite}
+					<div class="p-3.5 rounded-xl bg-amber-500/5 dark:bg-amber-950/20 border border-amber-500/20 flex items-start gap-3 text-xs">
+						<span class="material-symbols-outlined text-amber-600 dark:text-amber-400 mt-0.5 text-lg">location_on</span>
+						<div class="flex-1 space-y-1">
+							<div class="flex items-center gap-2 font-bold text-on-surface">
+								<span>Site Penerima: {selectedSite.loc_name}</span>
+								{#if selectedSite.alias}
+									<span class="px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-700 dark:text-amber-300 font-mono text-[10px] font-bold">Alias: {selectedSite.alias}</span>
+								{/if}
+								{#if selectedSite.loc_code}
+									<span class="text-on-surface-variant font-mono text-[10px]">({selectedSite.loc_code})</span>
+								{/if}
+							</div>
+							<div class="text-on-surface-variant grid grid-cols-1 sm:grid-cols-3 gap-x-4 gap-y-1 text-[11px]">
+								<div><span class="font-semibold text-on-surface">PIC Penerima:</span> {selectedSite.contact_person || 'Belum diatur'}</div>
+								<div><span class="font-semibold text-on-surface">No. Telepon / HP:</span> {selectedSite.phone || '-'}</div>
+								<div><span class="font-semibold text-on-surface">Kota:</span> {selectedSite.city || '-'}</div>
+								{#if selectedSite.address_1}
+									<div class="sm:col-span-3 text-[11px]"><span class="font-semibold text-on-surface">Alamat Pengiriman:</span> {selectedSite.address_1}</div>
+								{/if}
+							</div>
+						</div>
+					</div>
+				{/if}
 
 				<div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
 					<div>

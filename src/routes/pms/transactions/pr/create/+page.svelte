@@ -2,18 +2,25 @@
 	import { enhance } from '$app/forms';
 	import { formatNumber } from '$lib/utils/pms';
 	import SearchableSelect from '$lib/components/SearchableSelect.svelte';
+	import { generatePrNumber, getCategoryCode, ORDER_TYPES } from '$lib/utils/pmsNumbering';
 
 	let { data } = $props();
 	let isSubmitting = $state(false);
 
 	let date = $state(new Date().toISOString().split('T')[0]);
 	let requiredDate = $state('');
+	let orderType = $state('RO');
 	let department = $state(data.prefill?.department || 'Workshop / Maintenance');
 	let requestedBy = $state(data.prefill?.requestedBy || 'Staff Gudang');
 	let projectId = $state(data.prefill?.projectId ? String(data.prefill.projectId) : '');
 	let siteId = $state('');
 	let category = $state('SUPPORTING');
 	let notes = $state(data.prefill?.notes || '');
+
+	// Penomoran PR Otomatis
+	let counter = $state<number>(data.nextCounter || 1);
+	let isPrNumberManual = $state(false);
+	let prNumber = $state('');
 
 	const categoryOpts = [
 		{ value: 'PACKAGING', label: 'Packaging (Pallet, Wrapping, Sak)' },
@@ -22,21 +29,65 @@
 		{ value: 'SUPPORTING', label: 'Supporting (Oli, Pelumas, Tools)' }
 	];
 
+	let selectedProject = $derived(data.projects?.find((p: any) => String(p.id) === String(projectId)));
+	let selectedSite = $derived(data.sites?.find((s: any) => String(s.id) === String(siteId)));
+	let selectedDept = $derived(
+		data.departments?.find((d: any) => d.dept_name === department || d.dept_code === department)
+	);
+
+	function updatePrNumber() {
+		const catCode = selectedProject?.cat_code || getCategoryCode(selectedProject?.category || category);
+		const deptCode = selectedDept?.alias || (department ? department.replace(/[^A-Za-z]/g, '').slice(0, 3).toUpperCase() : 'MTC');
+		prNumber = generatePrNumber({
+			counter,
+			orderType,
+			categoryCode: catCode,
+			deptCode,
+			date
+		});
+	}
+
+	$effect(() => {
+		// Reactive trigger ketika field penomoran berubah
+		// Track dependencies:
+		const curDate = date;
+		const curOrderType = orderType;
+		const curCat = category;
+		const curProjId = projectId;
+		const curDept = department;
+		const curCounter = counter;
+
+		if (!isPrNumberManual) {
+			updatePrNumber();
+		}
+	});
+
+	let deptOpts = $derived([
+		{ value: '', label: '-- Pilih Departemen --' },
+		...(data.departments || []).map((d: any) => ({
+			value: d.dept_name,
+			label: d.dept_name,
+			sublabel: `Kode: ${d.dept_code} | Alias: ${d.alias || '-'}`,
+			searchTerms: `${d.dept_name} ${d.dept_code} ${d.alias || ''}`
+		}))
+	]);
+
 	let projectOpts = $derived([
 		{ value: '', label: '-- Bebas / Non-Project --' },
 		...data.projects.map((p: any) => ({
 			value: p.id,
 			label: p.project_name,
-			sublabel: p.project_code
+			sublabel: `Kode: ${p.project_code || '-'} | Alias: ${p.alias || '-'}`
 		}))
 	]);
 
 	let siteOpts = $derived([
-		{ value: '', label: '-- Semua Site --' },
+		{ value: '', label: '-- Pilih Lokasi Site Tujuan --' },
 		...data.sites.map((s: any) => ({
 			value: s.id,
-			label: s.loc_name,
-			sublabel: s.loc_code
+			label: s.contact_person ? `${s.loc_name} - ${s.contact_person}` : `${s.loc_name} - (Tanpa PIC)`,
+			sublabel: `Kode: ${s.loc_code || '-'} | Alias: ${s.alias || '-'} | Kota: ${s.city || '-'}`,
+			searchTerms: `${s.loc_name} ${s.contact_person || ''} ${s.alias || ''} ${s.city || ''}`
 		}))
 	]);
 
@@ -152,13 +203,54 @@
 
 		<div class="space-y-6">
 			<!-- Section 1: Informasi Header PR -->
-			<div class="p-6 rounded-2xl bg-surface-container-low border border-slate-200/60 dark:border-slate-800/60 shadow-xs space-y-4">
+			<div class="p-6 rounded-2xl bg-surface-container-low border border-slate-200/60 dark:border-slate-800/60 shadow-xs space-y-5">
+				<!-- PR Number Banner (Auto Generated) -->
+				<div class="p-4 rounded-xl bg-amber-500/10 border border-amber-500/25 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+					<div class="flex items-center gap-3">
+						<div class="w-10 h-10 rounded-xl bg-amber-500/20 text-amber-700 dark:text-amber-400 flex items-center justify-center shrink-0">
+							<span class="material-symbols-outlined text-[22px]">tag</span>
+						</div>
+						<div>
+							<div class="flex items-center gap-2">
+								<span class="text-xs font-bold text-on-surface uppercase tracking-wider">Nomor Purchase Request (PR)</span>
+								<span class="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider {isPrNumberManual ? 'bg-amber-200 text-amber-900 dark:bg-amber-900/50 dark:text-amber-200' : 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-300'}">
+									{isPrNumberManual ? 'Manual Edit' : 'Auto Generated'}
+								</span>
+							</div>
+							<p class="text-[11px] text-on-surface-variant font-medium mt-0.5">
+								Format: <code class="font-mono text-amber-700 dark:text-amber-300 font-bold">[Counter]/[Tipe]/[Kategori-Dept]/[MM]/[YYYY]</code>
+							</p>
+						</div>
+					</div>
+					<div class="flex items-center gap-2 w-full sm:w-auto">
+						<input
+							type="text"
+							name="prNumber"
+							bind:value={prNumber}
+							oninput={() => { isPrNumberManual = true; }}
+							placeholder="e.g. 123/BO/T-MTC/09/2026"
+							class="w-full sm:w-72 bg-surface border border-slate-300 dark:border-slate-700 text-on-surface font-mono font-black text-sm rounded-xl px-3.5 py-2 focus:ring-2 focus:ring-amber-500 outline-none shadow-xs"
+						/>
+						{#if isPrNumberManual}
+							<button
+								type="button"
+								onclick={() => { isPrNumberManual = false; updatePrNumber(); }}
+								class="px-2.5 py-2 rounded-xl bg-slate-200 hover:bg-slate-300 dark:bg-slate-700 dark:hover:bg-slate-600 text-on-surface text-xs font-bold transition-colors shrink-0 flex items-center gap-1 cursor-pointer"
+								title="Reset ke format penomoran otomatis"
+							>
+								<span class="material-symbols-outlined text-[16px]">restart_alt</span>
+								<span class="text-[11px]">Auto</span>
+							</button>
+						{/if}
+					</div>
+				</div>
+
 				<h3 class="text-sm font-bold text-on-surface uppercase tracking-wider border-b border-slate-200/60 dark:border-slate-800/60 pb-3 flex items-center gap-2">
 					<span class="material-symbols-outlined text-amber-600">assignment</span>
 					<span>Informasi Permintaan</span>
 				</h3>
 
-				<div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+				<div class="grid grid-cols-1 sm:grid-cols-4 gap-4">
 					<div>
 						<label class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-1.5">
 							Tanggal Pengajuan <span class="text-rose-500">*</span>
@@ -182,6 +274,23 @@
 							bind:value={requiredDate}
 							class="w-full bg-surface border border-slate-200 dark:border-slate-700 text-on-surface rounded-xl px-4 py-2.5 text-xs font-medium focus:ring-2 focus:ring-amber-500 outline-none"
 						/>
+					</div>
+
+					<div>
+						<label class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-1.5">
+							Tipe Order <span class="text-rose-500">*</span>
+						</label>
+						<select
+							name="orderType"
+							bind:value={orderType}
+							required
+							class="w-full bg-surface border border-slate-200 dark:border-slate-700 text-on-surface rounded-xl px-4 py-2.5 text-xs font-bold focus:ring-2 focus:ring-amber-500 outline-none cursor-pointer"
+						>
+							<option value="RO">RO - Reguler Order (Rutin)</option>
+							<option value="BO">BO - By Order (Pesanan Khusus)</option>
+							<option value="ES">ES - Emergency Stock (Darurat)</option>
+							<option value="IO">IO - Internal Order (Antar Unit)</option>
+						</select>
 					</div>
 
 					<div>
@@ -216,14 +325,15 @@
 
 					<div>
 						<label class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-1.5">
-							Departemen
+							Departemen <span class="text-rose-500">*</span>
 						</label>
-						<input
-							type="text"
+						<SearchableSelect
 							name="department"
+							options={deptOpts}
 							bind:value={department}
-							placeholder="Workshop, IT, Logistik"
-							class="w-full bg-surface border border-slate-200 dark:border-slate-700 text-on-surface rounded-xl px-4 py-2.5 text-xs font-normal focus:ring-2 focus:ring-amber-500 outline-none"
+							placeholder="-- Pilih Departemen --"
+							required
+							btnClass="bg-surface border border-slate-200 dark:border-slate-700 text-xs font-normal"
 						/>
 					</div>
 
@@ -248,11 +358,37 @@
 							name="siteId"
 							options={siteOpts}
 							bind:value={siteId}
-							placeholder="-- Semua Site --"
+							placeholder="-- Pilih Site Tujuan --"
 							btnClass="bg-surface border border-slate-200 dark:border-slate-700 text-xs font-normal"
 						/>
 					</div>
 				</div>
+
+				<!-- Info Card PIC Site Tujuan jika dipilih -->
+				{#if selectedSite}
+					<div class="p-3.5 rounded-xl bg-amber-500/5 dark:bg-amber-950/20 border border-amber-500/20 flex items-start gap-3 text-xs">
+						<span class="material-symbols-outlined text-amber-600 dark:text-amber-400 mt-0.5 text-lg">location_on</span>
+						<div class="flex-1 space-y-1">
+							<div class="flex items-center gap-2 font-bold text-on-surface">
+								<span>Site: {selectedSite.loc_name}</span>
+								{#if selectedSite.alias}
+									<span class="px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-700 dark:text-amber-300 font-mono text-[10px] font-bold">Alias: {selectedSite.alias}</span>
+								{/if}
+								{#if selectedSite.loc_code}
+									<span class="text-on-surface-variant font-mono text-[10px]">({selectedSite.loc_code})</span>
+								{/if}
+							</div>
+							<div class="text-on-surface-variant grid grid-cols-1 sm:grid-cols-3 gap-x-4 gap-y-1 text-[11px]">
+								<div><span class="font-semibold text-on-surface">PIC Site:</span> {selectedSite.contact_person || 'Belum diatur'}</div>
+								<div><span class="font-semibold text-on-surface">No. Telepon / HP:</span> {selectedSite.phone || '-'}</div>
+								<div><span class="font-semibold text-on-surface">Kota:</span> {selectedSite.city || '-'}</div>
+								{#if selectedSite.address_1}
+									<div class="sm:col-span-3 text-[11px]"><span class="font-semibold text-on-surface">Alamat Pengiriman:</span> {selectedSite.address_1}</div>
+								{/if}
+							</div>
+						</div>
+					</div>
+				{/if}
 
 				<div>
 					<label class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-1.5">

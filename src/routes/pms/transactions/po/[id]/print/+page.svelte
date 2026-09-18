@@ -219,6 +219,9 @@
 						<div class="text-[10px] text-slate-700">
 							Tanggal PO: <strong>{formatDate(data.po.date)}</strong>
 						</div>
+						<div class="text-[10px] text-slate-700">
+							Term Pembayaran: <strong class="text-amber-900 font-bold">{data.po.paymentTerm || '30 Hari'}</strong>
+						</div>
 						{#if data.po.dueDate}
 							<div class="text-[10px] text-slate-700">
 								Tenggat: <strong class="text-rose-700">{formatDate(data.po.dueDate)}</strong>
@@ -252,12 +255,20 @@
 							Pengiriman & Referensi Proyek
 						</h3>
 						<div class="grid grid-cols-2 gap-y-1 gap-x-2 text-[10px]">
-							<span class="text-slate-500">Proyek / Site:</span>
+							<span class="text-slate-500">Proyek / Alias:</span>
 							<span class="font-bold text-slate-900 text-right truncate">
-								{[data.po.projectName, data.po.siteName].filter(Boolean).join(' • ') || 'BCS General'}
+								{data.po.projectName || 'BCS General'}
+								{#if data.po.projectAlias}
+									<span class="font-mono text-[9px] text-amber-700">({data.po.projectAlias})</span>
+								{/if}
 							</span>
 
-							<span class="text-slate-500">No. Referensi / Penawaran:</span>
+							<span class="text-slate-500">Site Penerima:</span>
+							<span class="font-bold text-slate-900 text-right truncate">
+								{data.po.siteName ? `${data.po.siteName}${data.po.sitePic ? ' - ' + data.po.sitePic : ''}` : 'Semua Site'}
+							</span>
+
+							<span class="text-slate-500">No. Referensi:</span>
 							<span class="font-bold text-slate-900 text-right truncate">
 								{data.po.refNo || '-'}
 							</span>

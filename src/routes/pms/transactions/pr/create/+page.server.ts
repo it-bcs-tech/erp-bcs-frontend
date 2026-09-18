@@ -2,17 +2,43 @@ import type { PageServerLoad, Actions } from './$types';
 import sql from '$lib/server/db';
 import { fail, redirect } from '@sveltejs/kit';
 import { formatAuditUser } from '$lib/server/auth';
+import { generatePrNumber, getCategoryCode } from '$lib/utils/pmsNumbering';
 
 export const load: PageServerLoad = async ({ url }) => {
 	try {
-		const projects = await sql`SELECT id, project_code, project_name FROM master.m_project WHERE is_active = true ORDER BY project_name`;
-		const sites = await sql`SELECT id, loc_code, loc_name FROM master.m_lokasi ORDER BY loc_code`;
+		const projects = await sql`
+			SELECT id, project_code, project_name, alias, cat_code, category 
+			FROM master.m_project 
+			WHERE is_active = true 
+			ORDER BY project_name
+		`;
+		const sites = await sql`
+			SELECT id, loc_code, loc_name, alias, contact_person, phone, address_1, city 
+			FROM master.m_lokasi 
+			ORDER BY loc_name
+		`;
+		const departments = await sql`
+			SELECT id, dept_code, dept_name, alias 
+			FROM master.m_dept 
+			WHERE active = 'Y' 
+			ORDER BY dept_name ASC
+		`;
 		const materials = await sql`
 			SELECT id, material_code, name, spec, brand, part_no, uom, stock, standard_price 
 			FROM master.m_materials 
 			WHERE is_active = true 
 			ORDER BY name
 		`;
+
+		// Hitung counter urut untuk bulan berjalan
+		const now = new Date();
+		const [seqRow] = await sql`
+			SELECT COUNT(*) as count 
+			FROM procurement.purchase_request 
+			WHERE EXTRACT(YEAR FROM date) = ${now.getFullYear()} 
+			  AND EXTRACT(MONTH FROM date) = ${now.getMonth() + 1}
+		`;
+		const nextCounter = parseInt(seqRow?.count || '0') + 1;
 
 		const fromSs = (url.searchParams.get('from_ss') || url.searchParams.get('from_dn'))?.trim();
 		let prefill: any = null;
@@ -89,28 +115,32 @@ export const load: PageServerLoad = async ({ url }) => {
 		return {
 			projects,
 			sites,
+			departments,
 			materials,
+			nextCounter,
 			prefill
 		};
 	} catch (err: any) {
 		console.error('Error loading PR create dependencies:', err);
-		return { projects: [], sites: [], materials: [], prefill: null };
+		return { projects: [], sites: [], departments: [], materials: [], nextCounter: 1, prefill: null };
 	}
 };
 
 export const actions: Actions = {
 	create: async ({ request, locals }) => {
 		const formData = await request.formData();
-		const date = formData.get('date') as string || new Date().toISOString().split('T')[0];
-		const requiredDate = formData.get('requiredDate') as string || null;
-		const department = (formData.get('department') as string || 'General').trim();
-		const requestedBy = (formData.get('requestedBy') as string || '').trim();
+		const date = (formData.get('date') as string) || new Date().toISOString().split('T')[0];
+		const requiredDate = (formData.get('requiredDate') as string) || null;
+		const orderType = ((formData.get('orderType') as string) || 'RO').trim().toUpperCase();
+		const department = ((formData.get('department') as string) || 'General').trim();
+		const requestedBy = ((formData.get('requestedBy') as string) || '').trim();
 		const createdBy = locals.user?.payrollId || locals.user?.name || 'SYSTEM';
 		const projectId = formData.get('projectId') ? parseInt(formData.get('projectId') as string) : null;
 		const siteId = formData.get('siteId') ? parseInt(formData.get('siteId') as string) : null;
-		const category = (formData.get('category') as string || 'SUPPORTING').trim();
-		const notes = (formData.get('notes') as string || '').trim();
-		const itemsRaw = formData.get('items') as string || '[]';
+		const category = ((formData.get('category') as string) || 'SUPPORTING').trim();
+		const notes = ((formData.get('notes') as string) || '').trim();
+		let prNumber = ((formData.get('prNumber') as string) || '').trim();
+		const itemsRaw = (formData.get('items') as string) || '[]';
 
 		if (!requestedBy) {
 			return fail(400, { success: false, message: 'Nama Pemohon wajib diisi!' });
@@ -128,16 +158,43 @@ export const actions: Actions = {
 		}
 
 		try {
-			// Auto Generate PR Number: PR-YYMM-XXXX
-			const now = new Date();
-			const yymm = `${now.getFullYear().toString().slice(-2)}${(now.getMonth() + 1).toString().padStart(2, '0')}`;
-			const [seqRow] = await sql`SELECT COUNT(*) as count FROM procurement.purchase_request`;
-			const seq = (parseInt(seqRow?.count || '0') + 1).toString().padStart(4, '0');
-			const prNumber = `PR-${yymm}-${seq}`;
+			// Auto Generate PR Number jika kosong: [Counter]/[OrderType]/[Cat-Dept]/[MM]/[YYYY]
+			if (!prNumber) {
+				const prDate = new Date(date);
+				const [seqRow] = await sql`
+					SELECT COUNT(*) as count 
+					FROM procurement.purchase_request 
+					WHERE EXTRACT(YEAR FROM date) = ${prDate.getFullYear()} 
+					  AND EXTRACT(MONTH FROM date) = ${prDate.getMonth() + 1}
+				`;
+				const seq = parseInt(seqRow?.count || '0') + 1;
+
+				// Cari kategori code dari project jika ada
+				let projectCatCode: string | null = null;
+				if (projectId) {
+					const [proj] = await sql`SELECT cat_code, category FROM master.m_project WHERE id = ${projectId}`;
+					if (proj) projectCatCode = proj.cat_code || getCategoryCode(proj.category);
+				}
+				const catCode = projectCatCode || getCategoryCode(category);
+
+				// Cari dept alias
+				let deptAlias = 'MTC';
+				const [deptRow] = await sql`SELECT alias FROM master.m_dept WHERE dept_name = ${department} OR dept_code = ${department} LIMIT 1`;
+				if (deptRow?.alias) deptAlias = deptRow.alias;
+
+				prNumber = generatePrNumber({
+					counter: seq,
+					orderType,
+					categoryCode: catCode,
+					deptCode: deptAlias,
+					date: prDate
+				});
+			}
 
 			const [pr] = await sql`
 				INSERT INTO procurement.purchase_request (
 					pr_number,
+					order_type,
 					date,
 					department,
 					requested_by,
@@ -150,6 +207,7 @@ export const actions: Actions = {
 					notes
 				) VALUES (
 					${prNumber},
+					${orderType},
 					${date},
 					${department},
 					${requestedBy},

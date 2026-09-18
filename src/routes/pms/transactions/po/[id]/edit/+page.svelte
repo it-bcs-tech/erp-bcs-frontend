@@ -2,6 +2,7 @@
 	import { enhance } from '$app/forms';
 	import { formatRupiah, formatNumber } from '$lib/utils/pms';
 	import SearchableSelect from '$lib/components/SearchableSelect.svelte';
+	import { PO_PAYMENT_TERMS } from '$lib/utils/pmsNumbering';
 
 	let { data, form } = $props();
 	let isSubmitting = $state(false);
@@ -15,25 +16,20 @@
 	let shipmentLocation = $state(data.po.shipmentLocation || '');
 	let refNo = $state(data.po.refNo || '');
 	let dueDate = $state(data.po.dueDate || '');
-	let paymentTerm = $state('30 Hari');
+	let paymentTerm = $state(data.po.paymentTerm || '30 Hari');
 	let currency = $state(data.po.currency || 'IDR');
 	let discountPercent = $state(parseFloat(data.po.discountPercent) || 0);
 	let vatPercent = $state(parseFloat(data.po.vatPercent) || 11);
 	let notes = $state(data.po.notes || '');
 	let wrsNotes = $state(data.po.wrsNotes || '');
 
-	const paymentTermOpts = [
-		{ value: 'Cash', days: 0, label: 'Cash / Tunai' },
-		{ value: '7 Hari', days: 7, label: '7 Hari' },
-		{ value: '14 Hari', days: 14, label: '14 Hari' },
-		{ value: '30 Hari', days: 30, label: '30 Hari' },
-		{ value: '60 Hari', days: 60, label: '60 Hari' },
-		{ value: '90 Hari', days: 90, label: '90 Hari' }
-	];
+	const paymentTermOpts = PO_PAYMENT_TERMS;
+
+	let selectedSite = $derived(data.sites?.find((s: any) => String(s.id) === String(siteId)));
 
 	function updateDueDateFromTerm(term: string, baseDate: string) {
 		if (!baseDate) return;
-		const opt = paymentTermOpts.find(o => o.value === term);
+		const opt = paymentTermOpts.find(o => o.value === term || o.code === term);
 		const days = opt ? opt.days : 0;
 		const d = new Date(baseDate);
 		d.setDate(d.getDate() + days);
@@ -73,16 +69,17 @@
 		...data.projects.map((p: any) => ({
 			value: p.id,
 			label: p.project_name,
-			sublabel: p.project_code
+			sublabel: `Kode: ${p.project_code || '-'} | Alias: ${p.alias || '-'}`
 		}))
 	]);
 
 	let siteOpts = $derived([
-		{ value: '', label: '-- Semua Site --' },
+		{ value: '', label: '-- Pilih Lokasi Site Penerima --' },
 		...data.sites.map((s: any) => ({
 			value: s.id,
-			label: s.loc_name,
-			sublabel: s.loc_code
+			label: s.contact_person ? `${s.loc_name} - ${s.contact_person}` : `${s.loc_name} - (Tanpa PIC)`,
+			sublabel: `Kode: ${s.loc_code || '-'} | Alias: ${s.alias || '-'} | Kota: ${s.city || '-'}`,
+			searchTerms: `${s.loc_name} ${s.contact_person || ''} ${s.alias || ''} ${s.city || ''}`
 		}))
 	]);
 
@@ -301,7 +298,7 @@
 							name="siteId"
 							options={siteOpts}
 							bind:value={siteId}
-							placeholder="-- Semua Site --"
+							placeholder="-- Pilih Site Penerima --"
 							btnClass="bg-surface border border-slate-200 dark:border-slate-700 text-xs font-normal"
 						/>
 					</div>
@@ -321,13 +318,14 @@
 
 					<div>
 						<label class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-1.5">
-							Jatuh Tempo Pembayaran
+							Term Pembayaran (Payment Term)
 						</label>
 						<div class="grid grid-cols-2 gap-2">
 							<select
+								name="paymentTerm"
 								bind:value={paymentTerm}
 								onchange={(e) => onPaymentTermChange((e.target as HTMLSelectElement).value)}
-								class="w-full bg-surface border border-slate-200 dark:border-slate-700 text-on-surface rounded-xl px-3 py-2.5 text-xs font-semibold focus:ring-2 focus:ring-amber-500 outline-none cursor-pointer"
+								class="w-full bg-surface border border-slate-200 dark:border-slate-700 text-on-surface rounded-xl px-2.5 py-2.5 text-xs font-bold focus:ring-2 focus:ring-amber-500 outline-none cursor-pointer"
 							>
 								{#each paymentTermOpts as t}
 									<option value={t.value}>{t.label}</option>
@@ -337,11 +335,38 @@
 								type="date"
 								name="dueDate"
 								bind:value={dueDate}
-								class="w-full bg-surface border border-slate-200 dark:border-slate-700 text-on-surface rounded-xl px-4 py-2.5 text-xs font-medium focus:ring-2 focus:ring-amber-500 outline-none"
+								title="Jatuh Tempo Pembayaran"
+								class="w-full bg-surface border border-slate-200 dark:border-slate-700 text-on-surface rounded-xl px-3 py-2.5 text-xs font-medium focus:ring-2 focus:ring-amber-500 outline-none"
 							/>
 						</div>
 					</div>
 				</div>
+
+				<!-- Info Card PIC Site Penerima jika dipilih -->
+				{#if selectedSite}
+					<div class="p-3.5 rounded-xl bg-amber-500/5 dark:bg-amber-950/20 border border-amber-500/20 flex items-start gap-3 text-xs">
+						<span class="material-symbols-outlined text-amber-600 dark:text-amber-400 mt-0.5 text-lg">location_on</span>
+						<div class="flex-1 space-y-1">
+							<div class="flex items-center gap-2 font-bold text-on-surface">
+								<span>Site Penerima: {selectedSite.loc_name}</span>
+								{#if selectedSite.alias}
+									<span class="px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-700 dark:text-amber-300 font-mono text-[10px] font-bold">Alias: {selectedSite.alias}</span>
+								{/if}
+								{#if selectedSite.loc_code}
+									<span class="text-on-surface-variant font-mono text-[10px]">({selectedSite.loc_code})</span>
+								{/if}
+							</div>
+							<div class="text-on-surface-variant grid grid-cols-1 sm:grid-cols-3 gap-x-4 gap-y-1 text-[11px]">
+								<div><span class="font-semibold text-on-surface">PIC Penerima:</span> {selectedSite.contact_person || 'Belum diatur'}</div>
+								<div><span class="font-semibold text-on-surface">No. Telepon / HP:</span> {selectedSite.phone || '-'}</div>
+								<div><span class="font-semibold text-on-surface">Kota:</span> {selectedSite.city || '-'}</div>
+								{#if selectedSite.address_1}
+									<div class="sm:col-span-3 text-[11px]"><span class="font-semibold text-on-surface">Alamat Pengiriman:</span> {selectedSite.address_1}</div>
+								{/if}
+							</div>
+						</div>
+					</div>
+				{/if}
 
 				<div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
 					<div>

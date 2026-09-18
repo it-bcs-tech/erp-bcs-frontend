@@ -6,8 +6,10 @@
 	let { data, form } = $props();
 	let isSubmitting = $state(false);
 
+	let prNumber = $state(data.pr.prNumber || '');
 	let date = $state(data.pr.date || new Date().toISOString().split('T')[0]);
 	let requiredDate = $state(data.pr.requiredDate || '');
+	let orderType = $state(data.pr.orderType || 'RO');
 	let department = $state(data.pr.department || 'General');
 	let requestedBy = $state(data.pr.requestedBy || '');
 	let projectId = $state(data.pr.projectId ? data.pr.projectId.toString() : '');
@@ -15,16 +17,17 @@
 	let category = $state(data.pr.category || 'SUPPORTING');
 	let notes = $state(data.pr.notes || '');
 
-	const departmentOpts = [
-		{ value: 'General', label: 'General / Umum' },
-		{ value: 'Workshop / Maintenance', label: 'Workshop / Maintenance' },
-		{ value: 'Operations', label: 'Operations' },
-		{ value: 'Logistics', label: 'Logistics' },
-		{ value: 'HSE', label: 'HSE' },
-		{ value: 'HRGA', label: 'HRGA' },
-		{ value: 'IT', label: 'IT' },
-		{ value: 'Finance', label: 'Finance' }
-	];
+	let selectedSite = $derived(data.sites?.find((s: any) => String(s.id) === String(siteId)));
+
+	let deptOpts = $derived([
+		{ value: '', label: '-- Pilih Departemen --' },
+		...(data.departments || []).map((d: any) => ({
+			value: d.dept_name,
+			label: d.dept_name,
+			sublabel: `Kode: ${d.dept_code} | Alias: ${d.alias || '-'}`,
+			searchTerms: `${d.dept_name} ${d.dept_code} ${d.alias || ''}`
+		}))
+	]);
 
 	const categoryOpts = [
 		{ value: 'PACKAGING', label: 'Packaging' },
@@ -38,16 +41,17 @@
 		...data.projects.map((p: any) => ({
 			value: p.id,
 			label: p.project_name,
-			sublabel: p.project_code
+			sublabel: `Kode: ${p.project_code || '-'} | Alias: ${p.alias || '-'}`
 		}))
 	]);
 
 	let siteOpts = $derived([
-		{ value: '', label: '-- Semua Site --' },
+		{ value: '', label: '-- Pilih Lokasi Site Tujuan --' },
 		...data.sites.map((s: any) => ({
 			value: s.id,
-			label: s.loc_name,
-			sublabel: s.loc_code
+			label: s.contact_person ? `${s.loc_name} - ${s.contact_person}` : `${s.loc_name} - (Tanpa PIC)`,
+			sublabel: `Kode: ${s.loc_code || '-'} | Alias: ${s.alias || '-'} | Kota: ${s.city || '-'}`,
+			searchTerms: `${s.loc_name} ${s.contact_person || ''} ${s.alias || ''} ${s.city || ''}`
 		}))
 	]);
 
@@ -161,7 +165,7 @@
 					<span>Informasi Dasar PR</span>
 				</h3>
 
-				<div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+				<div class="grid grid-cols-1 sm:grid-cols-4 gap-4">
 					<div>
 						<label class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-1.5">
 							Tanggal Pengajuan <span class="text-rose-500">*</span>
@@ -189,6 +193,23 @@
 
 					<div>
 						<label class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-1.5">
+							Tipe Order <span class="text-rose-500">*</span>
+						</label>
+						<select
+							name="orderType"
+							bind:value={orderType}
+							required
+							class="w-full bg-surface border border-slate-200 dark:border-slate-700 text-on-surface rounded-xl px-4 py-2.5 text-xs font-bold focus:ring-2 focus:ring-amber-500 outline-none cursor-pointer"
+						>
+							<option value="RO">RO - Reguler Order (Rutin)</option>
+							<option value="BO">BO - By Order (Pesanan Khusus)</option>
+							<option value="ES">ES - Emergency Stock (Darurat)</option>
+							<option value="IO">IO - Internal Order (Antar Unit)</option>
+						</select>
+					</div>
+
+					<div>
+						<label class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-1.5">
 							Kategori Pengadaan <span class="text-rose-500">*</span>
 						</label>
 						<SearchableSelect
@@ -202,7 +223,7 @@
 					</div>
 				</div>
 
-				<div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+				<div class="grid grid-cols-1 sm:grid-cols-4 gap-4">
 					<div>
 						<label class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-1.5">
 							Nama Pemohon <span class="text-rose-500">*</span>
@@ -223,16 +244,14 @@
 						</label>
 						<SearchableSelect
 							name="department"
-							options={departmentOpts}
+							options={deptOpts}
 							bind:value={department}
 							placeholder="-- Pilih Departemen --"
 							required
 							btnClass="bg-surface border border-slate-200 dark:border-slate-700 text-xs font-normal"
 						/>
 					</div>
-				</div>
 
-				<div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
 					<div>
 						<label class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-1.5">
 							Alokasi Project
@@ -254,11 +273,37 @@
 							name="siteId"
 							options={siteOpts}
 							bind:value={siteId}
-							placeholder="-- Semua Site --"
+							placeholder="-- Pilih Site Tujuan --"
 							btnClass="bg-surface border border-slate-200 dark:border-slate-700 text-xs font-normal"
 						/>
 					</div>
 				</div>
+
+				<!-- Info Card PIC Site Tujuan jika dipilih -->
+				{#if selectedSite}
+					<div class="p-3.5 rounded-xl bg-amber-500/5 dark:bg-amber-950/20 border border-amber-500/20 flex items-start gap-3 text-xs">
+						<span class="material-symbols-outlined text-amber-600 dark:text-amber-400 mt-0.5 text-lg">location_on</span>
+						<div class="flex-1 space-y-1">
+							<div class="flex items-center gap-2 font-bold text-on-surface">
+								<span>Site: {selectedSite.loc_name}</span>
+								{#if selectedSite.alias}
+									<span class="px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-700 dark:text-amber-300 font-mono text-[10px] font-bold">Alias: {selectedSite.alias}</span>
+								{/if}
+								{#if selectedSite.loc_code}
+									<span class="text-on-surface-variant font-mono text-[10px]">({selectedSite.loc_code})</span>
+								{/if}
+							</div>
+							<div class="text-on-surface-variant grid grid-cols-1 sm:grid-cols-3 gap-x-4 gap-y-1 text-[11px]">
+								<div><span class="font-semibold text-on-surface">PIC Site:</span> {selectedSite.contact_person || 'Belum diatur'}</div>
+								<div><span class="font-semibold text-on-surface">No. Telepon / HP:</span> {selectedSite.phone || '-'}</div>
+								<div><span class="font-semibold text-on-surface">Kota:</span> {selectedSite.city || '-'}</div>
+								{#if selectedSite.address_1}
+									<div class="sm:col-span-3 text-[11px]"><span class="font-semibold text-on-surface">Alamat Pengiriman:</span> {selectedSite.address_1}</div>
+								{/if}
+							</div>
+						</div>
+					</div>
+				{/if}
 
 				<div>
 					<label class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-1.5">

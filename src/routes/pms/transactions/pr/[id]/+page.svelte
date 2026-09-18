@@ -133,6 +133,17 @@
 					<dd class="font-semibold text-on-surface">{data.pr.department || 'General'}</dd>
 				</div>
 				<div class="py-2 flex justify-between">
+					<dt class="text-on-surface-variant font-medium">Tipe Order:</dt>
+					<dd class="font-bold text-amber-700 dark:text-amber-300 font-mono">
+						{data.pr.orderType || 'RO'}
+						{#if data.pr.orderType === 'BO'}(By Order)
+						{:else if data.pr.orderType === 'RO'}(Reguler Order)
+						{:else if data.pr.orderType === 'ES'}(Emergency Stock)
+						{:else if data.pr.orderType === 'IO'}(Internal Order)
+						{/if}
+					</dd>
+				</div>
+				<div class="py-2 flex justify-between">
 					<dt class="text-on-surface-variant font-medium">Dibuat Oleh:</dt>
 					<dd class="text-right">
 						<span class="font-semibold text-on-surface">{data.pr.createdByName || data.pr.createdBy}</span>
@@ -153,11 +164,25 @@
 			<dl class="divide-y divide-slate-200/60 dark:divide-slate-800/60 text-xs">
 				<div class="py-2 flex justify-between">
 					<dt class="text-on-surface-variant font-medium">Project:</dt>
-					<dd class="font-bold text-on-surface">{data.pr.projectName || '-'}</dd>
+					<dd class="font-bold text-on-surface">
+						{data.pr.projectName || '-'}
+						{#if data.pr.projectAlias}
+							<span class="ml-1 text-[10px] font-mono px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-600">{data.pr.projectAlias}</span>
+						{/if}
+					</dd>
 				</div>
 				<div class="py-2 flex justify-between">
 					<dt class="text-on-surface-variant font-medium">Site Tujuan:</dt>
-					<dd class="font-semibold text-on-surface">{data.pr.siteName ? `[${data.pr.siteCode}] ${data.pr.siteName}` : 'Semua Site'}</dd>
+					<dd class="font-semibold text-on-surface text-right">
+						{#if data.pr.siteName}
+							<div>{data.pr.siteName} {data.pr.sitePic ? `- ${data.pr.sitePic}` : ''}</div>
+							{#if data.pr.sitePhone}
+								<div class="text-[10px] text-on-surface-variant font-mono">{data.pr.sitePhone}</div>
+							{/if}
+						{:else}
+							Semua Site
+						{/if}
+					</dd>
 				</div>
 				<div class="py-2 flex justify-between">
 					<dt class="text-on-surface-variant font-medium">Tgl Dibutuhkan:</dt>

@@ -187,6 +187,9 @@
 							No: <span class="text-amber-800 font-extrabold">{data.pr.prNumber}</span>
 						</div>
 						<div class="text-[10px] text-slate-700">
+							Tipe Order: <strong class="text-amber-900 font-mono font-black">{data.pr.orderType || 'RO'}</strong>
+						</div>
+						<div class="text-[10px] text-slate-700">
 							Tanggal PR: <strong>{formatDate(data.pr.date)}</strong>
 						</div>
 						<div class="text-[10px] text-slate-700">
@@ -226,11 +229,14 @@
 							<span class="text-slate-500">Proyek:</span>
 							<span class="font-bold text-slate-900 text-right truncate">
 								{data.pr.projectName || 'General Operations'}
+								{#if data.pr.projectAlias}
+									<span class="font-mono text-[9px] text-amber-700">({data.pr.projectAlias})</span>
+								{/if}
 							</span>
 
-							<span class="text-slate-500">Site / Lokasi:</span>
+							<span class="text-slate-500">Site / PIC:</span>
 							<span class="font-bold text-slate-900 text-right truncate">
-								{data.pr.siteName || 'Pool Cilegon'}
+								{data.pr.siteName ? `${data.pr.siteName}${data.pr.sitePic ? ' - ' + data.pr.sitePic : ''}` : 'Pool Cilegon'}
 							</span>
 
 							<span class="text-slate-500">Status PR:</span>

@@ -13,6 +13,7 @@ export const load: PageServerLoad = async ({ params }) => {
 			SELECT 
 				pr.id,
 				pr.pr_number as "prNumber",
+				COALESCE(pr.order_type, 'RO') as "orderType",
 				to_char(pr.date, 'YYYY-MM-DD') as date,
 				to_char(pr.required_date, 'YYYY-MM-DD') as "requiredDate",
 				pr.department,
@@ -52,8 +53,23 @@ export const load: PageServerLoad = async ({ params }) => {
 			ORDER BY prl.id ASC
 		`;
 
-		const projects = await sql`SELECT id, project_code, project_name FROM master.m_project WHERE is_active = true ORDER BY project_name`;
-		const sites = await sql`SELECT id, loc_code, loc_name FROM master.m_lokasi ORDER BY loc_code`;
+		const projects = await sql`
+			SELECT id, project_code, project_name, alias, cat_code, category 
+			FROM master.m_project 
+			WHERE is_active = true 
+			ORDER BY project_name
+		`;
+		const sites = await sql`
+			SELECT id, loc_code, loc_name, alias, contact_person, phone, address_1, city 
+			FROM master.m_lokasi 
+			ORDER BY loc_name
+		`;
+		const departments = await sql`
+			SELECT id, dept_code, dept_name, alias 
+			FROM master.m_dept 
+			WHERE active = 'Y' 
+			ORDER BY dept_name ASC
+		`;
 		const materials = await sql`
 			SELECT id, material_code, name, spec, brand, part_no, uom, standard_price, stock 
 			FROM master.m_materials 
@@ -66,6 +82,7 @@ export const load: PageServerLoad = async ({ params }) => {
 			items,
 			projects,
 			sites,
+			departments,
 			materials
 		};
 	} catch (err: any) {
@@ -85,6 +102,8 @@ export const actions: Actions = {
 		const formData = await request.formData();
 		const date = (formData.get('date') as string) || new Date().toISOString().split('T')[0];
 		const requiredDate = (formData.get('requiredDate') as string) || null;
+		const orderType = ((formData.get('orderType') as string) || 'RO').trim().toUpperCase();
+		const prNumber = ((formData.get('prNumber') as string) || '').trim();
 		const department = ((formData.get('department') as string) || 'General').trim();
 		const requestedBy = ((formData.get('requestedBy') as string) || '').trim();
 		const projectId = formData.get('projectId') ? parseInt(formData.get('projectId') as string) : null;
@@ -121,6 +140,8 @@ export const actions: Actions = {
 			await sql`
 				UPDATE procurement.purchase_request
 				SET 
+					${prNumber ? sql`pr_number = ${prNumber},` : sql``}
+					order_type = ${orderType},
 					date = ${date},
 					required_date = ${requiredDate},
 					department = ${department},

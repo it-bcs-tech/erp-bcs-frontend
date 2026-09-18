@@ -135,6 +135,10 @@
 					</dd>
 				</div>
 				<div class="py-2 flex justify-between">
+					<dt class="text-on-surface-variant font-medium">Term Pembayaran:</dt>
+					<dd class="font-bold font-mono text-amber-700 dark:text-amber-300">{data.po.paymentTerm || '30 Hari'}</dd>
+				</div>
+				<div class="py-2 flex justify-between">
 					<dt class="text-on-surface-variant font-medium">Jatuh Tempo:</dt>
 					<dd class="font-mono font-bold text-on-surface">{data.po.dueDate ? formatDateId(data.po.dueDate) : '-'}</dd>
 				</div>
@@ -163,11 +167,25 @@
 			<dl class="divide-y divide-slate-200/60 dark:divide-slate-800/60 text-xs">
 				<div class="py-2 flex justify-between">
 					<dt class="text-on-surface-variant font-medium">Project:</dt>
-					<dd class="font-bold text-on-surface">{data.po.projectName || '-'}</dd>
+					<dd class="font-bold text-on-surface">
+						{data.po.projectName || '-'}
+						{#if data.po.projectAlias}
+							<span class="ml-1 text-[10px] font-mono px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-600">{data.po.projectAlias}</span>
+						{/if}
+					</dd>
 				</div>
 				<div class="py-2 flex justify-between">
 					<dt class="text-on-surface-variant font-medium">Site Penerima:</dt>
-					<dd class="font-semibold text-on-surface">{data.po.siteName || 'Semua Site'}</dd>
+					<dd class="font-semibold text-on-surface text-right">
+						{#if data.po.siteName}
+							<div>{data.po.siteName} {data.po.sitePic ? `- ${data.po.sitePic}` : ''}</div>
+							{#if data.po.sitePhone}
+								<div class="text-[10px] text-on-surface-variant font-mono">{data.po.sitePhone}</div>
+							{/if}
+						{:else}
+							Semua Site
+						{/if}
+					</dd>
 				</div>
 				<div class="py-2 flex justify-between">
 					<dt class="text-on-surface-variant font-medium">Tgl Pengiriman:</dt>
