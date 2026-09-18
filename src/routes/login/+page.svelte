@@ -32,7 +32,7 @@
 		<!-- Branding Logo Header -->
 		<div class="relative z-10 bg-white/95 backdrop-blur-md p-4 rounded-2xl shadow-lg border border-white/20 self-start max-w-[220px] transition-all hover:scale-[1.02] hover:shadow-xl">
 			<img 
-				src="https://bcsgroup.co.id/assets/images/uploads/BCS%20Logistics%20HD.png" 
+				src="https://bcs-logistics.co.id/assets/images/logoo.png" 
 				alt="PT BCS Logistics Logo" 
 				class="w-full h-auto object-contain"
 			/>
@@ -81,8 +81,8 @@
 		<!-- Footer -->
 		<div class="relative z-10 flex items-center justify-between text-xs text-[#d1c3ca]/70 border-t border-white/10 pt-6">
 			<p>© 2026 PT Buana Centra Swakarsa. All rights reserved.</p>
-			<a href="https://bcsgroup.co.id" target="_blank" rel="noopener noreferrer" class="hover:text-white transition-colors font-medium flex items-center gap-1">
-				bcsgroup.co.id
+			<a href="https://bcs-logistics.co.id" target="_blank" rel="noopener noreferrer" class="hover:text-white transition-colors font-medium flex items-center gap-1">
+				bcs-logistics.co.id
 				<span class="material-symbols-outlined text-xs">arrow_outward</span>
 			</a>
 		</div>
@@ -95,7 +95,7 @@
 			<!-- Mobile-Only Logo -->
 			<div class="md:hidden bg-white p-3.5 rounded-2xl shadow-md border border-slate-100 max-w-[180px] mb-6 transition-transform active:scale-95">
 				<img 
-					src="https://bcsgroup.co.id/assets/images/uploads/BCS%20Logistics%20HD.png" 
+					src="https://bcs-logistics.co.id/assets/images/logoo.png" 
 					alt="PT BCS Logistics Logo" 
 					class="w-full h-auto object-contain"
 				/>

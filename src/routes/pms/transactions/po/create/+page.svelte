@@ -4,7 +4,7 @@
 	import SearchableSelect from '$lib/components/SearchableSelect.svelte';
 	import { generatePoNumber, getCategoryCode, PO_PAYMENT_TERMS } from '$lib/utils/pmsNumbering';
 
-	let { data } = $props();
+	let { data, form } = $props();
 
 	let date = $state(new Date().toISOString().split('T')[0]);
 	let vendorId = $state(data.vendors?.length ? String(data.vendors[0].id) : '');
@@ -182,8 +182,7 @@
 
 	function getVendorSpecificPrice(matId: number, vId: string): number | null {
 		if (!vId || !data.vendorPrices) return null;
-		const vIdNum = parseInt(vId);
-		const vp = data.vendorPrices.find((p: any) => p.material_id === matId && p.vendor_id === vIdNum);
+		const vp = data.vendorPrices.find((p: any) => p.material_id === matId && String(p.vendor_id) === String(vId));
 		return vp ? parseFloat(vp.price) : null;
 	}
 
@@ -228,7 +227,8 @@
 			unit_price: initialPrice,
 			pr_line_id: mat.ref_pr_line_id,
 			pr_id: mat.ref_pr_id,
-			pr_number: mat.ref_pr_number
+			pr_number: mat.ref_pr_number,
+			remarks: mat.ref_remarks || ''
 		});
 
 		selectedMaterialId = '';
@@ -268,6 +268,18 @@
 			</p>
 		</div>
 	</header>
+
+	{#if form?.message}
+		<div class="p-4 rounded-2xl bg-rose-500/10 border border-rose-500/30 text-xs flex items-center gap-3 shadow-xs text-rose-700 dark:text-rose-400">
+			<div class="w-9 h-9 rounded-xl bg-rose-500/20 text-rose-700 dark:text-rose-400 flex items-center justify-center shrink-0">
+				<span class="material-symbols-outlined text-lg">error</span>
+			</div>
+			<div>
+				<p class="font-bold text-sm">Gagal Menyimpan PO</p>
+				<p class="text-xs opacity-90 mt-0.5">{form.message}</p>
+			</div>
+		</div>
+	{/if}
 
 	{#if (data.initialPRs && data.initialPRs.length > 0) || data.initialPR}
 		{@const prs = data.initialPRs && data.initialPRs.length > 0 ? data.initialPRs : [data.initialPR]}

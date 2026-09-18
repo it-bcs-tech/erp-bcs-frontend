@@ -95,7 +95,8 @@ export const load: PageServerLoad = async ({ url }) => {
 				pr.pr_number as ref_pr_number,
 				prl.id as ref_pr_line_id,
 				pr.id as ref_pr_id,
-				prl.qty_requested as ref_qty_requested
+				prl.qty_requested as ref_qty_requested,
+				prl.remarks as ref_remarks
 			FROM master.m_materials m
 			JOIN procurement.purchase_request_line prl ON prl.item_id = m.id
 			JOIN procurement.purchase_request pr ON pr.id = prl.pr_id
@@ -136,26 +137,42 @@ export const load: PageServerLoad = async ({ url }) => {
 export const actions: Actions = {
 	create: async ({ request, locals }) => {
 		const formData = await request.formData();
-		const date = (formData.get('date') as string) || new Date().toISOString().split('T')[0];
-		const vendorId = formData.get('vendorId') as string;
+		const rawDate = ((formData.get('date') as string) || '').trim();
+		const date = rawDate && !isNaN(new Date(rawDate).getTime()) ? rawDate : new Date().toISOString().split('T')[0];
+		const vendorId = ((formData.get('vendorId') as string) || '').trim();
 		const createdBy = locals.user?.payrollId || locals.user?.name || 'SYSTEM';
-		const projectId = formData.get('projectId') ? parseInt(formData.get('projectId') as string) : null;
-		const siteId = formData.get('siteId') ? parseInt(formData.get('siteId') as string) : null;
+
+		const rawProj = formData.get('projectId');
+		const projectId = rawProj && !isNaN(parseInt(rawProj as string, 10)) && parseInt(rawProj as string, 10) > 0 
+			? parseInt(rawProj as string, 10) 
+			: null;
+
+		const rawSite = formData.get('siteId');
+		const siteId = rawSite && !isNaN(parseInt(rawSite as string, 10)) && parseInt(rawSite as string, 10) > 0 
+			? parseInt(rawSite as string, 10) 
+			: null;
+
 		const paymentTerm = ((formData.get('paymentTerm') as string) || '30 Hari').trim();
 		let poNumber = ((formData.get('poNumber') as string) || '').trim();
-		const shipmentDate = (formData.get('shipmentDate') as string) || null;
+
+		const rawShipmentDate = ((formData.get('shipmentDate') as string) || '').trim();
+		const shipmentDate = rawShipmentDate && !isNaN(new Date(rawShipmentDate).getTime()) ? rawShipmentDate : null;
+
 		let shipmentLocation = ((formData.get('shipmentLocation') as string) || '').trim();
 		const refNo = ((formData.get('refNo') as string) || '').trim();
-		const dueDate = (formData.get('dueDate') as string) || null;
+
+		const rawDueDate = ((formData.get('dueDate') as string) || '').trim();
+		const dueDate = rawDueDate && !isNaN(new Date(rawDueDate).getTime()) ? rawDueDate : null;
+
 		const currency = ((formData.get('currency') as string) || 'IDR').trim();
-		const discountPercent = parseFloat((formData.get('discountPercent') as string) || '0');
-		const vatPercent = parseFloat((formData.get('vatPercent') as string) || '11');
+		const discountPercent = Math.max(0, parseFloat((formData.get('discountPercent') as string) || '0') || 0);
+		const vatPercent = Math.max(0, parseFloat((formData.get('vatPercent') as string) || '11') || 0);
 		const notes = ((formData.get('notes') as string) || '').trim();
 		const wrsNotes = ((formData.get('wrsNotes') as string) || '').trim();
 		const prIdsRaw = ((formData.get('prIds') as string) || (formData.get('prId') as string) || '').trim();
 		const submittedPrIds = prIdsRaw
 			.split(',')
-			.map(s => parseInt(s.trim()))
+			.map(s => parseInt(s.trim(), 10))
 			.filter(n => !isNaN(n) && n > 0);
 		const itemsRaw = (formData.get('items') as string) || '[]';
 
@@ -166,11 +183,13 @@ export const actions: Actions = {
 			items = [];
 		}
 
-		if (!vendorId) {
-			return fail(400, { success: false, message: 'Vendor / Supplier wajib dipilih!' });
+		// Validasi Vendor UUID
+		const isUuid = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(vendorId);
+		if (!vendorId || !isUuid) {
+			return fail(400, { success: false, message: 'Vendor / Supplier wajib dipilih dengan benar dari daftar!' });
 		}
 
-		if (items.length === 0) {
+		if (!Array.isArray(items) || items.length === 0) {
 			return fail(400, { success: false, message: 'Minimal 1 item material harus dimasukkan!' });
 		}
 
@@ -209,7 +228,7 @@ export const actions: Actions = {
 					WHERE EXTRACT(YEAR FROM date) = ${poDate.getFullYear()} 
 					  AND EXTRACT(MONTH FROM date) = ${poDate.getMonth() + 1}
 				`;
-				const seq = parseInt(seqRow?.count || '0') + 1;
+				let seq = parseInt(seqRow?.count || '0', 10) + 1;
 
 				let catCode = 'GEN';
 				let projectAlias: string | null = null;
@@ -245,6 +264,16 @@ export const actions: Actions = {
 				});
 			}
 
+			// Proteksi keunikan po_number agar tidak pernah error duplicate key constraint
+			let uniquePoNumber = poNumber;
+			let dupCounter = 1;
+			while (true) {
+				const [existing] = await sql`SELECT id FROM procurement.purchase_order WHERE po_number = ${uniquePoNumber}`;
+				if (!existing) break;
+				uniquePoNumber = `${poNumber}-${dupCounter}`;
+				dupCounter++;
+			}
+
 			const [po] = await sql`
 				INSERT INTO procurement.purchase_order (
 					po_number,
@@ -269,7 +298,7 @@ export const actions: Actions = {
 					notes,
 					wrs_notes
 				) VALUES (
-					${poNumber},
+					${uniquePoNumber},
 					${paymentTerm},
 					${date},
 					${vendorId},
@@ -294,7 +323,19 @@ export const actions: Actions = {
 			`;
 
 			for (const itm of items) {
-				const itemTotal = (parseFloat(itm.qty) || 0) * (parseFloat(itm.unit_price) || 0);
+				const matId = parseInt(itm.material_id, 10);
+				if (isNaN(matId) || matId <= 0) continue;
+
+				const qty = parseFloat(itm.qty) || 1;
+				const unitPrice = parseFloat(itm.unit_price) || 0;
+				const itemTotal = qty * unitPrice;
+
+				let prLineId: number | null = itm.pr_line_id && !isNaN(parseInt(itm.pr_line_id, 10)) ? parseInt(itm.pr_line_id, 10) : null;
+				if (prLineId) {
+					const [validLine] = await sql`SELECT id FROM procurement.purchase_request_line WHERE id = ${prLineId}`;
+					if (!validLine) prLineId = null;
+				}
+
 				await sql`
 					INSERT INTO procurement.purchase_order_line (
 						po_id,
@@ -307,10 +348,10 @@ export const actions: Actions = {
 						remarks
 					) VALUES (
 						${po.id},
-						${itm.pr_line_id || null},
-						${itm.material_id},
-						${itm.qty},
-						${itm.unit_price},
+						${prLineId},
+						${matId},
+						${qty},
+						${unitPrice},
 						${itemTotal * (vatPercent / 100)},
 						${itemTotal},
 						${itm.remarks || null}
@@ -322,8 +363,8 @@ export const actions: Actions = {
 			const activePrIds = new Set<number>();
 			for (const itm of items) {
 				if (itm.pr_id) {
-					const pid = parseInt(itm.pr_id);
-					if (!isNaN(pid)) activePrIds.add(pid);
+					const pid = parseInt(itm.pr_id, 10);
+					if (!isNaN(pid) && pid > 0) activePrIds.add(pid);
 				}
 			}
 			// If items didn't have pr_id explicitly attached, fallback to submittedPrIds
@@ -337,7 +378,7 @@ export const actions: Actions = {
 			}
 		} catch (err: any) {
 			console.error('Error creating PO:', err);
-			return fail(500, { success: false, message: err.message || 'Gagal membuat Purchase Order' });
+			return fail(500, { success: false, message: err?.message || 'Gagal membuat Purchase Order di database' });
 		}
 
 		throw redirect(303, '/pms/transactions/po');

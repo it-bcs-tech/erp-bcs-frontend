@@ -54,7 +54,7 @@
 <header class="bg-slate-50/70 dark:bg-slate-900/70 backdrop-blur-xl docked full-width top-0 sticky z-50 flex justify-between items-center w-full px-6 py-3 border-b border-slate-200/50 dark:border-slate-800/50">
 	<div class="flex items-center gap-8">
 		<a href="/" class="text-xl font-bold text-[#57344f] dark:text-[#d1c3ca] block hover:opacity-80 transition-opacity">
-			<img src="https://bcsgroup.co.id/assets/images/uploads/BCS%20Logistics%20HD.png" width="200" alt="BCS Logistics Logo" srcset="">
+			<img src="https://bcs-logistics.co.id/assets/images/logoo.png" class="h-8 w-auto object-contain" alt="BCS Logistics Logo" />
 		</a>
 		<nav class="hidden md:flex items-center gap-6">
 			<a class="text-sm font-bold transition-colors {currentPath === '/' ? 'text-[#57344f] border-b-2 border-[#57344f] pb-1' : 'text-slate-500 dark:text-slate-400 hover:text-[#57344f]'}" href="/">Main Dashboard</a>
