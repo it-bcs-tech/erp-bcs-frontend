@@ -26,6 +26,7 @@
 		: (data.initialPR?.notes || '');
 	let notes = $state(combinedNotes);
 	let wrsNotes = $state('');
+	let isSubmitting = $state(false);
 
 	// Penomoran PO Otomatis
 	let counter = $state<number>(data.nextCounter || 1);
