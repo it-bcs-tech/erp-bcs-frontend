@@ -14,7 +14,6 @@
 	let requestedBy = $state(data.prefill?.requestedBy || 'Staff Gudang');
 	let projectId = $state(data.prefill?.projectId ? String(data.prefill.projectId) : '');
 	let siteId = $state('');
-	let category = $state('SUPPORTING');
 	let notes = $state(data.prefill?.notes || '');
 
 	// Penomoran PR Otomatis
@@ -22,12 +21,11 @@
 	let isPrNumberManual = $state(false);
 	let prNumber = $state('');
 
-	const categoryOpts = [
-		{ value: 'PACKAGING', label: 'Packaging (Pallet, Wrapping, Sak)' },
-		{ value: 'TRANSPORT', label: 'Transport (Armada & Ban Truk)' },
-		{ value: 'WAREHOUSE', label: 'Warehouse (Gudang & Forklift)' },
-		{ value: 'SUPPORTING', label: 'Supporting (Oli, Pelumas, Tools)' }
-	];
+	const orderTypeOpts = ORDER_TYPES.map(t => ({
+		value: t.value,
+		label: t.label,
+		sublabel: t.desc
+	}));
 
 	let selectedProject = $derived(data.projects?.find((p: any) => String(p.id) === String(projectId)));
 	let selectedSite = $derived(data.sites?.find((s: any) => String(s.id) === String(siteId)));
@@ -36,7 +34,7 @@
 	);
 
 	function updatePrNumber() {
-		const catCode = selectedProject?.cat_code || getCategoryCode(selectedProject?.category || category);
+		const catCode = selectedProject?.cat_code || (selectedProject?.category ? getCategoryCode(selectedProject.category) : 'GEN');
 		const deptCode = selectedDept?.alias || (department ? department.replace(/[^A-Za-z]/g, '').slice(0, 3).toUpperCase() : 'MTC');
 		prNumber = generatePrNumber({
 			counter,
@@ -49,10 +47,8 @@
 
 	$effect(() => {
 		// Reactive trigger ketika field penomoran berubah
-		// Track dependencies:
 		const curDate = date;
 		const curOrderType = orderType;
-		const curCat = category;
 		const curProjId = projectId;
 		const curDept = department;
 		const curCounter = counter;
@@ -229,13 +225,13 @@
 							bind:value={prNumber}
 							oninput={() => { isPrNumberManual = true; }}
 							placeholder="e.g. 123/BO/T-MTC/09/2026"
-							class="w-full sm:w-72 bg-surface border border-slate-300 dark:border-slate-700 text-on-surface font-mono font-black text-sm rounded-xl px-3.5 py-2 focus:ring-2 focus:ring-amber-500 outline-none shadow-xs"
+							class="w-full sm:w-72 h-10 bg-surface border border-slate-300 dark:border-slate-700 text-on-surface font-mono font-bold text-xs rounded-xl px-3.5 focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 outline-none shadow-xs"
 						/>
 						{#if isPrNumberManual}
 							<button
 								type="button"
 								onclick={() => { isPrNumberManual = false; updatePrNumber(); }}
-								class="px-2.5 py-2 rounded-xl bg-slate-200 hover:bg-slate-300 dark:bg-slate-700 dark:hover:bg-slate-600 text-on-surface text-xs font-bold transition-colors shrink-0 flex items-center gap-1 cursor-pointer"
+								class="h-10 px-3 rounded-xl bg-slate-200 hover:bg-slate-300 dark:bg-slate-700 dark:hover:bg-slate-600 text-on-surface text-xs font-bold transition-colors shrink-0 flex items-center gap-1 cursor-pointer"
 								title="Reset ke format penomoran otomatis"
 							>
 								<span class="material-symbols-outlined text-[16px]">restart_alt</span>
@@ -250,9 +246,10 @@
 					<span>Informasi Permintaan</span>
 				</h3>
 
-				<div class="grid grid-cols-1 sm:grid-cols-4 gap-4">
+				<!-- Row 1: Pengajuan, Target, Tipe Order -->
+				<div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
 					<div>
-						<label class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-1.5">
+						<label class="block text-[11px] font-bold text-on-surface-variant uppercase tracking-wider mb-1.5">
 							Tanggal Pengajuan <span class="text-rose-500">*</span>
 						</label>
 						<input
@@ -260,57 +257,41 @@
 							name="date"
 							required
 							bind:value={date}
-							class="w-full bg-surface border border-slate-200 dark:border-slate-700 text-on-surface rounded-xl px-4 py-2.5 text-xs font-bold focus:ring-2 focus:ring-amber-500 outline-none"
+							class="w-full h-10 bg-surface border border-slate-200 dark:border-slate-700 text-on-surface rounded-xl px-3.5 text-xs font-normal focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 outline-none transition-all"
 						/>
 					</div>
 
 					<div>
-						<label class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-1.5">
+						<label class="block text-[11px] font-bold text-on-surface-variant uppercase tracking-wider mb-1.5">
 							Target Diperlukan (Required Date)
 						</label>
 						<input
 							type="date"
 							name="requiredDate"
 							bind:value={requiredDate}
-							class="w-full bg-surface border border-slate-200 dark:border-slate-700 text-on-surface rounded-xl px-4 py-2.5 text-xs font-medium focus:ring-2 focus:ring-amber-500 outline-none"
+							class="w-full h-10 bg-surface border border-slate-200 dark:border-slate-700 text-on-surface rounded-xl px-3.5 text-xs font-normal focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 outline-none transition-all"
 						/>
 					</div>
 
 					<div>
-						<label class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-1.5">
+						<label class="block text-[11px] font-bold text-on-surface-variant uppercase tracking-wider mb-1.5">
 							Tipe Order <span class="text-rose-500">*</span>
 						</label>
-						<select
-							name="orderType"
-							bind:value={orderType}
-							required
-							class="w-full bg-surface border border-slate-200 dark:border-slate-700 text-on-surface rounded-xl px-4 py-2.5 text-xs font-bold focus:ring-2 focus:ring-amber-500 outline-none cursor-pointer"
-						>
-							<option value="RO">RO - Reguler Order (Rutin)</option>
-							<option value="BO">BO - By Order (Pesanan Khusus)</option>
-							<option value="ES">ES - Emergency Stock (Darurat)</option>
-							<option value="IO">IO - Internal Order (Antar Unit)</option>
-						</select>
-					</div>
-
-					<div>
-						<label class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-1.5">
-							Kategori Pengadaan <span class="text-rose-500">*</span>
-						</label>
 						<SearchableSelect
-							name="category"
-							options={categoryOpts}
-							bind:value={category}
-							placeholder="-- Pilih Kategori --"
+							name="orderType"
+							options={orderTypeOpts}
+							bind:value={orderType}
+							placeholder="-- Pilih Tipe Order --"
 							required
-							btnClass="bg-surface border border-slate-200 dark:border-slate-700 text-xs font-normal"
+							btnClass="bg-surface border-slate-200 dark:border-slate-700 text-xs font-normal"
 						/>
 					</div>
 				</div>
 
+				<!-- Row 2: Pemohon, Departemen, Project, Site -->
 				<div class="grid grid-cols-1 sm:grid-cols-4 gap-4">
 					<div>
-						<label class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-1.5">
+						<label class="block text-[11px] font-bold text-on-surface-variant uppercase tracking-wider mb-1.5">
 							Pemohon (Request By) <span class="text-rose-500">*</span>
 						</label>
 						<input
@@ -319,12 +300,12 @@
 							required
 							bind:value={requestedBy}
 							placeholder="Nama staf pemohon"
-							class="w-full bg-surface border border-slate-200 dark:border-slate-700 text-on-surface rounded-xl px-4 py-2.5 text-xs font-normal focus:ring-2 focus:ring-amber-500 outline-none"
+							class="w-full h-10 bg-surface border border-slate-200 dark:border-slate-700 text-on-surface rounded-xl px-3.5 text-xs font-normal focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 outline-none transition-all"
 						/>
 					</div>
 
 					<div>
-						<label class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-1.5">
+						<label class="block text-[11px] font-bold text-on-surface-variant uppercase tracking-wider mb-1.5">
 							Departemen <span class="text-rose-500">*</span>
 						</label>
 						<SearchableSelect
@@ -333,12 +314,12 @@
 							bind:value={department}
 							placeholder="-- Pilih Departemen --"
 							required
-							btnClass="bg-surface border border-slate-200 dark:border-slate-700 text-xs font-normal"
+							btnClass="bg-surface border-slate-200 dark:border-slate-700 text-xs font-normal"
 						/>
 					</div>
 
 					<div>
-						<label class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-1.5">
+						<label class="block text-[11px] font-bold text-on-surface-variant uppercase tracking-wider mb-1.5">
 							Alokasi Project
 						</label>
 						<SearchableSelect
@@ -346,12 +327,12 @@
 							options={projectOpts}
 							bind:value={projectId}
 							placeholder="-- Bebas / Non-Project --"
-							btnClass="bg-surface border border-slate-200 dark:border-slate-700 text-xs font-normal"
+							btnClass="bg-surface border-slate-200 dark:border-slate-700 text-xs font-normal"
 						/>
 					</div>
 
 					<div>
-						<label class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-1.5">
+						<label class="block text-[11px] font-bold text-on-surface-variant uppercase tracking-wider mb-1.5">
 							Lokasi Site Tujuan
 						</label>
 						<SearchableSelect
@@ -359,7 +340,7 @@
 							options={siteOpts}
 							bind:value={siteId}
 							placeholder="-- Pilih Site Tujuan --"
-							btnClass="bg-surface border border-slate-200 dark:border-slate-700 text-xs font-normal"
+							btnClass="bg-surface border-slate-200 dark:border-slate-700 text-xs font-normal"
 						/>
 					</div>
 				</div>
@@ -391,7 +372,7 @@
 				{/if}
 
 				<div>
-					<label class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-1.5">
+					<label class="block text-[11px] font-bold text-on-surface-variant uppercase tracking-wider mb-1.5">
 						Catatan / Justifikasi Pengadaan
 					</label>
 					<textarea
@@ -399,7 +380,7 @@
 						bind:value={notes}
 						rows="2"
 						placeholder="Keterangan peruntukan atau alasan pembelian..."
-						class="w-full bg-surface border border-slate-200 dark:border-slate-700 text-on-surface rounded-xl p-3 text-xs font-normal focus:ring-2 focus:ring-amber-500 outline-none resize-none"
+						class="w-full bg-surface border border-slate-200 dark:border-slate-700 text-on-surface rounded-xl p-3 text-xs font-normal focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 outline-none resize-none transition-all"
 					></textarea>
 				</div>
 			</div>
@@ -417,13 +398,13 @@
 							options={materialOpts}
 							bind:value={selectedMaterialId}
 							placeholder="-- Cari & Pilih Material --"
-							btnClass="bg-surface border border-slate-200 dark:border-slate-700 text-xs font-normal"
+							btnClass="bg-surface border-slate-200 dark:border-slate-700 text-xs font-normal"
 						/>
 						<button
 							type="button"
 							onclick={addItem}
 							disabled={!selectedMaterialId}
-							class="bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold px-3 py-2.5 rounded-xl transition-colors disabled:opacity-50 flex items-center gap-1 shadow-xs shrink-0 cursor-pointer"
+							class="h-10 bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold px-3.5 rounded-xl transition-colors disabled:opacity-50 flex items-center gap-1.5 shadow-xs shrink-0 cursor-pointer"
 						>
 							<span class="material-symbols-outlined text-base">add</span>
 							<span>Tambah</span>

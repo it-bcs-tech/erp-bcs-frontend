@@ -143,11 +143,10 @@ export const actions: Actions = {
 		const vendorId = formData.get('vendorId') as string;
 		const projectId = formData.get('projectId') ? parseInt(formData.get('projectId') as string) : null;
 		const siteId = formData.get('siteId') ? parseInt(formData.get('siteId') as string) : null;
-		const category = ((formData.get('category') as string) || 'SUPPORTING').trim();
 		const paymentTerm = ((formData.get('paymentTerm') as string) || '30 Hari').trim();
 		const poNumber = ((formData.get('poNumber') as string) || '').trim();
 		const shipmentDate = (formData.get('shipmentDate') as string) || null;
-		const shipmentLocation = ((formData.get('shipmentLocation') as string) || '').trim();
+		let shipmentLocation = ((formData.get('shipmentLocation') as string) || '').trim();
 		const refNo = ((formData.get('refNo') as string) || '').trim();
 		const dueDate = (formData.get('dueDate') as string) || null;
 		const currency = ((formData.get('currency') as string) || 'IDR').trim();
@@ -193,6 +192,19 @@ export const actions: Actions = {
 				return fail(400, { success: false, message: 'Hanya PO dengan status DRAFT yang dapat diedit!' });
 			}
 
+			let resolvedCategory = 'GENERAL';
+			if (projectId) {
+				const [proj] = await sql`SELECT category FROM master.m_project WHERE id = ${projectId}`;
+				if (proj?.category) resolvedCategory = proj.category;
+			}
+
+			if (siteId && !shipmentLocation) {
+				const [st] = await sql`SELECT loc_name, address_1, city FROM master.m_lokasi WHERE id = ${siteId}`;
+				if (st) {
+					shipmentLocation = st.address_1 ? `${st.loc_name} - ${st.address_1}, ${st.city || ''}` : st.loc_name;
+				}
+			}
+
 			// Update header
 			await sql`
 				UPDATE procurement.purchase_order
@@ -203,7 +215,7 @@ export const actions: Actions = {
 					vendor_id = ${vendorId},
 					project_id = ${projectId},
 					site_id = ${siteId},
-					category = ${category},
+					category = ${resolvedCategory},
 					shipment_date = ${shipmentDate},
 					shipment_location = ${shipmentLocation},
 					ref_no = ${refNo},

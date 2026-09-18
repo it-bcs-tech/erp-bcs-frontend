@@ -105,7 +105,7 @@
 	<button 
 		type="button" 
 		{disabled}
-		class="w-full text-left bg-surface-container rounded-xl px-4 py-2.5 text-xs font-normal border border-outline-variant/30 dark:border-slate-700 focus:ring-2 focus:ring-amber-500/40 outline-none flex justify-between items-center transition-all disabled:opacity-60 disabled:cursor-not-allowed {btnClass}"
+		class="w-full h-10 text-left bg-surface-container rounded-xl px-3.5 text-xs font-normal border border-outline-variant/30 dark:border-slate-700 focus:ring-2 focus:ring-amber-500/40 outline-none flex justify-between items-center transition-all disabled:opacity-60 disabled:cursor-not-allowed {btnClass}"
 		onclick={toggleOpen}
 	>
 		<span class="truncate flex items-center gap-2 {value ? 'text-on-surface font-normal' : 'text-on-surface-variant font-normal'}">

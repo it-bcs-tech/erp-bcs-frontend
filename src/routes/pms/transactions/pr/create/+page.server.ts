@@ -137,7 +137,6 @@ export const actions: Actions = {
 		const createdBy = locals.user?.payrollId || locals.user?.name || 'SYSTEM';
 		const projectId = formData.get('projectId') ? parseInt(formData.get('projectId') as string) : null;
 		const siteId = formData.get('siteId') ? parseInt(formData.get('siteId') as string) : null;
-		const category = ((formData.get('category') as string) || 'SUPPORTING').trim();
 		const notes = ((formData.get('notes') as string) || '').trim();
 		let prNumber = ((formData.get('prNumber') as string) || '').trim();
 		const itemsRaw = (formData.get('items') as string) || '[]';
@@ -158,6 +157,17 @@ export const actions: Actions = {
 		}
 
 		try {
+			// Cari kategori & kode kategori dari project jika ada
+			let projectCatCode = 'GEN';
+			let resolvedCategory = 'GENERAL';
+			if (projectId) {
+				const [proj] = await sql`SELECT cat_code, category FROM master.m_project WHERE id = ${projectId}`;
+				if (proj) {
+					projectCatCode = proj.cat_code || (proj.category ? getCategoryCode(proj.category) : 'GEN');
+					resolvedCategory = proj.category || 'GENERAL';
+				}
+			}
+
 			// Auto Generate PR Number jika kosong: [Counter]/[OrderType]/[Cat-Dept]/[MM]/[YYYY]
 			if (!prNumber) {
 				const prDate = new Date(date);
@@ -169,14 +179,6 @@ export const actions: Actions = {
 				`;
 				const seq = parseInt(seqRow?.count || '0') + 1;
 
-				// Cari kategori code dari project jika ada
-				let projectCatCode: string | null = null;
-				if (projectId) {
-					const [proj] = await sql`SELECT cat_code, category FROM master.m_project WHERE id = ${projectId}`;
-					if (proj) projectCatCode = proj.cat_code || getCategoryCode(proj.category);
-				}
-				const catCode = projectCatCode || getCategoryCode(category);
-
 				// Cari dept alias
 				let deptAlias = 'MTC';
 				const [deptRow] = await sql`SELECT alias FROM master.m_dept WHERE dept_name = ${department} OR dept_code = ${department} LIMIT 1`;
@@ -185,7 +187,7 @@ export const actions: Actions = {
 				prNumber = generatePrNumber({
 					counter: seq,
 					orderType,
-					categoryCode: catCode,
+					categoryCode: projectCatCode,
 					deptCode: deptAlias,
 					date: prDate
 				});
@@ -214,7 +216,7 @@ export const actions: Actions = {
 					${createdBy},
 					${projectId},
 					${siteId},
-					${category},
+					${resolvedCategory},
 					${requiredDate},
 					'PENDING',
 					${notes}

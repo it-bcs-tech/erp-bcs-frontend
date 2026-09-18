@@ -45,7 +45,7 @@ export function getCategoryCode(category?: string | null, projectCatCode?: strin
 	if (c.includes('WARE')) return 'W';
 	if (c.includes('OUTS')) return 'O';
 	if (c.includes('SUPP')) return 'S';
-	return c.charAt(0) || 'T';
+	return c ? c.charAt(0) : 'GEN';
 }
 
 export function getPaymentTermCode(term?: string | null): string {
@@ -80,7 +80,7 @@ export function generatePrNumber(params: {
 			: String(params.counter || '001');
 
 	const ot = (params.orderType || 'RO').trim().toUpperCase();
-	const cat = (params.categoryCode || 'T').trim().toUpperCase();
+	const cat = (params.categoryCode || 'GEN').trim().toUpperCase();
 	const dept = (params.deptCode || 'MTC').trim().toUpperCase();
 
 	return `${cnt}/${ot}/${cat}-${dept}/${mm}/${yyyy}`;

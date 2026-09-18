@@ -11,7 +11,6 @@
 	let vendorId = $state(data.po.vendorId ? data.po.vendorId.toString() : '');
 	let projectId = $state(data.po.projectId ? data.po.projectId.toString() : '');
 	let siteId = $state(data.po.siteId ? data.po.siteId.toString() : '');
-	let category = $state(data.po.category || 'SUPPORTING');
 	let shipmentDate = $state(data.po.shipmentDate || '');
 	let shipmentLocation = $state(data.po.shipmentLocation || '');
 	let refNo = $state(data.po.refNo || '');
@@ -24,8 +23,22 @@
 	let wrsNotes = $state(data.po.wrsNotes || '');
 
 	const paymentTermOpts = PO_PAYMENT_TERMS;
+	const paymentTermSelectOpts = paymentTermOpts.map(t => ({
+		value: t.value,
+		label: t.label,
+		sublabel: t.days > 0 ? `Jatuh tempo +${t.days} hari` : 'Bayar langsung',
+		searchTerms: `${t.label} ${t.value} ${t.code}`
+	}));
 
 	let selectedSite = $derived(data.sites?.find((s: any) => String(s.id) === String(siteId)));
+
+	$effect(() => {
+		if (selectedSite) {
+			shipmentLocation = selectedSite.address_1
+				? `${selectedSite.loc_name} - ${selectedSite.address_1}${selectedSite.city ? `, ${selectedSite.city}` : ''}`
+				: selectedSite.loc_name;
+		}
+	});
 
 	function updateDueDateFromTerm(term: string, baseDate: string) {
 		if (!baseDate) return;
@@ -48,13 +61,6 @@
 		items[index].unit_price = num;
 		target.value = num ? num.toLocaleString('id-ID') : '';
 	}
-
-	const categoryOpts = [
-		{ value: 'PACKAGING', label: 'Packaging' },
-		{ value: 'TRANSPORT', label: 'Transport' },
-		{ value: 'WAREHOUSE', label: 'Warehouse' },
-		{ value: 'SUPPORTING', label: 'Supporting' }
-	];
 
 	let vendorOpts = $derived(
 		data.vendors.map((v: any) => ({
@@ -232,9 +238,13 @@
 					<span>Informasi Order & Vendor</span>
 				</h3>
 
+				<!-- Hidden input for shipmentLocation -->
+				<input type="hidden" name="shipmentLocation" value={shipmentLocation} />
+
+				<!-- Row 1: Vendor, Tanggal PO, Ref PR -->
 				<div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
 					<div>
-						<label class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-1.5">
+						<label class="block text-[11px] font-bold text-on-surface-variant uppercase tracking-wider mb-1.5">
 							Pilih Vendor / Supplier <span class="text-rose-500">*</span>
 						</label>
 						<SearchableSelect
@@ -244,12 +254,12 @@
 							onchange={onVendorChange}
 							placeholder="-- Pilih Vendor --"
 							required
-							btnClass="bg-surface border border-slate-200 dark:border-slate-700 text-xs font-normal"
+							btnClass="bg-surface border-slate-200 dark:border-slate-700 text-xs font-normal"
 						/>
 					</div>
 
 					<div>
-						<label class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-1.5">
+						<label class="block text-[11px] font-bold text-on-surface-variant uppercase tracking-wider mb-1.5">
 							Tanggal PO <span class="text-rose-500">*</span>
 						</label>
 						<input
@@ -257,28 +267,29 @@
 							name="date"
 							required
 							bind:value={date}
-							class="w-full bg-surface border border-slate-200 dark:border-slate-700 text-on-surface rounded-xl px-4 py-2.5 text-xs font-normal focus:ring-2 focus:ring-amber-500 outline-none"
+							onchange={() => updateDueDateFromTerm(paymentTerm, date)}
+							class="w-full h-10 bg-surface border border-slate-200 dark:border-slate-700 text-on-surface rounded-xl px-3.5 text-xs font-normal focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 outline-none transition-all"
 						/>
 					</div>
 
 					<div>
-						<label class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-1.5">
-							Kategori Pengadaan <span class="text-rose-500">*</span>
+						<label class="block text-[11px] font-bold text-on-surface-variant uppercase tracking-wider mb-1.5">
+							No. Referensi / Ref PR
 						</label>
-						<SearchableSelect
-							name="category"
-							options={categoryOpts}
-							bind:value={category}
-							placeholder="-- Pilih Kategori --"
-							required
-							btnClass="bg-surface border border-slate-200 dark:border-slate-700 text-xs font-normal"
+						<input
+							type="text"
+							name="refNo"
+							bind:value={refNo}
+							placeholder="No. Kontrak / PR"
+							class="w-full h-10 bg-surface border border-slate-200 dark:border-slate-700 text-on-surface rounded-xl px-3.5 text-xs font-normal focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 outline-none transition-all"
 						/>
 					</div>
 				</div>
 
-				<div class="grid grid-cols-1 sm:grid-cols-4 gap-4">
+				<!-- Row 2: Alokasi Project, Site Penerima, Target Pengiriman -->
+				<div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
 					<div>
-						<label class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-1.5">
+						<label class="block text-[11px] font-bold text-on-surface-variant uppercase tracking-wider mb-1.5">
 							Alokasi Project
 						</label>
 						<SearchableSelect
@@ -286,59 +297,64 @@
 							options={projectOpts}
 							bind:value={projectId}
 							placeholder="-- Bebas / Non-Project --"
-							btnClass="bg-surface border border-slate-200 dark:border-slate-700 text-xs font-normal"
+							btnClass="bg-surface border-slate-200 dark:border-slate-700 text-xs font-normal"
 						/>
 					</div>
 
 					<div>
-						<label class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-1.5">
-							Site Penerima
+						<label class="block text-[11px] font-bold text-on-surface-variant uppercase tracking-wider mb-1.5">
+							Site Penerima & Tujuan Pengiriman
 						</label>
 						<SearchableSelect
 							name="siteId"
 							options={siteOpts}
 							bind:value={siteId}
 							placeholder="-- Pilih Site Penerima --"
-							btnClass="bg-surface border border-slate-200 dark:border-slate-700 text-xs font-normal"
+							btnClass="bg-surface border-slate-200 dark:border-slate-700 text-xs font-normal"
 						/>
 					</div>
 
 					<div>
-						<label class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-1.5">
-							No. Referensi / PR
+						<label class="block text-[11px] font-bold text-on-surface-variant uppercase tracking-wider mb-1.5">
+							Target Tanggal Pengiriman
 						</label>
 						<input
-							type="text"
-							name="refNo"
-							bind:value={refNo}
-							placeholder="No. Kontrak / PR"
-							class="w-full bg-surface border border-slate-200 dark:border-slate-700 text-on-surface rounded-xl px-4 py-2.5 text-xs font-medium focus:ring-2 focus:ring-amber-500 outline-none"
+							type="date"
+							name="shipmentDate"
+							bind:value={shipmentDate}
+							class="w-full h-10 bg-surface border border-slate-200 dark:border-slate-700 text-on-surface rounded-xl px-3.5 text-xs font-normal focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 outline-none transition-all"
+						/>
+					</div>
+				</div>
+
+				<!-- Row 3: Term Pembayaran & Jatuh Tempo -->
+				<div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+					<div>
+						<label class="block text-[11px] font-bold text-on-surface-variant uppercase tracking-wider mb-1.5">
+							Term Pembayaran (Payment Term) <span class="text-rose-500">*</span>
+						</label>
+						<SearchableSelect
+							name="paymentTerm"
+							options={paymentTermSelectOpts}
+							bind:value={paymentTerm}
+							onchange={onPaymentTermChange}
+							placeholder="-- Pilih Term Pembayaran --"
+							required
+							btnClass="bg-surface border-slate-200 dark:border-slate-700 text-xs font-normal"
 						/>
 					</div>
 
 					<div>
-						<label class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-1.5">
-							Term Pembayaran (Payment Term)
+						<label class="block text-[11px] font-bold text-on-surface-variant uppercase tracking-wider mb-1.5">
+							Jatuh Tempo Pembayaran (Due Date)
 						</label>
-						<div class="grid grid-cols-2 gap-2">
-							<select
-								name="paymentTerm"
-								bind:value={paymentTerm}
-								onchange={(e) => onPaymentTermChange((e.target as HTMLSelectElement).value)}
-								class="w-full bg-surface border border-slate-200 dark:border-slate-700 text-on-surface rounded-xl px-2.5 py-2.5 text-xs font-bold focus:ring-2 focus:ring-amber-500 outline-none cursor-pointer"
-							>
-								{#each paymentTermOpts as t}
-									<option value={t.value}>{t.label}</option>
-								{/each}
-							</select>
-							<input
-								type="date"
-								name="dueDate"
-								bind:value={dueDate}
-								title="Jatuh Tempo Pembayaran"
-								class="w-full bg-surface border border-slate-200 dark:border-slate-700 text-on-surface rounded-xl px-3 py-2.5 text-xs font-medium focus:ring-2 focus:ring-amber-500 outline-none"
-							/>
-						</div>
+						<input
+							type="date"
+							name="dueDate"
+							bind:value={dueDate}
+							title="Jatuh Tempo Pembayaran"
+							class="w-full h-10 bg-surface border border-slate-200 dark:border-slate-700 text-on-surface rounded-xl px-3.5 text-xs font-normal focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 outline-none transition-all"
+						/>
 					</div>
 				</div>
 
@@ -361,44 +377,12 @@
 								<div><span class="font-semibold text-on-surface">No. Telepon / HP:</span> {selectedSite.phone || '-'}</div>
 								<div><span class="font-semibold text-on-surface">Kota:</span> {selectedSite.city || '-'}</div>
 								{#if selectedSite.address_1}
-									<div class="sm:col-span-3 text-[11px]"><span class="font-semibold text-on-surface">Alamat Pengiriman:</span> {selectedSite.address_1}</div>
+									<div class="sm:col-span-3 text-[11px]"><span class="font-semibold text-on-surface">Alamat Tujuan Pengiriman:</span> {selectedSite.address_1}</div>
 								{/if}
 							</div>
 						</div>
 					</div>
 				{/if}
-
-				<div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-					<div>
-						<label class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-1.5">
-							Target Tanggal Pengiriman
-						</label>
-						<input
-							type="date"
-							name="shipmentDate"
-							bind:value={shipmentDate}
-							class="w-full bg-surface border border-slate-200 dark:border-slate-700 text-on-surface rounded-xl px-4 py-2.5 text-xs font-medium focus:ring-2 focus:ring-amber-500 outline-none"
-						/>
-					</div>
-
-					<div>
-						<label class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-1.5">
-							Alamat Lokasi Pengiriman (Master Site)
-						</label>
-						<select
-							name="shipmentLocation"
-							bind:value={shipmentLocation}
-							class="w-full bg-surface border border-slate-200 dark:border-slate-700 text-on-surface rounded-xl px-4 py-2.5 text-xs font-semibold focus:ring-2 focus:ring-amber-500 outline-none cursor-pointer"
-						>
-							<option value="">-- Pilih Site Pengiriman --</option>
-							{#each data.sites as site}
-								<option value={site.loc_name}>
-									[{site.loc_code}] {site.loc_name}
-								</option>
-							{/each}
-						</select>
-					</div>
-				</div>
 			</div>
 
 			<!-- Section 2: Line Items -->
@@ -414,13 +398,13 @@
 							options={materialOpts}
 							bind:value={selectedMaterialId}
 							placeholder="-- Cari & Pilih Material (Dari PR Open) --"
-							btnClass="bg-surface border border-slate-200 dark:border-slate-700 text-xs font-normal"
+							btnClass="bg-surface border-slate-200 dark:border-slate-700 text-xs font-normal"
 						/>
 						<button
 							type="button"
 							onclick={addItem}
 							disabled={!selectedMaterialId}
-							class="bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold px-3 py-2.5 rounded-xl transition-colors disabled:opacity-50 flex items-center gap-1 shadow-xs shrink-0 cursor-pointer"
+							class="h-10 bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold px-3.5 rounded-xl transition-colors disabled:opacity-50 flex items-center gap-1.5 shadow-xs shrink-0 cursor-pointer"
 						>
 							<span class="material-symbols-outlined text-base">add</span>
 							<span>Tambah</span>

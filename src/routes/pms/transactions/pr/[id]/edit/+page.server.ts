@@ -108,7 +108,6 @@ export const actions: Actions = {
 		const requestedBy = ((formData.get('requestedBy') as string) || '').trim();
 		const projectId = formData.get('projectId') ? parseInt(formData.get('projectId') as string) : null;
 		const siteId = formData.get('siteId') ? parseInt(formData.get('siteId') as string) : null;
-		const category = ((formData.get('category') as string) || 'SUPPORTING').trim();
 		const notes = ((formData.get('notes') as string) || '').trim();
 		const itemsRaw = (formData.get('items') as string) || '[]';
 
@@ -136,6 +135,12 @@ export const actions: Actions = {
 				return fail(400, { success: false, message: 'PR ini sudah diproses ke Purchase Order dan tidak dapat diedit!' });
 			}
 
+			let resolvedCategory = 'GENERAL';
+			if (projectId) {
+				const [proj] = await sql`SELECT category FROM master.m_project WHERE id = ${projectId}`;
+				if (proj?.category) resolvedCategory = proj.category;
+			}
+
 			// Update header
 			await sql`
 				UPDATE procurement.purchase_request
@@ -148,7 +153,7 @@ export const actions: Actions = {
 					requested_by = ${requestedBy},
 					project_id = ${projectId},
 					site_id = ${siteId},
-					category = ${category},
+					category = ${resolvedCategory},
 					notes = ${notes},
 					updated_at = NOW()
 				WHERE id = ${prId}

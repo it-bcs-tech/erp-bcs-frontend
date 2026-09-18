@@ -140,12 +140,11 @@ export const actions: Actions = {
 		const createdBy = locals.user?.payrollId || locals.user?.name || 'SYSTEM';
 		const projectId = formData.get('projectId') ? parseInt(formData.get('projectId') as string) : null;
 		const siteId = formData.get('siteId') ? parseInt(formData.get('siteId') as string) : null;
-		const category = ((formData.get('category') as string) || 'SUPPORTING').trim();
 		const paymentTerm = ((formData.get('paymentTerm') as string) || '30 Hari').trim();
 		const poType = ((formData.get('poType') as string) || 'P').trim().toUpperCase();
 		let poNumber = ((formData.get('poNumber') as string) || '').trim();
 		const shipmentDate = (formData.get('shipmentDate') as string) || null;
-		const shipmentLocation = ((formData.get('shipmentLocation') as string) || '').trim();
+		let shipmentLocation = ((formData.get('shipmentLocation') as string) || '').trim();
 		const refNo = ((formData.get('refNo') as string) || '').trim();
 		const dueDate = (formData.get('dueDate') as string) || null;
 		const currency = ((formData.get('currency') as string) || 'IDR').trim();
@@ -188,6 +187,19 @@ export const actions: Actions = {
 		const totalAmount = netSubtotal + taxAmount;
 
 		try {
+			let resolvedCategory = 'GENERAL';
+			if (projectId) {
+				const [proj] = await sql`SELECT category FROM master.m_project WHERE id = ${projectId}`;
+				if (proj?.category) resolvedCategory = proj.category;
+			}
+
+			if (siteId && !shipmentLocation) {
+				const [st] = await sql`SELECT loc_name, address_1, city FROM master.m_lokasi WHERE id = ${siteId}`;
+				if (st) {
+					shipmentLocation = st.address_1 ? `${st.loc_name} - ${st.address_1}, ${st.city || ''}` : st.loc_name;
+				}
+			}
+
 			// Auto Generate PO Number jika kosong: [Counter]-[Tipe]/BCS-[Term]/[Alias]/[Romawi]/[YYYY]
 			if (!poNumber) {
 				const poDate = new Date(date);
@@ -250,7 +262,7 @@ export const actions: Actions = {
 					${createdBy},
 					${projectId},
 					${siteId},
-					${category},
+					${resolvedCategory},
 					${shipmentDate},
 					${shipmentLocation},
 					${refNo},
