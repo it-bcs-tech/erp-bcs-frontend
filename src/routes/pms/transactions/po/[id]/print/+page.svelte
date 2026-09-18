@@ -222,11 +222,6 @@
 						<div class="text-[10px] text-slate-700">
 							Term Pembayaran: <strong class="text-amber-900 font-bold">{data.po.paymentTerm || '30 Hari'}</strong>
 						</div>
-						{#if data.po.dueDate}
-							<div class="text-[10px] text-slate-700">
-								Tenggat: <strong class="text-rose-700">{formatDate(data.po.dueDate)}</strong>
-							</div>
-						{/if}
 						<div class="text-[10px] text-slate-600">
 							Kategori: <strong class="uppercase text-slate-900">{data.po.category || 'SUPPORTING'}</strong>
 						</div>
@@ -241,12 +236,15 @@
 							Dipesan Kepada (Vendor / Supplier)
 						</h3>
 						<p class="font-black text-xs text-slate-900">{data.po.vendorName || '-'}</p>
-						{#if data.po.vendorCode && data.po.vendorCode !== '-'}
-							<p class="text-[9.5px] text-slate-500 font-mono">Kode: {data.po.vendorCode}</p>
-						{/if}
-						<p class="text-[10px] text-slate-700 whitespace-pre-wrap leading-tight mt-0.5">
+						<p class="text-[10px] text-slate-700 whitespace-pre-wrap leading-tight mt-0.5 mb-1.5">
 							{data.po.vendorAddress || 'Alamat vendor tidak tersedia'}
 						</p>
+						<div class="grid grid-cols-2 gap-y-0.5 gap-x-2 text-[9.5px] border-t border-slate-200/80 pt-1 text-slate-700">
+							<div><span class="text-slate-500">PIC:</span> <strong class="text-slate-900">{data.po.vendorPic || '-'}</strong></div>
+							<div><span class="text-slate-500">Telp:</span> <strong class="text-slate-900">{data.po.vendorPhone || '-'}</strong></div>
+							<div><span class="text-slate-500">Fax:</span> <strong class="text-slate-900">{data.po.vendorFax || '-'}</strong></div>
+							<div><span class="text-slate-500">Email:</span> <strong class="text-slate-900">{data.po.vendorEmail || '-'}</strong></div>
+						</div>
 					</div>
 
 					<!-- Delivery & Project Reference -->
@@ -255,17 +253,14 @@
 							Pengiriman & Referensi Proyek
 						</h3>
 						<div class="grid grid-cols-2 gap-y-1 gap-x-2 text-[10px]">
-							<span class="text-slate-500">Proyek / Alias:</span>
+							<span class="text-slate-500">Proyek:</span>
 							<span class="font-bold text-slate-900 text-right truncate">
-								{data.po.projectName || 'BCS General'}
-								{#if data.po.projectAlias}
-									<span class="font-mono text-[9px] text-amber-700">({data.po.projectAlias})</span>
-								{/if}
+								{data.po.projectCode ? `${data.po.projectCode} - ${data.po.projectName || ''}` : (data.po.projectName || 'BCS General')}
 							</span>
 
 							<span class="text-slate-500">Site Penerima:</span>
 							<span class="font-bold text-slate-900 text-right truncate">
-								{data.po.siteName ? `${data.po.siteName}${data.po.sitePic ? ' - ' + data.po.sitePic : ''}` : 'Semua Site'}
+								{data.po.sitePic || '-'}
 							</span>
 
 							<span class="text-slate-500">No. Referensi:</span>
@@ -273,7 +268,7 @@
 								{data.po.refNo || '-'}
 							</span>
 
-							<span class="text-slate-500">Tgl. Estimasi Kirim:</span>
+							<span class="text-slate-500">Tgl. Kirim:</span>
 							<span class="font-bold text-slate-900 text-right">
 								{formatDate(data.po.shipmentDate)}
 							</span>
@@ -297,11 +292,13 @@
 						<tr class="bg-slate-100 text-slate-900 font-bold border-b border-slate-300">
 							<th class="border border-slate-300 py-1.5 px-2 w-8 text-center">No</th>
 							<th class="border border-slate-300 py-1.5 px-2 text-left">Kode & Nama Material / Barang</th>
-							<th class="border border-slate-300 py-1.5 px-2 text-left">Spesifikasi / Brand</th>
-							<th class="border border-slate-300 py-1.5 px-2 text-right w-16">Qty</th>
-							<th class="border border-slate-300 py-1.5 px-2 text-center w-14">Satuan</th>
-							<th class="border border-slate-300 py-1.5 px-2 text-right w-24">Harga Satuan</th>
-							<th class="border border-slate-300 py-1.5 px-2 text-right w-28">Total (Rp)</th>
+							<th class="border border-slate-300 py-1.5 px-2 text-left">Spesifikasi</th>
+							<th class="border border-slate-300 py-1.5 px-2 text-left w-20">Brand</th>
+							<th class="border border-slate-300 py-1.5 px-2 text-left w-24">Remark</th>
+							<th class="border border-slate-300 py-1.5 px-2 text-right w-14">Qty</th>
+							<th class="border border-slate-300 py-1.5 px-2 text-center w-12">Satuan</th>
+							<th class="border border-slate-300 py-1.5 px-2 text-right w-20">Harga Satuan</th>
+							<th class="border border-slate-300 py-1.5 px-2 text-right w-24">Total (Rp)</th>
 						</tr>
 					</thead>
 					<tbody>
@@ -316,10 +313,13 @@
 									{/if}
 								</td>
 								<td class="border border-slate-300 py-1 px-2 text-slate-700 leading-tight">
-									<p>{itm.spec || '-'}</p>
-									{#if itm.brand}
-										<p class="text-[9px] text-slate-500 italic">Brand: {itm.brand}</p>
-									{/if}
+									{itm.spec || '-'}
+								</td>
+								<td class="border border-slate-300 py-1 px-2 text-slate-700 leading-tight italic">
+									{itm.brand || '-'}
+								</td>
+								<td class="border border-slate-300 py-1 px-2 text-slate-700 leading-tight text-[9.5px]">
+									{itm.remarks || '-'}
 								</td>
 								<td class="border border-slate-300 py-1 px-2 text-right font-mono font-bold">
 									{formatQty(itm.qtyOrdered)}

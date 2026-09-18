@@ -20,6 +20,10 @@ export const load: PageServerLoad = async ({ params }) => {
 				c.nama_vendor as "vendorName",
 				COALESCE(c.kode_vendor, '-') as "vendorCode",
 				c.alamat as "vendorAddress",
+				c.contact_person as "vendorPic",
+				c.phone as "vendorPhone",
+				c.fax as "vendorFax",
+				c.email as "vendorEmail",
 				po.project_id as "projectId",
 				p.project_name as "projectName",
 				COALESCE(p.project_code, 'PRJ-' || p.id) as "projectCode",
@@ -87,7 +91,8 @@ export const load: PageServerLoad = async ({ params }) => {
 				pol.tax_amount as "taxAmount",
 				pol.total,
 				pr.pr_number as "prNumber",
-				pr.id as "prId"
+				pr.id as "prId",
+				COALESCE(pol.remarks, prl.remarks, '') as remarks
 			FROM procurement.purchase_order_line pol
 			JOIN master.m_materials m ON m.id = pol.item_id
 			LEFT JOIN procurement.purchase_request_line prl ON prl.id = pol.pr_line_id

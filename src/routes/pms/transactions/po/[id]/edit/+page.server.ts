@@ -67,7 +67,7 @@ export const load: PageServerLoad = async ({ params }) => {
 		`;
 
 		const vendors = await sql`
-			SELECT id, kode_vendor as kode_kustomer, nama_vendor as nama_kustomer, COALESCE(alamat, '') as alamat 
+			SELECT id, kode_vendor as kode_kustomer, nama_vendor as nama_kustomer, alias, COALESCE(alamat, '') as alamat 
 			FROM master.m_vendor 
 			WHERE is_active = true
 			ORDER BY nama_vendor

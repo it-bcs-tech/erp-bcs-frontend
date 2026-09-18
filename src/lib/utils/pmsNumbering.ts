@@ -3,8 +3,8 @@
  * Utilitas dan formula penomoran otomatis untuk modul pengadaan (PMS):
  * - Purchase Request (PR): [Counter]/[Tipe Order (BO/RO/ES/IO)]/[Kategori Project - Dept Code]/[MM]/[YYYY]
  *   Contoh: 123/BO/T-MTC/09/2026
- * - Purchase Order (PO): [Counter]-[Tipe/Kategori (P=Purchasing, dll)]/BCS-[Payment Term/DP/dll]/[Site Alias / Project Alias]/[Bulan Romawi (IX)]/[Tahun]
- *   Contoh: 321-P/BCS-DP/LTN/IX/2026
+ * - Purchase Order (PO): [Counter]-[Kategori Project]/BCS-[Vendor Alias]/[Site/Project Alias]/[Bulan Romawi (IX)]/[Tahun]
+ *   Contoh: 123-T/BCS-TSN/MTC/IX/2026
  */
 
 export const ORDER_TYPES = [
@@ -88,9 +88,9 @@ export function generatePrNumber(params: {
 
 export function generatePoNumber(params: {
 	counter: number | string;
-	poType?: string | null;
-	termCode?: string | null;
-	alias?: string | null;
+	categoryCode?: string | null;
+	vendorAlias?: string | null;
+	siteAlias?: string | null;
 	date?: string | Date | null;
 }): string {
 	const d = params.date ? (typeof params.date === 'string' ? new Date(params.date) : params.date) : new Date();
@@ -105,9 +105,9 @@ export function generatePoNumber(params: {
 			? String(params.counter).padStart(3, '0')
 			: String(params.counter || '001');
 
-	const pt = (params.poType || 'P').trim().toUpperCase();
-	const term = (params.termCode || 'DP').trim().toUpperCase();
-	const al = (params.alias || 'GEN').trim().toUpperCase();
+	const cat = (params.categoryCode || 'GEN').trim().toUpperCase();
+	const vnd = (params.vendorAlias || 'VND').trim().toUpperCase();
+	const siteOrProj = (params.siteAlias || 'GEN').trim().toUpperCase();
 
-	return `${cnt}-${pt}/BCS-${term}/${al}/${romanMonth}/${yyyy}`;
+	return `${cnt}-${cat}/BCS-${vnd}/${siteOrProj}/${romanMonth}/${yyyy}`;
 }

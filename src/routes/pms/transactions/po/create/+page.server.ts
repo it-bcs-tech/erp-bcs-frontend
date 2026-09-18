@@ -2,7 +2,7 @@ import type { PageServerLoad, Actions } from './$types';
 import sql from '$lib/server/db';
 import { fail, redirect } from '@sveltejs/kit';
 import { formatAuditUser } from '$lib/server/auth';
-import { generatePoNumber, getPaymentTermCode } from '$lib/utils/pmsNumbering';
+import { generatePoNumber, getCategoryCode } from '$lib/utils/pmsNumbering';
 
 export const load: PageServerLoad = async ({ url }) => {
 	const prIdsParam = url.searchParams.get('pr_ids') || url.searchParams.get('pr_id');
@@ -43,7 +43,8 @@ export const load: PageServerLoad = async ({ url }) => {
 						m.uom,
 						m.stock,
 						m.standard_price as unit_price,
-						prl.qty_requested as qty_ordered
+						prl.qty_requested as qty_ordered,
+						prl.remarks as remarks
 					FROM procurement.purchase_request_line prl
 					JOIN procurement.purchase_request pr ON pr.id = prl.pr_id
 					JOIN master.m_materials m ON m.id = prl.item_id
@@ -54,7 +55,7 @@ export const load: PageServerLoad = async ({ url }) => {
 		}
 
 		const vendors = await sql`
-			SELECT id, kode_vendor as kode_kustomer, nama_vendor as nama_kustomer, COALESCE(alamat, '') as alamat 
+			SELECT id, kode_vendor as kode_kustomer, nama_vendor as nama_kustomer, alias, COALESCE(alamat, '') as alamat 
 			FROM master.m_vendor 
 			WHERE is_active = true
 			ORDER BY nama_vendor
@@ -141,7 +142,6 @@ export const actions: Actions = {
 		const projectId = formData.get('projectId') ? parseInt(formData.get('projectId') as string) : null;
 		const siteId = formData.get('siteId') ? parseInt(formData.get('siteId') as string) : null;
 		const paymentTerm = ((formData.get('paymentTerm') as string) || '30 Hari').trim();
-		const poType = ((formData.get('poType') as string) || 'P').trim().toUpperCase();
 		let poNumber = ((formData.get('poNumber') as string) || '').trim();
 		const shipmentDate = (formData.get('shipmentDate') as string) || null;
 		let shipmentLocation = ((formData.get('shipmentLocation') as string) || '').trim();
@@ -200,7 +200,7 @@ export const actions: Actions = {
 				}
 			}
 
-			// Auto Generate PO Number jika kosong: [Counter]-[Tipe]/BCS-[Term]/[Alias]/[Romawi]/[YYYY]
+			// Auto Generate PO Number jika kosong: [Counter]-[Kategori]/BCS-[Vendor Alias]/[Site/Project Alias]/[Romawi]/[YYYY]
 			if (!poNumber) {
 				const poDate = new Date(date);
 				const [seqRow] = await sql`
@@ -211,22 +211,36 @@ export const actions: Actions = {
 				`;
 				const seq = parseInt(seqRow?.count || '0') + 1;
 
-				// Cari alias project atau site
-				let chosenAlias = 'GEN';
+				let catCode = 'GEN';
+				let projectAlias: string | null = null;
 				if (projectId) {
-					const [proj] = await sql`SELECT alias FROM master.m_project WHERE id = ${projectId}`;
-					if (proj?.alias) chosenAlias = proj.alias;
+					const [proj] = await sql`SELECT alias, cat_code, category FROM master.m_project WHERE id = ${projectId}`;
+					if (proj) {
+						catCode = proj.cat_code || (proj.category ? getCategoryCode(proj.category) : 'GEN');
+						projectAlias = proj.alias;
+					}
 				}
-				if (chosenAlias === 'GEN' && siteId) {
+
+				let siteAlias: string | null = null;
+				if (siteId) {
 					const [st] = await sql`SELECT alias FROM master.m_lokasi WHERE id = ${siteId}`;
-					if (st?.alias) chosenAlias = st.alias;
+					if (st?.alias) siteAlias = st.alias;
+				}
+				const chosenAlias = siteAlias || projectAlias || 'GEN';
+
+				let vendorAlias = 'VND';
+				if (vendorId) {
+					const [vnd] = await sql`SELECT alias, kode_vendor FROM master.m_vendor WHERE id = ${vendorId}`;
+					if (vnd) {
+						vendorAlias = vnd.alias || (vnd.kode_vendor ? vnd.kode_vendor.replace(/[^A-Za-z0-9]/g, '').slice(0, 3) : 'VND');
+					}
 				}
 
 				poNumber = generatePoNumber({
 					counter: seq,
-					poType,
-					termCode: getPaymentTermCode(paymentTerm),
-					alias: chosenAlias,
+					categoryCode: catCode,
+					vendorAlias,
+					siteAlias: chosenAlias,
 					date: poDate
 				});
 			}
@@ -289,7 +303,8 @@ export const actions: Actions = {
 						qty_ordered,
 						unit_price,
 						tax_amount,
-						total
+						total,
+						remarks
 					) VALUES (
 						${po.id},
 						${itm.pr_line_id || null},
@@ -297,7 +312,8 @@ export const actions: Actions = {
 						${itm.qty},
 						${itm.unit_price},
 						${itemTotal * (vatPercent / 100)},
-						${itemTotal}
+						${itemTotal},
+						${itm.remarks || null}
 					)
 				`;
 			}

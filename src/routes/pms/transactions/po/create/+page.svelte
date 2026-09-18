@@ -2,15 +2,14 @@
 	import { enhance } from '$app/forms';
 	import { formatRupiah, formatNumber } from '$lib/utils/pms';
 	import SearchableSelect from '$lib/components/SearchableSelect.svelte';
-	import { generatePoNumber, getPaymentTermCode, PO_PAYMENT_TERMS } from '$lib/utils/pmsNumbering';
+	import { generatePoNumber, getCategoryCode, PO_PAYMENT_TERMS } from '$lib/utils/pmsNumbering';
 
 	let { data } = $props();
-	let isSubmitting = $state(false);
 
 	let date = $state(new Date().toISOString().split('T')[0]);
-	let vendorId = $state('');
-	let projectId = $state(data.initialPR?.project_id ? data.initialPR.project_id.toString() : '');
-	let siteId = $state(data.initialPR?.site_id ? data.initialPR.site_id.toString() : '');
+	let vendorId = $state(data.vendors?.length ? String(data.vendors[0].id) : '');
+	let projectId = $state(data.initialPR?.project_id ? String(data.initialPR.project_id) : '');
+	let siteId = $state(data.initialPR?.site_id ? String(data.initialPR.site_id) : '');
 	let shipmentDate = $state('');
 	let shipmentLocation = $state('');
 	const prNumbers = data.initialPRs?.length
@@ -19,7 +18,6 @@
 	let refNo = $state(prNumbers ? `PR REF: ${prNumbers}` : '');
 	let dueDate = $state('');
 	let paymentTerm = $state('30 Hari');
-	let poType = $state('P');
 	let currency = $state('IDR');
 	let discountPercent = $state(0);
 	let vatPercent = $state(11);
@@ -42,27 +40,30 @@
 		searchTerms: `${t.label} ${t.value} ${t.code}`
 	}));
 
+	let selectedVendor = $derived(data.vendors?.find((v: any) => String(v.id) === String(vendorId)));
 	let selectedProject = $derived(data.projects?.find((p: any) => String(p.id) === String(projectId)));
 	let selectedSite = $derived(data.sites?.find((s: any) => String(s.id) === String(siteId)));
 	let chosenAlias = $derived(
-		selectedProject?.alias || selectedSite?.alias || 'GEN'
+		selectedSite?.alias || selectedProject?.alias || 'GEN'
 	);
 
 	function updatePoNumber() {
+		const catCode = selectedProject?.cat_code || (selectedProject?.category ? getCategoryCode(selectedProject.category) : 'GEN');
+		const vendorAlias = selectedVendor?.alias || (selectedVendor?.kode_kustomer ? selectedVendor.kode_kustomer.replace(/[^A-Za-z0-9]/g, '').slice(0, 3) : 'VND');
 		poNumber = generatePoNumber({
 			counter,
-			poType,
-			termCode: getPaymentTermCode(paymentTerm),
-			alias: chosenAlias,
+			categoryCode: catCode,
+			vendorAlias,
+			siteAlias: chosenAlias,
 			date
 		});
 	}
 
 	$effect(() => {
 		const curDate = date;
-		const curTerm = paymentTerm;
-		const curAlias = chosenAlias;
-		const curType = poType;
+		const curVendor = vendorId;
+		const curProj = projectId;
+		const curSite = siteId;
 		const curCounter = counter;
 
 		if (!isPoNumberManual) {
@@ -149,6 +150,7 @@
 		pr_line_id?: number;
 		pr_id?: number;
 		pr_number?: string;
+		remarks?: string;
 	}>>([]);
 
 	$effect(() => {
@@ -163,7 +165,8 @@
 				unit_price: parseFloat(itm.unit_price) || 0,
 				pr_line_id: itm.pr_line_id,
 				pr_id: itm.pr_id,
-				pr_number: itm.pr_number
+				pr_number: itm.pr_number,
+				remarks: itm.remarks || ''
 			}));
 		}
 		if (!dueDate && date) {
@@ -347,26 +350,17 @@
 								</span>
 							</div>
 							<p class="text-[11px] text-on-surface-variant font-medium mt-0.5">
-								Format: <code class="font-mono text-amber-700 dark:text-amber-300 font-bold">[Counter]-[Tipe]/BCS-[Term]/[Alias]/[Romawi]/[YYYY]</code>
+								Format: <code class="font-mono text-amber-700 dark:text-amber-300 font-bold">[Counter]-[Kategori]/BCS-[Vendor]/[Site/Project]/[Romawi]/[YYYY]</code>
 							</p>
 						</div>
 					</div>
 					<div class="flex items-center gap-2 w-full sm:w-auto">
-						<select
-							name="poType"
-							bind:value={poType}
-							class="h-10 bg-surface border border-slate-300 dark:border-slate-700 text-on-surface font-mono font-bold text-xs rounded-xl px-2.5 focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 outline-none"
-							title="Tipe PO (P: Purchasing Barang, J: Jasa)"
-						>
-							<option value="P">P (Purchasing)</option>
-							<option value="J">J (Jasa)</option>
-						</select>
 						<input
 							type="text"
 							name="poNumber"
 							bind:value={poNumber}
 							oninput={() => { isPoNumberManual = true; }}
-							placeholder="e.g. 321-P/BCS-DP/LTN/IX/2026"
+							placeholder="e.g. 123-T/BCS-TSN/MTC/IX/2026"
 							class="w-full sm:w-72 h-10 bg-surface border border-slate-300 dark:border-slate-700 text-on-surface font-mono font-bold text-xs rounded-xl px-3.5 focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 outline-none shadow-xs"
 						/>
 						{#if isPoNumberManual}
