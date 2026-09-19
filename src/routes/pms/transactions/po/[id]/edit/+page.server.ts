@@ -57,7 +57,8 @@ export const load: PageServerLoad = async ({ params }) => {
 				m.stock,
 				pol.qty_ordered as qty,
 				pol.unit_price,
-				pr.pr_number
+				pr.pr_number,
+				COALESCE(pol.remarks, prl.remarks, '') as remarks
 			FROM procurement.purchase_order_line pol
 			JOIN master.m_materials m ON m.id = pol.item_id
 			LEFT JOIN procurement.purchase_request_line prl ON prl.id = pol.pr_line_id
@@ -99,7 +100,8 @@ export const load: PageServerLoad = async ({ params }) => {
 				pr.pr_number as ref_pr_number,
 				prl.id as ref_pr_line_id,
 				pr.id as ref_pr_id,
-				prl.qty_requested as ref_qty_requested
+				prl.qty_requested as ref_qty_requested,
+				prl.remarks as ref_remarks
 			FROM master.m_materials m
 			JOIN procurement.purchase_request_line prl ON prl.item_id = m.id
 			JOIN procurement.purchase_request pr ON pr.id = prl.pr_id
@@ -133,31 +135,48 @@ export const load: PageServerLoad = async ({ params }) => {
 
 export const actions: Actions = {
 	update: async ({ request, params }) => {
-		const poId = parseInt(params.id);
+		const poId = parseInt(params.id, 10);
 		if (isNaN(poId)) {
 			return fail(400, { success: false, message: 'ID PO tidak valid' });
 		}
 
 		const formData = await request.formData();
-		const date = (formData.get('date') as string) || new Date().toISOString().split('T')[0];
-		const vendorId = formData.get('vendorId') as string;
-		const projectId = formData.get('projectId') ? parseInt(formData.get('projectId') as string) : null;
-		const siteId = formData.get('siteId') ? parseInt(formData.get('siteId') as string) : null;
+		const rawDate = ((formData.get('date') as string) || '').trim();
+		const date = rawDate && !isNaN(new Date(rawDate).getTime()) ? rawDate : new Date().toISOString().split('T')[0];
+		const vendorId = ((formData.get('vendorId') as string) || '').trim();
+
+		const rawProj = formData.get('projectId');
+		const projectId = rawProj && !isNaN(parseInt(rawProj as string, 10)) && parseInt(rawProj as string, 10) > 0 
+			? parseInt(rawProj as string, 10) 
+			: null;
+
+		const rawSite = formData.get('siteId');
+		const siteId = rawSite && !isNaN(parseInt(rawSite as string, 10)) && parseInt(rawSite as string, 10) > 0 
+			? parseInt(rawSite as string, 10) 
+			: null;
+
 		const paymentTerm = ((formData.get('paymentTerm') as string) || '30 Hari').trim();
 		const poNumber = ((formData.get('poNumber') as string) || '').trim();
-		const shipmentDate = (formData.get('shipmentDate') as string) || null;
+
+		const rawShipmentDate = ((formData.get('shipmentDate') as string) || '').trim();
+		const shipmentDate = rawShipmentDate && !isNaN(new Date(rawShipmentDate).getTime()) ? rawShipmentDate : null;
+
 		let shipmentLocation = ((formData.get('shipmentLocation') as string) || '').trim();
 		const refNo = ((formData.get('refNo') as string) || '').trim();
-		const dueDate = (formData.get('dueDate') as string) || null;
+
+		const rawDueDate = ((formData.get('dueDate') as string) || '').trim();
+		const dueDate = rawDueDate && !isNaN(new Date(rawDueDate).getTime()) ? rawDueDate : null;
+
 		const currency = ((formData.get('currency') as string) || 'IDR').trim();
-		const discountPercent = parseFloat((formData.get('discountPercent') as string) || '0');
-		const vatPercent = parseFloat((formData.get('vatPercent') as string) || '11');
+		const discountPercent = Math.max(0, parseFloat((formData.get('discountPercent') as string) || '0') || 0);
+		const vatPercent = Math.max(0, parseFloat((formData.get('vatPercent') as string) || '11') || 0);
 		const notes = ((formData.get('notes') as string) || '').trim();
 		const wrsNotes = ((formData.get('wrsNotes') as string) || '').trim();
 		const itemsRaw = (formData.get('items') as string) || '[]';
 
-		if (!vendorId) {
-			return fail(400, { success: false, message: 'Vendor / Supplier wajib dipilih!' });
+		const isUuid = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(vendorId);
+		if (!vendorId || !isUuid) {
+			return fail(400, { success: false, message: 'Vendor / Supplier wajib dipilih dengan benar dari daftar!' });
 		}
 
 		let items: any[] = [];
@@ -167,7 +186,7 @@ export const actions: Actions = {
 			items = [];
 		}
 
-		if (items.length === 0) {
+		if (!Array.isArray(items) || items.length === 0) {
 			return fail(400, { success: false, message: 'Minimal 1 item material harus ada dalam PO!' });
 		}
 
@@ -236,7 +255,19 @@ export const actions: Actions = {
 			await sql`DELETE FROM procurement.purchase_order_line WHERE po_id = ${poId}`;
 
 			for (const itm of items) {
-				const itemTotal = (parseFloat(itm.qty) || 0) * (parseFloat(itm.unit_price) || 0);
+				const matId = parseInt(itm.material_id, 10);
+				if (isNaN(matId) || matId <= 0) continue;
+
+				const qty = parseFloat(itm.qty) || 1;
+				const unitPrice = parseFloat(itm.unit_price) || 0;
+				const itemTotal = qty * unitPrice;
+
+				let prLineId: number | null = itm.pr_line_id && !isNaN(parseInt(itm.pr_line_id, 10)) ? parseInt(itm.pr_line_id, 10) : null;
+				if (prLineId) {
+					const [validLine] = await sql`SELECT id FROM procurement.purchase_request_line WHERE id = ${prLineId}`;
+					if (!validLine) prLineId = null;
+				}
+
 				await sql`
 					INSERT INTO procurement.purchase_order_line (
 						po_id,
@@ -245,21 +276,23 @@ export const actions: Actions = {
 						qty_ordered,
 						unit_price,
 						tax_amount,
-						total
+						total,
+						remarks
 					) VALUES (
 						${poId},
-						${itm.pr_line_id || null},
-						${itm.material_id},
-						${itm.qty},
-						${itm.unit_price},
+						${prLineId},
+						${matId},
+						${qty},
+						${unitPrice},
 						${itemTotal * (vatPercent / 100)},
-						${itemTotal}
+						${itemTotal},
+						${itm.remarks || null}
 					)
 				`;
 			}
 		} catch (err: any) {
 			console.error('Error updating PO:', err);
-			return fail(500, { success: false, message: err.message || 'Gagal menyimpan perubahan PO' });
+			return fail(500, { success: false, message: err?.message || 'Gagal menyimpan perubahan PO' });
 		}
 
 		throw redirect(303, `/pms/transactions/po/${poId}`);

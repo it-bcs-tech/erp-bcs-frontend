@@ -110,6 +110,7 @@
 		unit_price: number;
 		pr_line_id?: number;
 		pr_number?: string;
+		remarks?: string;
 	}>>((data.items || []).map((itm: any) => ({
 		material_id: itm.material_id,
 		material_code: itm.material_code,
@@ -119,15 +120,15 @@
 		qty: parseFloat(itm.qty) || 1,
 		unit_price: parseFloat(itm.unit_price) || 0,
 		pr_line_id: itm.pr_line_id,
-		pr_number: itm.pr_number
+		pr_number: itm.pr_number,
+		remarks: itm.remarks || ''
 	})));
 
 	let selectedMaterialId = $state('');
 
 	function getVendorSpecificPrice(matId: number, vId: string): number | null {
 		if (!vId || !data.vendorPrices) return null;
-		const vIdNum = parseInt(vId);
-		const vp = data.vendorPrices.find((p: any) => p.material_id === matId && p.vendor_id === vIdNum);
+		const vp = data.vendorPrices.find((p: any) => p.material_id === matId && String(p.vendor_id) === String(vId));
 		return vp ? parseFloat(vp.price) : null;
 	}
 
@@ -171,7 +172,8 @@
 			qty: parseFloat(mat.ref_qty_requested) || 1,
 			unit_price: initialPrice,
 			pr_line_id: mat.ref_pr_line_id,
-			pr_number: mat.ref_pr_number
+			pr_number: mat.ref_pr_number,
+			remarks: mat.ref_remarks || ''
 		});
 
 		selectedMaterialId = '';

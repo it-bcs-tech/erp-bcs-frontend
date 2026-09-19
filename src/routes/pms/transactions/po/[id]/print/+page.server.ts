@@ -35,7 +35,10 @@ export const load: PageServerLoad = async ({ params }) => {
 				l.contact_person as "sitePic",
 				l.phone as "sitePhone",
 				l.address_1 as "siteAddress",
+				l.address_1 as "siteAddress1",
+				l.address_2 as "siteAddress2",
 				l.city as "siteCity",
+				l.state as "siteState",
 				COALESCE(po.category, 'SUPPORTING') as category,
 				po.subtotal,
 				po.tax_amount as "taxAmount",
@@ -74,6 +77,9 @@ export const load: PageServerLoad = async ({ params }) => {
 		if (!po) {
 			throw error(404, 'Purchase Order tidak ditemukan');
 		}
+
+		const fullSiteAddressParts = [po.siteAddress1, po.siteAddress2, po.siteCity, po.siteState].filter(Boolean);
+		po.siteFullAddress = fullSiteAddressParts.length > 0 ? fullSiteAddressParts.join(', ') : '';
 
 		const items = await sql`
 			SELECT 

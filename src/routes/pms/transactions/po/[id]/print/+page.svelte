@@ -255,7 +255,7 @@
 						<div class="grid grid-cols-2 gap-y-1 gap-x-2 text-[10px]">
 							<span class="text-slate-500">Proyek:</span>
 							<span class="font-bold text-slate-900 text-right truncate">
-								{data.po.projectCode ? `${data.po.projectCode} - ${data.po.projectName || ''}` : (data.po.projectName || 'BCS General')}
+								{data.po.projectCode || '-'}
 							</span>
 
 							<span class="text-slate-500">Site Penerima:</span>
@@ -273,15 +273,15 @@
 								{formatDate(data.po.shipmentDate)}
 							</span>
 
-							<span class="text-slate-500">Lokasi Penerimaan:</span>
-							<span class="font-bold text-slate-900 text-right truncate">
-								{data.po.shipmentLocation || data.po.siteName || 'Gudang Pusat Cilegon'}
-							</span>
-
-							<span class="text-slate-500">Status PO:</span>
-							<span class="font-bold uppercase text-slate-900 text-right">
-								{data.po.status}
-							</span>
+							<span class="text-slate-500 self-start">Lokasi Penerimaan:</span>
+							<div class="text-right leading-tight">
+								<p class="font-bold text-slate-900">{data.po.siteName || 'Gudang Pusat Cilegon'}</p>
+								{#if data.po.siteFullAddress || data.po.shipmentLocation}
+									<p class="text-[9px] text-slate-600 mt-0.5 whitespace-pre-line">
+										{data.po.siteFullAddress || data.po.shipmentLocation}
+									</p>
+								{/if}
+							</div>
 						</div>
 					</div>
 				</div>

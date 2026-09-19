@@ -217,6 +217,14 @@
 											<span>Detail</span>
 										</a>
 										{#if po.status === 'DRAFT'}
+											<a
+												href="/pms/transactions/po/{po.id}/edit"
+												class="inline-flex items-center gap-1 px-2.5 py-1 bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/30 hover:bg-amber-500/20 rounded-lg text-xs font-bold transition-colors shadow-xs"
+												title="Edit Draft PO"
+											>
+												<span class="material-symbols-outlined text-xs">edit</span>
+												<span>Edit</span>
+											</a>
 											<form method="POST" action="?/confirmPO" use:enhance>
 												<input type="hidden" name="id" value={po.id} />
 												<button
