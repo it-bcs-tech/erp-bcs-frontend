@@ -58,6 +58,7 @@
 		</a>
 		<nav class="hidden md:flex items-center gap-6">
 			<a class="text-sm font-bold transition-colors {currentPath === '/' ? 'text-[#57344f] border-b-2 border-[#57344f] pb-1' : 'text-slate-500 dark:text-slate-400 hover:text-[#57344f]'}" href="/">Main Dashboard</a>
+			<a class="text-sm font-bold transition-colors {currentPath.startsWith('/calendar') ? 'text-[#57344f] border-b-2 border-[#57344f] pb-1' : 'text-slate-500 dark:text-slate-400 hover:text-[#57344f]'}" href="/calendar">Calendar Hub</a>
 			
 			{#if admin}
 				<a class="text-sm font-bold transition-colors {currentPath.startsWith('/admin') ? 'text-[#57344f] border-b-2 border-[#57344f] pb-1' : 'text-slate-500 dark:text-slate-400 hover:text-[#57344f]'}" href="/admin/users">System Admin</a>
@@ -67,10 +68,20 @@
 
 	</div>
 	<div class="flex items-center gap-2">
-		<div class="relative mr-4 hidden md:block">
+		<div class="relative mr-2 hidden md:block">
 			<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant text-sm">search</span>
 			<input class="bg-surface-container-low border border-slate-200 dark:border-slate-700 rounded-full py-1.5 pl-10 pr-4 text-sm w-64 focus:ring-2 focus:ring-primary/20 placeholder:text-on-surface-variant" placeholder="Search modules..." type="text"/>
 		</div>
+
+		<!-- Quick Access Calendar Button -->
+		<a
+			href="/calendar"
+			class="p-2 text-slate-500 hover:text-amber-600 hover:bg-slate-200/50 dark:hover:bg-slate-800/50 rounded-lg transition-all relative {currentPath.startsWith('/calendar') ? 'text-amber-600 bg-amber-500/10' : ''}"
+			title="Kalender Perusahaan & Booking Ruangan"
+		>
+			<span class="material-symbols-outlined">calendar_month</span>
+		</a>
+
 		<div class="relative" use:clickOutside={() => isNotifOpen = false}>
 			<button onclick={toggleNotifications} class="p-2 text-slate-500 hover:bg-slate-200/50 dark:hover:bg-slate-800/50 rounded-lg transition-all relative">
 				<span class="material-symbols-outlined">notifications</span>

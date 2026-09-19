@@ -118,6 +118,17 @@
 					<span class="text-sm">Request & Stok ATK (KR 7.4)</span>
 				</a>
 			{/if}
+
+			<!-- Peminjaman Ruangan & Fasilitas (Terhubung Kalender) -->
+			<a
+				class="flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200 hover:translate-x-1 {isActive('/ga/room-bookings')
+					? 'bg-surface-container-highest text-cyan-700 dark:text-cyan-300 font-bold'
+					: 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container font-medium text-sm'}"
+				href="/ga/room-bookings"
+			>
+				<span class="material-symbols-outlined text-[20px]">meeting_room</span>
+				<span class="text-sm">Peminjaman Ruangan</span>
+			</a>
 		</nav>
 	</aside>
 
