@@ -44,6 +44,11 @@ export const load: PageServerLoad = async ({ params }) => {
 			throw redirect(303, `/pms/transactions/po/${poId}?error=cannot_edit_non_draft`);
 		}
 
+		const [hasWrs] = await sql`SELECT id FROM procurement.goods_receipt WHERE po_id = ${poId} LIMIT 1`;
+		if (hasWrs) {
+			throw redirect(303, `/pms/transactions/po/${poId}?error=cannot_edit_has_wrs`);
+		}
+
 		const items = await sql`
 			SELECT 
 				pol.id,
@@ -209,6 +214,11 @@ export const actions: Actions = {
 			}
 			if (existingPo.status !== 'DRAFT') {
 				return fail(400, { success: false, message: 'Hanya PO dengan status DRAFT yang dapat diedit!' });
+			}
+
+			const [hasWrs] = await sql`SELECT id FROM procurement.goods_receipt WHERE po_id = ${poId} LIMIT 1`;
+			if (hasWrs) {
+				return fail(400, { success: false, message: 'PO sudah memiliki penerimaan WRS/LPB dan tidak dapat diedit!' });
 			}
 
 			let resolvedCategory = 'GENERAL';

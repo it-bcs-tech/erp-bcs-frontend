@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
+	import { page } from '$app/stores';
 	import { formatDateId, formatNumber, formatRupiah, getCategoryBadge, getPOStatusBadge } from '$lib/utils/pms';
 	import PmsPrintModal from '$lib/components/pms/PmsPrintModal.svelte';
 
@@ -11,6 +12,10 @@
 	let totalQty = $derived(
 		(data.items || []).reduce((sum: number, itm: any) => sum + (parseFloat(itm.qtyOrdered) || 0), 0)
 	);
+
+	let hasWrs = $derived(Boolean(data.linkedWrs && data.linkedWrs.length > 0));
+	let isDraft = $derived(data.po.status === 'DRAFT');
+	let canEdit = $derived(isDraft && !hasWrs);
 
 	let showPrintModal = $state(false);
 </script>
@@ -59,7 +64,7 @@
 				<span>Cetak PO</span>
 			</button>
 
-			{#if data.po.status === 'DRAFT'}
+			{#if canEdit}
 				<a
 					href="/pms/transactions/po/{data.po.id}/edit"
 					class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-surface border border-amber-500/40 text-amber-700 dark:text-amber-400 hover:bg-amber-500/10 text-xs font-bold transition-colors shadow-xs cursor-pointer"
@@ -77,6 +82,13 @@
 					</button>
 				</form>
 			{:else}
+				<span
+					class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 text-xs font-semibold cursor-not-allowed border border-slate-200 dark:border-slate-700"
+					title={hasWrs ? "PO sudah memiliki penerimaan WRS/LPB dan tidak dapat diedit secara langsung" : "PO sudah dikonfirmasi/diproses dan tidak dapat diedit"}
+				>
+					<span class="material-symbols-outlined text-base">lock</span>
+					<span>{hasWrs ? 'Sudah Ada WRS' : 'PO Terkunci'}</span>
+				</span>
 				{#if data.po.status === 'CONFIRMED' || data.po.status === 'PARTIAL_RECEIVED'}
 					<a
 						href="/pms/transactions/wrs/create?po_id={data.po.id}"
@@ -89,6 +101,23 @@
 			{/if}
 		</div>
 	</header>
+
+	<!-- Error Alert if user was redirected from unauthorized edit attempt -->
+	{#if $page.url.searchParams.get('error') === 'cannot_edit_non_draft'}
+		<div class="p-4 rounded-2xl bg-rose-500/10 border border-rose-500/30 text-rose-800 dark:text-rose-300 text-xs flex items-center gap-3 shadow-xs">
+			<span class="material-symbols-outlined text-xl text-rose-600 dark:text-rose-400 shrink-0">lock</span>
+			<p class="leading-relaxed">
+				<strong>Peringatan:</strong> Purchase Order ini tidak dapat diedit karena statusnya bukan <strong>DRAFT</strong>.
+			</p>
+		</div>
+	{:else if $page.url.searchParams.get('error') === 'cannot_edit_has_wrs'}
+		<div class="p-4 rounded-2xl bg-rose-500/10 border border-rose-500/30 text-rose-800 dark:text-rose-300 text-xs flex items-center gap-3 shadow-xs">
+			<span class="material-symbols-outlined text-xl text-rose-600 dark:text-rose-400 shrink-0">lock</span>
+			<p class="leading-relaxed">
+				<strong>Peringatan:</strong> Purchase Order ini tidak dapat diedit karena sudah memiliki catatan penerimaan barang (WRS/LPB).
+			</p>
+		</div>
+	{/if}
 
 	<!-- Linked WRS Banner if receipts exist -->
 	{#if data.linkedWrs && data.linkedWrs.length > 0}
