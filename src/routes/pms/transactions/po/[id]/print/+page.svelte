@@ -426,13 +426,13 @@
 					<div class="flex flex-col justify-between items-center h-20">
 						<div>
 							<p class="text-[10.5px] font-bold text-slate-700 leading-tight">Disetujui Oleh,</p>
-							<p class="text-[9px] text-slate-500">Procurement Manager / Direksi</p>
+							<p class="text-[9px] text-slate-500">{data.approver?.position || 'Procurement Manager'}</p>
 						</div>
 						<div>
 							<p class="font-bold text-[10.5px] text-slate-900 border-b border-slate-800 inline-block px-3 pb-0.5">
-								( .................................................. )
+								( {data.approver?.name || '..................................................'} )
 							</p>
-							<p class="text-[8px] text-slate-500 mt-0.5">Authorized Approval</p>
+							<p class="text-[8px] text-slate-500 mt-0.5">Tgl: {formatDate(data.po.date)}</p>
 						</div>
 					</div>
 

@@ -313,6 +313,20 @@
 					<span class="text-xs font-semibold">Kartu Stok / Mutasi</span>
 				</a>
 			{/if}
+
+			<!-- 7. Settings Section -->
+			<div class="pt-3 pb-1 px-4">
+				<p class="text-[9px] font-black text-on-surface-variant/50 uppercase tracking-[0.2em]">Konfigurasi</p>
+			</div>
+			<a
+				class="flex items-center gap-3 px-4 py-2 rounded-xl transition-all duration-200 hover:translate-x-1 {isActive('/pms/settings')
+					? 'bg-surface-container-highest text-amber-600 dark:text-amber-400 font-bold'
+					: 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container font-medium text-sm'}"
+				href="/pms/settings"
+			>
+				<span class="material-symbols-outlined text-[18px]">tune</span>
+				<span class="text-xs font-semibold">Pengaturan Approval</span>
+			</a>
 		</nav>
 	</aside>
 

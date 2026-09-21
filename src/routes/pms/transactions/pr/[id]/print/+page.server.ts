@@ -1,6 +1,13 @@
 import type { PageServerLoad } from './$types';
 import sql from '$lib/server/db';
 import { error } from '@sveltejs/kit';
+import { getModuleSetting, type ApproverSetting } from '$lib/server/settings';
+
+const DEFAULT_PR_APPROVER: ApproverSetting = {
+	name: 'Andi Riswanto',
+	position: 'Head of Operations',
+	payroll_id: ''
+};
 
 export const load: PageServerLoad = async ({ params }) => {
 	const prId = parseInt(params.id);
@@ -77,9 +84,12 @@ export const load: PageServerLoad = async ({ params }) => {
 			ORDER BY prl.id ASC
 		`;
 
+		const approver = await getModuleSetting<ApproverSetting>('pms', 'approval_pr', DEFAULT_PR_APPROVER);
+
 		return {
 			pr,
-			items
+			items,
+			approver
 		};
 	} catch (err: any) {
 		if (err?.status) throw err;

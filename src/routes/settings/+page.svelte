@@ -2,10 +2,21 @@
 	import { systemSettings, formatCurrencyPrivacy, formatMaskedText } from '$lib/stores/settings';
 	import { authUser, displayName, getRoleLabel } from '$lib/stores/auth';
 
-	let { data } = $props();
+	import { enhance } from '$app/forms';
 
-	let activeTab = $state<'privacy' | 'company' | 'preferences' | 'security'>('privacy');
+	let { data, form } = $props();
+
+	let activeTab = $state<'privacy' | 'company' | 'preferences' | 'security' | 'approvals'>('privacy');
 	let isSavedToast = $state(false);
+	let approvalSuccessMsg = $state('');
+
+	$effect(() => {
+		if (form?.message) {
+			approvalSuccessMsg = form.message;
+			const t = setTimeout(() => (approvalSuccessMsg = ''), 4000);
+			return () => clearTimeout(t);
+		}
+	});
 
 	// Local state bound to store
 	let settings = $state({
@@ -138,6 +149,13 @@
 		>
 			<span class="material-symbols-outlined text-sm">security</span>
 			<span>Keamanan & Sesi Login</span>
+		</button>
+		<button
+			onclick={() => (activeTab = 'approvals')}
+			class="px-4 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer whitespace-nowrap {activeTab === 'approvals' ? 'bg-primary text-on-primary shadow-xs' : 'text-on-surface-variant hover:bg-surface-container'}"
+		>
+			<span class="material-symbols-outlined text-sm">verified_user</span>
+			<span>Approval Dokumen</span>
 		</button>
 	</div>
 
@@ -327,7 +345,7 @@
 		</div>
 
 	<!-- TAB 4: SECURITY & LOGIN SESSIONS -->
-	{:else}
+	{:else if activeTab === 'security'}
 		<div class="p-6 rounded-3xl bg-surface-container-low border border-slate-200/60 dark:border-slate-800/60 shadow-xs space-y-6">
 			<div>
 				<h3 class="text-base font-bold text-on-surface">Keamanan Akun & Manajemen Sesi</h3>
@@ -363,5 +381,220 @@
 				</div>
 			</div>
 		</div>
+
+	<!-- TAB 5: MODULE APPROVAL SETTINGS -->
+	{:else if activeTab === 'approvals'}
+		<div class="space-y-6">
+			<!-- Header Info -->
+			<div class="p-5 rounded-3xl bg-gradient-to-r from-amber-600 to-orange-700 text-white shadow-md flex flex-col md:flex-row items-center justify-between gap-4">
+				<div class="flex items-center gap-4">
+					<div class="w-12 h-12 rounded-2xl bg-white/20 flex items-center justify-center text-white flex-shrink-0">
+						<span class="material-symbols-outlined text-2xl">verified_user</span>
+					</div>
+					<div>
+						<h3 class="text-base font-bold">Pusat Pengaturan Approval & Penandatangan Cetak Dokumen</h3>
+						<p class="text-xs text-amber-100 mt-0.5 leading-relaxed">
+							Kelola pejabat penandatangan resmi (Approved By) untuk seluruh lembar cetak dokumen modul ERP BCS (dimulai dari modul PMS).
+						</p>
+					</div>
+				</div>
+				<a
+					href="/pms/settings"
+					class="px-4 py-2 rounded-xl bg-white/20 hover:bg-white/30 text-white text-xs font-bold transition-colors flex items-center gap-1.5 whitespace-nowrap border border-white/25"
+				>
+					<span class="material-symbols-outlined text-sm">open_in_new</span>
+					<span>Buka Pengaturan Modul PMS</span>
+				</a>
+			</div>
+
+			<!-- Success Notification -->
+			{#if approvalSuccessMsg}
+				<div class="p-3.5 rounded-2xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-700 dark:text-emerald-300 text-xs font-bold flex items-center gap-2">
+					<span class="material-symbols-outlined text-base">check_circle</span>
+					<span>{approvalSuccessMsg}</span>
+				</div>
+			{/if}
+
+			<!-- Module List Cards -->
+			<div class="space-y-6">
+				<!-- Section: Modul PMS -->
+				<div class="p-6 rounded-3xl bg-surface-container-low border border-slate-200/60 dark:border-slate-800/60 shadow-xs space-y-6">
+					<div class="flex items-center justify-between pb-3 border-b border-slate-200/60 dark:border-slate-800/60">
+						<div class="flex items-center gap-2.5">
+							<span class="w-8 h-8 rounded-xl bg-amber-500/10 text-amber-600 flex items-center justify-center font-bold text-xs">
+								PMS
+							</span>
+							<div>
+								<h4 class="font-bold text-sm text-on-surface">Modul Procurement (PMS)</h4>
+								<p class="text-[11px] text-on-surface-variant">Penandatangan dokumen cetak Purchase Order & Purchase Request</p>
+							</div>
+						</div>
+					</div>
+
+					<div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+						<!-- Card 1: PO Approval -->
+						{#each (data.moduleSettings?.filter((s: any) => s.module === 'pms' && s.setting_key === 'approval_po') || []) as poSetting}
+							<div class="p-5 rounded-2xl bg-surface-container-lowest border border-slate-200/80 dark:border-slate-800/80 space-y-4">
+								<div class="flex items-center justify-between border-b border-slate-200/60 pb-2.5">
+									<div>
+										<h5 class="font-bold text-xs text-on-surface">Cetak Purchase Order (PO)</h5>
+										<p class="text-[10px] text-slate-500">Kolom "Disetujui Oleh"</p>
+									</div>
+									<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/10 text-amber-700">
+										PO Print
+									</span>
+								</div>
+
+								<form method="POST" action="?/saveModuleApproval" use:enhance class="space-y-3 text-xs">
+									<input type="hidden" name="module" value="pms" />
+									<input type="hidden" name="settingKey" value="approval_po" />
+									<input type="hidden" name="description" value={poSetting.description} />
+
+									<div>
+										<label class="font-bold text-on-surface block mb-1">Pilih dari Master Karyawan</label>
+										<select
+											onchange={(e) => {
+												const target = e.target as HTMLSelectElement;
+												const emp = data.employees?.find((em: any) => em.payrollId === target.value);
+												if (emp) {
+													const form = target.closest('form');
+													if (form) {
+														(form.querySelector('input[name="name"]') as HTMLInputElement).value = emp.name;
+														(form.querySelector('input[name="position"]') as HTMLInputElement).value = emp.position || 'Procurement Manager';
+														(form.querySelector('input[name="payrollId"]') as HTMLInputElement).value = emp.payrollId;
+													}
+												}
+												target.value = '';
+											}}
+											class="w-full px-3 py-1.5 rounded-xl bg-surface border border-slate-200 dark:border-slate-700 text-xs cursor-pointer"
+										>
+											<option value="">-- Isi Otomatis dari Karyawan --</option>
+											{#each (data.employees || []) as emp}
+												<option value={emp.payrollId}>{emp.name} ({emp.payrollId}) {emp.position ? `- ${emp.position}` : ''}</option>
+											{/each}
+										</select>
+									</div>
+
+									<input type="hidden" name="payrollId" value={poSetting.setting_value?.payroll_id || ''} />
+
+									<div>
+										<label class="font-bold text-on-surface block mb-1">Nama Pejabat</label>
+										<input
+											type="text"
+											name="name"
+											value={poSetting.setting_value?.name || ''}
+											required
+											class="w-full px-3 py-2 rounded-xl bg-surface border border-slate-200 dark:border-slate-700 text-xs font-bold"
+										/>
+									</div>
+
+									<div>
+										<label class="font-bold text-on-surface block mb-1">Jabatan Resmi</label>
+										<input
+											type="text"
+											name="position"
+											value={poSetting.setting_value?.position || ''}
+											required
+											class="w-full px-3 py-2 rounded-xl bg-surface border border-slate-200 dark:border-slate-700 text-xs"
+										/>
+									</div>
+
+									<div class="pt-1 flex justify-between items-center text-[10px] text-slate-400">
+										<span>Update: {poSetting.updated_at || '-'}</span>
+										<button
+											type="submit"
+											class="px-3.5 py-1.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold cursor-pointer transition-colors shadow-2xs"
+										>
+											Simpan PO
+										</button>
+									</div>
+								</form>
+							</div>
+						{/each}
+
+						<!-- Card 2: PR Approval -->
+						{#each (data.moduleSettings?.filter((s: any) => s.module === 'pms' && s.setting_key === 'approval_pr') || []) as prSetting}
+							<div class="p-5 rounded-2xl bg-surface-container-lowest border border-slate-200/80 dark:border-slate-800/80 space-y-4">
+								<div class="flex items-center justify-between border-b border-slate-200/60 pb-2.5">
+									<div>
+										<h5 class="font-bold text-xs text-on-surface">Cetak Purchase Request (PR)</h5>
+										<p class="text-[10px] text-slate-500">Kolom "Disetujui Oleh"</p>
+									</div>
+									<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-500/10 text-blue-700">
+										PR Print
+									</span>
+								</div>
+
+								<form method="POST" action="?/saveModuleApproval" use:enhance class="space-y-3 text-xs">
+									<input type="hidden" name="module" value="pms" />
+									<input type="hidden" name="settingKey" value="approval_pr" />
+									<input type="hidden" name="description" value={prSetting.description} />
+
+									<div>
+										<label class="font-bold text-on-surface block mb-1">Pilih dari Master Karyawan</label>
+										<select
+											onchange={(e) => {
+												const target = e.target as HTMLSelectElement;
+												const emp = data.employees?.find((em: any) => em.payrollId === target.value);
+												if (emp) {
+													const form = target.closest('form');
+													if (form) {
+														(form.querySelector('input[name="name"]') as HTMLInputElement).value = emp.name;
+														(form.querySelector('input[name="position"]') as HTMLInputElement).value = emp.position || 'Head of Operations';
+														(form.querySelector('input[name="payrollId"]') as HTMLInputElement).value = emp.payrollId;
+													}
+												}
+												target.value = '';
+											}}
+											class="w-full px-3 py-1.5 rounded-xl bg-surface border border-slate-200 dark:border-slate-700 text-xs cursor-pointer"
+										>
+											<option value="">-- Isi Otomatis dari Karyawan --</option>
+											{#each (data.employees || []) as emp}
+												<option value={emp.payrollId}>{emp.name} ({emp.payrollId}) {emp.position ? `- ${emp.position}` : ''}</option>
+											{/each}
+										</select>
+									</div>
+
+									<input type="hidden" name="payrollId" value={prSetting.setting_value?.payroll_id || ''} />
+
+									<div>
+										<label class="font-bold text-on-surface block mb-1">Nama Pejabat</label>
+										<input
+											type="text"
+											name="name"
+											value={prSetting.setting_value?.name || ''}
+											required
+											class="w-full px-3 py-2 rounded-xl bg-surface border border-slate-200 dark:border-slate-700 text-xs font-bold"
+										/>
+									</div>
+
+									<div>
+										<label class="font-bold text-on-surface block mb-1">Jabatan Resmi</label>
+										<input
+											type="text"
+											name="position"
+											value={prSetting.setting_value?.position || ''}
+											required
+											class="w-full px-3 py-2 rounded-xl bg-surface border border-slate-200 dark:border-slate-700 text-xs"
+										/>
+									</div>
+
+									<div class="pt-1 flex justify-between items-center text-[10px] text-slate-400">
+										<span>Update: {prSetting.updated_at || '-'}</span>
+										<button
+											type="submit"
+											class="px-3.5 py-1.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold cursor-pointer transition-colors shadow-2xs"
+										>
+											Simpan PR
+										</button>
+									</div>
+								</form>
+							</div>
+						{/each}
+					</div>
+				</div>
+			</div>
+		</div>
 	{/if}
 </div>
+
