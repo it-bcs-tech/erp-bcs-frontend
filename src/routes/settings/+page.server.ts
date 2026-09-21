@@ -25,27 +25,8 @@ export const load: PageServerLoad = async ({ parent }) => {
 		// 2. Ambil seluruh setting approval dari master.module_settings
 		const moduleSettings = await getAllModuleSettings();
 
-		// 3. Ambil daftar karyawan untuk dropdown
-		let employees: Array<{ payrollId: string; name: string; position: string }> = [];
-		try {
-			const empRows = await sql`
-				SELECT 
-					k.payroll_id as "payrollId", 
-					k.nama_karyawan as name, 
-					COALESCE(t.title_name, k.title, '') as position
-				FROM master.m_karyawan k
-				LEFT JOIN master.m_title t ON t.title_code = k.title
-				WHERE (k.aktif = 'Y' OR k.aktif = '1' OR k.aktif IS NULL)
-				ORDER BY k.nama_karyawan ASC
-			`;
-			employees = empRows.map((r: any) => ({
-				payrollId: r.payrollId || '',
-				name: r.name || '',
-				position: r.position || ''
-			}));
-		} catch (e) {
-			console.warn('Fallback loading employees in /settings:', e);
-		}
+		// 3. Ambil daftar karyawan untuk dropdown yang relevan
+		const employees = await getFilteredEmployeesForSettings(user, 'global');
 
 		return {
 			pools: poolList || [],

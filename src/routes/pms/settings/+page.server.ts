@@ -1,7 +1,7 @@
 import type { PageServerLoad, Actions } from './$types';
 import sql from '$lib/server/db';
 import { fail } from '@sveltejs/kit';
-import { getModuleSetting, setModuleSetting, type ApproverSetting } from '$lib/server/settings';
+import { getModuleSetting, setModuleSetting, getFilteredEmployeesForSettings, type ApproverSetting, type EmployeeOption } from '$lib/server/settings';
 
 const DEFAULT_PO_APPROVER: ApproverSetting = {
 	name: 'Irwan Gunawan',
@@ -15,33 +15,14 @@ const DEFAULT_PR_APPROVER: ApproverSetting = {
 	payroll_id: ''
 };
 
-export const load: PageServerLoad = async () => {
+export const load: PageServerLoad = async ({ locals }) => {
 	try {
 		// 1. Ambil setting approval PO & PR
 		const approvalPo = await getModuleSetting<ApproverSetting>('pms', 'approval_po', DEFAULT_PO_APPROVER);
 		const approvalPr = await getModuleSetting<ApproverSetting>('pms', 'approval_pr', DEFAULT_PR_APPROVER);
 
-		// 2. Ambil daftar karyawan untuk dropdown autocomplete pejabat
-		let employees: Array<{ payrollId: string; name: string; position: string }> = [];
-		try {
-			const empRows = await sql`
-				SELECT 
-					k.payroll_id as "payrollId", 
-					k.nama_karyawan as name, 
-					COALESCE(t.title_name, k.title, '') as position
-				FROM master.m_karyawan k
-				LEFT JOIN master.m_title t ON t.title_code = k.title
-				WHERE (k.aktif = 'Y' OR k.aktif = '1' OR k.aktif IS NULL)
-				ORDER BY k.nama_karyawan ASC
-			`;
-			employees = empRows.map((r: any) => ({
-				payrollId: r.payrollId || '',
-				name: r.name || '',
-				position: r.position || ''
-			}));
-		} catch (e) {
-			console.warn('Fallback loading employees for PMS settings:', e);
-		}
+		// 2. Ambil daftar karyawan yang terfilter relevan dengan user yang sedang login
+		const employees = await getFilteredEmployeesForSettings(locals.user, 'pms');
 
 		return {
 			approvalPo,
@@ -52,7 +33,7 @@ export const load: PageServerLoad = async () => {
 		console.error('Error loading PMS settings:', err);
 		return {
 			approvalPo: DEFAULT_PO_APPROVER,
-			approvalPr: DEFAULT_PR_PR_APPROVER,
+			approvalPr: DEFAULT_PR_APPROVER,
 			employees: []
 		};
 	}

@@ -432,7 +432,7 @@
 							<p class="font-bold text-[10.5px] text-slate-900 border-b border-slate-800 inline-block px-3 pb-0.5">
 								( {data.approver?.name || '..................................................'} )
 							</p>
-							<p class="text-[8px] text-slate-500 mt-0.5">Tgl: {formatDate(data.po.date)}</p>
+							<p class="text-[8px] text-slate-500 mt-0.5">Tgl: ....................</p>
 						</div>
 					</div>
 

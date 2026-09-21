@@ -61,10 +61,6 @@
 		}
 		target.value = '';
 	}
-
-	function getTodayFormatted(): string {
-		return new Date().toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' });
-	}
 </script>
 
 <svelte:head>
@@ -162,10 +158,10 @@
 							onchange={(e) => handleEmployeeSelect(e, 'po')}
 							class="w-full px-3.5 py-2 rounded-xl bg-surface border border-slate-200 dark:border-slate-700 text-xs font-semibold text-on-surface focus:outline-none focus:ring-2 focus:ring-amber-500/40 cursor-pointer"
 						>
-							<option value="">-- Pilih Karyawan untuk Mengisi Otomatis --</option>
+							<option value="">-- Pilih Cepat Pejabat ({data.employees?.length || 0} orang terkait) --</option>
 							{#each data.employees as emp}
 								<option value={emp.payrollId}>
-									{emp.name} ({emp.payrollId}) {emp.position ? `- ${emp.position}` : ''}
+									{emp.name} ({emp.payrollId}) {emp.position ? `- ${emp.position}` : ''}{emp.department ? ` [${emp.department}]` : ''}
 								</option>
 							{/each}
 						</select>
@@ -246,7 +242,7 @@
 						<p class="font-bold text-[11px] text-slate-900 border-b border-slate-800 inline-block px-4 pb-0.5">
 							( {poName || '..................................................'} )
 						</p>
-						<p class="text-[9px] text-slate-500 mt-1">Tgl: {getTodayFormatted()}</p>
+						<p class="text-[9px] text-slate-500 mt-1">Tgl: ....................</p>
 					</div>
 				</div>
 
@@ -299,10 +295,10 @@
 							onchange={(e) => handleEmployeeSelect(e, 'pr')}
 							class="w-full px-3.5 py-2 rounded-xl bg-surface border border-slate-200 dark:border-slate-700 text-xs font-semibold text-on-surface focus:outline-none focus:ring-2 focus:ring-amber-500/40 cursor-pointer"
 						>
-							<option value="">-- Pilih Karyawan untuk Mengisi Otomatis --</option>
+							<option value="">-- Pilih Cepat Pejabat ({data.employees?.length || 0} orang terkait) --</option>
 							{#each data.employees as emp}
 								<option value={emp.payrollId}>
-									{emp.name} ({emp.payrollId}) {emp.position ? `- ${emp.position}` : ''}
+									{emp.name} ({emp.payrollId}) {emp.position ? `- ${emp.position}` : ''}{emp.department ? ` [${emp.department}]` : ''}
 								</option>
 							{/each}
 						</select>
@@ -383,7 +379,7 @@
 						<p class="font-bold text-[11px] text-slate-900 border-b border-slate-800 inline-block px-4 pb-0.5">
 							( {prName || '..................................................'} )
 						</p>
-						<p class="text-[9px] text-slate-500 mt-1">Tgl: {getTodayFormatted()}</p>
+						<p class="text-[9px] text-slate-500 mt-1">Tgl: ....................</p>
 					</div>
 				</div>
 

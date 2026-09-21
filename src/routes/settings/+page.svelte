@@ -468,9 +468,9 @@
 											}}
 											class="w-full px-3 py-1.5 rounded-xl bg-surface border border-slate-200 dark:border-slate-700 text-xs cursor-pointer"
 										>
-											<option value="">-- Isi Otomatis dari Karyawan --</option>
+											<option value="">-- Isi Otomatis dari Karyawan ({data.employees?.length || 0} orang) --</option>
 											{#each (data.employees || []) as emp}
-												<option value={emp.payrollId}>{emp.name} ({emp.payrollId}) {emp.position ? `- ${emp.position}` : ''}</option>
+												<option value={emp.payrollId}>{emp.name} ({emp.payrollId}) {emp.position ? `- ${emp.position}` : ''}{emp.department ? ` [${emp.department}]` : ''}</option>
 											{/each}
 										</select>
 									</div>
@@ -548,9 +548,9 @@
 											}}
 											class="w-full px-3 py-1.5 rounded-xl bg-surface border border-slate-200 dark:border-slate-700 text-xs cursor-pointer"
 										>
-											<option value="">-- Isi Otomatis dari Karyawan --</option>
+											<option value="">-- Isi Otomatis dari Karyawan ({data.employees?.length || 0} orang) --</option>
 											{#each (data.employees || []) as emp}
-												<option value={emp.payrollId}>{emp.name} ({emp.payrollId}) {emp.position ? `- ${emp.position}` : ''}</option>
+												<option value={emp.payrollId}>{emp.name} ({emp.payrollId}) {emp.position ? `- ${emp.position}` : ''}{emp.department ? ` [${emp.department}]` : ''}</option>
 											{/each}
 										</select>
 									</div>

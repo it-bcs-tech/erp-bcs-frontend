@@ -6,6 +6,102 @@ export interface ApproverSetting {
 	payroll_id?: string;
 }
 
+export interface EmployeeOption {
+	payrollId: string;
+	name: string;
+	position: string;
+	department?: string;
+}
+
+/**
+ * Mengambil daftar karyawan yang telah difilter fokus & relevan dengan user yang login:
+ * 1. Satu departemen dengan user
+ * 2. Relasi atasan / bawahan langsung (m_atasan)
+ * 3. Khusus modul PMS: Karyawan departemen Procurement (D_19) & Manajemen/Direksi (DV_44)
+ * 4. Karyawan tingkat manajerial (Spv, Mgr, GM) jika user admin tanpa departemen
+ * 5. Mengabaikan level operator pelaksana biasa (Lvl_005) agar dropdown tidak penuh
+ */
+export async function getFilteredEmployeesForSettings(
+	user: { id?: number; email?: string; payrollId?: string | null } | null | undefined,
+	moduleName: string = 'pms'
+): Promise<EmployeeOption[]> {
+	try {
+		let userDept: string | null = null;
+		let userTitle: string | null = null;
+
+		if (user) {
+			const userEmpRows = await sql`
+				SELECT mk.payroll_id, mk.title, mk.dept_id, mk.div_id
+				FROM master.erp_users eu
+				LEFT JOIN master.m_karyawan mk ON mk.id = eu.karyawan_id
+				WHERE eu.id = ${user.id || 0}
+				   OR (${user.email || ''} != '' AND LOWER(eu.email) = LOWER(${user.email || ''}))
+				   OR (${user.payrollId || ''} != '' AND mk.payroll_id = ${user.payrollId || ''})
+				LIMIT 1
+			`;
+			if (userEmpRows.length > 0) {
+				userDept = userEmpRows[0].dept_id || null;
+				userTitle = userEmpRows[0].title || null;
+			}
+		}
+
+		let empRows = await sql`
+			SELECT 
+				k.payroll_id as "payrollId", 
+				k.nama_karyawan as name, 
+				COALESCE(t.title, k.title, '') as position,
+				COALESCE(dp.dept_name, '') as department
+			FROM master.m_karyawan k
+			LEFT JOIN master.m_title t ON t.title_code = k.title
+			LEFT JOIN master.m_dept dp ON dp.dept_code = k.dept_id
+			WHERE (k.aktif = 'Y' OR k.aktif = '1' OR k.aktif IS NULL)
+			  AND (k.level != 'Lvl_005' OR k.level IS NULL)
+			  AND (
+				(${userDept}::text IS NOT NULL AND k.dept_id = ${userDept})
+				OR (${userTitle}::text IS NOT NULL AND k.title IN (
+					SELECT title_atasan FROM master.m_atasan WHERE title_bawahan = ${userTitle}
+					UNION
+					SELECT title_bawahan FROM master.m_atasan WHERE title_atasan = ${userTitle}
+				))
+				OR (${moduleName} = 'pms' AND (
+					k.dept_id = 'D_19' 
+					OR k.div_id = 'DV_44'
+				))
+				OR (${userDept}::text IS NULL AND k.level IN ('Lvl_002', 'Lvl_003', 'Lvl_007'))
+			  )
+			ORDER BY k.nama_karyawan ASC
+		`;
+
+		// Fallback jika hasil kosong: ambil seluruh pejabat/manajerial dan departemen pengadaan
+		if (!empRows || empRows.length === 0) {
+			empRows = await sql`
+				SELECT 
+					k.payroll_id as "payrollId", 
+					k.nama_karyawan as name, 
+					COALESCE(t.title, k.title, '') as position,
+					COALESCE(dp.dept_name, '') as department
+				FROM master.m_karyawan k
+				LEFT JOIN master.m_title t ON t.title_code = k.title
+				LEFT JOIN master.m_dept dp ON dp.dept_code = k.dept_id
+				WHERE (k.aktif = 'Y' OR k.aktif = '1' OR k.aktif IS NULL)
+				  AND (k.level != 'Lvl_005' OR k.level IS NULL)
+				  AND (k.div_id = 'DV_44' OR k.dept_id = 'D_19' OR k.level IN ('Lvl_002', 'Lvl_003', 'Lvl_007'))
+				ORDER BY k.nama_karyawan ASC
+			`;
+		}
+
+		return empRows.map((r: any) => ({
+			payrollId: r.payrollId || '',
+			name: r.name || '',
+			position: r.position || '',
+			department: r.department || ''
+		}));
+	} catch (err) {
+		console.error('Error in getFilteredEmployeesForSettings:', err);
+		return [];
+	}
+}
+
 export async function getModuleSetting<T = any>(
 	module: string,
 	key: string,
