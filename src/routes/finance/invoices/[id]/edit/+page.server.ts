@@ -1,19 +1,28 @@
 import type { PageServerLoad, Actions } from './$types';
 import sql from '$lib/server/db';
 import { error, fail } from '@sveltejs/kit';
+import { getModuleSetting } from '$lib/server/settings';
+
+const DEFAULT_ORDER_DOC_TYPES = ['PO', 'SPK', 'SPH', 'Quotation'];
+const DEFAULT_RECEIPT_DOC_TYPES = ['LHP', 'PR', 'GR'];
 
 export const load: PageServerLoad = async ({ params }) => {
 	const invoiceId = params.id;
 	
 	try {
-		const [customers, contracts, banks, departments, projects, accounts, taxes] = await Promise.all([
+		const [
+			customers, contracts, banks, departments, projects, accounts, taxes,
+			orderDocTypes, receiptDocTypes
+		] = await Promise.all([
 			sql`SELECT id, kode_kustomer as code, nama_kustomer as name FROM master.m_customer WHERE is_active = true ORDER BY name ASC`,
 			sql`SELECT c.id, c.customer_id, c.project_id, p.project_name FROM marketing.contract c LEFT JOIN master.m_project p ON c.project_id = p.id WHERE c.status = 'Active'`,
 			sql`SELECT id, account_number, account_name, bank_name as name FROM master.m_bank_account WHERE is_active = true ORDER BY name ASC`,
 			sql`SELECT id, dept_code as code, dept_name as name FROM master.m_dept WHERE active = 'Y' ORDER BY name ASC`,
 			sql`SELECT id, project_name as name FROM master.m_project WHERE is_active = true ORDER BY name ASC`,
 			sql`SELECT id, code, name FROM finance.account WHERE account_type = 'REVENUE' AND is_active = true ORDER BY code ASC`,
-			sql`SELECT id, nama_pajak as name, value as rate FROM master.m_pajak WHERE is_active = true ORDER BY name ASC`
+			sql`SELECT id, nama_pajak as name, value as rate FROM master.m_pajak WHERE is_active = true ORDER BY name ASC`,
+			getModuleSetting<string[]>('finance', 'customer_invoice_order_doc_types', DEFAULT_ORDER_DOC_TYPES),
+			getModuleSetting<string[]>('finance', 'customer_invoice_receipt_doc_types', DEFAULT_RECEIPT_DOC_TYPES)
 		]);
 
 		// Fetch the invoice
@@ -62,7 +71,20 @@ export const load: PageServerLoad = async ({ params }) => {
 			WHERE dh.invoice_id = ${invoiceId}
 		`;
 
-		return { customers, contracts, banks, departments, projects, accounts, taxes, invoice, invoiceLines, selectedDns };
+		return {
+			customers,
+			contracts,
+			banks,
+			departments,
+			projects,
+			accounts,
+			taxes,
+			invoice,
+			invoiceLines,
+			selectedDns,
+			orderDocTypes: Array.isArray(orderDocTypes) && orderDocTypes.length > 0 ? orderDocTypes : DEFAULT_ORDER_DOC_TYPES,
+			receiptDocTypes: Array.isArray(receiptDocTypes) && receiptDocTypes.length > 0 ? receiptDocTypes : DEFAULT_RECEIPT_DOC_TYPES
+		};
 	} catch (err) {
 		console.error("Error fetching invoice data:", err);
 		throw error(500, 'Internal Server Error fetching invoice data');

@@ -237,10 +237,13 @@
 
 	const STANDARD_UOMS = ['Ton', 'Kg', 'Trip', 'M3', 'Dus', 'Sak', 'Rit', 'Pcs', 'Unit', 'Box', 'Bulan', 'Hari'];
 
+	const orderDocTypes = $derived<string[]>(data.orderDocTypes || ['PO', 'SPK', 'SPH', 'Quotation']);
+	const receiptDocTypes = $derived<string[]>(data.receiptDocTypes || ['LHP', 'PR', 'GR']);
+
 	// Reference Document types and numbers
-	let refOrderType = $state('PO');
+	let refOrderType = $state(data.orderDocTypes?.[0] || 'PO');
 	let refOrderNumber = $state('');
-	let refLhpType = $state('LHP');
+	let refLhpType = $state(data.receiptDocTypes?.[0] || 'LHP');
 	let refLhpNumber = $state('');
 
 	function syncOrderRef() {
@@ -263,14 +266,15 @@
 			refOrderNumber = '';
 			return;
 		}
-		const m = val.match(/^(PO|SPK|SPH|Quotation)[\s\-:]*(.*)$/i);
+		const types = orderDocTypes.length > 0 ? orderDocTypes : ['PO', 'SPK', 'SPH', 'Quotation'];
+		const sortedTypes = [...types].sort((a, b) => b.length - a.length);
+		const escaped = sortedTypes.map(t => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|');
+		const regex = new RegExp(`^(${escaped})[\\s\\-:]*(.*)$`, 'i');
+		const m = val.match(regex);
 		if (m) {
-			const rawType = m[1].toUpperCase();
-			if (rawType === 'PO') refOrderType = 'PO';
-			else if (rawType === 'SPK') refOrderType = 'SPK';
-			else if (rawType === 'SPH') refOrderType = 'SPH';
-			else if (rawType === 'QUOTATION') refOrderType = 'Quotation';
-			refOrderNumber = m[2] || '';
+			const matched = sortedTypes.find(t => t.toLowerCase() === m[1].toLowerCase());
+			refOrderType = matched || m[1];
+			refOrderNumber = m[2]?.trim() || '';
 		} else {
 			refOrderType = 'CUSTOM';
 			refOrderNumber = val;
@@ -297,13 +301,21 @@
 			refLhpNumber = '';
 			return;
 		}
-		const m = val.match(/^(LHP|RR|GR)[\s\-:]*(.*)$/i);
+		const types = receiptDocTypes.length > 0 ? receiptDocTypes : ['LHP', 'PR', 'GR'];
+		const sortedTypes = [...types].sort((a, b) => b.length - a.length);
+		const typesWithLegacy = Array.from(new Set([...sortedTypes, 'RR']));
+		const escaped = typesWithLegacy.map(t => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|');
+		const regex = new RegExp(`^(${escaped})[\\s\\-:]*(.*)$`, 'i');
+		const m = val.match(regex);
 		if (m) {
 			const rawType = m[1].toUpperCase();
-			if (rawType === 'LHP') refLhpType = 'LHP';
-			else if (rawType === 'RR') refLhpType = 'RR';
-			else if (rawType === 'GR') refLhpType = 'GR';
-			refLhpNumber = m[2] || '';
+			if (rawType === 'RR') {
+				refLhpType = sortedTypes.includes('PR') ? 'PR' : (sortedTypes[0] || 'PR');
+			} else {
+				const matched = sortedTypes.find(t => t.toLowerCase() === m[1].toLowerCase());
+				refLhpType = matched || m[1];
+			}
+			refLhpNumber = m[2]?.trim() || '';
 		} else {
 			refLhpType = 'CUSTOM';
 			refLhpNumber = val;
@@ -839,10 +851,9 @@
 								onchange={syncOrderRef}
 								class="bg-surface-container-high/60 text-xs font-bold text-on-surface px-3 py-2.5 outline-none border-none cursor-pointer shrink-0"
 							>
-								<option value="PO">PO</option>
-								<option value="SPK">SPK</option>
-								<option value="SPH">SPH</option>
-								<option value="Quotation">Quotation</option>
+								{#each orderDocTypes as oType}
+									<option value={oType}>{oType}</option>
+								{/each}
 								<option value="CUSTOM">Lainnya</option>
 							</select>
 							<input 
@@ -864,9 +875,9 @@
 								onchange={syncLhpRef}
 								class="bg-surface-container-high/60 text-xs font-bold text-on-surface px-3 py-2.5 outline-none border-none cursor-pointer shrink-0"
 							>
-								<option value="LHP">LHP</option>
-								<option value="RR">RR</option>
-								<option value="GR">GR</option>
+								{#each receiptDocTypes as rType}
+									<option value={rType}>{rType}</option>
+								{/each}
 								<option value="CUSTOM">Lainnya</option>
 							</select>
 							<input 

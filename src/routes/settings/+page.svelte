@@ -18,6 +18,20 @@
 		}
 	});
 
+	const finOrderSetting = $derived(
+		data.moduleSettings?.find((s: any) => s.module === 'finance' && s.setting_key === 'customer_invoice_order_doc_types')
+	);
+	const finOrderTypesList = $derived<string[]>(
+		Array.isArray(finOrderSetting?.setting_value) ? finOrderSetting.setting_value : ['PO', 'SPK', 'SPH', 'Quotation']
+	);
+
+	const finReceiptSetting = $derived(
+		data.moduleSettings?.find((s: any) => s.module === 'finance' && s.setting_key === 'customer_invoice_receipt_doc_types')
+	);
+	const finReceiptTypesList = $derived<string[]>(
+		Array.isArray(finReceiptSetting?.setting_value) ? finReceiptSetting.setting_value : ['LHP', 'PR', 'GR']
+	);
+
 	// Local state bound to store
 	let settings = $state({
 		hideSalaryNominals: $systemSettings.hideSalaryNominals,
@@ -155,7 +169,7 @@
 			class="px-4 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer whitespace-nowrap {activeTab === 'approvals' ? 'bg-primary text-on-primary shadow-xs' : 'text-on-surface-variant hover:bg-surface-container'}"
 		>
 			<span class="material-symbols-outlined text-sm">verified_user</span>
-			<span>Approval Dokumen</span>
+			<span>Approval & Preset Dokumen</span>
 		</button>
 	</div>
 
@@ -591,6 +605,148 @@
 								</form>
 							</div>
 						{/each}
+					</div>
+				</div>
+
+				<!-- Section: Modul Finance (Preset Tipe Dokumen Customer Invoice) -->
+				<div class="p-6 rounded-3xl bg-surface-container-low border border-slate-200/60 dark:border-slate-800/60 shadow-xs space-y-6">
+					<div class="flex items-center justify-between pb-3 border-b border-slate-200/60 dark:border-slate-800/60">
+						<div class="flex items-center gap-2.5">
+							<span class="w-8 h-8 rounded-xl bg-teal-500/10 text-teal-600 flex items-center justify-center font-bold text-xs">
+								FIN
+							</span>
+							<div>
+								<h4 class="font-bold text-sm text-on-surface">Modul Finance — Preset Tipe Dokumen Customer Invoice</h4>
+								<p class="text-[11px] text-on-surface-variant">Konfigurasi opsi pilihan tipe dokumen Order / Kontrak dan Penerimaan / Pengiriman</p>
+							</div>
+						</div>
+						<a
+							href="/finance/create-transaction/customer-invoices"
+							class="px-3 py-1.5 rounded-xl bg-surface hover:bg-surface-container text-teal-600 text-xs font-bold transition-colors flex items-center gap-1.5 border border-slate-200 dark:border-slate-700"
+						>
+							<span class="material-symbols-outlined text-sm">open_in_new</span>
+							<span>Buka Customer Invoice</span>
+						</a>
+					</div>
+
+					<div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+						<!-- Card 1: Order Doc Types -->
+						<div class="p-5 rounded-2xl bg-surface-container-lowest border border-slate-200/80 dark:border-slate-800/80 space-y-4">
+							<div class="flex items-center justify-between border-b border-slate-200/60 pb-2.5">
+								<div>
+									<h5 class="font-bold text-xs text-on-surface">Dokumen Order / Kontrak</h5>
+									<p class="text-[10px] text-slate-500">Preset pilihan dropdown nomor PO / SPK / Kontrak pelanggan</p>
+								</div>
+								<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-teal-500/10 text-teal-700">
+									Order Ref
+								</span>
+							</div>
+
+							<!-- Current Badges -->
+							<div>
+								<span class="text-[11px] font-bold text-slate-500 block mb-1.5">Preset Aktif Saat Ini:</span>
+								<div class="flex flex-wrap gap-1.5">
+									{#each finOrderTypesList as tag}
+										<span class="px-2.5 py-1 rounded-lg bg-teal-50 dark:bg-teal-950/40 text-teal-800 dark:text-teal-300 border border-teal-200 dark:border-teal-800 text-xs font-bold font-mono">
+											{tag}
+										</span>
+									{/each}
+								</div>
+							</div>
+
+							<form method="POST" action="?/saveDocTypes" use:enhance class="space-y-3 text-xs">
+								<input type="hidden" name="module" value="finance" />
+								<input type="hidden" name="settingKey" value="customer_invoice_order_doc_types" />
+								<input type="hidden" name="description" value="Tipe Dokumen Order / Kontrak pada Customer Invoice" />
+
+								<div>
+									<label class="font-bold text-on-surface block mb-1">
+										Daftar Tipe Dokumen (Pisahkan dengan koma)
+									</label>
+									<input
+										type="text"
+										name="docTypes"
+										value={finOrderTypesList.join(', ')}
+										required
+										placeholder="Contoh: PO, SPK, SPH, Quotation"
+										class="w-full px-3 py-2 rounded-xl bg-surface border border-slate-200 dark:border-slate-700 text-xs font-semibold text-on-surface focus:ring-2 focus:ring-teal-500/40 outline-none"
+									/>
+									<p class="text-[10px] text-slate-400 mt-1">
+										Gunakan tanda koma (,) untuk memisahkan antar opsi. Opsi "Lainnya (Custom)" otomatis disediakan.
+									</p>
+								</div>
+
+								<div class="pt-1 flex justify-between items-center text-[10px] text-slate-400">
+									<span>Update: {finOrderSetting?.updated_at || '-'}</span>
+									<button
+										type="submit"
+										class="px-4 py-2 rounded-xl bg-teal-600 hover:bg-teal-700 text-white font-bold cursor-pointer transition-colors shadow-2xs flex items-center gap-1.5"
+									>
+										<span class="material-symbols-outlined text-sm">save</span>
+										<span>Simpan Tipe Order</span>
+									</button>
+								</div>
+							</form>
+						</div>
+
+						<!-- Card 2: Receipt / Delivery Doc Types -->
+						<div class="p-5 rounded-2xl bg-surface-container-lowest border border-slate-200/80 dark:border-slate-800/80 space-y-4">
+							<div class="flex items-center justify-between border-b border-slate-200/60 pb-2.5">
+								<div>
+									<h5 class="font-bold text-xs text-on-surface">Dokumen Penerimaan / Pengiriman</h5>
+									<p class="text-[10px] text-slate-500">Preset pilihan dropdown nomor LHP / Penerimaan / Delivery</p>
+								</div>
+								<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-cyan-500/10 text-cyan-700">
+									Receipt / Delivery Ref
+								</span>
+							</div>
+
+							<!-- Current Badges -->
+							<div>
+								<span class="text-[11px] font-bold text-slate-500 block mb-1.5">Preset Aktif Saat Ini:</span>
+								<div class="flex flex-wrap gap-1.5">
+									{#each finReceiptTypesList as tag}
+										<span class="px-2.5 py-1 rounded-lg bg-cyan-50 dark:bg-cyan-950/40 text-cyan-800 dark:text-cyan-300 border border-cyan-200 dark:border-cyan-800 text-xs font-bold font-mono">
+											{tag}
+										</span>
+									{/each}
+								</div>
+							</div>
+
+							<form method="POST" action="?/saveDocTypes" use:enhance class="space-y-3 text-xs">
+								<input type="hidden" name="module" value="finance" />
+								<input type="hidden" name="settingKey" value="customer_invoice_receipt_doc_types" />
+								<input type="hidden" name="description" value="Tipe Dokumen Penerimaan / Pengiriman pada Customer Invoice" />
+
+								<div>
+									<label class="font-bold text-on-surface block mb-1">
+										Daftar Tipe Dokumen (Pisahkan dengan koma)
+									</label>
+									<input
+										type="text"
+										name="docTypes"
+										value={finReceiptTypesList.join(', ')}
+										required
+										placeholder="Contoh: LHP, PR, GR"
+										class="w-full px-3 py-2 rounded-xl bg-surface border border-slate-200 dark:border-slate-700 text-xs font-semibold text-on-surface focus:ring-2 focus:ring-cyan-500/40 outline-none"
+									/>
+									<p class="text-[10px] text-slate-400 mt-1">
+										Gunakan tanda koma (,) untuk memisahkan antar opsi. Opsi "Lainnya (Custom)" otomatis disediakan.
+									</p>
+								</div>
+
+								<div class="pt-1 flex justify-between items-center text-[10px] text-slate-400">
+									<span>Update: {finReceiptSetting?.updated_at || '-'}</span>
+									<button
+										type="submit"
+										class="px-4 py-2 rounded-xl bg-teal-600 hover:bg-teal-700 text-white font-bold cursor-pointer transition-colors shadow-2xs flex items-center gap-1.5"
+									>
+										<span class="material-symbols-outlined text-sm">save</span>
+										<span>Simpan Tipe Penerimaan</span>
+									</button>
+								</div>
+							</form>
+						</div>
 					</div>
 				</div>
 			</div>

@@ -83,5 +83,45 @@ export const actions: Actions = {
 			settingKey,
 			message: `Pengaturan tanda tangan Approved By untuk ${moduleName.toUpperCase()} (${settingKey}) berhasil disimpan.`
 		};
+	},
+
+	saveDocTypes: async ({ request, locals }) => {
+		const formData = await request.formData();
+		const moduleName = (formData.get('module') as string || 'finance').trim().toLowerCase();
+		const settingKey = (formData.get('settingKey') as string || '').trim();
+		const docTypesRaw = (formData.get('docTypes') as string || '').trim();
+		const description = (formData.get('description') as string || '').trim();
+
+		if (!settingKey) {
+			return fail(400, { success: false, message: 'Setting Key wajib disertakan' });
+		}
+
+		let docTypesList: string[] = [];
+		try {
+			if (docTypesRaw.startsWith('[')) {
+				docTypesList = JSON.parse(docTypesRaw);
+			} else {
+				docTypesList = docTypesRaw.split(',').map(s => s.trim()).filter(Boolean);
+			}
+		} catch {
+			docTypesList = docTypesRaw.split(',').map(s => s.trim()).filter(Boolean);
+		}
+
+		if (docTypesList.length === 0) {
+			return fail(400, { success: false, message: 'Minimal harus ada 1 tipe dokumen!' });
+		}
+
+		const sessionUser = (locals as any)?.user?.name || (locals as any)?.user?.username || 'admin';
+		const ok = await setModuleSetting(moduleName, settingKey, docTypesList, description, sessionUser);
+		if (!ok) {
+			return fail(500, { success: false, message: 'Gagal menyimpan preset tipe dokumen' });
+		}
+
+		return {
+			success: true,
+			moduleName,
+			settingKey,
+			message: `Preset tipe dokumen ${settingKey === 'customer_invoice_order_doc_types' ? 'Order / Kontrak' : 'Penerimaan / Pengiriman'} berhasil diperbarui.`
+		};
 	}
 };

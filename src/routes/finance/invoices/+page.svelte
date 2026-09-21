@@ -56,7 +56,7 @@
 
 	function getLhpDocInfo(val: string | null) {
 		if (!val || val.trim() === '') return { label: 'No. Dokumen Penerimaan', value: '-' };
-		const m = val.match(/^(LHP|RR|GR)[\s\-:]*(.*)$/i);
+		const m = val.match(/^(LHP|PR|RR|GR)[\s\-:]*(.*)$/i);
 		if (m) {
 			const type = m[1].toUpperCase();
 			const cleanNum = m[2]?.trim();
