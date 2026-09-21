@@ -21,6 +21,7 @@ export const load: PageServerLoad = async ({ url }) => {
 				COALESCE(m.spec, '-') as spec,
 				m.uom,
 				prl.qty_requested as "qtyRequested",
+				COALESCE(NULLIF(prl.remarks, ''), NULLIF(pr.notes, ''), '-') as remarks,
 				pr.status
 			FROM procurement.purchase_request_line prl
 			JOIN procurement.purchase_request pr ON pr.id = prl.pr_id

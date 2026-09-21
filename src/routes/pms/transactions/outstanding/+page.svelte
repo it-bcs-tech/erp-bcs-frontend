@@ -14,7 +14,8 @@
 				(r.prNumber && r.prNumber.toLowerCase().includes(q)) ||
 				(r.materialName && r.materialName.toLowerCase().includes(q)) ||
 				(r.projectName && r.projectName.toLowerCase().includes(q)) ||
-				(r.requestedBy && r.requestedBy.toLowerCase().includes(q))
+				(r.requestedBy && r.requestedBy.toLowerCase().includes(q)) ||
+				(r.remarks && r.remarks.toLowerCase().includes(q))
 			);
 		}
 		return list;
@@ -190,7 +191,7 @@
 	{#if activeTab === 'ORDER'}
 		<div class="rounded-2xl bg-surface-container-low border border-slate-200/60 dark:border-slate-800/60 overflow-hidden shadow-xs">
 			<div class="overflow-x-auto">
-				<table class="w-full text-left text-sm min-w-[1100px]">
+				<table class="w-full text-left text-sm min-w-[1250px]">
 					<thead class="bg-slate-100/70 dark:bg-slate-800/50 text-xs font-bold text-on-surface-variant uppercase tracking-wider border-b border-slate-200/60 dark:border-slate-800/60">
 						<tr>
 							<th class="py-3.5 px-4">No. PR</th>
@@ -202,6 +203,7 @@
 							<th class="py-3.5 px-4">Spesifikasi</th>
 							<th class="py-3.5 px-3 text-right">Qty</th>
 							<th class="py-3.5 px-3 text-left">Satuan</th>
+							<th class="py-3.5 px-4">Keterangan</th>
 							<th class="py-3.5 px-4 text-center">Status</th>
 							<th class="py-3.5 px-4">Riwayat Terakhir</th>
 						</tr>
@@ -209,7 +211,7 @@
 					<tbody class="divide-y divide-slate-200/60 dark:divide-slate-800/60 font-medium text-xs">
 						{#if filteredOsOrders.length === 0}
 							<tr>
-								<td colspan="11" class="py-12 text-center text-on-surface-variant">
+								<td colspan="12" class="py-12 text-center text-on-surface-variant">
 									<span class="material-symbols-outlined text-4xl text-emerald-500 mb-2">task_alt</span>
 									<p class="text-xs font-semibold">Tidak ada PR yang tertunda. Semua permintaan telah diproses PO.</p>
 								</td>
@@ -218,9 +220,13 @@
 							{#each filteredOsOrders as pr}
 								<tr class="hover:bg-surface-container-high/40 transition-colors">
 									<td class="py-3.5 px-4 whitespace-nowrap">
-										<span class="font-mono font-bold text-amber-700 dark:text-amber-400">
+										<a
+											href="/pms/transactions/pr/{pr.id}"
+											class="font-mono font-bold text-amber-700 dark:text-amber-400 hover:underline"
+											title="Lihat Detail PR"
+										>
 											{pr.prNumber}
-										</span>
+										</a>
 									</td>
 									<td class="py-3.5 px-4 whitespace-nowrap text-on-surface-variant text-xs">
 										{formatDateId(pr.date)}
@@ -245,6 +251,9 @@
 									</td>
 									<td class="py-3.5 px-3 font-semibold text-on-surface-variant text-xs">
 										{pr.uom}
+									</td>
+									<td class="py-3.5 px-4 text-on-surface text-xs max-w-xs truncate" title={pr.remarks}>
+										{pr.remarks || '-'}
 									</td>
 									<td class="py-3.5 px-4 text-center whitespace-nowrap">
 										<span class="inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-0.5 rounded-full border bg-amber-100 text-amber-800 border-amber-300">
