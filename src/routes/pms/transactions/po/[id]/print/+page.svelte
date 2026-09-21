@@ -60,6 +60,22 @@
 		return new Date(dateStr).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' });
 	}
 
+	function getReceiverPhone(rawPhone: string | null | undefined): string {
+		if (!rawPhone || !rawPhone.trim() || rawPhone.trim() === '-') return '-';
+		const parts = rawPhone.split(/[/,;\n]+/).map(p => p.trim()).filter(Boolean);
+		if (parts.length === 0) return '-';
+		if (parts.length === 1) return parts[0];
+
+		// Utamakan nomor HP (dimulai dengan 08, +628, atau 628)
+		const hp = parts.find(p => {
+			const clean = p.replace(/[\s-]/g, '');
+			return clean.startsWith('08') || clean.startsWith('+628') || clean.startsWith('628');
+		});
+
+		if (hp) return hp;
+		return parts[0];
+	}
+
 	function terbilang(angka: number): string {
 		const bilangan = [
 			"", "Satu", "Dua", "Tiga", "Empat", "Lima", 
@@ -254,14 +270,14 @@
 							Pengiriman & Penerima (Kirim Ke)
 						</h3>
 						<div class="grid grid-cols-2 gap-y-1 gap-x-2 text-[10px]">
-							<span class="text-slate-500">No. Telp Penerima:</span>
-							<span class="font-bold text-slate-900 text-right truncate">
-								{data.po.sitePhone || '-'}
-							</span>
-
 							<span class="text-slate-500">Penerima (PIC):</span>
 							<span class="font-bold text-slate-900 text-right truncate">
 								{data.po.sitePic || '-'}
+							</span>
+
+							<span class="text-slate-500">No. Telp Penerima:</span>
+							<span class="font-bold text-slate-900 text-right truncate">
+								{getReceiverPhone(data.po.sitePhone)}
 							</span>
 
 							<span class="text-slate-500">No. Referensi:</span>
@@ -288,7 +304,7 @@
 				</div>
 
 				<!-- 4. ITEM LIST TABLE (Compact layout for up to 10+ rows) -->
-				<table class="w-full border-collapse border border-slate-300 mb-2.5 text-[10px]">
+				<table class="w-full border-collapse mb-2.5 text-[10px]">
 					<thead>
 						<tr class="bg-slate-100 text-slate-900 font-bold border-b border-slate-300">
 							<th class="border border-slate-300 py-1.5 px-2 w-8 text-center">No</th>
@@ -337,17 +353,9 @@
 						{/each}
 
 						{#if emptyRowsCount > 0}
-							{#each Array.from({ length: emptyRowsCount }) as _, idx}
-								<tr class="border-b border-slate-200 h-7">
-									<td class="border border-slate-300 py-1 px-2 text-center font-mono">&nbsp;</td>
-									<td class="border border-slate-300 py-1 px-2">&nbsp;</td>
-									<td class="border border-slate-300 py-1 px-2">&nbsp;</td>
-									<td class="border border-slate-300 py-1 px-2">&nbsp;</td>
-									<td class="border border-slate-300 py-1 px-2">&nbsp;</td>
-									<td class="border border-slate-300 py-1 px-2">&nbsp;</td>
-									<td class="border border-slate-300 py-1 px-2">&nbsp;</td>
-									<td class="border border-slate-300 py-1 px-2">&nbsp;</td>
-									<td class="border border-slate-300 py-1 px-2">&nbsp;</td>
+							{#each Array.from({ length: emptyRowsCount }) as _}
+								<tr class="h-7 border-0">
+									<td colspan="9" class="border-0 p-0 leading-7 select-none">&nbsp;</td>
 								</tr>
 							{/each}
 						{/if}
