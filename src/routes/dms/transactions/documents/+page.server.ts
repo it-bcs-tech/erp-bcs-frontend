@@ -22,6 +22,8 @@ export const load: PageServerLoad = async ({ url }) => {
 			conditions.push(sql`(
 				d.doc_number ILIKE ${pattern} OR 
 				d.title ILIKE ${pattern} OR 
+				d.notes ILIKE ${pattern} OR
+				(d.metadata->>'owner_name') ILIKE ${pattern} OR
 				u.nomor_unit ILIKE ${pattern} OR 
 				k.nama_karyawan ILIKE ${pattern} OR 
 				c.nama_kustomer ILIKE ${pattern} OR

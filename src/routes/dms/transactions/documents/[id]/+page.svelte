@@ -55,7 +55,7 @@
 
 	let metadataEntries = $derived(
 		doc.metadata && typeof doc.metadata === 'object'
-			? Object.entries(doc.metadata).filter(([_, v]) => v !== null && v !== '')
+			? Object.entries(doc.metadata).filter(([k, v]) => v !== null && v !== '' && k !== 'legacy_audit')
 			: []
 	);
 </script>
@@ -332,9 +332,36 @@
 						</h3>
 						<div class="divide-y divide-slate-100 dark:divide-slate-800/60">
 							{#each metadataEntries as [k, v]}
-								<div class="py-2 flex items-center justify-between text-xs">
+								<div class="py-2 flex flex-col sm:flex-row sm:items-center justify-between text-xs gap-1">
 									<span class="font-bold text-on-surface-variant capitalize">{k.replace(/_/g, ' ')}</span>
-									<span class="font-mono font-bold text-on-surface text-right">{v}</span>
+									{#if Array.isArray(v)}
+										<div class="flex flex-col gap-1 text-right">
+											{#if v.length === 0}
+												<span class="text-slate-400 font-mono">-</span>
+											{:else}
+												{#each v as item}
+													{#if typeof item === 'object' && item?.file_name}
+														<a
+															href="/api/uploads/{encodeURIComponent(item.file_name)}"
+															target="_blank"
+															class="font-mono font-bold text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-1 justify-end"
+														>
+															<span class="material-symbols-outlined text-sm">attachment</span>
+															<span>{item.file_name}</span>
+														</a>
+													{:else}
+														<span class="font-mono font-bold text-on-surface">{JSON.stringify(item)}</span>
+													{/if}
+												{/each}
+											{/if}
+										</div>
+									{:else if typeof v === 'boolean'}
+										<span class="font-mono font-bold text-on-surface text-right">{v ? 'Ya (Aktif)' : 'Tidak'}</span>
+									{:else if typeof v === 'object' && v !== null}
+										<span class="font-mono font-bold text-on-surface text-right">{JSON.stringify(v)}</span>
+									{:else}
+										<span class="font-mono font-bold text-on-surface text-right">{v}</span>
+									{/if}
 								</div>
 							{/each}
 						</div>
