@@ -4,6 +4,7 @@
 
 	let kopMode = $state<'kop' | 'no-kop'>('kop');
 	let isEmbedded = $state(false);
+	let emptyRowsCount = $derived(Math.max(0, 10 - (data.items?.length || 0)));
 
 	onMount(() => {
 		const searchParams = new URLSearchParams(window.location.search);
@@ -222,8 +223,8 @@
 						<div class="text-[10px] text-slate-700">
 							Term Pembayaran: <strong class="text-amber-900 font-bold">{data.po.paymentTerm || '30 Hari'}</strong>
 						</div>
-						<div class="text-[10px] text-slate-600">
-							Kategori: <strong class="uppercase text-slate-900">{data.po.category || 'SUPPORTING'}</strong>
+						<div class="text-[10px] text-slate-700">
+							Proyek: <strong class="font-bold text-slate-900">{data.po.projectCode || data.po.projectName || '-'}</strong>
 						</div>
 					</div>
 				</div>
@@ -247,18 +248,18 @@
 						</div>
 					</div>
 
-					<!-- Delivery & Project Reference -->
+					<!-- Delivery & Receiver Reference -->
 					<div class="bg-slate-50 p-2.5 rounded-lg border border-slate-200">
 						<h3 class="text-[9px] font-black uppercase tracking-wider text-slate-500 mb-1 border-b border-slate-200 pb-0.5">
-							Pengiriman & Referensi Proyek
+							Pengiriman & Penerima (Kirim Ke)
 						</h3>
 						<div class="grid grid-cols-2 gap-y-1 gap-x-2 text-[10px]">
-							<span class="text-slate-500">Proyek:</span>
+							<span class="text-slate-500">No. Telp Penerima:</span>
 							<span class="font-bold text-slate-900 text-right truncate">
-								{data.po.projectCode || '-'}
+								{data.po.sitePhone || '-'}
 							</span>
 
-							<span class="text-slate-500">Site Penerima:</span>
+							<span class="text-slate-500">Penerima (PIC):</span>
 							<span class="font-bold text-slate-900 text-right truncate">
 								{data.po.sitePic || '-'}
 							</span>
@@ -291,7 +292,7 @@
 					<thead>
 						<tr class="bg-slate-100 text-slate-900 font-bold border-b border-slate-300">
 							<th class="border border-slate-300 py-1.5 px-2 w-8 text-center">No</th>
-							<th class="border border-slate-300 py-1.5 px-2 text-left">Kode & Nama Material / Barang</th>
+							<th class="border border-slate-300 py-1.5 px-2 text-left">Nama Material / Barang</th>
 							<th class="border border-slate-300 py-1.5 px-2 text-left">Spesifikasi</th>
 							<th class="border border-slate-300 py-1.5 px-2 text-left w-20">Brand</th>
 							<th class="border border-slate-300 py-1.5 px-2 text-left w-24">Remark</th>
@@ -307,9 +308,8 @@
 								<td class="border border-slate-300 py-1 px-2 text-center font-mono">{i + 1}</td>
 								<td class="border border-slate-300 py-1 px-2">
 									<p class="font-bold text-slate-900 text-[10.5px] leading-tight">{itm.name}</p>
-									<p class="text-[9px] text-slate-500 font-mono">{itm.materialCode}</p>
 									{#if itm.prNumber}
-										<p class="text-[8.5px] text-emerald-700 font-mono">Ref PR: {itm.prNumber}</p>
+										<p class="text-[8.5px] text-emerald-700 font-mono mt-0.5">Ref PR: {itm.prNumber}</p>
 									{/if}
 								</td>
 								<td class="border border-slate-300 py-1 px-2 text-slate-700 leading-tight">
@@ -335,6 +335,22 @@
 								</td>
 							</tr>
 						{/each}
+
+						{#if emptyRowsCount > 0}
+							{#each Array.from({ length: emptyRowsCount }) as _, idx}
+								<tr class="border-b border-slate-200 h-7">
+									<td class="border border-slate-300 py-1 px-2 text-center font-mono">&nbsp;</td>
+									<td class="border border-slate-300 py-1 px-2">&nbsp;</td>
+									<td class="border border-slate-300 py-1 px-2">&nbsp;</td>
+									<td class="border border-slate-300 py-1 px-2">&nbsp;</td>
+									<td class="border border-slate-300 py-1 px-2">&nbsp;</td>
+									<td class="border border-slate-300 py-1 px-2">&nbsp;</td>
+									<td class="border border-slate-300 py-1 px-2">&nbsp;</td>
+									<td class="border border-slate-300 py-1 px-2">&nbsp;</td>
+									<td class="border border-slate-300 py-1 px-2">&nbsp;</td>
+								</tr>
+							{/each}
+						{/if}
 					</tbody>
 				</table>
 
