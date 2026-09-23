@@ -24,7 +24,10 @@ export const load: PageServerLoad = async ({ url }) => {
 				d.title ILIKE ${pattern} OR 
 				d.notes ILIKE ${pattern} OR
 				(d.metadata->>'owner_name') ILIKE ${pattern} OR
+				(d.metadata->>'no_chasis') ILIKE ${pattern} OR
+				(d.metadata->>'brand_name') ILIKE ${pattern} OR
 				u.nomor_unit ILIKE ${pattern} OR 
+				u.no_rangka ILIKE ${pattern} OR 
 				k.nama_karyawan ILIKE ${pattern} OR 
 				c.nama_kustomer ILIKE ${pattern} OR
 				d.qr_code_id ILIKE ${pattern}
