@@ -74,6 +74,8 @@ export const actions: Actions = {
 		const destination_id = data.get('destination_id') as string;
 		const tipe_unit_id = data.get('tipe_unit_id') as string;
 		
+		const input_biaya_solar = parseFloat(data.get('biaya_solar') as string);
+		const input_liter_solar = parseFloat(data.get('liter_solar') as string);
 		const biaya_tol = parseFloat(data.get('biaya_tol') as string) || 0;
 		const biaya_bongkar_muat = parseFloat(data.get('biaya_bongkar_muat') as string) || 0;
 		const uang_makan = parseFloat(data.get('uang_makan') as string) || 0;
@@ -111,13 +113,24 @@ export const actions: Actions = {
 				);
 			}
 
-			// Logic for Fuel Consumption based on Unit Type
-			let rasio = 3; // default 3 km/L
-			// If Dump Truck maybe 3, Trailer maybe 2. We can hardcode based on ID or name for now
-			// Just a simple assumption for demonstration
-			const liter_solar = jarak_km / rasio;
+			// Fuel Consumption logic: allow manual typing, fallback to distance calculation
 			const harga_solar_per_liter = 6800; // Fixed national price for Bio Solar
-			const biaya_solar = liter_solar * harga_solar_per_liter;
+			let rasio = 3; // default 3 km/L
+			let liter_solar = 0;
+			let biaya_solar = 0;
+
+			if (!isNaN(input_biaya_solar) && input_biaya_solar > 0) {
+				biaya_solar = input_biaya_solar;
+				liter_solar = (!isNaN(input_liter_solar) && input_liter_solar > 0)
+					? input_liter_solar
+					: Math.round((biaya_solar / harga_solar_per_liter) * 10) / 10;
+			} else if (!isNaN(input_liter_solar) && input_liter_solar > 0) {
+				liter_solar = input_liter_solar;
+				biaya_solar = Math.round(liter_solar * harga_solar_per_liter);
+			} else {
+				liter_solar = Math.round((jarak_km / rasio) * 10) / 10;
+				biaya_solar = Math.round(liter_solar * harga_solar_per_liter);
+			}
 
 			const total_ujo = biaya_solar + biaya_tol + biaya_bongkar_muat + uang_makan + retribusi + ritase + komisi + biaya_lain;
 
@@ -171,6 +184,8 @@ export const actions: Actions = {
 		const destination_id = data.get('destination_id') as string;
 		const tipe_unit_id = data.get('tipe_unit_id') as string;
 		
+		const input_biaya_solar = parseFloat(data.get('biaya_solar') as string);
+		const input_liter_solar = parseFloat(data.get('liter_solar') as string);
 		const biaya_tol = parseFloat(data.get('biaya_tol') as string) || 0;
 		const biaya_bongkar_muat = parseFloat(data.get('biaya_bongkar_muat') as string) || 0;
 		const uang_makan = parseFloat(data.get('uang_makan') as string) || 0;
@@ -208,10 +223,24 @@ export const actions: Actions = {
 				);
 			}
 
-			let rasio = 3; // default 3 km/L
-			const liter_solar = jarak_km / rasio;
+			// Fuel Consumption logic: allow manual typing, fallback to distance calculation
 			const harga_solar_per_liter = 6800; // Fixed national price for Bio Solar
-			const biaya_solar = liter_solar * harga_solar_per_liter;
+			let rasio = 3; // default 3 km/L
+			let liter_solar = 0;
+			let biaya_solar = 0;
+
+			if (!isNaN(input_biaya_solar) && input_biaya_solar > 0) {
+				biaya_solar = input_biaya_solar;
+				liter_solar = (!isNaN(input_liter_solar) && input_liter_solar > 0)
+					? input_liter_solar
+					: Math.round((biaya_solar / harga_solar_per_liter) * 10) / 10;
+			} else if (!isNaN(input_liter_solar) && input_liter_solar > 0) {
+				liter_solar = input_liter_solar;
+				biaya_solar = Math.round(liter_solar * harga_solar_per_liter);
+			} else {
+				liter_solar = Math.round((jarak_km / rasio) * 10) / 10;
+				biaya_solar = Math.round(liter_solar * harga_solar_per_liter);
+			}
 
 			const total_ujo = biaya_solar + biaya_tol + biaya_bongkar_muat + uang_makan + retribusi + ritase + komisi + biaya_lain;
 

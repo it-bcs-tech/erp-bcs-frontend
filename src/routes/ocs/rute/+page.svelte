@@ -39,6 +39,11 @@
 	let tarifCustomer = $state<number | ''>(0);
 	let rincianTolJSON = $state('[]');
 
+	// Solar Fuel Management (Supports Auto & Manual Typing)
+	let literSolar = $state<number | ''>('');
+	let biayaSolar = $state<number | ''>('');
+	let isSolarManual = $state(false);
+
 	let showInternalTollModal = $state(false);
 	let internalTollSearch = $state('');
 	let selectedInternalTolls = $state<number[]>([]);
@@ -80,8 +85,18 @@
 		return Math.round((calculatedDistanceKm / 3) * 6800);
 	});
 
+	let effectiveLiterSolar = $derived.by(() => {
+		if (literSolar !== '' && Number(literSolar) > 0) return Number(literSolar);
+		return calculatedLiterSolar;
+	});
+
+	let effectiveBiayaSolar = $derived.by(() => {
+		if (biayaSolar !== '' && Number(biayaSolar) > 0) return Number(biayaSolar);
+		return calculatedBiayaSolar;
+	});
+
 	let calculatedTotalUjo = $derived.by(() => {
-		const solar = calculatedBiayaSolar;
+		const solar = effectiveBiayaSolar;
 		const tol = Number(biayaTol) || 0;
 		const bongkar = Number(biayaBongkarMuat) || 0;
 		const makan = Number(uangMakan) || 0;
@@ -91,6 +106,50 @@
 		const lain = Number(biayaLain) || 0;
 		return solar + tol + bongkar + makan + ret + rit + kom + lain;
 	});
+
+	// Auto-populate solar values from distance when in automatic mode
+	$effect(() => {
+		if (!isSolarManual) {
+			if (calculatedDistanceKm > 0) {
+				literSolar = calculatedLiterSolar;
+				biayaSolar = calculatedBiayaSolar;
+			} else {
+				literSolar = '';
+				biayaSolar = '';
+			}
+		}
+	});
+
+	function handleLiterSolarInput(val: number | '') {
+		isSolarManual = true;
+		literSolar = val;
+		if (val !== '' && !isNaN(Number(val))) {
+			biayaSolar = Math.round(Number(val) * 6800);
+		} else {
+			biayaSolar = '';
+		}
+	}
+
+	function handleBiayaSolarInput(val: number | '') {
+		isSolarManual = true;
+		biayaSolar = val;
+		if (val !== '' && !isNaN(Number(val))) {
+			literSolar = Math.round((Number(val) / 6800) * 10) / 10;
+		} else {
+			literSolar = '';
+		}
+	}
+
+	function resetSolarToAuto() {
+		isSolarManual = false;
+		if (calculatedDistanceKm > 0) {
+			literSolar = calculatedLiterSolar;
+			biayaSolar = calculatedBiayaSolar;
+		} else {
+			literSolar = '';
+			biayaSolar = '';
+		}
+	}
 
 	let recommendedTollIds = $derived.by(() => {
 		if (gpsTollInstructions.length === 0) return [];
@@ -141,6 +200,9 @@
 		komisi = 0;
 		biayaLain = 0;
 		tarifCustomer = 0;
+		literSolar = '';
+		biayaSolar = '';
+		isSolarManual = false;
 		rincianTolJSON = '[]';
 		selectedInternalTolls = [];
 		internalTollSearch = '';
@@ -170,6 +232,10 @@
 		komisi = parseFloat(r.komisi) || 0;
 		biayaLain = parseFloat(r.biaya_lain) || 0;
 		tarifCustomer = parseFloat(r.tarif_customer) || 0;
+		
+		literSolar = parseFloat(r.liter_solar) || 0;
+		biayaSolar = parseFloat(r.biaya_solar) || 0;
+		isSolarManual = true; // Preserve saved solar amount upon edit
 		
 		const rincian = Array.isArray(r.rincian_tol) ? r.rincian_tol : [];
 		rincianTolJSON = JSON.stringify(rincian);
@@ -553,11 +619,18 @@
 							<div class="bg-white/90 dark:bg-slate-900/90 p-3 rounded-xl border border-slate-200/70 dark:border-slate-800 shadow-2xs">
 								<div class="text-[10px] text-on-surface-variant font-bold">Est. Jarak Tempuh</div>
 								<div class="text-sm sm:text-base font-black text-on-surface mt-0.5">{calculatedDistanceKm.toFixed(1)} KM</div>
-								<div class="text-[10px] text-on-surface-variant/80 font-mono">~{calculatedLiterSolar.toFixed(1)} L Solar</div>
+								<div class="text-[10px] text-on-surface-variant/80 font-mono">~{effectiveLiterSolar.toFixed(1)} L Solar</div>
 							</div>
 							<div class="bg-white/90 dark:bg-slate-900/90 p-3 rounded-xl border border-amber-200/80 dark:border-amber-900/60 shadow-2xs">
-								<div class="text-[10px] text-amber-700 dark:text-amber-300 font-bold">Biaya Solar</div>
-								<div class="text-sm sm:text-base font-black text-amber-700 dark:text-amber-400 mt-0.5">{formatCurrency(calculatedBiayaSolar)}</div>
+								<div class="text-[10px] text-amber-700 dark:text-amber-300 font-bold flex items-center justify-between">
+									<span>Biaya Solar</span>
+									{#if isSolarManual}
+										<span class="text-[9px] bg-amber-200 dark:bg-amber-900 text-amber-900 dark:text-amber-200 px-1 rounded uppercase font-black">Manual</span>
+									{:else}
+										<span class="text-[9px] text-on-surface-variant">Auto</span>
+									{/if}
+								</div>
+								<div class="text-sm sm:text-base font-black text-amber-700 dark:text-amber-400 mt-0.5">{formatCurrency(effectiveBiayaSolar)}</div>
 								<div class="text-[10px] text-on-surface-variant/80 font-mono">Rp 6.800/L</div>
 							</div>
 							<div class="bg-white/90 dark:bg-slate-900/90 p-3 rounded-xl border border-indigo-200/80 dark:border-indigo-900/60 shadow-2xs">
@@ -617,6 +690,48 @@
 						<input type="hidden" name="rincian_tol_json" value={rincianTolJSON} />
 
 						<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+							<!-- Liter Solar (Bisa diketik manual) -->
+							<div>
+								<label class="block text-xs font-bold text-amber-800 dark:text-amber-300 mb-1 flex items-center justify-between">
+									<span class="flex items-center gap-1">
+										<span class="material-symbols-outlined text-[15px] text-amber-600">local_gas_station</span> Liter Solar (L)
+									</span>
+									{#if isSolarManual}
+										<button type="button" onclick={resetSolarToAuto} class="text-[10px] text-blue-600 hover:underline font-bold cursor-pointer flex items-center gap-0.5" title="Kembalikan ke hitungan otomatis jarak">
+											<span class="material-symbols-outlined text-[12px]">autorenew</span> Auto
+										</button>
+									{/if}
+								</label>
+								<input 
+									type="number" 
+									step="0.1" 
+									name="liter_solar" 
+									value={literSolar} 
+									oninput={(e) => handleLiterSolarInput(e.currentTarget.value === '' ? '' : parseFloat(e.currentTarget.value))}
+									placeholder={calculatedLiterSolar > 0 ? calculatedLiterSolar.toString() : "0"} 
+									class="w-full px-3.5 py-2.5 rounded-xl bg-amber-50/50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 focus:border-amber-500 outline-none text-sm font-bold font-mono text-amber-900 dark:text-amber-200"
+								/>
+							</div>
+
+							<!-- Biaya Solar (Bisa diketik manual) -->
+							<div>
+								<label class="block text-xs font-bold text-amber-800 dark:text-amber-300 mb-1 flex items-center justify-between">
+									<span class="flex items-center gap-1">
+										<span class="material-symbols-outlined text-[15px] text-amber-600">payments</span> Biaya Solar (Rp)
+									</span>
+									<span class="text-[10px] text-amber-600 dark:text-amber-400 font-mono">@Rp 6.800</span>
+								</label>
+								<input 
+									type="number" 
+									name="biaya_solar" 
+									value={biayaSolar} 
+									oninput={(e) => handleBiayaSolarInput(e.currentTarget.value === '' ? '' : parseFloat(e.currentTarget.value))}
+									placeholder={calculatedBiayaSolar > 0 ? calculatedBiayaSolar.toString() : "0"} 
+									class="w-full px-3.5 py-2.5 rounded-xl bg-amber-50/50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 focus:border-amber-500 outline-none text-sm font-bold font-mono text-amber-900 dark:text-amber-200"
+								/>
+							</div>
+
+							<!-- Biaya Tol -->
 							<div>
 								<label class="block text-xs font-bold text-on-surface-variant mb-1 flex justify-between">
 									<span>Biaya Tol (Rp)</span>
@@ -626,27 +741,39 @@
 								</label>
 								<input type="number" name="biaya_tol" bind:value={biayaTol} min="0" placeholder="0" class="w-full px-3.5 py-2.5 rounded-xl bg-surface-container border border-surface-container focus:border-sky-500 outline-none text-sm font-bold font-mono">
 							</div>
+
+							<!-- Bongkar Muat -->
 							<div>
 								<label class="block text-xs font-bold text-on-surface-variant mb-1">Bongkar Muat (Rp)</label>
 								<input type="number" name="biaya_bongkar_muat" bind:value={biayaBongkarMuat} min="0" placeholder="0" class="w-full px-3.5 py-2.5 rounded-xl bg-surface-container border border-surface-container focus:border-sky-500 outline-none text-sm font-bold font-mono">
 							</div>
+
+							<!-- Uang Makan -->
 							<div>
 								<label class="block text-xs font-bold text-on-surface-variant mb-1">Uang Makan (Rp)</label>
 								<input type="number" name="uang_makan" bind:value={uangMakan} min="0" placeholder="0" class="w-full px-3.5 py-2.5 rounded-xl bg-surface-container border border-surface-container focus:border-sky-500 outline-none text-sm font-bold font-mono">
 							</div>
+
+							<!-- Retribusi -->
 							<div>
 								<label class="block text-xs font-bold text-on-surface-variant mb-1">Retribusi (Rp)</label>
 								<input type="number" name="retribusi" bind:value={retribusi} min="0" placeholder="0" class="w-full px-3.5 py-2.5 rounded-xl bg-surface-container border border-surface-container focus:border-sky-500 outline-none text-sm font-bold font-mono">
 							</div>
+
+							<!-- Ritase -->
 							<div>
 								<label class="block text-xs font-bold text-on-surface-variant mb-1">Ritase / Bonus (Rp)</label>
 								<input type="number" name="ritase" bind:value={ritase} min="0" placeholder="0" class="w-full px-3.5 py-2.5 rounded-xl bg-surface-container border border-surface-container focus:border-sky-500 outline-none text-sm font-bold font-mono">
 							</div>
+
+							<!-- Komisi -->
 							<div>
 								<label class="block text-xs font-bold text-on-surface-variant mb-1">Komisi (Rp)</label>
 								<input type="number" name="komisi" bind:value={komisi} min="0" placeholder="0" class="w-full px-3.5 py-2.5 rounded-xl bg-surface-container border border-surface-container focus:border-sky-500 outline-none text-sm font-bold font-mono">
 							</div>
-							<div class="sm:col-span-2 lg:col-span-3">
+
+							<!-- Biaya Lain-lain -->
+							<div>
 								<label class="block text-xs font-bold text-on-surface-variant mb-1">Biaya Lain-lain (Rp)</label>
 								<input type="number" name="biaya_lain" bind:value={biayaLain} min="0" placeholder="0" class="w-full px-3.5 py-2.5 rounded-xl bg-surface-container border border-surface-container focus:border-sky-500 outline-none text-sm font-bold font-mono">
 							</div>
@@ -957,9 +1084,9 @@
 			<div class="p-4 sm:p-5 border-t border-surface-container bg-surface-container-lowest flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 flex-shrink-0">
 				<div class="text-xs sm:text-sm font-bold text-on-surface-variant text-center sm:text-left">
 					<span class="text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/50 px-2 py-1 rounded-md">{selectedInternalTolls.length}</span> Gerbang Dipilih
-					{#if calculatedBiayaSolar > 0}
+					{#if effectiveBiayaSolar > 0}
 						<span class="ml-2 text-amber-700 dark:text-amber-400 text-xs font-semibold">
-							&bull; Biaya Solar: {formatCurrency(calculatedBiayaSolar)} ({calculatedDistanceKm.toFixed(1)} KM)
+							&bull; Biaya Solar: {formatCurrency(effectiveBiayaSolar)} (~{effectiveLiterSolar.toFixed(1)} L)
 						</span>
 					{/if}
 				</div>
