@@ -64,7 +64,21 @@ jobs:
             # Login ke GHCR di dalam server Biznet agar bisa menarik image
             echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
             
-            # Memastikan docker compose menggunakan image yang baru
-            # (Hanya perlu menarik image frontend karena backend dkk masih placeholder)
+            # Tampilkan info disk sebelum pembersihan
+            echo "=== DISK USAGE SEBELUM CLEANUP ==="
+            df -h /
+            
+            # Bersihkan image & container lama yang menumpuk (tanpa menyentuh volume database)
+            docker system prune -af --volumes=false
+            
+            echo "=== DISK USAGE SETELAH CLEANUP ==="
+            df -h /
+            
+            # Tarik image frontend terbaru
             docker compose pull frontend
-            docker compose up -d
+            
+            # Recreate container frontend dengan image baru secara paksa
+            docker compose up -d --force-recreate --no-deps frontend
+            
+            echo "=== STATUS CONTAINER ==="
+            docker compose ps frontend

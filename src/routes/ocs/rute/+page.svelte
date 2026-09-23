@@ -178,10 +178,19 @@
 				Kelola katalog jarak rute, estimasi konsumsi BBM solar, rincian biaya gerbang tol, dan perhitungan dasar UJO
 			</p>
 		</div>
-		<button onclick={() => { resetForm(); showModal = true; }} class="bg-blue-600 text-white px-4 py-2.5 rounded-xl text-sm font-bold shadow-xs flex items-center gap-2 hover:bg-blue-700 transition-colors cursor-pointer">
-			<span class="material-symbols-outlined text-lg">add_road</span>
-			<span>Tambah Rute UJO</span>
-		</button>
+		<div class="flex items-center gap-2">
+			<a
+				href="/ocs/gerbang-tol"
+				class="bg-surface-container-low hover:bg-surface-container border border-slate-200/80 dark:border-slate-800 text-on-surface px-3.5 py-2.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-colors shadow-2xs"
+			>
+				<span class="material-symbols-outlined text-sky-600 dark:text-sky-400 text-[18px]">toll</span>
+				<span>Kelola Master Gerbang Tol</span>
+			</a>
+			<button onclick={() => { resetForm(); showModal = true; }} class="bg-blue-600 text-white px-4 py-2.5 rounded-xl text-xs font-bold shadow-xs flex items-center gap-1.5 hover:bg-blue-700 transition-colors cursor-pointer">
+				<span class="material-symbols-outlined text-[18px]">add_road</span>
+				<span>Tambah Rute UJO</span>
+			</button>
+		</div>
 	</header>
 
 	{#if form?.error || form?.message}

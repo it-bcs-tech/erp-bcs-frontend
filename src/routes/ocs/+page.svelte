@@ -27,9 +27,17 @@
 				Pusat kendali dispatching surat jalan, uang jalan (UJO), target ritase harian, dan monitoring perjalanan armada
 			</p>
 		</div>
-		<div class="flex items-center gap-2.5">
-			<a href="/ocs/dispatch" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2.5 rounded-xl text-sm font-bold flex items-center gap-2 shadow-xs transition-colors">
-				<span class="material-symbols-outlined text-lg">add_task</span>
+		<div class="flex items-center gap-2">
+			<a href="/ocs/gerbang-tol" class="bg-surface-container-low hover:bg-surface-container border border-slate-200/80 dark:border-slate-800 text-on-surface px-3.5 py-2.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-colors shadow-2xs">
+				<span class="material-symbols-outlined text-sky-600 dark:text-sky-400 text-[18px]">toll</span>
+				<span>Master Gerbang Tol</span>
+			</a>
+			<a href="/ocs/rute" class="bg-surface-container-low hover:bg-surface-container border border-slate-200/80 dark:border-slate-800 text-on-surface px-3.5 py-2.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-colors shadow-2xs">
+				<span class="material-symbols-outlined text-blue-600 dark:text-blue-400 text-[18px]">route</span>
+				<span>Master Rute & UJO</span>
+			</a>
+			<a href="/ocs/dispatch" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2.5 rounded-xl text-xs font-bold flex items-center gap-2 shadow-xs transition-colors">
+				<span class="material-symbols-outlined text-[18px]">add_task</span>
 				<span>Proses Dispatch</span>
 			</a>
 		</div>
