@@ -15,13 +15,34 @@ function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: numbe
 
 export const load: PageServerLoad = async () => {
 	try {
-		// Get Rute List
+		// Get Rute List with attached toll details
 		const ruteList = await sql`
 			SELECT 
 				r.*,
 				ori.nama_kustomer as origin_name,
 				dest.nama_kustomer as destination_name,
-				tu.nama_tipe as tipe_unit_name
+				tu.nama_tipe as tipe_unit_name,
+				tu.golongan_tol as tipe_unit_golongan_tol,
+				COALESCE(
+					(
+						SELECT json_agg(
+							json_build_object(
+								'id', rut.id,
+								'gerbang_tol_id', rut.gerbang_tol_id,
+								'tarif', rut.tarif,
+								'ruas', gt.ruas,
+								'asal', gt.asal,
+								'tujuan', gt.tujuan,
+								'tarif_gol_1', gt.tarif_gol_1,
+								'tarif_gol_2_3', gt.tarif_gol_2_3,
+								'tarif_gol_4_5', gt.tarif_gol_4_5
+							)
+						)
+						FROM master.m_rute_ujo_tol rut
+						JOIN master.m_gerbang_tol gt ON gt.id = rut.gerbang_tol_id
+						WHERE rut.rute_ujo_id = r.id
+					), '[]'::json
+				) as rincian_tol
 			FROM master.m_rute_ujo r
 			JOIN master.m_customer ori ON ori.id = r.origin_id
 			JOIN master.m_customer dest ON dest.id = r.destination_id
@@ -140,6 +161,107 @@ export const actions: Actions = {
 				return fail(400, { message: 'Rute ini sudah ada untuk Tipe Unit tersebut.' });
 			}
 			return fail(500, { error: e.message || 'Gagal menyimpan data.' });
+		}
+	},
+
+	updateRute: async ({ request }) => {
+		const data = await request.formData();
+		const id = data.get('id') as string;
+		const origin_id = data.get('origin_id') as string;
+		const destination_id = data.get('destination_id') as string;
+		const tipe_unit_id = data.get('tipe_unit_id') as string;
+		
+		const biaya_tol = parseFloat(data.get('biaya_tol') as string) || 0;
+		const biaya_bongkar_muat = parseFloat(data.get('biaya_bongkar_muat') as string) || 0;
+		const uang_makan = parseFloat(data.get('uang_makan') as string) || 0;
+		const retribusi = parseFloat(data.get('retribusi') as string) || 0;
+		const ritase = parseFloat(data.get('ritase') as string) || 0;
+		const komisi = parseFloat(data.get('komisi') as string) || 0;
+		const biaya_lain = parseFloat(data.get('biaya_lain') as string) || 0;
+		const tarif_customer = parseFloat(data.get('tarif_customer') as string) || 0;
+		const google_distance_km = parseFloat(data.get('google_distance_km') as string) || 0;
+		const rincian_tol_json = data.get('rincian_tol_json') as string || '[]';
+
+		if (!id || !origin_id || !destination_id || !tipe_unit_id) {
+			return fail(400, { message: 'ID, Origin, Destination, dan Tipe Unit harus diisi!' });
+		}
+
+		try {
+			// Fetch Lat/Lon for distance calculation
+			const originData = await sql`SELECT latitude, longitude FROM master.m_customer WHERE id = ${origin_id}`;
+			const destData = await sql`SELECT latitude, longitude FROM master.m_customer WHERE id = ${destination_id}`;
+			
+			if (originData.length === 0 || destData.length === 0) {
+				return fail(400, { message: 'Lokasi Origin atau Destination tidak valid.' });
+			}
+			if (!originData[0].latitude || !destData[0].latitude) {
+				return fail(400, { message: 'Gagal: Lokasi belum memiliki koordinat Latitude/Longitude di Master Customer.' });
+			}
+
+			let jarak_km = 0;
+			if (google_distance_km > 0) {
+				jarak_km = google_distance_km;
+			} else {
+				jarak_km = calculateDistance(
+					parseFloat(originData[0].latitude), parseFloat(originData[0].longitude),
+					parseFloat(destData[0].latitude), parseFloat(destData[0].longitude)
+				);
+			}
+
+			let rasio = 3; // default 3 km/L
+			const liter_solar = jarak_km / rasio;
+			const harga_solar_per_liter = 6800; // Fixed national price for Bio Solar
+			const biaya_solar = liter_solar * harga_solar_per_liter;
+
+			const total_ujo = biaya_solar + biaya_tol + biaya_bongkar_muat + uang_makan + retribusi + ritase + komisi + biaya_lain;
+
+			await sql`
+				UPDATE master.m_rute_ujo SET
+					origin_id = ${origin_id},
+					destination_id = ${destination_id},
+					tipe_unit_id = ${tipe_unit_id},
+					jarak_km = ${jarak_km},
+					liter_solar = ${liter_solar},
+					harga_solar_per_liter = ${harga_solar_per_liter},
+					biaya_solar = ${biaya_solar},
+					biaya_tol = ${biaya_tol},
+					biaya_bongkar_muat = ${biaya_bongkar_muat},
+					uang_makan = ${uang_makan},
+					retribusi = ${retribusi},
+					ritase = ${ritase},
+					komisi = ${komisi},
+					biaya_lain = ${biaya_lain},
+					total_ujo = ${total_ujo},
+					tarif_customer = ${tarif_customer}
+				WHERE id = ${id}
+			`;
+
+			// Replace toll breakdown
+			await sql`DELETE FROM master.m_rute_ujo_tol WHERE rute_ujo_id = ${id}`;
+
+			if (rincian_tol_json && rincian_tol_json !== '[]') {
+				try {
+					const rincian = JSON.parse(rincian_tol_json);
+					if (Array.isArray(rincian) && rincian.length > 0) {
+						const tollInserts = rincian.map((t: any) => ({
+							rute_ujo_id: parseInt(id, 10),
+							gerbang_tol_id: t.gerbang_tol_id,
+							tarif: t.tarif
+						}));
+						await sql`INSERT INTO master.m_rute_ujo_tol ${sql(tollInserts)}`;
+					}
+				} catch (e) {
+					console.error("Failed parsing rincian_tol_json in update", e);
+				}
+			}
+
+			return { success: true, message: 'Master Rute & UJO berhasil diperbarui!' };
+		} catch (e: any) {
+			console.error("Update Rute error:", e);
+			if (e.code === '23505') {
+				return fail(400, { message: 'Rute ini sudah ada untuk Tipe Unit tersebut.' });
+			}
+			return fail(500, { error: e.message || 'Gagal memperbarui data rute.' });
 		}
 	}
 };
