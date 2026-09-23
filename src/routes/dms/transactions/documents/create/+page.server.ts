@@ -37,6 +37,13 @@ export const load: PageServerLoad = async () => {
 			ORDER BY name ASC
 		`;
 
+		const categories = await sql`
+			SELECT id, code, name, description 
+			FROM dms.m_doc_category 
+			WHERE is_active = true 
+			ORDER BY legacy_id ASC NULLS LAST, name ASC
+		`;
+
 		const partners = await sql`
 			SELECT id, nama_kustomer as name 
 			FROM master.m_customer 
@@ -64,6 +71,7 @@ export const load: PageServerLoad = async () => {
 
 		return {
 			docTypes,
+			categories,
 			notaries,
 			issuers,
 			locations,
@@ -72,31 +80,29 @@ export const load: PageServerLoad = async () => {
 			drivers
 		};
 	} catch (err: any) {
-		console.error('Error loading create doc prerequisites:', err);
-		throw error(500, 'Gagal memuat data referensi untuk form registrasi dokumen');
+		console.error('Error loading DMS create page dependencies:', err);
+		throw error(500, 'Gagal memuat master data dokumen: ' + err.message);
 	}
 };
 
 export const actions: Actions = {
 	saveDoc: async ({ request }) => {
-		const data = await request.formData();
-		const payloadStr = data.get('payload');
+		const formData = await request.formData();
+		const payloadStr = formData.get('payload');
+		const file = formData.get('document_file') as File | null;
 
 		if (!payloadStr) {
-			return { success: false, message: 'Payload data tidak ditemukan' };
+			return { success: false, message: 'Payload data dokumen tidak valid' };
 		}
 
-		let file_path = null;
-		const file = data.get('file_upload') as File;
-		if (file && file.size > 0) {
-			const ext = file.name.split('.').pop() || 'pdf';
-			const filename = `doc-${randomUUID()}.${ext}`;
-			const uploadDir = join(process.cwd(), 'uploads');
-
+		let file_path: string | null = null;
+		if (file && file.size > 0 && file.name !== 'undefined') {
+			const uploadDir = join(process.cwd(), 'uploads/dms');
 			await mkdir(uploadDir, { recursive: true });
 
-			const arrayBuffer = await file.arrayBuffer();
-			const buffer = Buffer.from(arrayBuffer);
+			const buffer = Buffer.from(await file.arrayBuffer());
+			const ext = file.name.split('.').pop() || 'dat';
+			const filename = `DOC_${Date.now()}_${randomUUID().substring(0, 6)}.${ext}`;
 
 			await writeFile(join(uploadDir, filename), buffer);
 			file_path = filename;
@@ -107,6 +113,7 @@ export const actions: Actions = {
 			const {
 				doc_number,
 				doc_type_id,
+				category_id,
 				title,
 				entity_type = 'CORPORATE',
 				partner_id,
@@ -132,12 +139,14 @@ export const actions: Actions = {
 			const formattedAssetId = asset_id ? Number(asset_id) : null;
 			const formattedEmployeeId = employee_id ? Number(employee_id) : null;
 			const formattedPartnerId = partner_id ? partner_id : null;
+			const formattedCategoryId = category_id ? category_id : null;
 
 			// 1. Simpan dokumen utama
 			const [doc] = await sql`
 				INSERT INTO dms.documents (
 					doc_number, 
 					doc_type_id, 
+					category_id,
 					title, 
 					entity_type,
 					partner_id, 
@@ -159,6 +168,7 @@ export const actions: Actions = {
 				) VALUES (
 					${doc_number || null}, 
 					${doc_type_id}, 
+					${formattedCategoryId},
 					${title}, 
 					${entity_type as DMSEntityType},
 					${formattedPartnerId}, 

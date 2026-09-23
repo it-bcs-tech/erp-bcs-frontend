@@ -82,6 +82,13 @@
 					<span class="material-symbols-outlined text-sm">{statusInfo.icon}</span>
 					<span>{statusInfo.label}</span>
 				</span>
+				<!-- Category Badge -->
+				{#if doc.category_name}
+					<span class="px-2.5 py-1 rounded-lg text-xs font-bold bg-teal-50 dark:bg-teal-950/60 text-teal-700 dark:text-teal-300 border border-teal-200 dark:border-teal-800 flex items-center gap-1">
+						<span class="material-symbols-outlined text-[15px]">folder_special</span>
+						<span>{doc.category_name}</span>
+					</span>
+				{/if}
 				<!-- Version Badge -->
 				<span class="px-2.5 py-1 rounded-lg text-xs font-black bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800">
 					v{doc.current_version || 1}
@@ -89,6 +96,10 @@
 			</div>
 			<p class="text-xs md:text-sm text-on-surface-variant font-medium mt-1 flex flex-wrap items-center gap-2">
 				<span class="font-bold text-on-surface">{doc.type_name || 'Dokumen'}</span>
+				{#if doc.category_name}
+					<span>&bull;</span>
+					<span class="font-semibold text-teal-600 dark:text-teal-400">{doc.category_name}</span>
+				{/if}
 				<span>&bull;</span>
 				<span class="font-mono font-bold text-indigo-600 dark:text-indigo-400">{doc.doc_number || 'Tanpa Nomor'}</span>
 				<span>&bull;</span>

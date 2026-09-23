@@ -87,7 +87,7 @@
 			{/if}
 
 			<!-- Section: Master Data -->
-			{#if hasMenuAccess(user, 'dms', 'dms.master-types') || hasMenuAccess(user, 'dms', 'dms.master-locations') || hasMenuAccess(user, 'dms', 'dms.master-issuers') || hasMenuAccess(user, 'dms', 'dms.master-notaries')}
+			{#if hasMenuAccess(user, 'dms', 'dms.master-types') || hasMenuAccess(user, 'dms', 'dms.master-categories') || hasMenuAccess(user, 'dms', 'dms.master-locations') || hasMenuAccess(user, 'dms', 'dms.master-issuers') || hasMenuAccess(user, 'dms', 'dms.master-notaries')}
 				<div class="pt-3 pb-1 px-4">
 					<p class="text-[9px] font-black text-on-surface-variant/50 uppercase tracking-[0.2em]">Master Data</p>
 				</div>
@@ -102,6 +102,18 @@
 				>
 					<span class="material-symbols-outlined text-[20px]">category</span>
 					<span class="text-sm">Document Types</span>
+				</a>
+			{/if}
+
+			{#if hasMenuAccess(user, 'dms', 'dms.master-categories') || hasMenuAccess(user, 'dms', 'dms.master-types')}
+				<a
+					class="flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200 hover:translate-x-1 {$page.url.pathname.includes('/dms/master/categories')
+						? 'bg-surface-container-highest text-indigo-600 dark:text-indigo-400 font-bold'
+						: 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container font-medium text-sm'}"
+					href="/dms/master/categories"
+				>
+					<span class="material-symbols-outlined text-[20px]">folder_special</span>
+					<span class="text-sm">Document Categories</span>
 				</a>
 			{/if}
 

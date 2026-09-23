@@ -48,6 +48,13 @@ export const load: PageServerLoad = async ({ params }) => {
 			ORDER BY name ASC
 		`;
 
+		const categories = await sql`
+			SELECT id, code, name, description 
+			FROM dms.m_doc_category 
+			WHERE is_active = true 
+			ORDER BY legacy_id ASC NULLS LAST, name ASC
+		`;
+
 		const partners = await sql`
 			SELECT id, nama_kustomer as name 
 			FROM master.m_customer 
@@ -75,6 +82,7 @@ export const load: PageServerLoad = async ({ params }) => {
 		return {
 			doc,
 			docTypes,
+			categories,
 			notaries,
 			issuers,
 			locations,
@@ -119,6 +127,7 @@ export const actions: Actions = {
 			const {
 				doc_number,
 				doc_type_id,
+				category_id,
 				title,
 				entity_type = 'CORPORATE',
 				partner_id,
@@ -144,12 +153,14 @@ export const actions: Actions = {
 			const formattedAssetId = asset_id ? Number(asset_id) : null;
 			const formattedEmployeeId = employee_id ? Number(employee_id) : null;
 			const formattedPartnerId = partner_id ? partner_id : null;
+			const formattedCategoryId = category_id ? category_id : null;
 
 			// Update document
 			await sql`
 				UPDATE dms.documents SET
 					doc_number = ${doc_number || null},
 					doc_type_id = ${doc_type_id},
+					category_id = ${formattedCategoryId},
 					title = ${title},
 					entity_type = ${entity_type as DMSEntityType},
 					partner_id = ${formattedPartnerId},

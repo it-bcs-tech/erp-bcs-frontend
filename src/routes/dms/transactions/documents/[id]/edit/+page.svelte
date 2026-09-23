@@ -19,6 +19,7 @@
 	let formState = $state({
 		doc_number: doc.doc_number || '',
 		doc_type_id: doc.doc_type_id || '',
+		category_id: doc.category_id || '',
 		title: doc.title || '',
 		entity_type: (doc.entity_type || 'CORPORATE') as DMSEntityType,
 		partner_id: doc.partner_id || '',
@@ -86,6 +87,7 @@
 
 	// Select Options
 	const typeOpts = data.docTypes.map((d: any) => ({ value: d.id, label: `${d.code} - ${d.name}` }));
+	const categoryOpts = (data.categories || []).map((c: any) => ({ value: c.id, label: `${c.name} (${c.code})` }));
 	const partnerOpts = data.partners.map((p: any) => ({ value: p.id, label: p.name }));
 	const assetOpts = data.assets.map((a: any) => ({ value: String(a.id), label: `${a.name} (${a.business_unit || 'Unit'})` }));
 	const driverOpts = data.drivers.map((d: any) => ({ value: String(d.id), label: `${d.name} ${d.payroll_id ? `[${d.payroll_id}]` : ''}` }));
@@ -104,6 +106,7 @@
 		return JSON.stringify({
 			doc_number: formState.doc_number,
 			doc_type_id: formState.doc_type_id,
+			category_id: formState.category_id || null,
 			title: formState.title,
 			entity_type: formState.entity_type,
 			partner_id: formState.entity_type === 'CUSTOMER' ? formState.partner_id : null,
@@ -287,6 +290,13 @@
 						Tipe Dokumen <span class="text-rose-500">*</span>
 					</label>
 					<SearchableSelect options={typeOpts} bind:value={formState.doc_type_id} placeholder="-- Pilih Jenis Dokumen --" />
+				</div>
+
+				<div>
+					<label class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-1.5">
+						Kategori Lini Bisnis
+					</label>
+					<SearchableSelect options={categoryOpts} bind:value={formState.category_id} placeholder="-- Pilih Kategori Lini Bisnis --" />
 				</div>
 
 				<div>

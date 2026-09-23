@@ -13,6 +13,7 @@ export const load: PageServerLoad = async ({ url }) => {
 		const q = (url.searchParams.get('q') || '').trim();
 		const entityType = url.searchParams.get('entity_type') || '';
 		const type = url.searchParams.get('type') || '';
+		const category = url.searchParams.get('category') || '';
 		const status = url.searchParams.get('status') || '';
 		const gateFilter = url.searchParams.get('gate') || '';
 
@@ -35,6 +36,7 @@ export const load: PageServerLoad = async ({ url }) => {
 		}
 		if (entityType) conditions.push(sql`d.entity_type = ${entityType}`);
 		if (type) conditions.push(sql`dt.code = ${type}`);
+		if (category) conditions.push(sql`d.category_id = ${category}`);
 		if (status) conditions.push(sql`d.status = ${status}`);
 
 		const whereClause = conditions.length > 0 ? sql`WHERE ${conditions.reduce((acc, curr) => sql`${acc} AND ${curr}`)}` : sql``;
@@ -42,6 +44,7 @@ export const load: PageServerLoad = async ({ url }) => {
 		const [{ count: totalDocs }] = await sql`
 			SELECT count(*) FROM dms.documents d
 			LEFT JOIN dms.m_doc_type dt ON dt.id = d.doc_type_id
+			LEFT JOIN dms.m_doc_category dc ON dc.id = d.category_id
 			LEFT JOIN master.m_customer c ON c.id = d.partner_id
 			LEFT JOIN fleet.unit u ON u.id = d.asset_id
 			LEFT JOIN master.m_drivers drv ON drv.id = d.employee_id
@@ -56,6 +59,8 @@ export const load: PageServerLoad = async ({ url }) => {
 				to_char(d.expiry_date, 'YYYY-MM-DD') as expiry_date_str,
 				dt.code as type_code,
 				dt.name as type_name,
+				dc.name as category_name,
+				dc.code as category_code,
 				c.nama_kustomer as partner_name,
 				u.nomor_unit as unit_number,
 				u.business_unit as unit_type,
@@ -65,6 +70,7 @@ export const load: PageServerLoad = async ({ url }) => {
 				fl.code as filing_location_code
 			FROM dms.documents d
 			LEFT JOIN dms.m_doc_type dt ON dt.id = d.doc_type_id
+			LEFT JOIN dms.m_doc_category dc ON dc.id = d.category_id
 			LEFT JOIN master.m_customer c ON c.id = d.partner_id
 			LEFT JOIN fleet.unit u ON u.id = d.asset_id
 			LEFT JOIN master.m_drivers drv ON drv.id = d.employee_id
@@ -100,10 +106,12 @@ export const load: PageServerLoad = async ({ url }) => {
 		}
 
 		const docTypes = await sql`SELECT code, name FROM dms.m_doc_type WHERE is_active = true ORDER BY name`;
+		const categories = await sql`SELECT id, code, name FROM dms.m_doc_category WHERE is_active = true ORDER BY legacy_id ASC NULLS LAST, name ASC`;
 
 		return {
 			documents,
 			docTypes,
+			categories,
 			pagination: {
 				page,
 				limit,

@@ -12,6 +12,9 @@ export interface DocumentItem {
 	doc_type_id: string | null;
 	type_code?: string;
 	type_name?: string;
+	category_id?: string | null;
+	category_code?: string;
+	category_name?: string;
 	title: string;
 	entity_type: DMSEntityType;
 	partner_id?: string | null;
@@ -85,3 +88,16 @@ export interface DocumentAuditLog {
 	ip_address: string | null;
 	created_at: string;
 }
+
+export interface DocumentCategory {
+	id: string;
+	code: string;
+	name: string;
+	description?: string | null;
+	legacy_id?: number | null;
+	is_active: boolean;
+	created_at?: string;
+	updated_at?: string;
+	document_count?: number;
+}
+

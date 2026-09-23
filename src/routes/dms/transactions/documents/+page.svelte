@@ -9,6 +9,7 @@
 	let q = $derived($page.url.searchParams.get('q') || '');
 	let entityType = $derived($page.url.searchParams.get('entity_type') || '');
 	let type = $derived($page.url.searchParams.get('type') || '');
+	let category = $derived($page.url.searchParams.get('category') || '');
 	let gate = $derived($page.url.searchParams.get('gate') || '');
 
 	// Quick Preview modal
@@ -49,6 +50,18 @@
 			url.searchParams.set('type', val);
 		} else {
 			url.searchParams.delete('type');
+		}
+		url.searchParams.set('page', '1');
+		goto(url.toString(), { keepFocus: true, noScroll: true });
+	}
+
+	function handleCategoryChange(e: Event) {
+		const val = (e.target as HTMLSelectElement).value;
+		const url = new URL(window.location.href);
+		if (val) {
+			url.searchParams.set('category', val);
+		} else {
+			url.searchParams.delete('category');
 		}
 		url.searchParams.set('page', '1');
 		goto(url.toString(), { keepFocus: true, noScroll: true });
@@ -196,6 +209,18 @@
 				{/each}
 			</select>
 
+			<select
+				name="category"
+				onchange={handleCategoryChange}
+				value={category}
+				class="bg-surface-container-lowest dark:bg-surface-container border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs font-medium text-on-surface focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
+			>
+				<option value="">Semua Kategori</option>
+				{#each data.categories || [] as cat}
+					<option value={cat.id}>{cat.name}</option>
+				{/each}
+			</select>
+
 			<button
 				type="submit"
 				class="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2 rounded-xl text-xs font-bold transition-colors flex items-center justify-center gap-1.5 shadow-xs"
@@ -323,12 +348,21 @@
 									</div>
 								</td>
 
-								<!-- Doc Type & Version -->
+								<!-- Doc Type, Category & Version -->
 								<td class="py-3.5 px-4">
-									<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 dark:bg-slate-800 text-on-surface-variant">
-										{doc.doc_type_name || 'Dokumen'}
-									</span>
-									<span class="ml-1 text-[10px] font-mono font-bold text-indigo-600">v{doc.current_version || 1}</span>
+									<div class="flex flex-col gap-1 items-start">
+										<div class="flex items-center gap-1">
+											<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 dark:bg-slate-800 text-on-surface-variant">
+												{doc.type_name || doc.doc_type_name || 'Dokumen'}
+											</span>
+											<span class="text-[10px] font-mono font-bold text-indigo-600">v{doc.current_version || 1}</span>
+										</div>
+										{#if doc.category_name}
+											<span class="px-1.5 py-0.5 rounded text-[9px] font-bold bg-teal-50 dark:bg-teal-950/60 text-teal-700 dark:text-teal-300 border border-teal-200 dark:border-teal-800">
+												{doc.category_name}
+											</span>
+										{/if}
+									</div>
 								</td>
 
 								<!-- Expiry Date -->
