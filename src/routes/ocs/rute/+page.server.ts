@@ -74,6 +74,7 @@ export const actions: Actions = {
 		const destination_id = data.get('destination_id') as string;
 		const tipe_unit_id = data.get('tipe_unit_id') as string;
 		
+		const input_jarak_km = parseFloat(data.get('jarak_km') as string);
 		const input_biaya_solar = parseFloat(data.get('biaya_solar') as string);
 		const input_liter_solar = parseFloat(data.get('liter_solar') as string);
 		const biaya_tol = parseFloat(data.get('biaya_tol') as string) || 0;
@@ -92,21 +93,23 @@ export const actions: Actions = {
 		}
 
 		try {
-			// Fetch Lat/Lon for automatic distance calculation
-			const originData = await sql`SELECT latitude, longitude FROM master.m_customer WHERE id = ${origin_id}`;
-			const destData = await sql`SELECT latitude, longitude FROM master.m_customer WHERE id = ${destination_id}`;
-			
-			if (originData.length === 0 || destData.length === 0) {
-				return fail(400, { message: 'Lokasi Origin atau Destination tidak valid.' });
-			}
-			if (!originData[0].latitude || !destData[0].latitude) {
-				return fail(400, { message: 'Gagal: Lokasi belum memiliki koordinat Latitude/Longitude di Master Customer.' });
-			}
-
 			let jarak_km = 0;
-			if (google_distance_km > 0) {
+			if (!isNaN(input_jarak_km) && input_jarak_km > 0) {
+				jarak_km = input_jarak_km;
+			} else if (google_distance_km > 0) {
 				jarak_km = google_distance_km;
 			} else {
+				// Fetch Lat/Lon for automatic distance calculation
+				const originData = await sql`SELECT latitude, longitude FROM master.m_customer WHERE id = ${origin_id}`;
+				const destData = await sql`SELECT latitude, longitude FROM master.m_customer WHERE id = ${destination_id}`;
+				
+				if (originData.length === 0 || destData.length === 0) {
+					return fail(400, { message: 'Lokasi Origin atau Destination tidak valid.' });
+				}
+				if (!originData[0].latitude || !destData[0].latitude) {
+					return fail(400, { message: 'Gagal: Lokasi belum memiliki koordinat GPS di Master Customer, silakan isi Jarak Tempuh (KM) secara manual.' });
+				}
+
 				jarak_km = calculateDistance(
 					parseFloat(originData[0].latitude), parseFloat(originData[0].longitude),
 					parseFloat(destData[0].latitude), parseFloat(destData[0].longitude)
@@ -184,6 +187,7 @@ export const actions: Actions = {
 		const destination_id = data.get('destination_id') as string;
 		const tipe_unit_id = data.get('tipe_unit_id') as string;
 		
+		const input_jarak_km = parseFloat(data.get('jarak_km') as string);
 		const input_biaya_solar = parseFloat(data.get('biaya_solar') as string);
 		const input_liter_solar = parseFloat(data.get('liter_solar') as string);
 		const biaya_tol = parseFloat(data.get('biaya_tol') as string) || 0;
@@ -202,21 +206,23 @@ export const actions: Actions = {
 		}
 
 		try {
-			// Fetch Lat/Lon for distance calculation
-			const originData = await sql`SELECT latitude, longitude FROM master.m_customer WHERE id = ${origin_id}`;
-			const destData = await sql`SELECT latitude, longitude FROM master.m_customer WHERE id = ${destination_id}`;
-			
-			if (originData.length === 0 || destData.length === 0) {
-				return fail(400, { message: 'Lokasi Origin atau Destination tidak valid.' });
-			}
-			if (!originData[0].latitude || !destData[0].latitude) {
-				return fail(400, { message: 'Gagal: Lokasi belum memiliki koordinat Latitude/Longitude di Master Customer.' });
-			}
-
 			let jarak_km = 0;
-			if (google_distance_km > 0) {
+			if (!isNaN(input_jarak_km) && input_jarak_km > 0) {
+				jarak_km = input_jarak_km;
+			} else if (google_distance_km > 0) {
 				jarak_km = google_distance_km;
 			} else {
+				// Fetch Lat/Lon for distance calculation
+				const originData = await sql`SELECT latitude, longitude FROM master.m_customer WHERE id = ${origin_id}`;
+				const destData = await sql`SELECT latitude, longitude FROM master.m_customer WHERE id = ${destination_id}`;
+				
+				if (originData.length === 0 || destData.length === 0) {
+					return fail(400, { message: 'Lokasi Origin atau Destination tidak valid.' });
+				}
+				if (!originData[0].latitude || !destData[0].latitude) {
+					return fail(400, { message: 'Gagal: Lokasi belum memiliki koordinat GPS di Master Customer, silakan isi Jarak Tempuh (KM) secara manual.' });
+				}
+
 				jarak_km = calculateDistance(
 					parseFloat(originData[0].latitude), parseFloat(originData[0].longitude),
 					parseFloat(destData[0].latitude), parseFloat(destData[0].longitude)

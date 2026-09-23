@@ -29,6 +29,9 @@
 	let filteredTipeUnits = $derived((data.tipeUnits || []).filter((t: any) => t.name.toLowerCase().includes(tipeUnitSearch.toLowerCase())));
 
 	let googleDistanceKm = $state<number>(0);
+	let manualJarakKm = $state<number | ''>('');
+	let isJarakManual = $state(false);
+
 	let biayaTol = $state<number | ''>(0);
 	let biayaBongkarMuat = $state<number | ''>(0);
 	let uangMakan = $state<number | ''>(0);
@@ -75,14 +78,19 @@
 		return 0;
 	});
 
+	let effectiveDistanceKm = $derived.by(() => {
+		if (manualJarakKm !== '' && Number(manualJarakKm) > 0) return Number(manualJarakKm);
+		return calculatedDistanceKm;
+	});
+
 	let calculatedLiterSolar = $derived.by(() => {
-		if (calculatedDistanceKm <= 0) return 0;
-		return Math.round((calculatedDistanceKm / 3) * 10) / 10;
+		if (effectiveDistanceKm <= 0) return 0;
+		return Math.round((effectiveDistanceKm / 3) * 10) / 10;
 	});
 
 	let calculatedBiayaSolar = $derived.by(() => {
-		if (calculatedDistanceKm <= 0) return 0;
-		return Math.round((calculatedDistanceKm / 3) * 6800);
+		if (effectiveDistanceKm <= 0) return 0;
+		return Math.round((effectiveDistanceKm / 3) * 6800);
 	});
 
 	let effectiveLiterSolar = $derived.by(() => {
@@ -107,10 +115,54 @@
 		return solar + tol + bongkar + makan + ret + rit + kom + lain;
 	});
 
+	// Sync auto-calculated distance into manualJarakKm when not in manual mode
+	$effect(() => {
+		if (!isJarakManual) {
+			if (calculatedDistanceKm > 0) {
+				manualJarakKm = calculatedDistanceKm;
+			} else {
+				manualJarakKm = '';
+			}
+		}
+	});
+
+	function handleJarakInput(val: number | '') {
+		isJarakManual = true;
+		manualJarakKm = val;
+		if (!isSolarManual) {
+			const d = Number(val) || 0;
+			if (d > 0) {
+				literSolar = Math.round((d / 3) * 10) / 10;
+				biayaSolar = Math.round(Number(literSolar) * 6800);
+			} else {
+				literSolar = '';
+				biayaSolar = '';
+			}
+		}
+	}
+
+	function resetJarakToAuto() {
+		isJarakManual = false;
+		if (calculatedDistanceKm > 0) {
+			manualJarakKm = calculatedDistanceKm;
+		} else {
+			manualJarakKm = '';
+		}
+		if (!isSolarManual) {
+			if (calculatedDistanceKm > 0) {
+				literSolar = Math.round((calculatedDistanceKm / 3) * 10) / 10;
+				biayaSolar = Math.round(Number(literSolar) * 6800);
+			} else {
+				literSolar = '';
+				biayaSolar = '';
+			}
+		}
+	}
+
 	// Auto-populate solar values from distance when in automatic mode
 	$effect(() => {
 		if (!isSolarManual) {
-			if (calculatedDistanceKm > 0) {
+			if (effectiveDistanceKm > 0) {
 				literSolar = calculatedLiterSolar;
 				biayaSolar = calculatedBiayaSolar;
 			} else {
@@ -142,7 +194,7 @@
 
 	function resetSolarToAuto() {
 		isSolarManual = false;
-		if (calculatedDistanceKm > 0) {
+		if (effectiveDistanceKm > 0) {
 			literSolar = calculatedLiterSolar;
 			biayaSolar = calculatedBiayaSolar;
 		} else {
@@ -192,6 +244,8 @@
 		selectedDestination = ''; destSearch = '';
 		selectedTipeUnit = ''; tipeUnitSearch = '';
 		googleDistanceKm = 0;
+		manualJarakKm = '';
+		isJarakManual = false;
 		biayaTol = 0;
 		biayaBongkarMuat = 0;
 		uangMakan = 0;
@@ -224,6 +278,8 @@
 		selectedTipeUnit = r.tipe_unit_id;
 		tipeUnitSearch = r.tipe_unit_name || '';
 		googleDistanceKm = parseFloat(r.jarak_km) || 0;
+		manualJarakKm = parseFloat(r.jarak_km) || 0;
+		isJarakManual = true; // Preserve saved distance upon edit
 		biayaTol = parseFloat(r.biaya_tol) || 0;
 		biayaBongkarMuat = parseFloat(r.biaya_bongkar_muat) || 0;
 		uangMakan = parseFloat(r.uang_makan) || 0;
@@ -277,6 +333,12 @@
 			const result = await res.json();
 			if (result.success) {
 				googleDistanceKm = result.distance_km;
+				manualJarakKm = result.distance_km;
+				isJarakManual = false;
+				if (!isSolarManual) {
+					literSolar = Math.round((result.distance_km / 3) * 10) / 10;
+					biayaSolar = Math.round(Number(literSolar) * 6800);
+				}
 				if (result.toll_fee > 0) {
 					biayaTol = result.toll_fee;
 					rincianTolJSON = '[]';
@@ -582,7 +644,7 @@
 									</ul>
 								{/if}
 							</div>
-							<div class="col-span-1 sm:col-span-2 relative">
+							<div class="relative">
 								<label class="block text-[11px] font-bold text-on-surface-variant uppercase tracking-wider mb-1.5">Tipe Unit Kendaraan</label>
 								<input type="hidden" name="tipe_unit_id" value={selectedTipeUnit} required />
 								<input type="text" bind:value={tipeUnitSearch} onfocus={() => showTipeUnitDropdown = true} onblur={() => setTimeout(() => showTipeUnitDropdown = false, 200)} placeholder="Cari Tipe Truk..." class="w-full px-3.5 py-2.5 rounded-xl bg-surface-container-lowest border border-surface-container focus:border-sky-500 focus:ring-1 focus:ring-sky-500 outline-none transition-all text-sm font-medium" autocomplete="off" />
@@ -599,6 +661,43 @@
 										{/each}
 									</ul>
 								{/if}
+							</div>
+
+							<!-- Jarak Tempuh (Bisa diketik manual) -->
+							<div>
+								<label class="block text-[11px] font-bold text-on-surface-variant uppercase tracking-wider mb-1.5 flex items-center justify-between">
+									<span class="flex items-center gap-1">
+										<span class="material-symbols-outlined text-[15px] text-sky-600">straighten</span> Jarak Tempuh (KM)
+									</span>
+									<div class="flex items-center gap-1.5">
+										{#if isJarakManual}
+											<button type="button" onclick={resetJarakToAuto} class="text-[10px] text-blue-600 hover:underline font-bold cursor-pointer flex items-center gap-0.5" title="Kembalikan ke hitungan otomatis GPS/koordinat">
+												<span class="material-symbols-outlined text-[12px]">autorenew</span> Auto
+											</button>
+										{/if}
+										<button type="button" onclick={calculateGPS} disabled={isCalculatingGPS} class="text-[10px] text-amber-700 dark:text-amber-300 hover:underline font-bold cursor-pointer flex items-center gap-0.5 disabled:opacity-50" title="Ambil jarak via Google Maps GPS">
+											{#if isCalculatingGPS}
+												<span class="material-symbols-outlined animate-spin text-[12px]">refresh</span>
+											{:else}
+												<span class="material-symbols-outlined text-[12px]">satellite_alt</span>
+											{/if}
+											GPS
+										</button>
+									</div>
+								</label>
+								<div class="relative">
+									<input 
+										type="number" 
+										step="0.1" 
+										min="0"
+										name="jarak_km" 
+										value={manualJarakKm} 
+										oninput={(e) => handleJarakInput(e.currentTarget.value === '' ? '' : parseFloat(e.currentTarget.value))}
+										placeholder={calculatedDistanceKm > 0 ? calculatedDistanceKm.toFixed(1) : "0.0"} 
+										class="w-full px-3.5 py-2.5 rounded-xl bg-surface-container-lowest border border-surface-container focus:border-sky-500 focus:ring-1 focus:ring-sky-500 outline-none transition-all text-sm font-bold font-mono text-on-surface"
+									/>
+									<span class="absolute right-3.5 top-1/2 -translate-y-1/2 text-xs font-bold text-on-surface-variant pointer-events-none">KM</span>
+								</div>
 							</div>
 						</div>
 					</div>
@@ -617,8 +716,15 @@
 						
 						<div class="grid grid-cols-2 sm:grid-cols-4 gap-2.5 text-xs">
 							<div class="bg-white/90 dark:bg-slate-900/90 p-3 rounded-xl border border-slate-200/70 dark:border-slate-800 shadow-2xs">
-								<div class="text-[10px] text-on-surface-variant font-bold">Est. Jarak Tempuh</div>
-								<div class="text-sm sm:text-base font-black text-on-surface mt-0.5">{calculatedDistanceKm.toFixed(1)} KM</div>
+								<div class="text-[10px] text-on-surface-variant font-bold flex items-center justify-between">
+									<span>Est. Jarak Tempuh</span>
+									{#if isJarakManual}
+										<span class="text-[9px] bg-amber-200 dark:bg-amber-900 text-amber-900 dark:text-amber-200 px-1 rounded uppercase font-black">Manual</span>
+									{:else}
+										<span class="text-[9px] text-on-surface-variant">Auto</span>
+									{/if}
+								</div>
+								<div class="text-sm sm:text-base font-black text-on-surface mt-0.5">{effectiveDistanceKm.toFixed(1)} KM</div>
 								<div class="text-[10px] text-on-surface-variant/80 font-mono">~{effectiveLiterSolar.toFixed(1)} L Solar</div>
 							</div>
 							<div class="bg-white/90 dark:bg-slate-900/90 p-3 rounded-xl border border-amber-200/80 dark:border-amber-900/60 shadow-2xs">
@@ -686,7 +792,7 @@
 							</div>
 						</div>
 						
-						<input type="hidden" name="google_distance_km" value={googleDistanceKm} />
+						<input type="hidden" name="google_distance_km" value={effectiveDistanceKm} />
 						<input type="hidden" name="rincian_tol_json" value={rincianTolJSON} />
 
 						<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
@@ -735,8 +841,8 @@
 							<div>
 								<label class="block text-xs font-bold text-on-surface-variant mb-1 flex justify-between">
 									<span>Biaya Tol (Rp)</span>
-									{#if googleDistanceKm > 0}
-										<span class="text-[10px] text-amber-700 dark:text-amber-300 font-bold bg-amber-100 dark:bg-amber-950 px-1.5 py-0.5 rounded">{googleDistanceKm} KM</span>
+									{#if effectiveDistanceKm > 0}
+										<span class="text-[10px] text-amber-700 dark:text-amber-300 font-bold bg-amber-100 dark:bg-amber-950 px-1.5 py-0.5 rounded">{effectiveDistanceKm.toFixed(1)} KM</span>
 									{/if}
 								</label>
 								<input type="number" name="biaya_tol" bind:value={biayaTol} min="0" placeholder="0" class="w-full px-3.5 py-2.5 rounded-xl bg-surface-container border border-surface-container focus:border-sky-500 outline-none text-sm font-bold font-mono">
