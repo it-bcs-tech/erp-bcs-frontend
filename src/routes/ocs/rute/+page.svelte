@@ -60,7 +60,8 @@
 				  Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
 				  Math.sin(dLon/2) * Math.sin(dLon/2);
 		const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-		return R * c;
+		// Estimasi awal kelokan jalan raya/tol (~1.25x garis lurus)
+		return R * c * 1.25;
 	}
 
 	let calculatedDistanceKm = $derived.by(() => {
@@ -328,7 +329,12 @@
 			const res = await fetch('/api/tolls', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ origin_id: selectedOrigin, destination_id: selectedDestination })
+				body: JSON.stringify({ 
+					origin_id: selectedOrigin, 
+					destination_id: selectedDestination,
+					toll_gate_ids: selectedInternalTolls,
+					tipe_unit_id: selectedTipeUnit
+				})
 			});
 			const result = await res.json();
 			if (result.success) {
@@ -346,8 +352,8 @@
 				if (result.toll_instructions) {
 					gpsTollInstructions = result.toll_instructions;
 				}
-				if (result.message && (result.mock || result.toll_fee === 0)) {
-					alert(result.message);
+				if (result.message) {
+					// Feedback info message
 				}
 			} else {
 				alert(result.error || 'Gagal mengkalkulasi.');

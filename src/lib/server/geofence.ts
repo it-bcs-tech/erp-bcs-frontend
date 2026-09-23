@@ -72,9 +72,14 @@ export async function runGeofenceEngine() {
 			return { success: true, message: 'No active trips to monitor.', logs: [] };
 		}
 
-		// 2. Fetch active Rest Areas and Pools
+		// 2. Fetch active Rest Areas, Pools, and Toll Gates
 		const restAreas = await sql`SELECT id, nama_rest_area, polygon_points FROM master.m_rest_area WHERE is_active = true`;
 		const poolsList = await sql`SELECT id, nama_pool, latitude, longitude, COALESCE(geofence_radius, 500) as radius FROM master.m_pool`;
+		const tollGates = await sql`
+			SELECT id, kode_gerbang, nama_gerbang, ruas_tol, km_pos, latitude, longitude, polygon_points, COALESCE(radius_m, 300) as radius_m
+			FROM master.m_titik_gerbang_tol
+			WHERE is_active = true
+		`;
 
 		// 3. Fetch latest GPS coordinates from EasyGo API wrapper
 		const res = await fetch(`${env.FMS_API_URL || 'http://localhost:8081'}/api/fms/live-map`);
@@ -307,6 +312,53 @@ export async function runGeofenceEngine() {
 							} else {
 								logs.push(`[REST-AREA-STOP] Truk ${trip.nomor_unit} selesai istirahat di Rest Area ${ra.nama_rest_area}. Durasi: ${Math.round(duration)}m.`);
 							}
+						}
+					}
+				}
+			}
+
+			// Rule C2: Toll Gate Geofence & Realtime Milestone Checkpoint
+			if (tollGates.length > 0) {
+				for (const gate of tollGates) {
+					let inTollArea = false;
+					if (gate.polygon_points && Array.isArray(gate.polygon_points) && gate.polygon_points.length >= 3) {
+						inTollArea = pointInPolygon({ lat: gps.lat, lon: gps.lon }, gate.polygon_points);
+					} else if (gate.latitude && gate.longitude) {
+						const dist = haversine(gps.lat, gps.lon, parseFloat(gate.latitude), parseFloat(gate.longitude));
+						inTollArea = dist <= (gate.radius_m || 300);
+					}
+
+					if (inTollArea) {
+						// Hindari duplikasi log jika sudah dicatat dalam 45 menit terakhir untuk gerbang yang sama
+						const recentLog = await sql`
+							SELECT id FROM fleet.trip_toll_log 
+							WHERE trip_id = ${trip.id} 
+							  AND titik_gerbang_id = ${gate.id}
+							  AND waktu > NOW() - INTERVAL '45 minutes'
+							LIMIT 1
+						`;
+
+						if (recentLog.length === 0) {
+							const kmLabel = gate.km_pos ? ` KM ${gate.km_pos}` : '';
+							const ruasLabel = gate.ruas_tol ? ` (${gate.ruas_tol})` : '';
+							const noteText = `Auto-pilot: Melintasi ${gate.nama_gerbang}${kmLabel}${ruasLabel}`;
+
+							await sql`
+								INSERT INTO fleet.trip_toll_log (
+									trip_id, titik_gerbang_id, nama_gerbang, tipe_event, lat, lon, odometer_km, notes
+								) VALUES (
+									${trip.id}, ${gate.id}, ${gate.nama_gerbang}, 'PASS_TOLL', 
+									${gps.lat}, ${gps.lon}, ${newDistance}, ${noteText}
+								)
+							`;
+
+							await sql`
+								INSERT INTO fleet.trip_checkpoint (trip_id, event, lat, lon, notes)
+								VALUES (${trip.id}, 'TOLL', ${gps.lat}, ${gps.lon}, ${noteText})
+							`;
+
+							logs.push(`[TOLL-CHECKPOINT] Truk ${trip.nomor_unit} melintasi ${gate.nama_gerbang}${kmLabel}. Milestone tol tercatat.`);
+							updatedCount++;
 						}
 					}
 				}

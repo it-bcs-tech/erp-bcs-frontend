@@ -1,17 +1,7 @@
 import type { PageServerLoad, Actions } from './$types';
 import { fail } from '@sveltejs/kit';
 import sql from '$lib/server/db';
-
-function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
-	const R = 6371; // km
-	const dLat = (lat2 - lat1) * Math.PI / 180;
-	const dLon = (lon2 - lon1) * Math.PI / 180;
-	const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
-			  Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-			  Math.sin(dLon/2) * Math.sin(dLon/2);
-	const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-	return R * c;
-}
+import { getDrivingDistanceKm } from '$lib/server/routing';
 
 export const load: PageServerLoad = async () => {
 	try {
@@ -53,17 +43,19 @@ export const load: PageServerLoad = async () => {
 		// Get Data for Dropdowns
 		const customers = await sql`SELECT id, nama_kustomer as name, latitude, longitude FROM master.m_customer WHERE is_active = true ORDER BY nama_kustomer ASC`;
 		const tipeUnits = await sql`SELECT id, nama_tipe as name, golongan_tol FROM master.m_tipe_unit ORDER BY nama_tipe ASC`;
-		const gerbangTols = await sql`SELECT id, ruas, asal, tujuan, tarif_gol_1, tarif_gol_2_3, tarif_gol_4_5 FROM master.m_gerbang_tol ORDER BY ruas ASC, asal ASC`;
+		const gerbangTols = await sql`SELECT id, ruas, asal, tujuan, tarif_gol_1, tarif_gol_2_3, tarif_gol_4_5, gerbang_asal_id, gerbang_tujuan_id, jarak_ruas_km FROM master.m_gerbang_tol ORDER BY ruas ASC, asal ASC`;
+		const titikGerbangList = await sql`SELECT id, kode_gerbang, nama_gerbang, ruas_tol, km_pos, latitude, longitude FROM master.m_titik_gerbang_tol WHERE is_active = true ORDER BY ruas_tol ASC, km_pos ASC`;
 
 		return {
 			ruteList: ruteList as any[],
 			customers: customers as any[],
 			tipeUnits: tipeUnits as any[],
-			gerbangTols: gerbangTols as any[]
+			gerbangTols: gerbangTols as any[],
+			titikGerbangList: titikGerbangList as any[]
 		};
 	} catch (error) {
 		console.error("Error loading master rute:", error);
-		return { ruteList: [], customers: [], tipeUnits: [], gerbangTols: [] };
+		return { ruteList: [], customers: [], tipeUnits: [], gerbangTols: [], titikGerbangList: [] };
 	}
 };
 
@@ -99,7 +91,7 @@ export const actions: Actions = {
 			} else if (google_distance_km > 0) {
 				jarak_km = google_distance_km;
 			} else {
-				// Fetch Lat/Lon for automatic distance calculation
+				// Fetch Lat/Lon for automatic driving distance calculation
 				const originData = await sql`SELECT latitude, longitude FROM master.m_customer WHERE id = ${origin_id}`;
 				const destData = await sql`SELECT latitude, longitude FROM master.m_customer WHERE id = ${destination_id}`;
 				
@@ -110,10 +102,11 @@ export const actions: Actions = {
 					return fail(400, { message: 'Gagal: Lokasi belum memiliki koordinat GPS di Master Customer, silakan isi Jarak Tempuh (KM) secara manual.' });
 				}
 
-				jarak_km = calculateDistance(
-					parseFloat(originData[0].latitude), parseFloat(originData[0].longitude),
-					parseFloat(destData[0].latitude), parseFloat(destData[0].longitude)
+				const driving = await getDrivingDistanceKm(
+					{ lat: parseFloat(originData[0].latitude), lng: parseFloat(originData[0].longitude) },
+					{ lat: parseFloat(destData[0].latitude), lng: parseFloat(destData[0].longitude) }
 				);
+				jarak_km = driving.distance_km;
 			}
 
 			// Fuel Consumption logic: allow manual typing, fallback to distance calculation
@@ -223,10 +216,11 @@ export const actions: Actions = {
 					return fail(400, { message: 'Gagal: Lokasi belum memiliki koordinat GPS di Master Customer, silakan isi Jarak Tempuh (KM) secara manual.' });
 				}
 
-				jarak_km = calculateDistance(
-					parseFloat(originData[0].latitude), parseFloat(originData[0].longitude),
-					parseFloat(destData[0].latitude), parseFloat(destData[0].longitude)
+				const driving = await getDrivingDistanceKm(
+					{ lat: parseFloat(originData[0].latitude), lng: parseFloat(originData[0].longitude) },
+					{ lat: parseFloat(destData[0].latitude), lng: parseFloat(destData[0].longitude) }
 				);
+				jarak_km = driving.distance_km;
 			}
 
 			// Fuel Consumption logic: allow manual typing, fallback to distance calculation
