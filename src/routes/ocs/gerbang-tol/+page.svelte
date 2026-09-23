@@ -5,8 +5,8 @@
 
 	let { data, form } = $props<{ data: any; form: any }>();
 
-	// Tab aktif: 'map' | 'tarif'
-	let activeTab = $state<'map' | 'tarif'>('map');
+	// Tab aktif: 'tarif' (default menampilkan data master.m_gerbang_tol) | 'map'
+	let activeTab = $state<'tarif' | 'map'>('tarif');
 
 	// ==================== STATE PETA & POINTING GEOFENCE ====================
 	let mapContainer: HTMLElement;
@@ -17,6 +17,9 @@
 	let currentPointMarker: any = null;
 	let draftPolygonLayer: any = null;
 	let draftPolygonMarkers: any[] = [];
+
+	// State sidebar peta: 'master' (107 gerbang tol m_gerbang_tol) | 'gps' (titik fisik m_titik_gerbang_tol)
+	let mapSidebarView = $state<'master' | 'gps'>('master');
 
 	// State form panel kanan titik gerbang tol fisik
 	let showTitikModal = $state(false);
@@ -87,7 +90,7 @@
 		}).format(val);
 	}
 
-	// Filtered list titik fisik
+	// Filtered list titik fisik (master.m_titik_gerbang_tol)
 	let filteredTitikList = $derived.by(() => {
 		let list = data.titikGerbangList || [];
 		if (filterRuasTitik !== 'ALL') {
@@ -104,7 +107,7 @@
 		return list;
 	});
 
-	// Filtered list tarif ruas
+	// Filtered list tarif ruas (master.m_gerbang_tol)
 	let filteredList = $derived.by(() => {
 		let list = data.gerbangTols || [];
 		if (selectedRuas !== 'ALL') {
@@ -414,6 +417,32 @@
 		showTitikModal = true;
 	}
 
+	function startPointingFromRuas(gate: any, target: 'asal' | 'tujuan') {
+		const nama = target === 'asal' ? gate.asal : gate.tujuan;
+		activeTab = 'map';
+		setTimeout(() => {
+			isEditingTitik = false;
+			titikFormId = null;
+			titikNama = `Gerbang Tol ${nama}`;
+			const cleanCode = nama.replace(/[^A-Za-z0-9]/g, '').slice(0, 4).toUpperCase();
+			titikKode = `GT-${cleanCode}`;
+			titikRuas = gate.ruas || '';
+			titikKm = '';
+			titikLat = '';
+			titikLng = '';
+			titikRadius = 300;
+			titikPolygonPoints = [];
+			titikIsActive = true;
+			clearDraftLayers();
+			mapInteractionMode = 'point';
+			showTitikModal = true;
+			bannerMessage = {
+				type: 'success',
+				text: `Mode Pointing Aktif untuk "${titikNama}" (${titikRuas}). Silakan klik lokasi pada peta.`
+			};
+		}, 150);
+	}
+
 	function closeTitikForm() {
 		showTitikModal = false;
 		clearDraftLayers();
@@ -501,7 +530,7 @@
 </script>
 
 <svelte:head>
-	<title>Master Gerbang Tol & Geofence | OCS ERP BCS</title>
+	<title>Master Gerbang Tol | OCS ERP BCS</title>
 </svelte:head>
 
 <div class="space-y-5">
@@ -515,10 +544,10 @@
 			</div>
 			<h1 class="text-2xl font-black text-on-surface tracking-tight flex items-center gap-2">
 				<span class="material-symbols-outlined text-sky-600 dark:text-sky-400 text-[28px]">toll</span>
-				Master Gerbang Tol & Geofence
+				Master Gerbang Tol
 			</h1>
 			<p class="text-xs text-on-surface-variant mt-1">
-				Pemetaan titik fisik gerbang tol, area plaza geofence polygon, kalkulasi jarak ruas, dan tarif per golongan truk.
+				Database ruas jalan tol, titik gerbang asal-tujuan, tarif golongan truk operasional, dan pemetaan geofence GPS.
 			</p>
 		</div>
 
@@ -530,21 +559,21 @@
 				<span class="material-symbols-outlined text-[18px]">route</span>
 				Buka Master Rute & UJO
 			</a>
-			{#if activeTab === 'map'}
+			{#if activeTab === 'tarif'}
+				<button
+					onclick={openCreateModal}
+					class="bg-sky-600 hover:bg-sky-700 active:scale-98 text-white px-4 py-2 rounded-xl text-xs font-bold shadow-xs flex items-center gap-2 transition-all cursor-pointer"
+				>
+					<span class="material-symbols-outlined text-[18px]">add</span>
+					Tambah Gerbang Tol
+				</button>
+			{:else}
 				<button
 					onclick={openCreateTitikModal}
 					class="bg-sky-600 hover:bg-sky-700 active:scale-98 text-white px-4 py-2 rounded-xl text-xs font-bold shadow-xs flex items-center gap-2 transition-all cursor-pointer"
 				>
 					<span class="material-symbols-outlined text-[18px]">add_location_alt</span>
 					Tambah Titik Fisik Gerbang
-				</button>
-			{:else}
-				<button
-					onclick={openCreateModal}
-					class="bg-sky-600 hover:bg-sky-700 active:scale-98 text-white px-4 py-2 rounded-xl text-xs font-bold shadow-xs flex items-center gap-2 transition-all cursor-pointer"
-				>
-					<span class="material-symbols-outlined text-[18px]">add</span>
-					Tambah Tarif Ruas
 				</button>
 			{/if}
 		</div>
@@ -574,36 +603,291 @@
 	<!-- Navigation Tabs -->
 	<div class="flex items-center gap-2 border-b border-slate-200 dark:border-slate-800 pb-px">
 		<button
-			onclick={() => { activeTab = 'map'; }}
-			class="px-4 py-2.5 rounded-t-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer border-b-2 {activeTab === 'map' ? 'border-sky-600 text-sky-600 dark:text-sky-400 bg-sky-50/50 dark:bg-sky-950/20' : 'border-transparent text-on-surface-variant hover:text-on-surface'}"
-		>
-			<span class="material-symbols-outlined text-[18px]">map</span>
-			Peta Pointing & Geofence Plaza Tol ({data.stats?.totalTitik ?? 0})
-		</button>
-		<button
 			onclick={() => { activeTab = 'tarif'; }}
 			class="px-4 py-2.5 rounded-t-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer border-b-2 {activeTab === 'tarif' ? 'border-sky-600 text-sky-600 dark:text-sky-400 bg-sky-50/50 dark:bg-sky-950/20' : 'border-transparent text-on-surface-variant hover:text-on-surface'}"
 		>
 			<span class="material-symbols-outlined text-[18px]">table_rows</span>
-			Daftar Tarif Ruas Tol ({data.stats?.totalGerbang ?? 0})
+			Daftar Gerbang Tol ({data.stats?.totalGerbang ?? 0})
+		</button>
+		<button
+			onclick={() => { activeTab = 'map'; }}
+			class="px-4 py-2.5 rounded-t-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer border-b-2 {activeTab === 'map' ? 'border-sky-600 text-sky-600 dark:text-sky-400 bg-sky-50/50 dark:bg-sky-950/20' : 'border-transparent text-on-surface-variant hover:text-on-surface'}"
+		>
+			<span class="material-symbols-outlined text-[18px]">map</span>
+			Peta Pointing & Geofence ({data.stats?.totalTitik ?? 0})
 		</button>
 	</div>
 
-	<!-- TAB 1: PETA POINTING & GEOFENCE -->
+	<!-- ==================== TAB 1: DAFTAR TARIF RUAS TOL (MASTER.M_GERBANG_TOL) ==================== -->
+	{#if activeTab === 'tarif'}
+		<!-- KPI Metric Cards -->
+		<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+			<div class="p-5 rounded-2xl bg-surface-container-lowest border border-slate-200/70 dark:border-slate-800/70 transition-all hover:border-sky-500/30 shadow-2xs">
+				<div class="flex items-center justify-between mb-2">
+					<span class="text-xs font-bold text-on-surface-variant uppercase tracking-wider">Total Gerbang Tol</span>
+					<div class="w-9 h-9 rounded-xl bg-sky-500/10 text-sky-600 dark:text-sky-400 flex items-center justify-center">
+						<span class="material-symbols-outlined text-[20px]">toll</span>
+					</div>
+				</div>
+				<div class="text-2xl font-black text-on-surface">{data.stats?.totalGerbang ?? 0}</div>
+				<p class="text-[11px] text-on-surface-variant mt-1">Konfigurasi asal → tujuan aktif</p>
+			</div>
+
+			<div class="p-5 rounded-2xl bg-surface-container-lowest border border-slate-200/70 dark:border-slate-800/70 transition-all hover:border-indigo-500/30 shadow-2xs">
+				<div class="flex items-center justify-between mb-2">
+					<span class="text-xs font-bold text-on-surface-variant uppercase tracking-wider">Ruas Jalan Tol</span>
+					<div class="w-9 h-9 rounded-xl bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 flex items-center justify-center">
+						<span class="material-symbols-outlined text-[20px]">alt_route</span>
+					</div>
+				</div>
+				<div class="text-2xl font-black text-on-surface">{data.stats?.totalRuas ?? 0}</div>
+				<p class="text-[11px] text-on-surface-variant mt-1">Koridor tol terdaftar</p>
+			</div>
+
+			<div class="p-5 rounded-2xl bg-surface-container-lowest border border-slate-200/70 dark:border-slate-800/70 transition-all hover:border-emerald-500/30 shadow-2xs">
+				<div class="flex items-center justify-between mb-2">
+					<span class="text-xs font-bold text-on-surface-variant uppercase tracking-wider">Rata-rata Gol 2 & 3</span>
+					<div class="w-9 h-9 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
+						<span class="material-symbols-outlined text-[20px]">local_shipping</span>
+					</div>
+				</div>
+				<div class="text-2xl font-black text-on-surface">{formatRupiah(data.stats?.avgTarifGol23 ?? 0)}</div>
+				<p class="text-[11px] text-on-surface-variant mt-1">Tarif rata-rata armada BCS</p>
+			</div>
+
+			<div class="p-5 rounded-2xl bg-surface-container-lowest border border-slate-200/70 dark:border-slate-800/70 transition-all hover:border-amber-500/30 shadow-2xs">
+				<div class="flex items-center justify-between mb-2">
+					<span class="text-xs font-bold text-on-surface-variant uppercase tracking-wider">Tarif Tertinggi</span>
+					<div class="w-9 h-9 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center">
+						<span class="material-symbols-outlined text-[20px]">payments</span>
+					</div>
+				</div>
+				<div class="text-2xl font-black text-on-surface">{formatRupiah(data.stats?.maxTarif ?? 0)}</div>
+				<p class="text-[11px] text-on-surface-variant mt-1">Batas atas tarif terjauh</p>
+			</div>
+		</div>
+
+		<!-- Filter & Search Bar -->
+		<div class="p-4 rounded-2xl bg-surface-container-lowest border border-slate-200/70 dark:border-slate-800/70 shadow-2xs">
+			<div class="flex flex-col sm:flex-row items-center justify-between gap-3">
+				<div class="flex flex-1 w-full sm:w-auto items-center gap-3">
+					<div class="flex-1 flex items-center gap-2.5 px-3.5 py-2 rounded-xl bg-surface-container-low border border-slate-200 dark:border-slate-800 focus-within:ring-2 focus-within:ring-sky-500/20 focus-within:border-sky-500">
+						<span class="material-symbols-outlined text-on-surface-variant text-[18px]">search</span>
+						<input
+							type="text"
+							bind:value={searchQuery}
+							placeholder="Cari ruas, asal, atau tujuan gerbang tol..."
+							class="bg-transparent text-xs text-on-surface outline-none w-full placeholder:text-on-surface-variant/50"
+						/>
+						{#if searchQuery}
+							<button onclick={() => { searchQuery = ''; }} class="text-on-surface-variant hover:text-on-surface text-[14px]">
+								<span class="material-symbols-outlined text-[16px]">close</span>
+							</button>
+						{/if}
+					</div>
+
+					<div class="w-56">
+						<select
+							bind:value={selectedRuas}
+							class="w-full px-3 py-2 rounded-xl bg-surface-container-low border border-slate-200 dark:border-slate-800 text-xs text-on-surface outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 font-medium"
+						>
+							<option value="ALL">Semua Ruas ({data.ruasList?.length || 0})</option>
+							{#each data.ruasList as ruas}
+								<option value={ruas}>{ruas}</option>
+							{/each}
+						</select>
+					</div>
+				</div>
+
+				<div class="flex items-center gap-2 w-full sm:w-auto justify-between sm:justify-end">
+					<span class="text-xs text-on-surface-variant font-medium">
+						Ditemukan <strong class="text-on-surface">{filteredList.length}</strong> data
+					</span>
+					<div class="h-4 w-[1px] bg-slate-200 dark:border-slate-800"></div>
+					<select
+						bind:value={pageSize}
+						class="px-2.5 py-1.5 rounded-lg bg-surface-container-low border border-slate-200 dark:border-slate-800 text-xs text-on-surface outline-none font-medium"
+					>
+						<option value={15}>15 / hal</option>
+						<option value={25}>25 / hal</option>
+						<option value={50}>50 / hal</option>
+						<option value={100}>100 / hal</option>
+					</select>
+				</div>
+			</div>
+		</div>
+
+		<!-- Data Table -->
+		<div class="rounded-2xl bg-surface-container-lowest border border-slate-200/70 dark:border-slate-800/70 overflow-hidden shadow-2xs">
+			<div class="overflow-x-auto">
+				<table class="w-full text-left border-collapse text-xs">
+					<thead>
+						<tr class="bg-surface-container-low/70 border-b border-slate-200 dark:border-slate-800 text-on-surface-variant font-bold uppercase tracking-wider text-[10px]">
+							<th class="py-3 px-4 w-12 text-center">No</th>
+							<th class="py-3 px-4 min-w-[160px]">Ruas Tol</th>
+							<th class="py-3 px-4 min-w-[220px]">Gerbang Asal → Tujuan</th>
+							<th class="py-3 px-4 text-center min-w-[90px]">Jarak</th>
+							<th class="py-3 px-4 text-right min-w-[110px]">Gol. I</th>
+							<th class="py-3 px-4 text-right min-w-[120px]">Gol. II & III</th>
+							<th class="py-3 px-4 text-right min-w-[120px]">Gol. IV & V</th>
+							<th class="py-3 px-4 text-center min-w-[110px]">Status Rute</th>
+							<th class="py-3 px-4 text-center w-28">Aksi</th>
+						</tr>
+					</thead>
+					<tbody class="divide-y divide-slate-200/60 dark:divide-slate-800/60">
+						{#if paginatedList.length === 0}
+							<tr>
+								<td colspan="9" class="text-center py-12 text-on-surface-variant">
+									<div class="flex flex-col items-center justify-center gap-2">
+										<div class="w-12 h-12 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-400">
+											<span class="material-symbols-outlined text-[24px]">toll</span>
+										</div>
+										<p class="font-bold text-sm text-on-surface">Tidak ada gerbang tol yang sesuai</p>
+										<p class="text-xs text-on-surface-variant/70">Coba ubah kata kunci pencarian atau filter ruas tol.</p>
+									</div>
+								</td>
+							</tr>
+						{:else}
+							{#each paginatedList as gate, idx}
+								{@const isUsed = isGateUsed(gate.id)}
+								<tr class="hover:bg-surface-container-low/50 transition-colors">
+									<td class="py-3.5 px-4 text-center text-on-surface-variant font-mono">
+										{(currentPage - 1) * pageSize + idx + 1}
+									</td>
+									<td class="py-3.5 px-4 font-semibold text-on-surface">
+										<div class="flex items-center gap-1.5">
+											<span class="material-symbols-outlined text-[15px] text-sky-600 dark:text-sky-400">add_road</span>
+											<span>{gate.ruas || '-'}</span>
+										</div>
+									</td>
+									<td class="py-3.5 px-4">
+										<div class="flex items-center gap-1.5 font-medium text-on-surface">
+											<span class="font-bold text-slate-800 dark:text-slate-100">{gate.asal || '-'}</span>
+											<span class="material-symbols-outlined text-[14px] text-slate-400">arrow_forward</span>
+											<span class="font-bold text-slate-800 dark:text-slate-100">{gate.tujuan || '-'}</span>
+										</div>
+										{#if gate.nama_titik_asal || gate.nama_titik_tujuan}
+											<div class="text-[10px] text-sky-600 dark:text-sky-400 flex items-center gap-1 mt-0.5">
+												<span class="material-symbols-outlined text-[12px]">link</span>
+												<span>Titik GPS: {gate.nama_titik_asal || gate.asal} → {gate.nama_titik_tujuan || gate.tujuan}</span>
+											</div>
+										{/if}
+									</td>
+									<td class="py-3.5 px-4 text-center font-mono text-xs">
+										{#if gate.jarak_ruas_km}
+											<span class="font-bold text-slate-700 dark:text-slate-200">{gate.jarak_ruas_km} KM</span>
+										{:else}
+											<span class="text-slate-400 text-[10px]">-</span>
+										{/if}
+									</td>
+									<td class="py-3.5 px-4 text-right font-mono text-on-surface-variant">
+										{formatRupiah(gate.tarif_gol_1)}
+									</td>
+									<td class="py-3.5 px-4 text-right font-mono font-bold text-sky-700 dark:text-sky-300">
+										{formatRupiah(gate.tarif_gol_2_3)}
+									</td>
+									<td class="py-3.5 px-4 text-right font-mono font-bold text-indigo-700 dark:text-indigo-300">
+										{formatRupiah(gate.tarif_gol_4_5)}
+									</td>
+									<td class="py-3.5 px-4 text-center">
+										{#if isUsed}
+											<span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
+												<span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+												Dipakai di Rute
+											</span>
+										{:else}
+											<span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-medium bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400 border border-slate-200 dark:border-slate-700">
+												Tersedia
+											</span>
+										{/if}
+									</td>
+									<td class="py-3.5 px-4 text-center">
+										<div class="flex items-center justify-center gap-1">
+											<!-- Quick Pointing di Peta Button -->
+											<button
+												onclick={() => startPointingFromRuas(gate, 'asal')}
+												class="p-1.5 rounded-lg hover:bg-emerald-50 dark:hover:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 transition-colors cursor-pointer"
+												title={`Pointing koordinat "${gate.asal}" di peta`}
+											>
+												<span class="material-symbols-outlined text-[17px]">pin_drop</span>
+											</button>
+											<!-- Edit Button -->
+											<button
+												onclick={() => openEditModal(gate)}
+												class="p-1.5 rounded-lg hover:bg-sky-50 dark:hover:bg-sky-950/50 text-sky-600 dark:text-sky-400 transition-colors cursor-pointer"
+												title="Edit Gerbang Tol"
+											>
+												<span class="material-symbols-outlined text-[17px]">edit</span>
+											</button>
+											<!-- Delete Button -->
+											<button
+												onclick={() => openDeleteConfirm(gate)}
+												class="p-1.5 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-950/50 text-rose-600 dark:text-rose-400 transition-colors cursor-pointer"
+												title={isUsed ? 'Gerbang tol terhubung dengan rute UJO' : 'Hapus Gerbang Tol'}
+											>
+												<span class="material-symbols-outlined text-[17px]">delete</span>
+											</button>
+										</div>
+									</td>
+								</tr>
+							{/each}
+						{/if}
+					</tbody>
+				</table>
+			</div>
+
+			<!-- Pagination Bar -->
+			{#if totalPages > 1}
+				<div class="px-4 py-3 bg-surface-container-low/50 border-t border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
+					<span class="text-on-surface-variant">
+						Menampilkan <strong class="text-on-surface">{(currentPage - 1) * pageSize + 1}</strong> - <strong class="text-on-surface">{Math.min(currentPage * pageSize, filteredList.length)}</strong> dari <strong class="text-on-surface">{filteredList.length}</strong> gerbang
+					</span>
+
+					<div class="flex items-center gap-1">
+						<button
+							onclick={() => { currentPage = Math.max(1, currentPage - 1); }}
+							disabled={currentPage === 1}
+							class="px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-800 bg-surface-container-lowest hover:bg-surface-container disabled:opacity-40 disabled:cursor-not-allowed text-xs font-semibold flex items-center gap-1 transition-colors"
+						>
+							<span class="material-symbols-outlined text-[16px]">chevron_left</span>
+							Sebelumnya
+						</button>
+
+						<div class="flex items-center gap-1 px-2">
+							<span class="font-bold text-on-surface">{currentPage}</span>
+							<span class="text-on-surface-variant">/</span>
+							<span class="text-on-surface-variant">{totalPages}</span>
+						</div>
+
+						<button
+							onclick={() => { currentPage = Math.min(totalPages, currentPage + 1); }}
+							disabled={currentPage === totalPages}
+							class="px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-800 bg-surface-container-lowest hover:bg-surface-container disabled:opacity-40 disabled:cursor-not-allowed text-xs font-semibold flex items-center gap-1 transition-colors"
+						>
+							Berikutnya
+							<span class="material-symbols-outlined text-[16px]">chevron_right</span>
+						</button>
+					</div>
+				</div>
+			{/if}
+		</div>
+	{/if}
+
+	<!-- ==================== TAB 2: PETA POINTING & GEOFENCE ==================== -->
 	{#if activeTab === 'map'}
 		<div class="relative w-full h-[calc(100vh-14rem)] min-h-[580px] rounded-3xl overflow-hidden shadow-xs border border-slate-200/60 dark:border-slate-800/60 bg-surface-container-low">
 			<!-- FULLSCREEN MAP -->
 			<div bind:this={mapContainer} class="absolute inset-0 z-0 bg-surface-container-low"></div>
 
-			<!-- FLOATING TOOLBAR KIRI: SEARCH & DAFTAR TITIK GERBANG -->
-			<div class="absolute top-4 left-4 z-20 w-80 max-w-[calc(100%-2rem)] flex flex-col gap-3 max-h-[calc(100%-2rem)] pointer-events-auto">
+			<!-- FLOATING TOOLBAR KIRI: SEARCH & DAFTAR GERBANG TOL -->
+			<div class="absolute top-4 left-4 z-20 w-84 max-w-[calc(100%-2rem)] flex flex-col gap-3 max-h-[calc(100%-2rem)] pointer-events-auto">
 				<!-- Search OpenStreetMap Box -->
 				<form onsubmit={searchLocationOnMap} class="relative w-full shadow-lg rounded-2xl bg-surface/95 backdrop-blur-md border border-slate-200/60 dark:border-slate-800/60 overflow-hidden flex items-center">
 					<span class="material-symbols-outlined text-slate-400 ml-3 text-[18px]">search</span>
 					<input 
 						type="text" 
 						bind:value={mapSearchQuery}
-						placeholder="Cari jalan tol di peta..." 
+						placeholder="Cari lokasi tol di peta..." 
 						class="w-full bg-transparent text-on-surface py-2 px-2.5 focus:outline-none text-xs font-medium placeholder:text-slate-400"
 					/>
 					{#if isSearchingMap}
@@ -611,7 +895,7 @@
 					{/if}
 				</form>
 
-				<!-- Daftar Titik Gerbang Tol Panel -->
+				<!-- Daftar Gerbang Tol Panel -->
 				<div class="bg-surface/95 backdrop-blur-md rounded-2xl shadow-xl border border-slate-200/60 dark:border-slate-800/60 flex flex-col overflow-hidden flex-1">
 					<div class="p-3 border-b border-slate-200/60 dark:border-slate-800/60 bg-surface-container-low/50">
 						<div class="flex items-center justify-between mb-2">
@@ -620,8 +904,8 @@
 									<span class="material-symbols-outlined text-base">pin_drop</span>
 								</div>
 								<div>
-									<h2 class="font-bold text-on-surface text-xs leading-tight">Titik Fisik Gerbang</h2>
-									<p class="text-[9px] text-on-surface-variant font-medium">{filteredTitikList.length} gerbang terdaftar</p>
+									<h2 class="font-bold text-on-surface text-xs leading-tight">Master Gerbang Tol</h2>
+									<p class="text-[9px] text-on-surface-variant font-medium">Pointing & Geofence</p>
 								</div>
 							</div>
 							<button 
@@ -633,73 +917,124 @@
 							</button>
 						</div>
 
-						<!-- Filter input kecil di dalam list -->
+						<!-- Sub-tab Pemilih Daftar: Master vs GPS -->
+						<div class="flex items-center gap-1 p-1 bg-surface-container-low rounded-xl mb-2 border border-slate-200/60 dark:border-slate-800/60">
+							<button
+								type="button"
+								onclick={() => { mapSidebarView = 'master'; }}
+								class="flex-1 py-1 text-[10px] font-bold rounded-lg transition-all {mapSidebarView === 'master' ? 'bg-sky-600 text-white shadow-2xs' : 'text-on-surface-variant hover:text-on-surface'}"
+							>
+								Ruas Tol ({data.gerbangTols?.length || 0})
+							</button>
+							<button
+								type="button"
+								onclick={() => { mapSidebarView = 'gps'; }}
+								class="flex-1 py-1 text-[10px] font-bold rounded-lg transition-all {mapSidebarView === 'gps' ? 'bg-sky-600 text-white shadow-2xs' : 'text-on-surface-variant hover:text-on-surface'}"
+							>
+								Titik GPS ({filteredTitikList.length})
+							</button>
+						</div>
+
+						<!-- Filter input kecil -->
 						<div class="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-surface-container-low border border-slate-200 dark:border-slate-800">
 							<span class="material-symbols-outlined text-slate-400 text-[14px]">filter_alt</span>
 							<input
 								type="text"
 								bind:value={searchTitikQuery}
-								placeholder="Saring nama / kode..."
+								placeholder="Saring nama gerbang / ruas..."
 								class="w-full bg-transparent text-[11px] text-on-surface outline-none placeholder:text-slate-400"
 							/>
 						</div>
 					</div>
 
-					<!-- List Titik Scrollable -->
+					<!-- List Gerbang Scrollable -->
 					<div class="flex-1 overflow-y-auto p-2 space-y-1.5 hide-scrollbar max-h-[360px]">
-						{#each filteredTitikList as gate}
-							<div 
-								class="p-2.5 bg-surface-container/40 hover:bg-surface-container/90 rounded-xl flex items-center justify-between group transition-colors cursor-pointer border border-transparent hover:border-sky-500/30"
-								onclick={() => flyToGate(gate)}
-							>
-								<div class="flex items-start gap-2 min-w-0 pr-2">
-									<div class="w-7 h-7 rounded-lg bg-sky-100 dark:bg-sky-900/30 text-sky-600 flex items-center justify-center flex-shrink-0 mt-0.5 group-hover:bg-sky-600 group-hover:text-white transition-colors">
-										<span class="material-symbols-outlined text-[15px]">toll</span>
+						{#if mapSidebarView === 'master'}
+							<!-- Tampilkan data dari master.m_gerbang_tol (107 ruas) -->
+							{#each (data.gerbangTols || []).filter((g: any) => !searchTitikQuery.trim() || (g.ruas?.toLowerCase().includes(searchTitikQuery.toLowerCase()) || g.asal?.toLowerCase().includes(searchTitikQuery.toLowerCase()) || g.tujuan?.toLowerCase().includes(searchTitikQuery.toLowerCase()))) as gate}
+								<div class="p-2.5 bg-surface-container/40 hover:bg-surface-container/90 rounded-xl flex items-center justify-between group transition-colors border border-transparent hover:border-sky-500/30">
+									<div class="min-w-0 pr-2">
+										<p class="font-bold text-xs text-on-surface truncate">{gate.asal} → {gate.tujuan}</p>
+										<p class="text-[10px] text-on-surface-variant truncate">{gate.ruas || '-'}</p>
+										<p class="text-[10px] font-mono text-sky-700 dark:text-sky-300 mt-0.5">{formatRupiah(gate.tarif_gol_2_3)}</p>
 									</div>
-									<div class="min-w-0">
-										<p class="font-bold text-xs text-on-surface truncate">{gate.nama_gerbang}</p>
-										<p class="text-[10px] text-on-surface-variant truncate">
-											{gate.ruas_tol || '-'} • KM {gate.km_pos ?? '-'}
-										</p>
-										<div class="flex items-center gap-1 mt-0.5">
-											{#if gate.polygon_points && gate.polygon_points.length >= 3}
-												<span class="text-[8px] font-bold px-1.5 py-0.2 rounded bg-indigo-50 text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300 border border-indigo-200/50">
-													Geofence Plaza
-												</span>
-											{:else}
-												<span class="text-[8px] font-medium px-1.5 py-0.2 rounded bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400">
-													Radius {gate.radius_m || 300}m
-												</span>
-											{/if}
+									<button
+										type="button"
+										onclick={() => startPointingFromRuas(gate, 'asal')}
+										class="px-2 py-1 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 text-[10px] font-bold transition-all flex items-center gap-1 shrink-0 cursor-pointer shadow-2xs"
+										title="Pointing titik gerbang ini di peta"
+									>
+										<span class="material-symbols-outlined text-[13px]">pin_drop</span>
+										Pointing
+									</button>
+								</div>
+							{:else}
+								<div class="py-8 flex flex-col items-center justify-center opacity-50">
+									<span class="material-symbols-outlined text-3xl mb-1">search_off</span>
+									<p class="text-xs font-bold text-center">Tidak ada ruas yang sesuai</p>
+								</div>
+							{/each}
+						{:else}
+							<!-- Tampilkan data titik fisik ber-GPS (master.m_titik_gerbang_tol) -->
+							{#each filteredTitikList as gate}
+								<div 
+									class="p-2.5 bg-surface-container/40 hover:bg-surface-container/90 rounded-xl flex items-center justify-between group transition-colors cursor-pointer border border-transparent hover:border-sky-500/30"
+									onclick={() => flyToGate(gate)}
+								>
+									<div class="flex items-start gap-2 min-w-0 pr-2">
+										<div class="w-7 h-7 rounded-lg bg-sky-100 dark:bg-sky-900/30 text-sky-600 flex items-center justify-center flex-shrink-0 mt-0.5 group-hover:bg-sky-600 group-hover:text-white transition-colors">
+											<span class="material-symbols-outlined text-[15px]">toll</span>
+										</div>
+										<div class="min-w-0">
+											<p class="font-bold text-xs text-on-surface truncate">{gate.nama_gerbang}</p>
+											<p class="text-[10px] text-on-surface-variant truncate">
+												{gate.ruas_tol || '-'} • KM {gate.km_pos ?? '-'}
+											</p>
+											<div class="flex items-center gap-1 mt-0.5">
+												{#if gate.polygon_points && gate.polygon_points.length >= 3}
+													<span class="text-[8px] font-bold px-1.5 py-0.2 rounded bg-indigo-50 text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300 border border-indigo-200/50">
+														Geofence Plaza
+													</span>
+												{:else}
+													<span class="text-[8px] font-medium px-1.5 py-0.2 rounded bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400">
+														Radius {gate.radius_m || 300}m
+													</span>
+												{/if}
+											</div>
 										</div>
 									</div>
-								</div>
 
-								<div class="flex items-center gap-1 opacity-80 group-hover:opacity-100 transition-opacity">
-									<button
-										type="button"
-										onclick={(e) => { e.stopPropagation(); openEditTitikModal(gate); }}
-										class="w-6 h-6 flex items-center justify-center text-sky-600 hover:bg-sky-100 dark:hover:bg-sky-950/50 rounded-md transition-colors"
-										title="Edit Titik"
-									>
-										<span class="material-symbols-outlined text-[15px]">edit</span>
-									</button>
-									<button
-										type="button"
-										onclick={(e) => { e.stopPropagation(); openDeleteTitikConfirm(gate); }}
-										class="w-6 h-6 flex items-center justify-center text-rose-500 hover:bg-rose-100 dark:hover:bg-rose-950/50 rounded-md transition-colors"
-										title="Hapus Titik"
-									>
-										<span class="material-symbols-outlined text-[15px]">delete</span>
-									</button>
+									<div class="flex items-center gap-1 opacity-80 group-hover:opacity-100 transition-opacity">
+										<button
+											type="button"
+											onclick={(e) => { e.stopPropagation(); openEditTitikModal(gate); }}
+											class="w-6 h-6 flex items-center justify-center text-sky-600 hover:bg-sky-100 dark:hover:bg-sky-950/50 rounded-md transition-colors"
+											title="Edit Titik"
+										>
+											<span class="material-symbols-outlined text-[15px]">edit</span>
+										</button>
+										<button
+											type="button"
+											onclick={(e) => { e.stopPropagation(); openDeleteTitikConfirm(gate); }}
+											class="w-6 h-6 flex items-center justify-center text-rose-500 hover:bg-rose-100 dark:hover:bg-rose-950/50 rounded-md transition-colors"
+											title="Hapus Titik"
+										>
+											<span class="material-symbols-outlined text-[15px]">delete</span>
+										</button>
+									</div>
 								</div>
-							</div>
-						{:else}
-							<div class="py-8 flex flex-col items-center justify-center opacity-50">
-								<span class="material-symbols-outlined text-3xl mb-1">wrong_location</span>
-								<p class="text-xs font-bold text-center">Belum ada titik gerbang tol</p>
-							</div>
-						{/each}
+							{:else}
+								<div class="py-8 px-4 flex flex-col items-center justify-center text-center">
+									<div class="w-10 h-10 rounded-full bg-sky-50 dark:bg-sky-950/40 text-sky-600 flex items-center justify-center mb-2">
+										<span class="material-symbols-outlined text-[20px]">pin_drop</span>
+									</div>
+									<p class="text-xs font-bold text-on-surface">Belum Ada Titik GPS</p>
+									<p class="text-[11px] text-on-surface-variant mt-1 leading-relaxed">
+										Pilih gerbang tol pada tab <strong>"Ruas Tol"</strong> di atas lalu klik <strong>"Pointing"</strong>, atau klik tombol <strong>"+ Baru"</strong> untuk menandai titik di peta.
+									</p>
+								</div>
+							{/each}
+						{/if}
 					</div>
 				</div>
 			</div>
@@ -961,251 +1296,6 @@
 			{/if}
 		</div>
 	{/if}
-
-	<!-- TAB 2: DAFTAR TARIF RUAS TOL -->
-	{#if activeTab === 'tarif'}
-		<!-- KPI Metric Cards -->
-		<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-			<div class="p-5 rounded-2xl bg-surface-container-lowest border border-slate-200/70 dark:border-slate-800/70 transition-all hover:border-sky-500/30 shadow-2xs">
-				<div class="flex items-center justify-between mb-2">
-					<span class="text-xs font-bold text-on-surface-variant uppercase tracking-wider">Tarif Ruas Tol</span>
-					<div class="w-9 h-9 rounded-xl bg-sky-500/10 text-sky-600 dark:text-sky-400 flex items-center justify-center">
-						<span class="material-symbols-outlined text-[20px]">payments</span>
-					</div>
-				</div>
-				<div class="text-2xl font-black text-on-surface">{data.stats?.totalGerbang ?? 0}</div>
-				<p class="text-[11px] text-on-surface-variant mt-1">Konfigurasi asal → tujuan</p>
-			</div>
-
-			<div class="p-5 rounded-2xl bg-surface-container-lowest border border-slate-200/70 dark:border-slate-800/70 transition-all hover:border-indigo-500/30 shadow-2xs">
-				<div class="flex items-center justify-between mb-2">
-					<span class="text-xs font-bold text-on-surface-variant uppercase tracking-wider">Titik Fisik Gerbang</span>
-					<div class="w-9 h-9 rounded-xl bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 flex items-center justify-center">
-						<span class="material-symbols-outlined text-[20px]">pin_drop</span>
-					</div>
-				</div>
-				<div class="text-2xl font-black text-on-surface">{data.stats?.totalTitik ?? 0}</div>
-				<p class="text-[11px] text-on-surface-variant mt-1">Titik GPS & geofence plaza</p>
-			</div>
-
-			<div class="p-5 rounded-2xl bg-surface-container-lowest border border-slate-200/70 dark:border-slate-800/70 transition-all hover:border-emerald-500/30 shadow-2xs">
-				<div class="flex items-center justify-between mb-2">
-					<span class="text-xs font-bold text-on-surface-variant uppercase tracking-wider">Rata-rata Gol 2 & 3</span>
-					<div class="w-9 h-9 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
-						<span class="material-symbols-outlined text-[20px]">local_shipping</span>
-					</div>
-				</div>
-				<div class="text-2xl font-black text-on-surface">{formatRupiah(data.stats?.avgTarifGol23 ?? 0)}</div>
-				<p class="text-[11px] text-on-surface-variant mt-1">Tarif rata-rata armada BCS</p>
-			</div>
-
-			<div class="p-5 rounded-2xl bg-surface-container-lowest border border-slate-200/70 dark:border-slate-800/70 transition-all hover:border-amber-500/30 shadow-2xs">
-				<div class="flex items-center justify-between mb-2">
-					<span class="text-xs font-bold text-on-surface-variant uppercase tracking-wider">Tarif Tertinggi</span>
-					<div class="w-9 h-9 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center">
-						<span class="material-symbols-outlined text-[20px]">attach_money</span>
-					</div>
-				</div>
-				<div class="text-2xl font-black text-on-surface">{formatRupiah(data.stats?.maxTarif ?? 0)}</div>
-				<p class="text-[11px] text-on-surface-variant mt-1">Batas atas tarif terjauh</p>
-			</div>
-		</div>
-
-		<!-- Filter & Search Bar -->
-		<div class="p-4 rounded-2xl bg-surface-container-lowest border border-slate-200/70 dark:border-slate-800/70 shadow-2xs">
-			<div class="flex flex-col sm:flex-row items-center justify-between gap-3">
-				<div class="flex flex-1 w-full sm:w-auto items-center gap-3">
-					<div class="flex-1 flex items-center gap-2.5 px-3.5 py-2 rounded-xl bg-surface-container-low border border-slate-200 dark:border-slate-800 focus-within:ring-2 focus-within:ring-sky-500/20 focus-within:border-sky-500">
-						<span class="material-symbols-outlined text-on-surface-variant text-[18px]">search</span>
-						<input
-							type="text"
-							bind:value={searchQuery}
-							placeholder="Cari ruas, asal, atau tujuan gerbang tol..."
-							class="bg-transparent text-xs text-on-surface outline-none w-full placeholder:text-on-surface-variant/50"
-						/>
-						{#if searchQuery}
-							<button onclick={() => { searchQuery = ''; }} class="text-on-surface-variant hover:text-on-surface text-[14px]">
-								<span class="material-symbols-outlined text-[16px]">close</span>
-							</button>
-						{/if}
-					</div>
-
-					<div class="w-56">
-						<select
-							bind:value={selectedRuas}
-							class="w-full px-3 py-2 rounded-xl bg-surface-container-low border border-slate-200 dark:border-slate-800 text-xs text-on-surface outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 font-medium"
-						>
-							<option value="ALL">Semua Ruas ({data.ruasList?.length || 0})</option>
-							{#each data.ruasList as ruas}
-								<option value={ruas}>{ruas}</option>
-							{/each}
-						</select>
-					</div>
-				</div>
-
-				<div class="flex items-center gap-2 w-full sm:w-auto justify-between sm:justify-end">
-					<span class="text-xs text-on-surface-variant font-medium">
-						Ditemukan <strong class="text-on-surface">{filteredList.length}</strong> data
-					</span>
-					<div class="h-4 w-[1px] bg-slate-200 dark:border-slate-800"></div>
-					<select
-						bind:value={pageSize}
-						class="px-2.5 py-1.5 rounded-lg bg-surface-container-low border border-slate-200 dark:border-slate-800 text-xs text-on-surface outline-none font-medium"
-					>
-						<option value={15}>15 / hal</option>
-						<option value={25}>25 / hal</option>
-						<option value={50}>50 / hal</option>
-						<option value={100}>100 / hal</option>
-					</select>
-				</div>
-			</div>
-		</div>
-
-		<!-- Data Table -->
-		<div class="rounded-2xl bg-surface-container-lowest border border-slate-200/70 dark:border-slate-800/70 overflow-hidden shadow-2xs">
-			<div class="overflow-x-auto">
-				<table class="w-full text-left border-collapse text-xs">
-					<thead>
-						<tr class="bg-surface-container-low/70 border-b border-slate-200 dark:border-slate-800 text-on-surface-variant font-bold uppercase tracking-wider text-[10px]">
-							<th class="py-3 px-4 w-12 text-center">No</th>
-							<th class="py-3 px-4 min-w-[160px]">Ruas Tol</th>
-							<th class="py-3 px-4 min-w-[220px]">Gerbang Asal → Tujuan</th>
-							<th class="py-3 px-4 text-center min-w-[90px]">Jarak</th>
-							<th class="py-3 px-4 text-right min-w-[110px]">Gol. I</th>
-							<th class="py-3 px-4 text-right min-w-[120px]">Gol. II & III</th>
-							<th class="py-3 px-4 text-right min-w-[120px]">Gol. IV & V</th>
-							<th class="py-3 px-4 text-center min-w-[110px]">Status Rute</th>
-							<th class="py-3 px-4 text-center w-24">Aksi</th>
-						</tr>
-					</thead>
-					<tbody class="divide-y divide-slate-200/60 dark:divide-slate-800/60">
-						{#if paginatedList.length === 0}
-							<tr>
-								<td colspan="9" class="text-center py-12 text-on-surface-variant">
-									<div class="flex flex-col items-center justify-center gap-2">
-										<div class="w-12 h-12 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-400">
-											<span class="material-symbols-outlined text-[24px]">toll</span>
-										</div>
-										<p class="font-bold text-sm text-on-surface">Tidak ada gerbang tol yang sesuai</p>
-										<p class="text-xs text-on-surface-variant/70">Coba ubah kata kunci pencarian atau filter ruas tol.</p>
-									</div>
-								</td>
-							</tr>
-						{:else}
-							{#each paginatedList as gate, idx}
-								{@const isUsed = isGateUsed(gate.id)}
-								<tr class="hover:bg-surface-container-low/50 transition-colors">
-									<td class="py-3.5 px-4 text-center text-on-surface-variant font-mono">
-										{(currentPage - 1) * pageSize + idx + 1}
-									</td>
-									<td class="py-3.5 px-4 font-semibold text-on-surface">
-										<div class="flex items-center gap-1.5">
-											<span class="material-symbols-outlined text-[15px] text-sky-600 dark:text-sky-400">add_road</span>
-											<span>{gate.ruas || '-'}</span>
-										</div>
-									</td>
-									<td class="py-3.5 px-4">
-										<div class="flex items-center gap-1.5 font-medium text-on-surface">
-											<span class="font-bold text-slate-800 dark:text-slate-100">{gate.asal || '-'}</span>
-											<span class="material-symbols-outlined text-[14px] text-slate-400">arrow_forward</span>
-											<span class="font-bold text-slate-800 dark:text-slate-100">{gate.tujuan || '-'}</span>
-										</div>
-										{#if gate.nama_titik_asal || gate.nama_titik_tujuan}
-											<div class="text-[10px] text-sky-600 dark:text-sky-400 flex items-center gap-1 mt-0.5">
-												<span class="material-symbols-outlined text-[12px]">link</span>
-												<span>Terhubung titik GPS: {gate.nama_titik_asal || gate.asal} → {gate.nama_titik_tujuan || gate.tujuan}</span>
-											</div>
-										{/if}
-									</td>
-									<td class="py-3.5 px-4 text-center font-mono text-xs">
-										{#if gate.jarak_ruas_km}
-											<span class="font-bold text-slate-700 dark:text-slate-200">{gate.jarak_ruas_km} KM</span>
-										{:else}
-											<span class="text-slate-400 text-[10px]">-</span>
-										{/if}
-									</td>
-									<td class="py-3.5 px-4 text-right font-mono text-on-surface-variant">
-										{formatRupiah(gate.tarif_gol_1)}
-									</td>
-									<td class="py-3.5 px-4 text-right font-mono font-bold text-sky-700 dark:text-sky-300">
-										{formatRupiah(gate.tarif_gol_2_3)}
-									</td>
-									<td class="py-3.5 px-4 text-right font-mono font-bold text-indigo-700 dark:text-indigo-300">
-										{formatRupiah(gate.tarif_gol_4_5)}
-									</td>
-									<td class="py-3.5 px-4 text-center">
-										{#if isUsed}
-											<span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
-												<span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-												Dipakai di Rute
-											</span>
-										{:else}
-											<span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-medium bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400 border border-slate-200 dark:border-slate-700">
-												Tersedia
-											</span>
-										{/if}
-									</td>
-									<td class="py-3.5 px-4 text-center">
-										<div class="flex items-center justify-center gap-1">
-											<button
-												onclick={() => openEditModal(gate)}
-												class="p-1.5 rounded-lg hover:bg-sky-50 dark:hover:bg-sky-950/50 text-sky-600 dark:text-sky-400 transition-colors cursor-pointer"
-												title="Edit Gerbang Tol"
-											>
-												<span class="material-symbols-outlined text-[17px]">edit</span>
-											</button>
-											<button
-												onclick={() => openDeleteConfirm(gate)}
-												class="p-1.5 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-950/50 text-rose-600 dark:text-rose-400 transition-colors cursor-pointer"
-												title={isUsed ? 'Gerbang tol terhubung dengan rute UJO' : 'Hapus Gerbang Tol'}
-											>
-												<span class="material-symbols-outlined text-[17px]">delete</span>
-											</button>
-										</div>
-									</td>
-								</tr>
-							{/each}
-						{/if}
-					</tbody>
-				</table>
-			</div>
-
-			<!-- Pagination Bar -->
-			{#if totalPages > 1}
-				<div class="px-4 py-3 bg-surface-container-low/50 border-t border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
-					<span class="text-on-surface-variant">
-						Menampilkan <strong class="text-on-surface">{(currentPage - 1) * pageSize + 1}</strong> - <strong class="text-on-surface">{Math.min(currentPage * pageSize, filteredList.length)}</strong> dari <strong class="text-on-surface">{filteredList.length}</strong> gerbang
-					</span>
-
-					<div class="flex items-center gap-1">
-						<button
-							onclick={() => { currentPage = Math.max(1, currentPage - 1); }}
-							disabled={currentPage === 1}
-							class="px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-800 bg-surface-container-lowest hover:bg-surface-container disabled:opacity-40 disabled:cursor-not-allowed text-xs font-semibold flex items-center gap-1 transition-colors"
-						>
-							<span class="material-symbols-outlined text-[16px]">chevron_left</span>
-							Sebelumnya
-						</button>
-
-						<div class="flex items-center gap-1 px-2">
-							<span class="font-bold text-on-surface">{currentPage}</span>
-							<span class="text-on-surface-variant">/</span>
-							<span class="text-on-surface-variant">{totalPages}</span>
-						</div>
-
-						<button
-							onclick={() => { currentPage = Math.min(totalPages, currentPage + 1); }}
-							disabled={currentPage === totalPages}
-							class="px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-800 bg-surface-container-lowest hover:bg-surface-container disabled:opacity-40 disabled:cursor-not-allowed text-xs font-semibold flex items-center gap-1 transition-colors"
-						>
-							Berikutnya
-							<span class="material-symbols-outlined text-[16px]">chevron_right</span>
-						</button>
-					</div>
-				</div>
-			{/if}
-		</div>
-	{/if}
 </div>
 
 <!-- ==================== MODAL KONFIRMASI HAPUS TITIK FISIK ==================== -->
@@ -1265,7 +1355,7 @@
 	</div>
 {/if}
 
-<!-- ==================== MODAL FORM TARIF RUAS (TAB 2) ==================== -->
+<!-- ==================== MODAL FORM TARIF RUAS ==================== -->
 {#if showModal}
 	<div class="fixed inset-0 z-[1000] flex items-center justify-center p-4">
 		<div class="absolute inset-0 bg-slate-900/60 backdrop-blur-xs" onclick={() => { if (!isSubmitting) showModal = false; }}></div>
