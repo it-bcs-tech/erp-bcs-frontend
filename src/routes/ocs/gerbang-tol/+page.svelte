@@ -157,28 +157,39 @@
 	});
 
 	// ==================== INISIALISASI PETA LEAFLET ====================
-	onMount(async () => {
-		if (browser) {
+	async function ensureMapInitialized() {
+		if (!browser) return;
+		if (!leafletLib) {
 			leafletLib = await import('leaflet');
 			await import('leaflet/dist/leaflet.css');
+		}
+		if (!map && mapContainer && leafletLib) {
+			initMap();
+		}
+		if (map) {
+			setTimeout(() => {
+				if (map) {
+					map.invalidateSize();
+					renderAllMapElements();
+				}
+			}, 60);
+		}
+	}
 
-			if (mapContainer && !map) {
-				initMap();
-			}
+	onMount(async () => {
+		if (browser) {
+			await ensureMapInitialized();
 		}
 	});
 
 	$effect(() => {
-		if (activeTab === 'map' && map) {
-			setTimeout(() => {
-				map.invalidateSize();
-				renderAllMapElements();
-			}, 100);
+		if (activeTab === 'map' && browser) {
+			ensureMapInitialized();
 		}
 	});
 
 	function initMap() {
-		if (!mapContainer || !leafletLib) return;
+		if (!mapContainer || !leafletLib || map) return;
 		const L = leafletLib;
 
 		map = L.map(mapContainer, { zoomControl: false }).setView([-6.2166, 106.5147], 9);
@@ -194,6 +205,10 @@
 		map.on('click', (e: any) => {
 			handleMapClick(e.latlng);
 		});
+
+		setTimeout(() => {
+			if (map) map.invalidateSize();
+		}, 100);
 	}
 
 	function renderAllMapElements() {
@@ -421,6 +436,7 @@
 		const nama = target === 'asal' ? gate.asal : gate.tujuan;
 		activeTab = 'map';
 		setTimeout(() => {
+			ensureMapInitialized();
 			isEditingTitik = false;
 			titikFormId = null;
 			titikNama = `Gerbang Tol ${nama}`;
@@ -440,7 +456,7 @@
 				type: 'success',
 				text: `Mode Pointing Aktif untuk "${titikNama}" (${titikRuas}). Silakan klik lokasi pada peta.`
 			};
-		}, 150);
+		}, 100);
 	}
 
 	function closeTitikForm() {
@@ -531,6 +547,7 @@
 
 <svelte:head>
 	<title>Master Gerbang Tol | OCS ERP BCS</title>
+	<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 </svelte:head>
 
 <div class="space-y-5">
@@ -619,7 +636,7 @@
 	</div>
 
 	<!-- ==================== TAB 1: DAFTAR TARIF RUAS TOL (MASTER.M_GERBANG_TOL) ==================== -->
-	{#if activeTab === 'tarif'}
+	<div class="space-y-4" class:hidden={activeTab !== 'tarif'}>
 		<!-- KPI Metric Cards -->
 		<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
 			<div class="p-5 rounded-2xl bg-surface-container-lowest border border-slate-200/70 dark:border-slate-800/70 transition-all hover:border-sky-500/30 shadow-2xs">
@@ -871,12 +888,11 @@
 				</div>
 			{/if}
 		</div>
-	{/if}
+	</div>
 
 	<!-- ==================== TAB 2: PETA POINTING & GEOFENCE ==================== -->
-	{#if activeTab === 'map'}
-		<div class="relative w-full h-[calc(100vh-14rem)] min-h-[580px] rounded-3xl overflow-hidden shadow-xs border border-slate-200/60 dark:border-slate-800/60 bg-surface-container-low">
-			<!-- FULLSCREEN MAP -->
+	<div class="relative w-full h-[calc(100vh-14rem)] min-h-[580px] rounded-3xl overflow-hidden shadow-xs border border-slate-200/60 dark:border-slate-800/60 bg-surface-container-low" class:hidden={activeTab !== 'map'}>
+		<!-- FULLSCREEN MAP -->
 			<div bind:this={mapContainer} class="absolute inset-0 z-0 bg-surface-container-low"></div>
 
 			<!-- FLOATING TOOLBAR KIRI: SEARCH & DAFTAR GERBANG TOL -->
@@ -1295,7 +1311,6 @@
 				</div>
 			{/if}
 		</div>
-	{/if}
 </div>
 
 <!-- ==================== MODAL KONFIRMASI HAPUS TITIK FISIK ==================== -->
@@ -1637,3 +1652,11 @@
 		</div>
 	</div>
 {/if}
+
+<style>
+	:global(.leaflet-container) {
+		width: 100%;
+		height: 100%;
+		z-index: 0;
+	}
+</style>
