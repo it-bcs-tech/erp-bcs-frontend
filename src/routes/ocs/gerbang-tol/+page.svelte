@@ -18,7 +18,7 @@
 	let draftPolygonLayer: any = null;
 	let draftPolygonMarkers: any[] = [];
 
-	// State form modal titik gerbang tol fisik
+	// State form panel kanan titik gerbang tol fisik
 	let showTitikModal = $state(false);
 	let isEditingTitik = $state(false);
 	let isSubmittingTitik = $state(false);
@@ -33,8 +33,8 @@
 	let titikPolygonPoints = $state<{ lat: number; lng: number }[]>([]);
 	let titikIsActive = $state(true);
 
-	// Mode interaksi peta untuk Titik Fisik
-	let mapInteractionMode = $state<'idle' | 'point' | 'polygon'>('idle');
+	// Mode interaksi peta untuk Titik Fisik ('point' = pin pusat, 'polygon' = 4 sudut plaza)
+	let mapInteractionMode = $state<'point' | 'polygon'>('point');
 	let mapSearchQuery = $state('');
 	let isSearchingMap = $state(false);
 	let filterRuasTitik = $state('ALL');
@@ -145,7 +145,7 @@
 				showDeleteTitikModal = false;
 				gateToDelete = null;
 				titikToDelete = null;
-				mapInteractionMode = 'idle';
+				clearDraftLayers();
 				renderAllMapElements();
 			} else if (form.message) {
 				bannerMessage = { type: 'error', text: form.message };
@@ -166,7 +166,6 @@
 	});
 
 	$effect(() => {
-		// Jika beralih ke tab 'map', re-invalidate size
 		if (activeTab === 'map' && map) {
 			setTimeout(() => {
 				map.invalidateSize();
@@ -179,7 +178,6 @@
 		if (!mapContainer || !leafletLib) return;
 		const L = leafletLib;
 
-		// Default view ke koridor Banten - Jabodetabek
 		map = L.map(mapContainer, { zoomControl: false }).setView([-6.2166, 106.5147], 9);
 		L.control.zoom({ position: 'topright' }).addTo(map);
 
@@ -190,7 +188,6 @@
 
 		renderAllMapElements();
 
-		// Event click pada peta
 		map.on('click', (e: any) => {
 			handleMapClick(e.latlng);
 		});
@@ -200,7 +197,6 @@
 		if (!map || !leafletLib) return;
 		const L = leafletLib;
 
-		// Bersihkan marker & polygon lama
 		gateMarkers.forEach(m => map.removeLayer(m));
 		gateMarkers = [];
 		polygonLayers.forEach(p => map.removeLayer(p));
@@ -218,13 +214,11 @@
 			popupAnchor: [0, -16]
 		});
 
-		// Gambar semua titik gerbang fisik
 		(data.titikGerbangList || []).forEach((gate: any) => {
 			const lat = parseFloat(gate.latitude);
 			const lng = parseFloat(gate.longitude);
 			if (isNaN(lat) || isNaN(lng)) return;
 
-			// Marker titik pusat
 			const marker = L.marker([lat, lng], { icon: customTollIcon }).addTo(map);
 			marker.bindPopup(`
 				<div class="text-xs p-1">
@@ -235,13 +229,12 @@
 						<span class="inline-block px-1.5 py-0.5 rounded text-[9px] font-bold ${gate.is_active ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-600'}">
 							${gate.is_active ? 'Aktif' : 'Nonaktif'}
 						</span>
-						${gate.polygon_points && gate.polygon_points.length > 0 ? '<span class="inline-block px-1.5 py-0.5 rounded text-[9px] font-bold bg-indigo-100 text-indigo-800">Geofence Polygon</span>' : ''}
+						${gate.polygon_points && gate.polygon_points.length > 0 ? '<span class="inline-block px-1.5 py-0.5 rounded text-[9px] font-bold bg-indigo-100 text-indigo-800">Geofence Plaza</span>' : ''}
 					</div>
 				</div>
 			`);
 			gateMarkers.push(marker);
 
-			// Gambar polygon geofence jika ada
 			if (gate.polygon_points && Array.isArray(gate.polygon_points) && gate.polygon_points.length >= 3) {
 				const pts = gate.polygon_points.map((p: any) => [p.lat, p.lng || p.lon]);
 				const poly = L.polygon(pts, {
@@ -252,7 +245,6 @@
 				}).bindTooltip(`${gate.nama_gerbang} (Geofence Plaza)`).addTo(map);
 				polygonLayers.push(poly);
 			} else if (gate.radius_m) {
-				// Circle fallback jika belum ada polygon
 				const circle = L.circle([lat, lng], {
 					radius: gate.radius_m,
 					color: '#0284c7',
@@ -267,7 +259,7 @@
 	}
 
 	function handleMapClick(latlng: { lat: number; lng: number }) {
-		if (!leafletLib || !map) return;
+		if (!showTitikModal || !leafletLib || !map) return;
 		const L = leafletLib;
 
 		if (mapInteractionMode === 'point') {
@@ -284,15 +276,10 @@
 				titikLat = parseFloat(pos.lat.toFixed(7));
 				titikLng = parseFloat(pos.lng.toFixed(7));
 			});
-
-			bannerMessage = {
-				type: 'success',
-				text: `Titik tengah gerbang tol ditempatkan di: ${titikLat}, ${titikLng}`
-			};
 		} else if (mapInteractionMode === 'polygon') {
 			if (titikPolygonPoints.length < 4) {
 				titikPolygonPoints = [...titikPolygonPoints, { lat: parseFloat(latlng.lat.toFixed(7)), lng: parseFloat(latlng.lng.toFixed(7)) }];
-				const m = L.circleMarker([latlng.lat, latlng.lng], { radius: 5, color: '#10b981' }).addTo(map);
+				const m = L.circleMarker([latlng.lat, latlng.lng], { radius: 5, color: '#10b981', fillColor: '#10b981', fillOpacity: 0.8 }).addTo(map);
 				draftPolygonMarkers.push(m);
 				drawDraftPolygon();
 			}
@@ -377,7 +364,7 @@
 		}
 	}
 
-	// ==================== MODAL TITIK FISIK GERBANG TOL ====================
+	// ==================== PANEL KANAN TITIK FISIK GERBANG TOL ====================
 	function openCreateTitikModal() {
 		isEditingTitik = false;
 		titikFormId = null;
@@ -420,10 +407,16 @@
 			if (titikPolygonPoints.length >= 3) {
 				drawDraftPolygon();
 			}
+			map.flyTo([parseFloat(gate.latitude), parseFloat(gate.longitude)], 15, { duration: 1 });
 		}
 
-		mapInteractionMode = 'idle';
+		mapInteractionMode = 'point';
 		showTitikModal = true;
+	}
+
+	function closeTitikForm() {
+		showTitikModal = false;
+		clearDraftLayers();
 	}
 
 	function openDeleteTitikConfirm(gate: any) {
@@ -603,7 +596,7 @@
 			<div bind:this={mapContainer} class="absolute inset-0 z-0 bg-surface-container-low"></div>
 
 			<!-- FLOATING TOOLBAR KIRI: SEARCH & DAFTAR TITIK GERBANG -->
-			<div class="absolute top-4 left-4 z-[400] w-88 flex flex-col gap-3 max-h-[calc(100%-2rem)]">
+			<div class="absolute top-4 left-4 z-20 w-80 max-w-[calc(100%-2rem)] flex flex-col gap-3 max-h-[calc(100%-2rem)] pointer-events-auto">
 				<!-- Search OpenStreetMap Box -->
 				<form onsubmit={searchLocationOnMap} class="relative w-full shadow-lg rounded-2xl bg-surface/95 backdrop-blur-md border border-slate-200/60 dark:border-slate-800/60 overflow-hidden flex items-center">
 					<span class="material-symbols-outlined text-slate-400 ml-3 text-[18px]">search</span>
@@ -611,7 +604,7 @@
 						type="text" 
 						bind:value={mapSearchQuery}
 						placeholder="Cari jalan tol di peta..." 
-						class="w-full bg-transparent text-on-surface py-2.5 px-2.5 focus:outline-none text-xs font-medium placeholder:text-slate-400"
+						class="w-full bg-transparent text-on-surface py-2 px-2.5 focus:outline-none text-xs font-medium placeholder:text-slate-400"
 					/>
 					{#if isSearchingMap}
 						<span class="material-symbols-outlined text-sky-500 animate-spin mr-3 text-[18px]">refresh</span>
@@ -620,7 +613,7 @@
 
 				<!-- Daftar Titik Gerbang Tol Panel -->
 				<div class="bg-surface/95 backdrop-blur-md rounded-2xl shadow-xl border border-slate-200/60 dark:border-slate-800/60 flex flex-col overflow-hidden flex-1">
-					<div class="p-3.5 border-b border-slate-200/60 dark:border-slate-800/60 bg-surface-container-low/50">
+					<div class="p-3 border-b border-slate-200/60 dark:border-slate-800/60 bg-surface-container-low/50">
 						<div class="flex items-center justify-between mb-2">
 							<div class="flex items-center gap-2">
 								<div class="w-7 h-7 rounded-lg bg-sky-500/10 text-sky-600 flex items-center justify-center font-bold">
@@ -653,13 +646,13 @@
 					</div>
 
 					<!-- List Titik Scrollable -->
-					<div class="flex-1 overflow-y-auto p-2.5 space-y-1.5 hide-scrollbar max-h-[380px]">
+					<div class="flex-1 overflow-y-auto p-2 space-y-1.5 hide-scrollbar max-h-[360px]">
 						{#each filteredTitikList as gate}
 							<div 
 								class="p-2.5 bg-surface-container/40 hover:bg-surface-container/90 rounded-xl flex items-center justify-between group transition-colors cursor-pointer border border-transparent hover:border-sky-500/30"
 								onclick={() => flyToGate(gate)}
 							>
-								<div class="flex items-start gap-2.5 min-w-0 pr-2">
+								<div class="flex items-start gap-2 min-w-0 pr-2">
 									<div class="w-7 h-7 rounded-lg bg-sky-100 dark:bg-sky-900/30 text-sky-600 flex items-center justify-center flex-shrink-0 mt-0.5 group-hover:bg-sky-600 group-hover:text-white transition-colors">
 										<span class="material-symbols-outlined text-[15px]">toll</span>
 									</div>
@@ -668,7 +661,7 @@
 										<p class="text-[10px] text-on-surface-variant truncate">
 											{gate.ruas_tol || '-'} • KM {gate.km_pos ?? '-'}
 										</p>
-										<div class="flex items-center gap-1 mt-1">
+										<div class="flex items-center gap-1 mt-0.5">
 											{#if gate.polygon_points && gate.polygon_points.length >= 3}
 												<span class="text-[8px] font-bold px-1.5 py-0.2 rounded bg-indigo-50 text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300 border border-indigo-200/50">
 													Geofence Plaza
@@ -711,28 +704,259 @@
 				</div>
 			</div>
 
-			<!-- FLOATING MODE INSTRUCTION (Top Center saat mode Pointing / Polygon) -->
-			{#if mapInteractionMode !== 'idle'}
-				<div class="absolute top-4 left-1/2 -translate-x-1/2 z-[400] bg-surface/95 backdrop-blur-md px-4 py-2.5 rounded-2xl shadow-xl border border-sky-500/30 flex items-center gap-3 animate-in fade-in slide-in-from-top-2">
-					<div class="w-8 h-8 rounded-xl bg-sky-500/20 text-sky-600 flex items-center justify-center">
-						<span class="material-symbols-outlined text-[20px]">
-							{mapInteractionMode === 'point' ? 'touch_app' : 'polyline'}
-						</span>
+			<!-- FLOATING PANEL KANAN: SLIDE-OVER FORM INPUT TITIK GERBANG TOL -->
+			{#if showTitikModal}
+				<div class="absolute top-4 right-4 z-30 w-96 max-w-[calc(100%-2rem)] flex flex-col bg-surface/95 backdrop-blur-md rounded-2xl shadow-2xl border border-slate-200/80 dark:border-slate-800/80 overflow-hidden max-h-[calc(100%-2rem)] animate-in fade-in slide-in-from-right-4 duration-200 pointer-events-auto">
+					<!-- Panel Header -->
+					<div class="p-4 border-b border-slate-200/60 dark:border-slate-800/60 flex items-center justify-between bg-surface-container-low/60">
+						<div class="flex items-center gap-2.5">
+							<div class="w-8 h-8 rounded-xl bg-sky-500/10 text-sky-600 dark:text-sky-400 flex items-center justify-center">
+								<span class="material-symbols-outlined text-[18px]">pin_drop</span>
+							</div>
+							<div>
+								<h3 class="text-xs font-bold text-on-surface">
+									{isEditingTitik ? 'Edit Titik Gerbang Tol' : 'Tambah Titik Gerbang Baru'}
+								</h3>
+								<p class="text-[10px] text-on-surface-variant">
+									Pointing marker & geofence plaza tol
+								</p>
+							</div>
+						</div>
+						<button
+							type="button"
+							onclick={closeTitikForm}
+							class="w-7 h-7 rounded-lg hover:bg-surface-container text-on-surface-variant hover:text-on-surface flex items-center justify-center transition-colors cursor-pointer"
+						>
+							<span class="material-symbols-outlined text-[18px]">close</span>
+						</button>
 					</div>
-					<div>
-						<p class="text-xs font-bold text-on-surface">
-							{mapInteractionMode === 'point' ? 'Mode Pointing Titik Gerbang' : 'Mode Gambar Polygon Geofence Plaza'}
-						</p>
-						<p class="text-[11px] text-on-surface-variant">
-							{mapInteractionMode === 'point' ? 'Klik sembarang titik di peta untuk menaruh pin gerbang tol.' : `Klik 4 sudut plaza gerbang tol di peta (Titik: ${titikPolygonPoints.length}/4).`}
-						</p>
+
+					<!-- Form Body Scrollable -->
+					<div class="flex-1 overflow-y-auto p-4 space-y-3.5 hide-scrollbar">
+						<!-- Segmented Control Mode Interaksi Peta -->
+						<div>
+							<span class="block text-[10px] font-black text-on-surface-variant/70 uppercase tracking-wider mb-1.5">
+								Pilihan Mode Peta
+							</span>
+							<div class="p-1 rounded-xl bg-surface-container-low border border-slate-200 dark:border-slate-800 flex items-center gap-1">
+								<button
+									type="button"
+									onclick={() => { mapInteractionMode = 'point'; }}
+									class="flex-1 py-1.5 px-2 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 transition-all {mapInteractionMode === 'point' ? 'bg-sky-600 text-white shadow-xs' : 'text-on-surface-variant hover:text-on-surface'}"
+								>
+									<span class="material-symbols-outlined text-[15px]">pin_drop</span>
+									Titik Pin
+								</button>
+								<button
+									type="button"
+									onclick={() => { mapInteractionMode = 'polygon'; }}
+									class="flex-1 py-1.5 px-2 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 transition-all {mapInteractionMode === 'polygon' ? 'bg-sky-600 text-white shadow-xs' : 'text-on-surface-variant hover:text-on-surface'}"
+								>
+									<span class="material-symbols-outlined text-[15px]">polyline</span>
+									Plaza Geofence ({titikPolygonPoints.length}/4)
+								</button>
+							</div>
+						</div>
+
+						<!-- Panduan Interaksi Sesuai Mode Aktif -->
+						{#if mapInteractionMode === 'point'}
+							<div class="p-2.5 rounded-xl bg-sky-50 dark:bg-sky-950/30 border border-sky-200/60 dark:border-sky-800/60 flex items-start gap-2">
+								<span class="material-symbols-outlined text-[16px] text-sky-600 mt-0.5">touch_app</span>
+								<div>
+									<p class="font-bold text-[11px] text-sky-900 dark:text-sky-200">Mode Pin Aktif</p>
+									<p class="text-[10px] text-sky-700/80 dark:text-sky-400">Klik di peta atau geser pin biru untuk menentukan titik tengah gerbang tol.</p>
+								</div>
+							</div>
+						{:else}
+							<div class="p-2.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200/60 dark:border-emerald-800/60 flex items-start justify-between gap-2">
+								<div class="flex items-start gap-2">
+									<span class="material-symbols-outlined text-[16px] text-emerald-600 mt-0.5">polyline</span>
+									<div>
+										<p class="font-bold text-[11px] text-emerald-900 dark:text-emerald-200">Mode Plaza ({titikPolygonPoints.length}/4 Titik)</p>
+										<p class="text-[10px] text-emerald-700/80 dark:text-emerald-400">Klik 4 sudut plaza gerbang tol di peta untuk membentuk geofence.</p>
+									</div>
+								</div>
+								{#if titikPolygonPoints.length > 0}
+									<button 
+										type="button" 
+										onclick={() => { titikPolygonPoints = []; clearDraftLayers(); }} 
+										class="text-[10px] text-rose-600 font-bold hover:underline shrink-0"
+									>
+										Reset
+									</button>
+								{/if}
+							</div>
+						{/if}
+
+						<form
+							id="form-titik-gerbang"
+							method="POST"
+							action={isEditingTitik ? '?/updateTitik' : '?/createTitik'}
+							use:enhance={() => {
+								isSubmittingTitik = true;
+								return async ({ update }) => {
+									isSubmittingTitik = false;
+									await update();
+								};
+							}}
+							class="space-y-3"
+						>
+							{#if isEditingTitik}
+								<input type="hidden" name="id" value={titikFormId} />
+							{/if}
+
+							<!-- Kode & Nama Gerbang -->
+							<div class="grid grid-cols-2 gap-2">
+								<div>
+									<label for="titik-kode" class="block text-[11px] font-bold text-on-surface mb-1">
+										Kode <span class="text-rose-500">*</span>
+									</label>
+									<input
+										id="titik-kode"
+										type="text"
+										name="kode_gerbang"
+										bind:value={titikKode}
+										placeholder="GT-MRK"
+										required
+										class="w-full px-2.5 py-1.5 rounded-lg bg-surface-container-low border border-slate-200 dark:border-slate-800 text-xs font-mono font-bold text-on-surface outline-none focus:border-sky-500 uppercase"
+									/>
+								</div>
+								<div>
+									<label for="titik-nama" class="block text-[11px] font-bold text-on-surface mb-1">
+										Nama Gerbang <span class="text-rose-500">*</span>
+									</label>
+									<input
+										id="titik-nama"
+										type="text"
+										name="nama_gerbang"
+										bind:value={titikNama}
+										placeholder="Cth: GT Merak"
+										required
+										class="w-full px-2.5 py-1.5 rounded-lg bg-surface-container-low border border-slate-200 dark:border-slate-800 text-xs text-on-surface outline-none focus:border-sky-500"
+									/>
+								</div>
+							</div>
+
+							<!-- Ruas Tol & KM Pos -->
+							<div class="grid grid-cols-2 gap-2">
+								<div>
+									<label for="titik-ruas" class="block text-[11px] font-bold text-on-surface mb-1">
+										Ruas Tol
+									</label>
+									<input
+										id="titik-ruas"
+										type="text"
+										name="ruas_tol"
+										list="titik-ruas-datalist"
+										bind:value={titikRuas}
+										placeholder="Tangerang - Merak"
+										class="w-full px-2.5 py-1.5 rounded-lg bg-surface-container-low border border-slate-200 dark:border-slate-800 text-xs text-on-surface outline-none focus:border-sky-500"
+									/>
+									<datalist id="titik-ruas-datalist">
+										{#each data.ruasList as r}
+											<option value={r}></option>
+										{/each}
+									</datalist>
+								</div>
+								<div>
+									<label for="titik-km" class="block text-[11px] font-bold text-on-surface mb-1">
+										KM Pos
+									</label>
+									<input
+										id="titik-km"
+										type="number"
+										step="0.1"
+										name="km_pos"
+										bind:value={titikKm}
+										placeholder="98.0"
+										class="w-full px-2.5 py-1.5 rounded-lg bg-surface-container-low border border-slate-200 dark:border-slate-800 text-xs font-mono text-on-surface outline-none focus:border-sky-500"
+									/>
+								</div>
+							</div>
+
+							<!-- Koordinat GPS -->
+							<div class="p-2.5 rounded-xl bg-surface-container-low border border-slate-200 dark:border-slate-800 space-y-2">
+								<span class="block text-[10px] font-black text-on-surface-variant/70 uppercase tracking-wider">
+									Koordinat GPS (Otomatis dari Peta)
+								</span>
+								<div class="grid grid-cols-2 gap-2">
+									<div>
+										<label for="titik-lat" class="block text-[10px] font-bold text-slate-500 mb-0.5">Latitude</label>
+										<input
+											id="titik-lat"
+											type="number"
+											step="0.0000001"
+											name="latitude"
+											bind:value={titikLat}
+											required
+											placeholder="-5.9288000"
+											class="w-full px-2 py-1 rounded bg-surface-container-lowest border border-slate-200 dark:border-slate-700 text-xs font-mono font-bold text-on-surface outline-none focus:border-sky-500"
+										/>
+									</div>
+									<div>
+										<label for="titik-lng" class="block text-[10px] font-bold text-slate-500 mb-0.5">Longitude</label>
+										<input
+											id="titik-lng"
+											type="number"
+											step="0.0000001"
+											name="longitude"
+											bind:value={titikLng}
+											required
+											placeholder="106.0028000"
+											class="w-full px-2 py-1 rounded bg-surface-container-lowest border border-slate-200 dark:border-slate-700 text-xs font-mono font-bold text-on-surface outline-none focus:border-sky-500"
+										/>
+									</div>
+								</div>
+							</div>
+
+							<!-- Hidden input untuk polygon_points -->
+							<input type="hidden" name="polygon_points" value={titikPolygonPoints.length > 0 ? JSON.stringify(titikPolygonPoints) : ''} />
+
+							<!-- Radius Default & Status Aktif -->
+							<div class="flex items-center justify-between pt-1">
+								<div class="w-32">
+									<label for="titik-rad" class="block text-[10px] font-bold text-on-surface-variant mb-0.5">Radius (m)</label>
+									<input
+										id="titik-rad"
+										type="number"
+										name="radius_m"
+										bind:value={titikRadius}
+										class="w-full px-2 py-1 rounded bg-surface-container-low border border-slate-200 dark:border-slate-800 text-xs font-mono text-on-surface outline-none"
+									/>
+								</div>
+								<label class="flex items-center gap-1.5 text-xs font-bold text-on-surface cursor-pointer mt-3">
+									<input type="checkbox" name="is_active" value="true" bind:checked={titikIsActive} class="rounded border-slate-300 text-sky-600 focus:ring-sky-500" />
+									Status Aktif
+								</label>
+							</div>
+						</form>
 					</div>
-					<button
-						onclick={() => { mapInteractionMode = 'idle'; }}
-						class="ml-2 px-3 py-1 rounded-lg bg-surface-container-low text-xs font-bold hover:bg-surface-container text-on-surface transition-colors cursor-pointer"
-					>
-						Selesai
-					</button>
+
+					<!-- Panel Footer Actions -->
+					<div class="p-3 border-t border-slate-200/60 dark:border-slate-800/60 bg-surface-container-low/60 flex items-center justify-end gap-2">
+						<button
+							type="button"
+							onclick={closeTitikForm}
+							disabled={isSubmittingTitik}
+							class="px-3.5 py-1.5 rounded-xl text-xs font-bold text-on-surface-variant hover:bg-surface-container transition-colors cursor-pointer"
+						>
+							Batal
+						</button>
+						<button
+							type="submit"
+							form="form-titik-gerbang"
+							disabled={isSubmittingTitik}
+							class="bg-sky-600 hover:bg-sky-700 active:scale-98 text-white px-4 py-1.5 rounded-xl text-xs font-bold shadow-xs flex items-center gap-1.5 transition-all disabled:opacity-50 cursor-pointer"
+						>
+							{#if isSubmittingTitik}
+								<span class="material-symbols-outlined text-[16px] animate-spin">progress_activity</span>
+								Menyimpan...
+							{:else}
+								<span class="material-symbols-outlined text-[16px]">save</span>
+								Simpan Titik
+							{/if}
+						</button>
+					</div>
 				</div>
 			{/if}
 		</div>
@@ -742,7 +966,6 @@
 	{#if activeTab === 'tarif'}
 		<!-- KPI Metric Cards -->
 		<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-			<!-- Total Ruas Tarif -->
 			<div class="p-5 rounded-2xl bg-surface-container-lowest border border-slate-200/70 dark:border-slate-800/70 transition-all hover:border-sky-500/30 shadow-2xs">
 				<div class="flex items-center justify-between mb-2">
 					<span class="text-xs font-bold text-on-surface-variant uppercase tracking-wider">Tarif Ruas Tol</span>
@@ -754,7 +977,6 @@
 				<p class="text-[11px] text-on-surface-variant mt-1">Konfigurasi asal → tujuan</p>
 			</div>
 
-			<!-- Total Titik Fisik -->
 			<div class="p-5 rounded-2xl bg-surface-container-lowest border border-slate-200/70 dark:border-slate-800/70 transition-all hover:border-indigo-500/30 shadow-2xs">
 				<div class="flex items-center justify-between mb-2">
 					<span class="text-xs font-bold text-on-surface-variant uppercase tracking-wider">Titik Fisik Gerbang</span>
@@ -766,7 +988,6 @@
 				<p class="text-[11px] text-on-surface-variant mt-1">Titik GPS & geofence plaza</p>
 			</div>
 
-			<!-- Rata-rata Tarif Truk Gol 2-3 -->
 			<div class="p-5 rounded-2xl bg-surface-container-lowest border border-slate-200/70 dark:border-slate-800/70 transition-all hover:border-emerald-500/30 shadow-2xs">
 				<div class="flex items-center justify-between mb-2">
 					<span class="text-xs font-bold text-on-surface-variant uppercase tracking-wider">Rata-rata Gol 2 & 3</span>
@@ -778,7 +999,6 @@
 				<p class="text-[11px] text-on-surface-variant mt-1">Tarif rata-rata armada BCS</p>
 			</div>
 
-			<!-- Tarif Maksimum -->
 			<div class="p-5 rounded-2xl bg-surface-container-lowest border border-slate-200/70 dark:border-slate-800/70 transition-all hover:border-amber-500/30 shadow-2xs">
 				<div class="flex items-center justify-between mb-2">
 					<span class="text-xs font-bold text-on-surface-variant uppercase tracking-wider">Tarif Tertinggi</span>
@@ -795,7 +1015,6 @@
 		<div class="p-4 rounded-2xl bg-surface-container-lowest border border-slate-200/70 dark:border-slate-800/70 shadow-2xs">
 			<div class="flex flex-col sm:flex-row items-center justify-between gap-3">
 				<div class="flex flex-1 w-full sm:w-auto items-center gap-3">
-					<!-- Search Input -->
 					<div class="flex-1 flex items-center gap-2.5 px-3.5 py-2 rounded-xl bg-surface-container-low border border-slate-200 dark:border-slate-800 focus-within:ring-2 focus-within:ring-sky-500/20 focus-within:border-sky-500">
 						<span class="material-symbols-outlined text-on-surface-variant text-[18px]">search</span>
 						<input
@@ -811,7 +1030,6 @@
 						{/if}
 					</div>
 
-					<!-- Dropdown Filter Ruas -->
 					<div class="w-56">
 						<select
 							bind:value={selectedRuas}
@@ -825,7 +1043,6 @@
 					</div>
 				</div>
 
-				<!-- Page Size & Counter -->
 				<div class="flex items-center gap-2 w-full sm:w-auto justify-between sm:justify-end">
 					<span class="text-xs text-on-surface-variant font-medium">
 						Ditemukan <strong class="text-on-surface">{filteredList.length}</strong> data
@@ -930,7 +1147,6 @@
 									</td>
 									<td class="py-3.5 px-4 text-center">
 										<div class="flex items-center justify-center gap-1">
-											<!-- Edit Button -->
 											<button
 												onclick={() => openEditModal(gate)}
 												class="p-1.5 rounded-lg hover:bg-sky-50 dark:hover:bg-sky-950/50 text-sky-600 dark:text-sky-400 transition-colors cursor-pointer"
@@ -938,7 +1154,6 @@
 											>
 												<span class="material-symbols-outlined text-[17px]">edit</span>
 											</button>
-											<!-- Delete Button -->
 											<button
 												onclick={() => openDeleteConfirm(gate)}
 												class="p-1.5 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-950/50 text-rose-600 dark:text-rose-400 transition-colors cursor-pointer"
@@ -993,257 +1208,11 @@
 	{/if}
 </div>
 
-<!-- ==================== MODAL TITIK FISIK GERBANG TOL ==================== -->
-{#if showTitikModal}
-	<div class="fixed inset-0 z-50 flex items-center justify-center p-4">
-		<div class="absolute inset-0 bg-slate-900/50 backdrop-blur-xs" onclick={() => { if (!isSubmittingTitik) showTitikModal = false; }}></div>
-
-		<div class="relative w-full max-w-xl bg-surface-container-lowest rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xl overflow-hidden z-10 animate-in fade-in zoom-in-95 duration-150">
-			<div class="px-6 py-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between bg-surface-container-low/40">
-				<div class="flex items-center gap-2.5">
-					<div class="w-8 h-8 rounded-lg bg-sky-500/10 text-sky-600 dark:text-sky-400 flex items-center justify-center">
-						<span class="material-symbols-outlined text-[18px]">pin_drop</span>
-					</div>
-					<div>
-						<h3 class="text-sm font-bold text-on-surface">
-							{isEditingTitik ? 'Edit Titik Fisik Gerbang Tol' : 'Tambah Titik Fisik Gerbang Tol'}
-						</h3>
-						<p class="text-[11px] text-on-surface-variant">
-							Tentukan kode, nama gerbang, posisi KM, dan titik koordinat GPS gerbang tol.
-						</p>
-					</div>
-				</div>
-				<button
-					type="button"
-					onclick={() => { showTitikModal = false; }}
-					disabled={isSubmittingTitik}
-					class="w-7 h-7 rounded-lg hover:bg-surface-container text-on-surface-variant hover:text-on-surface flex items-center justify-center transition-colors cursor-pointer"
-				>
-					<span class="material-symbols-outlined text-[18px]">close</span>
-				</button>
-			</div>
-
-			<form
-				method="POST"
-				action={isEditingTitik ? '?/updateTitik' : '?/createTitik'}
-				use:enhance={() => {
-					isSubmittingTitik = true;
-					return async ({ update }) => {
-						isSubmittingTitik = false;
-						await update();
-					};
-				}}
-				class="p-6 space-y-4"
-			>
-				{#if isEditingTitik}
-					<input type="hidden" name="id" value={titikFormId} />
-				{/if}
-
-				<div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-					<div>
-						<label for="titik-kode" class="block text-xs font-bold text-on-surface mb-1">
-							Kode Gerbang <span class="text-rose-500">*</span>
-						</label>
-						<input
-							id="titik-kode"
-							type="text"
-							name="kode_gerbang"
-							bind:value={titikKode}
-							placeholder="Cth: GT-MRK, GT-CLG-B"
-							required
-							class="w-full px-3.5 py-2 rounded-xl bg-surface-container-low border border-slate-200 dark:border-slate-800 text-xs font-mono font-bold text-on-surface outline-none focus:border-sky-500 uppercase"
-						/>
-					</div>
-					<div>
-						<label for="titik-nama" class="block text-xs font-bold text-on-surface mb-1">
-							Nama Gerbang Tol <span class="text-rose-500">*</span>
-						</label>
-						<input
-							id="titik-nama"
-							type="text"
-							name="nama_gerbang"
-							bind:value={titikNama}
-							placeholder="Cth: Gerbang Tol Merak"
-							required
-							class="w-full px-3.5 py-2 rounded-xl bg-surface-container-low border border-slate-200 dark:border-slate-800 text-xs text-on-surface outline-none focus:border-sky-500"
-						/>
-					</div>
-				</div>
-
-				<div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-					<div>
-						<label for="titik-ruas" class="block text-xs font-bold text-on-surface mb-1">
-							Ruas Jalan Tol
-						</label>
-						<input
-							id="titik-ruas"
-							type="text"
-							name="ruas_tol"
-							list="titik-ruas-datalist"
-							bind:value={titikRuas}
-							placeholder="Cth: Tangerang - Merak"
-							class="w-full px-3.5 py-2 rounded-xl bg-surface-container-low border border-slate-200 dark:border-slate-800 text-xs text-on-surface outline-none focus:border-sky-500"
-						/>
-						<datalist id="titik-ruas-datalist">
-							{#each data.ruasList as r}
-								<option value={r}></option>
-							{/each}
-						</datalist>
-					</div>
-					<div>
-						<label for="titik-km" class="block text-xs font-bold text-on-surface mb-1">
-							Posisi KM Tol
-						</label>
-						<input
-							id="titik-km"
-							type="number"
-							step="0.1"
-							name="km_pos"
-							bind:value={titikKm}
-							placeholder="Cth: 98.0"
-							class="w-full px-3.5 py-2 rounded-xl bg-surface-container-low border border-slate-200 dark:border-slate-800 text-xs font-mono text-on-surface outline-none focus:border-sky-500"
-						/>
-					</div>
-				</div>
-
-				<!-- Koordinat GPS & Map Picker -->
-				<div class="p-3.5 rounded-xl bg-sky-50/50 dark:bg-sky-950/20 border border-sky-200/60 dark:border-sky-800/60 space-y-3">
-					<div class="flex items-center justify-between">
-						<span class="text-xs font-bold text-sky-900 dark:text-sky-200 flex items-center gap-1.5">
-							<span class="material-symbols-outlined text-[16px]">location_on</span>
-							Koordinat Titik Tengah GPS
-						</span>
-						<button
-							type="button"
-							onclick={() => {
-								showTitikModal = false;
-								mapInteractionMode = 'point';
-								if (titikLat && titikLng && map) {
-									map.setView([Number(titikLat), Number(titikLng)], 15);
-								}
-							}}
-							class="text-[11px] font-bold text-sky-600 hover:text-sky-700 underline cursor-pointer"
-						>
-							Pilih di Peta Langsung
-						</button>
-					</div>
-
-					<div class="grid grid-cols-2 gap-3">
-						<div>
-							<label for="titik-lat" class="block text-[10px] font-bold text-sky-800 dark:text-sky-300 mb-0.5">Latitude</label>
-							<input
-								id="titik-lat"
-								type="number"
-								step="0.0000001"
-								name="latitude"
-								bind:value={titikLat}
-								required
-								placeholder="-5.9288000"
-								class="w-full px-2.5 py-1.5 rounded-lg bg-surface-container-lowest border border-sky-300 dark:border-sky-700 text-xs font-mono font-bold text-on-surface outline-none focus:border-sky-500"
-							/>
-						</div>
-						<div>
-							<label for="titik-lng" class="block text-[10px] font-bold text-sky-800 dark:text-sky-300 mb-0.5">Longitude</label>
-							<input
-								id="titik-lng"
-								type="number"
-								step="0.0000001"
-								name="longitude"
-								bind:value={titikLng}
-								required
-								placeholder="106.0028000"
-								class="w-full px-2.5 py-1.5 rounded-lg bg-surface-container-lowest border border-sky-300 dark:border-sky-700 text-xs font-mono font-bold text-on-surface outline-none focus:border-sky-500"
-							/>
-						</div>
-					</div>
-				</div>
-
-				<!-- Geofence Polygon Plaza Tol -->
-				<div class="p-3.5 rounded-xl bg-surface-container-low/60 border border-slate-200/60 dark:border-slate-800/60 space-y-2.5">
-					<div class="flex items-center justify-between">
-						<div>
-							<span class="text-xs font-bold text-on-surface flex items-center gap-1.5">
-								<span class="material-symbols-outlined text-[16px]">polyline</span>
-								Polygon Geofence Plaza Tol
-							</span>
-							<p class="text-[10px] text-on-surface-variant">Deteksi otomatis saat truk menyeberangi gerbang tol.</p>
-						</div>
-						<div class="flex items-center gap-2">
-							{#if titikPolygonPoints.length > 0}
-								<button
-									type="button"
-									onclick={() => { titikPolygonPoints = []; clearDraftLayers(); }}
-									class="text-[10px] text-rose-600 font-bold hover:underline"
-								>
-									Reset
-								</button>
-							{/if}
-							<button
-								type="button"
-								onclick={() => {
-									showTitikModal = false;
-									mapInteractionMode = 'polygon';
-									if (titikLat && titikLng && map) {
-										map.setView([Number(titikLat), Number(titikLng)], 16);
-									}
-								}}
-								class="px-2.5 py-1 rounded-lg bg-sky-100 text-sky-800 dark:bg-sky-950 dark:text-sky-300 text-[11px] font-bold hover:bg-sky-200 cursor-pointer"
-							>
-								{titikPolygonPoints.length === 4 ? 'Ubah Polygon (4 Titik)' : 'Gambar 4 Titik di Peta'}
-							</button>
-						</div>
-					</div>
-
-					<input type="hidden" name="polygon_points" value={titikPolygonPoints.length > 0 ? JSON.stringify(titikPolygonPoints) : ''} />
-					<div class="text-[11px] text-slate-500">
-						{#if titikPolygonPoints.length >= 3}
-							<span class="font-bold text-emerald-600 dark:text-emerald-400">✓ Polygon Aktif ({titikPolygonPoints.length} titik koordinat disimpan)</span>
-						{:else}
-							<span>Belum ada polygon khusus (akan menggunakan radius default 300 meter).</span>
-						{/if}
-					</div>
-				</div>
-
-				<div class="flex items-center justify-between pt-2 border-t border-slate-200 dark:border-slate-800">
-					<label class="flex items-center gap-2 text-xs font-bold text-on-surface cursor-pointer">
-						<input type="checkbox" name="is_active" value="true" bind:checked={titikIsActive} class="rounded border-slate-300 text-sky-600 focus:ring-sky-500" />
-						Status Gerbang Aktif
-					</label>
-
-					<div class="flex items-center gap-2">
-						<button
-							type="button"
-							onclick={() => { showTitikModal = false; }}
-							disabled={isSubmittingTitik}
-							class="px-4 py-2 rounded-xl text-xs font-bold text-on-surface-variant hover:bg-surface-container transition-colors cursor-pointer"
-						>
-							Batal
-						</button>
-						<button
-							type="submit"
-							disabled={isSubmittingTitik}
-							class="bg-sky-600 hover:bg-sky-700 active:scale-98 text-white px-5 py-2 rounded-xl text-xs font-bold shadow-xs flex items-center gap-1.5 transition-all disabled:opacity-50 cursor-pointer"
-						>
-							{#if isSubmittingTitik}
-								<span class="material-symbols-outlined text-[16px] animate-spin">progress_activity</span>
-								Menyimpan...
-							{:else}
-								<span class="material-symbols-outlined text-[16px]">save</span>
-								Simpan Titik
-							{/if}
-						</button>
-					</div>
-				</div>
-			</form>
-		</div>
-	</div>
-{/if}
-
 <!-- ==================== MODAL KONFIRMASI HAPUS TITIK FISIK ==================== -->
 {#if showDeleteTitikModal && titikToDelete}
-	<div class="fixed inset-0 z-50 flex items-center justify-center p-4">
-		<div class="absolute inset-0 bg-slate-900/50 backdrop-blur-xs" onclick={() => { if (!isDeletingTitik) showDeleteTitikModal = false; }}></div>
-		<div class="relative w-full max-w-md bg-surface-container-lowest rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xl overflow-hidden z-10 p-6 space-y-4 animate-in fade-in zoom-in-95 duration-150">
+	<div class="fixed inset-0 z-[1000] flex items-center justify-center p-4">
+		<div class="absolute inset-0 bg-slate-900/60 backdrop-blur-xs" onclick={() => { if (!isDeletingTitik) showDeleteTitikModal = false; }}></div>
+		<div class="relative w-full max-w-md bg-surface-container-lowest rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xl overflow-hidden z-10 p-6 space-y-4 animate-in fade-in zoom-in-95 duration-150">
 			<div class="flex items-start gap-3.5">
 				<div class="w-10 h-10 rounded-xl bg-rose-100 text-rose-700 dark:bg-rose-950/50 dark:text-rose-300 flex items-center justify-center flex-shrink-0">
 					<span class="material-symbols-outlined text-[22px]">delete_forever</span>
@@ -1296,12 +1265,12 @@
 	</div>
 {/if}
 
-<!-- ==================== MODAL FORM TARIF RUAS ==================== -->
+<!-- ==================== MODAL FORM TARIF RUAS (TAB 2) ==================== -->
 {#if showModal}
-	<div class="fixed inset-0 z-50 flex items-center justify-center p-4">
-		<div class="absolute inset-0 bg-slate-900/50 backdrop-blur-xs" onclick={() => { if (!isSubmitting) showModal = false; }}></div>
+	<div class="fixed inset-0 z-[1000] flex items-center justify-center p-4">
+		<div class="absolute inset-0 bg-slate-900/60 backdrop-blur-xs" onclick={() => { if (!isSubmitting) showModal = false; }}></div>
 
-		<div class="relative w-full max-w-xl bg-surface-container-lowest rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xl overflow-hidden z-10 animate-in fade-in zoom-in-95 duration-150">
+		<div class="relative w-full max-w-xl bg-surface-container-lowest rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xl overflow-hidden z-10 animate-in fade-in zoom-in-95 duration-150">
 			<div class="px-6 py-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between bg-surface-container-low/40">
 				<div class="flex items-center gap-2.5">
 					<div class="w-8 h-8 rounded-lg bg-sky-500/10 text-sky-600 dark:text-sky-400 flex items-center justify-center">
@@ -1342,7 +1311,6 @@
 					<input type="hidden" name="id" value={formId} />
 				{/if}
 
-				<!-- Ruas Jalan Tol -->
 				<div>
 					<label for="modal-ruas" class="block text-xs font-bold text-on-surface mb-1">
 						Nama Ruas Tol <span class="text-rose-500">*</span>
@@ -1364,7 +1332,6 @@
 					</datalist>
 				</div>
 
-				<!-- Relasi ke Titik Fisik Gerbang Asal & Tujuan -->
 				<div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
 					<div>
 						<label for="modal-asal-id" class="block text-xs font-bold text-on-surface mb-1">
@@ -1419,7 +1386,6 @@
 					</div>
 				</div>
 
-				<!-- Jarak Ruas KM -->
 				<div>
 					<label for="modal-jarak" class="block text-xs font-bold text-on-surface mb-1">
 						Jarak Ruas Tol (KM)
@@ -1436,14 +1402,12 @@
 					<p class="text-[10px] text-on-surface-variant mt-1">Dihitung otomatis jika gerbang asal dan tujuan memiliki koordinat KM Pos.</p>
 				</div>
 
-				<!-- Tarif per Golongan -->
 				<div class="pt-2 border-t border-slate-200 dark:border-slate-800">
 					<p class="text-[10px] font-black text-on-surface-variant/60 uppercase tracking-wider mb-3">
 						Konfigurasi Tarif per Golongan Kendaraan (IDR)
 					</p>
 
 					<div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
-						<!-- Golongan 1 -->
 						<div class="p-3 rounded-xl bg-surface-container-low/60 border border-slate-200/60 dark:border-slate-800/60">
 							<label for="modal-tarif-1" class="block text-[11px] font-bold text-on-surface mb-0.5">Golongan I</label>
 							<span class="text-[9px] text-on-surface-variant/70 block mb-1.5">Sedan, Pick Up, Bus</span>
@@ -1458,7 +1422,6 @@
 							/>
 						</div>
 
-						<!-- Golongan 2 & 3 -->
 						<div class="p-3 rounded-xl bg-sky-50/50 dark:bg-sky-950/20 border border-sky-200/60 dark:border-sky-800/60">
 							<label for="modal-tarif-23" class="block text-[11px] font-bold text-sky-800 dark:text-sky-300 mb-0.5">Golongan II & III</label>
 							<span class="text-[9px] text-sky-600/70 dark:text-sky-400/70 block mb-1.5">Truk 2 As & 3 As (Utama BCS)</span>
@@ -1473,7 +1436,6 @@
 							/>
 						</div>
 
-						<!-- Golongan 4 & 5 -->
 						<div class="p-3 rounded-xl bg-indigo-50/50 dark:bg-indigo-950/20 border border-indigo-200/60 dark:border-indigo-800/60">
 							<label for="modal-tarif-45" class="block text-[11px] font-bold text-indigo-800 dark:text-indigo-300 mb-0.5">Golongan IV & V</label>
 							<span class="text-[9px] text-indigo-600/70 dark:text-indigo-400/70 block mb-1.5">Truk 4 As, 5 As / Lebih</span>
@@ -1521,9 +1483,9 @@
 <!-- ==================== MODAL KONFIRMASI HAPUS TARIF RUAS ==================== -->
 {#if showDeleteModal && gateToDelete}
 	{@const isUsed = isGateUsed(gateToDelete.id)}
-	<div class="fixed inset-0 z-50 flex items-center justify-center p-4">
-		<div class="absolute inset-0 bg-slate-900/50 backdrop-blur-xs" onclick={() => { if (!isDeleting) showDeleteModal = false; }}></div>
-		<div class="relative w-full max-w-md bg-surface-container-lowest rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xl overflow-hidden z-10 animate-in fade-in zoom-in-95 duration-150 p-6">
+	<div class="fixed inset-0 z-[1000] flex items-center justify-center p-4">
+		<div class="absolute inset-0 bg-slate-900/60 backdrop-blur-xs" onclick={() => { if (!isDeleting) showDeleteModal = false; }}></div>
+		<div class="relative w-full max-w-md bg-surface-container-lowest rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xl overflow-hidden z-10 animate-in fade-in zoom-in-95 duration-150 p-6">
 			<div class="flex items-start gap-3.5">
 				<div class="w-10 h-10 rounded-xl {isUsed ? 'bg-amber-100 text-amber-700 dark:bg-amber-950/50 dark:text-amber-300' : 'bg-rose-100 text-rose-700 dark:bg-rose-950/50 dark:text-rose-300'} flex items-center justify-center flex-shrink-0">
 					<span class="material-symbols-outlined text-[22px]">
