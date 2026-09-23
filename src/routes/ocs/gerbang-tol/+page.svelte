@@ -110,6 +110,20 @@
 		return list;
 	});
 
+	// Filtered list gerbang tol individual fisik (dari master.m_gerbang_tol)
+	let filteredUniqueGerbangList = $derived.by(() => {
+		let list = data.uniqueGerbangList || [];
+		if (searchTitikQuery.trim()) {
+			const q = searchTitikQuery.toLowerCase().trim();
+			list = list.filter((g: any) =>
+				(g.nama_gerbang && g.nama_gerbang.toLowerCase().includes(q)) ||
+				(g.ruas_tol && g.ruas_tol.toLowerCase().includes(q)) ||
+				(g.kode_gerbang && g.kode_gerbang.toLowerCase().includes(q))
+			);
+		}
+		return list;
+	});
+
 	// Filtered list tarif ruas (master.m_gerbang_tol)
 	let filteredList = $derived.by(() => {
 		let list = data.gerbangTols || [];
@@ -556,28 +570,71 @@
 
 	function startPointingFromRuas(gate: any, target: 'asal' | 'tujuan') {
 		const nama = target === 'asal' ? gate.asal : gate.tujuan;
+		startPointingFromGate({
+			nama_gerbang: nama,
+			ruas_tol: gate.ruas || ''
+		});
+	}
+
+	function startPointingFromGate(gate: any) {
+		const rawName = (gate.nama_gerbang || '').trim();
+		const cleanName = rawName.replace(/^(gerbang tol|gt)\s+/i, '');
+		const formattedNama = `Gerbang Tol ${cleanName}`;
 		activeTab = 'map';
 		setTimeout(() => {
 			ensureMapInitialized();
 			isEditingTitik = false;
-			titikFormId = null;
-			titikNama = `Gerbang Tol ${nama}`;
-			const cleanCode = nama.replace(/[^A-Za-z0-9]/g, '').slice(0, 4).toUpperCase();
-			titikKode = `GT-${cleanCode}`;
-			titikRuas = gate.ruas || '';
+			titikFormId = gate.titik_id || null;
+			titikNama = formattedNama;
+			const cleanCode = cleanName.replace(/[^A-Za-z0-9]/g, '').slice(0, 4).toUpperCase();
+			titikKode = gate.kode_gerbang || `GT-${cleanCode}`;
+			titikRuas = gate.ruas_tol || '';
 			titikKm = '';
-			titikLat = '';
-			titikLng = '';
+			titikLat = gate.latitude || '';
+			titikLng = gate.longitude || '';
 			titikRadius = 300;
 			titikPolygonPoints = [];
 			titikIsActive = true;
 			clearDraftLayers();
 			mapInteractionMode = 'point';
 			showTitikModal = true;
+			mapSearchQuery = formattedNama;
+
 			bannerMessage = {
 				type: 'success',
-				text: `Mode Pointing Aktif untuk "${titikNama}" (${titikRuas}). Silakan klik lokasi pada peta.`
+				text: `Mode Pointing Aktif untuk "${titikNama}". Silakan tentukan titik di peta.`
 			};
+
+			// Jika sudah punya koordinat GPS, terbang ke koordinat tersebut
+			if (gate.latitude && gate.longitude && map) {
+				const lat = parseFloat(gate.latitude);
+				const lng = parseFloat(gate.longitude);
+				map.flyTo([lat, lng], 16, { duration: 1.2 });
+				updateDraftMarker(lat, lng);
+				return;
+			}
+
+			// Jika belum ber-GPS, otomatis gunakan Google Geocoder untuk mencari lokasi gerbang tol
+			const win = window as any;
+			if (win.google?.maps?.Geocoder) {
+				const geocoder = new win.google.maps.Geocoder();
+				geocoder.geocode(
+					{ address: `${formattedNama} ${titikRuas}`.trim(), componentRestrictions: { country: 'id' } },
+					(results: any, status: any) => {
+						if (status === 'OK' && results && results[0]) {
+							const loc = results[0].geometry.location;
+							const lat = loc.lat();
+							const lng = loc.lng();
+							titikLat = lat.toFixed(7);
+							titikLng = lng.toFixed(7);
+							if (map) {
+								map.flyTo([lat, lng], 16, { duration: 1.2 });
+								updateDraftMarker(lat, lng);
+							}
+						}
+					}
+				);
+			}
 		}, 100);
 	}
 
@@ -1063,7 +1120,7 @@
 								onclick={() => { mapSidebarView = 'master'; }}
 								class="flex-1 py-1 text-[10px] font-bold rounded-lg transition-all {mapSidebarView === 'master' ? 'bg-sky-600 text-white shadow-2xs' : 'text-on-surface-variant hover:text-on-surface'}"
 							>
-								Ruas Tol ({data.gerbangTols?.length || 0})
+								Gerbang Tol ({data.uniqueGerbangList?.length || 0})
 							</button>
 							<button
 								type="button"
@@ -1080,7 +1137,7 @@
 							<input
 								type="text"
 								bind:value={searchTitikQuery}
-								placeholder="Saring nama gerbang / ruas..."
+								placeholder="Saring nama gerbang..."
 								class="w-full bg-transparent text-[11px] text-on-surface outline-none placeholder:text-slate-400"
 							/>
 						</div>
@@ -1089,28 +1146,51 @@
 					<!-- List Gerbang Scrollable -->
 					<div class="flex-1 overflow-y-auto p-2 space-y-1.5 hide-scrollbar max-h-[360px]">
 						{#if mapSidebarView === 'master'}
-							<!-- Tampilkan data dari master.m_gerbang_tol (107 ruas) -->
-							{#each (data.gerbangTols || []).filter((g: any) => !searchTitikQuery.trim() || (g.ruas?.toLowerCase().includes(searchTitikQuery.toLowerCase()) || g.asal?.toLowerCase().includes(searchTitikQuery.toLowerCase()) || g.tujuan?.toLowerCase().includes(searchTitikQuery.toLowerCase()))) as gate}
+							<!-- Tampilkan data nama gerbang fisik individual dari master.m_gerbang_tol -->
+							{#each filteredUniqueGerbangList as gate}
 								<div class="p-2.5 bg-surface-container/40 hover:bg-surface-container/90 rounded-xl flex items-center justify-between group transition-colors border border-transparent hover:border-sky-500/30">
 									<div class="min-w-0 pr-2">
-										<p class="font-bold text-xs text-on-surface truncate">{gate.asal} → {gate.tujuan}</p>
-										<p class="text-[10px] text-on-surface-variant truncate">{gate.ruas || '-'}</p>
-										<p class="text-[10px] font-mono text-sky-700 dark:text-sky-300 mt-0.5">{formatRupiah(gate.tarif_gol_2_3)}</p>
+										<p class="font-bold text-xs text-on-surface truncate">{gate.nama_gerbang}</p>
+										<p class="text-[10px] text-on-surface-variant truncate">{gate.ruas_tol || '-'}</p>
+										<div class="flex items-center gap-1.5 mt-1">
+											{#if gate.has_gps}
+												<span class="inline-flex items-center gap-0.5 px-1.5 py-0.2 rounded text-[9px] font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300">
+													<span class="material-symbols-outlined text-[11px]">check_circle</span>
+													Ber-GPS
+												</span>
+											{:else}
+												<span class="inline-flex items-center gap-0.5 px-1.5 py-0.2 rounded text-[9px] font-medium bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400">
+													Belum Pointing
+												</span>
+											{/if}
+										</div>
 									</div>
-									<button
-										type="button"
-										onclick={() => startPointingFromRuas(gate, 'asal')}
-										class="px-2 py-1 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 text-[10px] font-bold transition-all flex items-center gap-1 shrink-0 cursor-pointer shadow-2xs"
-										title="Pointing titik gerbang ini di peta"
-									>
-										<span class="material-symbols-outlined text-[13px]">pin_drop</span>
-										Pointing
-									</button>
+									<div class="flex items-center gap-1 shrink-0">
+										{#if gate.has_gps && gate.latitude && gate.longitude}
+											<button
+												type="button"
+												onclick={() => map?.flyTo([parseFloat(gate.latitude), parseFloat(gate.longitude)], 16, { duration: 1.2 })}
+												class="w-7 h-7 rounded-lg bg-sky-50 hover:bg-sky-100 text-sky-700 dark:bg-sky-950/60 dark:text-sky-300 flex items-center justify-center transition-all cursor-pointer"
+												title="Fokus ke lokasi gerbang di peta"
+											>
+												<span class="material-symbols-outlined text-[15px]">center_focus_strong</span>
+											</button>
+										{/if}
+										<button
+											type="button"
+											onclick={() => startPointingFromGate(gate)}
+											class="px-2 py-1 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 text-[10px] font-bold transition-all flex items-center gap-1 cursor-pointer shadow-2xs"
+											title={`Pointing geofence untuk ${gate.nama_gerbang}`}
+										>
+											<span class="material-symbols-outlined text-[13px]">pin_drop</span>
+											Pointing
+										</button>
+									</div>
 								</div>
 							{:else}
 								<div class="py-8 flex flex-col items-center justify-center opacity-50">
 									<span class="material-symbols-outlined text-3xl mb-1">search_off</span>
-									<p class="text-xs font-bold text-center">Tidak ada ruas yang sesuai</p>
+									<p class="text-xs font-bold text-center">Tidak ada gerbang tol yang sesuai</p>
 								</div>
 							{/each}
 						{:else}
@@ -1169,7 +1249,7 @@
 									</div>
 									<p class="text-xs font-bold text-on-surface">Belum Ada Titik GPS</p>
 									<p class="text-[11px] text-on-surface-variant mt-1 leading-relaxed">
-										Pilih gerbang tol pada tab <strong>"Ruas Tol"</strong> di atas lalu klik <strong>"Pointing"</strong>, atau klik tombol <strong>"+ Baru"</strong> untuk menandai titik di peta.
+										Pilih gerbang tol pada tab <strong>"Gerbang Tol"</strong> di atas lalu klik <strong>"Pointing"</strong>, atau klik tombol <strong>"+ Baru"</strong> untuk menandai titik di peta.
 									</p>
 								</div>
 							{/each}

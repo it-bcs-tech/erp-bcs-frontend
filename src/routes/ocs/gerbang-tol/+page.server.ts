@@ -64,7 +64,36 @@ export const load: PageServerLoad = async () => {
 		`;
 		const usedGateIds = usedRows.map((r: any) => Number(r.gerbang_tol_id));
 
-		// 5. Kalkulasi statistik ringkas
+		// 5. Ambil daftar unik nama gerbang tol fisik individual dari master.m_gerbang_tol
+		const uniqueGerbangRows = await sql`
+			WITH raw_gates AS (
+				SELECT DISTINCT trim(asal) as nama_gerbang, ruas, gerbang_asal_id as titik_fk 
+				FROM master.m_gerbang_tol 
+				WHERE asal IS NOT NULL AND trim(asal) != ''
+				UNION
+				SELECT DISTINCT trim(tujuan) as nama_gerbang, ruas, gerbang_tujuan_id as titik_fk 
+				FROM master.m_gerbang_tol 
+				WHERE tujuan IS NOT NULL AND trim(tujuan) != ''
+			)
+			SELECT 
+				rg.nama_gerbang,
+				string_agg(DISTINCT rg.ruas, ', ') as ruas_tol,
+				MAX(t.id) as titik_id,
+				MAX(t.kode_gerbang) as kode_gerbang,
+				MAX(t.latitude::text) as latitude,
+				MAX(t.longitude::text) as longitude,
+				(MAX(t.id) IS NOT NULL) as has_gps
+			FROM raw_gates rg
+			LEFT JOIN master.m_titik_gerbang_tol t 
+				ON t.id = rg.titik_fk 
+				OR lower(trim(t.nama_gerbang)) = lower(trim(rg.nama_gerbang))
+				OR lower(trim(t.nama_gerbang)) = lower('gerbang tol ' || trim(rg.nama_gerbang))
+				OR lower(trim(t.nama_gerbang)) = lower('gt ' || trim(rg.nama_gerbang))
+			GROUP BY rg.nama_gerbang
+			ORDER BY (MAX(t.id) IS NOT NULL) DESC, rg.nama_gerbang ASC
+		`;
+
+		// 6. Kalkulasi statistik ringkas
 		const totalGerbang = gerbangTols.length;
 		const totalTitik = titikGerbangList.length;
 		const totalRuas = ruasList.length;
@@ -83,6 +112,7 @@ export const load: PageServerLoad = async () => {
 		return {
 			gerbangTols: gerbangTols as any[],
 			titikGerbangList: titikGerbangList as any[],
+			uniqueGerbangList: uniqueGerbangRows as any[],
 			ruasList,
 			usedGateIds,
 			googleMapsApiKey: env.GOOGLE_MAPS_API_KEY || '',
@@ -90,6 +120,7 @@ export const load: PageServerLoad = async () => {
 				totalGerbang,
 				totalTitik,
 				totalRuas,
+				totalGerbangFisik: uniqueGerbangRows.length,
 				avgTarifGol23,
 				maxTarif
 			}
@@ -99,6 +130,7 @@ export const load: PageServerLoad = async () => {
 		return {
 			gerbangTols: [],
 			titikGerbangList: [],
+			uniqueGerbangList: [],
 			ruasList: [],
 			usedGateIds: [],
 			googleMapsApiKey: env.GOOGLE_MAPS_API_KEY || '',
@@ -106,6 +138,7 @@ export const load: PageServerLoad = async () => {
 				totalGerbang: 0,
 				totalTitik: 0,
 				totalRuas: 0,
+				totalGerbangFisik: 0,
 				avgTarifGol23: 0,
 				maxTarif: 0
 			}
