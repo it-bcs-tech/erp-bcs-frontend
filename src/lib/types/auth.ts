@@ -130,7 +130,8 @@ export const MODULE_MENUS: Record<string, { id: string; name: string }[]> = {
 		{ id: 'ocs.ujo', name: 'Uang Jalan (UJO)' },
 		{ id: 'ocs.assign-driver', name: 'Assign Driver' },
 		{ id: 'ocs.daily-targets', name: 'Target Harian' },
-		{ id: 'ocs.rute', name: 'Master Routes & Tolls' }
+		{ id: 'ocs.rute', name: 'Master Rute & UJO' },
+		{ id: 'ocs.gerbang-tol', name: 'Master Gerbang Tol' }
 	],
 	maintenance: [
 		{ id: 'maintenance.dashboard', name: 'Dashboard Utama' },
