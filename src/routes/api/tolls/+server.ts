@@ -2,7 +2,7 @@ import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import sql from '$lib/server/db';
 import { env } from '$env/dynamic/private';
-import { getDrivingDistanceKm } from '$lib/server/routing';
+import { getDrivingDistanceKm, haversineKm } from '$lib/server/routing';
 
 export const POST: RequestHandler = async ({ request }) => {
 	try {
@@ -29,20 +29,106 @@ export const POST: RequestHandler = async ({ request }) => {
 			return json({ success: false, error: 'Koordinat lokasi (Latitude/Longitude) belum lengkap di Master Customer.' }, { status: 400 });
 		}
 
-		// Ambil koordinat waypoints jika ada toll_gate_ids (master.m_titik_gerbang_tol)
-		const waypoints: { lat: number; lng: number }[] = [];
-		if (Array.isArray(toll_gate_ids) && toll_gate_ids.length > 0) {
-			const gates = await sql`
-				SELECT id, nama_gerbang, latitude, longitude 
-				FROM master.m_titik_gerbang_tol 
-				WHERE id = ANY(${toll_gate_ids})
+		// 1. Ambil data gerbang tol terpilih dan titik GPS waypoints jika ada toll_gate_ids
+		const waypoints: { name: string; lat: number; lng: number }[] = [];
+		let internal_toll_fee = 0;
+		const internal_instructions: string[] = [];
+
+		const numericGateIds = Array.isArray(toll_gate_ids) 
+			? toll_gate_ids.map(Number).filter(n => !isNaN(n) && n > 0) 
+			: [];
+
+		if (numericGateIds.length > 0) {
+			// Query ruas gerbang tol beserta koordinat titik asal & tujuan dari master.m_titik_gerbang_tol
+			const gateRows = await sql`
+				SELECT 
+					gt.id, gt.ruas, gt.asal, gt.tujuan, gt.tarif_gol_1, gt.tarif_gol_2_3, gt.tarif_gol_4_5,
+					ta.id as asal_titik_id, ta.nama_gerbang as asal_titik_nama, ta.latitude as asal_lat, ta.longitude as asal_lng,
+					tt.id as tujuan_titik_id, tt.nama_gerbang as tujuan_titik_nama, tt.latitude as tujuan_lat, tt.longitude as tujuan_lng
+				FROM master.m_gerbang_tol gt
+				LEFT JOIN master.m_titik_gerbang_tol ta 
+					ON ta.id = gt.gerbang_asal_id 
+					OR lower(trim(ta.nama_gerbang)) = lower(trim(gt.asal))
+					OR lower(trim(ta.nama_gerbang)) = lower('gerbang tol ' || trim(gt.asal))
+					OR lower(trim(ta.nama_gerbang)) = lower('gt ' || trim(gt.asal))
+					OR lower(trim(gt.asal)) = lower('gerbang tol ' || trim(ta.nama_gerbang))
+				LEFT JOIN master.m_titik_gerbang_tol tt 
+					ON tt.id = gt.gerbang_tujuan_id 
+					OR lower(trim(tt.nama_gerbang)) = lower(trim(gt.tujuan))
+					OR lower(trim(tt.nama_gerbang)) = lower('gerbang tol ' || trim(gt.tujuan))
+					OR lower(trim(tt.nama_gerbang)) = lower('gt ' || trim(gt.tujuan))
+					OR lower(trim(gt.tujuan)) = lower('gerbang tol ' || trim(tt.nama_gerbang))
+				WHERE gt.id = ANY(${numericGateIds})
 			`;
-			for (const g of gates) {
-				const lat = parseFloat(g.latitude);
-				const lng = parseFloat(g.longitude);
-				if (!isNaN(lat) && !isNaN(lng)) {
-					waypoints.push({ lat, lng });
+
+			// Validasi kelengkapan koordinat GPS untuk setiap gerbang tol yang dipilih
+			const missingGpsGates: string[] = [];
+			for (const row of gateRows) {
+				if (!row.asal_lat || !row.asal_lng) {
+					missingGpsGates.push(row.asal);
 				}
+				if (!row.tujuan_lat || !row.tujuan_lng) {
+					missingGpsGates.push(row.tujuan);
+				}
+			}
+
+			const uniqueMissing = [...new Set(missingGpsGates.filter(Boolean))];
+			if (uniqueMissing.length > 0) {
+				return json({
+					success: false,
+					error: `Titik GPS gerbang tol belum lengkap: [${uniqueMissing.join(', ')}]. Silakan lengkapi titik koordinatnya terlebih dahulu di Master Peta Titik Gerbang Tol.`
+				}, { status: 400 });
+			}
+
+			// Tentukan kolom tarif sesuai tipe unit kendaraan
+			let golCol = 'tarif_gol_2_3';
+			if (tipe_unit_id) {
+				const unit = await sql`SELECT golongan_tol FROM master.m_tipe_unit WHERE id = ${tipe_unit_id}`;
+				if (unit.length > 0) {
+					if (unit[0].golongan_tol === '1') golCol = 'tarif_gol_1';
+					else if (unit[0].golongan_tol === '4_5') golCol = 'tarif_gol_4_5';
+				}
+			}
+
+			for (const r of gateRows) {
+				const fee = parseFloat(r[golCol]) || 0;
+				internal_toll_fee += fee;
+				internal_instructions.push(`Tol ${r.ruas}: ${r.asal} → ${r.tujuan} (${golCol})`);
+			}
+
+			// Urutkan titik waypoints secara geografis mengikuti arah perjalanan Origin -> Destination
+			const dLat = destLat - originLat;
+			const dLng = destLng - originLng;
+			const den = (dLat * dLat) + (dLng * dLng);
+
+			const rawWaypoints: { name: string; lat: number; lng: number; t: number }[] = [];
+			for (const row of gateRows) {
+				if (row.asal_lat && row.asal_lng) {
+					const lat = parseFloat(row.asal_lat);
+					const lng = parseFloat(row.asal_lng);
+					const t = den > 0 ? (((lat - originLat) * dLat) + ((lng - originLng) * dLng)) / den : 0;
+					rawWaypoints.push({ name: row.asal_titik_nama || row.asal, lat, lng, t });
+				}
+				if (row.tujuan_lat && row.tujuan_lng) {
+					const lat = parseFloat(row.tujuan_lat);
+					const lng = parseFloat(row.tujuan_lng);
+					const t = den > 0 ? (((lat - originLat) * dLat) + ((lng - originLng) * dLng)) / den : 0;
+					rawWaypoints.push({ name: row.tujuan_titik_nama || row.tujuan, lat, lng, t });
+				}
+			}
+
+			// Sort waypoints searah vektor Origin -> Destination
+			rawWaypoints.sort((a, b) => a.t - b.t);
+
+			// Deduplikasi titik waypoints yang terlalu berdekatan (< 150 meter) atau dekat dengan Origin/Destination
+			for (const wp of rawWaypoints) {
+				if (haversineKm(originLat, originLng, wp.lat, wp.lng) < 0.15) continue;
+				if (haversineKm(destLat, destLng, wp.lat, wp.lng) < 0.15) continue;
+				if (waypoints.length > 0) {
+					const last = waypoints[waypoints.length - 1];
+					if (haversineKm(last.lat, last.lng, wp.lat, wp.lng) < 0.15) continue;
+				}
+				waypoints.push({ name: wp.name, lat: wp.lat, lng: wp.lng });
 			}
 		}
 
@@ -81,22 +167,25 @@ export const POST: RequestHandler = async ({ request }) => {
 					if (responseData.routes && responseData.routes.length > 0) {
 						const route = responseData.routes[0];
 						const distance_km = route.distanceMeters ? route.distanceMeters / 1000 : 0;
-						let toll_fee = 0;
-						if (route.travelAdvisory?.tollInfo?.estimatedPrice) {
+						let toll_fee = internal_toll_fee;
+
+						if (toll_fee === 0 && route.travelAdvisory?.tollInfo?.estimatedPrice) {
 							const priceList = route.travelAdvisory.tollInfo.estimatedPrice;
 							const idrPrice = priceList.find((p: any) => p.currencyCode === 'IDR');
 							if (idrPrice) toll_fee = parseInt(idrPrice.units || "0", 10);
 							else if (priceList.length > 0) toll_fee = parseInt(priceList[0].units || "0", 10);
 						}
 
-						const toll_instructions: string[] = [];
+						const toll_instructions: string[] = internal_instructions.length > 0 ? [...internal_instructions] : [];
 						if (route.legs && route.legs.length > 0) {
-							const steps = route.legs[0].steps || [];
-							for (const step of steps) {
-								if (step.navigationInstruction?.instructions) {
-									const text = step.navigationInstruction.instructions;
-									if (text.toLowerCase().includes('toll') || text.toLowerCase().includes('tol')) {
-										toll_instructions.push(text.replace(/<[^>]*>?/gm, ''));
+							for (const leg of route.legs) {
+								const steps = leg.steps || [];
+								for (const step of steps) {
+									if (step.navigationInstruction?.instructions) {
+										const text = step.navigationInstruction.instructions;
+										if (text.toLowerCase().includes('toll') || text.toLowerCase().includes('tol')) {
+											toll_instructions.push(text.replace(/<[^>]*>?/gm, ''));
+										}
 									}
 								}
 							}
@@ -107,8 +196,11 @@ export const POST: RequestHandler = async ({ request }) => {
 							distance_km: parseFloat(distance_km.toFixed(1)),
 							toll_fee,
 							toll_instructions,
+							waypoints,
 							source: 'google',
-							message: "Jarak berkendara riil dan estimasi tol berhasil dihitung via Google Routes API."
+							message: waypoints.length > 0
+								? `Jarak berkendara riil (${distance_km.toFixed(1)} KM) berhasil dihitung melintasi ${waypoints.length} gerbang tol via Google Routes API.`
+								: `Jarak berkendara riil (${distance_km.toFixed(1)} KM) berhasil dihitung via Google Routes API.`
 						});
 					}
 				}
@@ -121,45 +213,20 @@ export const POST: RequestHandler = async ({ request }) => {
 		const drivingResult = await getDrivingDistanceKm(
 			{ lat: originLat, lng: originLng },
 			{ lat: destLat, lng: destLng },
-			waypoints
+			waypoints.map(w => ({ lat: w.lat, lng: w.lng }))
 		);
-
-		// Rekomendasi tarif tol internal dari master.m_gerbang_tol jika ada
-		let toll_fee = 0;
-		const instructions: string[] = [];
-
-		if (Array.isArray(toll_gate_ids) && toll_gate_ids.length > 0) {
-			let golCol = 'tarif_gol_2_3';
-			if (tipe_unit_id) {
-				const unit = await sql`SELECT golongan_tol FROM master.m_tipe_unit WHERE id = ${tipe_unit_id}`;
-				if (unit.length > 0) {
-					if (unit[0].golongan_tol === '1') golCol = 'tarif_gol_1';
-					else if (unit[0].golongan_tol === '4_5') golCol = 'tarif_gol_4_5';
-				}
-			}
-
-			const tollRates = await sql`
-				SELECT id, ruas, asal, tujuan, tarif_gol_1, tarif_gol_2_3, tarif_gol_4_5
-				FROM master.m_gerbang_tol
-				WHERE gerbang_asal_id = ANY(${toll_gate_ids}) 
-				   OR gerbang_tujuan_id = ANY(${toll_gate_ids})
-			`;
-
-			for (const r of tollRates) {
-				const fee = parseFloat(r[golCol]) || 0;
-				toll_fee += fee;
-				instructions.push(`Tol ${r.ruas}: ${r.asal} → ${r.tujuan} (${golCol})`);
-			}
-		}
 
 		return json({
 			success: true,
 			distance_km: drivingResult.distance_km,
 			duration_minutes: drivingResult.duration_minutes,
-			toll_fee,
-			toll_instructions: instructions,
+			toll_fee: internal_toll_fee,
+			toll_instructions: internal_instructions,
+			waypoints,
 			source: drivingResult.source,
-			message: `Jarak berkendara riil (${drivingResult.distance_km} KM) berhasil dihitung mengikuti jalan tol & jalan raya (bukan garis lurus).`
+			message: waypoints.length > 0
+				? `Jarak berkendara riil (${drivingResult.distance_km} KM) berhasil dihitung melintasi ${waypoints.length} gerbang tol.`
+				: `Jarak berkendara riil (${drivingResult.distance_km} KM) berhasil dihitung mengikuti jalan tol & jalan raya (bukan garis lurus).`
 		});
 
 	} catch (error: any) {

@@ -51,6 +51,8 @@
 	let internalTollSearch = $state('');
 	let selectedInternalTolls = $state<number[]>([]);
 	let gpsTollInstructions = $state<string[]>([]);
+	let gpsWaypoints = $state<{ name: string; lat: number; lng: number }[]>([]);
+	let gpsRouteMessage = $state('');
 
 	function calculateClientDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
 		const R = 6371; // km
@@ -262,6 +264,8 @@
 		selectedInternalTolls = [];
 		internalTollSearch = '';
 		gpsTollInstructions = [];
+		gpsWaypoints = [];
+		gpsRouteMessage = '';
 	}
 
 	function openCreateModal() {
@@ -299,6 +303,8 @@
 		selectedInternalTolls = rincian.map((t: any) => t.gerbang_tol_id);
 		internalTollSearch = '';
 		gpsTollInstructions = [];
+		gpsWaypoints = [];
+		gpsRouteMessage = '';
 		
 		showDetailModal = false;
 		showModal = true;
@@ -347,20 +353,27 @@
 				}
 				if (result.toll_fee > 0) {
 					biayaTol = result.toll_fee;
-					rincianTolJSON = '[]';
+					if (selectedInternalTolls.length === 0) {
+						rincianTolJSON = '[]';
+					}
 				}
 				if (result.toll_instructions) {
 					gpsTollInstructions = result.toll_instructions;
 				}
+				if (result.waypoints) {
+					gpsWaypoints = result.waypoints;
+				} else {
+					gpsWaypoints = [];
+				}
 				if (result.message) {
-					// Feedback info message
+					gpsRouteMessage = result.message;
 				}
 			} else {
 				alert(result.error || 'Gagal mengkalkulasi.');
 			}
 		} catch (error) {
 			console.error(error);
-			alert('Terjadi kesalahan pada server.');
+			alert('Terjadi kesalahan pada server saat mengkalkulasi rute.');
 		}
 		isCalculatingGPS = false;
 	}
@@ -400,6 +413,11 @@
 		biayaTol = total;
 		rincianTolJSON = JSON.stringify(details);
 		showInternalTollModal = false;
+
+		// Otomatis hitung ulang jarak riil & estimasi solar melintasi gerbang tol
+		if (selectedOrigin && selectedDestination) {
+			calculateGPS();
+		}
 	}
 
 	function removeToll(tollId: number) {
@@ -429,6 +447,19 @@
 		}
 		biayaTol = total;
 		rincianTolJSON = JSON.stringify(details);
+
+		// Otomatis hitung ulang jarak riil & estimasi solar melintasi gerbang tol tersisa
+		if (selectedOrigin && selectedDestination) {
+			calculateGPS();
+		}
+	}
+
+	function toggleInternalToll(id: number) {
+		if (selectedInternalTolls.includes(id)) {
+			selectedInternalTolls = selectedInternalTolls.filter(x => x !== id);
+		} else {
+			selectedInternalTolls = [...selectedInternalTolls, id];
+		}
 	}
 
 	$effect(() => {
@@ -623,7 +654,7 @@
 										{#each filteredOrigins as c}
 											<!-- svelte-ignore a11y_click_events_have_key_events -->
 											<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
-											<li class="px-4 py-2.5 text-sm text-on-surface cursor-pointer hover:bg-surface-container-low transition-colors border-b border-surface-container last:border-0" onclick={() => { selectedOrigin = c.id; originSearch = c.name; showOriginDropdown = false; }}>
+											<li class="px-4 py-2.5 text-sm text-on-surface cursor-pointer hover:bg-surface-container-low transition-colors border-b border-surface-container last:border-0" onclick={() => { selectedOrigin = c.id; originSearch = c.name; showOriginDropdown = false; if (selectedDestination) { calculateGPS(); } }}>
 												{c.name}
 											</li>
 										{:else}
@@ -641,7 +672,7 @@
 										{#each filteredDests as c}
 											<!-- svelte-ignore a11y_click_events_have_key_events -->
 											<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
-											<li class="px-4 py-2.5 text-sm text-on-surface cursor-pointer hover:bg-surface-container-low transition-colors border-b border-surface-container last:border-0" onclick={() => { selectedDestination = c.id; destSearch = c.name; showDestDropdown = false; }}>
+											<li class="px-4 py-2.5 text-sm text-on-surface cursor-pointer hover:bg-surface-container-low transition-colors border-b border-surface-container last:border-0" onclick={() => { selectedDestination = c.id; destSearch = c.name; showDestDropdown = false; if (selectedOrigin) { calculateGPS(); } }}>
 												{c.name}
 											</li>
 										{:else}
@@ -757,21 +788,44 @@
 							</div>
 						</div>
 
-						<!-- Selected Gates Chips -->
+						<!-- Selected Gates Chips & Waypoint Trajectory -->
 						{#if selectedInternalTolls.length > 0}
-							<div class="pt-2 border-t border-slate-200/60 dark:border-slate-800/80 flex flex-wrap items-center gap-1.5 text-[11px]">
-								<span class="text-[11px] font-bold text-on-surface-variant flex items-center gap-1">
-									<span class="material-symbols-outlined text-[15px] text-indigo-600">toll</span> Gerbang Terpilih:
-								</span>
-								{#each selectedInternalTolls as tollId}
-									{@const gate = (data.gerbangTols || []).find((g: any) => g.id === tollId)}
-									{#if gate}
-										<span class="inline-flex items-center gap-1 bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 px-2 py-0.5 rounded-md font-semibold text-[10px] border border-indigo-200 dark:border-indigo-800 shadow-2xs">
-											<span>{gate.ruas} ({gate.asal} &rarr; {gate.tujuan})</span>
-											<button type="button" onclick={() => removeToll(tollId)} class="hover:text-rose-600 ml-0.5 text-xs font-black cursor-pointer" title="Hapus gerbang ini">&times;</button>
-										</span>
-									{/if}
-								{/each}
+							<div class="pt-2 border-t border-slate-200/60 dark:border-slate-800/80 space-y-2">
+								<div class="flex flex-wrap items-center gap-1.5 text-[11px]">
+									<span class="text-[11px] font-bold text-on-surface-variant flex items-center gap-1">
+										<span class="material-symbols-outlined text-[15px] text-indigo-600">toll</span> Gerbang Terpilih:
+									</span>
+									{#each selectedInternalTolls as tollId}
+										{@const gate = (data.gerbangTols || []).find((g: any) => g.id === tollId)}
+										{#if gate}
+											<span class="inline-flex items-center gap-1 bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 px-2 py-0.5 rounded-md font-semibold text-[10px] border border-indigo-200 dark:border-indigo-800 shadow-2xs">
+												<span>{gate.ruas} ({gate.asal} &rarr; {gate.tujuan})</span>
+												<button type="button" onclick={() => removeToll(tollId)} class="hover:text-rose-600 ml-0.5 text-xs font-black cursor-pointer" title="Hapus gerbang ini">&times;</button>
+											</span>
+										{/if}
+									{/each}
+								</div>
+
+								{#if gpsWaypoints.length > 0}
+									<div class="p-2.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/60 text-emerald-800 dark:text-emerald-300 text-xs flex items-start gap-2 shadow-2xs">
+										<span class="material-symbols-outlined text-[18px] text-emerald-600 dark:text-emerald-400 mt-0.5 shrink-0">alt_route</span>
+										<div class="space-y-1">
+											<div class="font-bold flex items-center gap-1.5">
+												<span>Lintasan Gerbang Tol Terhitung ({gpsWaypoints.length} Titik Waypoint):</span>
+											</div>
+											<div class="flex flex-wrap items-center gap-1 text-[11px]">
+												{#each gpsWaypoints as wp, idx}
+													<span class="bg-white dark:bg-slate-900 px-2 py-0.5 rounded-md font-semibold border border-emerald-200 dark:border-emerald-700/80 text-emerald-800 dark:text-emerald-200 shadow-2xs">
+														{wp.name}
+													</span>
+													{#if idx < gpsWaypoints.length - 1}
+														<span class="text-emerald-500 font-bold">&rarr;</span>
+													{/if}
+												{/each}
+											</div>
+										</div>
+									</div>
+								{/if}
 							</div>
 						{/if}
 					</div>
@@ -1140,11 +1194,38 @@
 						<span class="material-symbols-outlined text-lg">close</span>
 					</button>
 				</div>
-				<div class="mt-3.5">
+				<div class="mt-3.5 space-y-2.5">
 					<div class="relative">
 						<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant text-[18px]">search</span>
-						<input type="text" bind:value={internalTollSearch} placeholder="Cari ruas, asal, atau tujuan tol..." class="w-full pl-9 pr-4 py-2 rounded-xl bg-white dark:bg-slate-900 border border-indigo-200 dark:border-indigo-800 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-all text-xs font-medium shadow-2xs" />
+						<input type="text" bind:value={internalTollSearch} placeholder="Cari ruas, asal, atau tujuan tol..." class="w-full pl-9 pr-8 py-2 rounded-xl bg-white dark:bg-slate-900 border border-indigo-200 dark:border-indigo-800 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-all text-xs font-medium shadow-2xs" />
+						{#if internalTollSearch}
+							<button type="button" onclick={() => internalTollSearch = ''} class="absolute right-2.5 top-1/2 -translate-y-1/2 text-on-surface-variant hover:text-on-surface text-sm font-bold w-5 h-5 flex items-center justify-center rounded-full bg-slate-200 dark:bg-slate-700 cursor-pointer">
+								&times;
+							</button>
+						{/if}
 					</div>
+
+					<!-- Currently Selected Tolls Chips in Modal -->
+					{#if selectedInternalTolls.length > 0}
+						<div class="p-2 rounded-xl bg-indigo-100/60 dark:bg-indigo-900/40 border border-indigo-200 dark:border-indigo-800 flex flex-wrap items-center gap-1.5 max-h-24 overflow-y-auto">
+							<span class="text-[10px] font-black uppercase tracking-wider text-indigo-800 dark:text-indigo-200 mr-1 flex items-center gap-1">
+								<span class="material-symbols-outlined text-[13px]">check_circle</span>
+								{selectedInternalTolls.length} Dipilih:
+							</span>
+							{#each selectedInternalTolls as sId}
+								{@const sGate = (data.gerbangTols || []).find((g: any) => g.id === sId)}
+								{#if sGate}
+									<span class="inline-flex items-center gap-1 bg-white dark:bg-slate-900 text-indigo-700 dark:text-indigo-300 px-2 py-0.5 rounded-md font-semibold text-[10px] border border-indigo-200 dark:border-indigo-800 shadow-2xs">
+										<span>{sGate.asal} &rarr; {sGate.tujuan}</span>
+										<button type="button" onclick={() => toggleInternalToll(sId)} class="hover:text-rose-600 font-bold ml-0.5 cursor-pointer">&times;</button>
+									</span>
+								{/if}
+							{/each}
+							<button type="button" onclick={() => selectedInternalTolls = []} class="text-[10px] font-bold text-rose-600 hover:underline ml-1 cursor-pointer">
+								Hapus Semua
+							</button>
+						</div>
+					{/if}
 				</div>
 			</div>
 			
@@ -1161,9 +1242,17 @@
 					</thead>
 					<tbody class="divide-y divide-surface-container">
 						{#each filteredInternalTolls as g}
-							<tr class="hover:bg-indigo-50/30 dark:hover:bg-indigo-950/20 transition-colors {recommendedTollIds.includes(g.id) ? 'bg-amber-50/50 dark:bg-amber-950/30' : ''}">
-								<td class="px-3.5 py-2.5 text-center">
-									<input type="checkbox" bind:group={selectedInternalTolls} value={g.id} class="w-4 h-4 rounded border-surface-container text-indigo-600 focus:ring-indigo-500 cursor-pointer" />
+							<tr 
+								class="hover:bg-indigo-50/40 dark:hover:bg-indigo-950/30 transition-colors cursor-pointer {selectedInternalTolls.includes(g.id) ? 'bg-indigo-50/80 dark:bg-indigo-950/60 font-semibold' : ''} {recommendedTollIds.includes(g.id) && !selectedInternalTolls.includes(g.id) ? 'bg-amber-50/50 dark:bg-amber-950/30' : ''}"
+								onclick={() => toggleInternalToll(g.id)}
+							>
+								<td class="px-3.5 py-2.5 text-center" onclick={(e) => e.stopPropagation()}>
+									<input 
+										type="checkbox" 
+										checked={selectedInternalTolls.includes(g.id)} 
+										onchange={() => toggleInternalToll(g.id)} 
+										class="w-4 h-4 rounded border-surface-container text-indigo-600 focus:ring-indigo-500 cursor-pointer" 
+									/>
 								</td>
 								<td class="px-3.5 py-2.5">
 									<span class="font-bold text-on-surface text-xs flex items-center gap-1">

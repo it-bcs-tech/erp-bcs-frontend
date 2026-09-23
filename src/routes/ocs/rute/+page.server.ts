@@ -1,7 +1,61 @@
 import type { PageServerLoad, Actions } from './$types';
 import { fail } from '@sveltejs/kit';
 import sql from '$lib/server/db';
-import { getDrivingDistanceKm } from '$lib/server/routing';
+import { getDrivingDistanceKm, haversineKm } from '$lib/server/routing';
+
+async function getWaypointsForTollGates(gateIds: number[], originLat: number, originLng: number, destLat: number, destLng: number) {
+	if (!gateIds || gateIds.length === 0) return [];
+	const gateRows = await sql`
+		SELECT 
+			gt.id, gt.ruas, gt.asal, gt.tujuan,
+			ta.latitude as asal_lat, ta.longitude as asal_lng,
+			tt.latitude as tujuan_lat, tt.longitude as tujuan_lng
+		FROM master.m_gerbang_tol gt
+		LEFT JOIN master.m_titik_gerbang_tol ta 
+			ON ta.id = gt.gerbang_asal_id 
+			OR lower(trim(ta.nama_gerbang)) = lower(trim(gt.asal))
+			OR lower(trim(ta.nama_gerbang)) = lower('gerbang tol ' || trim(gt.asal))
+			OR lower(trim(ta.nama_gerbang)) = lower('gt ' || trim(gt.asal))
+			OR lower(trim(gt.asal)) = lower('gerbang tol ' || trim(ta.nama_gerbang))
+		LEFT JOIN master.m_titik_gerbang_tol tt 
+			ON tt.id = gt.gerbang_tujuan_id 
+			OR lower(trim(tt.nama_gerbang)) = lower(trim(gt.tujuan))
+			OR lower(trim(tt.nama_gerbang)) = lower('gerbang tol ' || trim(gt.tujuan))
+			OR lower(trim(tt.nama_gerbang)) = lower('gt ' || trim(gt.tujuan))
+			OR lower(trim(gt.tujuan)) = lower('gerbang tol ' || trim(tt.nama_gerbang))
+		WHERE gt.id = ANY(${gateIds})
+	`;
+	const dLat = destLat - originLat;
+	const dLng = destLng - originLng;
+	const den = (dLat * dLat) + (dLng * dLng);
+	const raw: { lat: number; lng: number; t: number }[] = [];
+	for (const r of gateRows) {
+		if (r.asal_lat && r.asal_lng) {
+			const lat = parseFloat(r.asal_lat);
+			const lng = parseFloat(r.asal_lng);
+			const t = den > 0 ? (((lat - originLat) * dLat) + ((lng - originLng) * dLng)) / den : 0;
+			raw.push({ lat, lng, t });
+		}
+		if (r.tujuan_lat && r.tujuan_lng) {
+			const lat = parseFloat(r.tujuan_lat);
+			const lng = parseFloat(r.tujuan_lng);
+			const t = den > 0 ? (((lat - originLat) * dLat) + ((lng - originLng) * dLng)) / den : 0;
+			raw.push({ lat, lng, t });
+		}
+	}
+	raw.sort((a, b) => a.t - b.t);
+	const waypoints: { lat: number; lng: number }[] = [];
+	for (const p of raw) {
+		if (haversineKm(originLat, originLng, p.lat, p.lng) < 0.15) continue;
+		if (haversineKm(destLat, destLng, p.lat, p.lng) < 0.15) continue;
+		if (waypoints.length > 0) {
+			const last = waypoints[waypoints.length - 1];
+			if (haversineKm(last.lat, last.lng, p.lat, p.lng) < 0.15) continue;
+		}
+		waypoints.push({ lat: p.lat, lng: p.lng });
+	}
+	return waypoints;
+}
 
 export const load: PageServerLoad = async () => {
 	try {
@@ -102,9 +156,29 @@ export const actions: Actions = {
 					return fail(400, { message: 'Gagal: Lokasi belum memiliki koordinat GPS di Master Customer, silakan isi Jarak Tempuh (KM) secara manual.' });
 				}
 
+				// Extract toll gate IDs from rincian_tol_json if available
+				let tollGateIds: number[] = [];
+				if (rincian_tol_json && rincian_tol_json !== '[]') {
+					try {
+						const parsed = JSON.parse(rincian_tol_json);
+						if (Array.isArray(parsed)) {
+							tollGateIds = parsed.map((t: any) => Number(t.gerbang_tol_id)).filter(n => !isNaN(n) && n > 0);
+						}
+					} catch (e) {}
+				}
+
+				const waypoints = await getWaypointsForTollGates(
+					tollGateIds,
+					parseFloat(originData[0].latitude),
+					parseFloat(originData[0].longitude),
+					parseFloat(destData[0].latitude),
+					parseFloat(destData[0].longitude)
+				);
+
 				const driving = await getDrivingDistanceKm(
 					{ lat: parseFloat(originData[0].latitude), lng: parseFloat(originData[0].longitude) },
-					{ lat: parseFloat(destData[0].latitude), lng: parseFloat(destData[0].longitude) }
+					{ lat: parseFloat(destData[0].latitude), lng: parseFloat(destData[0].longitude) },
+					waypoints
 				);
 				jarak_km = driving.distance_km;
 			}
@@ -216,9 +290,29 @@ export const actions: Actions = {
 					return fail(400, { message: 'Gagal: Lokasi belum memiliki koordinat GPS di Master Customer, silakan isi Jarak Tempuh (KM) secara manual.' });
 				}
 
+				// Extract toll gate IDs from rincian_tol_json if available
+				let tollGateIds: number[] = [];
+				if (rincian_tol_json && rincian_tol_json !== '[]') {
+					try {
+						const parsed = JSON.parse(rincian_tol_json);
+						if (Array.isArray(parsed)) {
+							tollGateIds = parsed.map((t: any) => Number(t.gerbang_tol_id)).filter(n => !isNaN(n) && n > 0);
+						}
+					} catch (e) {}
+				}
+
+				const waypoints = await getWaypointsForTollGates(
+					tollGateIds,
+					parseFloat(originData[0].latitude),
+					parseFloat(originData[0].longitude),
+					parseFloat(destData[0].latitude),
+					parseFloat(destData[0].longitude)
+				);
+
 				const driving = await getDrivingDistanceKm(
 					{ lat: parseFloat(originData[0].latitude), lng: parseFloat(originData[0].longitude) },
-					{ lat: parseFloat(destData[0].latitude), lng: parseFloat(destData[0].longitude) }
+					{ lat: parseFloat(destData[0].latitude), lng: parseFloat(destData[0].longitude) },
+					waypoints
 				);
 				jarak_km = driving.distance_km;
 			}
