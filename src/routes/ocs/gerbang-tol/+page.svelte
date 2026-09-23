@@ -40,6 +40,9 @@
 	let mapInteractionMode = $state<'point' | 'polygon'>('point');
 	let mapSearchQuery = $state('');
 	let isSearchingMap = $state(false);
+	let googleMapsLoaded = $state(false);
+	let autocomplete: any = null;
+	let searchResultMarker: any = null;
 	let filterRuasTitik = $state('ALL');
 	let searchTitikQuery = $state('');
 
@@ -176,15 +179,84 @@
 		}
 	}
 
+	function initGooglePlacesAutocomplete() {
+		if (!browser) return;
+		const win = window as any;
+		if (!win.google?.maps?.places) return;
+		const input = document.getElementById('mapSearchInput') as HTMLInputElement;
+		if (!input || autocomplete) return;
+
+		autocomplete = new win.google.maps.places.Autocomplete(input, {
+			componentRestrictions: { country: 'id' },
+			fields: ['geometry', 'name', 'formatted_address']
+		});
+
+		autocomplete.addListener('place_changed', () => {
+			const place = autocomplete.getPlace();
+			if (!place.geometry || !place.geometry.location) return;
+
+			const lat = place.geometry.location.lat();
+			const lng = place.geometry.location.lng();
+
+			if (map) {
+				map.flyTo([lat, lng], 16, { duration: 1.2 });
+
+				if (leafletLib) {
+					if (searchResultMarker) map.removeLayer(searchResultMarker);
+					searchResultMarker = leafletLib.circleMarker([lat, lng], {
+						radius: 12,
+						color: '#0284c7',
+						weight: 3,
+						fillColor: '#38bdf8',
+						fillOpacity: 0.5
+					}).addTo(map);
+					searchResultMarker.bindPopup(`<b>${place.name || 'Lokasi Terpilih'}</b><br/><span style="font-size:11px;">${place.formatted_address || ''}</span>`).openPopup();
+				}
+			}
+
+			// Jika form kanan terbuka, otomatis isi koordinat dan letakkan pin draft
+			if (showTitikModal) {
+				titikLat = lat.toFixed(7);
+				titikLng = lng.toFixed(7);
+				if (mapInteractionMode === 'point') {
+					updateDraftMarker(lat, lng);
+				}
+			}
+		});
+	}
+
+	function loadGoogleMapsScript() {
+		if (!browser) return;
+		const win = window as any;
+		if (win.google?.maps?.places) {
+			googleMapsLoaded = true;
+			setTimeout(initGooglePlacesAutocomplete, 100);
+			return;
+		}
+		if (data.googleMapsApiKey) {
+			const script = document.createElement('script');
+			script.src = `https://maps.googleapis.com/maps/api/js?key=${data.googleMapsApiKey}&libraries=places`;
+			script.async = true;
+			script.defer = true;
+			script.onload = () => {
+				googleMapsLoaded = true;
+				setTimeout(initGooglePlacesAutocomplete, 100);
+			};
+			document.head.appendChild(script);
+		}
+	}
+
 	onMount(async () => {
 		if (browser) {
 			await ensureMapInitialized();
+			loadGoogleMapsScript();
 		}
 	});
 
 	$effect(() => {
 		if (activeTab === 'map' && browser) {
 			ensureMapInitialized();
+			setTimeout(initGooglePlacesAutocomplete, 200);
 		}
 	});
 
@@ -355,7 +427,54 @@
 
 	async function searchLocationOnMap(e: Event) {
 		e.preventDefault();
-		if (!mapSearchQuery.trim() || !map || !leafletLib) return;
+		if (!mapSearchQuery.trim()) return;
+		const win = window as any;
+
+		if (win.google?.maps?.Geocoder) {
+			isSearchingMap = true;
+			const geocoder = new win.google.maps.Geocoder();
+			geocoder.geocode(
+				{ address: mapSearchQuery, componentRestrictions: { country: 'id' } },
+				(results: any, status: any) => {
+					isSearchingMap = false;
+					if (status === 'OK' && results && results[0]) {
+						const loc = results[0].geometry.location;
+						const lat = loc.lat();
+						const lng = loc.lng();
+						if (map) {
+							map.flyTo([lat, lng], 16, { duration: 1.2 });
+							if (leafletLib) {
+								if (searchResultMarker) map.removeLayer(searchResultMarker);
+								searchResultMarker = leafletLib.circleMarker([lat, lng], {
+									radius: 12,
+									color: '#0284c7',
+									weight: 3,
+									fillColor: '#38bdf8',
+									fillOpacity: 0.5
+								}).addTo(map);
+								searchResultMarker.bindPopup(`<b>${results[0].formatted_address}</b>`).openPopup();
+							}
+						}
+						if (showTitikModal) {
+							titikLat = lat.toFixed(7);
+							titikLng = lng.toFixed(7);
+							if (mapInteractionMode === 'point') {
+								updateDraftMarker(lat, lng);
+							}
+						}
+					} else {
+						fallbackNominatimSearch();
+					}
+				}
+			);
+			return;
+		}
+
+		await fallbackNominatimSearch();
+	}
+
+	async function fallbackNominatimSearch() {
+		if (!map || !leafletLib) return;
 		const L = leafletLib;
 		isSearchingMap = true;
 		try {
@@ -373,7 +492,10 @@
 					map.setView([parseFloat(loc.lat), parseFloat(loc.lon)], 14);
 				}
 			} else {
-				alert('Lokasi pencarian tidak ditemukan di OpenStreetMap.');
+				bannerMessage = {
+					type: 'error',
+					text: `Lokasi "${mapSearchQuery}" tidak ditemukan. Coba pilih langsung dari saran Google Places saat mengetik.`
+				};
 			}
 		} catch (error) {
 			console.error("Map search error:", error);
@@ -897,13 +1019,14 @@
 
 			<!-- FLOATING TOOLBAR KIRI: SEARCH & DAFTAR GERBANG TOL -->
 			<div class="absolute top-4 left-4 z-20 w-84 max-w-[calc(100%-2rem)] flex flex-col gap-3 max-h-[calc(100%-2rem)] pointer-events-auto">
-				<!-- Search OpenStreetMap Box -->
+				<!-- Search Google Places Box -->
 				<form onsubmit={searchLocationOnMap} class="relative w-full shadow-lg rounded-2xl bg-surface/95 backdrop-blur-md border border-slate-200/60 dark:border-slate-800/60 overflow-hidden flex items-center">
-					<span class="material-symbols-outlined text-slate-400 ml-3 text-[18px]">search</span>
+					<span class="material-symbols-outlined text-sky-600 dark:text-sky-400 ml-3 text-[18px]">search</span>
 					<input 
+						id="mapSearchInput"
 						type="text" 
 						bind:value={mapSearchQuery}
-						placeholder="Cari lokasi tol di peta..." 
+						placeholder="Cari gerbang tol / alamat (Google Places)..." 
 						class="w-full bg-transparent text-on-surface py-2 px-2.5 focus:outline-none text-xs font-medium placeholder:text-slate-400"
 					/>
 					{#if isSearchingMap}
@@ -1658,5 +1781,28 @@
 		width: 100%;
 		height: 100%;
 		z-index: 0;
+	}
+	:global(.pac-container) {
+		z-index: 99999 !important;
+		border-radius: 1rem;
+		margin-top: 6px;
+		box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.15), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+		border: 1px solid rgba(226, 232, 240, 0.8);
+		font-family: inherit;
+		padding: 4px;
+	}
+	:global(.pac-item) {
+		padding: 6px 10px;
+		border-radius: 0.5rem;
+		cursor: pointer;
+		font-size: 12px;
+	}
+	:global(.pac-item:hover) {
+		background-color: rgba(2, 132, 199, 0.08);
+	}
+	:global(.pac-item-query) {
+		font-size: 12px;
+		font-weight: 700;
+		color: #0369a1;
 	}
 </style>

@@ -1,6 +1,7 @@
 import type { PageServerLoad, Actions } from './$types';
 import { fail } from '@sveltejs/kit';
 import sql from '$lib/server/db';
+import { env } from '$env/dynamic/private';
 
 export const load: PageServerLoad = async () => {
 	try {
@@ -84,6 +85,7 @@ export const load: PageServerLoad = async () => {
 			titikGerbangList: titikGerbangList as any[],
 			ruasList,
 			usedGateIds,
+			googleMapsApiKey: env.GOOGLE_MAPS_API_KEY || '',
 			stats: {
 				totalGerbang,
 				totalTitik,
@@ -99,6 +101,7 @@ export const load: PageServerLoad = async () => {
 			titikGerbangList: [],
 			ruasList: [],
 			usedGateIds: [],
+			googleMapsApiKey: env.GOOGLE_MAPS_API_KEY || '',
 			stats: {
 				totalGerbang: 0,
 				totalTitik: 0,
