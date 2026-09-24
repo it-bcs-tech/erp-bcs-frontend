@@ -877,13 +877,13 @@
 		<div class="p-4 rounded-2xl bg-surface-container-lowest border border-surface-container/60 shadow-2xs">
 			<div class="flex flex-col sm:flex-row items-center justify-between gap-3">
 				<div class="flex flex-1 w-full sm:w-auto items-center gap-3">
-					<div class="flex-1 flex items-center gap-2.5 px-3.5 py-2 rounded-xl bg-surface-container-low border border-surface-container/60 focus-within:ring-2 focus-within:ring-sky-500/20 focus-within:border-sky-500 transition-all">
+					<div class="flex-1 flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl bg-surface-container-low border-0 focus-within:ring-2 focus-within:ring-sky-500/20 transition-all shadow-2xs">
 						<span class="material-symbols-outlined text-on-surface-variant text-[18px]">search</span>
 						<input
 							type="text"
 							bind:value={searchQuery}
 							placeholder="Cari ruas, asal, atau tujuan gerbang tol..."
-							class="bg-transparent text-xs text-on-surface outline-none w-full placeholder:text-on-surface-variant/50"
+							class="bg-transparent text-xs text-on-surface outline-none w-full border-0 focus:ring-0 placeholder:text-on-surface-variant/50"
 						/>
 						{#if searchQuery}
 							<button onclick={() => { searchQuery = ''; }} class="text-on-surface-variant hover:text-on-surface text-[14px]">
@@ -895,7 +895,7 @@
 					<div class="w-56">
 						<select
 							bind:value={selectedRuas}
-							class="w-full px-3 py-2 rounded-xl bg-surface-container-low border border-surface-container/60 text-xs text-on-surface outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 font-medium transition-all"
+							class="w-full px-3.5 py-2.5 rounded-xl bg-surface-container-low border-0 text-xs text-on-surface outline-none focus:ring-2 focus:ring-sky-500/20 font-medium transition-all shadow-2xs"
 						>
 							<option value="ALL">Semua Ruas ({data.ruasList?.length || 0})</option>
 							{#each data.ruasList as ruas}
@@ -912,7 +912,7 @@
 					<div class="h-4 w-[1px] bg-surface-container"></div>
 					<select
 						bind:value={pageSize}
-						class="px-2.5 py-1.5 rounded-lg bg-surface-container-low border border-surface-container/60 text-xs text-on-surface outline-none font-medium"
+						class="px-2.5 py-1.5 rounded-lg bg-surface-container-low border-0 text-xs text-on-surface outline-none font-medium"
 					>
 						<option value={15}>15 / hal</option>
 						<option value={25}>25 / hal</option>
@@ -1085,15 +1085,15 @@
 			<div bind:this={mapContainer} class="absolute inset-0 z-0 bg-surface-container-low"></div>
 
 			<!-- FLOATING SEARCH BAR GOOGLE PLACES (TOP CENTER) -->
-			<div class="absolute top-4 left-4 right-4 sm:left-1/2 sm:-translate-x-1/2 sm:w-[28rem] md:w-[32rem] z-20 pointer-events-auto">
-				<form onsubmit={searchLocationOnMap} class="relative w-full shadow-lg rounded-2xl bg-surface-container-lowest/95 backdrop-blur-md border border-surface-container/60 overflow-hidden flex items-center transition-all focus-within:ring-2 focus-within:ring-sky-500/20 focus-within:border-sky-500">
+			<div class="absolute top-4 left-4 right-4 sm:left-1/2 sm:-translate-x-1/2 sm:w-72 md:w-84 z-20 pointer-events-auto">
+				<form onsubmit={searchLocationOnMap} class="relative w-full shadow-lg rounded-2xl bg-surface-container-lowest/95 backdrop-blur-md border-0 overflow-hidden flex items-center transition-all focus-within:ring-2 focus-within:ring-sky-500/30">
 					<span class="material-symbols-outlined text-sky-600 dark:text-sky-400 ml-3.5 text-[20px]">search</span>
 					<input 
 						id="mapSearchInput"
 						type="text" 
 						bind:value={mapSearchQuery}
 						placeholder="Cari gerbang tol / alamat (Google Places)..." 
-						class="w-full bg-transparent text-on-surface py-2.5 px-3 focus:outline-none text-xs sm:text-sm font-medium placeholder:text-on-surface-variant/50"
+						class="w-full bg-transparent text-on-surface py-2.5 px-3 focus:outline-none border-0 focus:ring-0 text-xs sm:text-sm font-medium placeholder:text-on-surface-variant/50"
 					/>
 					{#if mapSearchQuery}
 						<button type="button" onclick={() => mapSearchQuery = ''} class="text-on-surface-variant hover:text-on-surface text-sm font-bold w-5 h-5 flex items-center justify-center rounded-full bg-surface-container-high mr-2 cursor-pointer">
@@ -1148,13 +1148,13 @@
 						</div>
 
 						<!-- Filter input kecil -->
-						<div class="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-surface-container-low border border-surface-container/50 focus-within:ring-2 focus-within:ring-sky-500/20 focus-within:border-sky-500 transition-all">
+						<div class="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-surface-container-low border-0 focus-within:ring-2 focus-within:ring-sky-500/20 transition-all">
 							<span class="material-symbols-outlined text-on-surface-variant text-[15px]">filter_alt</span>
 							<input
 								type="text"
 								bind:value={searchTitikQuery}
 								placeholder="Saring nama gerbang..."
-								class="w-full bg-transparent text-xs text-on-surface outline-none placeholder:text-on-surface-variant/50"
+								class="w-full bg-transparent text-xs text-on-surface outline-none border-0 focus:ring-0 placeholder:text-on-surface-variant/50"
 							/>
 							{#if searchTitikQuery}
 								<button type="button" onclick={() => searchTitikQuery = ''} class="text-on-surface-variant hover:text-on-surface text-xs font-bold">
@@ -1888,7 +1888,7 @@
 		border-radius: 1rem;
 		margin-top: 6px;
 		box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.15), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
-		border: 1px solid rgba(226, 232, 240, 0.8);
+		border: none !important;
 		font-family: inherit;
 		padding: 4px;
 	}
@@ -1897,6 +1897,7 @@
 		border-radius: 0.5rem;
 		cursor: pointer;
 		font-size: 12px;
+		border-top: none !important;
 	}
 	:global(.pac-item:hover) {
 		background-color: rgba(2, 132, 199, 0.08);

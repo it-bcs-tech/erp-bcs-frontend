@@ -1195,7 +1195,7 @@
 					</button>
 				</div>
 				<div class="mt-3.5 space-y-2.5">
-					<div class="flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl bg-surface-container-low border border-surface-container/60 focus-within:ring-2 focus-within:ring-sky-500/20 focus-within:border-sky-500 transition-all">
+					<div class="flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl bg-surface-container-low border-0 focus-within:ring-2 focus-within:ring-sky-500/20 transition-all shadow-2xs">
 						<span class="material-symbols-outlined text-on-surface-variant/70 text-[18px]">search</span>
 						<input type="text" bind:value={internalTollSearch} placeholder="Cari ruas, asal, atau tujuan tol..." class="bg-transparent text-xs text-on-surface outline-none w-full border-0 placeholder:text-on-surface-variant/50 focus:ring-0" />
 						{#if internalTollSearch}
