@@ -249,7 +249,7 @@
 		}
 		if (data.googleMapsApiKey) {
 			const script = document.createElement('script');
-			script.src = `https://maps.googleapis.com/maps/api/js?key=${data.googleMapsApiKey}&libraries=places`;
+			script.src = `https://maps.googleapis.com/maps/api/js?key=${data.googleMapsApiKey}&libraries=places&loading=async`;
 			script.async = true;
 			script.defer = true;
 			script.onload = () => {
@@ -362,24 +362,30 @@
 		});
 	}
 
-	function handleMapClick(latlng: { lat: number; lng: number }) {
-		if (!showTitikModal || !leafletLib || !map) return;
+	function updateDraftMarker(lat: number, lng: number) {
+		if (!map || !leafletLib) return;
 		const L = leafletLib;
+		titikLat = parseFloat(lat.toFixed(7));
+		titikLng = parseFloat(lng.toFixed(7));
 
-		if (mapInteractionMode === 'point') {
-			titikLat = parseFloat(latlng.lat.toFixed(7));
-			titikLng = parseFloat(latlng.lng.toFixed(7));
-
-			if (currentPointMarker) map.removeLayer(currentPointMarker);
-			currentPointMarker = L.marker([latlng.lat, latlng.lng], {
-				draggable: true
-			}).addTo(map);
-
+		if (currentPointMarker) {
+			currentPointMarker.setLatLng([lat, lng]);
+		} else {
+			currentPointMarker = L.marker([lat, lng], { draggable: true }).addTo(map);
 			currentPointMarker.on('dragend', (e: any) => {
 				const pos = e.target.getLatLng();
 				titikLat = parseFloat(pos.lat.toFixed(7));
 				titikLng = parseFloat(pos.lng.toFixed(7));
 			});
+		}
+	}
+
+	function handleMapClick(latlng: { lat: number; lng: number }) {
+		if (!showTitikModal || !leafletLib || !map) return;
+		const L = leafletLib;
+
+		if (mapInteractionMode === 'point') {
+			updateDraftMarker(latlng.lat, latlng.lng);
 		} else if (mapInteractionMode === 'polygon') {
 			if (titikPolygonPoints.length < 4) {
 				titikPolygonPoints = [...titikPolygonPoints, { lat: parseFloat(latlng.lat.toFixed(7)), lng: parseFloat(latlng.lng.toFixed(7)) }];
@@ -414,6 +420,10 @@
 		if (draftPolygonLayer) {
 			map.removeLayer(draftPolygonLayer);
 			draftPolygonLayer = null;
+		}
+		if (searchResultMarker) {
+			map.removeLayer(searchResultMarker);
+			searchResultMarker = null;
 		}
 		draftPolygonMarkers.forEach(m => map.removeLayer(m));
 		draftPolygonMarkers = [];
