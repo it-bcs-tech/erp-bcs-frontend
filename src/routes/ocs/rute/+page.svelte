@@ -776,7 +776,7 @@
 								<div class="text-sm sm:text-base font-black text-amber-700 dark:text-amber-400 mt-0.5">{formatCurrency(effectiveBiayaSolar)}</div>
 								<div class="text-[10px] text-on-surface-variant/80 font-mono">Rp 6.800/L</div>
 							</div>
-							<div class="bg-white/90 dark:bg-slate-900/90 p-3 rounded-xl border border-indigo-200/80 dark:border-indigo-900/60 shadow-2xs">
+							<div class="bg-surface-container-low p-3 rounded-xl border border-surface-container/60 shadow-2xs">
 								<div class="text-[10px] text-indigo-700 dark:text-indigo-300 font-bold">Biaya Tol</div>
 								<div class="text-sm sm:text-base font-black text-indigo-700 dark:text-indigo-400 mt-0.5">{formatCurrency(Number(biayaTol) || 0)}</div>
 								<div class="text-[10px] text-on-surface-variant/80 font-mono">{selectedInternalTolls.length} Gerbang</div>
@@ -790,7 +790,7 @@
 
 						<!-- Selected Gates Chips & Waypoint Trajectory -->
 						{#if selectedInternalTolls.length > 0}
-							<div class="pt-2 border-t border-slate-200/60 dark:border-slate-800/80 space-y-2">
+							<div class="pt-2 border-t border-surface-container/60 space-y-2">
 								<div class="flex flex-wrap items-center gap-1.5 text-[11px]">
 									<span class="text-[11px] font-bold text-on-surface-variant flex items-center gap-1">
 										<span class="material-symbols-outlined text-[15px] text-indigo-600">toll</span> Gerbang Terpilih:
@@ -798,7 +798,7 @@
 									{#each selectedInternalTolls as tollId}
 										{@const gate = (data.gerbangTols || []).find((g: any) => g.id === tollId)}
 										{#if gate}
-											<span class="inline-flex items-center gap-1 bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 px-2 py-0.5 rounded-md font-semibold text-[10px] border border-indigo-200 dark:border-indigo-800 shadow-2xs">
+											<span class="inline-flex items-center gap-1 bg-surface-container-lowest text-indigo-700 dark:text-indigo-300 px-2 py-0.5 rounded-lg font-semibold text-[10px] border border-surface-container/60 shadow-2xs">
 												<span>{gate.ruas} ({gate.asal} &rarr; {gate.tujuan})</span>
 												<button type="button" onclick={() => removeToll(tollId)} class="hover:text-rose-600 ml-0.5 text-xs font-black cursor-pointer" title="Hapus gerbang ini">&times;</button>
 											</span>
@@ -807,7 +807,7 @@
 								</div>
 
 								{#if gpsWaypoints.length > 0}
-									<div class="p-2.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/60 text-emerald-800 dark:text-emerald-300 text-xs flex items-start gap-2 shadow-2xs">
+									<div class="p-2.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200/60 dark:border-emerald-800/60 text-emerald-800 dark:text-emerald-300 text-xs flex items-start gap-2 shadow-2xs">
 										<span class="material-symbols-outlined text-[18px] text-emerald-600 dark:text-emerald-400 mt-0.5 shrink-0">alt_route</span>
 										<div class="space-y-1">
 											<div class="font-bold flex items-center gap-1.5">
@@ -815,7 +815,7 @@
 											</div>
 											<div class="flex flex-wrap items-center gap-1 text-[11px]">
 												{#each gpsWaypoints as wp, idx}
-													<span class="bg-white dark:bg-slate-900 px-2 py-0.5 rounded-md font-semibold border border-emerald-200 dark:border-emerald-700/80 text-emerald-800 dark:text-emerald-200 shadow-2xs">
+													<span class="bg-surface-container-lowest px-2 py-0.5 rounded-md font-semibold border border-emerald-200/60 dark:border-emerald-700/60 text-emerald-800 dark:text-emerald-200 shadow-2xs">
 														{wp.name}
 													</span>
 													{#if idx < gpsWaypoints.length - 1}
@@ -837,11 +837,11 @@
 								<span class="material-symbols-outlined text-sky-500 text-lg">payments</span> Komponen UJO
 							</h4>
 							<div class="flex flex-wrap items-center gap-2">
-								<button type="button" onclick={() => showInternalTollModal = true} class="bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-100 dark:hover:bg-indigo-900/60 px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-colors border border-indigo-200 dark:border-indigo-800 cursor-pointer shadow-2xs">
+								<button type="button" onclick={() => showInternalTollModal = true} class="bg-indigo-50/70 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-100 dark:hover:bg-indigo-900/60 px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-colors border border-indigo-200/60 dark:border-indigo-800/60 cursor-pointer shadow-2xs">
 									<span class="material-symbols-outlined text-[16px]">toll</span>
 									Pilih Gerbang Tol Internal
 								</button>
-								<button type="button" onclick={calculateGPS} disabled={isCalculatingGPS} class="bg-amber-50 dark:bg-amber-950/40 text-amber-800 dark:text-amber-300 hover:bg-amber-100 dark:hover:bg-amber-900/60 px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-colors border border-amber-200 dark:border-amber-800 disabled:opacity-50 cursor-pointer shadow-2xs">
+								<button type="button" onclick={calculateGPS} disabled={isCalculatingGPS} class="bg-amber-50/70 dark:bg-amber-950/40 text-amber-800 dark:text-amber-300 hover:bg-amber-100 dark:hover:bg-amber-900/60 px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-colors border border-amber-200/60 dark:border-amber-800/60 disabled:opacity-50 cursor-pointer shadow-2xs">
 									{#if isCalculatingGPS}
 										<span class="material-symbols-outlined animate-spin text-[16px]">refresh</span>
 									{:else}
@@ -1052,26 +1052,26 @@
 				</div>
 
 				<!-- Section: Gerbang Tol -->
-				<div class="rounded-2xl border border-indigo-200/80 dark:border-indigo-900/60 bg-indigo-50/40 dark:bg-indigo-950/20 p-4 sm:p-5 space-y-3">
+				<div class="rounded-2xl border border-surface-container/60 bg-surface-container-low/50 p-4 sm:p-5 space-y-3">
 					<div class="flex items-center justify-between">
-						<h4 class="text-xs font-black text-indigo-900 dark:text-indigo-200 uppercase tracking-wider flex items-center gap-2">
-							<span class="material-symbols-outlined text-indigo-600 text-lg">toll</span> Rincian Gerbang Tol
+						<h4 class="text-xs font-black text-on-surface uppercase tracking-wider flex items-center gap-2">
+							<span class="material-symbols-outlined text-indigo-600 dark:text-indigo-400 text-lg">toll</span> Rincian Gerbang Tol
 						</h4>
 						<span class="text-sm font-black text-indigo-700 dark:text-indigo-300 font-mono">
 							Total: {formatCurrency(parseFloat(selectedDetailRute.biaya_tol))}
 						</span>
 					</div>
 					{#if selectedDetailRute.rincian_tol && selectedDetailRute.rincian_tol.length > 0}
-						<div class="overflow-x-auto rounded-xl border border-indigo-200/60 dark:border-indigo-900/40 bg-white/80 dark:bg-slate-900/80">
+						<div class="overflow-x-auto rounded-xl border border-surface-container/60 bg-surface-container-lowest">
 							<table class="w-full text-left text-xs">
-								<thead class="bg-indigo-50/80 dark:bg-indigo-950/40 text-on-surface-variant border-b border-indigo-100 dark:border-indigo-900/50">
+								<thead class="bg-surface-container-low text-on-surface-variant border-b border-surface-container/60">
 									<tr>
 										<th class="px-3 py-2 font-bold">Ruas Tol</th>
 										<th class="px-3 py-2 font-bold">Gerbang Asal &rarr; Tujuan</th>
 										<th class="px-3 py-2 font-bold text-right">Tarif</th>
 									</tr>
 								</thead>
-								<tbody class="divide-y divide-indigo-100 dark:divide-indigo-900/30">
+								<tbody class="divide-y divide-surface-container/60">
 									{#each selectedDetailRute.rincian_tol as t}
 										<tr>
 											<td class="px-3 py-2 font-bold text-on-surface">{t.ruas}</td>
@@ -1083,7 +1083,7 @@
 							</table>
 						</div>
 					{:else}
-						<p class="text-xs text-on-surface-variant italic bg-white/60 dark:bg-slate-900/60 p-3 rounded-xl border border-indigo-100 dark:border-indigo-900/40">
+						<p class="text-xs text-on-surface-variant italic bg-surface-container-lowest p-3 rounded-xl border border-surface-container/60">
 							{#if parseFloat(selectedDetailRute.biaya_tol) > 0}
 								Biaya tol ditetapkan secara global / GPS sebesar {formatCurrency(parseFloat(selectedDetailRute.biaya_tol))} tanpa rincian gerbang internal.
 							{:else}
@@ -1182,24 +1182,24 @@
 		
 		<div class="relative w-full max-w-3xl bg-surface-container-lowest rounded-2xl sm:rounded-[24px] shadow-2xl flex flex-col overflow-hidden max-h-[90vh] sm:max-h-[85vh] z-10 animate-in fade-in zoom-in-95 duration-150">
 			<!-- Sticky Header with Search -->
-			<div class="p-4 sm:p-6 border-b border-surface-container bg-indigo-50/60 dark:bg-indigo-950/30 flex-shrink-0">
+			<div class="p-4 sm:p-6 border-b border-surface-container/60 bg-surface-container-low/60 flex-shrink-0">
 				<div class="flex items-start justify-between gap-3">
 					<div>
-						<h3 class="text-lg sm:text-xl font-bold text-indigo-900 dark:text-indigo-200 flex items-center gap-2">
+						<h3 class="text-base sm:text-lg font-bold text-on-surface flex items-center gap-2">
 							<span class="material-symbols-outlined text-indigo-600 dark:text-indigo-400">toll</span> Database Gerbang Tol
 						</h3>
-						<p class="text-xs text-indigo-700/80 dark:text-indigo-300/80 mt-0.5">Pilih satu atau lebih gerbang tol yang akan dilalui. Tarif akan disesuaikan dengan Golongan Truk.</p>
+						<p class="text-xs text-on-surface-variant mt-0.5">Pilih satu atau lebih gerbang tol yang akan dilalui. Tarif akan disesuaikan dengan Golongan Truk.</p>
 					</div>
-					<button onclick={() => showInternalTollModal = false} class="w-8 h-8 rounded-full bg-white dark:bg-slate-800 hover:bg-surface-container-high flex items-center justify-center text-on-surface-variant transition-colors shadow-2xs flex-shrink-0 cursor-pointer">
+					<button onclick={() => showInternalTollModal = false} class="w-8 h-8 rounded-full bg-surface-container-lowest hover:bg-surface-container flex items-center justify-center text-on-surface-variant hover:text-on-surface transition-colors border border-surface-container/60 shadow-2xs flex-shrink-0 cursor-pointer">
 						<span class="material-symbols-outlined text-lg">close</span>
 					</button>
 				</div>
 				<div class="mt-3.5 space-y-2.5">
-					<div class="relative">
-						<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant text-[18px]">search</span>
-						<input type="text" bind:value={internalTollSearch} placeholder="Cari ruas, asal, atau tujuan tol..." class="w-full pl-9 pr-8 py-2 rounded-xl bg-white dark:bg-slate-900 border border-indigo-200 dark:border-indigo-800 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-all text-xs font-medium shadow-2xs" />
+					<div class="flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl bg-surface-container-low border border-surface-container/60 focus-within:ring-2 focus-within:ring-sky-500/20 focus-within:border-sky-500 transition-all">
+						<span class="material-symbols-outlined text-on-surface-variant/70 text-[18px]">search</span>
+						<input type="text" bind:value={internalTollSearch} placeholder="Cari ruas, asal, atau tujuan tol..." class="bg-transparent text-xs text-on-surface outline-none w-full border-0 placeholder:text-on-surface-variant/50 focus:ring-0" />
 						{#if internalTollSearch}
-							<button type="button" onclick={() => internalTollSearch = ''} class="absolute right-2.5 top-1/2 -translate-y-1/2 text-on-surface-variant hover:text-on-surface text-sm font-bold w-5 h-5 flex items-center justify-center rounded-full bg-slate-200 dark:bg-slate-700 cursor-pointer">
+							<button type="button" onclick={() => internalTollSearch = ''} class="text-on-surface-variant hover:text-on-surface text-sm font-bold w-5 h-5 flex items-center justify-center rounded-full bg-surface-container hover:bg-surface-container-high cursor-pointer">
 								&times;
 							</button>
 						{/if}
@@ -1207,15 +1207,15 @@
 
 					<!-- Currently Selected Tolls Chips in Modal -->
 					{#if selectedInternalTolls.length > 0}
-						<div class="p-2 rounded-xl bg-indigo-100/60 dark:bg-indigo-900/40 border border-indigo-200 dark:border-indigo-800 flex flex-wrap items-center gap-1.5 max-h-24 overflow-y-auto">
-							<span class="text-[10px] font-black uppercase tracking-wider text-indigo-800 dark:text-indigo-200 mr-1 flex items-center gap-1">
+						<div class="p-2.5 rounded-xl bg-surface-container-low border border-surface-container/60 flex flex-wrap items-center gap-1.5 max-h-24 overflow-y-auto">
+							<span class="text-[10px] font-black uppercase tracking-wider text-indigo-600 dark:text-indigo-400 mr-1 flex items-center gap-1">
 								<span class="material-symbols-outlined text-[13px]">check_circle</span>
 								{selectedInternalTolls.length} Dipilih:
 							</span>
 							{#each selectedInternalTolls as sId}
 								{@const sGate = (data.gerbangTols || []).find((g: any) => g.id === sId)}
 								{#if sGate}
-									<span class="inline-flex items-center gap-1 bg-white dark:bg-slate-900 text-indigo-700 dark:text-indigo-300 px-2 py-0.5 rounded-md font-semibold text-[10px] border border-indigo-200 dark:border-indigo-800 shadow-2xs">
+									<span class="inline-flex items-center gap-1 bg-surface-container-lowest text-indigo-700 dark:text-indigo-300 px-2.5 py-0.5 rounded-lg font-semibold text-[10px] border border-surface-container/60 shadow-2xs">
 										<span>{sGate.asal} &rarr; {sGate.tujuan}</span>
 										<button type="button" onclick={() => toggleInternalToll(sId)} class="hover:text-rose-600 font-bold ml-0.5 cursor-pointer">&times;</button>
 									</span>
@@ -1232,7 +1232,7 @@
 			<!-- Scrollable Table Body -->
 			<div class="p-0 overflow-y-auto overscroll-contain flex-1 bg-surface-container-lowest">
 				<table class="w-full text-left text-xs">
-					<thead class="bg-surface-container-low text-on-surface-variant sticky top-0 z-10 border-b border-surface-container shadow-2xs">
+					<thead class="bg-surface-container-low text-on-surface-variant sticky top-0 z-10 border-b border-surface-container/60 shadow-2xs">
 						<tr>
 							<th class="px-3.5 py-2.5 font-black uppercase tracking-wider text-[10px] w-12 text-center">Pilih</th>
 							<th class="px-3.5 py-2.5 font-black uppercase tracking-wider text-[10px]">Ruas Tol</th>
@@ -1240,10 +1240,10 @@
 							<th class="px-3.5 py-2.5 font-black uppercase tracking-wider text-[10px] text-right">Tarif (Gol 2 & 3)</th>
 						</tr>
 					</thead>
-					<tbody class="divide-y divide-surface-container">
+					<tbody class="divide-y divide-surface-container/60">
 						{#each filteredInternalTolls as g}
 							<tr 
-								class="hover:bg-indigo-50/40 dark:hover:bg-indigo-950/30 transition-colors cursor-pointer {selectedInternalTolls.includes(g.id) ? 'bg-indigo-50/80 dark:bg-indigo-950/60 font-semibold' : ''} {recommendedTollIds.includes(g.id) && !selectedInternalTolls.includes(g.id) ? 'bg-amber-50/50 dark:bg-amber-950/30' : ''}"
+								class="hover:bg-surface-container-low/60 transition-colors cursor-pointer {selectedInternalTolls.includes(g.id) ? 'bg-indigo-50/60 dark:bg-indigo-950/40 font-semibold' : ''} {recommendedTollIds.includes(g.id) && !selectedInternalTolls.includes(g.id) ? 'bg-amber-50/50 dark:bg-amber-950/30' : ''}"
 								onclick={() => toggleInternalToll(g.id)}
 							>
 								<td class="px-3.5 py-2.5 text-center" onclick={(e) => e.stopPropagation()}>
@@ -1282,7 +1282,7 @@
 			</div>
 
 			<!-- Sticky Footer with Real-time Toll & Solar Preview -->
-			<div class="p-4 sm:p-5 border-t border-surface-container bg-surface-container-lowest flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 flex-shrink-0">
+			<div class="p-4 sm:p-5 border-t border-surface-container/60 bg-surface-container-lowest flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 flex-shrink-0">
 				<div class="text-xs sm:text-sm font-bold text-on-surface-variant text-center sm:text-left">
 					<span class="text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/50 px-2 py-1 rounded-md">{selectedInternalTolls.length}</span> Gerbang Dipilih
 					{#if effectiveBiayaSolar > 0}

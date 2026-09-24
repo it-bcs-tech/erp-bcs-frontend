@@ -760,7 +760,7 @@
 		<div class="flex items-center gap-2">
 			<a
 				href="/ocs/rute"
-				class="px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-surface-container-lowest text-xs font-bold text-on-surface hover:bg-surface-container transition-colors flex items-center gap-2 shadow-2xs"
+				class="px-4 py-2 rounded-xl border border-surface-container/60 bg-surface-container-lowest text-xs font-bold text-on-surface hover:bg-surface-container transition-colors flex items-center gap-2 shadow-2xs"
 			>
 				<span class="material-symbols-outlined text-[18px]">route</span>
 				Buka Master Rute & UJO
@@ -807,7 +807,7 @@
 	{/if}
 
 	<!-- Navigation Tabs -->
-	<div class="flex items-center gap-2 border-b border-slate-200 dark:border-slate-800 pb-px">
+	<div class="flex items-center gap-2 border-b border-surface-container/60 pb-px">
 		<button
 			onclick={() => { activeTab = 'tarif'; }}
 			class="px-4 py-2.5 rounded-t-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer border-b-2 {activeTab === 'tarif' ? 'border-sky-600 text-sky-600 dark:text-sky-400 bg-sky-50/50 dark:bg-sky-950/20' : 'border-transparent text-on-surface-variant hover:text-on-surface'}"
@@ -828,7 +828,7 @@
 	<div class="space-y-4" class:hidden={activeTab !== 'tarif'}>
 		<!-- KPI Metric Cards -->
 		<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-			<div class="p-5 rounded-2xl bg-surface-container-lowest border border-slate-200/70 dark:border-slate-800/70 transition-all hover:border-sky-500/30 shadow-2xs">
+			<div class="p-5 rounded-2xl bg-surface-container-lowest border border-surface-container/60 transition-all hover:border-sky-500/30 shadow-2xs">
 				<div class="flex items-center justify-between mb-2">
 					<span class="text-xs font-bold text-on-surface-variant uppercase tracking-wider">Total Gerbang Tol</span>
 					<div class="w-9 h-9 rounded-xl bg-sky-500/10 text-sky-600 dark:text-sky-400 flex items-center justify-center">
@@ -839,7 +839,7 @@
 				<p class="text-[11px] text-on-surface-variant mt-1">Konfigurasi asal → tujuan aktif</p>
 			</div>
 
-			<div class="p-5 rounded-2xl bg-surface-container-lowest border border-slate-200/70 dark:border-slate-800/70 transition-all hover:border-indigo-500/30 shadow-2xs">
+			<div class="p-5 rounded-2xl bg-surface-container-lowest border border-surface-container/60 transition-all hover:border-indigo-500/30 shadow-2xs">
 				<div class="flex items-center justify-between mb-2">
 					<span class="text-xs font-bold text-on-surface-variant uppercase tracking-wider">Ruas Jalan Tol</span>
 					<div class="w-9 h-9 rounded-xl bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 flex items-center justify-center">
@@ -850,7 +850,7 @@
 				<p class="text-[11px] text-on-surface-variant mt-1">Koridor tol terdaftar</p>
 			</div>
 
-			<div class="p-5 rounded-2xl bg-surface-container-lowest border border-slate-200/70 dark:border-slate-800/70 transition-all hover:border-emerald-500/30 shadow-2xs">
+			<div class="p-5 rounded-2xl bg-surface-container-lowest border border-surface-container/60 transition-all hover:border-emerald-500/30 shadow-2xs">
 				<div class="flex items-center justify-between mb-2">
 					<span class="text-xs font-bold text-on-surface-variant uppercase tracking-wider">Rata-rata Gol 2 & 3</span>
 					<div class="w-9 h-9 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
@@ -861,7 +861,7 @@
 				<p class="text-[11px] text-on-surface-variant mt-1">Tarif rata-rata armada BCS</p>
 			</div>
 
-			<div class="p-5 rounded-2xl bg-surface-container-lowest border border-slate-200/70 dark:border-slate-800/70 transition-all hover:border-amber-500/30 shadow-2xs">
+			<div class="p-5 rounded-2xl bg-surface-container-lowest border border-surface-container/60 transition-all hover:border-amber-500/30 shadow-2xs">
 				<div class="flex items-center justify-between mb-2">
 					<span class="text-xs font-bold text-on-surface-variant uppercase tracking-wider">Tarif Tertinggi</span>
 					<div class="w-9 h-9 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center">
@@ -874,10 +874,10 @@
 		</div>
 
 		<!-- Filter & Search Bar -->
-		<div class="p-4 rounded-2xl bg-surface-container-lowest border border-slate-200/70 dark:border-slate-800/70 shadow-2xs">
+		<div class="p-4 rounded-2xl bg-surface-container-lowest border border-surface-container/60 shadow-2xs">
 			<div class="flex flex-col sm:flex-row items-center justify-between gap-3">
 				<div class="flex flex-1 w-full sm:w-auto items-center gap-3">
-					<div class="flex-1 flex items-center gap-2.5 px-3.5 py-2 rounded-xl bg-surface-container-low border border-slate-200 dark:border-slate-800 focus-within:ring-2 focus-within:ring-sky-500/20 focus-within:border-sky-500">
+					<div class="flex-1 flex items-center gap-2.5 px-3.5 py-2 rounded-xl bg-surface-container-low border border-surface-container/60 focus-within:ring-2 focus-within:ring-sky-500/20 focus-within:border-sky-500 transition-all">
 						<span class="material-symbols-outlined text-on-surface-variant text-[18px]">search</span>
 						<input
 							type="text"
@@ -895,7 +895,7 @@
 					<div class="w-56">
 						<select
 							bind:value={selectedRuas}
-							class="w-full px-3 py-2 rounded-xl bg-surface-container-low border border-slate-200 dark:border-slate-800 text-xs text-on-surface outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 font-medium"
+							class="w-full px-3 py-2 rounded-xl bg-surface-container-low border border-surface-container/60 text-xs text-on-surface outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 font-medium transition-all"
 						>
 							<option value="ALL">Semua Ruas ({data.ruasList?.length || 0})</option>
 							{#each data.ruasList as ruas}
@@ -909,10 +909,10 @@
 					<span class="text-xs text-on-surface-variant font-medium">
 						Ditemukan <strong class="text-on-surface">{filteredList.length}</strong> data
 					</span>
-					<div class="h-4 w-[1px] bg-slate-200 dark:border-slate-800"></div>
+					<div class="h-4 w-[1px] bg-surface-container"></div>
 					<select
 						bind:value={pageSize}
-						class="px-2.5 py-1.5 rounded-lg bg-surface-container-low border border-slate-200 dark:border-slate-800 text-xs text-on-surface outline-none font-medium"
+						class="px-2.5 py-1.5 rounded-lg bg-surface-container-low border border-surface-container/60 text-xs text-on-surface outline-none font-medium"
 					>
 						<option value={15}>15 / hal</option>
 						<option value={25}>25 / hal</option>
@@ -924,11 +924,11 @@
 		</div>
 
 		<!-- Data Table -->
-		<div class="rounded-2xl bg-surface-container-lowest border border-slate-200/70 dark:border-slate-800/70 overflow-hidden shadow-2xs">
+		<div class="rounded-2xl bg-surface-container-lowest border border-surface-container/60 overflow-hidden shadow-2xs">
 			<div class="overflow-x-auto">
 				<table class="w-full text-left border-collapse text-xs">
 					<thead>
-						<tr class="bg-surface-container-low/70 border-b border-slate-200 dark:border-slate-800 text-on-surface-variant font-bold uppercase tracking-wider text-[10px]">
+						<tr class="bg-surface-container-low/60 border-b border-surface-container/60 text-on-surface-variant font-bold uppercase tracking-wider text-[10px]">
 							<th class="py-3 px-4 w-12 text-center">No</th>
 							<th class="py-3 px-4 min-w-[160px]">Ruas Tol</th>
 							<th class="py-3 px-4 min-w-[220px]">Gerbang Asal → Tujuan</th>
@@ -1002,7 +1002,7 @@
 												Dipakai di Rute
 											</span>
 										{:else}
-											<span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-medium bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400 border border-slate-200 dark:border-slate-700">
+											<span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-medium bg-surface-container text-on-surface-variant border border-surface-container/60">
 												Tersedia
 											</span>
 										{/if}
@@ -1044,7 +1044,7 @@
 
 			<!-- Pagination Bar -->
 			{#if totalPages > 1}
-				<div class="px-4 py-3 bg-surface-container-low/50 border-t border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
+				<div class="px-4 py-3 bg-surface-container-low/40 border-t border-surface-container/60 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
 					<span class="text-on-surface-variant">
 						Menampilkan <strong class="text-on-surface">{(currentPage - 1) * pageSize + 1}</strong> - <strong class="text-on-surface">{Math.min(currentPage * pageSize, filteredList.length)}</strong> dari <strong class="text-on-surface">{filteredList.length}</strong> gerbang
 					</span>
@@ -1053,7 +1053,7 @@
 						<button
 							onclick={() => { currentPage = Math.max(1, currentPage - 1); }}
 							disabled={currentPage === 1}
-							class="px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-800 bg-surface-container-lowest hover:bg-surface-container disabled:opacity-40 disabled:cursor-not-allowed text-xs font-semibold flex items-center gap-1 transition-colors"
+							class="px-2.5 py-1.5 rounded-lg border border-surface-container/60 bg-surface-container-lowest hover:bg-surface-container disabled:opacity-40 disabled:cursor-not-allowed text-xs font-semibold flex items-center gap-1 transition-colors cursor-pointer"
 						>
 							<span class="material-symbols-outlined text-[16px]">chevron_left</span>
 							Sebelumnya
@@ -1068,7 +1068,7 @@
 						<button
 							onclick={() => { currentPage = Math.min(totalPages, currentPage + 1); }}
 							disabled={currentPage === totalPages}
-							class="px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-800 bg-surface-container-lowest hover:bg-surface-container disabled:opacity-40 disabled:cursor-not-allowed text-xs font-semibold flex items-center gap-1 transition-colors"
+							class="px-2.5 py-1.5 rounded-lg border border-surface-container/60 bg-surface-container-lowest hover:bg-surface-container disabled:opacity-40 disabled:cursor-not-allowed text-xs font-semibold flex items-center gap-1 transition-colors cursor-pointer"
 						>
 							Berikutnya
 							<span class="material-symbols-outlined text-[16px]">chevron_right</span>
@@ -1080,33 +1080,39 @@
 	</div>
 
 	<!-- ==================== TAB 2: PETA POINTING & GEOFENCE ==================== -->
-	<div class="relative w-full h-[calc(100vh-14rem)] min-h-[580px] rounded-3xl overflow-hidden shadow-xs border border-slate-200/60 dark:border-slate-800/60 bg-surface-container-low" class:hidden={activeTab !== 'map'}>
+	<div class="relative w-full h-[calc(100vh-14rem)] min-h-[580px] rounded-3xl overflow-hidden shadow-xs border border-surface-container/60 bg-surface-container-low" class:hidden={activeTab !== 'map'}>
 		<!-- FULLSCREEN MAP -->
 			<div bind:this={mapContainer} class="absolute inset-0 z-0 bg-surface-container-low"></div>
 
-			<!-- FLOATING TOOLBAR KIRI: SEARCH & DAFTAR GERBANG TOL -->
-			<div class="absolute top-4 left-4 z-20 w-84 max-w-[calc(100%-2rem)] flex flex-col gap-3 max-h-[calc(100%-2rem)] pointer-events-auto">
-				<!-- Search Google Places Box -->
-				<form onsubmit={searchLocationOnMap} class="relative w-full shadow-lg rounded-2xl bg-surface/95 backdrop-blur-md border border-slate-200/60 dark:border-slate-800/60 overflow-hidden flex items-center">
-					<span class="material-symbols-outlined text-sky-600 dark:text-sky-400 ml-3 text-[18px]">search</span>
+			<!-- FLOATING SEARCH BAR GOOGLE PLACES (TOP CENTER) -->
+			<div class="absolute top-4 left-4 right-4 sm:left-1/2 sm:-translate-x-1/2 sm:w-[28rem] md:w-[32rem] z-20 pointer-events-auto">
+				<form onsubmit={searchLocationOnMap} class="relative w-full shadow-lg rounded-2xl bg-surface-container-lowest/95 backdrop-blur-md border border-surface-container/60 overflow-hidden flex items-center transition-all focus-within:ring-2 focus-within:ring-sky-500/20 focus-within:border-sky-500">
+					<span class="material-symbols-outlined text-sky-600 dark:text-sky-400 ml-3.5 text-[20px]">search</span>
 					<input 
 						id="mapSearchInput"
 						type="text" 
 						bind:value={mapSearchQuery}
 						placeholder="Cari gerbang tol / alamat (Google Places)..." 
-						class="w-full bg-transparent text-on-surface py-2 px-2.5 focus:outline-none text-xs font-medium placeholder:text-slate-400"
+						class="w-full bg-transparent text-on-surface py-2.5 px-3 focus:outline-none text-xs sm:text-sm font-medium placeholder:text-on-surface-variant/50"
 					/>
+					{#if mapSearchQuery}
+						<button type="button" onclick={() => mapSearchQuery = ''} class="text-on-surface-variant hover:text-on-surface text-sm font-bold w-5 h-5 flex items-center justify-center rounded-full bg-surface-container-high mr-2 cursor-pointer">
+							&times;
+						</button>
+					{/if}
 					{#if isSearchingMap}
 						<span class="material-symbols-outlined text-sky-500 animate-spin mr-3 text-[18px]">refresh</span>
 					{/if}
 				</form>
+			</div>
 
-				<!-- Daftar Gerbang Tol Panel -->
-				<div class="bg-surface/95 backdrop-blur-md rounded-2xl shadow-xl border border-slate-200/60 dark:border-slate-800/60 flex flex-col overflow-hidden flex-1">
-					<div class="p-3 border-b border-slate-200/60 dark:border-slate-800/60 bg-surface-container-low/50">
+			<!-- FLOATING PANEL KIRI: DAFTAR GERBANG TOL -->
+			<div class="absolute top-16 sm:top-4 left-4 z-20 w-84 max-w-[calc(100%-2rem)] flex flex-col gap-3 max-h-[calc(100%-5rem)] sm:max-h-[calc(100%-2rem)] pointer-events-auto">
+				<div class="bg-surface-container-lowest/95 backdrop-blur-md rounded-2xl shadow-xl border border-surface-container/60 flex flex-col overflow-hidden flex-1">
+					<div class="p-3 border-b border-surface-container/60 bg-surface-container-low/40">
 						<div class="flex items-center justify-between mb-2">
 							<div class="flex items-center gap-2">
-								<div class="w-7 h-7 rounded-lg bg-sky-500/10 text-sky-600 flex items-center justify-center font-bold">
+								<div class="w-7 h-7 rounded-lg bg-sky-500/10 text-sky-600 dark:text-sky-400 flex items-center justify-center font-bold">
 									<span class="material-symbols-outlined text-base">pin_drop</span>
 								</div>
 								<div>
@@ -1116,7 +1122,7 @@
 							</div>
 							<button 
 								onclick={openCreateTitikModal}
-								class="px-2.5 py-1 text-[11px] font-bold rounded-lg bg-sky-600 text-white hover:bg-sky-700 transition-all cursor-pointer flex items-center gap-1"
+								class="px-2.5 py-1 text-[11px] font-bold rounded-lg bg-sky-600 text-white hover:bg-sky-700 transition-all cursor-pointer flex items-center gap-1 shadow-2xs"
 							>
 								<span class="material-symbols-outlined text-[14px]">add</span>
 								Baru
@@ -1124,7 +1130,7 @@
 						</div>
 
 						<!-- Sub-tab Pemilih Daftar: Master vs GPS -->
-						<div class="flex items-center gap-1 p-1 bg-surface-container-low rounded-xl mb-2 border border-slate-200/60 dark:border-slate-800/60">
+						<div class="flex items-center gap-1 p-1 bg-surface-container-low rounded-xl mb-2 border border-surface-container/40">
 							<button
 								type="button"
 								onclick={() => { mapSidebarView = 'master'; }}
@@ -1142,14 +1148,19 @@
 						</div>
 
 						<!-- Filter input kecil -->
-						<div class="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-surface-container-low border border-slate-200 dark:border-slate-800">
-							<span class="material-symbols-outlined text-slate-400 text-[14px]">filter_alt</span>
+						<div class="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-surface-container-low border border-surface-container/50 focus-within:ring-2 focus-within:ring-sky-500/20 focus-within:border-sky-500 transition-all">
+							<span class="material-symbols-outlined text-on-surface-variant text-[15px]">filter_alt</span>
 							<input
 								type="text"
 								bind:value={searchTitikQuery}
 								placeholder="Saring nama gerbang..."
-								class="w-full bg-transparent text-[11px] text-on-surface outline-none placeholder:text-slate-400"
+								class="w-full bg-transparent text-xs text-on-surface outline-none placeholder:text-on-surface-variant/50"
 							/>
+							{#if searchTitikQuery}
+								<button type="button" onclick={() => searchTitikQuery = ''} class="text-on-surface-variant hover:text-on-surface text-xs font-bold">
+									&times;
+								</button>
+							{/if}
 						</div>
 					</div>
 
@@ -1158,7 +1169,7 @@
 						{#if mapSidebarView === 'master'}
 							<!-- Tampilkan data nama gerbang fisik individual dari master.m_gerbang_tol -->
 							{#each filteredUniqueGerbangList as gate}
-								<div class="p-2.5 bg-surface-container/40 hover:bg-surface-container/90 rounded-xl flex items-center justify-between group transition-colors border border-transparent hover:border-sky-500/30">
+								<div class="p-2.5 bg-surface-container-low/60 hover:bg-surface-container rounded-xl flex items-center justify-between group transition-colors border border-transparent hover:border-sky-500/20">
 									<div class="min-w-0 pr-2">
 										<p class="font-bold text-xs text-on-surface truncate">{gate.nama_gerbang}</p>
 										<p class="text-[10px] text-on-surface-variant truncate">{gate.ruas_tol || '-'}</p>
@@ -1270,9 +1281,9 @@
 
 			<!-- FLOATING PANEL KANAN: SLIDE-OVER FORM INPUT TITIK GERBANG TOL -->
 			{#if showTitikModal}
-				<div class="absolute top-4 right-4 z-30 w-96 max-w-[calc(100%-2rem)] flex flex-col bg-surface/95 backdrop-blur-md rounded-2xl shadow-2xl border border-slate-200/80 dark:border-slate-800/80 overflow-hidden max-h-[calc(100%-2rem)] animate-in fade-in slide-in-from-right-4 duration-200 pointer-events-auto">
+				<div class="absolute top-4 right-4 z-30 w-96 max-w-[calc(100%-2rem)] flex flex-col bg-surface-container-lowest/95 backdrop-blur-md rounded-2xl shadow-2xl border border-surface-container/60 overflow-hidden max-h-[calc(100%-2rem)] animate-in fade-in slide-in-from-right-4 duration-200 pointer-events-auto">
 					<!-- Panel Header -->
-					<div class="p-4 border-b border-slate-200/60 dark:border-slate-800/60 flex items-center justify-between bg-surface-container-low/60">
+					<div class="p-4 border-b border-surface-container/60 flex items-center justify-between bg-surface-container-low/60">
 						<div class="flex items-center gap-2.5">
 							<div class="w-8 h-8 rounded-xl bg-sky-500/10 text-sky-600 dark:text-sky-400 flex items-center justify-center">
 								<span class="material-symbols-outlined text-[18px]">pin_drop</span>
@@ -1302,7 +1313,7 @@
 							<span class="block text-[10px] font-black text-on-surface-variant/70 uppercase tracking-wider mb-1.5">
 								Pilihan Mode Peta
 							</span>
-							<div class="p-1 rounded-xl bg-surface-container-low border border-slate-200 dark:border-slate-800 flex items-center gap-1">
+							<div class="p-1 rounded-xl bg-surface-container-low border border-surface-container/60 flex items-center gap-1">
 								<button
 									type="button"
 									onclick={() => { mapInteractionMode = 'point'; }}
@@ -1382,7 +1393,7 @@
 										bind:value={titikKode}
 										placeholder="GT-MRK"
 										required
-										class="w-full px-2.5 py-1.5 rounded-lg bg-surface-container-low border border-slate-200 dark:border-slate-800 text-xs font-mono font-bold text-on-surface outline-none focus:border-sky-500 uppercase"
+										class="w-full px-2.5 py-1.5 rounded-lg bg-surface-container-low border border-surface-container/60 text-xs font-mono font-bold text-on-surface outline-none focus:border-sky-500 uppercase"
 									/>
 								</div>
 								<div>
@@ -1396,7 +1407,7 @@
 										bind:value={titikNama}
 										placeholder="Cth: GT Merak"
 										required
-										class="w-full px-2.5 py-1.5 rounded-lg bg-surface-container-low border border-slate-200 dark:border-slate-800 text-xs text-on-surface outline-none focus:border-sky-500"
+										class="w-full px-2.5 py-1.5 rounded-lg bg-surface-container-low border border-surface-container/60 text-xs text-on-surface outline-none focus:border-sky-500"
 									/>
 								</div>
 							</div>
@@ -1414,7 +1425,7 @@
 										list="titik-ruas-datalist"
 										bind:value={titikRuas}
 										placeholder="Tangerang - Merak"
-										class="w-full px-2.5 py-1.5 rounded-lg bg-surface-container-low border border-slate-200 dark:border-slate-800 text-xs text-on-surface outline-none focus:border-sky-500"
+										class="w-full px-2.5 py-1.5 rounded-lg bg-surface-container-low border border-surface-container/60 text-xs text-on-surface outline-none focus:border-sky-500"
 									/>
 									<datalist id="titik-ruas-datalist">
 										{#each data.ruasList as r}
@@ -1433,19 +1444,19 @@
 										name="km_pos"
 										bind:value={titikKm}
 										placeholder="98.0"
-										class="w-full px-2.5 py-1.5 rounded-lg bg-surface-container-low border border-slate-200 dark:border-slate-800 text-xs font-mono text-on-surface outline-none focus:border-sky-500"
+										class="w-full px-2.5 py-1.5 rounded-lg bg-surface-container-low border border-surface-container/60 text-xs font-mono text-on-surface outline-none focus:border-sky-500"
 									/>
 								</div>
 							</div>
 
 							<!-- Koordinat GPS -->
-							<div class="p-2.5 rounded-xl bg-surface-container-low border border-slate-200 dark:border-slate-800 space-y-2">
+							<div class="p-2.5 rounded-xl bg-surface-container-low border border-surface-container/60 space-y-2">
 								<span class="block text-[10px] font-black text-on-surface-variant/70 uppercase tracking-wider">
 									Koordinat GPS (Otomatis dari Peta)
 								</span>
 								<div class="grid grid-cols-2 gap-2">
 									<div>
-										<label for="titik-lat" class="block text-[10px] font-bold text-slate-500 mb-0.5">Latitude</label>
+										<label for="titik-lat" class="block text-[10px] font-bold text-on-surface-variant mb-0.5">Latitude</label>
 										<input
 											id="titik-lat"
 											type="number"
@@ -1454,11 +1465,11 @@
 											bind:value={titikLat}
 											required
 											placeholder="-5.9288000"
-											class="w-full px-2 py-1 rounded bg-surface-container-lowest border border-slate-200 dark:border-slate-700 text-xs font-mono font-bold text-on-surface outline-none focus:border-sky-500"
+											class="w-full px-2 py-1 rounded bg-surface-container-lowest border border-surface-container/60 text-xs font-mono font-bold text-on-surface outline-none focus:border-sky-500"
 										/>
 									</div>
 									<div>
-										<label for="titik-lng" class="block text-[10px] font-bold text-slate-500 mb-0.5">Longitude</label>
+										<label for="titik-lng" class="block text-[10px] font-bold text-on-surface-variant mb-0.5">Longitude</label>
 										<input
 											id="titik-lng"
 											type="number"
@@ -1467,7 +1478,7 @@
 											bind:value={titikLng}
 											required
 											placeholder="106.0028000"
-											class="w-full px-2 py-1 rounded bg-surface-container-lowest border border-slate-200 dark:border-slate-700 text-xs font-mono font-bold text-on-surface outline-none focus:border-sky-500"
+											class="w-full px-2 py-1 rounded bg-surface-container-lowest border border-surface-container/60 text-xs font-mono font-bold text-on-surface outline-none focus:border-sky-500"
 										/>
 									</div>
 								</div>
@@ -1485,11 +1496,11 @@
 										type="number"
 										name="radius_m"
 										bind:value={titikRadius}
-										class="w-full px-2 py-1 rounded bg-surface-container-low border border-slate-200 dark:border-slate-800 text-xs font-mono text-on-surface outline-none"
+										class="w-full px-2 py-1 rounded bg-surface-container-low border border-surface-container/60 text-xs font-mono text-on-surface outline-none"
 									/>
 								</div>
 								<label class="flex items-center gap-1.5 text-xs font-bold text-on-surface cursor-pointer mt-3">
-									<input type="checkbox" name="is_active" value="true" bind:checked={titikIsActive} class="rounded border-slate-300 text-sky-600 focus:ring-sky-500" />
+									<input type="checkbox" name="is_active" value="true" bind:checked={titikIsActive} class="rounded border-surface-container text-sky-600 focus:ring-sky-500" />
 									Status Aktif
 								</label>
 							</div>
@@ -1497,7 +1508,7 @@
 					</div>
 
 					<!-- Panel Footer Actions -->
-					<div class="p-3 border-t border-slate-200/60 dark:border-slate-800/60 bg-surface-container-low/60 flex items-center justify-end gap-2">
+					<div class="p-3 border-t border-surface-container/60 bg-surface-container-low/60 flex items-center justify-end gap-2">
 						<button
 							type="button"
 							onclick={closeTitikForm}
@@ -1530,7 +1541,7 @@
 {#if showDeleteTitikModal && titikToDelete}
 	<div class="fixed inset-0 z-[1000] flex items-center justify-center p-4">
 		<div class="absolute inset-0 bg-slate-900/60 backdrop-blur-xs" onclick={() => { if (!isDeletingTitik) showDeleteTitikModal = false; }}></div>
-		<div class="relative w-full max-w-md bg-surface-container-lowest rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xl overflow-hidden z-10 p-6 space-y-4 animate-in fade-in zoom-in-95 duration-150">
+		<div class="relative w-full max-w-md bg-surface-container-lowest rounded-2xl border border-surface-container/60 shadow-2xl overflow-hidden z-10 p-6 space-y-4 animate-in fade-in zoom-in-95 duration-150">
 			<div class="flex items-start gap-3.5">
 				<div class="w-10 h-10 rounded-xl bg-rose-100 text-rose-700 dark:bg-rose-950/50 dark:text-rose-300 flex items-center justify-center flex-shrink-0">
 					<span class="material-symbols-outlined text-[22px]">delete_forever</span>
@@ -1588,8 +1599,8 @@
 	<div class="fixed inset-0 z-[1000] flex items-center justify-center p-4">
 		<div class="absolute inset-0 bg-slate-900/60 backdrop-blur-xs" onclick={() => { if (!isSubmitting) showModal = false; }}></div>
 
-		<div class="relative w-full max-w-xl bg-surface-container-lowest rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xl overflow-hidden z-10 animate-in fade-in zoom-in-95 duration-150">
-			<div class="px-6 py-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between bg-surface-container-low/40">
+		<div class="relative w-full max-w-xl bg-surface-container-lowest rounded-2xl border border-surface-container/60 shadow-2xl overflow-hidden z-10 animate-in fade-in zoom-in-95 duration-150">
+			<div class="px-6 py-4 border-b border-surface-container/60 flex items-center justify-between bg-surface-container-low/40">
 				<div class="flex items-center gap-2.5">
 					<div class="w-8 h-8 rounded-lg bg-sky-500/10 text-sky-600 dark:text-sky-400 flex items-center justify-center">
 						<span class="material-symbols-outlined text-[18px]">{isEditing ? 'edit' : 'add'}</span>
@@ -1641,7 +1652,7 @@
 						bind:value={formRuas}
 						placeholder="Misal: Tangerang - Merak, Jakarta - Cikampek..."
 						required
-						class="w-full px-3.5 py-2 rounded-xl bg-surface-container-low border border-slate-200 dark:border-slate-800 text-xs text-on-surface outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500"
+						class="w-full px-3.5 py-2 rounded-xl bg-surface-container-low border border-surface-container/60 text-xs text-on-surface outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500"
 					/>
 					<datalist id="ruas-datalist">
 						{#each data.ruasList as r}
@@ -1660,7 +1671,7 @@
 							name="gerbang_asal_id"
 							bind:value={formAsalId}
 							onchange={(e) => handleTitikAsalSelect((e.target as HTMLSelectElement).value ? Number((e.target as HTMLSelectElement).value) : '')}
-							class="w-full px-3 py-2 rounded-xl bg-surface-container-low border border-slate-200 dark:border-slate-800 text-xs text-on-surface outline-none focus:border-sky-500"
+							class="w-full px-3 py-2 rounded-xl bg-surface-container-low border border-surface-container/60 text-xs text-on-surface outline-none focus:border-sky-500"
 						>
 							<option value="">-- Pilih Titik Fisik (Opsional) --</option>
 							{#each (data.titikGerbangList || []) as tg}
@@ -1673,7 +1684,7 @@
 							bind:value={formAsal}
 							placeholder="Nama teks asal (cth: Merak)"
 							required
-							class="w-full mt-1.5 px-3 py-1.5 rounded-lg bg-surface-container-lowest border border-slate-200 dark:border-slate-800 text-xs text-on-surface outline-none"
+							class="w-full mt-1.5 px-3 py-1.5 rounded-lg bg-surface-container-lowest border border-surface-container/60 text-xs text-on-surface outline-none"
 						/>
 					</div>
 
@@ -1686,7 +1697,7 @@
 							name="gerbang_tujuan_id"
 							bind:value={formTujuanId}
 							onchange={(e) => handleTitikTujuanSelect((e.target as HTMLSelectElement).value ? Number((e.target as HTMLSelectElement).value) : '')}
-							class="w-full px-3 py-2 rounded-xl bg-surface-container-low border border-slate-200 dark:border-slate-800 text-xs text-on-surface outline-none focus:border-sky-500"
+							class="w-full px-3 py-2 rounded-xl bg-surface-container-low border border-surface-container/60 text-xs text-on-surface outline-none focus:border-sky-500"
 						>
 							<option value="">-- Pilih Titik Fisik (Opsional) --</option>
 							{#each (data.titikGerbangList || []) as tg}
@@ -1699,7 +1710,7 @@
 							bind:value={formTujuan}
 							placeholder="Nama teks tujuan (cth: Cikupa)"
 							required
-							class="w-full mt-1.5 px-3 py-1.5 rounded-lg bg-surface-container-lowest border border-slate-200 dark:border-slate-800 text-xs text-on-surface outline-none"
+							class="w-full mt-1.5 px-3 py-1.5 rounded-lg bg-surface-container-lowest border border-surface-container/60 text-xs text-on-surface outline-none"
 						/>
 					</div>
 				</div>
@@ -1715,18 +1726,18 @@
 						name="jarak_ruas_km"
 						bind:value={formJarakKm}
 						placeholder="Misal: 67.0"
-						class="w-full px-3.5 py-2 rounded-xl bg-surface-container-low border border-slate-200 dark:border-slate-800 text-xs font-mono text-on-surface outline-none focus:border-sky-500"
+						class="w-full px-3.5 py-2 rounded-xl bg-surface-container-low border border-surface-container/60 text-xs font-mono text-on-surface outline-none focus:border-sky-500"
 					/>
 					<p class="text-[10px] text-on-surface-variant mt-1">Dihitung otomatis jika gerbang asal dan tujuan memiliki koordinat KM Pos.</p>
 				</div>
 
-				<div class="pt-2 border-t border-slate-200 dark:border-slate-800">
+				<div class="pt-2 border-t border-surface-container/60">
 					<p class="text-[10px] font-black text-on-surface-variant/60 uppercase tracking-wider mb-3">
 						Konfigurasi Tarif per Golongan Kendaraan (IDR)
 					</p>
 
 					<div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
-						<div class="p-3 rounded-xl bg-surface-container-low/60 border border-slate-200/60 dark:border-slate-800/60">
+						<div class="p-3 rounded-xl bg-surface-container-low/60 border border-surface-container/60">
 							<label for="modal-tarif-1" class="block text-[11px] font-bold text-on-surface mb-0.5">Golongan I</label>
 							<span class="text-[9px] text-on-surface-variant/70 block mb-1.5">Sedan, Pick Up, Bus</span>
 							<input
@@ -1736,7 +1747,7 @@
 								min="0"
 								step="500"
 								bind:value={formTarif1}
-								class="w-full px-2.5 py-1.5 rounded-lg bg-surface-container-lowest border border-slate-200 dark:border-slate-800 text-xs font-mono font-bold text-on-surface outline-none focus:border-sky-500"
+								class="w-full px-2.5 py-1.5 rounded-lg bg-surface-container-lowest border border-surface-container/60 text-xs font-mono font-bold text-on-surface outline-none focus:border-sky-500"
 							/>
 						</div>
 
@@ -1770,7 +1781,7 @@
 					</div>
 				</div>
 
-				<div class="pt-4 border-t border-slate-200 dark:border-slate-800 flex items-center justify-end gap-2">
+				<div class="pt-4 border-t border-surface-container/60 flex items-center justify-end gap-2">
 					<button
 						type="button"
 						onclick={() => { showModal = false; }}
@@ -1803,7 +1814,7 @@
 	{@const isUsed = isGateUsed(gateToDelete.id)}
 	<div class="fixed inset-0 z-[1000] flex items-center justify-center p-4">
 		<div class="absolute inset-0 bg-slate-900/60 backdrop-blur-xs" onclick={() => { if (!isDeleting) showDeleteModal = false; }}></div>
-		<div class="relative w-full max-w-md bg-surface-container-lowest rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xl overflow-hidden z-10 animate-in fade-in zoom-in-95 duration-150 p-6">
+		<div class="relative w-full max-w-md bg-surface-container-lowest rounded-2xl border border-surface-container/60 shadow-2xl overflow-hidden z-10 animate-in fade-in zoom-in-95 duration-150 p-6">
 			<div class="flex items-start gap-3.5">
 				<div class="w-10 h-10 rounded-xl {isUsed ? 'bg-amber-100 text-amber-700 dark:bg-amber-950/50 dark:text-amber-300' : 'bg-rose-100 text-rose-700 dark:bg-rose-950/50 dark:text-rose-300'} flex items-center justify-center flex-shrink-0">
 					<span class="material-symbols-outlined text-[22px]">
