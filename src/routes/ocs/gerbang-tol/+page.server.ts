@@ -148,7 +148,8 @@ export const load: PageServerLoad = async () => {
 
 export const actions: Actions = {
 	// ==================== AKSI RUAS TARIF GERBANG TOL ====================
-	create: async ({ request }) => {
+	create: async ({ request, locals }) => {
+		const sessionUser = (locals as any)?.user?.name || (locals as any)?.user?.email || 'admin';
 		const data = await request.formData();
 		const ruas = (data.get('ruas') as string)?.trim();
 		const asal = (data.get('asal') as string)?.trim();
@@ -189,10 +190,12 @@ export const actions: Actions = {
 			await sql`
 				INSERT INTO master.m_gerbang_tol (
 					ruas, asal, tujuan, tarif_gol_1, tarif_gol_2_3, tarif_gol_4_5,
-					gerbang_asal_id, gerbang_tujuan_id, jarak_ruas_km
+					gerbang_asal_id, gerbang_tujuan_id, jarak_ruas_km,
+					created_by, updated_by
 				) VALUES (
 					${ruas}, ${asal}, ${tujuan}, ${tarif_gol_1}, ${tarif_gol_2_3}, ${tarif_gol_4_5},
-					${gerbang_asal_id}, ${gerbang_tujuan_id}, ${jarak_ruas_km}
+					${gerbang_asal_id}, ${gerbang_tujuan_id}, ${jarak_ruas_km},
+					${sessionUser}, ${sessionUser}
 				)
 			`;
 
@@ -206,7 +209,8 @@ export const actions: Actions = {
 		}
 	},
 
-	update: async ({ request }) => {
+	update: async ({ request, locals }) => {
+		const sessionUser = (locals as any)?.user?.name || (locals as any)?.user?.email || 'admin';
 		const data = await request.formData();
 		const id = parseInt(data.get('id') as string, 10);
 		const ruas = (data.get('ruas') as string)?.trim();
@@ -260,7 +264,9 @@ export const actions: Actions = {
 					tarif_gol_4_5 = ${tarif_gol_4_5},
 					gerbang_asal_id = ${gerbang_asal_id},
 					gerbang_tujuan_id = ${gerbang_tujuan_id},
-					jarak_ruas_km = ${jarak_ruas_km}
+					jarak_ruas_km = ${jarak_ruas_km},
+					updated_by = ${sessionUser},
+					updated_at = CURRENT_TIMESTAMP
 				WHERE id = ${id}
 				RETURNING id
 			`;
@@ -323,7 +329,8 @@ export const actions: Actions = {
 	},
 
 	// ==================== AKSI TITIK FISIK GERBANG TOL & GEOFENCE ====================
-	createTitik: async ({ request }) => {
+	createTitik: async ({ request, locals }) => {
+		const sessionUser = (locals as any)?.user?.name || (locals as any)?.user?.email || 'admin';
 		const data = await request.formData();
 		const kode_gerbang = (data.get('kode_gerbang') as string)?.trim().toUpperCase();
 		const nama_gerbang = (data.get('nama_gerbang') as string)?.trim();
@@ -353,9 +360,11 @@ export const actions: Actions = {
 		try {
 			await sql`
 				INSERT INTO master.m_titik_gerbang_tol (
-					kode_gerbang, nama_gerbang, ruas_tol, km_pos, latitude, longitude, radius_m, polygon_points, is_active
+					kode_gerbang, nama_gerbang, ruas_tol, km_pos, latitude, longitude, radius_m, polygon_points, is_active,
+					created_by, updated_by
 				) VALUES (
-					${kode_gerbang}, ${nama_gerbang}, ${ruas_tol}, ${km_pos}, ${latitude}, ${longitude}, ${radius_m}, ${polygon_points ? JSON.stringify(polygon_points) : null}::jsonb, true
+					${kode_gerbang}, ${nama_gerbang}, ${ruas_tol}, ${km_pos}, ${latitude}, ${longitude}, ${radius_m}, ${polygon_points ? JSON.stringify(polygon_points) : null}::jsonb, true,
+					${sessionUser}, ${sessionUser}
 				)
 			`;
 			return { success: true, action: 'createTitik', message: `Titik gerbang tol "${nama_gerbang}" berhasil disimpan.` };
@@ -365,7 +374,8 @@ export const actions: Actions = {
 		}
 	},
 
-	updateTitik: async ({ request }) => {
+	updateTitik: async ({ request, locals }) => {
+		const sessionUser = (locals as any)?.user?.name || (locals as any)?.user?.email || 'admin';
 		const data = await request.formData();
 		const id = parseInt(data.get('id') as string, 10);
 		const kode_gerbang = (data.get('kode_gerbang') as string)?.trim().toUpperCase();
@@ -410,6 +420,7 @@ export const actions: Actions = {
 					radius_m = ${radius_m},
 					polygon_points = ${polygon_points ? JSON.stringify(polygon_points) : null}::jsonb,
 					is_active = ${is_active},
+					updated_by = ${sessionUser},
 					updated_at = CURRENT_TIMESTAMP
 				WHERE id = ${id}
 			`;

@@ -141,7 +141,8 @@ export const load: PageServerLoad = async () => {
 };
 
 export const actions: Actions = {
-	createRute: async ({ request }) => {
+	createRute: async ({ request, locals }) => {
+		const sessionUser = (locals as any)?.user?.name || (locals as any)?.user?.email || 'admin';
 		const data = await request.formData();
 		const origin_id = data.get('origin_id') as string;
 		const destination_id = data.get('destination_id') as string;
@@ -245,12 +246,14 @@ export const actions: Actions = {
 					origin_id, destination_id, tipe_unit_id,
 					jarak_km, liter_solar, harga_solar_per_liter, biaya_solar,
 					biaya_tol, biaya_bongkar_muat, uang_makan, retribusi,
-					ritase, komisi, biaya_lain, total_ujo, tarif_customer
+					ritase, komisi, biaya_lain, total_ujo, tarif_customer,
+					created_by, updated_by
 				) VALUES (
 					${origin_id}, ${destination_id}, ${tipe_unit_id},
 					${jarak_km}, ${liter_solar}, ${harga_solar_per_liter}, ${biaya_solar},
 					${biaya_tol}, ${biaya_bongkar_muat}, ${uang_makan}, ${retribusi},
-					${ritase}, ${komisi}, ${biaya_lain}, ${total_ujo}, ${tarif_customer}
+					${ritase}, ${komisi}, ${biaya_lain}, ${total_ujo}, ${tarif_customer},
+					${sessionUser}, ${sessionUser}
 				) RETURNING id
 			`;
 			
@@ -264,7 +267,9 @@ export const actions: Actions = {
 						const tollInserts = rincian.map((t: any) => ({
 							rute_ujo_id: rute_ujo_id,
 							gerbang_tol_id: t.gerbang_tol_id,
-							tarif: t.tarif
+							tarif: t.tarif,
+							created_by: sessionUser,
+							updated_by: sessionUser
 						}));
 						await sql`INSERT INTO master.m_rute_ujo_tol ${sql(tollInserts)}`;
 					}
@@ -283,7 +288,8 @@ export const actions: Actions = {
 		}
 	},
 
-	updateRute: async ({ request }) => {
+	updateRute: async ({ request, locals }) => {
+		const sessionUser = (locals as any)?.user?.name || (locals as any)?.user?.email || 'admin';
 		const data = await request.formData();
 		const id = data.get('id') as string;
 		const origin_id = data.get('origin_id') as string;
@@ -400,7 +406,9 @@ export const actions: Actions = {
 					komisi = ${komisi},
 					biaya_lain = ${biaya_lain},
 					total_ujo = ${total_ujo},
-					tarif_customer = ${tarif_customer}
+					tarif_customer = ${tarif_customer},
+					updated_by = ${sessionUser},
+					updated_at = CURRENT_TIMESTAMP
 				WHERE id = ${id}
 			`;
 
@@ -414,7 +422,9 @@ export const actions: Actions = {
 						const tollInserts = rincian.map((t: any) => ({
 							rute_ujo_id: parseInt(id, 10),
 							gerbang_tol_id: t.gerbang_tol_id,
-							tarif: t.tarif
+							tarif: t.tarif,
+							created_by: sessionUser,
+							updated_by: sessionUser
 						}));
 						await sql`INSERT INTO master.m_rute_ujo_tol ${sql(tollInserts)}`;
 					}
