@@ -987,6 +987,10 @@
 
 <!-- Detail Modal -->
 {#if showDetailModal && selectedDetailRute}
+	{@const detailRatio = (parseFloat(selectedDetailRute.jarak_km) > 0 && parseFloat(selectedDetailRute.liter_solar) > 0)
+		? (Math.round((parseFloat(selectedDetailRute.jarak_km) / parseFloat(selectedDetailRute.liter_solar)) * 10) / 10)
+		: (data.settings?.solar_ratio_by_unit_type?.[selectedDetailRute.tipe_unit_id] || data.settings?.solar_km_per_liter || 3)}
+	{@const detailPrice = parseFloat(selectedDetailRute.harga_solar_per_liter) || data.settings?.solar_price_per_liter || 6800}
 	<div class="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4">
 		<div class="absolute inset-0 bg-slate-900/60 backdrop-blur-xs" onclick={() => showDetailModal = false}></div>
 		
@@ -1044,7 +1048,7 @@
 							<span class="material-symbols-outlined text-amber-600 text-lg">local_gas_station</span> Rincian Biaya Solar
 						</h4>
 						<span class="text-xs font-bold text-amber-700 dark:text-amber-300 font-mono">
-							Rp 6.800 / Liter (Bio Solar)
+							{formatCurrency(detailPrice)} / Liter
 						</span>
 					</div>
 					<div class="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1">
@@ -1053,7 +1057,7 @@
 							<div class="text-sm font-black text-on-surface mt-0.5">{parseFloat(selectedDetailRute.jarak_km).toFixed(1)} KM</div>
 						</div>
 						<div class="bg-white/80 dark:bg-slate-900/80 p-3 rounded-xl border border-amber-200/60 dark:border-amber-900/40">
-							<div class="text-[10px] font-bold text-on-surface-variant">Liter Dibutuhkan (3 km/L)</div>
+							<div class="text-[10px] font-bold text-on-surface-variant">Liter Dibutuhkan (1:{detailRatio} km/L)</div>
 							<div class="text-sm font-black text-amber-600 dark:text-amber-400 mt-0.5">{parseFloat(selectedDetailRute.liter_solar).toFixed(1)} Liter</div>
 						</div>
 						<div class="bg-white/80 dark:bg-slate-900/80 p-3 rounded-xl border border-amber-200/60 dark:border-amber-900/40">
