@@ -6,6 +6,13 @@
 
 	let { children } = $props();
 
+	function isActive(path: string) {
+		if (path === '/kasir') {
+			return $page.url.pathname === '/kasir';
+		}
+		return $page.url.pathname.startsWith(path);
+	}
+
 	const user = $derived($page.data?.user || $authUser);
 	const isAdmin = $derived(
 		user && (
@@ -24,7 +31,7 @@
 		<!-- Branding Header -->
 		<div class="px-4 py-6 mb-2">
 			<div class="flex items-center gap-3">
-				<div class="w-10 h-10 bg-emerald-100 dark:bg-emerald-900/50 rounded-xl flex items-center justify-center text-emerald-600 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
+				<div class="w-10 h-10 bg-emerald-500/10 rounded-xl flex items-center justify-center text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
 					<span class="material-symbols-outlined text-[20px]">point_of_sale</span>
 				</div>
 				<div>
@@ -36,13 +43,13 @@
 
 		<nav class="flex-1 space-y-1">
 			{#if hasMenuAccess(user, 'kasir', 'kasir.overview')}
-				<a class="flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200 hover:translate-x-1 {$page.url.pathname === '/kasir' ? 'bg-surface-container-highest text-emerald-600 dark:text-emerald-400 font-bold' : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container font-medium text-sm'}" href="/kasir">
+				<a class="flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200 hover:translate-x-1 {isActive('/kasir') ? 'bg-surface-container-highest text-emerald-600 dark:text-emerald-400 font-bold' : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container font-medium text-sm'}" href="/kasir">
 					<span class="material-symbols-outlined text-[20px]">space_dashboard</span>
 					<span class="text-sm">Overview</span>
 				</a>
 			{/if}
 			{#if hasMenuAccess(user, 'kasir', 'kasir.kas-operasional')}
-				<a class="flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200 hover:translate-x-1 {$page.url.pathname.includes('/kasir/kas-operasional') ? 'bg-surface-container-highest text-emerald-600 dark:text-emerald-400 font-bold' : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container font-medium text-sm'}" href="/kasir/kas-operasional">
+				<a class="flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200 hover:translate-x-1 {isActive('/kasir/kas-operasional') ? 'bg-surface-container-highest text-emerald-600 dark:text-emerald-400 font-bold' : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container font-medium text-sm'}" href="/kasir/kas-operasional">
 					<span class="material-symbols-outlined text-[20px]">account_balance_wallet</span>
 					<span class="text-sm">Kas & Saldo Operasional</span>
 				</a>
@@ -55,19 +62,19 @@
 			{/if}
 
 			{#if hasMenuAccess(user, 'kasir', 'kasir.ujo')}
-				<a class="flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200 hover:translate-x-1 {$page.url.pathname.includes('/kasir/ujo') ? 'bg-surface-container-highest text-emerald-600 dark:text-emerald-400 font-bold' : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container font-medium text-sm'}" href="/kasir/ujo">
+				<a class="flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200 hover:translate-x-1 {isActive('/kasir/ujo') ? 'bg-surface-container-highest text-emerald-600 dark:text-emerald-400 font-bold' : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container font-medium text-sm'}" href="/kasir/ujo">
 					<span class="material-symbols-outlined text-[20px]">payments</span>
 					<span class="text-sm">Pencairan UJO</span>
 				</a>
 			{/if}
 			{#if hasMenuAccess(user, 'kasir', 'kasir.surat-jalan')}
-				<a class="flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200 hover:translate-x-1 {$page.url.pathname.includes('/kasir/surat-jalan') ? 'bg-surface-container-highest text-emerald-600 dark:text-emerald-400 font-bold' : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container font-medium text-sm'}" href="/kasir/surat-jalan">
+				<a class="flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200 hover:translate-x-1 {isActive('/kasir/surat-jalan') ? 'bg-surface-container-highest text-emerald-600 dark:text-emerald-400 font-bold' : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container font-medium text-sm'}" href="/kasir/surat-jalan">
 					<span class="material-symbols-outlined text-[20px]">edit_document</span>
 					<span class="text-sm">Surat Jalan Balik (DN)</span>
 				</a>
 			{/if}
 			{#if hasMenuAccess(user, 'kasir', 'kasir.closing')}
-				<a class="flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200 hover:translate-x-1 {$page.url.pathname.includes('/kasir/closing') ? 'bg-surface-container-highest text-emerald-600 dark:text-emerald-400 font-bold' : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container font-medium text-sm'}" href="/kasir/closing">
+				<a class="flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200 hover:translate-x-1 {isActive('/kasir/closing') ? 'bg-surface-container-highest text-emerald-600 dark:text-emerald-400 font-bold' : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container font-medium text-sm'}" href="/kasir/closing">
 					<span class="material-symbols-outlined text-[20px]">assignment_turned_in</span>
 					<span class="text-sm">Closing Kasbon UJO</span>
 				</a>
@@ -77,10 +84,10 @@
 
 	<!-- Main Content Canvas -->
 	<main class="flex-1 h-full overflow-y-auto p-8 bg-surface">
-		<div class="max-w-7xl mx-auto space-y-4">
+		<div class="max-w-7xl mx-auto space-y-6">
 			<!-- Admin-Only Data Source Status Badge -->
 			{#if isAdmin}
-				<div class="flex items-center justify-between px-4 py-2 rounded-xl bg-surface-container-low border border-slate-200/60 dark:border-slate-800/60 text-xs shadow-2xs">
+				<div class="flex items-center justify-between px-4 py-2.5 rounded-xl bg-surface-container-lowest border border-slate-200/70 dark:border-slate-800/70 text-xs">
 					<div class="flex items-center gap-2 font-medium">
 						<span class="text-on-surface-variant font-bold text-[10px] uppercase tracking-wider">Mode Admin:</span>
 						<span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">

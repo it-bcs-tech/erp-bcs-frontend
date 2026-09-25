@@ -125,7 +125,7 @@
 	<header class="flex flex-col md:flex-row md:items-end justify-between gap-4 flex-shrink-0">
 		<div>
 			<div class="flex items-center gap-2.5">
-				<div class="w-10 h-10 rounded-xl bg-emerald-100 dark:bg-emerald-900/50 text-emerald-600 dark:text-emerald-300 flex items-center justify-center border border-emerald-200 dark:border-emerald-800">
+				<div class="w-10 h-10 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center border border-emerald-500/20">
 					<span class="material-symbols-outlined text-2xl">account_balance_wallet</span>
 				</div>
 				<div>
@@ -140,14 +140,14 @@
 		<!-- Action Buttons -->
 		<div class="flex items-center gap-2.5">
 			<button 
-				class="px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-surface text-on-surface hover:bg-surface-container text-xs font-bold transition-colors flex items-center gap-2 shadow-2xs"
+				class="px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-surface-container-lowest text-on-surface hover:bg-surface-container text-xs font-bold transition-colors flex items-center gap-2"
 				onclick={() => showDirectModal = true}
 			>
-				<span class="material-symbols-outlined text-base text-emerald-600">add_card</span>
+				<span class="material-symbols-outlined text-base text-emerald-600 dark:text-emerald-400">add_card</span>
 				<span>Drop / Mutasi Kas Langsung</span>
 			</button>
 			<button 
-				class="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition-colors flex items-center gap-2 shadow-xs"
+				class="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition-colors flex items-center gap-2"
 				onclick={() => showRequestModal = true}
 			>
 				<span class="material-symbols-outlined text-base">post_add</span>
@@ -159,57 +159,65 @@
 	<!-- Bento Summary Cards -->
 	<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
 		<!-- Saldo Kasir Berjalan -->
-		<div class="p-5 rounded-2xl bg-surface-container-low border border-slate-200/60 dark:border-slate-800/60 shadow-xs relative overflow-hidden">
-			<div class="flex items-center justify-between mb-2">
-				<p class="text-xs font-bold text-on-surface-variant uppercase tracking-wider">Saldo Kas Operasional</p>
-				<span class="material-symbols-outlined text-2xl {stats.currentBalance >= 0 ? 'text-emerald-500' : 'text-rose-500'}">account_balance_wallet</span>
+		<div class="p-6 rounded-2xl bg-surface-container-lowest border border-slate-200/70 dark:border-slate-800/70 transition-all hover:border-emerald-500/30 flex flex-col justify-between">
+			<div class="flex items-center justify-between mb-3">
+				<span class="text-xs font-bold text-on-surface-variant uppercase tracking-wider">Saldo Kas Operasional</span>
+				<div class="w-9 h-9 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
+					<span class="material-symbols-outlined text-[20px]">account_balance_wallet</span>
+				</div>
 			</div>
-			<h3 class="text-2xl font-black font-mono {stats.currentBalance >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}">
+			<div class="text-2xl font-black font-mono {stats.currentBalance >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}">
 				{formatCurrency(stats.currentBalance)}
-			</h3>
-			<p class="text-[11px] text-on-surface-variant mt-1.5 flex items-center gap-1 font-medium">
-				<span class="material-symbols-outlined text-xs">info</span>
+			</div>
+			<p class="text-[11px] text-on-surface-variant mt-2 flex items-center gap-1 font-medium">
+				<span class="material-symbols-outlined text-xs text-emerald-600">info</span>
 				<span>Float kasir untuk UJO & operasional</span>
 			</p>
 		</div>
 
 		<!-- Total Masuk Bulan Ini -->
-		<div class="p-5 rounded-2xl bg-surface-container-low border border-slate-200/60 dark:border-slate-800/60 shadow-xs">
-			<div class="flex items-center justify-between mb-2">
-				<p class="text-xs font-bold text-on-surface-variant uppercase tracking-wider">Drop Dana (Bulan Ini)</p>
-				<span class="material-symbols-outlined text-2xl text-emerald-500">trending_up</span>
+		<div class="p-6 rounded-2xl bg-surface-container-lowest border border-slate-200/70 dark:border-slate-800/70 transition-all hover:border-emerald-500/30 flex flex-col justify-between">
+			<div class="flex items-center justify-between mb-3">
+				<span class="text-xs font-bold text-on-surface-variant uppercase tracking-wider">Drop Dana (Bulan Ini)</span>
+				<div class="w-9 h-9 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
+					<span class="material-symbols-outlined text-[20px]">trending_up</span>
+				</div>
 			</div>
-			<h3 class="text-2xl font-black font-mono text-emerald-600 dark:text-emerald-400">
+			<div class="text-2xl font-black font-mono text-emerald-600 dark:text-emerald-400">
 				{formatCurrency(stats.monthIn)}
-			</h3>
-			<p class="text-[11px] text-on-surface-variant mt-1.5">
+			</div>
+			<p class="text-[11px] text-on-surface-variant mt-2">
 				Total keseluruhan: <span class="font-bold font-mono">{formatCurrency(stats.totalIn)}</span>
 			</p>
 		</div>
 
 		<!-- Total Keluar Bulan Ini -->
-		<div class="p-5 rounded-2xl bg-surface-container-low border border-slate-200/60 dark:border-slate-800/60 shadow-xs">
-			<div class="flex items-center justify-between mb-2">
-				<p class="text-xs font-bold text-on-surface-variant uppercase tracking-wider">Pengeluaran (Bulan Ini)</p>
-				<span class="material-symbols-outlined text-2xl text-rose-500">trending_down</span>
+		<div class="p-6 rounded-2xl bg-surface-container-lowest border border-slate-200/70 dark:border-slate-800/70 transition-all hover:border-rose-500/30 flex flex-col justify-between">
+			<div class="flex items-center justify-between mb-3">
+				<span class="text-xs font-bold text-on-surface-variant uppercase tracking-wider">Pengeluaran (Bulan Ini)</span>
+				<div class="w-9 h-9 rounded-xl bg-rose-500/10 text-rose-600 dark:text-rose-400 flex items-center justify-center">
+					<span class="material-symbols-outlined text-[20px]">trending_down</span>
+				</div>
 			</div>
-			<h3 class="text-2xl font-black font-mono text-rose-600 dark:text-rose-400">
+			<div class="text-2xl font-black font-mono text-rose-600 dark:text-rose-400">
 				{formatCurrency(stats.monthOut)}
-			</h3>
-			<p class="text-[11px] text-on-surface-variant mt-1.5">
+			</div>
+			<p class="text-[11px] text-on-surface-variant mt-2">
 				Total keseluruhan: <span class="font-bold font-mono">{formatCurrency(stats.totalOut)}</span>
 			</p>
 		</div>
 
 		<!-- Pengajuan Pending -->
-		<div class="p-5 rounded-2xl bg-surface-container-low border border-amber-500/30 shadow-xs flex flex-col justify-between">
+		<div class="p-6 rounded-2xl bg-surface-container-lowest border border-slate-200/70 dark:border-slate-800/70 transition-all hover:border-amber-500/30 flex flex-col justify-between">
 			<div>
-				<div class="flex items-center justify-between mb-2">
-					<p class="text-xs font-bold text-amber-600 uppercase tracking-wider">Pengajuan Menunggu</p>
-					<span class="material-symbols-outlined text-2xl text-amber-500">hourglass_top</span>
+				<div class="flex items-center justify-between mb-3">
+					<span class="text-xs font-bold text-amber-600 dark:text-amber-400 uppercase tracking-wider">Pengajuan Menunggu</span>
+					<div class="w-9 h-9 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center">
+						<span class="material-symbols-outlined text-[20px]">hourglass_top</span>
+					</div>
 				</div>
 				<div class="flex items-baseline gap-2">
-					<h3 class="text-2xl font-black font-mono text-amber-600">{stats.pendingCount}</h3>
+					<span class="text-2xl font-black font-mono text-amber-600 dark:text-amber-400">{stats.pendingCount}</span>
 					<span class="text-xs text-on-surface-variant font-medium">Tiket Diajukan</span>
 				</div>
 				<p class="text-xs font-bold font-mono text-amber-700 dark:text-amber-300 mt-1">
@@ -217,7 +225,7 @@
 				</p>
 			</div>
 			<button 
-				class="text-xs font-bold text-amber-600 hover:underline flex items-center gap-1 mt-2 text-left"
+				class="text-xs font-bold text-amber-600 dark:text-amber-400 hover:underline flex items-center gap-1 mt-3 text-left"
 				onclick={() => { activeMainTab = 'REQUESTS'; requestFilterStatus = 'PENDING'; }}
 			>
 				<span>Tinjau Pengajuan</span>
@@ -227,10 +235,10 @@
 	</div>
 
 	<!-- Main Tabs Nav -->
-	<div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-slate-200/60 dark:border-slate-800/60 pb-3">
-		<div class="inline-flex p-1 rounded-2xl bg-surface-container border border-slate-200 dark:border-slate-800">
+	<div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-slate-200/70 dark:border-slate-800/70 pb-3">
+		<div class="inline-flex p-1 rounded-2xl bg-surface-container-low border border-slate-200/70 dark:border-slate-800/70">
 			<button 
-				class="px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 {activeMainTab === 'REQUESTS' ? 'bg-emerald-600 text-white shadow-xs' : 'text-on-surface hover:bg-surface-container-high'}"
+				class="px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 {activeMainTab === 'REQUESTS' ? 'bg-emerald-600 text-white' : 'text-on-surface hover:bg-surface-container'}"
 				onclick={() => activeMainTab = 'REQUESTS'}
 			>
 				<span class="material-symbols-outlined text-base">receipt_long</span>
@@ -242,7 +250,7 @@
 				{/if}
 			</button>
 			<button 
-				class="px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 {activeMainTab === 'LEDGER' ? 'bg-emerald-600 text-white shadow-xs' : 'text-on-surface hover:bg-surface-container-high'}"
+				class="px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 {activeMainTab === 'LEDGER' ? 'bg-emerald-600 text-white' : 'text-on-surface hover:bg-surface-container'}"
 				onclick={() => activeMainTab = 'LEDGER'}
 			>
 				<span class="material-symbols-outlined text-base">menu_book</span>
@@ -252,21 +260,21 @@
 
 		<!-- Secondary controls / filters -->
 		{#if activeMainTab === 'REQUESTS'}
-			<div class="inline-flex p-1 rounded-xl bg-surface-container-low border border-slate-200/60 dark:border-slate-800/60 text-xs">
+			<div class="inline-flex p-1 rounded-xl bg-surface-container-low border border-slate-200/70 dark:border-slate-800/70 text-xs">
 				<button 
-					class="px-3 py-1 rounded-lg font-bold transition-colors {requestFilterStatus === 'ALL' ? 'bg-surface text-emerald-600 shadow-2xs' : 'text-on-surface-variant hover:text-on-surface'}"
+					class="px-3 py-1.5 rounded-lg font-bold transition-colors {requestFilterStatus === 'ALL' ? 'bg-surface-container-lowest text-emerald-600 dark:text-emerald-400' : 'text-on-surface-variant hover:text-on-surface'}"
 					onclick={() => requestFilterStatus = 'ALL'}
 				>
 					Semua ({fundRequests.length})
 				</button>
 				<button 
-					class="px-3 py-1 rounded-lg font-bold transition-colors {requestFilterStatus === 'PENDING' ? 'bg-surface text-amber-600 shadow-2xs' : 'text-on-surface-variant hover:text-on-surface'}"
+					class="px-3 py-1.5 rounded-lg font-bold transition-colors {requestFilterStatus === 'PENDING' ? 'bg-surface-container-lowest text-amber-600 dark:text-amber-400' : 'text-on-surface-variant hover:text-on-surface'}"
 					onclick={() => requestFilterStatus = 'PENDING'}
 				>
 					Menunggu ({fundRequests.filter((r: any) => r.status === 'PENDING').length})
 				</button>
 				<button 
-					class="px-3 py-1 rounded-lg font-bold transition-colors {requestFilterStatus === 'RECEIVED' ? 'bg-surface text-emerald-600 shadow-2xs' : 'text-on-surface-variant hover:text-on-surface'}"
+					class="px-3 py-1.5 rounded-lg font-bold transition-colors {requestFilterStatus === 'RECEIVED' ? 'bg-surface-container-lowest text-emerald-600 dark:text-emerald-400' : 'text-on-surface-variant hover:text-on-surface'}"
 					onclick={() => requestFilterStatus = 'RECEIVED'}
 				>
 					Diterima ({fundRequests.filter((r: any) => r.status === 'RECEIVED').length})
@@ -274,30 +282,31 @@
 			</div>
 		{:else}
 			<div class="flex items-center gap-3 w-full sm:w-auto">
-				<div class="relative flex-1 sm:w-64">
-					<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant text-base">search</span>
+				<!-- Clean borderless search input -->
+				<div class="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-surface-container-low focus-within:ring-2 focus-within:ring-emerald-500/30 flex-1 sm:w-64">
+					<span class="material-symbols-outlined text-on-surface-variant text-base">search</span>
 					<input 
 						type="text" 
 						placeholder="Cari mutasi / SO / Trip..." 
 						bind:value={ledgerSearch}
-						class="w-full pl-9 pr-3 py-1.5 rounded-xl text-xs bg-surface border border-slate-200/80 dark:border-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500/40 text-on-surface"
+						class="w-full bg-transparent text-xs text-on-surface outline-none placeholder:text-on-surface-variant/50"
 					/>
 				</div>
-				<div class="inline-flex p-1 rounded-xl bg-surface-container-low border border-slate-200/60 dark:border-slate-800/60 text-xs">
+				<div class="inline-flex p-1 rounded-xl bg-surface-container-low border border-slate-200/70 dark:border-slate-800/70 text-xs">
 					<button 
-						class="px-3 py-1 rounded-lg font-bold transition-colors {ledgerFilterDirection === 'ALL' ? 'bg-surface text-on-surface shadow-2xs' : 'text-on-surface-variant hover:text-on-surface'}"
+						class="px-3 py-1.5 rounded-lg font-bold transition-colors {ledgerFilterDirection === 'ALL' ? 'bg-surface-container-lowest text-on-surface' : 'text-on-surface-variant hover:text-on-surface'}"
 						onclick={() => ledgerFilterDirection = 'ALL'}
 					>
 						Semua
 					</button>
 					<button 
-						class="px-3 py-1 rounded-lg font-bold transition-colors {ledgerFilterDirection === 'IN' ? 'bg-surface text-emerald-600 shadow-2xs' : 'text-on-surface-variant hover:text-on-surface'}"
+						class="px-3 py-1.5 rounded-lg font-bold transition-colors {ledgerFilterDirection === 'IN' ? 'bg-surface-container-lowest text-emerald-600 dark:text-emerald-400' : 'text-on-surface-variant hover:text-on-surface'}"
 						onclick={() => ledgerFilterDirection = 'IN'}
 					>
 						Masuk (IN)
 					</button>
 					<button 
-						class="px-3 py-1 rounded-lg font-bold transition-colors {ledgerFilterDirection === 'OUT' ? 'bg-surface text-rose-600 shadow-2xs' : 'text-on-surface-variant hover:text-on-surface'}"
+						class="px-3 py-1.5 rounded-lg font-bold transition-colors {ledgerFilterDirection === 'OUT' ? 'bg-surface-container-lowest text-rose-600 dark:text-rose-400' : 'text-on-surface-variant hover:text-on-surface'}"
 						onclick={() => ledgerFilterDirection = 'OUT'}
 					>
 						Keluar (OUT)
@@ -309,11 +318,11 @@
 
 	<!-- Tab 1: Daftar Pengajuan Dana ke Finance -->
 	{#if activeMainTab === 'REQUESTS'}
-		<div class="rounded-2xl bg-surface-container-low border border-slate-200/60 dark:border-slate-800/60 shadow-xs overflow-hidden">
+		<div class="rounded-2xl bg-surface-container-lowest border border-slate-200/70 dark:border-slate-800/70 overflow-hidden">
 			<div class="overflow-x-auto">
 				<table class="w-full text-left border-collapse">
 					<thead>
-						<tr class="border-b border-slate-200/60 dark:border-slate-800/60 bg-slate-50/50 dark:bg-slate-800/20 text-[11px] font-black text-on-surface-variant uppercase tracking-wider">
+						<tr class="border-b border-slate-200/70 dark:border-slate-800/70 bg-surface-container-low/50 text-[11px] font-bold text-on-surface-variant uppercase tracking-wider">
 							<th class="py-3.5 px-4">No. Pengajuan</th>
 							<th class="py-3.5 px-4">Tanggal</th>
 							<th class="py-3.5 px-4">Keperluan & Catatan</th>
@@ -324,7 +333,7 @@
 							<th class="py-3.5 px-4 text-right">Aksi</th>
 						</tr>
 					</thead>
-					<tbody class="divide-y divide-slate-200/40 dark:divide-slate-800/40 text-xs font-medium">
+					<tbody class="divide-y divide-slate-200/60 dark:divide-slate-800/60 text-xs font-medium">
 						{#if filteredRequests.length === 0}
 							<tr>
 								<td colspan="8" class="text-center py-10 text-on-surface-variant">
@@ -338,7 +347,7 @@
 						{/if}
 
 						{#each filteredRequests as req}
-							<tr class="hover:bg-surface-container transition-colors">
+							<tr class="hover:bg-surface-container/40 transition-colors">
 								<td class="py-3.5 px-4 font-mono font-bold text-on-surface">
 									{req.requestNumber}
 								</td>
@@ -360,24 +369,24 @@
 								</td>
 								<td class="py-3.5 px-4 text-center whitespace-nowrap">
 									{#if req.status === 'PENDING'}
-										<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-black bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-300 dark:border-amber-800">
+										<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 dark:bg-amber-950/50 dark:text-amber-300 border border-amber-200 dark:border-amber-800">
 											<span class="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
 											MENUNGGU CAIR
 										</span>
 									{:else if req.status === 'RECEIVED'}
-										<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-black bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800">
+										<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
 											<span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
 											DITERIMA KASIR
 										</span>
 									{:else}
-										<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-black bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300">
+										<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
 											DIBATALKAN
 										</span>
 									{/if}
 								</td>
 								<td class="py-3.5 px-4 text-[11px] text-on-surface-variant max-w-[200px]">
 									{#if req.status === 'RECEIVED'}
-										<p class="font-bold text-emerald-700 dark:text-emerald-300 flex items-center gap-1">
+										<p class="font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
 											<span class="material-symbols-outlined text-xs">payments</span>
 											<span>{req.paymentMethod}</span>
 										</p>
@@ -386,7 +395,7 @@
 										{/if}
 										<p class="text-[10px] text-on-surface-variant/70">{formatDateTime(req.receivedAt)}</p>
 									{:else if req.status === 'PENDING'}
-										<span class="text-amber-600 font-medium">Menunggu transfer Finance...</span>
+										<span class="text-amber-600 dark:text-amber-400 font-medium">Menunggu transfer Finance...</span>
 									{:else}
 										<span>-</span>
 									{/if}
@@ -396,7 +405,7 @@
 										<div class="flex items-center justify-end gap-1.5">
 											<button 
 												type="button"
-												class="px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold transition-colors shadow-2xs flex items-center gap-1"
+												class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold transition-colors flex items-center gap-1"
 												onclick={() => openConfirmModal(req)}
 											>
 												<span class="material-symbols-outlined text-sm">check_circle</span>
@@ -434,10 +443,10 @@
 
 	<!-- Tab 2: Buku Kas & Riwayat Mutasi -->
 	{#if activeMainTab === 'LEDGER'}
-		<div class="rounded-2xl bg-surface-container-low border border-slate-200/60 dark:border-slate-800/60 shadow-xs overflow-hidden">
-			<div class="px-5 py-3 border-b border-slate-200/60 dark:border-slate-800/60 flex items-center justify-between bg-slate-50/50 dark:bg-slate-800/20">
+		<div class="rounded-2xl bg-surface-container-lowest border border-slate-200/70 dark:border-slate-800/70 overflow-hidden">
+			<div class="px-5 py-3.5 border-b border-slate-200/70 dark:border-slate-800/70 flex items-center justify-between bg-surface-container-low/50">
 				<div class="flex items-center gap-2">
-					<span class="material-symbols-outlined text-emerald-600 text-lg">menu_book</span>
+					<span class="material-symbols-outlined text-emerald-600 dark:text-emerald-400 text-lg">menu_book</span>
 					<span class="text-xs font-bold text-on-surface">Buku Kas Operasional (Real-time Mutasi)</span>
 				</div>
 				<span class="text-[11px] text-on-surface-variant font-medium">
@@ -447,7 +456,7 @@
 			<div class="overflow-x-auto">
 				<table class="w-full text-left border-collapse">
 					<thead>
-						<tr class="border-b border-slate-200/60 dark:border-slate-800/60 bg-slate-50/50 dark:bg-slate-800/20 text-[11px] font-black text-on-surface-variant uppercase tracking-wider">
+						<tr class="border-b border-slate-200/70 dark:border-slate-800/70 bg-surface-container-low/50 text-[11px] font-bold text-on-surface-variant uppercase tracking-wider">
 							<th class="py-3 px-4">Waktu</th>
 							<th class="py-3 px-4 text-center">Tipe</th>
 							<th class="py-3 px-4">Kategori</th>
@@ -458,7 +467,7 @@
 							<th class="py-3 px-4">Kasir / User</th>
 						</tr>
 					</thead>
-					<tbody class="divide-y divide-slate-200/40 dark:divide-slate-800/40 text-xs font-medium">
+					<tbody class="divide-y divide-slate-200/60 dark:divide-slate-800/60 text-xs font-medium">
 						{#if filteredLedger.length === 0}
 							<tr>
 								<td colspan="8" class="text-center py-10 text-on-surface-variant">
@@ -472,25 +481,25 @@
 						{/if}
 
 						{#each filteredLedger as row}
-							<tr class="hover:bg-surface-container transition-colors">
+							<tr class="hover:bg-surface-container/40 transition-colors">
 								<td class="py-3 px-4 text-on-surface-variant whitespace-nowrap font-mono text-[11px]">
 									{formatDateTime(row.transactionDate)}
 								</td>
 								<td class="py-3 px-4 text-center whitespace-nowrap">
 									{#if row.direction === 'IN'}
-										<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800">
+										<span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
 											<span class="material-symbols-outlined text-xs">arrow_downward</span>
 											MASUK
 										</span>
 									{:else}
-										<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black bg-rose-100 text-rose-800 dark:bg-rose-950/60 dark:text-rose-300 border border-rose-300 dark:border-rose-800">
+										<span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-rose-50 text-rose-700 dark:bg-rose-950/50 dark:text-rose-300 border border-rose-200 dark:border-rose-800">
 											<span class="material-symbols-outlined text-xs">arrow_upward</span>
 											KELUAR
 										</span>
 									{/if}
 								</td>
 								<td class="py-3 px-4 whitespace-nowrap">
-									<span class="text-[11px] font-bold px-2 py-0.5 rounded bg-surface-container-high border border-slate-200/60 dark:border-slate-800 text-on-surface">
+									<span class="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
 										{row.category}
 									</span>
 								</td>
@@ -506,7 +515,7 @@
 								<td class="py-3 px-4 text-right font-mono font-bold whitespace-nowrap {row.direction === 'OUT' ? 'text-rose-600 dark:text-rose-400' : 'text-on-surface-variant/40'}">
 									{row.direction === 'OUT' ? formatCurrency(row.amount) : '-'}
 								</td>
-								<td class="py-3 px-4 text-right font-mono font-black text-on-surface whitespace-nowrap bg-slate-50/50 dark:bg-slate-900/30">
+								<td class="py-3 px-4 text-right font-mono font-black text-on-surface whitespace-nowrap bg-surface-container-low/30">
 									{formatCurrency(row.balanceAfter)}
 								</td>
 								<td class="py-3 px-4 text-on-surface-variant text-[11px] whitespace-nowrap">
@@ -527,7 +536,7 @@
 		<div class="w-full max-w-lg rounded-2xl bg-surface border border-slate-200 dark:border-slate-800 shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-150">
 			<div class="px-6 py-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between bg-emerald-500/5">
 				<div class="flex items-center gap-2">
-					<span class="material-symbols-outlined text-emerald-600">post_add</span>
+					<span class="material-symbols-outlined text-emerald-600 dark:text-emerald-400">post_add</span>
 					<h3 class="text-base font-black text-on-surface">Buat Pengajuan Dana ke Finance</h3>
 				</div>
 				<button class="text-on-surface-variant hover:text-on-surface" onclick={() => showRequestModal = false}>
@@ -552,7 +561,7 @@
 						name="requestDate" 
 						value={new Date().toISOString().split('T')[0]} 
 						required 
-						class="w-full px-3.5 py-2.5 rounded-xl text-sm bg-surface-container-low border border-slate-300 dark:border-slate-700 text-on-surface focus:outline-none focus:ring-2 focus:ring-emerald-500/40"
+						class="w-full px-3.5 py-2.5 rounded-xl text-sm bg-surface-container-low border border-slate-200 dark:border-slate-800 text-on-surface focus:outline-none focus:ring-2 focus:ring-emerald-500/30"
 					/>
 				</div>
 
@@ -568,7 +577,7 @@
 						min="1000" 
 						step="1000" 
 						required 
-						class="w-full px-3.5 py-2.5 rounded-xl text-base font-mono font-bold bg-surface-container-low border border-slate-300 dark:border-slate-700 text-on-surface focus:outline-none focus:ring-2 focus:ring-emerald-500/40"
+						class="w-full px-3.5 py-2.5 rounded-xl text-base font-mono font-bold bg-surface-container-low border border-slate-200 dark:border-slate-800 text-on-surface focus:outline-none focus:ring-2 focus:ring-emerald-500/30"
 					/>
 					<p class="text-[11px] text-on-surface-variant mt-1">Masukkan nominal estimasi dana operasional yang dibutuhkan.</p>
 				</div>
@@ -583,7 +592,7 @@
 						name="purpose" 
 						placeholder="Contoh: Dana Operasional Harian & UJO Supir Ritase" 
 						required 
-						class="w-full px-3.5 py-2.5 rounded-xl text-sm bg-surface-container-low border border-slate-300 dark:border-slate-700 text-on-surface focus:outline-none focus:ring-2 focus:ring-emerald-500/40"
+						class="w-full px-3.5 py-2.5 rounded-xl text-sm bg-surface-container-low border border-slate-200 dark:border-slate-800 text-on-surface focus:outline-none focus:ring-2 focus:ring-emerald-500/30"
 					/>
 				</div>
 
@@ -596,7 +605,7 @@
 						name="notes" 
 						rows="2" 
 						placeholder="Contoh: Kebutuhan pencairan 5 armada rute Cilegon - Semarang besok pagi" 
-						class="w-full px-3.5 py-2.5 rounded-xl text-xs bg-surface-container-low border border-slate-300 dark:border-slate-700 text-on-surface focus:outline-none focus:ring-2 focus:ring-emerald-500/40"
+						class="w-full px-3.5 py-2.5 rounded-xl text-xs bg-surface-container-low border border-slate-200 dark:border-slate-800 text-on-surface focus:outline-none focus:ring-2 focus:ring-emerald-500/30"
 					></textarea>
 				</div>
 
@@ -611,7 +620,7 @@
 					<button 
 						type="submit" 
 						disabled={isSubmitting}
-						class="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white text-xs font-bold shadow-xs transition-colors flex items-center gap-1.5"
+						class="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white text-xs font-bold transition-colors flex items-center gap-1.5"
 					>
 						<span class="material-symbols-outlined text-sm">{isSubmitting ? 'sync' : 'send'}</span>
 						<span>{isSubmitting ? 'Mengirim...' : 'Kirim Pengajuan ke Finance'}</span>
@@ -628,10 +637,10 @@
 		<div class="w-full max-w-lg rounded-2xl bg-surface border border-slate-200 dark:border-slate-800 shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-150">
 			<div class="px-6 py-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between bg-emerald-500/10">
 				<div class="flex items-center gap-2">
-					<span class="material-symbols-outlined text-emerald-600">check_circle</span>
+					<span class="material-symbols-outlined text-emerald-600 dark:text-emerald-400">check_circle</span>
 					<div>
 						<h3 class="text-base font-black text-on-surface">Konfirmasi Penerimaan Dana</h3>
-						<p class="text-[11px] font-mono text-emerald-600 font-bold">{selectedRequestToConfirm.requestNumber}</p>
+						<p class="text-[11px] font-mono text-emerald-600 dark:text-emerald-400 font-bold">{selectedRequestToConfirm.requestNumber}</p>
 					</div>
 				</div>
 				<button class="text-on-surface-variant hover:text-on-surface" onclick={() => showConfirmModal = false}>
@@ -673,7 +682,7 @@
 						min="1000" 
 						step="1000" 
 						required 
-						class="w-full px-3.5 py-2.5 rounded-xl text-base font-mono font-bold bg-surface-container-low border border-slate-300 dark:border-slate-700 text-emerald-600 dark:text-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/40"
+						class="w-full px-3.5 py-2.5 rounded-xl text-base font-mono font-bold bg-surface-container-low border border-slate-200 dark:border-slate-800 text-emerald-600 dark:text-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/30"
 					/>
 					<p class="text-[11px] text-on-surface-variant mt-1">Sesuaikan jika nominal transfer berbeda dengan pengajuan awal.</p>
 				</div>
@@ -686,7 +695,7 @@
 						<select 
 							id="paymentMethod"
 							name="paymentMethod" 
-							class="w-full px-3.5 py-2.5 rounded-xl text-xs font-bold bg-surface-container-low border border-slate-300 dark:border-slate-700 text-on-surface focus:outline-none focus:ring-2 focus:ring-emerald-500/40"
+							class="w-full px-3.5 py-2.5 rounded-xl text-xs font-bold bg-surface-container-low border border-slate-200 dark:border-slate-800 text-on-surface focus:outline-none focus:ring-2 focus:ring-emerald-500/30"
 						>
 							<option value="TRANSFER">Transfer Bank</option>
 							<option value="CASH">Tunai / Cash</option>
@@ -703,7 +712,7 @@
 							type="text" 
 							name="referenceNo" 
 							placeholder="Contoh: TRF-BCA-98124" 
-							class="w-full px-3.5 py-2.5 rounded-xl text-xs font-mono bg-surface-container-low border border-slate-300 dark:border-slate-700 text-on-surface focus:outline-none focus:ring-2 focus:ring-emerald-500/40"
+							class="w-full px-3.5 py-2.5 rounded-xl text-xs font-mono bg-surface-container-low border border-slate-200 dark:border-slate-800 text-on-surface focus:outline-none focus:ring-2 focus:ring-emerald-500/30"
 						/>
 					</div>
 				</div>
@@ -717,7 +726,7 @@
 						type="text" 
 						name="notes" 
 						placeholder="Contoh: Diterima utuh via rekening operasional pool" 
-						class="w-full px-3.5 py-2.5 rounded-xl text-xs bg-surface-container-low border border-slate-300 dark:border-slate-700 text-on-surface focus:outline-none focus:ring-2 focus:ring-emerald-500/40"
+						class="w-full px-3.5 py-2.5 rounded-xl text-xs bg-surface-container-low border border-slate-200 dark:border-slate-800 text-on-surface focus:outline-none focus:ring-2 focus:ring-emerald-500/30"
 					/>
 				</div>
 
@@ -737,7 +746,7 @@
 					<button 
 						type="submit" 
 						disabled={isSubmitting}
-						class="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white text-xs font-bold shadow-xs transition-colors flex items-center gap-1.5"
+						class="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white text-xs font-bold transition-colors flex items-center gap-1.5"
 					>
 						<span class="material-symbols-outlined text-sm">{isSubmitting ? 'sync' : 'account_balance_wallet'}</span>
 						<span>{isSubmitting ? 'Menyimpan...' : 'Konfirmasi & Tambah Saldo'}</span>
@@ -754,7 +763,7 @@
 		<div class="w-full max-w-lg rounded-2xl bg-surface border border-slate-200 dark:border-slate-800 shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-150">
 			<div class="px-6 py-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between bg-surface-container">
 				<div class="flex items-center gap-2">
-					<span class="material-symbols-outlined text-emerald-600">add_card</span>
+					<span class="material-symbols-outlined text-emerald-600 dark:text-emerald-400">add_card</span>
 					<h3 class="text-base font-black text-on-surface">Catat Mutasi Kas Langsung</h3>
 				</div>
 				<button class="text-on-surface-variant hover:text-on-surface" onclick={() => showDirectModal = false}>
@@ -781,7 +790,7 @@
 						min="1000" 
 						step="1000" 
 						required 
-						class="w-full px-3.5 py-2.5 rounded-xl text-base font-mono font-bold bg-surface-container-low border border-slate-300 dark:border-slate-700 text-on-surface focus:outline-none focus:ring-2 focus:ring-emerald-500/40"
+						class="w-full px-3.5 py-2.5 rounded-xl text-base font-mono font-bold bg-surface-container-low border border-slate-200 dark:border-slate-800 text-on-surface focus:outline-none focus:ring-2 focus:ring-emerald-500/30"
 					/>
 				</div>
 
@@ -793,7 +802,7 @@
 						<select 
 							id="topupCategory"
 							name="category" 
-							class="w-full px-3.5 py-2.5 rounded-xl text-xs font-bold bg-surface-container-low border border-slate-300 dark:border-slate-700 text-on-surface focus:outline-none focus:ring-2 focus:ring-emerald-500/40"
+							class="w-full px-3.5 py-2.5 rounded-xl text-xs font-bold bg-surface-container-low border border-slate-200 dark:border-slate-800 text-on-surface focus:outline-none focus:ring-2 focus:ring-emerald-500/30"
 						>
 							<option value="DROP_DANA_FINANCE">Drop Dana Finance Langsung</option>
 							<option value="PENYESUAIAN_SALDO">Saldo Awal / Penyesuaian Saldo</option>
@@ -811,7 +820,7 @@
 							type="text" 
 							name="referenceNo" 
 							placeholder="Contoh: BKK-001" 
-							class="w-full px-3.5 py-2.5 rounded-xl text-xs font-mono bg-surface-container-low border border-slate-300 dark:border-slate-700 text-on-surface focus:outline-none focus:ring-2 focus:ring-emerald-500/40"
+							class="w-full px-3.5 py-2.5 rounded-xl text-xs font-mono bg-surface-container-low border border-slate-200 dark:border-slate-800 text-on-surface focus:outline-none focus:ring-2 focus:ring-emerald-500/30"
 						/>
 					</div>
 				</div>
@@ -826,7 +835,7 @@
 						name="description" 
 						placeholder="Contoh: Drop dana tunai kas kecil operasional pool" 
 						required 
-						class="w-full px-3.5 py-2.5 rounded-xl text-xs bg-surface-container-low border border-slate-300 dark:border-slate-700 text-on-surface focus:outline-none focus:ring-2 focus:ring-emerald-500/40"
+						class="w-full px-3.5 py-2.5 rounded-xl text-xs bg-surface-container-low border border-slate-200 dark:border-slate-800 text-on-surface focus:outline-none focus:ring-2 focus:ring-emerald-500/30"
 					/>
 				</div>
 
@@ -841,7 +850,7 @@
 					<button 
 						type="submit" 
 						disabled={isSubmitting}
-						class="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white text-xs font-bold shadow-xs transition-colors flex items-center gap-1.5"
+						class="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white text-xs font-bold transition-colors flex items-center gap-1.5"
 					>
 						<span class="material-symbols-outlined text-sm">{isSubmitting ? 'sync' : 'add'}</span>
 						<span>{isSubmitting ? 'Menyimpan...' : 'Simpan Kas Masuk'}</span>

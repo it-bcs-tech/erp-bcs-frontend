@@ -30,108 +30,135 @@
 
 <div class="flex flex-col h-full space-y-6">
 	<!-- Header -->
-	<header class="flex flex-col md:flex-row md:items-end justify-between gap-4 flex-shrink-0">
-		<div>
-			<div class="flex items-center gap-2.5">
-				<span class="material-symbols-outlined text-amber-600 dark:text-amber-400 text-2xl">assignment_turned_in</span>
-				<h1 class="text-2xl font-black text-on-surface tracking-tight">Closing Ritase & Biaya Kasir</h1>
+	<header class="flex flex-col md:flex-row md:items-center justify-between gap-4 flex-shrink-0">
+		<div class="flex items-center gap-3">
+			<div class="w-10 h-10 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
+				<span class="material-symbols-outlined text-2xl">assignment_turned_in</span>
 			</div>
-			<p class="text-on-surface-variant font-medium text-sm mt-0.5">
-				Validasi biaya ekstra pengiriman, pengembalian sisa UJO supir, dan penutupan buku ritase DO
-			</p>
+			<div>
+				<h1 class="text-xl font-bold text-on-surface tracking-tight">Closing Ritase & Biaya Kasir</h1>
+				<p class="text-xs text-on-surface-variant font-medium mt-0.5">
+					Validasi biaya ekstra pengiriman, pengembalian sisa UJO supir, dan penutupan buku ritase DO
+				</p>
+			</div>
 		</div>
 		
-		<div class="inline-flex p-1 rounded-2xl bg-surface-container border border-slate-200 dark:border-slate-800">
-			<button class="px-3.5 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all {filterStatus === 'UNPAID' ? 'bg-amber-600 text-white shadow-xs' : 'text-on-surface hover:bg-surface-container-high'}" onclick={() => filterStatus = 'UNPAID'}>
-				Menunggu Closing
+		<div class="inline-flex p-1 rounded-xl bg-surface-container-low border border-slate-200/70 dark:border-slate-800/70 self-start md:self-auto">
+			<button
+				class="px-4 py-2 rounded-lg text-xs font-bold transition-all flex items-center gap-2 {filterStatus === 'UNPAID' ? 'bg-surface-container-lowest text-amber-600 dark:text-amber-400 shadow-xs' : 'text-on-surface-variant hover:text-on-surface'}"
+				onclick={() => filterStatus = 'UNPAID'}
+			>
+				<span class="w-2 h-2 rounded-full bg-amber-500"></span>
+				<span>Menunggu Closing</span>
+				<span class="px-1.5 py-0.5 bg-amber-500/10 text-amber-700 dark:text-amber-300 text-[10px] rounded-full font-mono">
+					{settlements.filter(s => s.paymentStatus === 'UNPAID').length}
+				</span>
 			</button>
-			<button class="px-3.5 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all {filterStatus === 'PAID' ? 'bg-emerald-600 text-white shadow-xs' : 'text-on-surface hover:bg-surface-container-high'}" onclick={() => filterStatus = 'PAID'}>
-				Sudah Selesai
+			<button
+				class="px-4 py-2 rounded-lg text-xs font-bold transition-all flex items-center gap-2 {filterStatus === 'PAID' ? 'bg-surface-container-lowest text-emerald-700 dark:text-emerald-400 shadow-xs' : 'text-on-surface-variant hover:text-on-surface'}"
+				onclick={() => filterStatus = 'PAID'}
+			>
+				<span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+				<span>Sudah Selesai</span>
+				<span class="px-1.5 py-0.5 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 text-[10px] rounded-full font-mono">
+					{settlements.filter(s => s.paymentStatus === 'PAID').length}
+				</span>
 			</button>
 		</div>
 	</header>
 
 	<!-- Table Container -->
-	<div class="rounded-2xl bg-surface-container-low border border-slate-200/60 dark:border-slate-800/60 overflow-hidden shadow-xs flex-1 flex flex-col">
+	<div class="rounded-2xl bg-surface-container-lowest border border-slate-200/70 dark:border-slate-800/70 shadow-xs overflow-hidden flex-1 flex flex-col">
 		<div class="overflow-x-auto flex-1">
-			<table class="w-full text-left text-sm min-w-[800px]">
-				<thead class="bg-slate-100/70 dark:bg-slate-800/50 text-xs font-bold text-on-surface-variant uppercase tracking-wider border-b border-slate-200/60 dark:border-slate-800/60">
+			<table class="w-full text-left text-xs min-w-[800px]">
+				<thead class="bg-surface-container-low/50 text-[10px] font-bold text-on-surface-variant uppercase tracking-wider border-b border-slate-100 dark:border-slate-800/80">
 					<tr>
-						<th class="py-3.5 px-5">Nomor DO & Armada</th>
-						<th class="py-3.5 px-5">Rute & Tonase</th>
-						<th class="py-3.5 px-5 text-right">Rekap UJO & Biaya Ekstra</th>
-						<th class="py-3.5 px-5 text-center">Status</th>
-						<th class="py-3.5 px-5 text-right">Aksi Kasir</th>
+						<th class="py-3 px-5">Nomor DO & Armada</th>
+						<th class="py-3 px-5">Rute & Tonase</th>
+						<th class="py-3 px-5 text-right">Rekap UJO & Biaya Ekstra</th>
+						<th class="py-3 px-5 text-center">Status</th>
+						<th class="py-3 px-5 text-right">Aksi Kasir</th>
 					</tr>
 				</thead>
-				<tbody class="divide-y divide-slate-200/60 dark:divide-slate-800/60">
+				<tbody class="divide-y divide-slate-100 dark:divide-slate-800/60">
 					{#if filteredSettlements.length === 0}
 						<tr>
-							<td colspan="5" class="py-8 text-center text-sm font-medium text-on-surface-variant">
-								Tidak ada antrean penyelesaian biaya.
+							<td colspan="5" class="py-12 text-center text-xs font-medium text-on-surface-variant">
+								<div class="flex flex-col items-center justify-center gap-2">
+									<span class="material-symbols-outlined text-3xl text-on-surface-variant/40">task_alt</span>
+									<span>Tidak ada antrean penyelesaian biaya pada status ini.</span>
+								</div>
 							</td>
 						</tr>
 					{/if}
 					{#each filteredSettlements as item}
-						<tr class="hover:bg-surface-container-low/30 transition-colors group">
-							<td class="py-4 px-6">
-								<p class="text-sm font-black text-on-surface">{item.id}</p>
-								<p class="text-[11px] text-on-surface-variant font-medium mt-1">Supir: <span class="text-on-surface">{item.driver}</span></p>
-								<p class="text-[11px] text-on-surface-variant font-medium">Unit: <span class="text-on-surface">{item.unit}</span></p>
-							</td>
-							<td class="py-4 px-6">
-								<p class="text-[11px] font-bold text-on-surface">{item.origin} → {item.destination}</p>
-								<div class="mt-2 flex gap-2">
-									<div class="px-2 py-1 bg-surface-container text-on-surface text-[9px] font-medium rounded border border-surface-container-high">
-										Est: <b>{item.estWeight} Ton</b>
-									</div>
-									<div class="px-2 py-1 bg-emerald-50 text-emerald-700 text-[9px] font-bold rounded border border-emerald-200">
-										Real: <b>{item.realWeight || 0} Ton</b>
-									</div>
+						<tr class="hover:bg-surface-container-low/40 transition-colors group">
+							<td class="py-3.5 px-5">
+								<p class="text-xs font-bold font-mono text-emerald-600 dark:text-emerald-400">{item.id}</p>
+								<div class="flex items-center gap-2 mt-1 text-[11px] text-on-surface-variant">
+									<span>Supir: <strong class="text-on-surface">{item.driver}</strong></span>
+									<span>•</span>
+									<span>Unit: <strong class="text-on-surface">{item.unit}</strong></span>
 								</div>
 							</td>
-							<td class="py-4 px-6 text-right">
-								<div class="text-[10px] text-on-surface-variant space-y-1 mb-2 border-b border-surface-container pb-2 inline-block">
-									<div class="flex justify-between gap-6"><span class="font-medium">Total UJO Awal:</span> <span>{formatCurrency(item.ujo)}</span></div>
+							<td class="py-3.5 px-5">
+								<p class="text-xs font-bold text-on-surface">{item.origin} → {item.destination}</p>
+								<div class="mt-1.5 flex gap-2">
+									<span class="px-2 py-0.5 bg-surface-container-low text-on-surface-variant text-[10px] font-medium rounded-md border border-slate-200/70 dark:border-slate-800/70">
+										Est: <b>{item.estWeight} Ton</b>
+									</span>
+									<span class="px-2 py-0.5 bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 text-[10px] font-bold rounded-md border border-emerald-200/50 dark:border-emerald-800/50">
+										Real: <b>{item.realWeight || 0} Ton</b>
+									</span>
+								</div>
+							</td>
+							<td class="py-3.5 px-5 text-right">
+								<div class="text-[11px] text-on-surface-variant space-y-1 mb-1.5 border-b border-slate-100 dark:border-slate-800/80 pb-1.5 inline-block text-right">
+									<div class="flex justify-between gap-6"><span class="text-on-surface-variant">Total UJO:</span> <span class="font-mono text-on-surface font-semibold">{formatCurrency(item.ujo)}</span></div>
 									<div class="flex justify-between gap-6">
-										<span class="font-medium text-rose-600">Extra Cost (Retribusidll):</span> 
-										<span class="text-rose-600">{formatCurrency(item.extraCost || 0)}</span>
+										<span class="text-rose-600 dark:text-rose-400 font-medium">Extra Cost:</span> 
+										<span class="text-rose-600 dark:text-rose-400 font-mono font-bold">{formatCurrency(item.extraCost || 0)}</span>
 									</div>
 									{#if item.desc}
-										<div class="text-[9px] italic text-rose-600 max-w-[150px] text-right ml-auto">"{item.desc}"</div>
+										<div class="text-[10px] italic text-rose-600 dark:text-rose-400 max-w-[180px] text-right ml-auto">"{item.desc}"</div>
 									{/if}
 								</div>
 								{#if (item.extraCost || 0) > 0}
-									<p class="text-xs font-bold text-on-surface">Harus Dibayar ke Supir:</p>
-									<p class="text-lg font-black text-rose-600">{formatCurrency(item.extraCost)}</p>
+									<p class="text-[10px] font-medium text-on-surface-variant">Harus Dibayar ke Supir:</p>
+									<p class="text-sm font-bold font-mono text-rose-600 dark:text-rose-400">{formatCurrency(item.extraCost)}</p>
 								{:else}
-									<p class="text-xs font-bold text-emerald-600">Clear (Tidak ada extra)</p>
+									<p class="text-[11px] font-bold text-emerald-600 dark:text-emerald-400 inline-flex items-center gap-1">
+										<span class="material-symbols-outlined text-[13px]">check_circle</span>
+										<span>Clear (Nihil Extra)</span>
+									</p>
 								{/if}
 							</td>
-							<td class="py-4 px-6 text-center">
+							<td class="py-3.5 px-5 text-center">
 								{#if item.paymentStatus === 'PAID'}
-									<div class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-700">
-										<span class="material-symbols-outlined text-[16px]">task_alt</span>
-										<span class="text-[10px] font-bold uppercase tracking-wider">Selesai</span>
-									</div>
+									<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300 border border-emerald-200/60 dark:border-emerald-800/60">
+										<span class="material-symbols-outlined text-[13px]">task_alt</span>
+										<span class="uppercase tracking-wider">Selesai</span>
+									</span>
 								{:else}
-									<div class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-rose-50 border border-rose-200 text-rose-700">
-										<span class="material-symbols-outlined text-[16px]">pending_actions</span>
-										<span class="text-[10px] font-bold uppercase tracking-wider">Menunggu</span>
-									</div>
+									<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 dark:bg-amber-950/50 dark:text-amber-300 border border-amber-200/60 dark:border-amber-800/60">
+										<span class="material-symbols-outlined text-[13px]">pending_actions</span>
+										<span class="uppercase tracking-wider">Menunggu</span>
+									</span>
 								{/if}
 							</td>
-							<td class="py-4 px-6 text-right">
+							<td class="py-3.5 px-5 text-right">
 								{#if item.paymentStatus === 'UNPAID'}
-									<form method="POST" action="?/settleClosing" use:enhance={() => { isSubmitting = true; return async ({ update }) => { await update(); } }}>
+									<form method="POST" action="?/settleClosing" use:enhance={() => { isSubmitting = true; return async ({ update }) => { await update(); isSubmitting = false; } }}>
 										<input type="hidden" name="orderId" value={item.soId}>
-										<button type="submit" disabled={isSubmitting} class="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold rounded-xl shadow-sm transition-colors flex items-center gap-2 justify-end w-full disabled:opacity-50">
-											<span class="material-symbols-outlined text-[16px]">check_circle</span> Selesaikan Order
+										<button type="submit" disabled={isSubmitting} class="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl shadow-xs transition-colors flex items-center gap-1.5 justify-center w-full disabled:opacity-50 cursor-pointer">
+											<span class="material-symbols-outlined text-[15px]">check_circle</span>
+											<span>Selesaikan Closing</span>
 										</button>
 									</form>
 								{:else}
-									<button class="px-4 py-2 bg-surface-container text-on-surface-variant text-xs font-bold rounded-xl flex items-center gap-2 justify-end w-full hover:bg-surface-container-high transition-colors">
-										<span class="material-symbols-outlined text-[16px]">receipt</span> Nota Closing
+									<button class="px-3 py-1.5 bg-surface-container-low hover:bg-surface-container text-on-surface text-xs font-bold rounded-xl border border-slate-200/70 dark:border-slate-800/70 flex items-center gap-1.5 justify-center w-full transition-colors cursor-pointer">
+										<span class="material-symbols-outlined text-[15px]">receipt</span>
+										<span>Nota Closing</span>
 									</button>
 								{/if}
 							</td>

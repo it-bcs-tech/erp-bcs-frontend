@@ -84,7 +84,7 @@
 	<header class="flex flex-col md:flex-row md:items-end justify-between gap-4 flex-shrink-0">
 		<div>
 			<div class="flex items-center gap-2.5">
-				<span class="material-symbols-outlined text-amber-600 dark:text-amber-400 text-2xl">description</span>
+				<span class="material-symbols-outlined text-emerald-600 dark:text-emerald-400 text-2xl">description</span>
 				<h1 class="text-2xl font-black text-on-surface tracking-tight">Verifikasi Surat Jalan Balik (DN)</h1>
 			</div>
 			<p class="text-on-surface-variant font-medium text-sm mt-0.5">
@@ -107,54 +107,56 @@
 	{/if}
 
 	<!-- Mode Tab Switcher -->
-	<div class="flex items-center gap-2 border-b border-surface-container pb-3 flex-shrink-0">
-		<button 
-			type="button" 
-			onclick={() => activeTab = 'REGULER'} 
-			class="px-4 py-2.5 rounded-xl font-bold text-xs flex items-center gap-2 transition-all cursor-pointer {activeTab === 'REGULER' ? 'bg-amber-600 text-white shadow-xs' : 'bg-surface-container-low text-on-surface-variant hover:text-on-surface hover:bg-surface-container'}"
-		>
-			<span class="material-symbols-outlined text-[18px]">local_shipping</span>
-			<span>Trip Reguler</span>
-			<span class="px-2 py-0.5 rounded-full text-[10px] font-black {activeTab === 'REGULER' ? 'bg-white/20 text-white' : 'bg-surface-container text-on-surface-variant'}">
-				{pendingTrips.length}
-			</span>
-		</button>
-		<button 
-			type="button" 
-			onclick={() => activeTab = 'NGEPOK'} 
-			class="px-4 py-2.5 rounded-xl font-bold text-xs flex items-center gap-2 transition-all cursor-pointer {activeTab === 'NGEPOK' ? 'bg-indigo-600 text-white shadow-xs' : 'bg-surface-container-low text-on-surface-variant hover:text-on-surface hover:bg-surface-container'}"
-		>
-			<span class="material-symbols-outlined text-[18px]">cached</span>
-			<span>Shuttle / Ngepok Multi-Rit</span>
-			{#if pendingNgepokCount > 0}
-				<span class="px-2 py-0.5 rounded-full text-[10px] font-black {activeTab === 'NGEPOK' ? 'bg-white/20 text-white' : 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400'}">
-					{pendingNgepokCount} Menunggu
+	<div class="flex items-center gap-2 border-b border-slate-200/70 dark:border-slate-800/70 pb-3 flex-shrink-0">
+		<div class="inline-flex p-1 rounded-2xl bg-surface-container-low border border-slate-200/70 dark:border-slate-800/70">
+			<button 
+				type="button" 
+				onclick={() => activeTab = 'REGULER'} 
+				class="px-4 py-2 rounded-xl font-bold text-xs flex items-center gap-2 transition-all cursor-pointer {activeTab === 'REGULER' ? 'bg-emerald-600 text-white' : 'text-on-surface hover:bg-surface-container'}"
+			>
+				<span class="material-symbols-outlined text-[18px]">local_shipping</span>
+				<span>Trip Reguler</span>
+				<span class="px-2 py-0.5 rounded-full text-[10px] font-black {activeTab === 'REGULER' ? 'bg-white/20 text-white' : 'bg-surface-container text-on-surface-variant'}">
+					{pendingTrips.length}
 				</span>
-			{/if}
-		</button>
+			</button>
+			<button 
+				type="button" 
+				onclick={() => activeTab = 'NGEPOK'} 
+				class="px-4 py-2 rounded-xl font-bold text-xs flex items-center gap-2 transition-all cursor-pointer {activeTab === 'NGEPOK' ? 'bg-emerald-600 text-white' : 'text-on-surface hover:bg-surface-container'}"
+			>
+				<span class="material-symbols-outlined text-[18px]">cached</span>
+				<span>Shuttle / Ngepok Multi-Rit</span>
+				{#if pendingNgepokCount > 0}
+					<span class="px-2 py-0.5 rounded-full text-[10px] font-black {activeTab === 'NGEPOK' ? 'bg-white/20 text-white' : 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'}">
+						{pendingNgepokCount} Menunggu
+					</span>
+				{/if}
+			</button>
+		</div>
 	</div>
 
 	{#if activeTab === 'REGULER'}
 		<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
 			<!-- Left: Form Input -->
 			<div class="lg:col-span-1">
-				<div class="rounded-2xl bg-surface-container-low border border-slate-200/60 dark:border-slate-800/60 shadow-xs p-6 sticky top-6">
+				<div class="rounded-2xl bg-surface-container-lowest border border-slate-200/70 dark:border-slate-800/70 p-6 sticky top-6">
 					<h2 class="text-sm font-bold text-on-surface mb-4 flex items-center gap-2">
-						<span class="material-symbols-outlined text-amber-600 text-lg">edit_document</span>
+						<span class="material-symbols-outlined text-emerald-600 dark:text-emerald-400 text-lg">edit_document</span>
 						<span>Input Surat Jalan Fisik</span>
 					</h2>
 
 					{#if selectedTrip}
-						<div class="bg-amber-500/10 border border-amber-500/20 rounded-xl p-3.5 mb-4">
+						<div class="bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-3.5 mb-4">
 							<div class="flex justify-between items-start mb-1">
-								<span class="text-[10px] font-bold text-amber-700 dark:text-amber-300 uppercase tracking-wider">Trip Terpilih</span>
-								<button class="text-amber-600 hover:text-amber-800" onclick={() => selectedTrip = null}>
+								<span class="text-[10px] font-bold text-emerald-700 dark:text-emerald-300 uppercase tracking-wider">Trip Terpilih</span>
+								<button class="text-emerald-600 hover:text-emerald-800" onclick={() => selectedTrip = null}>
 									<span class="material-symbols-outlined text-base">close</span>
 								</button>
 							</div>
 							<p class="font-bold text-xs text-on-surface font-mono">{selectedTrip.no_surat_tugas}</p>
 							<p class="text-xs text-on-surface-variant mt-0.5">{selectedTrip.customer}</p>
-							<div class="flex justify-between mt-2 pt-2 border-t border-amber-500/20 text-xs text-on-surface font-medium">
+							<div class="flex justify-between mt-2 pt-2 border-t border-emerald-500/20 text-xs text-on-surface font-medium">
 								<span>{selectedTrip.origin} → {selectedTrip.destination}</span>
 								<span class="font-bold">{selectedTrip.unit}</span>
 							</div>
@@ -172,7 +174,7 @@
 									type="text"
 									name="noSuratJalan"
 									bind:value={inputNoSuratJalan}
-									class="w-full bg-surface border border-slate-200 dark:border-slate-800 text-on-surface text-xs rounded-xl px-3.5 py-2.5 focus:outline-none focus:ring-2 focus:ring-amber-500"
+									class="w-full bg-surface-container-low border border-slate-200 dark:border-slate-800 text-on-surface text-xs rounded-xl px-3.5 py-2.5 focus:outline-none focus:ring-2 focus:ring-emerald-500/30"
 									placeholder="Contoh: SJ-001/ABC/2026"
 									required
 								/>
@@ -187,7 +189,7 @@
 									type="date"
 									name="tglSuratJalan"
 									bind:value={inputTglSuratJalan}
-									class="w-full bg-surface border border-slate-200 dark:border-slate-800 text-on-surface text-xs rounded-xl px-3.5 py-2.5 focus:outline-none focus:ring-2 focus:ring-amber-500"
+									class="w-full bg-surface-container-low border border-slate-200 dark:border-slate-800 text-on-surface text-xs rounded-xl px-3.5 py-2.5 focus:outline-none focus:ring-2 focus:ring-emerald-500/30"
 									required
 								/>
 							</div>
@@ -195,183 +197,183 @@
 							<div>
 								<label class="block text-[11px] font-bold text-on-surface-variant uppercase tracking-wider mb-1 flex justify-between" for="totalBerat_input">
 									<span>Total Berat (Kg)</span>
-									<span class="text-amber-600 lowercase font-medium">Timbangan Pabrik</span>
+									<span class="text-emerald-600 dark:text-emerald-400 lowercase font-medium">Timbangan Pabrik</span>
 								</label>
 								<div class="relative">
 									<input
-									id="totalBerat_input"
-									type="number"
-									step="0.01"
-									name="totalBerat"
-									bind:value={inputBerat}
-									class="w-full bg-surface border border-slate-200 dark:border-slate-800 text-on-surface text-xs rounded-xl px-3.5 py-2.5 focus:outline-none focus:ring-2 focus:ring-amber-500"
-									required
-								/>
-								<span class="absolute right-3.5 top-1/2 -translate-y-1/2 text-on-surface-variant text-xs font-bold">Kg</span>
+										id="totalBerat_input"
+										type="number"
+										step="0.01"
+										name="totalBerat"
+										bind:value={inputBerat}
+										class="w-full bg-surface-container-low border border-slate-200 dark:border-slate-800 text-on-surface text-xs rounded-xl px-3.5 py-2.5 focus:outline-none focus:ring-2 focus:ring-emerald-500/30"
+										required
+									/>
+									<span class="absolute right-3.5 top-1/2 -translate-y-1/2 text-on-surface-variant text-xs font-bold">Kg</span>
+								</div>
+								<p class="text-[10px] text-on-surface-variant mt-1">Berat awal dari OCS: {selectedTrip.actual_weight || 0} Kg</p>
 							</div>
-							<p class="text-[10px] text-on-surface-variant mt-1">Berat awal dari OCS: {selectedTrip.actual_weight || 0} Kg</p>
-						</div>
 
-						<div>
-							<label class="block text-[11px] font-bold text-on-surface-variant uppercase tracking-wider mb-1" for="fileUploadUrl_input">
-								Bukti Scan / Foto Lembar Fisik SJB
-							</label>
-							<input
-								id="fileUploadUrl_input"
-								type="url"
-								name="fileUploadUrl"
-								bind:value={inputFileUrl}
-								placeholder="https://..."
-								class="w-full bg-surface border border-slate-200 dark:border-slate-800 text-on-surface text-xs rounded-xl px-3.5 py-2.5 focus:outline-none focus:ring-2 focus:ring-amber-500"
-							/>
-							<p class="text-[10px] text-on-surface-variant mt-1">Lampiran foto ini akan otomatis tampil pada Modul Finance saat proses Invoicing.</p>
-						</div>
+							<div>
+								<label class="block text-[11px] font-bold text-on-surface-variant uppercase tracking-wider mb-1" for="fileUploadUrl_input">
+									Bukti Scan / Foto Lembar Fisik SJB
+								</label>
+								<input
+									id="fileUploadUrl_input"
+									type="url"
+									name="fileUploadUrl"
+									bind:value={inputFileUrl}
+									placeholder="https://..."
+									class="w-full bg-surface-container-low border border-slate-200 dark:border-slate-800 text-on-surface text-xs rounded-xl px-3.5 py-2.5 focus:outline-none focus:ring-2 focus:ring-emerald-500/30"
+								/>
+								<p class="text-[10px] text-on-surface-variant mt-1">Lampiran foto ini akan otomatis tampil pada Modul Finance saat proses Invoicing.</p>
+							</div>
 
-						<div class="pt-3 border-t border-slate-200/60 dark:border-slate-800/60">
-							<button type="submit" disabled={isSubmitting} class="w-full bg-amber-600 hover:bg-amber-700 text-white font-bold py-2.5 px-4 rounded-xl shadow-xs transition-colors flex items-center justify-center gap-2 disabled:opacity-50 text-xs cursor-pointer">
-								{#if isSubmitting}
-									<span class="material-symbols-outlined animate-spin text-base">progress_activity</span> Menyimpan...
-								{:else}
-									<span class="material-symbols-outlined text-base">save</span> Simpan Verifikasi DN
-								{/if}
-							</button>
+							<div class="pt-3 border-t border-slate-200/70 dark:border-slate-800/70">
+								<button type="submit" disabled={isSubmitting} class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 px-4 rounded-xl transition-colors flex items-center justify-center gap-2 disabled:opacity-50 text-xs cursor-pointer">
+									{#if isSubmitting}
+										<span class="material-symbols-outlined animate-spin text-base">progress_activity</span> Menyimpan...
+									{:else}
+										<span class="material-symbols-outlined text-base">save</span> Simpan Verifikasi DN
+									{/if}
+								</button>
+							</div>
+						</form>
+					{:else}
+						<div class="text-center py-10 bg-surface-container-low/50 rounded-xl border border-dashed border-slate-200 dark:border-slate-800 p-4">
+							<span class="material-symbols-outlined text-3xl text-on-surface-variant/40 mb-1 block">touch_app</span>
+							<p class="text-xs font-medium text-on-surface-variant">Pilih Trip dari daftar sebelah kanan untuk verifikasi Surat Jalan.</p>
 						</div>
-					</form>
-				{:else}
-					<div class="text-center py-10 bg-surface rounded-xl border border-dashed border-slate-200 dark:border-slate-800 p-4">
-						<span class="material-symbols-outlined text-3xl text-on-surface-variant/40 mb-1 block">touch_app</span>
-						<p class="text-xs font-medium text-on-surface-variant">Pilih Trip dari daftar sebelah kanan untuk verifikasi Surat Jalan.</p>
+					{/if}
+				</div>
+			</div>
+
+			<!-- Right: Lists -->
+			<div class="lg:col-span-2 space-y-6">
+				<!-- Pending Trips List -->
+				<div class="rounded-2xl bg-surface-container-lowest border border-slate-200/70 dark:border-slate-800/70 overflow-hidden flex flex-col max-h-[380px]">
+					<div class="px-5 py-3.5 border-b border-slate-200/70 dark:border-slate-800/70 bg-surface-container-low/50 flex justify-between items-center">
+						<h3 class="text-xs font-bold text-on-surface flex items-center gap-2">
+							<span class="material-symbols-outlined text-amber-500 text-base">pending_actions</span>
+							<span>Trip Menunggu Verifikasi SJB</span>
+							<span class="bg-amber-50 text-amber-700 dark:bg-amber-950/50 dark:text-amber-300 border border-amber-200 dark:border-amber-800 text-[10px] py-0.5 px-2 rounded-full font-bold">{pendingTrips.length}</span>
+						</h3>
 					</div>
-				{/if}
-			</div>
-		</div>
-
-		<!-- Right: Lists -->
-		<div class="lg:col-span-2 space-y-6">
-			<!-- Pending Trips List -->
-			<div class="rounded-2xl bg-surface-container-low border border-slate-200/60 dark:border-slate-800/60 shadow-xs overflow-hidden flex flex-col max-h-[380px]">
-				<div class="px-5 py-3.5 border-b border-slate-200/60 dark:border-slate-800/60 bg-slate-50/50 dark:bg-slate-800/30 flex justify-between items-center">
-					<h3 class="text-xs font-bold text-on-surface flex items-center gap-2">
-						<span class="material-symbols-outlined text-amber-500 text-base">pending_actions</span>
-						<span>Trip Menunggu Verifikasi SJB</span>
-						<span class="bg-amber-500/10 text-amber-600 border border-amber-500/20 text-[10px] py-0.5 px-2 rounded-full font-bold">{pendingTrips.length}</span>
-					</h3>
-				</div>
-				<div class="overflow-y-auto flex-1">
-					<table class="w-full text-left border-collapse">
-						<thead class="sticky top-0 bg-surface-container-lowest shadow-xs z-10">
-							<tr class="border-b border-surface-container bg-surface-container-low/50">
-								<th class="py-3 px-4 text-[10px] font-black uppercase tracking-widest text-on-surface-variant">DO / Pelanggan</th>
-								<th class="py-3 px-4 text-[10px] font-black uppercase tracking-widest text-on-surface-variant">Unit / Supir</th>
-								<th class="py-3 px-4 text-[10px] font-black uppercase tracking-widest text-on-surface-variant text-right">Berat OCS</th>
-								<th class="py-3 px-4 text-[10px] font-black uppercase tracking-widest text-on-surface-variant text-right">Aksi</th>
-							</tr>
-						</thead>
-						<tbody class="divide-y divide-surface-container">
-							{#if pendingTrips.length === 0}
-								<tr><td colspan="4" class="py-8 text-center text-sm font-medium text-on-surface-variant">Tidak ada trip yang menunggu verifikasi.</td></tr>
-							{/if}
-							{#each pendingTrips as trip}
-								<tr class="hover:bg-surface-container-low/30 transition-colors {selectedTrip?.trip_id === trip.trip_id ? 'bg-amber-50/50 dark:bg-amber-950/30' : ''}">
-									<td class="py-3 px-4">
-										<p class="text-xs font-bold text-on-surface font-mono">{trip.no_surat_tugas}</p>
-										<p class="text-[11px] text-on-surface-variant mt-0.5">{trip.customer}</p>
-										<p class="text-[10px] text-on-surface-variant/70">{trip.origin} → {trip.destination}</p>
-									</td>
-									<td class="py-3 px-4">
-										<p class="text-xs font-bold text-on-surface">{trip.unit}</p>
-										<p class="text-[11px] text-on-surface-variant mt-0.5">{trip.driver}</p>
-									</td>
-									<td class="py-3 px-4 text-right">
-										<span class="text-xs font-bold text-on-surface">{trip.actual_weight || 0}</span>
-										<span class="text-[10px] text-on-surface-variant"> Kg</span>
-									</td>
-									<td class="py-3 px-4 text-right">
-										<button
-											onclick={() => selectTrip(trip)}
-											class="px-3 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold transition-colors inline-flex items-center gap-1 cursor-pointer"
-										>
-											<span class="material-symbols-outlined text-xs">edit</span>
-											<span>Verifikasi</span>
-										</button>
-									</td>
+					<div class="overflow-y-auto flex-1">
+						<table class="w-full text-left border-collapse">
+							<thead class="sticky top-0 bg-surface-container-lowest z-10">
+								<tr class="border-b border-slate-200/70 dark:border-slate-800/70 bg-surface-container-low/50">
+									<th class="py-3 px-4 text-[10px] font-bold uppercase tracking-wider text-on-surface-variant">DO / Pelanggan</th>
+									<th class="py-3 px-4 text-[10px] font-bold uppercase tracking-wider text-on-surface-variant">Unit / Supir</th>
+									<th class="py-3 px-4 text-[10px] font-bold uppercase tracking-wider text-on-surface-variant text-right">Berat OCS</th>
+									<th class="py-3 px-4 text-[10px] font-bold uppercase tracking-wider text-on-surface-variant text-right">Aksi</th>
 								</tr>
-							{/each}
-						</tbody>
-					</table>
-				</div>
-			</div>
-
-			<!-- Verified DNs Table -->
-			<div class="rounded-2xl bg-surface-container-low border border-slate-200/60 dark:border-slate-800/60 shadow-xs overflow-hidden flex flex-col max-h-[380px]">
-				<div class="px-5 py-3.5 border-b border-slate-200/60 dark:border-slate-800/60 bg-slate-50/50 dark:bg-slate-800/30 flex justify-between items-center">
-					<h3 class="text-xs font-bold text-on-surface flex items-center gap-2">
-						<span class="material-symbols-outlined text-emerald-500 text-base">verified</span>
-						<span>Riwayat Surat Jalan Terverifikasi (Siap Invoice)</span>
-						<span class="bg-emerald-500/10 text-emerald-600 border border-emerald-500/20 text-[10px] py-0.5 px-2 rounded-full font-bold">{verifiedDNs.length}</span>
-					</h3>
-				</div>
-				<div class="overflow-y-auto flex-1">
-					<table class="w-full text-left border-collapse">
-						<thead class="sticky top-0 bg-surface-container-lowest shadow-xs z-10">
-							<tr class="border-b border-surface-container bg-surface-container-low/50">
-								<th class="py-3 px-4 text-[10px] font-black uppercase tracking-widest text-on-surface-variant">No. SJ & Tanggal</th>
-								<th class="py-3 px-4 text-[10px] font-black uppercase tracking-widest text-on-surface-variant">Customer & Unit</th>
-								<th class="py-3 px-4 text-[10px] font-black uppercase tracking-widest text-on-surface-variant text-right">Tonase Riil</th>
-								<th class="py-3 px-4 text-[10px] font-black uppercase tracking-widest text-on-surface-variant text-right">Lampiran Scan</th>
-							</tr>
-						</thead>
-						<tbody class="divide-y divide-surface-container">
-							{#if verifiedDNs.length === 0}
-								<tr><td colspan="4" class="py-8 text-center text-sm font-medium text-on-surface-variant">Belum ada Surat Jalan yang diverifikasi.</td></tr>
-							{/if}
-							{#each verifiedDNs as dn}
-								<tr class="hover:bg-surface-container-low/30 transition-colors">
-									<td class="py-3 px-4">
-										<p class="text-xs font-bold text-emerald-600 dark:text-emerald-400 font-mono">{dn.no_surat_jalan}</p>
-										<p class="text-[10px] text-on-surface-variant mt-0.5">{dn.tgl_surat_jalan}</p>
-										<p class="text-[10px] text-on-surface-variant/70 font-mono">Tugas: {dn.no_surat_tugas}</p>
-									</td>
-									<td class="py-3 px-4">
-										<p class="text-xs font-bold text-on-surface">{dn.customer}</p>
-										<p class="text-[10px] text-on-surface-variant mt-0.5">{dn.unit} • {dn.driver || '-'}</p>
-									</td>
-									<td class="py-3 px-4 text-right">
-										<span class="text-xs font-bold text-on-surface">{dn.total_berat}</span>
-										<span class="text-[10px] text-on-surface-variant"> Kg</span>
-										{#if dn.total_amount > 0}
-											<p class="text-[10px] font-bold text-emerald-600">{formatCurrency(dn.total_amount)}</p>
-										{/if}
-									</td>
-									<td class="py-3 px-4 text-right">
-										{#if dn.file_upload && dn.file_upload !== '-'}
+							</thead>
+							<tbody class="divide-y divide-slate-200/60 dark:divide-slate-800/60">
+								{#if pendingTrips.length === 0}
+									<tr><td colspan="4" class="py-8 text-center text-sm font-medium text-on-surface-variant">Tidak ada trip yang menunggu verifikasi.</td></tr>
+								{/if}
+								{#each pendingTrips as trip}
+									<tr class="hover:bg-surface-container/40 transition-colors {selectedTrip?.trip_id === trip.trip_id ? 'bg-emerald-50/50 dark:bg-emerald-950/30' : ''}">
+										<td class="py-3 px-4">
+											<p class="text-xs font-bold text-on-surface font-mono">{trip.no_surat_tugas}</p>
+											<p class="text-[11px] text-on-surface-variant mt-0.5">{trip.customer}</p>
+											<p class="text-[10px] text-on-surface-variant/70">{trip.origin} → {trip.destination}</p>
+										</td>
+										<td class="py-3 px-4">
+											<p class="text-xs font-bold text-on-surface">{trip.unit}</p>
+											<p class="text-[11px] text-on-surface-variant mt-0.5">{trip.driver}</p>
+										</td>
+										<td class="py-3 px-4 text-right">
+											<span class="text-xs font-bold font-mono text-on-surface">{trip.actual_weight || 0}</span>
+											<span class="text-[10px] text-on-surface-variant"> Kg</span>
+										</td>
+										<td class="py-3 px-4 text-right">
 											<button
-												onclick={() => selectedDocForPreview = dn}
-												class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-300 text-xs font-bold hover:bg-indigo-100 transition-colors"
-												title="Lihat Foto Surat Jalan Balik"
+												onclick={() => selectTrip(trip)}
+												class="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition-colors inline-flex items-center gap-1 cursor-pointer"
 											>
-												<span class="material-symbols-outlined text-sm">image</span>
-												<span>Scan SJB</span>
+												<span class="material-symbols-outlined text-xs">edit</span>
+												<span>Verifikasi</span>
 											</button>
-										{:else}
-											<span class="text-[10px] text-on-surface-variant/60 italic">Tidak ada file</span>
-										{/if}
-									</td>
+										</td>
+									</tr>
+								{/each}
+							</tbody>
+						</table>
+					</div>
+				</div>
+
+				<!-- Verified DNs Table -->
+				<div class="rounded-2xl bg-surface-container-lowest border border-slate-200/70 dark:border-slate-800/70 overflow-hidden flex flex-col max-h-[380px]">
+					<div class="px-5 py-3.5 border-b border-slate-200/70 dark:border-slate-800/70 bg-surface-container-low/50 flex justify-between items-center">
+						<h3 class="text-xs font-bold text-on-surface flex items-center gap-2">
+							<span class="material-symbols-outlined text-emerald-500 text-base">verified</span>
+							<span>Riwayat Surat Jalan Terverifikasi (Siap Invoice)</span>
+							<span class="bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 text-[10px] py-0.5 px-2 rounded-full font-bold">{verifiedDNs.length}</span>
+						</h3>
+					</div>
+					<div class="overflow-y-auto flex-1">
+						<table class="w-full text-left border-collapse">
+							<thead class="sticky top-0 bg-surface-container-lowest z-10">
+								<tr class="border-b border-slate-200/70 dark:border-slate-800/70 bg-surface-container-low/50">
+									<th class="py-3 px-4 text-[10px] font-bold uppercase tracking-wider text-on-surface-variant">No. SJ & Tanggal</th>
+									<th class="py-3 px-4 text-[10px] font-bold uppercase tracking-wider text-on-surface-variant">Customer & Unit</th>
+									<th class="py-3 px-4 text-[10px] font-bold uppercase tracking-wider text-on-surface-variant text-right">Tonase Riil</th>
+									<th class="py-3 px-4 text-[10px] font-bold uppercase tracking-wider text-on-surface-variant text-right">Lampiran Scan</th>
 								</tr>
-							{/each}
-						</tbody>
-					</table>
+							</thead>
+							<tbody class="divide-y divide-slate-200/60 dark:divide-slate-800/60">
+								{#if verifiedDNs.length === 0}
+									<tr><td colspan="4" class="py-8 text-center text-sm font-medium text-on-surface-variant">Belum ada Surat Jalan yang diverifikasi.</td></tr>
+								{/if}
+								{#each verifiedDNs as dn}
+									<tr class="hover:bg-surface-container/40 transition-colors">
+										<td class="py-3 px-4">
+											<p class="text-xs font-bold text-emerald-600 dark:text-emerald-400 font-mono">{dn.no_surat_jalan}</p>
+											<p class="text-[10px] text-on-surface-variant mt-0.5">{dn.tgl_surat_jalan}</p>
+											<p class="text-[10px] text-on-surface-variant/70 font-mono">Tugas: {dn.no_surat_tugas}</p>
+										</td>
+										<td class="py-3 px-4">
+											<p class="text-xs font-bold text-on-surface">{dn.customer}</p>
+											<p class="text-[10px] text-on-surface-variant mt-0.5">{dn.unit} • {dn.driver || '-'}</p>
+										</td>
+										<td class="py-3 px-4 text-right">
+											<span class="text-xs font-bold font-mono text-on-surface">{dn.total_berat}</span>
+											<span class="text-[10px] text-on-surface-variant"> Kg</span>
+											{#if dn.total_amount > 0}
+												<p class="text-[10px] font-bold font-mono text-emerald-600 dark:text-emerald-400">{formatCurrency(dn.total_amount)}</p>
+											{/if}
+										</td>
+										<td class="py-3 px-4 text-right">
+											{#if dn.file_upload && dn.file_upload !== '-'}
+												<button
+													onclick={() => selectedDocForPreview = dn}
+													class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 text-xs font-bold hover:bg-emerald-100 transition-colors"
+													title="Lihat Foto Surat Jalan Balik"
+												>
+													<span class="material-symbols-outlined text-sm">image</span>
+													<span>Scan SJB</span>
+												</button>
+											{:else}
+												<span class="text-[10px] text-on-surface-variant/60 italic">Tidak ada file</span>
+											{/if}
+										</td>
+									</tr>
+								{/each}
+							</tbody>
+						</table>
+					</div>
 				</div>
 			</div>
 		</div>
-	</div>
 	{:else}
 		<!-- Tab Shuttle / Ngepok Multi-Rit -->
 		<div class="space-y-6">
 			<!-- Header Info -->
-			<div class="p-5 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 flex flex-col md:flex-row md:items-center justify-between gap-4">
+			<div class="p-5 rounded-2xl bg-surface-container-lowest border border-slate-200/70 dark:border-slate-800/70 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
 				<div class="flex items-center gap-3.5">
-					<div class="w-11 h-11 rounded-2xl bg-indigo-600 text-white flex items-center justify-center flex-shrink-0 shadow-sm">
+					<div class="w-11 h-11 rounded-2xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center flex-shrink-0">
 						<span class="material-symbols-outlined text-2xl">cached</span>
 					</div>
 					<div>
@@ -382,16 +384,16 @@
 					</div>
 				</div>
 				<div class="flex items-center gap-2 self-end md:self-auto">
-					<div class="px-3.5 py-2 rounded-xl bg-surface-container-low border border-surface-container text-xs font-bold text-on-surface flex items-center gap-2">
-						<span class="w-2 h-2 rounded-full bg-indigo-500 animate-pulse"></span>
+					<div class="px-3.5 py-2 rounded-xl bg-surface-container-low border border-slate-200/70 dark:border-slate-800/70 text-xs font-bold text-on-surface flex items-center gap-2">
+						<span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
 						<span>Total Batch: {ngepokBatches.length}</span>
 					</div>
 				</div>
 			</div>
 
 			{#if ngepokBatches.length === 0}
-				<div class="text-center py-16 bg-surface-container-low rounded-2xl border border-dashed border-slate-200 dark:border-slate-800 p-6">
-					<div class="w-14 h-14 rounded-2xl bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 flex items-center justify-center mx-auto mb-3">
+				<div class="text-center py-16 bg-surface-container-lowest rounded-2xl border border-dashed border-slate-200 dark:border-slate-800 p-6">
+					<div class="w-14 h-14 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 flex items-center justify-center mx-auto mb-3">
 						<span class="material-symbols-outlined text-3xl">cached</span>
 					</div>
 					<h3 class="text-sm font-bold text-on-surface">Belum Ada Penugasan Ngepok</h3>
@@ -407,19 +409,19 @@
 						{@const bPending = bTrips.filter((t: any) => t.status === 'SCHEDULED').length}
 						{@const bVoid = bTrips.filter((t: any) => t.status === 'VOID').length}
 
-						<div class="rounded-2xl bg-surface-container-low border border-slate-200/60 dark:border-slate-800/60 shadow-xs overflow-hidden">
+						<div class="rounded-2xl bg-surface-container-lowest border border-slate-200/70 dark:border-slate-800/70 shadow-xs overflow-hidden">
 							<!-- Card Header -->
-							<div class="p-5 border-b border-surface-container flex flex-col md:flex-row md:items-center justify-between gap-4 bg-surface-container-low/80">
+							<div class="p-5 border-b border-slate-100 dark:border-slate-800/80 flex flex-col md:flex-row md:items-center justify-between gap-4">
 								<div class="flex items-start gap-3.5">
-									<div class="w-10 h-10 rounded-xl bg-indigo-600 text-white flex items-center justify-center flex-shrink-0 shadow-sm">
+									<div class="w-10 h-10 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center flex-shrink-0">
 										<span class="material-symbols-outlined text-xl">local_shipping</span>
 									</div>
 									<div>
 										<div class="flex items-center gap-2.5 flex-wrap">
-											<span class="text-xs font-black px-2.5 py-0.5 rounded-md bg-indigo-100 text-indigo-800 dark:bg-indigo-950/60 dark:text-indigo-300 font-mono">
+											<span class="text-xs font-bold px-2.5 py-0.5 rounded-md bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 font-mono border border-emerald-200/50 dark:border-emerald-800/50">
 												{batch.groupId}
 											</span>
-											<h3 class="text-base font-black text-on-surface tracking-tight">
+											<h3 class="text-base font-bold text-on-surface tracking-tight">
 												{batch.unit || 'Unit Belum Ditentukan'}
 											</h3>
 											<span class="text-xs font-medium text-on-surface-variant">
@@ -439,7 +441,7 @@
 
 								<!-- Progress stats -->
 								<div class="flex items-center gap-2 self-end md:self-auto">
-									<div class="flex items-center gap-2 bg-surface-container px-3.5 py-2 rounded-xl text-xs font-bold text-on-surface border border-surface-container">
+									<div class="flex items-center gap-2 bg-surface-container-low px-3.5 py-2 rounded-xl text-xs font-bold text-on-surface border border-slate-200/70 dark:border-slate-800/70">
 										<span class="text-emerald-600 dark:text-emerald-400">{bCompleted} Selesai</span>
 										{#if bPending > 0}
 											<span class="text-amber-600 dark:text-amber-400">({bPending} Antre SJ)</span>
@@ -455,7 +457,7 @@
 							<!-- Table of Ritase -->
 							<div class="overflow-x-auto">
 								<table class="w-full text-left text-xs">
-									<thead class="bg-surface-container/40 text-on-surface-variant font-bold border-b border-surface-container uppercase text-[10px] tracking-wider">
+									<thead class="bg-surface-container-low/50 text-on-surface-variant font-bold border-b border-slate-100 dark:border-slate-800/80 uppercase text-[10px] tracking-wider">
 										<tr>
 											<th class="py-3 px-5">Rit Ke</th>
 											<th class="py-3 px-4">No. Surat Tugas</th>
@@ -466,7 +468,7 @@
 											<th class="py-3 px-5 text-right">Aksi Kasir</th>
 										</tr>
 									</thead>
-									<tbody class="divide-y divide-surface-container">
+									<tbody class="divide-y divide-slate-100 dark:divide-slate-800/60">
 										{#each bTrips as trip}
 											<tr class="hover:bg-surface-container-low/40 transition-colors">
 												<td class="py-3.5 px-5 font-bold text-on-surface">
@@ -474,7 +476,7 @@
 														{trip.ritase_ke}
 													</span>
 												</td>
-												<td class="py-3.5 px-4 font-mono font-bold text-indigo-600 dark:text-indigo-400">
+												<td class="py-3.5 px-4 font-mono font-bold text-emerald-600 dark:text-emerald-400">
 													{trip.no_surat_tugas}
 												</td>
 												<td class="py-3.5 px-4">
@@ -498,7 +500,7 @@
 												<td class="py-3.5 px-4">
 													{#if trip.no_surat_jalan_customer || trip.dn_no_surat_jalan}
 														<div class="flex items-center gap-2">
-															<span class="font-mono font-bold text-on-surface bg-blue-50 text-blue-700 dark:bg-blue-950/50 dark:text-blue-300 px-2.5 py-1 rounded-lg inline-block">
+															<span class="font-mono font-bold text-on-surface bg-surface-container-low px-2.5 py-1 rounded-lg inline-block border border-slate-200/70 dark:border-slate-800/70">
 																{trip.no_surat_jalan_customer || trip.dn_no_surat_jalan}
 															</span>
 															{#if trip.dn_file_upload}
@@ -512,7 +514,7 @@
 																		tgl_surat_jalan: trip.dn_tgl_surat_jalan || trip.tgl_trip,
 																		total_berat: trip.actual_weight || trip.dn_total_berat
 																	}}
-																	class="text-indigo-600 hover:text-indigo-800 cursor-pointer"
+																	class="text-emerald-600 hover:text-emerald-800 cursor-pointer"
 																	title="Lihat Foto Bukti SJ"
 																>
 																	<span class="material-symbols-outlined text-base">image</span>
@@ -551,7 +553,7 @@
 														<button 
 															type="button" 
 															onclick={() => openNgepokModal(trip, batch)}
-															class="px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-bold transition-colors inline-flex items-center gap-1.5 shadow-xs cursor-pointer"
+															class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-colors inline-flex items-center gap-1.5 shadow-xs cursor-pointer"
 															title="Input Surat Jalan Fisik dan Selesaikan Ritase"
 														>
 															<span class="material-symbols-outlined text-[15px]">edit_document</span>
@@ -588,16 +590,16 @@
 {#if showNgepokModal && selectedNgepokTrip && selectedNgepokBatch}
 	<div class="fixed inset-0 z-50 flex items-center justify-center p-4">
 		<div class="absolute inset-0 bg-slate-900/50 backdrop-blur-sm" onclick={closeNgepokModal}></div>
-		<div class="relative w-full max-w-lg bg-surface-container-lowest rounded-[24px] shadow-2xl flex flex-col overflow-hidden">
+		<div class="relative w-full max-w-lg bg-surface-container-lowest rounded-[24px] border border-slate-200/80 dark:border-slate-800 shadow-2xl flex flex-col overflow-hidden">
 			<!-- Modal Header -->
-			<div class="p-6 border-b border-surface-container bg-amber-50/50 dark:bg-amber-950/20">
+			<div class="p-6 border-b border-slate-100 dark:border-slate-800/80 bg-emerald-500/5">
 				<div class="flex items-start justify-between">
 					<div class="flex items-center gap-3">
-						<div class="w-10 h-10 rounded-xl bg-amber-600 text-white flex items-center justify-center">
+						<div class="w-10 h-10 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
 							<span class="material-symbols-outlined text-2xl">description</span>
 						</div>
 						<div>
-							<h3 class="text-lg font-bold text-amber-800 dark:text-amber-300">Input Surat Jalan Ritase #{selectedNgepokTrip.ritase_ke}</h3>
+							<h3 class="text-lg font-bold text-on-surface">Input Surat Jalan Ritase #{selectedNgepokTrip.ritase_ke}</h3>
 							<p class="text-xs text-on-surface-variant font-mono mt-0.5">{selectedNgepokTrip.no_surat_tugas} • {selectedNgepokBatch.unit} ({selectedNgepokBatch.driver})</p>
 						</div>
 					</div>
@@ -613,7 +615,7 @@
 				
 				<div class="p-6 space-y-4">
 					<!-- Info Ringkas -->
-					<div class="p-3 bg-surface-container/60 rounded-xl text-xs space-y-1 border border-surface-container">
+					<div class="p-3 bg-surface-container-low rounded-xl text-xs space-y-1 border border-slate-200/70 dark:border-slate-800/70">
 						<div class="flex justify-between">
 							<span class="text-on-surface-variant">Customer:</span>
 							<span class="font-bold text-on-surface">{selectedNgepokTrip.customer || selectedNgepokBatch.customer || '-'}</span>
@@ -630,7 +632,7 @@
 
 					<div>
 						<label class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-1" for="ngepok_no_sj">
-							No. Surat Jalan Customer (Fisik) <span class="text-error">*</span>
+							No. Surat Jalan Customer (Fisik) <span class="text-rose-500">*</span>
 						</label>
 						<input
 							id="ngepok_no_sj"
@@ -638,7 +640,7 @@
 							name="noSuratJalan"
 							bind:value={inputNgepokNoSj}
 							placeholder="Contoh: SJ-CUST-98214"
-							class="w-full bg-surface-container-lowest border border-surface-container rounded-xl px-4 py-2.5 text-sm font-mono font-bold text-on-surface outline-none focus:ring-2 focus:ring-amber-500"
+							class="w-full bg-surface-container-low border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-2.5 text-sm font-mono font-bold text-on-surface outline-none focus:ring-2 focus:ring-emerald-500/30"
 							required
 						/>
 					</div>
@@ -646,20 +648,20 @@
 					<div class="grid grid-cols-2 gap-4">
 						<div>
 							<label class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-1" for="ngepok_tgl_sj">
-								Tanggal Surat Jalan <span class="text-error">*</span>
+								Tanggal Surat Jalan <span class="text-rose-500">*</span>
 							</label>
 							<input
 								id="ngepok_tgl_sj"
 								type="date"
 								name="tglSuratJalan"
 								bind:value={inputNgepokTgl}
-								class="w-full bg-surface-container-lowest border border-surface-container rounded-xl px-4 py-2.5 text-sm font-bold text-on-surface outline-none focus:ring-2 focus:ring-amber-500"
+								class="w-full bg-surface-container-low border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-2.5 text-sm font-bold text-on-surface outline-none focus:ring-2 focus:ring-emerald-500/30"
 								required
 							/>
 						</div>
 						<div>
 							<label class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-1" for="ngepok_berat">
-								Tonase Riil (Timbang) <span class="text-error">*</span>
+								Tonase Riil (Timbang) <span class="text-rose-500">*</span>
 							</label>
 							<div class="relative">
 								<input
@@ -669,7 +671,7 @@
 									name="totalBerat"
 									bind:value={inputNgepokBerat}
 									placeholder="32.5"
-									class="w-full bg-surface-container-lowest border border-surface-container rounded-xl pl-4 pr-12 py-2.5 text-sm font-bold text-on-surface outline-none focus:ring-2 focus:ring-amber-500 font-mono"
+									class="w-full bg-surface-container-low border border-slate-200 dark:border-slate-800 rounded-xl pl-4 pr-12 py-2.5 text-sm font-bold text-on-surface outline-none focus:ring-2 focus:ring-emerald-500/30 font-mono"
 									required
 								/>
 								<span class="absolute right-3.5 top-1/2 -translate-y-1/2 text-xs font-bold text-on-surface-variant">Ton</span>
@@ -687,23 +689,23 @@
 							name="fileUploadUrl"
 							bind:value={inputNgepokFileUrl}
 							placeholder="https://... (Foto berkas SJB berstempel)"
-							class="w-full bg-surface-container-lowest border border-surface-container rounded-xl px-4 py-2.5 text-xs text-on-surface outline-none focus:ring-2 focus:ring-amber-500"
+							class="w-full bg-surface-container-low border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-2.5 text-xs text-on-surface outline-none focus:ring-2 focus:ring-emerald-500/30"
 						/>
 						<p class="text-[10px] text-on-surface-variant mt-1">Bukti lampiran akan otomatis terhubung ke modul Finance untuk penagihan/invoicing.</p>
 					</div>
 
-					<div class="p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-xs text-amber-900 dark:text-amber-300">
+					<div class="p-3.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-xs text-emerald-900 dark:text-emerald-300">
 						<p class="leading-relaxed text-[11px]">
 							Menyimpan form ini akan menandai Ritase #{selectedNgepokTrip.ritase_ke} menjadi <strong>COMPLETED (Selesai)</strong> dan memperbarui status Surat Jalan pada halaman OCS Dispatch secara otomatis.
 						</p>
 					</div>
 				</div>
 
-				<div class="p-6 border-t border-surface-container bg-surface-container-low/40 flex justify-end gap-3">
+				<div class="p-6 border-t border-slate-100 dark:border-slate-800/80 bg-surface-container-low/40 flex justify-end gap-3">
 					<button type="button" onclick={closeNgepokModal} class="px-5 py-2.5 rounded-xl text-sm font-bold text-on-surface-variant hover:bg-surface-container transition-colors cursor-pointer">
 						Batal
 					</button>
-					<button type="submit" disabled={isSubmitting || !inputNgepokNoSj.trim() || !inputNgepokBerat} class="px-5 py-2.5 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-sm font-bold shadow-sm transition-colors flex items-center gap-2 disabled:opacity-50 cursor-pointer">
+					<button type="submit" disabled={isSubmitting || !inputNgepokNoSj.trim() || !inputNgepokBerat} class="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-sm font-bold shadow-sm transition-colors flex items-center gap-2 disabled:opacity-50 cursor-pointer">
 						{#if isSubmitting}
 							<span class="material-symbols-outlined text-[18px] animate-spin">sync</span>
 							<span>Menyimpan...</span>
