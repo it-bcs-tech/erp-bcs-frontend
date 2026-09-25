@@ -185,7 +185,7 @@ export async function setModuleSetting(
 	updatedBy?: string
 ): Promise<boolean> {
 	try {
-		const jsonVal = typeof value === 'object' ? JSON.stringify(value) : value;
+		const jsonVal = JSON.stringify(value);
 		await sql`
 			INSERT INTO master.module_settings (module, setting_key, setting_value, description, updated_at, updated_by)
 			VALUES (

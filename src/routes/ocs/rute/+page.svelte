@@ -86,14 +86,26 @@
 		return calculatedDistanceKm;
 	});
 
+	let currentRatio = $derived.by(() => {
+		if (selectedTipeUnit && data.settings?.solar_ratio_by_unit_type) {
+			const custom = Number(data.settings.solar_ratio_by_unit_type[selectedTipeUnit]);
+			if (custom > 0) return custom;
+		}
+		return Number(data.settings?.solar_km_per_liter) || 3.0;
+	});
+
+	let currentSolarPrice = $derived.by(() => {
+		return Number(data.settings?.solar_price_per_liter) || 6800;
+	});
+
 	let calculatedLiterSolar = $derived.by(() => {
 		if (effectiveDistanceKm <= 0) return 0;
-		return Math.round((effectiveDistanceKm / 3) * 10) / 10;
+		return Math.round((effectiveDistanceKm / currentRatio) * 10) / 10;
 	});
 
 	let calculatedBiayaSolar = $derived.by(() => {
 		if (effectiveDistanceKm <= 0) return 0;
-		return Math.round((effectiveDistanceKm / 3) * 6800);
+		return Math.round(calculatedLiterSolar * currentSolarPrice);
 	});
 
 	let effectiveLiterSolar = $derived.by(() => {
@@ -135,8 +147,8 @@
 		if (!isSolarManual) {
 			const d = Number(val) || 0;
 			if (d > 0) {
-				literSolar = Math.round((d / 3) * 10) / 10;
-				biayaSolar = Math.round(Number(literSolar) * 6800);
+				literSolar = Math.round((d / currentRatio) * 10) / 10;
+				biayaSolar = Math.round(Number(literSolar) * currentSolarPrice);
 			} else {
 				literSolar = '';
 				biayaSolar = '';
@@ -153,8 +165,8 @@
 		}
 		if (!isSolarManual) {
 			if (calculatedDistanceKm > 0) {
-				literSolar = Math.round((calculatedDistanceKm / 3) * 10) / 10;
-				biayaSolar = Math.round(Number(literSolar) * 6800);
+				literSolar = Math.round((calculatedDistanceKm / currentRatio) * 10) / 10;
+				biayaSolar = Math.round(Number(literSolar) * currentSolarPrice);
 			} else {
 				literSolar = '';
 				biayaSolar = '';
@@ -179,7 +191,7 @@
 		isSolarManual = true;
 		literSolar = val;
 		if (val !== '' && !isNaN(Number(val))) {
-			biayaSolar = Math.round(Number(val) * 6800);
+			biayaSolar = Math.round(Number(val) * currentSolarPrice);
 		} else {
 			biayaSolar = '';
 		}
@@ -189,7 +201,7 @@
 		isSolarManual = true;
 		biayaSolar = val;
 		if (val !== '' && !isNaN(Number(val))) {
-			literSolar = Math.round((Number(val) / 6800) * 10) / 10;
+			literSolar = Math.round((Number(val) / currentSolarPrice) * 10) / 10;
 		} else {
 			literSolar = '';
 		}
@@ -348,8 +360,8 @@
 				manualJarakKm = result.distance_km;
 				isJarakManual = false;
 				if (!isSolarManual) {
-					literSolar = Math.round((result.distance_km / 3) * 10) / 10;
-					biayaSolar = Math.round(Number(literSolar) * 6800);
+					literSolar = Math.round((result.distance_km / currentRatio) * 10) / 10;
+					biayaSolar = Math.round(Number(literSolar) * currentSolarPrice);
 				}
 				if (result.toll_fee > 0) {
 					biayaTol = result.toll_fee;
@@ -762,7 +774,7 @@
 									{/if}
 								</div>
 								<div class="text-sm sm:text-base font-black text-on-surface mt-0.5">{effectiveDistanceKm.toFixed(1)} KM</div>
-								<div class="text-[10px] text-on-surface-variant/80 font-mono">~{effectiveLiterSolar.toFixed(1)} L Solar</div>
+								<div class="text-[10px] text-on-surface-variant/80 font-mono">~{effectiveLiterSolar.toFixed(1)} L (1:{currentRatio} KM/L)</div>
 							</div>
 							<div class="bg-white/90 dark:bg-slate-900/90 p-3 rounded-xl border border-amber-200/80 dark:border-amber-900/60 shadow-2xs">
 								<div class="text-[10px] text-amber-700 dark:text-amber-300 font-bold flex items-center justify-between">
@@ -774,7 +786,7 @@
 									{/if}
 								</div>
 								<div class="text-sm sm:text-base font-black text-amber-700 dark:text-amber-400 mt-0.5">{formatCurrency(effectiveBiayaSolar)}</div>
-								<div class="text-[10px] text-on-surface-variant/80 font-mono">Rp 6.800/L</div>
+								<div class="text-[10px] text-on-surface-variant/80 font-mono">{formatCurrency(currentSolarPrice)}/L</div>
 							</div>
 							<div class="bg-surface-container-low p-3 rounded-xl border border-surface-container/60 shadow-2xs">
 								<div class="text-[10px] text-indigo-700 dark:text-indigo-300 font-bold">Biaya Tol</div>

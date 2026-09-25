@@ -131,7 +131,8 @@ export const MODULE_MENUS: Record<string, { id: string; name: string }[]> = {
 		{ id: 'ocs.assign-driver', name: 'Assign Driver' },
 		{ id: 'ocs.daily-targets', name: 'Target Harian' },
 		{ id: 'ocs.rute', name: 'Master Rute & UJO' },
-		{ id: 'ocs.gerbang-tol', name: 'Master Gerbang Tol' }
+		{ id: 'ocs.gerbang-tol', name: 'Master Gerbang Tol' },
+		{ id: 'ocs.settings', name: 'Pengaturan OCS' }
 	],
 	maintenance: [
 		{ id: 'maintenance.dashboard', name: 'Dashboard Utama' },

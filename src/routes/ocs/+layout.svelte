@@ -83,10 +83,10 @@
 			</a>
 			{/if}
 			
-			<!-- Section Divider: Master Data -->
-			{#if isAdmin || hasMenuAccess(user, 'ocs', 'ocs.rute') || hasMenuAccess(user, 'ocs', 'ocs.gerbang-tol')}
+			<!-- Section Divider: Master Data & Pengaturan -->
+			{#if isAdmin || hasMenuAccess(user, 'ocs', 'ocs.rute') || hasMenuAccess(user, 'ocs', 'ocs.gerbang-tol') || hasMenuAccess(user, 'ocs', 'ocs.settings')}
 			<div class="pt-3 pb-1 px-4">
-				<p class="text-[9px] font-black text-on-surface-variant/50 uppercase tracking-[0.2em]">Master Data</p>
+				<p class="text-[9px] font-black text-on-surface-variant/50 uppercase tracking-[0.2em]">Master Data & Pengaturan</p>
 			</div>
 
 			{#if isAdmin || hasMenuAccess(user, 'ocs', 'ocs.rute')}
@@ -100,6 +100,13 @@
 			<a class="flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200 hover:translate-x-1 {$page.url.pathname.includes('/ocs/gerbang-tol') ? 'bg-surface-container-highest text-sky-600 dark:text-sky-400 font-bold' : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container font-medium text-sm'}" href="/ocs/gerbang-tol">
 				<span class="material-symbols-outlined text-[20px]">toll</span>
 				<span class="text-sm">Master Gerbang Tol</span>
+			</a>
+			{/if}
+
+			{#if isAdmin || hasMenuAccess(user, 'ocs', 'ocs.settings')}
+			<a class="flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200 hover:translate-x-1 {$page.url.pathname.includes('/ocs/settings') ? 'bg-surface-container-highest text-sky-600 dark:text-sky-400 font-bold' : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container font-medium text-sm'}" href="/ocs/settings">
+				<span class="material-symbols-outlined text-[20px]">tune</span>
+				<span class="text-sm">Pengaturan OCS</span>
 			</a>
 			{/if}
 			{/if}

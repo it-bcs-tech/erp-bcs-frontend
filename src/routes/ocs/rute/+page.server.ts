@@ -2,6 +2,7 @@ import type { PageServerLoad, Actions } from './$types';
 import { fail } from '@sveltejs/kit';
 import sql from '$lib/server/db';
 import { getDrivingDistanceKm, haversineKm } from '$lib/server/routing';
+import { getModuleSettings } from '$lib/server/settings';
 
 async function getWaypointsForTollGates(gateIds: number[], originLat: number, originLng: number, destLat: number, destLng: number) {
 	if (!gateIds || gateIds.length === 0) return [];
@@ -100,16 +101,42 @@ export const load: PageServerLoad = async () => {
 		const gerbangTols = await sql`SELECT id, ruas, asal, tujuan, tarif_gol_1, tarif_gol_2_3, tarif_gol_4_5, gerbang_asal_id, gerbang_tujuan_id, jarak_ruas_km FROM master.m_gerbang_tol ORDER BY ruas ASC, asal ASC`;
 		const titikGerbangList = await sql`SELECT id, kode_gerbang, nama_gerbang, ruas_tol, km_pos, latitude, longitude FROM master.m_titik_gerbang_tol WHERE is_active = true ORDER BY ruas_tol ASC, km_pos ASC`;
 
+		// Ambil konfigurasi solar modul OCS
+		const ocsSettings = await getModuleSettings('ocs');
+		const settings = {
+			solar_km_per_liter: typeof ocsSettings.solar_km_per_liter === 'number'
+				? ocsSettings.solar_km_per_liter
+				: parseFloat(ocsSettings.solar_km_per_liter) || 3.0,
+			solar_price_per_liter: typeof ocsSettings.solar_price_per_liter === 'number'
+				? ocsSettings.solar_price_per_liter
+				: parseFloat(ocsSettings.solar_price_per_liter) || 6800,
+			solar_ratio_by_unit_type: (typeof ocsSettings.solar_ratio_by_unit_type === 'string'
+				? JSON.parse(ocsSettings.solar_ratio_by_unit_type)
+				: ocsSettings.solar_ratio_by_unit_type) || {}
+		};
+
 		return {
 			ruteList: ruteList as any[],
 			customers: customers as any[],
 			tipeUnits: tipeUnits as any[],
 			gerbangTols: gerbangTols as any[],
-			titikGerbangList: titikGerbangList as any[]
+			titikGerbangList: titikGerbangList as any[],
+			settings
 		};
 	} catch (error) {
 		console.error("Error loading master rute:", error);
-		return { ruteList: [], customers: [], tipeUnits: [], gerbangTols: [], titikGerbangList: [] };
+		return {
+			ruteList: [],
+			customers: [],
+			tipeUnits: [],
+			gerbangTols: [],
+			titikGerbangList: [],
+			settings: {
+				solar_km_per_liter: 3.0,
+				solar_price_per_liter: 6800,
+				solar_ratio_by_unit_type: {}
+			}
+		};
 	}
 };
 
@@ -183,9 +210,18 @@ export const actions: Actions = {
 				jarak_km = driving.distance_km;
 			}
 
-			// Fuel Consumption logic: allow manual typing, fallback to distance calculation
-			const harga_solar_per_liter = 6800; // Fixed national price for Bio Solar
-			let rasio = 3; // default 3 km/L
+			// Fuel Consumption logic: allow manual typing, fallback to dynamic settings
+			const ocsSettings = await getModuleSettings('ocs');
+			const defaultKmPerLiter = Number(ocsSettings.solar_km_per_liter) || 3.0;
+			const harga_solar_per_liter = Number(ocsSettings.solar_price_per_liter) || 6800;
+			let unitOverrides: Record<string, any> = {};
+			if (ocsSettings.solar_ratio_by_unit_type) {
+				unitOverrides = typeof ocsSettings.solar_ratio_by_unit_type === 'string'
+					? JSON.parse(ocsSettings.solar_ratio_by_unit_type)
+					: ocsSettings.solar_ratio_by_unit_type;
+			}
+			const customRatio = Number(unitOverrides[tipe_unit_id]);
+			const rasio = (customRatio && customRatio > 0) ? customRatio : defaultKmPerLiter;
 			let liter_solar = 0;
 			let biaya_solar = 0;
 
@@ -317,9 +353,18 @@ export const actions: Actions = {
 				jarak_km = driving.distance_km;
 			}
 
-			// Fuel Consumption logic: allow manual typing, fallback to distance calculation
-			const harga_solar_per_liter = 6800; // Fixed national price for Bio Solar
-			let rasio = 3; // default 3 km/L
+			// Fuel Consumption logic: allow manual typing, fallback to dynamic settings
+			const ocsSettings = await getModuleSettings('ocs');
+			const defaultKmPerLiter = Number(ocsSettings.solar_km_per_liter) || 3.0;
+			const harga_solar_per_liter = Number(ocsSettings.solar_price_per_liter) || 6800;
+			let unitOverrides: Record<string, any> = {};
+			if (ocsSettings.solar_ratio_by_unit_type) {
+				unitOverrides = typeof ocsSettings.solar_ratio_by_unit_type === 'string'
+					? JSON.parse(ocsSettings.solar_ratio_by_unit_type)
+					: ocsSettings.solar_ratio_by_unit_type;
+			}
+			const customRatio = Number(unitOverrides[tipe_unit_id]);
+			const rasio = (customRatio && customRatio > 0) ? customRatio : defaultKmPerLiter;
 			let liter_solar = 0;
 			let biaya_solar = 0;
 
