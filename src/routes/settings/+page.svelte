@@ -32,6 +32,58 @@
 		Array.isArray(finReceiptSetting?.setting_value) ? finReceiptSetting.setting_value : ['LHP', 'PR', 'GR']
 	);
 
+	// OCS Module Settings
+	const ocsSolarKmSetting = $derived(
+		data.moduleSettings?.find((s: any) => s.module === 'ocs' && s.setting_key === 'solar_km_per_liter')
+	);
+	const ocsSolarKmVal = $derived(
+		typeof ocsSolarKmSetting?.setting_value === 'number'
+			? ocsSolarKmSetting.setting_value
+			: parseFloat(ocsSolarKmSetting?.setting_value) || 3.0
+	);
+
+	const ocsSolarPriceSetting = $derived(
+		data.moduleSettings?.find((s: any) => s.module === 'ocs' && s.setting_key === 'solar_price_per_liter')
+	);
+	const ocsSolarPriceVal = $derived(
+		typeof ocsSolarPriceSetting?.setting_value === 'number'
+			? ocsSolarPriceSetting.setting_value
+			: parseFloat(ocsSolarPriceSetting?.setting_value) || 6800
+	);
+
+	const ocsSolarUnitOverridesSetting = $derived(
+		data.moduleSettings?.find((s: any) => s.module === 'ocs' && s.setting_key === 'solar_ratio_by_unit_type')
+	);
+	const ocsUnitOverridesMap = $derived.by<Record<string, number>>(() => {
+		const raw = ocsSolarUnitOverridesSetting?.setting_value;
+		if (!raw) return {};
+		if (typeof raw === 'string') {
+			try {
+				return JSON.parse(raw);
+			} catch {
+				return {};
+			}
+		}
+		return typeof raw === 'object' ? raw : {};
+	});
+	const ocsOverridesList = $derived.by(() => {
+		const map = ocsUnitOverridesMap;
+		const units = data.tipeUnits || [];
+		return Object.entries(map).map(([unitId, ratio]) => {
+			const u = units.find((item: any) => String(item.id) === String(unitId));
+			return {
+				id: unitId,
+				name: u?.nama_tipe || `Unit ID #${unitId}`,
+				golongan: u?.golongan_tol || '1',
+				ratio
+			};
+		});
+	});
+
+	function formatCurrency(val: number) {
+		return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(val);
+	}
+
 	// Local state bound to store
 	let settings = $state({
 		hideSalaryNominals: $systemSettings.hideSalaryNominals,
@@ -168,8 +220,8 @@
 			onclick={() => (activeTab = 'approvals')}
 			class="px-4 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer whitespace-nowrap {activeTab === 'approvals' ? 'bg-primary text-on-primary shadow-xs' : 'text-on-surface-variant hover:bg-surface-container'}"
 		>
-			<span class="material-symbols-outlined text-sm">verified_user</span>
-			<span>Approval & Preset Dokumen</span>
+			<span class="material-symbols-outlined text-sm">tune</span>
+			<span>Pengaturan Modul & Approval</span>
 		</button>
 	</div>
 
@@ -406,19 +458,28 @@
 						<span class="material-symbols-outlined text-2xl">verified_user</span>
 					</div>
 					<div>
-						<h3 class="text-base font-bold">Pusat Pengaturan Approval & Penandatangan Cetak Dokumen</h3>
+						<h3 class="text-base font-bold">Pusat Konfigurasi & Preset Modul Operasional ERP</h3>
 						<p class="text-xs text-amber-100 mt-0.5 leading-relaxed">
-							Kelola pejabat penandatangan resmi (Approved By) untuk seluruh lembar cetak dokumen modul ERP BCS (dimulai dari modul PMS).
+							Kelola pejabat penandatangan dokumen (PMS), preset dokumen faktur (Finance), serta acuan rasio konsumsi solar operasional armada (OCS).
 						</p>
 					</div>
 				</div>
-				<a
-					href="/pms/settings"
-					class="px-4 py-2 rounded-xl bg-white/20 hover:bg-white/30 text-white text-xs font-bold transition-colors flex items-center gap-1.5 whitespace-nowrap border border-white/25"
-				>
-					<span class="material-symbols-outlined text-sm">open_in_new</span>
-					<span>Buka Pengaturan Modul PMS</span>
-				</a>
+				<div class="flex items-center gap-2 flex-wrap">
+					<a
+						href="/pms/settings"
+						class="px-3.5 py-1.5 rounded-xl bg-white/20 hover:bg-white/30 text-white text-xs font-bold transition-colors flex items-center gap-1.5 whitespace-nowrap border border-white/25"
+					>
+						<span class="material-symbols-outlined text-sm">open_in_new</span>
+						<span>Modul PMS</span>
+					</a>
+					<a
+						href="/ocs/settings"
+						class="px-3.5 py-1.5 rounded-xl bg-white/20 hover:bg-white/30 text-white text-xs font-bold transition-colors flex items-center gap-1.5 whitespace-nowrap border border-white/25"
+					>
+						<span class="material-symbols-outlined text-sm">open_in_new</span>
+						<span>Modul OCS</span>
+					</a>
+				</div>
 			</div>
 
 			<!-- Success Notification -->
@@ -746,6 +807,162 @@
 									</button>
 								</div>
 							</form>
+						</div>
+					</div>
+				</div>
+
+				<!-- Section: Modul OCS (Operations Control System) -->
+				<div class="p-6 rounded-3xl bg-surface-container-low border border-slate-200/60 dark:border-slate-800/60 shadow-xs space-y-6">
+					<div class="flex items-center justify-between pb-3 border-b border-slate-200/60 dark:border-slate-800/60">
+						<div class="flex items-center gap-2.5">
+							<span class="w-8 h-8 rounded-xl bg-sky-500/10 text-sky-600 dark:text-sky-400 flex items-center justify-center font-bold text-xs">
+								OCS
+							</span>
+							<div>
+								<h4 class="font-bold text-sm text-on-surface">Modul Operasional (OCS) — Acuan Konsumsi Bahan Bakar Solar</h4>
+								<p class="text-[11px] text-on-surface-variant">Konfigurasi rasio default KM/Liter dan harga solar per liter untuk Master Rute & UJO</p>
+							</div>
+						</div>
+						<a
+							href="/ocs/settings"
+							class="px-3 py-1.5 rounded-xl bg-surface hover:bg-surface-container text-sky-600 dark:text-sky-400 text-xs font-bold transition-colors flex items-center gap-1.5 border border-slate-200 dark:border-slate-700"
+						>
+							<span class="material-symbols-outlined text-sm">open_in_new</span>
+							<span>Buka Pengaturan Modul OCS</span>
+						</a>
+					</div>
+
+					<div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+						<!-- Card 1: Form Acuan Solar Global -->
+						<div class="p-5 rounded-2xl bg-surface-container-lowest border border-slate-200/80 dark:border-slate-800/80 space-y-4">
+							<div class="flex items-center justify-between border-b border-slate-200/60 pb-2.5">
+								<div>
+									<h5 class="font-bold text-xs text-on-surface">Acuan Solar Global Standar</h5>
+									<p class="text-[10px] text-slate-500">Nilai dasar kalkulasi otomatis jarak riil ke liter dan biaya UJO</p>
+								</div>
+								<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-sky-500/10 text-sky-700 dark:text-sky-300">
+									Global Default
+								</span>
+							</div>
+
+							<!-- Current Badges -->
+							<div class="grid grid-cols-2 gap-2 text-xs">
+								<div class="p-3 rounded-xl bg-surface border border-slate-200/60 dark:border-slate-800/60">
+									<span class="text-[10px] text-slate-400 block font-medium">Rasio Konsumsi Aktif:</span>
+									<span class="text-sm font-black text-on-surface font-mono">1 : {ocsSolarKmVal} KM/L</span>
+								</div>
+								<div class="p-3 rounded-xl bg-surface border border-slate-200/60 dark:border-slate-800/60">
+									<span class="text-[10px] text-slate-400 block font-medium">Harga Solar Acuan:</span>
+									<span class="text-sm font-black text-sky-600 dark:text-sky-400 font-mono">{formatCurrency(ocsSolarPriceVal)}/L</span>
+								</div>
+							</div>
+
+							<!-- Form Update Nilai -->
+							<form method="POST" action="?/saveOcsSolar" use:enhance class="space-y-3 text-xs">
+								<div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+									<div>
+										<label class="font-bold text-on-surface block mb-1">
+											Rasio (KM / Liter)
+										</label>
+										<div class="flex items-center px-3 py-2 rounded-xl bg-surface border border-slate-200 dark:border-slate-700 text-xs font-semibold text-on-surface focus-within:ring-2 focus-within:ring-sky-500/40">
+											<input
+												type="number"
+												name="solar_km_per_liter"
+												step="0.05"
+												min="0.5"
+												max="20"
+												value={ocsSolarKmVal}
+												required
+												class="bg-transparent outline-none w-full"
+											/>
+											<span class="text-[10px] text-slate-400 font-mono ml-1">KM/L</span>
+										</div>
+									</div>
+
+									<div>
+										<label class="font-bold text-on-surface block mb-1">
+											Harga Solar (Rp/L)
+										</label>
+										<div class="flex items-center px-3 py-2 rounded-xl bg-surface border border-slate-200 dark:border-slate-700 text-xs font-semibold text-on-surface focus-within:ring-2 focus-within:ring-sky-500/40">
+											<span class="text-[10px] text-slate-400 font-mono mr-1">Rp</span>
+											<input
+												type="number"
+												name="solar_price_per_liter"
+												step="50"
+												min="1000"
+												max="100000"
+												value={ocsSolarPriceVal}
+												required
+												class="bg-transparent outline-none w-full"
+											/>
+										</div>
+									</div>
+								</div>
+
+								<div class="pt-2 flex justify-between items-center text-[10px] text-slate-400">
+									<span>Update: {ocsSolarKmSetting?.updated_at || '-'} ({ocsSolarKmSetting?.updated_by || 'system'})</span>
+									<button
+										type="submit"
+										class="px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-700 text-white font-bold cursor-pointer transition-colors shadow-2xs flex items-center gap-1.5"
+									>
+										<span class="material-symbols-outlined text-sm">save</span>
+										<span>Simpan Acuan Solar</span>
+									</button>
+								</div>
+							</form>
+						</div>
+
+						<!-- Card 2: Ringkasan Override Rasio Tipe Unit Armada -->
+						<div class="p-5 rounded-2xl bg-surface-container-lowest border border-slate-200/80 dark:border-slate-800/80 space-y-4 flex flex-col justify-between">
+							<div class="space-y-3">
+								<div class="flex items-center justify-between border-b border-slate-200/60 pb-2.5">
+									<div>
+										<h5 class="font-bold text-xs text-on-surface">Override Rasio per Tipe Unit</h5>
+										<p class="text-[10px] text-slate-500">Rasio khusus untuk armada beban berat / ringan</p>
+									</div>
+									<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/10 text-amber-700 dark:text-amber-300">
+										{ocsOverridesList.length} Unit Di-override
+									</span>
+								</div>
+
+								{#if ocsOverridesList.length === 0}
+									<div class="py-6 px-4 rounded-xl bg-surface border border-dashed border-slate-200 dark:border-slate-800 text-center">
+										<span class="material-symbols-outlined text-slate-400 text-2xl mb-1">local_shipping</span>
+										<p class="text-xs font-bold text-on-surface">Seluruh Armada Menggunakan Rasio Global</p>
+										<p class="text-[11px] text-on-surface-variant mt-0.5">
+											Belum ada rasio khusus yang disetel. Seluruh tipe truk menggunakan rasio default 1 : {ocsSolarKmVal} KM/L.
+										</p>
+									</div>
+								{:else}
+									<div class="space-y-1.5 max-h-48 overflow-y-auto pr-1">
+										{#each ocsOverridesList as item}
+											<div class="flex items-center justify-between p-2 rounded-xl bg-surface border border-slate-200/60 dark:border-slate-800/60 text-xs">
+												<div class="flex items-center gap-2">
+													<span class="material-symbols-outlined text-slate-400 text-sm">local_shipping</span>
+													<span class="font-bold text-on-surface">{item.name}</span>
+													<span class="text-[10px] px-1.5 py-0.2 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 font-mono">
+														Gol {item.golongan}
+													</span>
+												</div>
+												<span class="font-bold text-amber-600 dark:text-amber-400 font-mono bg-amber-50 dark:bg-amber-950/40 px-2 py-0.5 rounded-lg border border-amber-200 dark:border-amber-800 text-[11px]">
+													1 : {item.ratio} KM/L
+												</span>
+											</div>
+										{/each}
+									</div>
+								{/if}
+							</div>
+
+							<div class="pt-3 border-t border-slate-200/60 dark:border-slate-800/60 flex items-center justify-between">
+								<span class="text-[10px] text-slate-400">Total {data.tipeUnits?.length || 0} tipe unit terdaftar</span>
+								<a
+									href="/ocs/settings"
+									class="px-3.5 py-2 rounded-xl bg-surface hover:bg-surface-container text-sky-600 dark:text-sky-400 font-bold text-xs transition-colors flex items-center gap-1.5 border border-slate-200 dark:border-slate-700"
+								>
+									<span class="material-symbols-outlined text-sm">tune</span>
+									<span>Kelola Override Armada</span>
+								</a>
+							</div>
 						</div>
 					</div>
 				</div>

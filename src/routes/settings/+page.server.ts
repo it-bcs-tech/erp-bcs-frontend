@@ -2,7 +2,7 @@ import { redirect, fail } from '@sveltejs/kit';
 import type { PageServerLoad, Actions } from './$types';
 import sql from '$lib/server/db';
 import { ADMIN_ROLES } from '$lib/types/auth';
-import { getAllModuleSettings, setModuleSetting, type ApproverSetting } from '$lib/server/settings';
+import { getAllModuleSettings, setModuleSetting, getFilteredEmployeesForSettings, type ApproverSetting } from '$lib/server/settings';
 
 export const load: PageServerLoad = async ({ parent }) => {
 	const { user } = await parent();
@@ -28,10 +28,18 @@ export const load: PageServerLoad = async ({ parent }) => {
 		// 3. Ambil daftar karyawan untuk dropdown yang relevan
 		const employees = await getFilteredEmployeesForSettings(user, 'global');
 
+		// 4. Ambil master tipe unit armada untuk OCS
+		const tipeUnits = await sql`
+			SELECT id, nama_tipe, golongan_tol 
+			FROM master.m_tipe_unit 
+			ORDER BY nama_tipe ASC
+		`;
+
 		return {
 			pools: poolList || [],
 			moduleSettings,
-			employees
+			employees,
+			tipeUnits: tipeUnits || []
 		};
 	} catch (e: any) {
 		console.warn('Fallback settings load:', e?.message);
@@ -41,7 +49,8 @@ export const load: PageServerLoad = async ({ parent }) => {
 				{ id: 2, pool_name: 'Pool Gunung Putri', lokasi_pool: 'Wanaherang, Gunung Putri, Bogor', status_operasional: 'Active' }
 			],
 			moduleSettings: [],
-			employees: []
+			employees: [],
+			tipeUnits: []
 		};
 	}
 };
@@ -122,6 +131,52 @@ export const actions: Actions = {
 			moduleName,
 			settingKey,
 			message: `Preset tipe dokumen ${settingKey === 'customer_invoice_order_doc_types' ? 'Order / Kontrak' : 'Penerimaan / Pengiriman'} berhasil diperbarui.`
+		};
+	},
+
+	saveOcsSolar: async ({ request, locals }) => {
+		const formData = await request.formData();
+		const kmPerLiterRaw = formData.get('solar_km_per_liter') as string;
+		const pricePerLiterRaw = formData.get('solar_price_per_liter') as string;
+
+		const kmPerLiter = parseFloat(kmPerLiterRaw);
+		const pricePerLiter = parseFloat(pricePerLiterRaw);
+
+		if (isNaN(kmPerLiter) || kmPerLiter <= 0) {
+			return fail(400, { success: false, message: 'Rasio KM per Liter harus berupa angka lebih dari 0!' });
+		}
+
+		if (isNaN(pricePerLiter) || pricePerLiter <= 0) {
+			return fail(400, { success: false, message: 'Harga Solar per Liter harus berupa angka lebih dari 0!' });
+		}
+
+		const sessionUser = (locals as any)?.user?.name || (locals as any)?.user?.username || 'admin';
+
+		const okRatio = await setModuleSetting(
+			'ocs',
+			'solar_km_per_liter',
+			Math.round(kmPerLiter * 100) / 100,
+			'Rasio konsumsi solar default (KM per Liter)',
+			sessionUser
+		);
+
+		const okPrice = await setModuleSetting(
+			'ocs',
+			'solar_price_per_liter',
+			Math.round(pricePerLiter),
+			'Harga acuan solar per liter (Rp)',
+			sessionUser
+		);
+
+		if (!okRatio || !okPrice) {
+			return fail(500, { success: false, message: 'Gagal menyimpan pengaturan solar OCS ke database.' });
+		}
+
+		return {
+			success: true,
+			moduleName: 'ocs',
+			settingKey: 'solar_general',
+			message: 'Pengaturan acuan solar modul OCS berhasil diperbarui dari Admin Settings.'
 		};
 	}
 };
