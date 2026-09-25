@@ -202,16 +202,6 @@
 		);
 		if (!mat) return;
 
-		const exists = items.find(i => 
-			(mat.ref_pr_line_id && i.pr_line_id === mat.ref_pr_line_id) || 
-			(!mat.ref_pr_line_id && i.material_id === mat.id)
-		);
-		if (exists) {
-			exists.qty += 1;
-			selectedMaterialId = '';
-			return;
-		}
-
 		const vp = getVendorSpecificPrice(mat.id, vendorId);
 		const initialPrice = vp !== null ? vp : (parseFloat(mat.standard_price) || 0);
 

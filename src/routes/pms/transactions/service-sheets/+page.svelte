@@ -91,20 +91,15 @@
 		const mat = data.materials.find((m: any) => m.id === parseInt(selectedMaterialId));
 		if (!mat) return;
 
-		const existing = spareparts.find(p => p.materialId === mat.id);
-		if (existing) {
-			existing.qty += itemQty;
-		} else {
-			spareparts.push({
-				materialId: mat.id,
-				materialCode: mat.material_code,
-				materialName: mat.name,
-				qty: itemQty,
-				uom: mat.uom || 'Pcs',
-				stock: parseFloat(mat.stock) || 0,
-				notes: itemNotes
-			});
-		}
+		spareparts.push({
+			materialId: mat.id,
+			materialCode: mat.material_code,
+			materialName: mat.name,
+			qty: itemQty,
+			uom: mat.uom || 'Pcs',
+			stock: parseFloat(mat.stock) || 0,
+			notes: itemNotes
+		});
 
 		selectedMaterialId = '';
 		itemQty = 1;

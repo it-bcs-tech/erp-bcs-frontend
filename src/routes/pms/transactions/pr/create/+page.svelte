@@ -126,14 +126,6 @@
 		const mat = data.materials.find((m: any) => m.id === parseInt(selectedMaterialId));
 		if (!mat) return;
 
-		// Check if already added
-		const exists = items.find(i => i.material_id === mat.id);
-		if (exists) {
-			exists.qty += 1;
-			selectedMaterialId = '';
-			return;
-		}
-
 		items.push({
 			material_id: mat.id,
 			material_code: mat.material_code,
