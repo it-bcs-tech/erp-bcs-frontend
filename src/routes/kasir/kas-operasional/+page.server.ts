@@ -237,6 +237,11 @@ export const actions: Actions = {
 				`;
 
 				// 3. Insert IN mutation to Cash Ledger
+				const activeShiftRows = await sql`
+					SELECT id FROM finance.kasir_shift_sessions WHERE status = 'OPEN' ORDER BY opened_at DESC LIMIT 1
+				`;
+				const shiftSessionId = activeShiftRows.length > 0 ? activeShiftRows[0].id : null;
+
 				const desc = `Drop Dana dari Finance (${existing[0].request_number}) - ${existing[0].purpose}${notes ? ' - ' + notes : ''}`;
 				await sql`
 					INSERT INTO finance.kasir_cash_ledger (
@@ -246,7 +251,8 @@ export const actions: Actions = {
 						reference_id,
 						reference_type,
 						description,
-						performed_by
+						performed_by,
+						shift_session_id
 					) VALUES (
 						'IN',
 						'DROP_DANA_FINANCE',
@@ -254,9 +260,21 @@ export const actions: Actions = {
 						${existing[0].request_number},
 						'FUND_REQUEST',
 						${desc},
-						${user}
+						${user},
+						${shiftSessionId}
 					)
 				`;
+
+				if (shiftSessionId) {
+					await sql`
+						UPDATE finance.kasir_shift_sessions
+						SET 
+							total_cash_in = total_cash_in + ${amountReceived},
+							expected_closing_cash = expected_closing_cash + ${amountReceived},
+							updated_at = CURRENT_TIMESTAMP
+						WHERE id = ${shiftSessionId}
+					`;
+				}
 			});
 
 			return { success: true, message: `Penerimaan dana ${requestId} sebesar Rp ${amountReceived.toLocaleString('id-ID')} berhasil dicatat ke saldo kasir!` };
@@ -300,6 +318,11 @@ export const actions: Actions = {
 		}
 
 		try {
+			const activeShiftRows = await sql`
+				SELECT id FROM finance.kasir_shift_sessions WHERE status = 'OPEN' ORDER BY opened_at DESC LIMIT 1
+			`;
+			const shiftSessionId = activeShiftRows.length > 0 ? activeShiftRows[0].id : null;
+
 			await sql`
 				INSERT INTO finance.kasir_cash_ledger (
 					direction,
@@ -308,7 +331,8 @@ export const actions: Actions = {
 					reference_id,
 					reference_type,
 					description,
-					performed_by
+					performed_by,
+					shift_session_id
 				) VALUES (
 					'IN',
 					${category},
@@ -316,9 +340,21 @@ export const actions: Actions = {
 					${referenceNo || 'DIRECT-TOPUP'},
 					'MANUAL',
 					${description},
-					${user}
+					${user},
+					${shiftSessionId}
 				)
 			`;
+
+			if (shiftSessionId) {
+				await sql`
+					UPDATE finance.kasir_shift_sessions
+					SET 
+						total_cash_in = total_cash_in + ${amount},
+						expected_closing_cash = expected_closing_cash + ${amount},
+						updated_at = CURRENT_TIMESTAMP
+					WHERE id = ${shiftSessionId}
+				`;
+			}
 
 			return { success: true, message: `Kas masuk sebesar Rp ${amount.toLocaleString('id-ID')} berhasil dicatat ke saldo operasional!` };
 		} catch (e: any) {
@@ -340,6 +376,11 @@ export const actions: Actions = {
 		}
 
 		try {
+			const activeShiftRows = await sql`
+				SELECT id FROM finance.kasir_shift_sessions WHERE status = 'OPEN' ORDER BY opened_at DESC LIMIT 1
+			`;
+			const shiftSessionId = activeShiftRows.length > 0 ? activeShiftRows[0].id : null;
+
 			await sql`
 				INSERT INTO finance.kasir_cash_ledger (
 					direction,
@@ -348,7 +389,8 @@ export const actions: Actions = {
 					reference_id,
 					reference_type,
 					description,
-					performed_by
+					performed_by,
+					shift_session_id
 				) VALUES (
 					'OUT',
 					${category},
@@ -356,9 +398,21 @@ export const actions: Actions = {
 					${referenceNo || 'DIRECT-OUT'},
 					'MANUAL',
 					${description},
-					${user}
+					${user},
+					${shiftSessionId}
 				)
 			`;
+
+			if (shiftSessionId) {
+				await sql`
+					UPDATE finance.kasir_shift_sessions
+					SET 
+						total_cash_out = total_cash_out + ${amount},
+						expected_closing_cash = expected_closing_cash - ${amount},
+						updated_at = CURRENT_TIMESTAMP
+					WHERE id = ${shiftSessionId}
+				`;
+			}
 
 			return { success: true, message: `Pengeluaran kas sebesar Rp ${amount.toLocaleString('id-ID')} berhasil dicatat!` };
 		} catch (e: any) {

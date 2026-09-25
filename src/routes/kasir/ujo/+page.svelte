@@ -20,9 +20,10 @@
 	let isSubmitting = $state(false);
 
 	$effect(() => {
-		if (form?.success || form?.error) {
+		if (form?.success || form?.error || form?.message) {
 			isSubmitting = false;
-			if (form.error) alert(form.error);
+			if (form?.error) alert(form.error);
+			else if (form?.message && !form?.success) alert(form.message);
 		}
 	});
 </script>

@@ -68,11 +68,28 @@ export const actions: Actions = {
 		}
 
 		try {
+			// Enforce active shift session
+			const activeShift = await sql`
+				SELECT id, shift_name, cashier_name 
+				FROM finance.kasir_shift_sessions 
+				WHERE status = 'OPEN' 
+				ORDER BY opened_at DESC 
+				LIMIT 1
+			`;
+
+			if (activeShift.length === 0) {
+				return fail(400, { 
+					message: 'Tidak ada Shift Kasir yang aktif. Buka shift terlebih dahulu di menu "Shift & Handover" sebelum mencairkan UJO.' 
+				});
+			}
+			const shiftSessionId = activeShift[0].id;
+
 			await sql.begin(async (sql) => {
-				// 1. Mark UJO as Paid and record to ledger
+				// 1. Mark UJO as Paid and record to ledger with shift_session_id
 				const caUpdated = await sql`
 					UPDATE finance.cash_advance 
-					SET payment_status = 'PAID'
+					SET payment_status = 'PAID',
+						disbursed_shift_session_id = ${shiftSessionId}
 					WHERE sales_order_id = ${orderId}
 					RETURNING estimated_ujo
 				`;
@@ -88,7 +105,8 @@ export const actions: Actions = {
 								reference_id,
 								reference_type,
 								description,
-								performed_by
+								performed_by,
+								shift_session_id
 							) VALUES (
 								'OUT',
 								'PENCAIRAN_UJO',
@@ -96,8 +114,20 @@ export const actions: Actions = {
 								${orderId},
 								'SALES_ORDER',
 								${'Pencairan UJO Supir untuk Order ' + orderId},
-								${user}
+								${user},
+								${shiftSessionId}
 							)
+						`;
+
+						await sql`
+							UPDATE finance.kasir_shift_sessions
+							SET 
+								total_ujo_count = total_ujo_count + 1,
+								total_ujo_amount = total_ujo_amount + ${ujoAmount},
+								total_cash_out = total_cash_out + ${ujoAmount},
+								expected_closing_cash = expected_closing_cash - ${ujoAmount},
+								updated_at = CURRENT_TIMESTAMP
+							WHERE id = ${shiftSessionId}
 						`;
 					}
 				}

@@ -143,6 +143,22 @@ export const actions: Actions = {
 		}
 
 		try {
+			// Enforce active shift session
+			const activeShift = await sql`
+				SELECT id, shift_name, cashier_name 
+				FROM finance.kasir_shift_sessions 
+				WHERE status = 'OPEN' 
+				ORDER BY opened_at DESC 
+				LIMIT 1
+			`;
+
+			if (activeShift.length === 0) {
+				return fail(400, { 
+					message: 'Tidak ada Shift Kasir yang aktif. Buka shift terlebih dahulu di menu "Shift & Handover" sebelum memvalidasi Surat Jalan.' 
+				});
+			}
+			const shiftSessionId = activeShift[0].id;
+
 			await sql.begin(async (sql) => {
 				// 1. In case the kasir corrected the weight, update the actual_weight in trip
 				await sql`
@@ -161,7 +177,7 @@ export const actions: Actions = {
 				const tariff = tripInfoRes.length > 0 ? parseFloat(tripInfoRes[0].tariff || '0') : 0;
 				const dnValue = totalBerat * tariff;
 
-				// 3. Insert into finance.dn_detail
+				// 3. Insert into finance.dn_detail with received_shift_session_id
 				await sql`
 					INSERT INTO finance.dn_detail (
 						trip_id,
@@ -172,7 +188,8 @@ export const actions: Actions = {
 						tarif,
 						total_amount,
 						status,
-						file_upload
+						file_upload,
+						received_shift_session_id
 					) VALUES (
 						${tripId},
 						null,
@@ -182,8 +199,17 @@ export const actions: Actions = {
 						${tariff},
 						${dnValue},
 						'VERIFIED',
-						${fileUploadUrl || 'https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?w=600&auto=format&fit=crop&q=60'}
+						${fileUploadUrl || 'https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?w=600&auto=format&fit=crop&q=60'},
+						${shiftSessionId}
 					)
+				`;
+
+				await sql`
+					UPDATE finance.kasir_shift_sessions
+					SET 
+						total_dn_count = total_dn_count + 1,
+						updated_at = CURRENT_TIMESTAMP
+					WHERE id = ${shiftSessionId}
 				`;
 			});
 
@@ -210,6 +236,22 @@ export const actions: Actions = {
 		}
 
 		try {
+			// Enforce active shift session
+			const activeShift = await sql`
+				SELECT id, shift_name, cashier_name 
+				FROM finance.kasir_shift_sessions 
+				WHERE status = 'OPEN' 
+				ORDER BY opened_at DESC 
+				LIMIT 1
+			`;
+
+			if (activeShift.length === 0) {
+				return fail(400, { 
+					message: 'Tidak ada Shift Kasir yang aktif. Buka shift terlebih dahulu di menu "Shift & Handover" sebelum memvalidasi Surat Jalan.' 
+				});
+			}
+			const shiftSessionId = activeShift[0].id;
+
 			await sql.begin(async (sql) => {
 				// 1. Update fleet.trip: status COMPLETED, no_surat_jalan_customer, actual_weight
 				await sql`
@@ -240,7 +282,7 @@ export const actions: Actions = {
 				}
 				const totalAmount = totalBerat * tariff;
 
-				// 4. Insert or Update finance.dn_detail
+				// 4. Insert or Update finance.dn_detail with received_shift_session_id
 				const existingDn = await sql`
 					SELECT id FROM finance.dn_detail WHERE trip_id = ${tripId} LIMIT 1
 				`;
@@ -253,7 +295,8 @@ export const actions: Actions = {
 						    tarif = ${tariff},
 						    total_amount = ${totalAmount},
 						    status = 'VERIFIED',
-						    file_upload = ${fileUploadUrl || 'https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?w=600&auto=format&fit=crop&q=60'}
+						    file_upload = ${fileUploadUrl || 'https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?w=600&auto=format&fit=crop&q=60'},
+						    received_shift_session_id = ${shiftSessionId}
 						WHERE id = ${existingDn[0].id}
 					`;
 				} else {
@@ -267,7 +310,8 @@ export const actions: Actions = {
 							tarif,
 							total_amount,
 							status,
-							file_upload
+							file_upload,
+							received_shift_session_id
 						) VALUES (
 							${tripId},
 							null,
@@ -277,10 +321,19 @@ export const actions: Actions = {
 							${tariff},
 							${totalAmount},
 							'VERIFIED',
-							${fileUploadUrl || 'https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?w=600&auto=format&fit=crop&q=60'}
+							${fileUploadUrl || 'https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?w=600&auto=format&fit=crop&q=60'},
+							${shiftSessionId}
 						)
 					`;
 				}
+
+				await sql`
+					UPDATE finance.kasir_shift_sessions
+					SET 
+						total_dn_count = total_dn_count + 1,
+						updated_at = CURRENT_TIMESTAMP
+					WHERE id = ${shiftSessionId}
+				`;
 			});
 
 			return { success: true, message: `Surat Jalan ${noSuratJalan} berhasil diverifikasi dan ritase diselesaikan.` };
