@@ -46,18 +46,20 @@ export const load: LayoutServerLoad = async ({ locals }) => {
 				WHERE received_shift_session_id = ${shiftId}
 			`;
 
-			const cashStats = await sql`
-				SELECT 
-					COALESCE(SUM(CASE WHEN direction = 'IN' THEN amount ELSE 0 END), 0) as "cashIn",
-					COALESCE(SUM(CASE WHEN direction = 'OUT' THEN amount ELSE 0 END), 0) as "cashOut"
+			// 1. Total uang masuk ke laci shift (Top Up dari Brankas / Drop Finance)
+			const topupRows = await sql`
+				SELECT COALESCE(SUM(amount), 0) as "cashIn"
 				FROM finance.kasir_cash_ledger
-				WHERE shift_session_id = ${shiftId} AND category NOT IN ('PENYESUAIAN_SALDO', 'SALDO_AWAL')
+				WHERE shift_session_id = ${shiftId} 
+				  AND category IN ('PENARIKAN_KAS_SHIFT', 'TOPUP_KAS_SHIFT', 'DROP_DANA_FINANCE', 'KAS_MASUK_LAIN')
 			`;
+			const cashIn = parseFloat(topupRows[0]?.cashIn) || 0;
 
-			const cashIn = parseFloat(cashStats[0]?.cashIn) || 0;
-			const cashOut = parseFloat(cashStats[0]?.cashOut) || 0;
+			// 2. Total uang keluar dari laci shift (Total UJO dicairkan ke supir)
 			const ujoCount = parseInt(ujoStats[0]?.count) || 0;
 			const ujoTotal = parseFloat(ujoStats[0]?.total) || 0;
+			const cashOut = ujoTotal;
+
 			const dnCount = parseInt(dnStats[0]?.count) || 0;
 			const openingCash = parseFloat(activeShift.openingCash) || 0;
 			const currentExpectedCash = openingCash + cashIn - cashOut;
