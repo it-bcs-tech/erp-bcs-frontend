@@ -51,7 +51,7 @@ export const load: LayoutServerLoad = async ({ locals }) => {
 					COALESCE(SUM(CASE WHEN direction = 'IN' THEN amount ELSE 0 END), 0) as "cashIn",
 					COALESCE(SUM(CASE WHEN direction = 'OUT' THEN amount ELSE 0 END), 0) as "cashOut"
 				FROM finance.kasir_cash_ledger
-				WHERE shift_session_id = ${shiftId}
+				WHERE shift_session_id = ${shiftId} AND category NOT IN ('PENYESUAIAN_SALDO', 'SALDO_AWAL')
 			`;
 
 			const cashIn = parseFloat(cashStats[0]?.cashIn) || 0;

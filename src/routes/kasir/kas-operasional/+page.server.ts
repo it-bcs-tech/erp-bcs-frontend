@@ -318,10 +318,16 @@ export const actions: Actions = {
 		}
 
 		try {
-			const activeShiftRows = await sql`
-				SELECT id FROM finance.kasir_shift_sessions WHERE status = 'OPEN' ORDER BY opened_at DESC LIMIT 1
-			`;
-			const shiftSessionId = activeShiftRows.length > 0 ? activeShiftRows[0].id : null;
+			// Kategori penyesuaian saldo buku besar / saldo awal adalah level makro ledger, tidak boleh dikaitkan ke shift laci kasir aktif
+			const isAdjustment = category === 'PENYESUAIAN_SALDO' || category === 'SALDO_AWAL';
+
+			let shiftSessionId: number | null = null;
+			if (!isAdjustment) {
+				const activeShiftRows = await sql`
+					SELECT id FROM finance.kasir_shift_sessions WHERE status = 'OPEN' ORDER BY opened_at DESC LIMIT 1
+				`;
+				shiftSessionId = activeShiftRows.length > 0 ? activeShiftRows[0].id : null;
+			}
 
 			await sql`
 				INSERT INTO finance.kasir_cash_ledger (
@@ -345,7 +351,7 @@ export const actions: Actions = {
 				)
 			`;
 
-			if (shiftSessionId) {
+			if (shiftSessionId && !isAdjustment) {
 				await sql`
 					UPDATE finance.kasir_shift_sessions
 					SET 

@@ -289,7 +289,7 @@ export const actions: Actions = {
 						COALESCE(SUM(CASE WHEN direction = 'IN' THEN amount ELSE 0 END), 0) as "cashIn",
 						COALESCE(SUM(CASE WHEN direction = 'OUT' THEN amount ELSE 0 END), 0) as "cashOut"
 					FROM finance.kasir_cash_ledger
-					WHERE shift_session_id = ${shiftId}
+					WHERE shift_session_id = ${shiftId} AND category NOT IN ('PENYESUAIAN_SALDO', 'SALDO_AWAL')
 				`;
 				const totalCashIn = parseFloat(ledgerStats[0]?.cashIn) || 0;
 				const totalCashOut = parseFloat(ledgerStats[0]?.cashOut) || 0;
