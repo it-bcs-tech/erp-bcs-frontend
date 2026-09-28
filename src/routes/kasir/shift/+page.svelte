@@ -597,15 +597,18 @@
 						<label class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-1.5" for="cashier_name">
 							Nama Kasir Bertugas <span class="text-rose-500">*</span>
 						</label>
-						<input
+						<select
 							id="cashier_name"
-							type="text"
 							name="cashierName"
 							bind:value={inputCashierName}
-							placeholder="Nama Kasir"
-							class="w-full bg-surface-container-low border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-2.5 text-sm font-bold text-on-surface outline-none focus:ring-2 focus:ring-emerald-500/30"
+							class="w-full bg-surface-container-low border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-2.5 text-sm font-bold text-on-surface outline-none focus:ring-2 focus:ring-emerald-500/30 cursor-pointer"
 							required
-						/>
+						>
+							<option value="" disabled>-- Pilih Petugas Kasir / Operasional --</option>
+							{#each employees as emp}
+								<option value={emp.name}>{emp.name} ({emp.role} • {emp.deptName})</option>
+							{/each}
+						</select>
 					</div>
 
 					<!-- Saldo Modal Awal -->
@@ -748,15 +751,18 @@
 						<label class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-1.5" for="handover_to">
 							Diserahterimakan Kepada (Kasir Pengganti) <span class="text-rose-500">*</span>
 						</label>
-						<input
+						<select
 							id="handover_to"
-							type="text"
 							name="handoverTo"
 							bind:value={inputHandoverTo}
-							placeholder="Nama Kasir Shift Berikutnya"
-							class="w-full bg-surface-container-low border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-2.5 text-sm font-bold text-on-surface outline-none focus:ring-2 focus:ring-rose-500/30"
+							class="w-full bg-surface-container-low border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-2.5 text-sm font-bold text-on-surface outline-none focus:ring-2 focus:ring-rose-500/30 cursor-pointer"
 							required
-						/>
+						>
+							<option value="" disabled>-- Pilih Kasir Pengganti / Shift Berikutnya --</option>
+							{#each employees as emp}
+								<option value={emp.name}>{emp.name} ({emp.role} • {emp.deptName})</option>
+							{/each}
+						</select>
 					</div>
 
 					<!-- Catatan Closing -->

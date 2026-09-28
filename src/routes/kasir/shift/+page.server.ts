@@ -23,12 +23,48 @@ export const load: PageServerLoad = async ({ parent }) => {
 			LIMIT 1
 		`;
 
-		// 2. Daftar karyawan untuk pilihan kasir / penerima serah terima
+		// 2. Daftar karyawan untuk pilihan kasir / penerima serah terima (khusus operasional, kasir, finance, fleet, spv)
 		const employees = await sql`
-			SELECT id, nama_karyawan as name, title as role
-			FROM master.m_karyawan
-			WHERE aktif = 'Y'
-			ORDER BY nama_karyawan ASC
+			SELECT 
+				k.id, 
+				k.nama_karyawan as name, 
+				COALESCE(t.title, k.title) as role, 
+				COALESCE(d.dept_name, '-') as "deptName"
+			FROM master.m_karyawan k
+			LEFT JOIN master.m_title t ON t.title_code = k.title
+			LEFT JOIN master.m_dept d ON d.dept_code = k.dept_id
+			WHERE k.aktif = 'Y'
+			  AND (
+				d.dept_name ILIKE '%finance%'
+				OR d.dept_name ILIKE '%treasury%'
+				OR d.dept_name ILIKE '%operation%'
+				OR d.dept_name ILIKE '%transport%'
+				OR d.dept_name ILIKE '%it%'
+				OR t.title ILIKE '%cashier%'
+				OR t.title ILIKE '%kasir%'
+				OR t.title ILIKE '%admin%'
+				OR t.title ILIKE '%dispatcher%'
+				OR t.title ILIKE '%fleet%'
+				OR t.title ILIKE '%finance%'
+				OR t.title ILIKE '%staff%'
+				OR t.title ILIKE '%supervisor%'
+				OR t.title ILIKE '%spv%'
+			  )
+			  AND (t.title IS NULL OR (
+				t.title NOT ILIKE '%driver%'
+				AND t.title NOT ILIKE '%supir%'
+				AND t.title NOT ILIKE '%kenek%'
+				AND t.title NOT ILIKE '%mekanik%'
+				AND t.title NOT ILIKE '%helper%'
+				AND t.title NOT ILIKE '%security%'
+				AND t.title NOT ILIKE '%tyreman%'
+				AND t.title NOT ILIKE '%office boy%'
+				AND t.title NOT ILIKE '%ob%'
+				AND t.title NOT ILIKE '%internship%'
+				AND t.title NOT ILIKE '%dummy%'
+			  ))
+			  AND k.nama_karyawan NOT ILIKE '%dummy%'
+			ORDER BY k.nama_karyawan ASC
 		`;
 
 		// 3. Jika ada shift aktif, ambil transaksi yang terjadi selama shift ini

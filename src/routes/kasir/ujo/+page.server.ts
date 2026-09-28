@@ -95,8 +95,10 @@ export const actions: Actions = {
 				`;
 
 				if (caUpdated.length > 0) {
-					const ujoAmount = parseFloat(caUpdated[0].estimated_ujo) || 0;
-					if (ujoAmount > 0) {
+					const totalUjoAmount = caUpdated.reduce((sum: number, r: any) => sum + (parseFloat(r.estimated_ujo) || 0), 0);
+					const ujoCount = caUpdated.length;
+
+					if (totalUjoAmount > 0) {
 						await sql`
 							INSERT INTO finance.kasir_cash_ledger (
 								direction,
@@ -110,10 +112,10 @@ export const actions: Actions = {
 							) VALUES (
 								'OUT',
 								'PENCAIRAN_UJO',
-								${ujoAmount},
+								${totalUjoAmount},
 								${orderId},
 								'SALES_ORDER',
-								${'Pencairan UJO Supir untuk Order ' + orderId},
+								${ujoCount > 1 ? `Pencairan UJO Supir (${ujoCount} Rit) untuk Order ${orderId}` : `Pencairan UJO Supir untuk Order ${orderId}`},
 								${user},
 								${shiftSessionId}
 							)
@@ -122,10 +124,10 @@ export const actions: Actions = {
 						await sql`
 							UPDATE finance.kasir_shift_sessions
 							SET 
-								total_ujo_count = total_ujo_count + 1,
-								total_ujo_amount = total_ujo_amount + ${ujoAmount},
-								total_cash_out = total_cash_out + ${ujoAmount},
-								expected_closing_cash = expected_closing_cash - ${ujoAmount},
+								total_ujo_count = total_ujo_count + ${ujoCount},
+								total_ujo_amount = total_ujo_amount + ${totalUjoAmount},
+								total_cash_out = total_cash_out + ${totalUjoAmount},
+								expected_closing_cash = expected_closing_cash - ${totalUjoAmount},
 								updated_at = CURRENT_TIMESTAMP
 							WHERE id = ${shiftSessionId}
 						`;
