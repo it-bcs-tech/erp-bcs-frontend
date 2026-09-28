@@ -198,6 +198,7 @@ export const actions: Actions = {
 		const shiftName = (data.get('shiftName') as string) || 'Shift 1';
 		const cashierName = (data.get('cashierName') as string)?.trim() || locals?.user?.name || 'Kasir Operasional';
 		const openingCash = parseFloat(data.get('openingCash') as string) || 0;
+		const openingSource = (data.get('openingSource') as string) || 'BRANKAS';
 
 		try {
 			// Cek apakah sudah ada shift yang sedang OPEN
@@ -227,27 +228,56 @@ export const actions: Actions = {
 			const seq = String(parseInt(countToday[0].count) + 1).padStart(3, '0');
 			const sessionNumber = `SHF-${yyyymmdd}-${shiftCode}-${seq}`;
 
-			await sql`
-				INSERT INTO finance.kasir_shift_sessions (
-					session_number,
-					shift_name,
-					shift_date,
-					cashier_name,
-					opened_at,
-					status,
-					opening_cash,
-					expected_closing_cash
-				) VALUES (
-					${sessionNumber},
-					${shiftName},
-					CURRENT_DATE,
-					${cashierName},
-					CURRENT_TIMESTAMP,
-					'OPEN',
-					${openingCash},
-					${openingCash}
-				)
-			`;
+			await sql.begin(async (sql) => {
+				const insertedShift = await sql`
+					INSERT INTO finance.kasir_shift_sessions (
+						session_number,
+						shift_name,
+						shift_date,
+						cashier_name,
+						opened_at,
+						status,
+						opening_cash,
+						expected_closing_cash
+					) VALUES (
+						${sessionNumber},
+						${shiftName},
+						CURRENT_DATE,
+						${cashierName},
+						CURRENT_TIMESTAMP,
+						'OPEN',
+						${openingCash},
+						${openingCash}
+					)
+					RETURNING id
+				`;
+				const shiftId = insertedShift[0].id;
+
+				// Jika modal awal diambil dari brankas, catat KAS KELUAR (OUT) di brankas
+				if (openingCash > 0 && openingSource === 'BRANKAS') {
+					await sql`
+						INSERT INTO finance.kasir_cash_ledger (
+							direction,
+							category,
+							amount,
+							reference_id,
+							reference_type,
+							description,
+							performed_by,
+							shift_session_id
+						) VALUES (
+							'OUT',
+							'MODAL_AWAL_SHIFT',
+							${openingCash},
+							${sessionNumber},
+							'OPEN_SHIFT',
+							${`Penarikan modal awal shift ${shiftName} (${sessionNumber}) dari brankas kasir`},
+							${cashierName},
+							${shiftId}
+						)
+					`;
+				}
+			});
 
 			return { success: true, message: `Shift ${shiftName} berhasil dibuka dengan modal Rp ${openingCash.toLocaleString('id-ID')}` };
 		} catch (err: any) {
@@ -283,18 +313,17 @@ export const actions: Actions = {
 
 				const openingCash = parseFloat(shiftRows[0].opening_cash) || 0;
 
-				// 2. Hitung statistik kas ledger selama shift ini
-				const ledgerStats = await sql`
+				// 2. Hitung statistik kas masuk ke laci shift ini (Top up kas dari brankas / drop finance)
+				const shiftCashInRows = await sql`
 					SELECT 
-						COALESCE(SUM(CASE WHEN direction = 'IN' THEN amount ELSE 0 END), 0) as "cashIn",
-						COALESCE(SUM(CASE WHEN direction = 'OUT' THEN amount ELSE 0 END), 0) as "cashOut"
+						COALESCE(SUM(amount), 0) as "cashIn"
 					FROM finance.kasir_cash_ledger
-					WHERE shift_session_id = ${shiftId} AND category NOT IN ('PENYESUAIAN_SALDO', 'SALDO_AWAL')
+					WHERE shift_session_id = ${shiftId} 
+					  AND category IN ('PENARIKAN_KAS_SHIFT', 'TOPUP_KAS_SHIFT', 'DROP_DANA_FINANCE', 'KAS_MASUK_LAIN')
 				`;
-				const totalCashIn = parseFloat(ledgerStats[0]?.cashIn) || 0;
-				const totalCashOut = parseFloat(ledgerStats[0]?.cashOut) || 0;
+				const totalCashIn = parseFloat(shiftCashInRows[0]?.cashIn) || 0;
 
-				// 3. Hitung statistik UJO dicairkan
+				// 3. Hitung statistik UJO dicairkan (Kas Keluar dari Laci Shift)
 				const ujoStats = await sql`
 					SELECT 
 						COUNT(*) as count,
@@ -304,6 +333,7 @@ export const actions: Actions = {
 				`;
 				const totalUjoCount = parseInt(ujoStats[0]?.count) || 0;
 				const totalUjoAmount = parseFloat(ujoStats[0]?.total) || 0;
+				const totalCashOut = totalUjoAmount;
 
 				// 4. Hitung statistik Surat Jalan (DN) diterima
 				const dnStats = await sql`
@@ -375,7 +405,15 @@ export const actions: Actions = {
 					throw new Error('Sesi shift tidak ditemukan atau sudah ditutup.');
 				}
 
-				// 2. Insert ke ledger kasir dengan shift_session_id
+				// 2. Insert ke ledger kasir:
+				// Jika dari brankas: dicatat KELUAR (OUT) dari brankas kas operasional!
+				// Jika drop dana langsung finance: dicatat MASUK (IN) ke kas operasional!
+				const ledgerDirection = category === 'DROP_DANA_FINANCE' ? 'IN' : 'OUT';
+				const ledgerCategory = category === 'TOPUP_KAS_SHIFT' ? 'PENARIKAN_KAS_SHIFT' : category;
+				const defaultDesc = category === 'TOPUP_KAS_SHIFT'
+					? `Penarikan kas dari brankas untuk Top Up Shift ${shiftRows[0].session_number}`
+					: description;
+
 				await sql`
 					INSERT INTO finance.kasir_cash_ledger (
 						direction,
@@ -387,18 +425,18 @@ export const actions: Actions = {
 						performed_by,
 						shift_session_id
 					) VALUES (
-						'IN',
-						${category},
+						${ledgerDirection},
+						${ledgerCategory},
 						${amount},
 						${referenceNo || shiftRows[0].session_number},
 						'SHIFT_TOPUP',
-						${description},
+						${defaultDesc},
 						${user},
 						${shiftId}
 					)
 				`;
 
-				// 3. Update total_cash_in dan expected_closing_cash pada sesi shift aktif
+				// 3. Update total_cash_in dan expected_closing_cash pada sesi shift aktif (Laci kasir BERTAMBAH)
 				await sql`
 					UPDATE finance.kasir_shift_sessions
 					SET 
@@ -411,7 +449,7 @@ export const actions: Actions = {
 
 			return {
 				success: true,
-				message: `Top up kas shift sebesar Rp ${amount.toLocaleString('id-ID')} berhasil dicatat!`
+				message: `Top up kas shift sebesar Rp ${amount.toLocaleString('id-ID')} berhasil. Saldo brankas berkurang dan saldo shift bertambah!`
 			};
 		} catch (err: any) {
 			console.error("Error top up shift:", err);

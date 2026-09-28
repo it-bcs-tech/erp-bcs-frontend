@@ -432,10 +432,10 @@
 										{formatDateTime(item.createdAt)}
 									</td>
 									<td class="py-3.5 px-4">
-										{#if item.direction === 'IN'}
+										{#if item.category === 'PENARIKAN_KAS_SHIFT' || item.category === 'MODAL_AWAL_SHIFT' || item.direction === 'IN'}
 											<span class="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-700 bg-emerald-50 dark:bg-emerald-950/40 dark:text-emerald-300 px-2 py-0.5 rounded-md">
 												<span class="material-symbols-outlined text-[12px]">arrow_downward</span>
-												<span>MASUK: {item.category}</span>
+												<span>MASUK: {item.category === 'PENARIKAN_KAS_SHIFT' ? 'Top Up dari Brankas' : item.category === 'MODAL_AWAL_SHIFT' ? 'Modal Awal Brankas' : item.category}</span>
 											</span>
 										{:else}
 											<span class="inline-flex items-center gap-1 text-[10px] font-bold text-rose-700 bg-rose-50 dark:bg-rose-950/40 dark:text-rose-300 px-2 py-0.5 rounded-md">
@@ -450,8 +450,8 @@
 									<td class="py-3.5 px-4 text-on-surface-variant">
 										{item.performedBy || '-'}
 									</td>
-									<td class="py-3.5 px-5 text-right font-mono font-bold {item.direction === 'IN' ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}">
-										{item.direction === 'IN' ? '+' : '-'} {formatCurrency(parseFloat(item.amount) || 0)}
+									<td class="py-3.5 px-5 text-right font-mono font-bold {item.category === 'PENARIKAN_KAS_SHIFT' || item.category === 'MODAL_AWAL_SHIFT' || item.direction === 'IN' ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}">
+										{item.category === 'PENARIKAN_KAS_SHIFT' || item.category === 'MODAL_AWAL_SHIFT' || item.direction === 'IN' ? '+' : '-'} {formatCurrency(parseFloat(item.amount) || 0)}
 									</td>
 								</tr>
 							{/each}
@@ -893,6 +893,24 @@
 								✓ Otomatis terisi dari saldo akhir shift sebelumnya ({formatCurrency(parseFloat(lastClosedShift.actualClosingCash) || 0)})
 							</p>
 						{/if}
+					</div>
+
+					<!-- Asal Sumber Modal Awal -->
+					<div>
+						<label class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-1.5" for="opening_source">
+							Asal Sumber Fisik Kas <span class="text-rose-500">*</span>
+						</label>
+						<select
+							id="opening_source"
+							name="openingSource"
+							class="w-full bg-surface-container-low border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-2 text-xs font-bold text-on-surface outline-none focus:ring-2 focus:ring-emerald-500/30 cursor-pointer"
+							required
+						>
+							{#if lastClosedShift}
+								<option value="HANDOVER">Sisa Handover Shift Lalu ({lastClosedShift.shiftName}) - Kas sudah di laci, tidak potong brankas</option>
+							{/if}
+							<option value="BRANKAS">Ambil dari Brankas Kasir / Pool Kantor (Memotong saldo kas operasional brankas)</option>
+						</select>
 					</div>
 				</div>
 

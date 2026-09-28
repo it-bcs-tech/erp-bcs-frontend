@@ -98,29 +98,8 @@ export const actions: Actions = {
 					const totalUjoAmount = caUpdated.reduce((sum: number, r: any) => sum + (parseFloat(r.estimated_ujo) || 0), 0);
 					const ujoCount = caUpdated.length;
 
-					if (totalUjoAmount > 0) {
-						await sql`
-							INSERT INTO finance.kasir_cash_ledger (
-								direction,
-								category,
-								amount,
-								reference_id,
-								reference_type,
-								description,
-								performed_by,
-								shift_session_id
-							) VALUES (
-								'OUT',
-								'PENCAIRAN_UJO',
-								${totalUjoAmount},
-								${orderId},
-								'SALES_ORDER',
-								${ujoCount > 1 ? `Pencairan UJO Supir (${ujoCount} Rit) untuk Order ${orderId}` : `Pencairan UJO Supir untuk Order ${orderId}`},
-								${user},
-								${shiftSessionId}
-							)
-						`;
-
+					if (totalUjoAmount > 0 && shiftSessionId) {
+						// UJO dipotong dari fisik kas laci shift aktif (tidak memotong brankas lagi karena kas sudah ditarik di muka)
 						await sql`
 							UPDATE finance.kasir_shift_sessions
 							SET 
