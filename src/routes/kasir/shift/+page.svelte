@@ -18,8 +18,15 @@
 	// Modals
 	let showOpenModal = $state(false);
 	let showCloseModal = $state(false);
+	let showTopupModal = $state(false);
 	let selectedShiftForReceipt = $state<any>(null);
 	let isSubmitting = $state(false);
+
+	// Top Up Shift Form states
+	let inputTopupAmount = $state<number>(0);
+	let inputTopupCategory = $state('TOPUP_KAS_SHIFT');
+	let inputTopupRef = $state('');
+	let inputTopupDesc = $state('');
 
 	// Open Shift Form states
 	const getCurrentShiftRecommendation = () => {
@@ -50,7 +57,11 @@
 		if (form?.success) {
 			showOpenModal = false;
 			showCloseModal = false;
+			showTopupModal = false;
 			isSubmitting = false;
+			inputTopupAmount = 0;
+			inputTopupRef = '';
+			inputTopupDesc = '';
 		}
 		if (form?.error) {
 			isSubmitting = false;
@@ -99,6 +110,17 @@
 
 		<div class="flex items-center gap-2">
 			{#if activeShift}
+				<button
+					type="button"
+					onclick={() => {
+						inputTopupAmount = activeShift.expectedClosingCash < 0 ? Math.abs(activeShift.expectedClosingCash) : 0;
+						showTopupModal = true;
+					}}
+					class="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-xs transition-colors flex items-center gap-2 cursor-pointer"
+				>
+					<span class="material-symbols-outlined text-base">add_card</span>
+					<span>Top Up Kas Shift</span>
+				</button>
 				<button
 					type="button"
 					onclick={() => showCloseModal = true}
@@ -152,6 +174,17 @@
 				<div class="flex items-center gap-3">
 					<button
 						type="button"
+						onclick={() => {
+							inputTopupAmount = activeShift.expectedClosingCash < 0 ? Math.abs(activeShift.expectedClosingCash) : 0;
+							showTopupModal = true;
+						}}
+						class="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-xs transition-colors flex items-center gap-2 cursor-pointer"
+					>
+						<span class="material-symbols-outlined text-[17px]">add_card</span>
+						<span>Top Up Kas Shift</span>
+					</button>
+					<button
+						type="button"
 						onclick={() => showCloseModal = true}
 						class="px-5 py-2.5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold shadow-xs transition-colors flex items-center gap-2 cursor-pointer"
 					>
@@ -200,17 +233,35 @@
 				</div>
 
 				<!-- KPI 4: Estimasi Saldo Kasir Saat Ini -->
-				<div class="p-4 rounded-xl bg-emerald-50/50 dark:bg-emerald-950/20 border border-emerald-500/20">
-					<div class="flex items-center justify-between text-xs text-emerald-800 dark:text-emerald-300 font-bold mb-1">
+				<div class="p-4 rounded-xl {activeShift.expectedClosingCash < 0 ? 'bg-rose-50/70 dark:bg-rose-950/30 border border-rose-500/40' : 'bg-emerald-50/50 dark:bg-emerald-950/20 border border-emerald-500/20'}">
+					<div class="flex items-center justify-between text-xs {activeShift.expectedClosingCash < 0 ? 'text-rose-800 dark:text-rose-300' : 'text-emerald-800 dark:text-emerald-300'} font-bold mb-1">
 						<span>Saldo Sistem Saat Ini</span>
-						<span class="material-symbols-outlined text-sm text-emerald-600">payments</span>
+						<span class="material-symbols-outlined text-sm {activeShift.expectedClosingCash < 0 ? 'text-rose-600 animate-bounce' : 'text-emerald-600'}">
+							{activeShift.expectedClosingCash < 0 ? 'warning' : 'payments'}
+						</span>
 					</div>
-					<div class="text-base font-black font-mono text-emerald-700 dark:text-emerald-400">
+					<div class="text-base font-black font-mono {activeShift.expectedClosingCash < 0 ? 'text-rose-600 dark:text-rose-400' : 'text-emerald-700 dark:text-emerald-400'}">
 						{formatCurrency(activeShift.expectedClosingCash)}
 					</div>
-					<p class="text-[10px] text-emerald-800/70 dark:text-emerald-400/70 mt-1">
-						Modal Awal + Masuk ({formatCurrency(activeShift.totalCashIn)}) - Keluar ({formatCurrency(activeShift.totalCashOut)})
-					</p>
+					{#if activeShift.expectedClosingCash < 0}
+						<div class="mt-2 pt-2 border-t border-rose-200 dark:border-rose-900/40 flex items-center justify-between">
+							<span class="text-[10px] text-rose-700 dark:text-rose-300 font-bold">Defisit Kas Shift!</span>
+							<button
+								type="button"
+								onclick={() => {
+									inputTopupAmount = Math.abs(activeShift.expectedClosingCash);
+									showTopupModal = true;
+								}}
+								class="px-2 py-0.5 bg-rose-600 hover:bg-rose-700 text-white text-[10px] font-bold rounded-lg cursor-pointer transition-colors shadow-2xs"
+							>
+								+ Top Up Kas
+							</button>
+						</div>
+					{:else}
+						<p class="text-[10px] text-emerald-800/70 dark:text-emerald-400/70 mt-1">
+							Modal Awal + Masuk ({formatCurrency(activeShift.totalCashIn)}) - Keluar ({formatCurrency(activeShift.totalCashOut)})
+						</p>
+					{/if}
 				</div>
 			</div>
 		</div>
@@ -546,6 +597,214 @@
 		</div>
 	</div>
 </div>
+
+<!-- Modal: Top Up Kas Shift Berjalan -->
+{#if showTopupModal && activeShift}
+	<div class="fixed inset-0 z-50 flex items-center justify-center p-4">
+		<div class="absolute inset-0 bg-slate-900/50 backdrop-blur-sm" onclick={() => showTopupModal = false}></div>
+		<div class="relative w-full max-w-lg bg-surface-container-lowest rounded-[24px] border border-slate-200/80 dark:border-slate-800 shadow-2xl overflow-hidden flex flex-col">
+			<!-- Header -->
+			<div class="p-6 border-b border-slate-100 dark:border-slate-800/80 bg-emerald-500/5">
+				<div class="flex items-center justify-between">
+					<div class="flex items-center gap-3">
+						<div class="w-10 h-10 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
+							<span class="material-symbols-outlined text-2xl">add_card</span>
+						</div>
+						<div>
+							<h3 class="text-base font-bold text-on-surface">Top Up Kas Shift Berjalan</h3>
+							<p class="text-xs text-on-surface-variant mt-0.5">Tambah kas laci untuk sesi {activeShift.shiftName}</p>
+						</div>
+					</div>
+					<button type="button" onclick={() => showTopupModal = false} class="w-8 h-8 rounded-full bg-surface-container hover:bg-surface-container-high flex items-center justify-center text-on-surface-variant transition-colors cursor-pointer">
+						<span class="material-symbols-outlined text-lg">close</span>
+					</button>
+				</div>
+			</div>
+
+			<!-- Form -->
+			<form method="POST" action="?/topupShift" use:enhance={() => { isSubmitting = true; return async ({ update }) => { await update(); isSubmitting = false; }; }}>
+				<input type="hidden" name="shiftId" value={activeShift.id} />
+
+				<div class="p-6 space-y-4">
+					<!-- Info Shift Aktif -->
+					<div class="p-3.5 rounded-xl bg-surface-container-low border border-slate-200/70 dark:border-slate-800/70 flex items-center justify-between text-xs">
+						<div>
+							<span class="text-on-surface-variant block text-[11px]">Sesi Shift:</span>
+							<strong class="font-mono text-on-surface">{activeShift.sessionNumber} ({activeShift.shiftName})</strong>
+						</div>
+						<div class="text-right">
+							<span class="text-on-surface-variant block text-[11px]">Saldo Saat Ini:</span>
+							<strong class="font-mono {activeShift.expectedClosingCash < 0 ? 'text-rose-600 font-bold' : 'text-emerald-600 font-bold'}">
+								{formatCurrency(activeShift.expectedClosingCash)}
+							</strong>
+						</div>
+					</div>
+
+					{#if activeShift.expectedClosingCash < 0}
+						<div class="p-3 rounded-xl bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-900/50 flex items-start gap-2.5 text-xs text-rose-800 dark:text-rose-300">
+							<span class="material-symbols-outlined text-base text-rose-600 flex-shrink-0 mt-0.5">info</span>
+							<div>
+								<span class="font-bold block">Saldo Kas Shift Defisit</span>
+								<span>Kas keluar (UJO) melebihi modal awal sebesar <strong>{formatCurrency(Math.abs(activeShift.expectedClosingCash))}</strong>. Lakukan top up agar saldo kembali seimbang.</span>
+							</div>
+						</div>
+					{/if}
+
+					<!-- Quick Presets -->
+					<div>
+						<label class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-1.5">
+							Pilihan Cepat Nominal
+						</label>
+						<div class="flex flex-wrap gap-2">
+							{#if activeShift.expectedClosingCash < 0}
+								<button
+									type="button"
+									onclick={() => inputTopupAmount = Math.abs(activeShift.expectedClosingCash)}
+									class="px-2.5 py-1 rounded-lg text-xs font-bold bg-rose-100 text-rose-800 dark:bg-rose-950/60 dark:text-rose-300 border border-rose-300 dark:border-rose-800 cursor-pointer"
+								>
+									Tutup Defisit ({formatCurrency(Math.abs(activeShift.expectedClosingCash))})
+								</button>
+							{/if}
+							<button
+								type="button"
+								onclick={() => inputTopupAmount = (inputTopupAmount || 0) + 1000000}
+								class="px-2.5 py-1 rounded-lg text-xs font-bold bg-surface-container-low hover:bg-surface-container text-on-surface border border-slate-200/70 dark:border-slate-800/70 cursor-pointer"
+							>
+								+1 Juta
+							</button>
+							<button
+								type="button"
+								onclick={() => inputTopupAmount = (inputTopupAmount || 0) + 5000000}
+								class="px-2.5 py-1 rounded-lg text-xs font-bold bg-surface-container-low hover:bg-surface-container text-on-surface border border-slate-200/70 dark:border-slate-800/70 cursor-pointer"
+							>
+								+5 Juta
+							</button>
+							<button
+								type="button"
+								onclick={() => inputTopupAmount = (inputTopupAmount || 0) + 10000000}
+								class="px-2.5 py-1 rounded-lg text-xs font-bold bg-surface-container-low hover:bg-surface-container text-on-surface border border-slate-200/70 dark:border-slate-800/70 cursor-pointer"
+							>
+								+10 Juta
+							</button>
+							<button
+								type="button"
+								onclick={() => inputTopupAmount = (inputTopupAmount || 0) + 20000000}
+								class="px-2.5 py-1 rounded-lg text-xs font-bold bg-surface-container-low hover:bg-surface-container text-on-surface border border-slate-200/70 dark:border-slate-800/70 cursor-pointer"
+							>
+								+20 Juta
+							</button>
+							<button
+								type="button"
+								onclick={() => inputTopupAmount = 0}
+								class="px-2.5 py-1 rounded-lg text-xs font-medium text-on-surface-variant hover:text-on-surface border border-dashed border-slate-300 dark:border-slate-700 cursor-pointer"
+							>
+								Reset
+							</button>
+						</div>
+					</div>
+
+					<!-- Nominal Top Up -->
+					<div>
+						<label class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-1.5" for="topup_amount">
+							Nominal Top Up Kas (Rp) <span class="text-rose-500">*</span>
+						</label>
+						<div class="relative">
+							<span class="absolute left-3.5 top-1/2 -translate-y-1/2 font-bold text-xs text-on-surface-variant">Rp</span>
+							<input
+								id="topup_amount"
+								type="number"
+								name="amount"
+								bind:value={inputTopupAmount}
+								min="1000"
+								step="1000"
+								placeholder="0"
+								class="w-full bg-surface-container-low border border-slate-200 dark:border-slate-800 rounded-xl pl-10 pr-4 py-2.5 text-base font-bold font-mono text-on-surface outline-none focus:ring-2 focus:ring-emerald-500/30"
+								required
+							/>
+						</div>
+						{#if inputTopupAmount > 0}
+							<p class="text-xs font-mono font-bold text-emerald-600 dark:text-emerald-400 mt-1">
+								Terbilang: {formatCurrency(inputTopupAmount)}
+							</p>
+						{/if}
+					</div>
+
+					<!-- Sumber Dana Kas -->
+					<div>
+						<label class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-1.5" for="topup_category">
+							Sumber Kas Masuk <span class="text-rose-500">*</span>
+						</label>
+						<select
+							id="topup_category"
+							name="category"
+							bind:value={inputTopupCategory}
+							class="w-full bg-surface-container-low border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-2.5 text-sm font-bold text-on-surface outline-none focus:ring-2 focus:ring-emerald-500/30 cursor-pointer"
+							required
+						>
+							<option value="TOPUP_KAS_SHIFT">Ambil dari Brankas Kasir / Pool Kantor</option>
+							<option value="DROP_DANA_FINANCE">Drop Dana Langsung Finance / Bank</option>
+							<option value="KAS_MASUK_LAIN">Penerimaan Tunai Kasir Lainnya</option>
+						</select>
+						<p class="text-[10px] text-on-surface-variant mt-1">
+							{#if inputTopupCategory === 'TOPUP_KAS_SHIFT'}
+								Uang fisik diambil dari brankas/kas safe kantor dan dimasukkan ke laci aktif shift ini.
+							{:else if inputTopupCategory === 'DROP_DANA_FINANCE'}
+								Drop dana langsung ditransfer/diterima dari bagian Finance/Treasury pusat ke shift ini.
+							{:else}
+								Penerimaan uang tunai non-drop dana (misal pengembalian kasbon, dll).
+							{/if}
+						</p>
+					</div>
+
+					<!-- Nomor Referensi / Bukti -->
+					<div>
+						<label class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-1.5" for="topup_ref">
+							No Referensi / No Bukti Kas (Opsional)
+						</label>
+						<input
+							id="topup_ref"
+							type="text"
+							name="referenceNo"
+							bind:value={inputTopupRef}
+							placeholder="Contoh: BKT-2026-0901 atau No Rek"
+							class="w-full bg-surface-container-low border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-2.5 text-sm text-on-surface outline-none focus:ring-2 focus:ring-emerald-500/30 font-mono"
+						/>
+					</div>
+
+					<!-- Catatan / Deskripsi -->
+					<div>
+						<label class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-1.5" for="topup_desc">
+							Keterangan / Alasan Top Up
+						</label>
+						<textarea
+							id="topup_desc"
+							name="description"
+							bind:value={inputTopupDesc}
+							rows="2"
+							placeholder="Contoh: Tambahan kas laci untuk pencairan UJO armada shift malam"
+							class="w-full bg-surface-container-low border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-2 text-xs text-on-surface outline-none focus:ring-2 focus:ring-emerald-500/30"
+						></textarea>
+					</div>
+				</div>
+
+				<div class="p-6 border-t border-slate-100 dark:border-slate-800/80 bg-surface-container-low/40 flex justify-end gap-3">
+					<button type="button" onclick={() => showTopupModal = false} class="px-5 py-2.5 rounded-xl text-sm font-bold text-on-surface-variant hover:bg-surface-container transition-colors cursor-pointer">
+						Batal
+					</button>
+					<button type="submit" disabled={isSubmitting || !inputTopupAmount || inputTopupAmount <= 0} class="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-sm font-bold shadow-xs transition-colors flex items-center gap-2 disabled:opacity-50 cursor-pointer">
+						{#if isSubmitting}
+							<span class="material-symbols-outlined text-[18px] animate-spin">sync</span>
+							<span>Memproses...</span>
+						{:else}
+							<span class="material-symbols-outlined text-[18px]">add_card</span>
+							<span>Simpan Top Up Kas</span>
+						{/if}
+					</button>
+				</div>
+			</form>
+		</div>
+	</div>
+{/if}
 
 <!-- Modal: Buka Shift Baru (Open Shift) -->
 {#if showOpenModal}

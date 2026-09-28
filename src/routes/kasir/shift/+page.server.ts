@@ -343,5 +343,79 @@ export const actions: Actions = {
 			console.error("Error closing shift:", err);
 			return fail(500, { error: err.message || 'Gagal menutup shift kasir.' });
 		}
+	},
+
+	topupShift: async ({ request, locals }) => {
+		const data = await request.formData();
+		const shiftId = parseInt(data.get('shiftId') as string);
+		const amount = parseFloat(data.get('amount') as string);
+		const category = (data.get('category') as string) || 'TOPUP_KAS_SHIFT';
+		const referenceNo = (data.get('referenceNo') as string)?.trim() || null;
+		const description = (data.get('description') as string)?.trim() || 'Top Up Kas Shift Kasir';
+		const user = locals?.user?.name || 'Kasir Operasional';
+
+		if (!shiftId) {
+			return fail(400, { error: 'ID sesi shift tidak valid.' });
+		}
+		if (!amount || amount <= 0) {
+			return fail(400, { error: 'Nominal top up kas harus lebih besar dari 0.' });
+		}
+
+		try {
+			await sql.begin(async (sql) => {
+				// 1. Cek sesi shift masih OPEN
+				const shiftRows = await sql`
+					SELECT id, session_number, status
+					FROM finance.kasir_shift_sessions
+					WHERE id = ${shiftId} AND status = 'OPEN'
+					FOR UPDATE
+				`;
+
+				if (shiftRows.length === 0) {
+					throw new Error('Sesi shift tidak ditemukan atau sudah ditutup.');
+				}
+
+				// 2. Insert ke ledger kasir dengan shift_session_id
+				await sql`
+					INSERT INTO finance.kasir_cash_ledger (
+						direction,
+						category,
+						amount,
+						reference_id,
+						reference_type,
+						description,
+						performed_by,
+						shift_session_id
+					) VALUES (
+						'IN',
+						${category},
+						${amount},
+						${referenceNo || shiftRows[0].session_number},
+						'SHIFT_TOPUP',
+						${description},
+						${user},
+						${shiftId}
+					)
+				`;
+
+				// 3. Update total_cash_in dan expected_closing_cash pada sesi shift aktif
+				await sql`
+					UPDATE finance.kasir_shift_sessions
+					SET 
+						total_cash_in = total_cash_in + ${amount},
+						expected_closing_cash = expected_closing_cash + ${amount},
+						updated_at = CURRENT_TIMESTAMP
+					WHERE id = ${shiftId}
+				`;
+			});
+
+			return {
+				success: true,
+				message: `Top up kas shift sebesar Rp ${amount.toLocaleString('id-ID')} berhasil dicatat!`
+			};
+		} catch (err: any) {
+			console.error("Error top up shift:", err);
+			return fail(500, { error: err.message || 'Gagal melakukan top up kas shift.' });
+		}
 	}
 };
