@@ -25,9 +25,9 @@ export const load: PageServerLoad = async ({ parent }) => {
 
 		// 2. Daftar karyawan untuk pilihan kasir / penerima serah terima
 		const employees = await sql`
-			SELECT id, nama_karyawan as name, jabatan as role
+			SELECT id, nama_karyawan as name, title as role
 			FROM master.m_karyawan
-			WHERE status_aktif = true
+			WHERE aktif = 'Y'
 			ORDER BY nama_karyawan ASC
 		`;
 
