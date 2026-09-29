@@ -39,21 +39,37 @@
 	let inputShiftName = $state(getCurrentShiftRecommendation());
 	let inputCashierName = $state(data.user?.name || '');
 	let inputOpeningCash = $state<number>(
-		lastClosedShift ? (lastClosedShift.remainingInDrawer ?? parseFloat(lastClosedShift.actualClosingCash) ?? 0) : 0
+		lastClosedShift ? (parseFloat(lastClosedShift.actualClosingCash) || 0) : 0
 	);
 	let inputOpeningSource = $state<string>(
-		lastClosedShift && (lastClosedShift.remainingInDrawer ?? 1) > 0 ? 'HANDOVER' : 'BRANKAS'
+		lastClosedShift && (parseFloat(lastClosedShift.actualClosingCash) || 0) > 0 ? 'HANDOVER' : 'BRANKAS'
 	);
+
+	function handleOpenShiftModal() {
+		inputShiftName = getCurrentShiftRecommendation();
+		inputCashierName = data.user?.name || '';
+		const prevCash = lastClosedShift ? (parseFloat(lastClosedShift.actualClosingCash) || 0) : 0;
+		inputOpeningCash = prevCash;
+		inputOpeningSource = lastClosedShift && prevCash > 0 ? 'HANDOVER' : 'BRANKAS';
+		showOpenModal = true;
+	}
 
 	// Close Shift Form states
 	let inputActualCash = $state<number>(0);
-	let inputClosingAction = $state<'HANDOVER' | 'SETOR_BRANKAS'>('HANDOVER');
 	let inputHandoverTo = $state('');
 	let inputClosingNotes = $state('');
 
 	$effect(() => {
 		if (activeShift) {
 			inputActualCash = activeShift.expectedClosingCash || 0;
+		}
+	});
+
+	$effect(() => {
+		if (lastClosedShift && !showOpenModal) {
+			const prevCash = parseFloat(lastClosedShift.actualClosingCash) || 0;
+			inputOpeningCash = prevCash;
+			inputOpeningSource = prevCash > 0 ? 'HANDOVER' : 'BRANKAS';
 		}
 	});
 
@@ -136,7 +152,7 @@
 			{:else}
 				<button
 					type="button"
-					onclick={() => showOpenModal = true}
+					onclick={handleOpenShiftModal}
 					class="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-xs transition-colors flex items-center gap-2 cursor-pointer"
 				>
 					<span class="material-symbols-outlined text-base">add_circle</span>
@@ -489,7 +505,7 @@
 			<div>
 				<button
 					type="button"
-					onclick={() => showOpenModal = true}
+					onclick={handleOpenShiftModal}
 					class="px-6 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-sm font-bold shadow-sm transition-colors inline-flex items-center gap-2 cursor-pointer"
 				>
 					<span class="material-symbols-outlined text-lg">add_circle</span>
@@ -893,15 +909,9 @@
 							/>
 						</div>
 						{#if lastClosedShift}
-							{#if (lastClosedShift.remainingInDrawer ?? 0) > 0}
-								<p class="text-[10px] text-emerald-600 dark:text-emerald-400 mt-1">
-									✓ Otomatis terisi dari sisa fisik kas laci shift sebelumnya ({formatCurrency(lastClosedShift.remainingInDrawer)})
-								</p>
-							{:else}
-								<p class="text-[10px] text-amber-600 dark:text-amber-400 mt-1">
-									ℹ️ Laci kasir kosong karena shift sebelumnya ({lastClosedShift.shiftName}) telah menyetor seluruh sisa kas ke brankas.
-								</p>
-							{/if}
+							<p class="text-[10px] text-emerald-600 dark:text-emerald-400 mt-1">
+								✓ Otomatis terisi dari sisa fisik kas laci handover shift sebelumnya ({formatCurrency(parseFloat(lastClosedShift.actualClosingCash) || 0)})
+							</p>
 						{/if}
 					</div>
 
@@ -917,8 +927,8 @@
 							class="w-full bg-surface-container-low border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-2.5 text-xs font-bold text-on-surface outline-none focus:ring-2 focus:ring-emerald-500/30 cursor-pointer"
 							required
 						>
-							{#if lastClosedShift && (lastClosedShift.remainingInDrawer ?? 0) > 0}
-								<option value="HANDOVER">Sisa Handover Shift Lalu ({lastClosedShift.shiftName}: {formatCurrency(lastClosedShift.remainingInDrawer)}) - Kas sudah di laci, tidak potong brankas</option>
+							{#if lastClosedShift}
+								<option value="HANDOVER">Sisa Handover Shift Lalu ({lastClosedShift.shiftName}: {formatCurrency(parseFloat(lastClosedShift.actualClosingCash) || 0)}) - Kas sudah di laci, tidak potong brankas</option>
 							{/if}
 							<option value="BRANKAS">Ambil dari Brankas Kasir / Pool Kantor (Memotong saldo kas operasional brankas)</option>
 						</select>
@@ -1034,70 +1044,27 @@
 						</div>
 					</div>
 
-					<!-- Opsi Penyelesaian Kas Fisik Akhir -->
+					<!-- Serah Terima Kepada -->
 					<div>
-						<label class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-1.5">
-							Penyelesaian Sisa Kas Fisik Laci <span class="text-rose-500">*</span>
+						<label class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-1.5" for="handover_to">
+							Diserahterimakan Kepada (Kasir Pengganti) <span class="text-rose-500">*</span>
 						</label>
-						<div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-							<label class="flex items-start gap-2.5 p-3 rounded-xl border cursor-pointer transition-colors {inputClosingAction === 'HANDOVER' ? 'bg-rose-500/10 border-rose-500 text-on-surface font-bold' : 'bg-surface-container-low border-slate-200/70 dark:border-slate-800/70 text-on-surface-variant'}">
-								<input
-									type="radio"
-									name="closingAction"
-									value="HANDOVER"
-									bind:group={inputClosingAction}
-									class="mt-0.5 text-rose-600 focus:ring-rose-500"
-								/>
-								<div class="text-xs">
-									<p class="font-bold">Handover Kasir</p>
-									<p class="text-[10px] font-normal text-on-surface-variant mt-0.5">Uang fisik tetap di laci untuk kasir pengganti</p>
-								</div>
-							</label>
-
-							<label class="flex items-start gap-2.5 p-3 rounded-xl border cursor-pointer transition-colors {inputClosingAction === 'SETOR_BRANKAS' ? 'bg-emerald-500/10 border-emerald-500 text-on-surface font-bold' : 'bg-surface-container-low border-slate-200/70 dark:border-slate-800/70 text-on-surface-variant'}">
-								<input
-									type="radio"
-									name="closingAction"
-									value="SETOR_BRANKAS"
-									bind:group={inputClosingAction}
-									class="mt-0.5 text-emerald-600 focus:ring-emerald-500"
-								/>
-								<div class="text-xs">
-									<p class="font-bold">Setor ke Brankas</p>
-									<p class="text-[10px] font-normal text-on-surface-variant mt-0.5">Masuk kas operasional (+), laci dikosongkan</p>
-								</div>
-							</label>
-						</div>
+						<select
+							id="handover_to"
+							name="handoverTo"
+							bind:value={inputHandoverTo}
+							class="w-full bg-surface-container-low border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-2.5 text-sm font-bold text-on-surface outline-none focus:ring-2 focus:ring-rose-500/30 cursor-pointer"
+							required
+						>
+							<option value="" disabled>-- Pilih Kasir Pengganti / Shift Berikutnya --</option>
+							{#each employees as emp}
+								<option value={emp.name}>{emp.name} ({emp.role} • {emp.deptName})</option>
+							{/each}
+						</select>
+						<p class="text-[10px] text-on-surface-variant mt-1.5">
+							ℹ️ Uang fisik di laci sebesar <strong>{formatCurrency(inputActualCash || 0)}</strong> diserahterimakan penuh ke kasir pengganti untuk modal shift berikutnya.
+						</p>
 					</div>
-
-					{#if inputClosingAction === 'SETOR_BRANKAS'}
-						<div class="p-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-900/50 flex items-start gap-2.5 text-xs text-emerald-800 dark:text-emerald-300">
-							<span class="material-symbols-outlined text-base text-emerald-600 flex-shrink-0 mt-0.5">account_balance_wallet</span>
-							<div>
-								<span class="font-bold block">Penyetoran Kas Fisik ke Brankas</span>
-								<span>Uang fisik sebesar <strong>{formatCurrency(inputActualCash || 0)}</strong> akan disetorkan kembali ke Brankas Kas Operasional (tercatat sebagai Kas Masuk). Laci shift menjadi Rp 0.</span>
-							</div>
-						</div>
-					{:else}
-						<!-- Serah Terima Kepada -->
-						<div>
-							<label class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-1.5" for="handover_to">
-								Diserahterimakan Kepada (Kasir Pengganti) <span class="text-rose-500">*</span>
-							</label>
-							<select
-								id="handover_to"
-								name="handoverTo"
-								bind:value={inputHandoverTo}
-								class="w-full bg-surface-container-low border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-2.5 text-sm font-bold text-on-surface outline-none focus:ring-2 focus:ring-rose-500/30 cursor-pointer"
-								required={inputClosingAction === 'HANDOVER'}
-							>
-								<option value="" disabled>-- Pilih Kasir Pengganti / Shift Berikutnya --</option>
-								{#each employees as emp}
-									<option value={emp.name}>{emp.name} ({emp.role} • {emp.deptName})</option>
-								{/each}
-							</select>
-						</div>
-					{/if}
 
 					<!-- Catatan Closing -->
 					<div>
@@ -1119,7 +1086,7 @@
 					<button type="button" onclick={() => showCloseModal = false} class="px-5 py-2.5 rounded-xl text-sm font-bold text-on-surface-variant hover:bg-surface-container transition-colors cursor-pointer">
 						Batal
 					</button>
-					<button type="submit" disabled={isSubmitting || (inputClosingAction === 'HANDOVER' && !inputHandoverTo.trim())} class="px-5 py-2.5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-sm font-bold shadow-xs transition-colors flex items-center gap-2 disabled:opacity-50 cursor-pointer">
+					<button type="submit" disabled={isSubmitting || !inputHandoverTo.trim()} class="px-5 py-2.5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-sm font-bold shadow-xs transition-colors flex items-center gap-2 disabled:opacity-50 cursor-pointer">
 						{#if isSubmitting}
 							<span class="material-symbols-outlined text-[18px] animate-spin">sync</span>
 							<span>Memproses...</span>

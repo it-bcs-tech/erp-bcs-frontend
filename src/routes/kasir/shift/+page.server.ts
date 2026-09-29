@@ -10,37 +10,25 @@ export const load: PageServerLoad = async ({ parent }) => {
 		// 1. Dapatkan shift terakhir yang sudah ditutup (untuk rollover modal kas awal)
 		const closedRows = await sql`
 			SELECT 
-				s.id,
-				s.session_number as "sessionNumber",
-				s.shift_name as "shiftName",
-				s.cashier_name as "cashierName",
-				s.closed_at as "closedAt",
-				s.actual_closing_cash as "actualClosingCash",
-				s.handover_to as "handoverTo",
-				COALESCE(dep.deposited, 0) as "depositedToSafe"
-			FROM finance.kasir_shift_sessions s
-			LEFT JOIN (
-				SELECT shift_session_id, SUM(amount) as deposited
-				FROM finance.kasir_cash_ledger
-				WHERE category = 'SETOR_SISA_SHIFT'
-				GROUP BY shift_session_id
-			) dep ON dep.shift_session_id = s.id
-			WHERE s.status = 'CLOSED'
-			ORDER BY s.closed_at DESC
+				id,
+				session_number as "sessionNumber",
+				shift_name as "shiftName",
+				cashier_name as "cashierName",
+				closed_at as "closedAt",
+				actual_closing_cash as "actualClosingCash",
+				handover_to as "handoverTo"
+			FROM finance.kasir_shift_sessions
+			WHERE status = 'CLOSED'
+			ORDER BY closed_at DESC
 			LIMIT 1
 		`;
 
 		let lastClosedShift: any = null;
 		if (closedRows.length > 0) {
 			const row = closedRows[0];
-			const actual = parseFloat(row.actualClosingCash) || 0;
-			const deposited = parseFloat(row.depositedToSafe) || 0;
-			const remainingInDrawer = Math.max(0, actual - deposited);
 			lastClosedShift = {
 				...row,
-				actualClosingCash: actual,
-				depositedToSafe: deposited,
-				remainingInDrawer
+				actualClosingCash: parseFloat(row.actualClosingCash) || 0
 			};
 		}
 
@@ -192,7 +180,7 @@ export const load: PageServerLoad = async ({ parent }) => {
 
 		return {
 			activeShift,
-			lastClosedShift: lastClosedShift.length > 0 ? lastClosedShift[0] : null,
+			lastClosedShift,
 			employees: employees as any[],
 			shiftUjoList,
 			shiftDnList,
@@ -311,12 +299,14 @@ export const actions: Actions = {
 		const data = await request.formData();
 		const shiftId = parseInt(data.get('shiftId') as string);
 		const actualClosingCash = parseFloat(data.get('actualClosingCash') as string) || 0;
-		const closingAction = (data.get('closingAction') as string) || 'HANDOVER';
-		let handoverTo = (data.get('handoverTo') as string)?.trim() || null;
+		const handoverTo = (data.get('handoverTo') as string)?.trim() || null;
 		const closingNotes = (data.get('closingNotes') as string)?.trim() || null;
 
 		if (!shiftId) {
 			return fail(400, { error: 'ID sesi shift tidak valid.' });
+		}
+		if (!handoverTo) {
+			return fail(400, { error: 'Kasir pengganti (serah terima kepada) wajib dipilih.' });
 		}
 
 		try {
@@ -369,33 +359,7 @@ export const actions: Actions = {
 				const expectedClosingCash = openingCash + totalCashIn - totalCashOut;
 				const cashDifference = actualClosingCash - expectedClosingCash;
 
-				// 6. Jika kasir memilih untuk menyetor sisa uang laci kembali ke brankas
-				if (closingAction === 'SETOR_BRANKAS' && actualClosingCash > 0) {
-					handoverTo = handoverTo || 'Brankas Kasir / Pool Kantor';
-					await sql`
-						INSERT INTO finance.kasir_cash_ledger (
-							direction,
-							category,
-							amount,
-							reference_id,
-							reference_type,
-							description,
-							performed_by,
-							shift_session_id
-						) VALUES (
-							'IN',
-							'SETOR_SISA_SHIFT',
-							${actualClosingCash},
-							${shiftRows[0].session_number},
-							'CLOSE_SHIFT',
-							${`Penyetoran sisa kas fisik shift ${shiftRows[0].session_number} ke brankas kasir kantor`},
-							${locals?.user?.name || shiftRows[0].cashier_name},
-							${shiftId}
-						)
-					`;
-				}
-
-				// 7. Update status sesi shift menjadi CLOSED
+				// 6. Update status sesi shift menjadi CLOSED
 				await sql`
 					UPDATE finance.kasir_shift_sessions
 					SET 
@@ -418,9 +382,7 @@ export const actions: Actions = {
 
 			return {
 				success: true,
-				message: closingAction === 'SETOR_BRANKAS'
-					? `Shift berhasil ditutup dan sisa kas Rp ${actualClosingCash.toLocaleString('id-ID')} disetorkan kembali ke brankas!`
-					: 'Shift berhasil ditutup dan Berita Acara Serah Terima diterbitkan.'
+				message: 'Shift berhasil ditutup dan Berita Acara Serah Terima diterbitkan.'
 			};
 		} catch (err: any) {
 			console.error("Error closing shift:", err);
