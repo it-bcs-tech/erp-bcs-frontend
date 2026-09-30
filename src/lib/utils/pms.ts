@@ -65,6 +65,8 @@ export function getPRStatusBadge(status: string | null | undefined): { label: st
 	switch (status?.toUpperCase()) {
 		case 'PROCESSED':
 			return { label: 'Sudah Dibuat PO', badgeClass: 'bg-sky-100 text-sky-800 border-sky-300', icon: 'shopping_bag' };
+		case 'PARTIAL':
+			return { label: 'Sebagian Dibuat PO', badgeClass: 'bg-amber-100 text-amber-800 border-amber-300 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800', icon: 'pending_actions' };
 		case 'APPROVED':
 			return { label: 'Disetujui', badgeClass: 'bg-emerald-100 text-emerald-800 border-emerald-300', icon: 'check_circle' };
 		case 'REJECTED':

@@ -1,6 +1,7 @@
 import type { PageServerLoad, Actions } from './$types';
 import sql from '$lib/server/db';
 import { error, fail, redirect } from '@sveltejs/kit';
+import { refreshPRStatuses } from '$lib/server/pms';
 
 export const load: PageServerLoad = async ({ params }) => {
 	const poId = parseInt(params.id);
@@ -261,6 +262,15 @@ export const actions: Actions = {
 				WHERE id = ${poId}
 			`;
 
+			// Track PR IDs affected before and after update
+			const prevPrRows = await sql`
+				SELECT DISTINCT prl.pr_id
+				FROM procurement.purchase_order_line pol
+				JOIN procurement.purchase_request_line prl ON prl.id = pol.pr_line_id
+				WHERE pol.po_id = ${poId}
+			`;
+			const affectedPrIds = new Set<number>(prevPrRows.map((r: any) => r.pr_id).filter(Boolean));
+
 			// Replace line items
 			await sql`DELETE FROM procurement.purchase_order_line WHERE po_id = ${poId}`;
 
@@ -274,8 +284,12 @@ export const actions: Actions = {
 
 				let prLineId: number | null = itm.pr_line_id && !isNaN(parseInt(itm.pr_line_id, 10)) ? parseInt(itm.pr_line_id, 10) : null;
 				if (prLineId) {
-					const [validLine] = await sql`SELECT id FROM procurement.purchase_request_line WHERE id = ${prLineId}`;
-					if (!validLine) prLineId = null;
+					const [validLine] = await sql`SELECT id, pr_id FROM procurement.purchase_request_line WHERE id = ${prLineId}`;
+					if (validLine) {
+						if (validLine.pr_id) affectedPrIds.add(validLine.pr_id);
+					} else {
+						prLineId = null;
+					}
 				}
 
 				await sql`
@@ -299,6 +313,10 @@ export const actions: Actions = {
 						${itm.remarks || null}
 					)
 				`;
+			}
+
+			if (affectedPrIds.size > 0) {
+				await refreshPRStatuses(Array.from(affectedPrIds));
 			}
 		} catch (err: any) {
 			console.error('Error updating PO:', err);

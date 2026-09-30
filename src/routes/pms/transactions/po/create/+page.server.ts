@@ -3,6 +3,7 @@ import sql from '$lib/server/db';
 import { fail, redirect } from '@sveltejs/kit';
 import { formatAuditUser } from '$lib/server/auth';
 import { generatePoNumber, getCategoryCode } from '$lib/utils/pmsNumbering';
+import { refreshPRStatuses } from '$lib/server/pms';
 
 export const load: PageServerLoad = async ({ url }) => {
 	const prIdsParam = url.searchParams.get('pr_ids') || url.searchParams.get('pr_id');
@@ -43,12 +44,21 @@ export const load: PageServerLoad = async ({ url }) => {
 						m.uom,
 						m.stock,
 						m.standard_price as unit_price,
-						prl.qty_requested as qty_ordered,
+						prl.qty_requested,
+						COALESCE(pol_agg.qty_ordered, 0) as qty_already_ordered,
+						GREATEST(0, prl.qty_requested - COALESCE(pol_agg.qty_ordered, 0)) as qty_ordered,
 						prl.remarks as remarks
 					FROM procurement.purchase_request_line prl
 					JOIN procurement.purchase_request pr ON pr.id = prl.pr_id
 					JOIN master.m_materials m ON m.id = prl.item_id
+					LEFT JOIN (
+						SELECT pr_line_id, SUM(qty_ordered) as qty_ordered
+						FROM procurement.purchase_order_line
+						WHERE pr_line_id IS NOT NULL
+						GROUP BY pr_line_id
+					) pol_agg ON pol_agg.pr_line_id = prl.id
 					WHERE prl.pr_id IN ${sql(parsedIds)}
+					  AND (prl.qty_requested - COALESCE(pol_agg.qty_ordered, 0)) > 0
 					ORDER BY prl.pr_id ASC, prl.id ASC
 				`;
 			}
@@ -95,19 +105,23 @@ export const load: PageServerLoad = async ({ url }) => {
 				pr.pr_number as ref_pr_number,
 				prl.id as ref_pr_line_id,
 				pr.id as ref_pr_id,
-				prl.qty_requested as ref_qty_requested,
+				GREATEST(0, prl.qty_requested - COALESCE(pol_agg.qty_ordered, 0)) as ref_qty_requested,
 				prl.remarks as ref_remarks
 			FROM master.m_materials m
 			JOIN procurement.purchase_request_line prl ON prl.item_id = m.id
 			JOIN procurement.purchase_request pr ON pr.id = prl.pr_id
+			LEFT JOIN (
+				SELECT pr_line_id, SUM(qty_ordered) as qty_ordered
+				FROM procurement.purchase_order_line
+				WHERE pr_line_id IS NOT NULL
+				GROUP BY pr_line_id
+			) pol_agg ON pol_agg.pr_line_id = prl.id
 			WHERE m.is_active = true 
 			  AND (
-				pr.status = 'OPEN' 
-				OR pr.status = 'PENDING' 
-				OR pr.status = 'DRAFT' 
-				OR pr.status = 'APPROVED'
+				pr.status IN ('OPEN', 'PENDING', 'DRAFT', 'APPROVED', 'PARTIAL')
 				${parsedIds.length > 0 ? sql`OR pr.id IN ${sql(parsedIds)}` : sql``}
 			  )
+			  AND (prl.qty_requested - COALESCE(pol_agg.qty_ordered, 0)) > 0
 			ORDER BY m.name
 		`;
 
@@ -352,7 +366,7 @@ export const actions: Actions = {
 				`;
 			}
 
-			// Update PR status for PRs that have materials in the final PO
+			// Refresh status PR secara dinamis (PARTIAL vs PROCESSED)
 			const activePrIds = new Set<number>();
 			for (const itm of items) {
 				if (itm.pr_id) {
@@ -360,14 +374,12 @@ export const actions: Actions = {
 					if (!isNaN(pid) && pid > 0) activePrIds.add(pid);
 				}
 			}
-			// If items didn't have pr_id explicitly attached, fallback to submittedPrIds
-			if (activePrIds.size === 0 && submittedPrIds.length > 0) {
-				submittedPrIds.forEach(id => activePrIds.add(id));
+			if (submittedPrIds.length > 0) {
+				submittedPrIds.forEach((id) => activePrIds.add(id));
 			}
 
 			if (activePrIds.size > 0) {
-				const idsToUpdate = Array.from(activePrIds);
-				await sql`UPDATE procurement.purchase_request SET status = 'PROCESSED', updated_at = NOW() WHERE id IN ${sql(idsToUpdate)}`;
+				await refreshPRStatuses(Array.from(activePrIds));
 			}
 		} catch (err: any) {
 			console.error('Error creating PO:', err);

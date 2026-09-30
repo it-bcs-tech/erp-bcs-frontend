@@ -20,16 +20,23 @@ export const load: PageServerLoad = async ({ url }) => {
 				m.name as "materialName",
 				COALESCE(m.spec, '-') as spec,
 				m.uom,
-				prl.qty_requested as "qtyRequested",
+				GREATEST(0, prl.qty_requested - COALESCE(pol_agg.qty_ordered, 0)) as "qtyRequested",
+				prl.qty_requested as "qtyOriginalRequested",
 				COALESCE(NULLIF(prl.remarks, ''), NULLIF(pr.notes, ''), '-') as remarks,
 				pr.status
 			FROM procurement.purchase_request_line prl
 			JOIN procurement.purchase_request pr ON pr.id = prl.pr_id
 			JOIN master.m_materials m ON m.id = prl.item_id
+			LEFT JOIN (
+				SELECT pr_line_id, SUM(qty_ordered) as qty_ordered
+				FROM procurement.purchase_order_line
+				WHERE pr_line_id IS NOT NULL
+				GROUP BY pr_line_id
+			) pol_agg ON pol_agg.pr_line_id = prl.id
 			LEFT JOIN master.m_project p ON p.id = pr.project_id
 			LEFT JOIN master.m_lokasi l ON l.id = pr.site_id
 			WHERE (pr.status IS NULL OR pr.status NOT IN ('PROCESSED', 'REJECTED', 'CANCELLED'))
-			  AND prl.id NOT IN (SELECT pr_line_id FROM procurement.purchase_order_line WHERE pr_line_id IS NOT NULL)
+			  AND (prl.qty_requested - COALESCE(pol_agg.qty_ordered, 0)) > 0
 			ORDER BY pr.date ASC
 		`;
 

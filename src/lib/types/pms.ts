@@ -1,6 +1,6 @@
 export type PMSCategory = 'PACKAGING' | 'TRANSPORT' | 'WAREHOUSE' | 'SUPPORTING';
 
-export type PRStatus = 'DRAFT' | 'PENDING' | 'APPROVED' | 'REJECTED' | 'PROCESSED' | 'CLOSED';
+export type PRStatus = 'DRAFT' | 'PENDING' | 'APPROVED' | 'REJECTED' | 'PARTIAL' | 'PROCESSED' | 'CLOSED';
 export type POStatus = 'DRAFT' | 'CONFIRMED' | 'APPROVED' | 'PARTIAL_RECEIVED' | 'COMPLETED' | 'CANCELLED';
 export type WRSStatus = 'DRAFT' | 'RECEIVED' | 'VERIFIED' | 'CANCELLED';
 

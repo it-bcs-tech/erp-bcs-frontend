@@ -288,14 +288,21 @@
 									{/if}
 								</td>
 								<td class="py-3.5 px-3">
-									<a
-										href="/pms/transactions/pr/{pr.id}"
-										onclick={(e) => e.stopPropagation()}
-										class="font-mono font-bold text-amber-700 dark:text-amber-300 text-xs hover:underline inline-flex items-center gap-1 group"
-									>
-										<span>{pr.prNumber}</span>
-										<span class="material-symbols-outlined text-xs opacity-0 group-hover:opacity-100 transition-opacity">open_in_new</span>
-									</a>
+									<div class="flex items-center gap-1.5">
+										<a
+											href="/pms/transactions/pr/{pr.id}"
+											onclick={(e) => e.stopPropagation()}
+											class="font-mono font-bold text-amber-700 dark:text-amber-300 text-xs hover:underline inline-flex items-center gap-1 group"
+										>
+											<span>{pr.prNumber}</span>
+											<span class="material-symbols-outlined text-xs opacity-0 group-hover:opacity-100 transition-opacity">open_in_new</span>
+										</a>
+										{#if pr.status === 'PARTIAL'}
+											<span class="px-1.5 py-0.5 rounded text-[9px] font-bold bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-300 dark:border-amber-700">
+												Parsial
+											</span>
+										{/if}
+									</div>
 									<p class="text-[10px] text-on-surface-variant mt-0.5">{formatDateId(pr.date)}</p>
 								</td>
 								<td class="py-3.5 px-4">
@@ -362,7 +369,7 @@
 												title="Buat Purchase Order dari PR ini"
 											>
 												<span class="material-symbols-outlined text-xs">shopping_cart</span>
-												<span>Buat PO</span>
+												<span>{pr.status === 'PARTIAL' ? 'Buat PO Sisa' : 'Buat PO'}</span>
 											</a>
 										{/if}
 									</div>

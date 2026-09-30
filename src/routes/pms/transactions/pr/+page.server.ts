@@ -57,7 +57,7 @@ export const load: PageServerLoad = async ({ url }) => {
 		}
 		if (statusFilter) {
 			if (statusFilter === 'OPEN') {
-				filtered = filtered.filter(r => !r.status || r.status === 'PENDING' || r.status === 'OPEN' || r.status === 'DRAFT' || r.status === 'APPROVED');
+				filtered = filtered.filter(r => !r.status || r.status === 'PENDING' || r.status === 'OPEN' || r.status === 'DRAFT' || r.status === 'APPROVED' || r.status === 'PARTIAL');
 			} else {
 				filtered = filtered.filter(r => r.status === statusFilter);
 			}

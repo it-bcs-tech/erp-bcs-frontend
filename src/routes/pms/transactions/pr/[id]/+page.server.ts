@@ -70,9 +70,29 @@ export const load: PageServerLoad = async ({ params }) => {
 				m.uom,
 				m.stock,
 				prl.qty_requested as "qtyRequested",
+				COALESCE(pol_agg.qty_ordered, 0) as "qtyOrdered",
+				GREATEST(0, prl.qty_requested - COALESCE(pol_agg.qty_ordered, 0)) as "qtyRemaining",
+				COALESCE(pol_agg.linked_pos, '[]'::json) as "linkedPOs",
 				prl.remarks
 			FROM procurement.purchase_request_line prl
 			JOIN master.m_materials m ON m.id = prl.item_id
+			LEFT JOIN (
+				SELECT 
+					pol.pr_line_id,
+					SUM(pol.qty_ordered) as qty_ordered,
+					json_agg(
+						json_build_object(
+							'poId', po.id,
+							'poNumber', po.po_number,
+							'qtyOrdered', pol.qty_ordered,
+							'date', to_char(po.date, 'YYYY-MM-DD')
+						) ORDER BY po.id DESC
+					) as linked_pos
+				FROM procurement.purchase_order_line pol
+				JOIN procurement.purchase_order po ON po.id = pol.po_id
+				WHERE pol.pr_line_id IS NOT NULL
+				GROUP BY pol.pr_line_id
+			) pol_agg ON pol_agg.pr_line_id = prl.id
 			WHERE prl.pr_id = ${prId}
 			ORDER BY prl.id ASC
 		`;

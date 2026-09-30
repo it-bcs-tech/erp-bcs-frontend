@@ -61,9 +61,9 @@
 			{#if data.pr.status === 'PROCESSED'}
 				<span
 					class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 text-xs font-semibold cursor-not-allowed border border-slate-200 dark:border-slate-700"
-					title="PR sudah diproses ke PO dan tidak dapat diedit secara langsung"
+					title="Seluruh item PR ini telah tuntas dibuatkan PO"
 				>
-					<span class="material-symbols-outlined text-base">lock</span>
+					<span class="material-symbols-outlined text-base">check_circle</span>
 					<span>Sudah Jadi PO</span>
 				</span>
 			{:else}
@@ -79,14 +79,16 @@
 					class="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold transition-colors shadow-xs cursor-pointer"
 				>
 					<span class="material-symbols-outlined text-base">shopping_cart</span>
-					<span>Buat PO</span>
+					<span>{data.pr.status === 'PARTIAL' ? 'Buat PO Sisa' : 'Buat PO'}</span>
 				</a>
 			{/if}
 		</div>
 	</header>
 
-	<!-- Linked PO Banner if processed -->
+	<!-- Linked PO Banner if processed or partially processed -->
 	{#if data.linkedPOs && data.linkedPOs.length > 0}
+		{@const fulfilledItemsCount = (data.items || []).filter((it: any) => parseFloat(it.qtyRemaining) <= 0).length}
+		{@const totalItemsCount = (data.items || []).length}
 		<div class="p-4 rounded-2xl bg-blue-500/10 border border-blue-500/30 text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs">
 			<div class="flex items-center gap-3">
 				<div class="w-9 h-9 rounded-xl bg-blue-500/20 text-blue-700 dark:text-blue-300 flex items-center justify-center shrink-0">
@@ -109,9 +111,18 @@
 					</div>
 				</div>
 			</div>
-			<span class="text-[11px] text-blue-700 dark:text-blue-300 font-medium self-start sm:self-auto">
-				Item PR ini telah masuk ke dalam PO di atas.
-			</span>
+			<div class="text-right self-start sm:self-auto">
+				{#if data.pr.status === 'PARTIAL'}
+					<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-amber-500/20 text-amber-800 dark:text-amber-300 font-bold text-[11px] border border-amber-300 dark:border-amber-700">
+						<span class="material-symbols-outlined text-xs">pending</span>
+						<span>{fulfilledItemsCount} dari {totalItemsCount} item tuntas di-PO (Sisa item masih aktif)</span>
+					</span>
+				{:else}
+					<span class="text-[11px] text-blue-700 dark:text-blue-300 font-medium">
+						Seluruh item PR ini telah masuk ke dalam PO di atas.
+					</span>
+				{/if}
+			</div>
 		</div>
 	{/if}
 
@@ -216,46 +227,95 @@
 		</div>
 
 		<div class="overflow-x-auto">
-			<table class="w-full text-left text-sm min-w-[750px]">
+			<table class="w-full text-left text-sm min-w-[780px]">
 				<thead class="bg-slate-100/70 dark:bg-slate-800/50 text-xs font-bold text-on-surface-variant uppercase tracking-wider border-b border-slate-200/60 dark:border-slate-800/60">
 					<tr>
-						<th class="py-3 px-4 w-12 text-center">No</th>
-						<th class="py-3 px-4">Kode Material</th>
-						<th class="py-3 px-4">Nama Material & Spesifikasi</th>
-						<th class="py-3 px-4">Brand / Merek</th>
-						<th class="py-3 px-4 text-center w-28">Stok Saat Ini</th>
-						<th class="py-3 px-4 text-center w-32">Qty Diminta</th>
-						<th class="py-3 px-4">Catatan Item</th>
+						<th class="py-3 px-3 w-10 text-center">No</th>
+						<th class="py-3 px-3">Kode Material</th>
+						<th class="py-3 px-3">Nama Material & Spesifikasi</th>
+						<th class="py-3 px-3">Brand</th>
+						<th class="py-3 px-3 text-center w-24">Stok</th>
+						<th class="py-3 px-3 text-center w-28">Qty Diminta</th>
+						<th class="py-3 px-3 text-center w-36">Status PO</th>
+						<th class="py-3 px-3">Catatan Item</th>
 					</tr>
 				</thead>
 				<tbody class="divide-y divide-slate-200/60 dark:divide-slate-800/60 font-medium text-xs">
 					{#if data.items.length === 0}
 						<tr>
-							<td colspan="7" class="py-8 text-center text-on-surface-variant">
+							<td colspan="8" class="py-8 text-center text-on-surface-variant">
 								Belum ada rincian material untuk Purchase Request ini.
 							</td>
 						</tr>
 					{:else}
 						{#each data.items as item, idx}
+							{@const ord = parseFloat(item.qtyOrdered) || 0}
+							{@const req = parseFloat(item.qtyRequested) || 0}
+							{@const rem = parseFloat(item.qtyRemaining) || 0}
 							<tr class="hover:bg-surface-container-high/30 transition-colors">
-								<td class="py-3 px-4 text-center font-mono text-on-surface-variant">{idx + 1}</td>
-								<td class="py-3 px-4 font-mono font-bold text-amber-700 dark:text-amber-300 text-xs">
+								<td class="py-3 px-3 text-center font-mono text-on-surface-variant">{idx + 1}</td>
+								<td class="py-3 px-3 font-mono font-bold text-amber-700 dark:text-amber-300 text-xs">
 									{item.materialCode}
 								</td>
-								<td class="py-3 px-4">
+								<td class="py-3 px-3">
 									<p class="font-bold text-on-surface">{item.name}</p>
 									<p class="text-[11px] text-on-surface-variant mt-0.5">{item.spec && item.spec !== '-' ? item.spec : ''}</p>
 								</td>
-								<td class="py-3 px-4 text-on-surface-variant">{item.brand || '-'}</td>
-								<td class="py-3 px-4 text-center font-mono text-on-surface-variant">
+								<td class="py-3 px-3 text-on-surface-variant">{item.brand || '-'}</td>
+								<td class="py-3 px-3 text-center font-mono text-on-surface-variant">
 									{formatNumber(item.stock)} {item.uom}
 								</td>
-								<td class="py-3 px-4 text-center">
+								<td class="py-3 px-3 text-center">
 									<span class="inline-flex items-center px-2.5 py-1 rounded-lg bg-amber-500/15 font-mono font-black text-amber-800 dark:text-amber-300 text-xs">
 										{formatNumber(item.qtyRequested)} {item.uom}
 									</span>
 								</td>
-								<td class="py-3 px-4 text-on-surface-variant text-[11px] italic">
+								<td class="py-3 px-3 text-center">
+									{#if rem <= 0 && ord >= req}
+										<div class="flex flex-col items-center gap-0.5">
+											<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 font-bold text-[10px] border border-emerald-300 dark:border-emerald-800" title="Kuantitas tuntas dibuatkan PO">
+												<span class="material-symbols-outlined text-[11px]">check_circle</span>
+												<span>Sudah PO ({formatNumber(ord)})</span>
+											</span>
+											{#if item.linkedPOs && item.linkedPOs.length > 0}
+												<a
+													href="/pms/transactions/po/{item.linkedPOs[0].poId}"
+													class="text-[10px] font-mono text-primary hover:underline truncate max-w-[130px]"
+													title={`Buka ${item.linkedPOs[0].poNumber}`}
+												>
+													{item.linkedPOs[0].poNumber}
+												</a>
+											{/if}
+										</div>
+									{:else if ord > 0}
+										<div class="flex flex-col items-center gap-0.5">
+											<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 font-bold text-[10px] border border-amber-300 dark:border-amber-800" title="Sebagian kuantitas dibuatkan PO">
+												<span class="material-symbols-outlined text-[11px]">pending</span>
+												<span>Parsial ({formatNumber(ord)}/{formatNumber(req)})</span>
+											</span>
+											<span class="text-[9px] text-amber-700 dark:text-amber-400 font-semibold">
+												Sisa: {formatNumber(rem)} {item.uom}
+											</span>
+											{#if item.linkedPOs && item.linkedPOs.length > 0}
+												<a
+													href="/pms/transactions/po/{item.linkedPOs[0].poId}"
+													class="text-[9px] font-mono text-primary hover:underline truncate max-w-[130px]"
+													title={`Buka ${item.linkedPOs[0].poNumber}`}
+												>
+													{item.linkedPOs[0].poNumber}
+												</a>
+											{/if}
+										</div>
+									{:else}
+										<div class="flex flex-col items-center">
+											<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 text-[10px] font-medium border border-slate-200 dark:border-slate-700">
+												<span class="material-symbols-outlined text-[11px]">hourglass_empty</span>
+												<span>Belum PO</span>
+											</span>
+										</div>
+									{/if}
+								</td>
+								<td class="py-3 px-3 text-on-surface-variant text-[11px] italic">
 									{item.remarks || '-'}
 								</td>
 							</tr>
