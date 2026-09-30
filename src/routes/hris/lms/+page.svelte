@@ -68,6 +68,7 @@
 	let isCreateModalOpen = $state(false);
 
 	// Create Course Form State (Divisi & Karyawan Perwakilan & Embed Link)
+	let createCourseTitle = $state('');
 	let createCourseTrainerType = $state('Internal');
 	let createCourseDivision = $state('');
 	let createCourseEmployeeSearch = $state('');
@@ -116,13 +117,203 @@
 		selectedEmployeeIds = [];
 	}
 
+	// Create Course Wizard & Quiz Builder State
+	let createModalStep = $state<1 | 2 | 3>(1);
+	let createQuizTab = $state<'PRE_TEST' | 'POST_TEST'>('PRE_TEST');
+
+	interface QuizQuestionItem {
+		id: string;
+		questionType: 'MCQ' | 'ESSAY';
+		questionText: string;
+		options: Array<{ key: string; text: string }>;
+		correctKey: string;
+		explanation: string;
+	}
+
+	let preTestQuestionsList = $state<QuizQuestionItem[]>([
+		{
+			id: 'pre-1',
+			questionType: 'MCQ',
+			questionText: '',
+			options: [
+				{ key: 'A', text: '' },
+				{ key: 'B', text: '' },
+				{ key: 'C', text: '' },
+				{ key: 'D', text: '' }
+			],
+			correctKey: 'A',
+			explanation: ''
+		}
+	]);
+
+	let postTestQuestionsList = $state<QuizQuestionItem[]>([
+		{
+			id: 'post-1',
+			questionType: 'MCQ',
+			questionText: '',
+			options: [
+				{ key: 'A', text: '' },
+				{ key: 'B', text: '' },
+				{ key: 'C', text: '' },
+				{ key: 'D', text: '' }
+			],
+			correctKey: 'A',
+			explanation: ''
+		}
+	]);
+
+	function addQuestion(type: 'PRE_TEST' | 'POST_TEST') {
+		const newItem: QuizQuestionItem = {
+			id: `${type.toLowerCase()}-${Date.now()}-${Math.random().toString(36).slice(2, 5)}`,
+			questionType: 'MCQ',
+			questionText: '',
+			options: [
+				{ key: 'A', text: '' },
+				{ key: 'B', text: '' },
+				{ key: 'C', text: '' },
+				{ key: 'D', text: '' }
+			],
+			correctKey: 'A',
+			explanation: ''
+		};
+		if (type === 'PRE_TEST') {
+			preTestQuestionsList = [...preTestQuestionsList, newItem];
+		} else {
+			postTestQuestionsList = [...postTestQuestionsList, newItem];
+		}
+	}
+
+	function removeQuestion(type: 'PRE_TEST' | 'POST_TEST', index: number) {
+		if (type === 'PRE_TEST') {
+			if (preTestQuestionsList.length <= 1) {
+				spawnToast({
+					id: Date.now().toString(),
+					title: 'Peringatan',
+					message: 'Minimal 1 butir soal Pre-Test harus tersedia.',
+					type: 'WARNING',
+					timestamp: new Date().toISOString()
+				});
+				return;
+			}
+			preTestQuestionsList = preTestQuestionsList.filter((_, i) => i !== index);
+		} else {
+			if (postTestQuestionsList.length <= 1) {
+				spawnToast({
+					id: Date.now().toString(),
+					title: 'Peringatan',
+					message: 'Minimal 1 butir soal Post-Test harus tersedia.',
+					type: 'WARNING',
+					timestamp: new Date().toISOString()
+				});
+				return;
+			}
+			postTestQuestionsList = postTestQuestionsList.filter((_, i) => i !== index);
+		}
+	}
+
+	function copyPreTestToPostTest() {
+		if (preTestQuestionsList.length === 0) return;
+		postTestQuestionsList = preTestQuestionsList.map((q, idx) => ({
+			id: `post-copy-${idx}-${Date.now()}`,
+			questionType: q.questionType,
+			questionText: q.questionText,
+			options: q.options.map((opt) => ({ ...opt })),
+			correctKey: q.correctKey,
+			explanation: q.explanation
+		}));
+		spawnToast({
+			id: Date.now().toString(),
+			title: 'Soal Disalin',
+			message: `${preTestQuestionsList.length} butir soal Pre-Test berhasil diduplikasi ke Post-Test.`,
+			type: 'INFO',
+			timestamp: new Date().toISOString()
+		});
+	}
+
+	let isPreTestValid = $derived(
+		preTestQuestionsList.length >= 1 &&
+		preTestQuestionsList.every((q) => {
+			if (!q.questionText.trim()) return false;
+			if (q.questionType === 'ESSAY') return true;
+			return q.options.filter((o) => o.text.trim().length > 0).length >= 2 && q.correctKey;
+		})
+	);
+
+	let isPostTestValid = $derived(
+		postTestQuestionsList.length >= 1 &&
+		postTestQuestionsList.every((q) => {
+			if (!q.questionText.trim()) return false;
+			if (q.questionType === 'ESSAY') return true;
+			return q.options.filter((o) => o.text.trim().length > 0).length >= 2 && q.correctKey;
+		})
+	);
+
+	let isCreateCourseReadyToSubmit = $derived(
+		createCourseTitle.trim().length > 0 && isPreTestValid && isPostTestValid
+	);
+
+	let currentQuizQuestions = $derived(
+		createQuizTab === 'PRE_TEST' ? preTestQuestionsList : postTestQuestionsList
+	);
+
+	function nextCreateStep() {
+		if (createModalStep === 1) {
+			if (!createCourseTitle.trim()) {
+				spawnToast({
+					id: Date.now().toString(),
+					title: 'Validasi',
+					message: 'Judul kursus pelatihan wajib diisi terlebih dahulu.',
+					type: 'WARNING',
+					timestamp: new Date().toISOString()
+				});
+				return;
+			}
+			createModalStep = 2;
+		} else if (createModalStep === 2) {
+			createModalStep = 3;
+		}
+	}
+
 	function openCreateCourseModal() {
+		createModalStep = 1;
+		createQuizTab = 'PRE_TEST';
+		createCourseTitle = '';
 		createCourseTrainerType = 'Internal';
 		createCourseDivision = '';
 		createCourseEmployeeSearch = '';
 		selectedEmployeeIds = [];
 		createCourseMaterialUrl = '';
 		showMaterialPreview = true;
+		preTestQuestionsList = [
+			{
+				id: 'pre-1',
+				questionType: 'MCQ',
+				questionText: '',
+				options: [
+					{ key: 'A', text: '' },
+					{ key: 'B', text: '' },
+					{ key: 'C', text: '' },
+					{ key: 'D', text: '' }
+				],
+				correctKey: 'A',
+				explanation: ''
+			}
+		];
+		postTestQuestionsList = [
+			{
+				id: 'post-1',
+				questionType: 'MCQ',
+				questionText: '',
+				options: [
+					{ key: 'A', text: '' },
+					{ key: 'B', text: '' },
+					{ key: 'C', text: '' },
+					{ key: 'D', text: '' }
+				],
+				correctKey: 'A',
+				explanation: ''
+			}
+		];
 		isCreateModalOpen = true;
 	}
 	let isPlayerModalOpen = $state(false);
@@ -394,7 +585,11 @@
 		const totalQ = activePostTestQuestions.length || 1;
 		let correctCount = 0;
 		activePostTestQuestions.forEach((q: any) => {
-			if (postTestAnswered[q.id] === q.correctKey) {
+			if (q.questionType === 'ESSAY') {
+				if (postTestAnswered[q.id]?.toString().trim()) {
+					correctCount++;
+				}
+			} else if (postTestAnswered[q.id] === q.correctKey) {
 				correctCount++;
 			}
 		});
@@ -2523,21 +2718,37 @@
 						<div class="space-y-4">
 							{#each activePreTestQuestions as q, idx}
 								<div class="p-4 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800 space-y-3">
-									<p class="font-bold text-sm text-on-surface">{idx + 1}. {q.questionText}</p>
-									<div class="space-y-2">
-										{#each q.options as opt}
-											<label class="flex items-center gap-3 p-2.5 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-surface-container-high cursor-pointer">
-												<input
-													type="radio"
-													name={`pre_${q.id}`}
-													value={opt.key}
-													bind:group={preTestAnswered[q.id]}
-													class="text-primary focus:ring-primary"
-												/>
-												<span class="text-xs text-on-surface"><strong>{opt.key}.</strong> {opt.text}</span>
-											</label>
-										{/each}
+									<div class="flex items-start justify-between gap-2">
+										<p class="font-bold text-sm text-on-surface">{idx + 1}. {q.questionText}</p>
+										<span class="text-[10px] font-bold px-2 py-0.5 rounded-md whitespace-nowrap {q.questionType === 'ESSAY' ? 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300' : 'bg-primary/10 text-primary'}">
+											{q.questionType === 'ESSAY' ? 'Essay / Uraian' : 'Pilihan Ganda'}
+										</span>
 									</div>
+									{#if q.questionType === 'ESSAY'}
+										<div>
+											<textarea
+												bind:value={preTestAnswered[q.id]}
+												rows="3"
+												placeholder="Tuliskan uraian jawaban Anda di sini..."
+												class="w-full p-2.5 rounded-xl bg-surface border border-slate-200 dark:border-slate-700 text-xs text-on-surface focus:ring-1 focus:ring-primary outline-none"
+											></textarea>
+										</div>
+									{:else}
+										<div class="space-y-2">
+											{#each q.options as opt}
+												<label class="flex items-center gap-3 p-2.5 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-surface-container-high cursor-pointer">
+													<input
+														type="radio"
+														name={`pre_${q.id}`}
+														value={opt.key}
+														bind:group={preTestAnswered[q.id]}
+														class="text-primary focus:ring-primary"
+													/>
+													<span class="text-xs text-on-surface"><strong>{opt.key}.</strong> {opt.text}</span>
+												</label>
+											{/each}
+										</div>
+									{/if}
 								</div>
 							{/each}
 						</div>
@@ -2672,21 +2883,37 @@
 						<div class="space-y-4">
 							{#each activePostTestQuestions as q, idx}
 								<div class="p-4 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800 space-y-3">
-									<p class="font-bold text-sm text-on-surface">{idx + 1}. {q.questionText}</p>
-									<div class="space-y-2">
-										{#each q.options as opt}
-											<label class="flex items-center gap-3 p-2.5 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-surface-container-high cursor-pointer">
-												<input
-													type="radio"
-													name={`post_${q.id}`}
-													value={opt.key}
-													bind:group={postTestAnswered[q.id]}
-													class="text-primary focus:ring-primary"
-												/>
-												<span class="text-xs text-on-surface"><strong>{opt.key}.</strong> {opt.text}</span>
-											</label>
-										{/each}
+									<div class="flex items-start justify-between gap-2">
+										<p class="font-bold text-sm text-on-surface">{idx + 1}. {q.questionText}</p>
+										<span class="text-[10px] font-bold px-2 py-0.5 rounded-md whitespace-nowrap {q.questionType === 'ESSAY' ? 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300' : 'bg-primary/10 text-primary'}">
+											{q.questionType === 'ESSAY' ? 'Essay / Uraian' : 'Pilihan Ganda'}
+										</span>
 									</div>
+									{#if q.questionType === 'ESSAY'}
+										<div>
+											<textarea
+												bind:value={postTestAnswered[q.id]}
+												rows="3"
+												placeholder="Tuliskan uraian jawaban Anda di sini..."
+												class="w-full p-2.5 rounded-xl bg-surface border border-slate-200 dark:border-slate-700 text-xs text-on-surface focus:ring-1 focus:ring-primary outline-none"
+											></textarea>
+										</div>
+									{:else}
+										<div class="space-y-2">
+											{#each q.options as opt}
+												<label class="flex items-center gap-3 p-2.5 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-surface-container-high cursor-pointer">
+													<input
+														type="radio"
+														name={`post_${q.id}`}
+														value={opt.key}
+														bind:group={postTestAnswered[q.id]}
+														class="text-primary focus:ring-primary cursor-pointer"
+													/>
+													<span class="text-xs text-on-surface"><strong>{opt.key}.</strong> {opt.text}</span>
+												</label>
+											{/each}
+										</div>
+									{/if}
 								</div>
 							{/each}
 						</div>
@@ -2838,274 +3065,548 @@
 				</button>
 			</div>
 
-			<form method="POST" action="?/createCourse" use:enhance class="space-y-3.5 text-xs overflow-y-auto pr-1">
-				<div>
-					<label class="font-bold text-on-surface block mb-1">Judul Kursus Pelatihan *</label>
-					<input type="text" name="title" required placeholder="Contoh: Defensive Driving Angkutan Berat..." class="w-full px-3 py-2 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800 text-xs text-on-surface focus:ring-1 focus:ring-primary" />
-				</div>
+			<!-- Stepper Indicator Header -->
+			<div class="grid grid-cols-3 border border-slate-200 dark:border-slate-800 rounded-2xl bg-surface-container-low text-[11px] font-bold p-1 gap-1">
+				<button
+					type="button"
+					onclick={() => (createModalStep = 1)}
+					class="py-2 rounded-xl flex items-center justify-center gap-1.5 transition-all cursor-pointer {createModalStep === 1
+						? 'bg-primary text-on-primary font-black shadow-xs'
+						: 'text-on-surface-variant hover:bg-surface-container'}"
+				>
+					<span class="material-symbols-outlined text-sm">info</span>
+					<span>1. Info & Divisi</span>
+				</button>
+				<button
+					type="button"
+					onclick={() => (createModalStep = 2)}
+					class="py-2 rounded-xl flex items-center justify-center gap-1.5 transition-all cursor-pointer {createModalStep === 2
+						? 'bg-primary text-on-primary font-black shadow-xs'
+						: 'text-on-surface-variant hover:bg-surface-container'}"
+				>
+					<span class="material-symbols-outlined text-sm">link</span>
+					<span>2. Link Materi</span>
+				</button>
+				<button
+					type="button"
+					onclick={() => (createModalStep = 3)}
+					class="py-2 rounded-xl flex items-center justify-center gap-1.5 transition-all cursor-pointer {createModalStep === 3
+						? 'bg-primary text-on-primary font-black shadow-xs'
+						: isCreateCourseReadyToSubmit
+						? 'text-emerald-600 hover:bg-surface-container'
+						: 'text-amber-600 hover:bg-surface-container'}"
+				>
+					<span class="material-symbols-outlined text-sm">quiz</span>
+					<span>3. Soal Asesmen</span>
+					{#if !isCreateCourseReadyToSubmit}
+						<span class="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span>
+					{:else}
+						<span class="material-symbols-outlined text-xs text-emerald-500">check</span>
+					{/if}
+				</button>
+			</div>
 
-				<div class="grid grid-cols-2 gap-3">
-					<div>
-						<label class="font-bold text-on-surface block mb-1">Kategori</label>
-						<select name="category" class="w-full px-3 py-2 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800 text-xs text-on-surface">
-							<option value="Safety">Safety & K3</option>
-							<option value="Operations">Operations</option>
-							<option value="Technical">Technical</option>
-							<option value="Technical & Soft Skill">Technical & Soft Skill</option>
-							<option value="Leadership">Leadership</option>
-						</select>
-					</div>
-
-					<div>
-						<label class="font-bold text-on-surface block mb-1">Klasifikasi Based *</label>
-						<select name="based" class="w-full px-3 py-2 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800 text-xs font-bold text-on-surface">
-							<option value="Mandatory">Mandatory (Wajib Regulasi/K3)</option>
-							<option value="Additional">Additional (Pengembangan / Opsional)</option>
-							<option value="Gap Competency">Gap Competency (Hasil Evaluasi TNA)</option>
-						</select>
-					</div>
-				</div>
-
-				<div class="grid grid-cols-2 gap-3">
-					<div>
-						<label class="font-bold text-on-surface block mb-1">Instruktur / Trainer *</label>
-						<select name="instructor" class="w-full px-3 py-2 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800 text-xs text-on-surface">
-							{#each masterTrainers as t}
-								<option value={`${t.name} (${t.title})`}>{t.name} - {t.title}</option>
-							{/each}
-							<option value="Instruktur Eksternal Sertifikasi">Lembaga / Trainer Eksternal</option>
-						</select>
-					</div>
-
-					<div>
-						<label class="font-bold text-on-surface block mb-1">Asal Trainer</label>
-						<select
-							name="trainerType"
-							bind:value={createCourseTrainerType}
-							class="w-full px-3 py-2 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800 text-xs text-on-surface"
-						>
-							<option value="Internal">Internal PT BCS</option>
-							<option value="Eksternal">Eksternal / Vendor Resmi</option>
-						</select>
-					</div>
-				</div>
-
-				<div class="grid grid-cols-2 gap-3">
-					<div>
-						<label class="font-bold text-on-surface block mb-1">Divisi Sasaran *</label>
-						<select
-							bind:value={createCourseDivision}
-							class="w-full px-3 py-2 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800 text-xs text-on-surface font-semibold"
-						>
-							<option value="">-- Pilih Divisi Sasaran --</option>
-							{#each divisions as d}
-								<option value={d.code}>{d.name}</option>
-							{/each}
-						</select>
-					</div>
-
-					<div>
-						<label class="font-bold text-on-surface block mb-1">Biaya Trainer (IDR)</label>
-						<input
-							type="number"
-							name="costTrainer"
-							value={createCourseTrainerType === 'Internal' ? 500000 : 2500000}
-							step="50000"
-							class="w-full px-3 py-2 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800 font-mono text-xs"
-						/>
-					</div>
-				</div>
-
-				<!-- Hidden input divisi sasaran yang dikirim ke server -->
+			<form method="POST" action="?/createCourse" use:enhance class="flex flex-col flex-1 overflow-hidden space-y-3.5 text-xs">
+				<!-- Hidden Form State Values -->
 				<input
 					type="hidden"
 					name="division"
 					value={divisions.find((d: any) => d.code === createCourseDivision)?.name || createCourseDivision || 'All Dept'}
 				/>
+				<input
+					type="hidden"
+					name="representativeEmployees"
+					value={JSON.stringify(
+						activeEmployees
+							.filter((e: any) => selectedEmployeeIds.includes(e.payrollId))
+							.map((e: any) => ({ payrollId: e.payrollId, name: e.name, positionTitle: e.positionTitle }))
+					)}
+				/>
+				<input type="hidden" name="preTestQuestions" value={JSON.stringify(preTestQuestionsList)} />
+				<input type="hidden" name="postTestQuestions" value={JSON.stringify(postTestQuestionsList)} />
 
-				<!-- SEKSI MULTI-SELECT KARYAWAN PERWAKILAN PER DIVISI -->
-				{#if createCourseDivision}
-					{@const selectedDivisionObj = divisions.find((d: any) => d.code === createCourseDivision)}
-					<div class="p-3 rounded-2xl bg-surface-container-low border border-slate-200 dark:border-slate-800 space-y-2">
-						<div class="flex items-center justify-between">
-							<div class="flex items-center gap-1.5">
-								<span class="material-symbols-outlined text-primary text-base">group</span>
-								<label class="font-bold text-on-surface">Karyawan Perwakilan Divisi</label>
-								<span class="px-2 py-0.5 rounded-full text-[10px] font-black bg-primary/10 text-primary">
-									{selectedEmployeeIds.length} Dipilih
-								</span>
+				<!-- Scrollable Form Body -->
+				<div class="flex-1 overflow-y-auto pr-1 space-y-3.5 max-h-[60vh]">
+					<!-- ══════════════════════════════════════════════════════════════ -->
+					<!-- LANGKAH 1: INFO KURSUS & DIVISI SASARAN                       -->
+					<!-- ══════════════════════════════════════════════════════════════ -->
+					<div class={createModalStep === 1 ? 'space-y-3.5' : 'hidden'}>
+						<div>
+							<label class="font-bold text-on-surface block mb-1">Judul Kursus Pelatihan *</label>
+							<input
+								type="text"
+								name="title"
+								bind:value={createCourseTitle}
+								required
+								placeholder="Contoh: Defensive Driving Angkutan Berat..."
+								class="w-full px-3 py-2 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800 text-xs text-on-surface focus:ring-1 focus:ring-primary"
+							/>
+						</div>
+
+						<div class="grid grid-cols-2 gap-3">
+							<div>
+								<label class="font-bold text-on-surface block mb-1">Kategori</label>
+								<select name="category" class="w-full px-3 py-2 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800 text-xs text-on-surface">
+									<option value="Safety">Safety & K3</option>
+									<option value="Operations">Operations</option>
+									<option value="Technical">Technical</option>
+									<option value="Technical & Soft Skill">Technical & Soft Skill</option>
+									<option value="Leadership">Leadership</option>
+								</select>
 							</div>
-							<div class="flex items-center gap-1.5">
-								<button
-									type="button"
-									onclick={selectAllDivisionEmployees}
-									disabled={filteredDivisionEmployees.length === 0}
-									class="px-2 py-1 rounded-lg bg-surface-container hover:bg-surface-container-high text-[11px] font-bold text-primary disabled:opacity-50 cursor-pointer"
-								>
-									Pilih Semua
-								</button>
-								<button
-									type="button"
-									onclick={clearAllDivisionEmployees}
-									disabled={selectedEmployeeIds.length === 0}
-									class="px-2 py-1 rounded-lg bg-surface-container hover:bg-surface-container-high text-[11px] font-bold text-slate-500 disabled:opacity-50 cursor-pointer"
-								>
-									Reset
-								</button>
+
+							<div>
+								<label class="font-bold text-on-surface block mb-1">Klasifikasi Based *</label>
+								<select name="based" class="w-full px-3 py-2 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800 text-xs font-bold text-on-surface">
+									<option value="Mandatory">Mandatory (Wajib Regulasi/K3)</option>
+									<option value="Additional">Additional (Pengembangan / Opsional)</option>
+									<option value="Gap Competency">Gap Competency (Hasil Evaluasi TNA)</option>
+								</select>
 							</div>
 						</div>
 
-						<p class="text-[11px] text-slate-500">
-							Pilih perwakilan dari <strong>{selectedDivisionObj?.name || createCourseDivision}</strong> yang didaftarkan ke kursus ini:
-						</p>
+						<div class="grid grid-cols-2 gap-3">
+							<div>
+								<label class="font-bold text-on-surface block mb-1">Instruktur / Trainer *</label>
+								<select name="instructor" class="w-full px-3 py-2 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800 text-xs text-on-surface">
+									{#each masterTrainers as t}
+										<option value={`${t.name} (${t.title})`}>{t.name} - {t.title}</option>
+									{/each}
+									<option value="Instruktur Eksternal Sertifikasi">Lembaga / Trainer Eksternal</option>
+								</select>
+							</div>
 
-						<!-- Search Bar Karyawan Divisi -->
-						<div class="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800">
-							<span class="material-symbols-outlined text-slate-400 text-sm">search</span>
+							<div>
+								<label class="font-bold text-on-surface block mb-1">Asal Trainer</label>
+								<select
+									name="trainerType"
+									bind:value={createCourseTrainerType}
+									class="w-full px-3 py-2 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800 text-xs text-on-surface"
+								>
+									<option value="Internal">Internal PT BCS</option>
+									<option value="Eksternal">Eksternal / Vendor Resmi</option>
+								</select>
+							</div>
+						</div>
+
+						<div class="grid grid-cols-2 gap-3">
+							<div>
+								<label class="font-bold text-on-surface block mb-1">Divisi Sasaran *</label>
+								<select
+									bind:value={createCourseDivision}
+									class="w-full px-3 py-2 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800 text-xs text-on-surface font-semibold"
+								>
+									<option value="">-- Pilih Divisi Sasaran --</option>
+									{#each divisions as d}
+										<option value={d.code}>{d.name}</option>
+									{/each}
+								</select>
+							</div>
+
+							<div>
+								<label class="font-bold text-on-surface block mb-1">Biaya Trainer (IDR)</label>
+								<input
+									type="number"
+									name="costTrainer"
+									value={createCourseTrainerType === 'Internal' ? 500000 : 2500000}
+									step="50000"
+									class="w-full px-3 py-2 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800 font-mono text-xs"
+								/>
+							</div>
+						</div>
+
+						<!-- SEKSI MULTI-SELECT KARYAWAN PERWAKILAN PER DIVISI -->
+						{#if createCourseDivision}
+							{@const selectedDivisionObj = divisions.find((d: any) => d.code === createCourseDivision)}
+							<div class="p-3 rounded-2xl bg-surface-container-low border border-slate-200 dark:border-slate-800 space-y-2">
+								<div class="flex items-center justify-between">
+									<div class="flex items-center gap-1.5">
+										<span class="material-symbols-outlined text-primary text-base">group</span>
+										<label class="font-bold text-on-surface">Karyawan Perwakilan Divisi</label>
+										<span class="px-2 py-0.5 rounded-full text-[10px] font-black bg-primary/10 text-primary">
+											{selectedEmployeeIds.length} Dipilih
+										</span>
+									</div>
+									<div class="flex items-center gap-1.5">
+										<button
+											type="button"
+											onclick={selectAllDivisionEmployees}
+											disabled={filteredDivisionEmployees.length === 0}
+											class="px-2 py-1 rounded-lg bg-surface-container hover:bg-surface-container-high text-[11px] font-bold text-primary disabled:opacity-50 cursor-pointer"
+										>
+											Pilih Semua
+										</button>
+										<button
+											type="button"
+											onclick={clearAllDivisionEmployees}
+											disabled={selectedEmployeeIds.length === 0}
+											class="px-2 py-1 rounded-lg bg-surface-container hover:bg-surface-container-high text-[11px] font-bold text-slate-500 disabled:opacity-50 cursor-pointer"
+										>
+											Reset
+										</button>
+									</div>
+								</div>
+
+								<p class="text-[11px] text-slate-500">
+									Pilih perwakilan dari <strong>{selectedDivisionObj?.name || createCourseDivision}</strong> yang didaftarkan ke kursus ini:
+								</p>
+
+								<!-- Search Bar Karyawan Divisi -->
+								<div class="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800">
+									<span class="material-symbols-outlined text-slate-400 text-sm">search</span>
+									<input
+										type="text"
+										bind:value={createCourseEmployeeSearch}
+										placeholder="Cari nama atau NIK perwakilan..."
+										class="bg-transparent text-xs text-on-surface outline-none w-full placeholder:text-slate-400"
+									/>
+									{#if createCourseEmployeeSearch}
+										<button type="button" onclick={() => (createCourseEmployeeSearch = '')} class="text-slate-400 hover:text-slate-600">
+											<span class="material-symbols-outlined text-xs">close</span>
+										</button>
+									{/if}
+								</div>
+
+								<!-- Daftar Karyawan Checkbox Grid -->
+								{#if filteredDivisionEmployees.length > 0}
+									<div class="max-h-36 overflow-y-auto space-y-1 pr-1 divide-y divide-slate-100 dark:divide-slate-800/60">
+										{#each filteredDivisionEmployees as emp}
+											{@const isSelected = selectedEmployeeIds.includes(emp.payrollId)}
+											<button
+												type="button"
+												onclick={() => toggleCreateCourseEmployee(emp.payrollId)}
+												class="w-full text-left p-2 rounded-xl flex items-center justify-between transition-all cursor-pointer {isSelected
+													? 'bg-primary/10 border border-primary/30 text-primary'
+													: 'hover:bg-surface-container text-on-surface'}"
+											>
+												<div class="flex items-center gap-2.5 truncate">
+													<div class="w-4 h-4 rounded-md flex items-center justify-center border {isSelected ? 'bg-primary border-primary text-on-primary' : 'border-slate-300 dark:border-slate-600 bg-surface'}">
+														{#if isSelected}
+															<span class="material-symbols-outlined text-[12px]">check</span>
+														{/if}
+													</div>
+													<div class="truncate">
+														<p class="font-bold text-xs truncate leading-tight">{emp.name}</p>
+														<p class="text-[10px] text-slate-400 leading-tight">
+															{emp.payrollId} • {emp.positionTitle || 'Staf'}
+														</p>
+													</div>
+												</div>
+												<span class="text-[10px] font-bold px-2 py-0.5 rounded-md {isSelected ? 'bg-primary/20 text-primary' : 'bg-surface-container text-slate-400'}">
+													{isSelected ? 'Terpilih' : 'Pilih'}
+												</span>
+											</button>
+										{/each}
+									</div>
+								{:else}
+									<div class="p-3 text-center rounded-xl bg-surface-container/60 text-slate-400 text-xs">
+										{createCourseEmployeeSearch ? 'Tidak ada karyawan yang cocok dengan pencarian.' : 'Belum ada data karyawan terdaftar di divisi ini.'}
+									</div>
+								{/if}
+							</div>
+						{/if}
+
+						<div class="grid grid-cols-2 gap-3">
+							<div>
+								<label class="font-bold text-on-surface block mb-1">Durasi (Jam)</label>
+								<input type="number" name="durationHours" value="2.0" step="0.5" class="w-full px-3 py-2 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800 font-mono text-xs" />
+							</div>
+
+							<div>
+								<label class="font-bold text-on-surface block mb-1">Passing Grade (%)</label>
+								<input type="number" name="passingGrade" value="75" min="50" max="100" class="w-full px-3 py-2 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800 font-mono text-xs" />
+							</div>
+						</div>
+
+						<div>
+							<label class="font-bold text-on-surface block mb-1">Deskripsi Singkat Kursus</label>
+							<textarea name="description" rows="2" placeholder="Uraikan kompetensi dan hasil belajar dari kursus ini..." class="w-full px-3 py-2 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800 resize-none text-xs"></textarea>
+						</div>
+					</div>
+
+					<!-- ══════════════════════════════════════════════════════════════ -->
+					<!-- LANGKAH 2: LINK MATERI EMBED & LIVE PREVIEW                   -->
+					<!-- ══════════════════════════════════════════════════════════════ -->
+					<div class={createModalStep === 2 ? 'space-y-3' : 'hidden'}>
+						<div class="flex items-center justify-between">
+							<label class="font-bold text-on-surface flex items-center gap-1.5">
+								<span class="material-symbols-outlined text-sm text-primary">link</span>
+								<span>Link Materi Pembelajaran (Embed Iframe)</span>
+							</label>
+							<span class="text-[10px] text-slate-400">YouTube, Google Slides/Docs/Drive, Loom, Canva, Vimeo, PDF</span>
+						</div>
+
+						<div class="flex gap-2">
 							<input
-								type="text"
-								bind:value={createCourseEmployeeSearch}
-								placeholder="Cari nama atau NIK perwakilan..."
-								class="bg-transparent text-xs text-on-surface outline-none w-full placeholder:text-slate-400"
+								type="url"
+								name="materialUrl"
+								bind:value={createCourseMaterialUrl}
+								placeholder="Contoh: https://www.youtube.com/watch?v=... atau https://docs.google.com/presentation/d/..."
+								class="w-full px-3 py-2.5 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800 text-xs text-on-surface font-mono focus:ring-1 focus:ring-primary outline-none"
 							/>
-							{#if createCourseEmployeeSearch}
-								<button type="button" onclick={() => (createCourseEmployeeSearch = '')} class="text-slate-400 hover:text-slate-600">
-									<span class="material-symbols-outlined text-xs">close</span>
+							{#if createCourseMaterialUrl.trim()}
+								<button
+									type="button"
+									onclick={() => (showMaterialPreview = !showMaterialPreview)}
+									class="px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 text-xs font-bold hover:bg-surface-container flex items-center gap-1 whitespace-nowrap cursor-pointer"
+								>
+									<span class="material-symbols-outlined text-sm">{showMaterialPreview ? 'visibility_off' : 'visibility'}</span>
+									<span>{showMaterialPreview ? 'Sembunyikan' : 'Preview'}</span>
 								</button>
 							{/if}
 						</div>
 
-						<!-- Daftar Karyawan Checkbox Grid -->
-						{#if filteredDivisionEmployees.length > 0}
-							<div class="max-h-40 overflow-y-auto space-y-1 pr-1 divide-y divide-slate-100 dark:divide-slate-800/60">
-								{#each filteredDivisionEmployees as emp}
-									{@const isSelected = selectedEmployeeIds.includes(emp.payrollId)}
-									<button
-										type="button"
-										onclick={() => toggleCreateCourseEmployee(emp.payrollId)}
-										class="w-full text-left p-2 rounded-xl flex items-center justify-between transition-all cursor-pointer {isSelected
-											? 'bg-primary/10 border border-primary/30 text-primary'
-											: 'hover:bg-surface-container text-on-surface'}"
-									>
-										<div class="flex items-center gap-2.5 truncate">
-											<div class="w-4 h-4 rounded-md flex items-center justify-center border {isSelected ? 'bg-primary border-primary text-on-primary' : 'border-slate-300 dark:border-slate-600 bg-surface'}">
-												{#if isSelected}
-													<span class="material-symbols-outlined text-[12px]">check</span>
-												{/if}
-											</div>
-											<div class="truncate">
-												<p class="font-bold text-xs truncate leading-tight">{emp.name}</p>
-												<p class="text-[10px] text-slate-400 leading-tight">
-													{emp.payrollId} • {emp.positionTitle || 'Staf'}
-												</p>
-											</div>
-										</div>
-										<span class="text-[10px] font-bold px-2 py-0.5 rounded-md {isSelected ? 'bg-primary/20 text-primary' : 'bg-surface-container text-slate-400'}">
-											{isSelected ? 'Terpilih' : 'Pilih'}
-										</span>
-									</button>
-								{/each}
-							</div>
-						{:else}
-							<div class="p-3 text-center rounded-xl bg-surface-container/60 text-slate-400 text-xs">
-								{createCourseEmployeeSearch ? 'Tidak ada karyawan yang cocok dengan pencarian.' : 'Belum ada data karyawan terdaftar di divisi ini.'}
+						{#if createCourseMaterialUrl.trim() && showMaterialPreview}
+							{@const embedSrc = formatEmbedUrl(createCourseMaterialUrl)}
+							{@const platform = detectEmbedPlatform(createCourseMaterialUrl)}
+							<div class="p-3.5 rounded-2xl bg-surface-container-high border border-primary/20 space-y-2 animate-in fade-in duration-200">
+								<div class="flex items-center justify-between text-[11px]">
+									<div class="flex items-center gap-1.5 font-bold text-primary">
+										<span class="material-symbols-outlined text-sm">{platform.icon}</span>
+										<span>Live Preview ({platform.name}):</span>
+									</div>
+									<span class="text-[10px] text-slate-400 truncate max-w-xs font-mono">{embedSrc}</span>
+								</div>
+								<div class="w-full h-64 rounded-xl overflow-hidden bg-black/10 border border-slate-200 dark:border-slate-800 shadow-inner">
+									<iframe
+										src={embedSrc}
+										title="Preview Materi Pelatihan"
+										class="w-full h-full border-0"
+										allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+										allowfullscreen
+									></iframe>
+								</div>
+								<p class="text-[10px] text-slate-400 italic">
+									* Materi ini akan langsung ter-embed di Modul 1 Course Player tanpa perlu membuka tab baru / keluar dari aplikasi.
+								</p>
 							</div>
 						{/if}
 
-						<input
-							type="hidden"
-							name="representativeEmployees"
-							value={JSON.stringify(
-								activeEmployees
-									.filter((e: any) => selectedEmployeeIds.includes(e.payrollId))
-									.map((e: any) => ({ payrollId: e.payrollId, name: e.name, positionTitle: e.positionTitle }))
-							)}
-						/>
-					</div>
-				{/if}
-
-				<div class="grid grid-cols-2 gap-3">
-					<div>
-						<label class="font-bold text-on-surface block mb-1">Durasi (Jam)</label>
-						<input type="number" name="durationHours" value="2.0" step="0.5" class="w-full px-3 py-2 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800 font-mono text-xs" />
+						<div class="p-4 rounded-2xl bg-surface-container-low border border-slate-200 dark:border-slate-800 space-y-2">
+							<div class="flex items-center gap-2 text-xs font-bold text-on-surface">
+								<span class="material-symbols-outlined text-primary text-sm">integration_instructions</span>
+								<span>Struktur Kurikulum Otomatis:</span>
+							</div>
+							<ul class="text-[11px] text-slate-500 space-y-1 pl-4 list-disc">
+								<li><strong>Modul 1:</strong> Materi Utama Pelatihan (Embed video / slide presentasi).</li>
+								<li><strong>Modul 2:</strong> SOP & Prosedur Keselamatan Kerja Terkait.</li>
+								<li><strong>Modul 3:</strong> Evaluasi Post-Test Kelulusan Kursus.</li>
+							</ul>
+						</div>
 					</div>
 
-					<div>
-						<label class="font-bold text-on-surface block mb-1">Passing Grade (%)</label>
-						<input type="number" name="passingGrade" value="75" min="50" max="100" class="w-full px-3 py-2 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800 font-mono text-xs" />
+					<!-- ══════════════════════════════════════════════════════════════ -->
+					<!-- LANGKAH 3: ASESMEN PRE-TEST & POST-TEST BUILDER              -->
+					<!-- ══════════════════════════════════════════════════════════════ -->
+					<div class={createModalStep === 3 ? 'space-y-3.5' : 'hidden'}>
+						<!-- Sub-tab Switcher Pre-Test vs Post-Test -->
+						<div class="flex items-center justify-between p-2.5 rounded-2xl bg-surface-container-low border border-slate-200 dark:border-slate-800">
+							<div class="flex items-center gap-1.5">
+								<button
+									type="button"
+									onclick={() => (createQuizTab = 'PRE_TEST')}
+									class="px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 {createQuizTab === 'PRE_TEST'
+										? 'bg-primary text-on-primary shadow-xs'
+										: 'bg-surface-container text-on-surface-variant hover:bg-surface-container-high'}"
+								>
+									<span>Pre-Test ({preTestQuestionsList.length} Soal)</span>
+									{#if isPreTestValid}
+										<span class="material-symbols-outlined text-[14px] text-emerald-400">check_circle</span>
+									{/if}
+								</button>
+								<button
+									type="button"
+									onclick={() => (createQuizTab = 'POST_TEST')}
+									class="px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 {createQuizTab === 'POST_TEST'
+										? 'bg-primary text-on-primary shadow-xs'
+										: 'bg-surface-container text-on-surface-variant hover:bg-surface-container-high'}"
+								>
+									<span>Post-Test ({postTestQuestionsList.length} Soal)</span>
+									{#if isPostTestValid}
+										<span class="material-symbols-outlined text-[14px] text-emerald-400">check_circle</span>
+									{/if}
+								</button>
+							</div>
+
+							<div class="flex items-center gap-2">
+								{#if createQuizTab === 'POST_TEST'}
+									<button
+										type="button"
+										onclick={copyPreTestToPostTest}
+										class="px-2.5 py-1.5 rounded-xl border border-primary/30 bg-primary/10 text-primary hover:bg-primary/20 text-[11px] font-bold flex items-center gap-1 cursor-pointer transition-all"
+										title="Salin seluruh butir pertanyaan dan opsi jawaban dari Pre-Test"
+									>
+										<span class="material-symbols-outlined text-xs">content_copy</span>
+										<span>Salin dari Pre-Test</span>
+									</button>
+								{/if}
+								<button
+									type="button"
+									onclick={() => addQuestion(createQuizTab)}
+									class="px-3 py-1.5 rounded-xl bg-primary text-on-primary text-[11px] font-bold hover:bg-primary/90 flex items-center gap-1 shadow-xs cursor-pointer"
+								>
+									<span class="material-symbols-outlined text-xs">add</span>
+									<span>Tambah Soal</span>
+								</button>
+							</div>
+						</div>
+
+						<p class="text-[11px] text-slate-500 px-1">
+							{createQuizTab === 'PRE_TEST'
+								? 'Soal Pre-Test akan dikerjakan peserta di Langkah 1 Player untuk mengukur pemahaman awal sebelum membuka modul materi.'
+								: 'Soal Post-Test akan dikerjakan di Langkah 3 Player untuk penentuan kelulusan peserta (Passing Grade) dan penerbitan sertifikat.'}
+						</p>
+
+						<!-- Dynamic Question Cards List -->
+						<div class="space-y-3 max-h-72 overflow-y-auto pr-1">
+							{#each currentQuizQuestions as q, qIdx (q.id)}
+								<div class="p-3.5 rounded-2xl bg-surface-container border border-slate-200 dark:border-slate-800 space-y-2.5 shadow-xs">
+									<div class="flex items-center justify-between pb-1 border-b border-slate-200/60 dark:border-slate-700/60">
+										<span class="font-bold text-xs text-primary flex items-center gap-1">
+											<span class="material-symbols-outlined text-sm">help</span>
+											<span>Soal #{qIdx + 1} ({createQuizTab === 'PRE_TEST' ? 'Pre-Test' : 'Post-Test'})</span>
+										</span>
+										<div class="flex items-center gap-2">
+											<select
+												bind:value={q.questionType}
+												class="text-[11px] font-bold px-2 py-1 rounded-lg bg-surface border border-slate-200 dark:border-slate-700 text-on-surface focus:ring-1 focus:ring-primary outline-none cursor-pointer"
+											>
+												<option value="MCQ">Pilihan Ganda (MCQ)</option>
+												<option value="ESSAY">Essay / Uraian Bebas</option>
+											</select>
+											{#if currentQuizQuestions.length > 1}
+												<button
+													type="button"
+													onclick={() => removeQuestion(createQuizTab, qIdx)}
+													class="text-rose-500 hover:text-rose-700 text-[11px] font-bold flex items-center gap-0.5 cursor-pointer ml-1"
+												>
+													<span class="material-symbols-outlined text-sm">delete</span>
+													<span>Hapus</span>
+												</button>
+											{/if}
+										</div>
+									</div>
+
+									<!-- Question Text Input -->
+									<div>
+										<label class="font-semibold text-slate-600 dark:text-slate-400 block mb-1">Pertanyaan *</label>
+										<input
+											type="text"
+											bind:value={q.questionText}
+											placeholder={`Ketik teks pertanyaan nomor ${qIdx + 1}...`}
+											class="w-full px-3 py-2 rounded-xl bg-surface border border-slate-200 dark:border-slate-700 text-xs text-on-surface focus:ring-1 focus:ring-primary outline-none"
+										/>
+									</div>
+
+									{#if q.questionType === 'MCQ'}
+										<!-- Options A, B, C, D -->
+										<div class="space-y-1.5 pt-1">
+											<label class="font-semibold text-slate-600 dark:text-slate-400 block">
+												Pilihan Jawaban (Pilih radio untuk Kunci Jawaban Benar) *
+											</label>
+											{#each q.options as opt}
+												<div class="flex items-center gap-2">
+													<label class="flex items-center gap-1 cursor-pointer">
+														<input
+															type="radio"
+															name={`correct_${q.id}`}
+															value={opt.key}
+															bind:group={q.correctKey}
+															class="text-primary focus:ring-primary cursor-pointer"
+														/>
+														<span class="font-bold text-xs w-4">{opt.key}.</span>
+													</label>
+													<input
+														type="text"
+														bind:value={opt.text}
+														placeholder={`Pilihan jawaban ${opt.key}...`}
+														class="flex-1 px-2.5 py-1.5 rounded-lg bg-surface border border-slate-200 dark:border-slate-700 text-xs text-on-surface focus:ring-1 focus:ring-primary outline-none {q.correctKey === opt.key ? 'border-primary/50 bg-primary/5 font-medium' : ''}"
+													/>
+												</div>
+											{/each}
+										</div>
+									{:else}
+										<!-- Essay Mode Information -->
+										<div class="p-2.5 rounded-xl bg-surface/60 border border-dashed border-slate-300 dark:border-slate-700 text-[11px] text-slate-500 space-y-1">
+											<div class="flex items-center gap-1.5 font-semibold text-slate-600 dark:text-slate-400">
+												<span class="material-symbols-outlined text-xs text-primary">edit_note</span>
+												<span>Tipe Soal: Uraian Bebas / Essay</span>
+											</div>
+											<p class="text-[10px] text-slate-400 leading-relaxed">
+												Peserta akan menjawab dengan mengetikkan teks uraian bebas langsung di Course Player. Evaluasi penilaian jawaban essay dilakukan melalui tinjauan instruktur / trainer (manual review).
+											</p>
+										</div>
+									{/if}
+
+									<!-- Explanation Input -->
+									<div class="pt-1">
+										<input
+											type="text"
+											bind:value={q.explanation}
+											placeholder="Pembahasan atau petunjuk kunci penilaian (opsional)..."
+											class="w-full px-2.5 py-1.5 rounded-lg bg-surface/60 border border-slate-200 dark:border-slate-700 text-[11px] text-slate-500 placeholder:text-slate-400 outline-none"
+										/>
+									</div>
+								</div>
+							{/each}
+						</div>
+
+						<!-- Validation Warning if Questions Incomplete -->
+						{#if !isPreTestValid || !isPostTestValid}
+							<div class="p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-700 dark:text-amber-300 text-xs flex items-center gap-2">
+								<span class="material-symbols-outlined text-base">warning</span>
+								<span>
+									Wajib mengisi minimal 1 butir soal Pre-Test dan 1 butir soal Post-Test secara lengkap (teks pertanyaan, minimal 2 opsi dan kunci jawaban untuk MCQ, atau teks pertanyaan untuk essay) sebelum menyimpan.
+								</span>
+							</div>
+						{/if}
 					</div>
 				</div>
 
-				<!-- LINK MATERI TER-EMBED & LIVE PREVIEW -->
-				<div class="space-y-2">
-					<div class="flex items-center justify-between">
-						<label class="font-bold text-on-surface flex items-center gap-1.5">
-							<span class="material-symbols-outlined text-sm text-primary">link</span>
-							<span>Link Materi Pembelajaran (Embed Iframe)</span>
-						</label>
-						<span class="text-[10px] text-slate-400">YouTube, Google Slides/Docs/Drive, Loom, Canva, Vimeo, PDF</span>
-					</div>
-
-					<div class="flex gap-2">
-						<input
-							type="url"
-							name="materialUrl"
-							bind:value={createCourseMaterialUrl}
-							placeholder="Contoh: https://www.youtube.com/watch?v=... atau https://docs.google.com/presentation/d/..."
-							class="w-full px-3 py-2 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800 text-xs text-on-surface font-mono focus:ring-1 focus:ring-primary outline-none"
-						/>
-						{#if createCourseMaterialUrl.trim()}
+				<!-- Wizard Footer & Navigation Buttons -->
+				<div class="flex items-center justify-between pt-3 border-t border-slate-200 dark:border-slate-800">
+					<div>
+						{#if createModalStep > 1}
 							<button
 								type="button"
-								onclick={() => (showMaterialPreview = !showMaterialPreview)}
-								class="px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 text-xs font-bold hover:bg-surface-container flex items-center gap-1 whitespace-nowrap cursor-pointer"
+								onclick={() => (createModalStep = (createModalStep - 1) as any)}
+								class="px-4 py-2 rounded-xl border border-slate-300 dark:border-slate-700 text-xs font-bold hover:bg-surface-container flex items-center gap-1 cursor-pointer"
 							>
-								<span class="material-symbols-outlined text-sm">{showMaterialPreview ? 'visibility_off' : 'visibility'}</span>
-								<span>{showMaterialPreview ? 'Sembunyikan' : 'Preview'}</span>
+								<span class="material-symbols-outlined text-xs">arrow_back</span>
+								<span>Sebelumnya</span>
+							</button>
+						{:else}
+							<button
+								type="button"
+								onclick={() => (isCreateModalOpen = false)}
+								class="px-4 py-2 rounded-xl border border-slate-300 dark:border-slate-700 text-xs font-bold hover:bg-surface-container cursor-pointer"
+							>
+								Batal
 							</button>
 						{/if}
 					</div>
 
-					{#if createCourseMaterialUrl.trim() && showMaterialPreview}
-						{@const embedSrc = formatEmbedUrl(createCourseMaterialUrl)}
-						{@const platform = detectEmbedPlatform(createCourseMaterialUrl)}
-						<div class="p-3 rounded-2xl bg-surface-container-high border border-primary/20 space-y-2 animate-in fade-in duration-200">
-							<div class="flex items-center justify-between text-[11px]">
-								<div class="flex items-center gap-1.5 font-bold text-primary">
-									<span class="material-symbols-outlined text-sm">{platform.icon}</span>
-									<span>Live Preview ({platform.name}):</span>
-								</div>
-								<span class="text-[10px] text-slate-400 truncate max-w-xs font-mono">{embedSrc}</span>
-							</div>
-							<div class="w-full h-52 rounded-xl overflow-hidden bg-black/10 border border-slate-200 dark:border-slate-800 shadow-inner">
-								<iframe
-									src={embedSrc}
-									title="Preview Materi Pelatihan"
-									class="w-full h-full border-0"
-									allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-									allowfullscreen
-								></iframe>
-							</div>
-							<p class="text-[10px] text-slate-400 italic">
-								* Materi ini akan langsung ter-embed di Modul 1 Course Player tanpa perlu membuka tab baru / keluar dari aplikasi.
-							</p>
-						</div>
-					{/if}
-				</div>
-
-				<div>
-					<label class="font-bold text-on-surface block mb-1">Deskripsi Singkat Kursus</label>
-					<textarea name="description" rows="2" placeholder="Uraikan kompetensi dan hasil belajar dari kursus ini..." class="w-full px-3 py-2 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800 resize-none text-xs"></textarea>
-				</div>
-
-				<div class="flex justify-end gap-2 pt-3 border-t border-slate-200 dark:border-slate-800">
-					<button type="button" onclick={() => (isCreateModalOpen = false)} class="px-4 py-2 rounded-xl border border-slate-300 dark:border-slate-700 text-xs font-bold hover:bg-surface-container cursor-pointer">
-						Batal
-					</button>
-					<button type="submit" class="px-4 py-2 rounded-xl bg-primary text-on-primary text-xs font-bold hover:bg-primary/90 flex items-center gap-1 shadow-sm cursor-pointer">
-						<span class="material-symbols-outlined text-sm">save</span>
-						<span>Simpan ke Database</span>
-					</button>
+					<div class="flex items-center gap-2">
+						{#if createModalStep < 3}
+							<button
+								type="button"
+								onclick={nextCreateStep}
+								class="px-5 py-2 rounded-xl bg-primary text-on-primary text-xs font-bold hover:bg-primary/90 flex items-center gap-1.5 shadow-sm cursor-pointer"
+							>
+								<span>Lanjut: {createModalStep === 1 ? 'Materi & Embed' : 'Soal Pre/Post Test'}</span>
+								<span class="material-symbols-outlined text-xs">arrow_forward</span>
+							</button>
+						{:else}
+							<button
+								type="submit"
+								disabled={!isCreateCourseReadyToSubmit}
+								class="px-5 py-2 rounded-xl bg-primary text-on-primary text-xs font-bold hover:bg-primary/90 flex items-center gap-1.5 shadow-sm cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+							>
+								<span class="material-symbols-outlined text-sm">save</span>
+								<span>Simpan Kursus ke Database</span>
+							</button>
+						{/if}
+					</div>
 				</div>
 			</form>
 		</div>

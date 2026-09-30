@@ -258,6 +258,7 @@ export const load: PageServerLoad = async () => {
 				courseId: q.course_id,
 				moduleId: q.module_id,
 				quizType: q.quiz_type,
+				questionType: q.question_type || 'MCQ',
 				questionText: q.question_text,
 				options: typeof q.options === 'string' ? JSON.parse(q.options) : q.options,
 				correctKey: q.correct_key,
@@ -450,6 +451,8 @@ export const actions = {
 		const division = formData.get('division')?.toString().trim() || formData.get('department')?.toString().trim() || 'All Dept';
 		const materialUrl = formData.get('materialUrl')?.toString().trim() || '';
 		const repEmployeesRaw = formData.get('representativeEmployees')?.toString().trim() || '[]';
+		const preTestRaw = formData.get('preTestQuestions')?.toString().trim() || '[]';
+		const postTestRaw = formData.get('postTestQuestions')?.toString().trim() || '[]';
 		const durationHours = Number(formData.get('durationHours')) || 2.0;
 		const passingGrade = Number(formData.get('passingGrade')) || 75;
 		const description = formData.get('description')?.toString().trim() || '';
@@ -458,6 +461,36 @@ export const actions = {
 
 		if (!title) {
 			return { success: false, message: 'Judul kursus wajib diisi.' };
+		}
+
+		// Validasi Soal Pre-Test & Post-Test (Wajib Diisi minimal 1 soal lengkap)
+		let preTestQuestions: any[] = [];
+		let postTestQuestions: any[] = [];
+		try {
+			preTestQuestions = JSON.parse(preTestRaw);
+			postTestQuestions = JSON.parse(postTestRaw);
+		} catch {
+			preTestQuestions = [];
+			postTestQuestions = [];
+		}
+
+		const validPreTest = preTestQuestions.filter((q) => {
+			if (!q.questionText?.trim()) return false;
+			if (q.questionType === 'ESSAY') return true;
+			return Array.isArray(q.options) && q.options.filter((o: any) => o.text?.trim()).length >= 2 && q.correctKey;
+		});
+
+		const validPostTest = postTestQuestions.filter((q) => {
+			if (!q.questionText?.trim()) return false;
+			if (q.questionType === 'ESSAY') return true;
+			return Array.isArray(q.options) && q.options.filter((o: any) => o.text?.trim()).length >= 2 && q.correctKey;
+		});
+
+		if (validPreTest.length === 0 || validPostTest.length === 0) {
+			return {
+				success: false,
+				message: 'Minimal 1 butir soal Pre-Test dan 1 butir soal Post-Test wajib diisi secara lengkap.'
+			};
 		}
 
 		const id = `CRS-${category.substring(0, 3).toUpperCase()}-${Date.now().toString().slice(-4)}`;
@@ -483,15 +516,31 @@ export const actions = {
 					(${`${id}-M3`}, ${id}, 3, 'Evaluasi Akhir & Post-Test Kelulusan', 'QUIZ', '20 Menit', null, 'Kuis kelulusan materi.');
 			`;
 
-			// Tambahkan pertanyaan kuis default
-			await sql`
-				INSERT INTO hris.lms_quiz_questions (course_id, module_id, quiz_type, question_text, options, correct_key, explanation)
-				VALUES
-					(${id}, ${`${id}-M1`}, 'PRE_TEST', ${`Apakah Anda telah memahami dasar kepatuhan terkait ${title}?`},
-					'[{"key":"A","text":"Ya, sangat paham"},{"key":"B","text":"Cukup paham"},{"key":"C","text":"Belum paham"}]'::jsonb, 'A', 'Kuis orientasi awal.'),
-					(${id}, ${`${id}-M3`}, 'POST_TEST', ${`Tindakan utama yang harus diutamakan sesuai standar kerja ${title} adalah:`},
-					'[{"key":"A","text":"Keselamatan kerja dan kepatuhan SOP"},{"key":"B","text":"Kecepatan tanpa prosedur"},{"key":"C","text":"Mengabaikan checklist"}]'::jsonb, 'A', 'SOP mengutamakan keselamatan.');
-			`;
+			// Simpan butir soal Pre-Test dinamis (MCQ / ESSAY)
+			for (const q of validPreTest) {
+				const isEssay = q.questionType === 'ESSAY';
+				const cleanOptions = isEssay ? [] : (q.options || []).filter((o: any) => o.text?.trim());
+				await sql`
+					INSERT INTO hris.lms_quiz_questions (course_id, module_id, quiz_type, question_type, question_text, options, correct_key, explanation)
+					VALUES (
+						${id}, ${`${id}-M1`}, 'PRE_TEST', ${isEssay ? 'ESSAY' : 'MCQ'}, ${q.questionText.trim()},
+						${JSON.stringify(cleanOptions)}::jsonb, ${isEssay ? 'ESSAY' : (q.correctKey || 'A')}, ${q.explanation?.trim() || (isEssay ? 'Jawaban uraian / manual review.' : 'Kuis orientasi awal.')}
+					);
+				`;
+			}
+
+			// Simpan butir soal Post-Test dinamis (MCQ / ESSAY)
+			for (const q of validPostTest) {
+				const isEssay = q.questionType === 'ESSAY';
+				const cleanOptions = isEssay ? [] : (q.options || []).filter((o: any) => o.text?.trim());
+				await sql`
+					INSERT INTO hris.lms_quiz_questions (course_id, module_id, quiz_type, question_type, question_text, options, correct_key, explanation)
+					VALUES (
+						${id}, ${`${id}-M3`}, 'POST_TEST', ${isEssay ? 'ESSAY' : 'MCQ'}, ${q.questionText.trim()},
+						${JSON.stringify(cleanOptions)}::jsonb, ${isEssay ? 'ESSAY' : (q.correctKey || 'A')}, ${q.explanation?.trim() || (isEssay ? 'Jawaban uraian / manual review.' : 'Evaluasi post-test kelulusan materi.')}
+					);
+				`;
+			}
 
 			// Daftarkan karyawan perwakilan divisi jika ada yang dipilih
 			let repEmployees: Array<{ payrollId: string; name: string }> = [];
@@ -522,7 +571,7 @@ export const actions = {
 				`;
 			}
 
-			const successMsg = `Kursus "${title}" berhasil ditambahkan ke katalog LMS.${
+			const successMsg = `Kursus "${title}" berhasil ditambahkan ke katalog LMS dengan ${validPreTest.length} soal Pre-Test & ${validPostTest.length} soal Post-Test.${
 				repEmployees.length > 0 ? ` (${repEmployees.length} karyawan perwakilan divisi berhasil didaftarkan)` : ''
 			}`;
 
