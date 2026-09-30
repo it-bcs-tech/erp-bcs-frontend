@@ -337,7 +337,7 @@
 					<span class="font-mono font-bold">- {formatRupiah((data.po.subtotal * (data.po.discountPercent || 0)) / 100)}</span>
 				</div>
 				<div class="flex justify-between text-on-surface-variant">
-					<span>PPN ({data.po.vatPercent || 11}%):</span>
+					<span>PPN ({data.po.vatPercent ?? 0}%):</span>
 					<span class="font-mono font-bold text-on-surface">+ {formatRupiah(data.po.taxAmount)}</span>
 				</div>
 				<div class="border-t border-slate-200 dark:border-slate-700 pt-2 flex justify-between items-center text-sm font-black text-on-surface">

@@ -180,7 +180,7 @@ export const actions: Actions = {
 
 		const currency = ((formData.get('currency') as string) || 'IDR').trim();
 		const discountPercent = Math.max(0, parseFloat((formData.get('discountPercent') as string) || '0') || 0);
-		const vatPercent = Math.max(0, parseFloat((formData.get('vatPercent') as string) || '11') || 0);
+		const vatPercent = Math.max(0, parseFloat((formData.get('vatPercent') as string) || '0') || 0);
 		const notes = ((formData.get('notes') as string) || '').trim();
 		const wrsNotes = ((formData.get('wrsNotes') as string) || '').trim();
 		const prIdsRaw = ((formData.get('prIds') as string) || (formData.get('prId') as string) || '').trim();

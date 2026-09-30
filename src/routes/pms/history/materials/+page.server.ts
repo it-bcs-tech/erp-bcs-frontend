@@ -45,7 +45,8 @@ export const load: PageServerLoad = async ({ url }) => {
 			SELECT 
 				count(*)::int as total_count,
 				COALESCE(SUM(pol.total), 0)::numeric as total_value,
-				COALESCE(SUM(pol.qty_ordered), 0)::numeric as total_qty
+				COALESCE(SUM(pol.qty_ordered), 0)::numeric as total_qty,
+				COALESCE(SUM(COALESCE(pol.tax_amount, (pol.total * COALESCE(po.vat_percent, 0) / 100))), 0)::numeric as total_tax
 			FROM procurement.purchase_order_line pol
 			JOIN procurement.purchase_order po ON po.id = pol.po_id
 			JOIN master.m_materials m ON m.id = pol.item_id
@@ -58,6 +59,7 @@ export const load: PageServerLoad = async ({ url }) => {
 		const totalPages = Math.max(1, Math.ceil(totalCount / limit));
 		const totalValue = parseFloat(summary?.total_value || '0');
 		const totalQty = parseFloat(summary?.total_qty || '0');
+		const totalTax = parseFloat(summary?.total_tax || '0');
 
 		// 2. Get Paginated History Rows with remarks and wrsNotes
 		const history = await sql`
@@ -74,6 +76,8 @@ export const load: PageServerLoad = async ({ url }) => {
 				pol.qty_ordered as "qtyOrdered",
 				pol.unit_price as "unitPrice",
 				pol.total,
+				COALESCE(pol.tax_amount, (pol.total * COALESCE(po.vat_percent, 0) / 100), 0) as "taxAmount",
+				COALESCE(po.vat_percent, 0) as "vatPercent",
 				c.nama_vendor as "vendorName",
 				COALESCE(NULLIF(pol.remarks, ''), NULLIF(po.notes, ''), '-') as remarks,
 				COALESCE(NULLIF(po.wrs_notes, ''), (SELECT string_agg(gr.notes, ', ') FROM procurement.goods_receipt gr WHERE gr.po_id = po.id AND gr.notes IS NOT NULL AND gr.notes != ''), '-') as "wrsNotes"
@@ -99,7 +103,8 @@ export const load: PageServerLoad = async ({ url }) => {
 			summary: {
 				totalCount,
 				totalValue,
-				totalQty
+				totalQty,
+				totalTax
 			},
 			filters: {
 				q,
@@ -121,7 +126,8 @@ export const load: PageServerLoad = async ({ url }) => {
 			summary: {
 				totalCount: 0,
 				totalValue: 0,
-				totalQty: 0
+				totalQty: 0,
+				totalTax: 0
 			},
 			filters: {
 				q: '',

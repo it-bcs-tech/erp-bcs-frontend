@@ -82,6 +82,62 @@
 	});
 
 	let hasActiveFilters = $derived(Boolean(data.filters?.q || data.filters?.startDate || data.filters?.endDate));
+
+	function formatPlainNumber(val: number | string | null | undefined): string {
+		if (val === null || val === undefined || val === '') return '0';
+		const num = Number(val);
+		if (isNaN(num)) return '0';
+		return num.toString();
+	}
+
+	function exportToCSV() {
+		if (!data.history || data.history.length === 0) return;
+		const headers = [
+			'No',
+			'No PO',
+			'Tanggal PO',
+			'Kode Material',
+			'Nama Material',
+			'Spesifikasi',
+			'Vendor',
+			'Project',
+			'Qty',
+			'Satuan',
+			'Harga Satuan',
+			'Total Transaksi',
+			'PPN',
+			'Keterangan',
+			'WRS Note'
+		];
+
+		const rows = data.history.map((h: any, idx: number) => [
+			data.pagination.offset + idx + 1,
+			`"${(h.poNumber || '').replace(/"/g, '""')}"`,
+			`"${h.poDate || ''}"`,
+			`"${(h.materialCode || '').replace(/"/g, '""')}"`,
+			`"${(h.materialName || '').replace(/"/g, '""')}"`,
+			`"${(h.spec || '').replace(/"/g, '""')}"`,
+			`"${(h.vendorName || '').replace(/"/g, '""')}"`,
+			`"${(h.projectName || '').replace(/"/g, '""')}"`,
+			formatPlainNumber(h.qtyOrdered),
+			`"${(h.uom || '').replace(/"/g, '""')}"`,
+			formatPlainNumber(h.unitPrice),
+			formatPlainNumber(h.total),
+			formatPlainNumber(h.taxAmount),
+			`"${(h.remarks || '').replace(/"/g, '""')}"`,
+			`"${(h.wrsNotes || '').replace(/"/g, '""')}"`
+		]);
+
+		const csvContent = '\uFEFF' + [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+		const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+		const url = URL.createObjectURL(blob);
+		const link = document.createElement('a');
+		link.setAttribute('href', url);
+		link.setAttribute('download', `Riwayat_Pengadaan_Material_${startDate || 'all'}_sd_${endDate || 'all'}.csv`);
+		document.body.appendChild(link);
+		link.click();
+		document.body.removeChild(link);
+	}
 </script>
 
 <svelte:head>
@@ -135,7 +191,7 @@
 	</header>
 
 	<!-- KPI Summary Metric Cards -->
-	<div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+	<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
 		<div class="p-5 rounded-2xl bg-surface-container-lowest border border-slate-200/70 dark:border-slate-800/70 shadow-xs">
 			<div class="flex items-center justify-between mb-2">
 				<span class="text-[11px] font-bold text-on-surface-variant uppercase tracking-wider">Total Item Pengadaan</span>
@@ -166,7 +222,18 @@
 				</div>
 			</div>
 			<div class="text-2xl font-black text-on-surface font-mono">{formatNumber(data.summary.totalValue)}</div>
-			<p class="text-[11px] text-emerald-600 font-bold mt-1">Total pengeluaran riwayat</p>
+			<p class="text-[11px] text-emerald-600 font-bold mt-1">Subtotal transaksi (DPP)</p>
+		</div>
+
+		<div class="p-5 rounded-2xl bg-surface-container-lowest border border-slate-200/70 dark:border-slate-800/70 shadow-xs">
+			<div class="flex items-center justify-between mb-2">
+				<span class="text-[11px] font-bold text-on-surface-variant uppercase tracking-wider">Total PPN</span>
+				<div class="w-8 h-8 rounded-xl bg-purple-500/15 text-purple-600 flex items-center justify-center">
+					<span class="material-symbols-outlined text-[18px]">receipt_long</span>
+				</div>
+			</div>
+			<div class="text-2xl font-black text-on-surface font-mono">{formatNumber(data.summary.totalTax)}</div>
+			<p class="text-[11px] text-purple-600 font-bold mt-1">Akumulasi pajak riwayat</p>
 		</div>
 	</div>
 
@@ -229,13 +296,24 @@
 				<span class="material-symbols-outlined text-xs">filter_alt</span>
 				<span>Filter</span>
 			</button>
+
+			<button
+				type="button"
+				onclick={exportToCSV}
+				disabled={data.history.length === 0}
+				class="px-3 py-1.5 rounded-xl bg-surface border border-slate-200 dark:border-slate-700 hover:bg-surface-container text-on-surface text-xs font-bold transition-all shadow-xs cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1.5"
+				title="Ekspor data halaman saat ini ke file CSV Excel"
+			>
+				<span class="material-symbols-outlined text-xs text-emerald-600">download</span>
+				<span>Export CSV</span>
+			</button>
 		</div>
 	</div>
 
 	<!-- Data Table -->
 	<div class="rounded-2xl bg-surface-container-low border border-slate-200/60 dark:border-slate-800/60 overflow-hidden shadow-xs space-y-0">
 		<div class="overflow-x-auto">
-			<table class="w-full text-left text-sm min-w-[1250px]">
+			<table class="w-full text-left text-sm min-w-[1320px]">
 				<thead class="bg-slate-100/70 dark:bg-slate-800/50 text-xs font-bold text-on-surface-variant uppercase tracking-wider border-b border-slate-200/60 dark:border-slate-800/60">
 					<tr>
 						<th class="py-3.5 px-3 w-12 text-center">No</th>
@@ -249,6 +327,7 @@
 						<th class="py-3.5 px-3 text-left">Satuan</th>
 						<th class="py-3.5 px-4 text-right">Harga Satuan</th>
 						<th class="py-3.5 px-4 text-right">Total Transaksi</th>
+						<th class="py-3.5 px-4 text-right">PPN</th>
 						<th class="py-3.5 px-4">Keterangan</th>
 						<th class="py-3.5 px-4">WRS Note</th>
 					</tr>
@@ -256,7 +335,7 @@
 				<tbody class="divide-y divide-slate-200/60 dark:divide-slate-800/60 font-medium text-xs">
 					{#if data.history.length === 0}
 						<tr>
-							<td colspan="13" class="py-16 text-center text-on-surface-variant">
+							<td colspan="14" class="py-16 text-center text-on-surface-variant">
 								<span class="material-symbols-outlined text-4xl opacity-30 block mb-2">search_off</span>
 								<p class="text-xs font-bold text-on-surface">Tidak ada data riwayat pengadaan material</p>
 								<p class="text-[11px] text-slate-500 mt-0.5">
@@ -290,16 +369,19 @@
 								<td class="py-3.5 px-4 font-semibold text-on-surface">{h.vendorName}</td>
 								<td class="py-3.5 px-4 text-on-surface">{h.projectName || '-'}</td>
 								<td class="py-3.5 px-3 text-right font-mono font-bold text-on-surface">
-									{formatNumber(h.qtyOrdered)}
+									{formatPlainNumber(h.qtyOrdered)}
 								</td>
 								<td class="py-3.5 px-3 font-semibold text-on-surface-variant text-xs">
 									{h.uom}
 								</td>
 								<td class="py-3.5 px-4 text-right font-mono font-semibold text-on-surface">
-									{formatNumber(h.unitPrice)}
+									{formatPlainNumber(h.unitPrice)}
 								</td>
 								<td class="py-3.5 px-4 text-right font-mono font-black text-on-surface">
-									{formatNumber(h.total)}
+									{formatPlainNumber(h.total)}
+								</td>
+								<td class="py-3.5 px-4 text-right font-mono font-medium text-on-surface" title="Tarif PPN: {h.vatPercent}%">
+									{formatPlainNumber(h.taxAmount)}
 								</td>
 								<td class="py-3.5 px-4 text-on-surface text-xs max-w-xs truncate" title={h.remarks}>
 									{h.remarks || '-'}

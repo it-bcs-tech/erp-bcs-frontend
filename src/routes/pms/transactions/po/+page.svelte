@@ -52,7 +52,7 @@
 				<h1 class="text-2xl font-black text-on-surface tracking-tight">Purchase Orders (PO)</h1>
 			</div>
 			<p class="text-on-surface-variant font-medium text-xs sm:text-sm mt-0.5">
-				Penerbitan pesanan resmi pembelian kepada vendor & supplier dengan kalkulasi diskon & PPN 11%
+				Penerbitan pesanan resmi pembelian kepada vendor & supplier dengan kalkulasi diskon & PPN
 			</p>
 		</div>
 

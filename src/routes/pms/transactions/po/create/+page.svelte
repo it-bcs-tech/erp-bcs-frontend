@@ -20,7 +20,7 @@
 	let paymentTerm = $state('30 Hari');
 	let currency = $state('IDR');
 	let discountPercent = $state(0);
-	let vatPercent = $state(11);
+	let vatPercent = $state(0);
 	const combinedNotes = data.initialPRs?.length
 		? data.initialPRs.map((p: any) => p.notes).filter(Boolean).join('\n')
 		: (data.initialPR?.notes || '');
@@ -252,7 +252,7 @@
 				<h1 class="text-2xl font-black text-on-surface tracking-tight">Buat Purchase Order (PO)</h1>
 			</div>
 			<p class="text-on-surface-variant font-medium text-xs sm:text-sm mt-0.5 ml-8">
-				Formulir pesanan resmi pembelian barang dengan rincian vendor, pengiriman, diskon, dan PPN 11%
+				Formulir pesanan resmi pembelian barang dengan rincian vendor, pengiriman, diskon, dan kalkulasi PPN
 			</p>
 		</div>
 	</header>

@@ -394,7 +394,7 @@
 							</div>
 						{/if}
 						<div class="flex justify-between text-slate-700">
-							<span>PPN ({data.po.vatPercent || 11}%):</span>
+							<span>PPN ({data.po.vatPercent ?? 0}%):</span>
 							<span class="font-mono font-bold">{formatCurrency(Number(data.po.taxAmount))}</span>
 						</div>
 						<div class="border-t-2 border-slate-800 pt-1 mt-1 flex justify-between items-baseline">

@@ -18,7 +18,7 @@
 	let paymentTerm = $state(data.po.paymentTerm || '30 Hari');
 	let currency = $state(data.po.currency || 'IDR');
 	let discountPercent = $state(parseFloat(data.po.discountPercent) || 0);
-	let vatPercent = $state(parseFloat(data.po.vatPercent) || 11);
+	let vatPercent = $state(data.po.vatPercent !== null && data.po.vatPercent !== undefined ? parseFloat(data.po.vatPercent) : 0);
 	let notes = $state(data.po.notes || '');
 	let wrsNotes = $state(data.po.wrsNotes || '');
 
