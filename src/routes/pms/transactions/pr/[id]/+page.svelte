@@ -231,11 +231,11 @@
 				<thead class="bg-slate-100/70 dark:bg-slate-800/50 text-xs font-bold text-on-surface-variant uppercase tracking-wider border-b border-slate-200/60 dark:border-slate-800/60">
 					<tr>
 						<th class="py-3 px-3 w-10 text-center">No</th>
-						<th class="py-3 px-3">Kode Material</th>
 						<th class="py-3 px-3">Nama Material & Spesifikasi</th>
 						<th class="py-3 px-3">Brand</th>
 						<th class="py-3 px-3 text-center w-24">Stok</th>
-						<th class="py-3 px-3 text-center w-28">Qty Diminta</th>
+						<th class="py-3 px-3 text-center w-20">Qty</th>
+						<th class="py-3 px-3 text-center w-16">Satuan</th>
 						<th class="py-3 px-3 text-center w-36">Status PO</th>
 						<th class="py-3 px-3">Catatan Item</th>
 					</tr>
@@ -254,21 +254,25 @@
 							{@const rem = parseFloat(item.qtyRemaining) || 0}
 							<tr class="hover:bg-surface-container-high/30 transition-colors">
 								<td class="py-3 px-3 text-center font-mono text-on-surface-variant">{idx + 1}</td>
-								<td class="py-3 px-3 font-mono font-bold text-amber-700 dark:text-amber-300 text-xs">
-									{item.materialCode}
-								</td>
 								<td class="py-3 px-3">
-									<p class="font-bold text-on-surface">{item.name}</p>
-									<p class="text-[11px] text-on-surface-variant mt-0.5">{item.spec && item.spec !== '-' ? item.spec : ''}</p>
+									<div class="flex flex-wrap items-baseline gap-1.5">
+										<span class="font-bold text-on-surface">{item.name}</span>
+										{#if item.spec && item.spec !== '-'}
+											<span class="text-[11px] text-on-surface-variant font-normal">({item.spec})</span>
+										{/if}
+									</div>
 								</td>
 								<td class="py-3 px-3 text-on-surface-variant">{item.brand || '-'}</td>
 								<td class="py-3 px-3 text-center font-mono text-on-surface-variant">
 									{formatNumber(item.stock)} {item.uom}
 								</td>
 								<td class="py-3 px-3 text-center">
-									<span class="inline-flex items-center px-2.5 py-1 rounded-lg bg-amber-500/15 font-mono font-black text-amber-800 dark:text-amber-300 text-xs">
-										{formatNumber(item.qtyRequested)} {item.uom}
+									<span class="font-mono font-bold text-on-surface text-xs">
+										{formatNumber(item.qtyRequested)}
 									</span>
+								</td>
+								<td class="py-3 px-3 text-center font-semibold text-on-surface-variant text-xs uppercase">
+									{item.uom || 'PCS'}
 								</td>
 								<td class="py-3 px-3 text-center">
 									{#if rem <= 0 && ord >= req}
