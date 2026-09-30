@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
 	import { spawnToast, notifySuccess, notifyError } from '$lib/stores/notifications';
+	import { formatEmbedUrl, detectEmbedPlatform } from '$lib/utils/embed';
 	import type { PageData, ActionData } from './$types';
 
 	let { data, form }: { data: PageData; form: ActionData } = $props();
@@ -24,6 +25,7 @@
 	const employeeAssessments = $derived(data.employeeAssessments || []);
 	const masterTitles = $derived((data as any).masterTitles || []);
 	const divisions = $derived((data as any).divisions || []);
+	const activeEmployees = $derived((data as any).activeEmployees || []);
 	const currentYear = new Date().getFullYear();
 	const assessmentPeriods = $derived((data as any).assessmentPeriods || [String(currentYear), String(currentYear - 1), String(currentYear - 2)]);
 
@@ -64,6 +66,65 @@
 
 	// Modals State
 	let isCreateModalOpen = $state(false);
+
+	// Create Course Form State (Divisi & Karyawan Perwakilan & Embed Link)
+	let createCourseTrainerType = $state('Internal');
+	let createCourseDivision = $state('');
+	let createCourseEmployeeSearch = $state('');
+	let selectedEmployeeIds = $state<string[]>([]);
+	let createCourseMaterialUrl = $state('');
+	let showMaterialPreview = $state(true);
+
+	let divisionEmployees = $derived(
+		createCourseDivision
+			? activeEmployees.filter(
+					(e: any) =>
+						e.divisionCode === createCourseDivision ||
+						e.divisionName === createCourseDivision ||
+						(divisions.find((d: any) => d.code === createCourseDivision)?.name === e.divisionName)
+				)
+			: []
+	);
+
+	let filteredDivisionEmployees = $derived(
+		divisionEmployees.filter((e: any) => {
+			if (!createCourseEmployeeSearch.trim()) return true;
+			const q = createCourseEmployeeSearch.toLowerCase();
+			return (
+				(e.name && e.name.toLowerCase().includes(q)) ||
+				(e.payrollId && e.payrollId.toLowerCase().includes(q)) ||
+				(e.positionTitle && e.positionTitle.toLowerCase().includes(q))
+			);
+		})
+	);
+
+	function toggleCreateCourseEmployee(payrollId: string) {
+		if (selectedEmployeeIds.includes(payrollId)) {
+			selectedEmployeeIds = selectedEmployeeIds.filter((id) => id !== payrollId);
+		} else {
+			selectedEmployeeIds = [...selectedEmployeeIds, payrollId];
+		}
+	}
+
+	function selectAllDivisionEmployees() {
+		const ids = filteredDivisionEmployees.map((e: any) => e.payrollId);
+		const set = new Set([...selectedEmployeeIds, ...ids]);
+		selectedEmployeeIds = Array.from(set);
+	}
+
+	function clearAllDivisionEmployees() {
+		selectedEmployeeIds = [];
+	}
+
+	function openCreateCourseModal() {
+		createCourseTrainerType = 'Internal';
+		createCourseDivision = '';
+		createCourseEmployeeSearch = '';
+		selectedEmployeeIds = [];
+		createCourseMaterialUrl = '';
+		showMaterialPreview = true;
+		isCreateModalOpen = true;
+	}
 	let isPlayerModalOpen = $state(false);
 	let isSessionModalOpen = $state(false);
 	let isAttendanceModalOpen = $state(false);
@@ -585,7 +646,7 @@
 
 			<button
 				type="button"
-				onclick={() => isCreateModalOpen = true}
+				onclick={openCreateCourseModal}
 				class="px-4 py-2 rounded-xl bg-primary text-on-primary text-xs font-bold hover:bg-primary/90 flex items-center gap-1.5 shadow-sm transition-all cursor-pointer"
 			>
 				<span class="material-symbols-outlined text-sm">add_circle</span>
@@ -2529,8 +2590,42 @@
 									<span class="text-xs text-slate-500">{currentModule.durationText}</span>
 								</div>
 
-								<!-- Player Window Mockup -->
-								{#if currentModule.type === 'VIDEO'}
+								<!-- Player Window / Embedded Iframe Viewer -->
+								{#if currentModule.contentUrl}
+									{@const embedSrc = formatEmbedUrl(currentModule.contentUrl)}
+									{@const platform = detectEmbedPlatform(currentModule.contentUrl)}
+									<div class="space-y-3">
+										<div class="flex items-center justify-between text-xs px-1">
+											<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-primary/10 text-primary font-bold">
+												<span class="material-symbols-outlined text-sm">{platform.icon}</span>
+												<span>{platform.name}</span>
+											</span>
+											<a
+												href={currentModule.contentUrl}
+												target="_blank"
+												rel="noreferrer"
+												class="text-primary hover:underline font-semibold flex items-center gap-1 text-[11px]"
+											>
+												<span>Buka di Tab Baru</span>
+												<span class="material-symbols-outlined text-xs">open_in_new</span>
+											</a>
+										</div>
+										<div class="w-full h-80 md:h-[420px] rounded-2xl overflow-hidden bg-black/5 dark:bg-black/30 border border-slate-200 dark:border-slate-800 shadow-inner">
+											<iframe
+												src={embedSrc}
+												title={currentModule.title}
+												class="w-full h-full border-0"
+												allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+												allowfullscreen
+											></iframe>
+										</div>
+										{#if currentModule.contentBody}
+											<div class="p-3.5 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800 text-xs text-on-surface leading-relaxed whitespace-pre-wrap">
+												{currentModule.contentBody}
+											</div>
+										{/if}
+									</div>
+								{:else if currentModule.type === 'VIDEO'}
 									<div class="w-full h-72 rounded-2xl bg-slate-950 flex flex-col items-center justify-center text-white relative overflow-hidden shadow-inner">
 										<span class="material-symbols-outlined text-6xl text-primary animate-pulse">play_circle</span>
 										<p class="font-bold text-sm mt-2">Video Pembelajaran Aktif</p>
@@ -2732,7 +2827,7 @@
 <!-- ════════════════════════════════════════════════════════════════════════ -->
 {#if isCreateModalOpen}
 	<div class="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-4">
-		<div class="bg-surface rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xl w-full max-w-lg max-h-[90vh] flex flex-col overflow-hidden p-6 space-y-4 animate-in zoom-in-95 duration-150">
+		<div class="bg-surface rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden p-6 space-y-4 animate-in zoom-in-95 duration-150">
 			<div class="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800">
 				<div>
 					<h3 class="font-black text-base text-on-surface">Tambah Kursus Baru ke Katalog</h3>
@@ -2784,34 +2879,150 @@
 
 					<div>
 						<label class="font-bold text-on-surface block mb-1">Asal Trainer</label>
-						<select name="trainerType" class="w-full px-3 py-2 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800 text-xs text-on-surface">
-							<option value="Internal">Internal PT BCS (Rp500.000)</option>
-							<option value="Eksternal">Eksternal / Vendor Resmi (Rp2.500.000 - Rp3.000.000)</option>
+						<select
+							name="trainerType"
+							bind:value={createCourseTrainerType}
+							class="w-full px-3 py-2 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800 text-xs text-on-surface"
+						>
+							<option value="Internal">Internal PT BCS</option>
+							<option value="Eksternal">Eksternal / Vendor Resmi</option>
 						</select>
 					</div>
 				</div>
 
 				<div class="grid grid-cols-2 gap-3">
 					<div>
-						<label class="font-bold text-on-surface block mb-1">Departemen Target</label>
-						<select name="department" class="w-full px-3 py-2 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800 text-xs text-on-surface">
-							<option value="All Dept">All Dept (Seluruh Departemen)</option>
-							<option value="Operations">Operations</option>
-							<option value="Project 4">Project 4</option>
-							<option value="Driver">Driver & Armada</option>
-							<option value="Transport (Maintenance & Asset)">Transport (Maintenance & Asset)</option>
-							<option value="Labour Project 1">Labour Project 1</option>
-							<option value="QHSE & Safety">QHSE & Safety</option>
-							<option value="Finance & Accounting">Finance & Accounting</option>
-							<option value="General Affairs">General Affairs</option>
+						<label class="font-bold text-on-surface block mb-1">Divisi Sasaran *</label>
+						<select
+							bind:value={createCourseDivision}
+							class="w-full px-3 py-2 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800 text-xs text-on-surface font-semibold"
+						>
+							<option value="">-- Pilih Divisi Sasaran --</option>
+							{#each divisions as d}
+								<option value={d.code}>{d.name}</option>
+							{/each}
 						</select>
 					</div>
 
 					<div>
 						<label class="font-bold text-on-surface block mb-1">Biaya Trainer (IDR)</label>
-						<input type="number" name="costTrainer" value="500000" step="50000" class="w-full px-3 py-2 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800 font-mono text-xs" />
+						<input
+							type="number"
+							name="costTrainer"
+							value={createCourseTrainerType === 'Internal' ? 500000 : 2500000}
+							step="50000"
+							class="w-full px-3 py-2 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800 font-mono text-xs"
+						/>
 					</div>
 				</div>
+
+				<!-- Hidden input divisi sasaran yang dikirim ke server -->
+				<input
+					type="hidden"
+					name="division"
+					value={divisions.find((d: any) => d.code === createCourseDivision)?.name || createCourseDivision || 'All Dept'}
+				/>
+
+				<!-- SEKSI MULTI-SELECT KARYAWAN PERWAKILAN PER DIVISI -->
+				{#if createCourseDivision}
+					{@const selectedDivisionObj = divisions.find((d: any) => d.code === createCourseDivision)}
+					<div class="p-3 rounded-2xl bg-surface-container-low border border-slate-200 dark:border-slate-800 space-y-2">
+						<div class="flex items-center justify-between">
+							<div class="flex items-center gap-1.5">
+								<span class="material-symbols-outlined text-primary text-base">group</span>
+								<label class="font-bold text-on-surface">Karyawan Perwakilan Divisi</label>
+								<span class="px-2 py-0.5 rounded-full text-[10px] font-black bg-primary/10 text-primary">
+									{selectedEmployeeIds.length} Dipilih
+								</span>
+							</div>
+							<div class="flex items-center gap-1.5">
+								<button
+									type="button"
+									onclick={selectAllDivisionEmployees}
+									disabled={filteredDivisionEmployees.length === 0}
+									class="px-2 py-1 rounded-lg bg-surface-container hover:bg-surface-container-high text-[11px] font-bold text-primary disabled:opacity-50 cursor-pointer"
+								>
+									Pilih Semua
+								</button>
+								<button
+									type="button"
+									onclick={clearAllDivisionEmployees}
+									disabled={selectedEmployeeIds.length === 0}
+									class="px-2 py-1 rounded-lg bg-surface-container hover:bg-surface-container-high text-[11px] font-bold text-slate-500 disabled:opacity-50 cursor-pointer"
+								>
+									Reset
+								</button>
+							</div>
+						</div>
+
+						<p class="text-[11px] text-slate-500">
+							Pilih perwakilan dari <strong>{selectedDivisionObj?.name || createCourseDivision}</strong> yang didaftarkan ke kursus ini:
+						</p>
+
+						<!-- Search Bar Karyawan Divisi -->
+						<div class="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800">
+							<span class="material-symbols-outlined text-slate-400 text-sm">search</span>
+							<input
+								type="text"
+								bind:value={createCourseEmployeeSearch}
+								placeholder="Cari nama atau NIK perwakilan..."
+								class="bg-transparent text-xs text-on-surface outline-none w-full placeholder:text-slate-400"
+							/>
+							{#if createCourseEmployeeSearch}
+								<button type="button" onclick={() => (createCourseEmployeeSearch = '')} class="text-slate-400 hover:text-slate-600">
+									<span class="material-symbols-outlined text-xs">close</span>
+								</button>
+							{/if}
+						</div>
+
+						<!-- Daftar Karyawan Checkbox Grid -->
+						{#if filteredDivisionEmployees.length > 0}
+							<div class="max-h-40 overflow-y-auto space-y-1 pr-1 divide-y divide-slate-100 dark:divide-slate-800/60">
+								{#each filteredDivisionEmployees as emp}
+									{@const isSelected = selectedEmployeeIds.includes(emp.payrollId)}
+									<button
+										type="button"
+										onclick={() => toggleCreateCourseEmployee(emp.payrollId)}
+										class="w-full text-left p-2 rounded-xl flex items-center justify-between transition-all cursor-pointer {isSelected
+											? 'bg-primary/10 border border-primary/30 text-primary'
+											: 'hover:bg-surface-container text-on-surface'}"
+									>
+										<div class="flex items-center gap-2.5 truncate">
+											<div class="w-4 h-4 rounded-md flex items-center justify-center border {isSelected ? 'bg-primary border-primary text-on-primary' : 'border-slate-300 dark:border-slate-600 bg-surface'}">
+												{#if isSelected}
+													<span class="material-symbols-outlined text-[12px]">check</span>
+												{/if}
+											</div>
+											<div class="truncate">
+												<p class="font-bold text-xs truncate leading-tight">{emp.name}</p>
+												<p class="text-[10px] text-slate-400 leading-tight">
+													{emp.payrollId} • {emp.positionTitle || 'Staf'}
+												</p>
+											</div>
+										</div>
+										<span class="text-[10px] font-bold px-2 py-0.5 rounded-md {isSelected ? 'bg-primary/20 text-primary' : 'bg-surface-container text-slate-400'}">
+											{isSelected ? 'Terpilih' : 'Pilih'}
+										</span>
+									</button>
+								{/each}
+							</div>
+						{:else}
+							<div class="p-3 text-center rounded-xl bg-surface-container/60 text-slate-400 text-xs">
+								{createCourseEmployeeSearch ? 'Tidak ada karyawan yang cocok dengan pencarian.' : 'Belum ada data karyawan terdaftar di divisi ini.'}
+							</div>
+						{/if}
+
+						<input
+							type="hidden"
+							name="representativeEmployees"
+							value={JSON.stringify(
+								activeEmployees
+									.filter((e: any) => selectedEmployeeIds.includes(e.payrollId))
+									.map((e: any) => ({ payrollId: e.payrollId, name: e.name, positionTitle: e.positionTitle }))
+							)}
+						/>
+					</div>
+				{/if}
 
 				<div class="grid grid-cols-2 gap-3">
 					<div>
@@ -2823,6 +3034,63 @@
 						<label class="font-bold text-on-surface block mb-1">Passing Grade (%)</label>
 						<input type="number" name="passingGrade" value="75" min="50" max="100" class="w-full px-3 py-2 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800 font-mono text-xs" />
 					</div>
+				</div>
+
+				<!-- LINK MATERI TER-EMBED & LIVE PREVIEW -->
+				<div class="space-y-2">
+					<div class="flex items-center justify-between">
+						<label class="font-bold text-on-surface flex items-center gap-1.5">
+							<span class="material-symbols-outlined text-sm text-primary">link</span>
+							<span>Link Materi Pembelajaran (Embed Iframe)</span>
+						</label>
+						<span class="text-[10px] text-slate-400">YouTube, Google Slides/Docs/Drive, Loom, Canva, Vimeo, PDF</span>
+					</div>
+
+					<div class="flex gap-2">
+						<input
+							type="url"
+							name="materialUrl"
+							bind:value={createCourseMaterialUrl}
+							placeholder="Contoh: https://www.youtube.com/watch?v=... atau https://docs.google.com/presentation/d/..."
+							class="w-full px-3 py-2 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800 text-xs text-on-surface font-mono focus:ring-1 focus:ring-primary outline-none"
+						/>
+						{#if createCourseMaterialUrl.trim()}
+							<button
+								type="button"
+								onclick={() => (showMaterialPreview = !showMaterialPreview)}
+								class="px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 text-xs font-bold hover:bg-surface-container flex items-center gap-1 whitespace-nowrap cursor-pointer"
+							>
+								<span class="material-symbols-outlined text-sm">{showMaterialPreview ? 'visibility_off' : 'visibility'}</span>
+								<span>{showMaterialPreview ? 'Sembunyikan' : 'Preview'}</span>
+							</button>
+						{/if}
+					</div>
+
+					{#if createCourseMaterialUrl.trim() && showMaterialPreview}
+						{@const embedSrc = formatEmbedUrl(createCourseMaterialUrl)}
+						{@const platform = detectEmbedPlatform(createCourseMaterialUrl)}
+						<div class="p-3 rounded-2xl bg-surface-container-high border border-primary/20 space-y-2 animate-in fade-in duration-200">
+							<div class="flex items-center justify-between text-[11px]">
+								<div class="flex items-center gap-1.5 font-bold text-primary">
+									<span class="material-symbols-outlined text-sm">{platform.icon}</span>
+									<span>Live Preview ({platform.name}):</span>
+								</div>
+								<span class="text-[10px] text-slate-400 truncate max-w-xs font-mono">{embedSrc}</span>
+							</div>
+							<div class="w-full h-52 rounded-xl overflow-hidden bg-black/10 border border-slate-200 dark:border-slate-800 shadow-inner">
+								<iframe
+									src={embedSrc}
+									title="Preview Materi Pelatihan"
+									class="w-full h-full border-0"
+									allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+									allowfullscreen
+								></iframe>
+							</div>
+							<p class="text-[10px] text-slate-400 italic">
+								* Materi ini akan langsung ter-embed di Modul 1 Course Player tanpa perlu membuka tab baru / keluar dari aplikasi.
+							</p>
+						</div>
+					{/if}
 				</div>
 
 				<div>

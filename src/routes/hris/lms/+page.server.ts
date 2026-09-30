@@ -8,6 +8,7 @@
 import type { PageServerLoad, Actions } from './$types';
 import sql from '$lib/server/db';
 import { logError } from '$lib/utils/logger';
+import { formatEmbedUrl } from '$lib/utils/embed';
 
 export const load: PageServerLoad = async () => {
 	try {
@@ -146,9 +147,12 @@ export const load: PageServerLoad = async () => {
 				k.nama_karyawan, 
 				k.title as title_code, 
 				t.title as position_title,
+				k.div_id as division_code,
+				COALESCE(md.div_name, 'General') as division_name,
 				COALESCE(d.dept_name, 'General') as department
 			FROM master.m_karyawan k
 			LEFT JOIN master.m_title t ON t.title_code = k.title
+			LEFT JOIN master.m_division md ON md.div_code = k.div_id
 			LEFT JOIN master.m_dept d ON d.dept_code = k.dept_id
 			WHERE k.aktif = 'Y'
 			ORDER BY k.nama_karyawan ASC;
@@ -412,6 +416,8 @@ export const load: PageServerLoad = async () => {
 				name: e.nama_karyawan,
 				titleCode: e.title_code,
 				positionTitle: e.position_title || e.title_code,
+				divisionCode: e.division_code || '',
+				divisionName: e.division_name || '',
 				department: e.department
 			})),
 			assessmentPeriods: [
@@ -441,7 +447,9 @@ export const actions = {
 		const trainerType = formData.get('trainerType')?.toString().trim() || 'Internal';
 		const costTrainer = Number(formData.get('costTrainer')) || (trainerType === 'Internal' ? 500000 : 2500000);
 		const costTrainee = Number(formData.get('costTrainee')) || 0;
-		const department = formData.get('department')?.toString().trim() || 'All Dept';
+		const division = formData.get('division')?.toString().trim() || formData.get('department')?.toString().trim() || 'All Dept';
+		const materialUrl = formData.get('materialUrl')?.toString().trim() || '';
+		const repEmployeesRaw = formData.get('representativeEmployees')?.toString().trim() || '[]';
 		const durationHours = Number(formData.get('durationHours')) || 2.0;
 		const passingGrade = Number(formData.get('passingGrade')) || 75;
 		const description = formData.get('description')?.toString().trim() || '';
@@ -453,6 +461,7 @@ export const actions = {
 		}
 
 		const id = `CRS-${category.substring(0, 3).toUpperCase()}-${Date.now().toString().slice(-4)}`;
+		const formattedMaterialUrl = materialUrl ? formatEmbedUrl(materialUrl) : null;
 
 		try {
 			await sql`
@@ -461,17 +470,17 @@ export const actions = {
 					trainer_type, cost_trainer, cost_trainee, department, description, tags, passing_grade
 				) VALUES (
 					${id}, ${title}, ${category}, ${based}, ${level}, 'Published', ${durationHours}, ${instructor},
-					${trainerType}, ${costTrainer}, ${costTrainee}, ${department}, ${description}, ${tags}, ${passingGrade}
+					${trainerType}, ${costTrainer}, ${costTrainee}, ${division}, ${description}, ${tags}, ${passingGrade}
 				);
 			`;
 
 			// Tambah modul default agar kursus langsung dapat diakses
 			await sql`
-				INSERT INTO hris.lms_modules (id, course_id, sequence, title, type, duration_text, content_body)
+				INSERT INTO hris.lms_modules (id, course_id, sequence, title, type, duration_text, content_url, content_body)
 				VALUES
-					(${`${id}-M1`}, ${id}, 1, 'Pengantar & Prinsip Utama Materi', 'VIDEO', '20 Menit', 'Silakan pelajari video pengantar dan ikuti instruksi kerja berikut.'),
-					(${`${id}-M2`}, ${id}, 2, 'SOP & Prosedur Keselamatan Kerja', 'DOCUMENT', '30 Menit', 'Dokumen standar operasional prosedur terkait materi ini.'),
-					(${`${id}-M3`}, ${id}, 3, 'Evaluasi Akhir & Post-Test Kelulusan', 'QUIZ', '20 Menit', 'Kuis kelulusan materi.');
+					(${`${id}-M1`}, ${id}, 1, 'Materi Utama Pelatihan', 'VIDEO', '30 Menit', ${formattedMaterialUrl}, ${description || 'Silakan pelajari materi pelatihan yang disematkan berikut ini.'}),
+					(${`${id}-M2`}, ${id}, 2, 'SOP & Prosedur Keselamatan Kerja', 'DOCUMENT', '30 Menit', null, 'Dokumen standar operasional prosedur terkait materi ini.'),
+					(${`${id}-M3`}, ${id}, 3, 'Evaluasi Akhir & Post-Test Kelulusan', 'QUIZ', '20 Menit', null, 'Kuis kelulusan materi.');
 			`;
 
 			// Tambahkan pertanyaan kuis default
@@ -484,7 +493,40 @@ export const actions = {
 					'[{"key":"A","text":"Keselamatan kerja dan kepatuhan SOP"},{"key":"B","text":"Kecepatan tanpa prosedur"},{"key":"C","text":"Mengabaikan checklist"}]'::jsonb, 'A', 'SOP mengutamakan keselamatan.');
 			`;
 
-			return { success: true, message: `Kursus "${title}" berhasil ditambahkan ke katalog LMS.` };
+			// Daftarkan karyawan perwakilan divisi jika ada yang dipilih
+			let repEmployees: Array<{ payrollId: string; name: string }> = [];
+			try {
+				repEmployees = JSON.parse(repEmployeesRaw);
+			} catch {
+				repEmployees = [];
+			}
+
+			if (Array.isArray(repEmployees) && repEmployees.length > 0) {
+				for (const emp of repEmployees) {
+					if (emp.payrollId) {
+						await sql`
+							INSERT INTO hris.lms_enrollments (
+								course_id, payroll_id, employee_name, status, progress_percent,
+								completed_modules_count, total_modules_count, is_tna_gap
+							) VALUES (
+								${id}, ${emp.payrollId}, ${emp.name || emp.payrollId}, 'ENROLLED', 0,
+								0, 3, false
+							) ON CONFLICT (course_id, payroll_id) DO NOTHING;
+						`;
+					}
+				}
+				await sql`
+					UPDATE hris.lms_courses 
+					SET enrolled_count = ${repEmployees.length}
+					WHERE id = ${id};
+				`;
+			}
+
+			const successMsg = `Kursus "${title}" berhasil ditambahkan ke katalog LMS.${
+				repEmployees.length > 0 ? ` (${repEmployees.length} karyawan perwakilan divisi berhasil didaftarkan)` : ''
+			}`;
+
+			return { success: true, message: successMsg };
 		} catch (e: any) {
 			logError('LMS_CREATE_COURSE_FAIL', e?.message);
 			return { success: false, message: 'Gagal menambahkan kursus ke database.' };
