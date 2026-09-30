@@ -257,8 +257,9 @@
 					<thead>
 						<tr class="bg-slate-100 text-slate-900 font-bold border-b border-slate-300">
 							<th class="border border-slate-300 py-1.5 px-2 w-8 text-center">No</th>
-							<th class="border border-slate-300 py-1.5 px-2 text-left">Kode & Nama Material / Barang</th>
-							<th class="border border-slate-300 py-1.5 px-2 text-left">Spesifikasi / Brand</th>
+							<th class="border border-slate-300 py-1.5 px-2 text-left">Nama Material / Barang</th>
+							<th class="border border-slate-300 py-1.5 px-2 text-left">Spesifikasi</th>
+							<th class="border border-slate-300 py-1.5 px-2 text-left w-24">Brand</th>
 							<th class="border border-slate-300 py-1.5 px-2 text-right w-16">Stok</th>
 							<th class="border border-slate-300 py-1.5 px-2 text-right w-20">Qty Diminta</th>
 							<th class="border border-slate-300 py-1.5 px-2 text-center w-14">Satuan</th>
@@ -271,13 +272,12 @@
 								<td class="border border-slate-300 py-1 px-2 text-center font-mono">{i + 1}</td>
 								<td class="border border-slate-300 py-1 px-2">
 									<p class="font-bold text-slate-900 text-[10.5px] leading-tight">{itm.name}</p>
-									<p class="text-[9px] text-slate-500 font-mono">{itm.materialCode}</p>
 								</td>
-								<td class="border border-slate-300 py-1 px-2 text-slate-700 leading-tight">
-									<p>{itm.spec || '-'}</p>
-									{#if itm.brand}
-										<p class="text-[9px] text-slate-500 italic">Brand: {itm.brand}</p>
-									{/if}
+								<td class="border border-slate-300 py-1 px-2 text-slate-700 leading-tight text-[10px]">
+									{itm.spec || '-'}
+								</td>
+								<td class="border border-slate-300 py-1 px-2 text-slate-700 leading-tight text-[10px]">
+									{itm.brand || '-'}
 								</td>
 								<td class="border border-slate-300 py-1 px-2 text-right font-mono text-slate-600">
 									{formatQty(itm.stock)}
@@ -296,7 +296,7 @@
 					</tbody>
 					<tfoot>
 						<tr class="bg-slate-50 font-bold border-t border-slate-300 text-[10px]">
-							<td colspan="4" class="py-1 px-2 text-right text-slate-700">Total Kuantitas Diminta:</td>
+							<td colspan="5" class="py-1 px-2 text-right text-slate-700">Total Kuantitas Diminta:</td>
 							<td class="py-1 px-2 text-right font-mono text-amber-800 font-black">{formatQty(totalQty)}</td>
 							<td colspan="2" class="py-1 px-2"></td>
 						</tr>

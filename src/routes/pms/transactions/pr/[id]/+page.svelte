@@ -227,11 +227,12 @@
 		</div>
 
 		<div class="overflow-x-auto">
-			<table class="w-full text-left text-sm min-w-[780px]">
+			<table class="w-full text-left text-sm min-w-[850px]">
 				<thead class="bg-slate-100/70 dark:bg-slate-800/50 text-xs font-bold text-on-surface-variant uppercase tracking-wider border-b border-slate-200/60 dark:border-slate-800/60">
 					<tr>
 						<th class="py-3 px-3 w-10 text-center">No</th>
-						<th class="py-3 px-3">Nama Material & Spesifikasi</th>
+						<th class="py-3 px-3">Nama Material</th>
+						<th class="py-3 px-3">Spesifikasi</th>
 						<th class="py-3 px-3">Brand</th>
 						<th class="py-3 px-3 text-center w-24">Stok</th>
 						<th class="py-3 px-3 text-center w-20">Qty</th>
@@ -243,7 +244,7 @@
 				<tbody class="divide-y divide-slate-200/60 dark:divide-slate-800/60 font-medium text-xs">
 					{#if data.items.length === 0}
 						<tr>
-							<td colspan="8" class="py-8 text-center text-on-surface-variant">
+							<td colspan="9" class="py-8 text-center text-on-surface-variant">
 								Belum ada rincian material untuk Purchase Request ini.
 							</td>
 						</tr>
@@ -254,14 +255,8 @@
 							{@const rem = parseFloat(item.qtyRemaining) || 0}
 							<tr class="hover:bg-surface-container-high/30 transition-colors">
 								<td class="py-3 px-3 text-center font-mono text-on-surface-variant">{idx + 1}</td>
-								<td class="py-3 px-3">
-									<div class="flex flex-wrap items-baseline gap-1.5">
-										<span class="font-bold text-on-surface">{item.name}</span>
-										{#if item.spec && item.spec !== '-'}
-											<span class="text-[11px] text-on-surface-variant font-normal">({item.spec})</span>
-										{/if}
-									</div>
-								</td>
+								<td class="py-3 px-3 font-bold text-on-surface">{item.name}</td>
+								<td class="py-3 px-3 text-on-surface-variant">{item.spec || '-'}</td>
 								<td class="py-3 px-3 text-on-surface-variant">{item.brand || '-'}</td>
 								<td class="py-3 px-3 text-center font-mono text-on-surface-variant">
 									{formatNumber(item.stock)} {item.uom}
