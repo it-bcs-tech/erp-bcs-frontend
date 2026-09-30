@@ -191,12 +191,11 @@
 	{#if activeTab === 'ORDER'}
 		<div class="rounded-2xl bg-surface-container-low border border-slate-200/60 dark:border-slate-800/60 overflow-hidden shadow-xs">
 			<div class="overflow-x-auto">
-				<table class="w-full text-left text-sm min-w-[1050px]">
+				<table class="w-full text-left text-sm min-w-[950px]">
 					<thead class="bg-slate-100/70 dark:bg-slate-800/50 text-xs font-bold text-on-surface-variant uppercase tracking-wider border-b border-slate-200/60 dark:border-slate-800/60">
 						<tr>
 							<th class="py-3.5 px-4">No. PR</th>
 							<th class="py-3.5 px-4">Tanggal</th>
-							<th class="py-3.5 px-4">Departemen</th>
 							<th class="py-3.5 px-4">Project</th>
 							<th class="py-3.5 px-4">Material</th>
 							<th class="py-3.5 px-4">Spesifikasi</th>
@@ -209,7 +208,7 @@
 					<tbody class="divide-y divide-slate-200/60 dark:divide-slate-800/60 font-medium text-xs">
 						{#if filteredOsOrders.length === 0}
 							<tr>
-								<td colspan="10" class="py-12 text-center text-on-surface-variant">
+								<td colspan="9" class="py-12 text-center text-on-surface-variant">
 									<span class="material-symbols-outlined text-4xl text-emerald-500 mb-2">task_alt</span>
 									<p class="text-xs font-semibold">Tidak ada PR yang tertunda. Semua permintaan telah diproses PO.</p>
 								</td>
@@ -220,7 +219,8 @@
 									<td class="py-3.5 px-4 whitespace-nowrap">
 										<a
 											href="/pms/transactions/pr/{pr.id}"
-											class="font-mono font-bold text-amber-700 dark:text-amber-400 hover:underline"
+											class="font-mono font-bold text-black dark:text-white hover:underline"
+											style="color: #000000;"
 											title="Lihat Detail PR"
 										>
 											{pr.prNumber}
@@ -230,15 +230,12 @@
 										{formatDateId(pr.date)}
 									</td>
 									<td class="py-3.5 px-4 font-semibold text-on-surface whitespace-nowrap">
-										{pr.department || '-'}
-									</td>
-									<td class="py-3.5 px-4 font-semibold text-on-surface whitespace-nowrap">
 										{pr.projectName || '-'}
 									</td>
 									<td class="py-3.5 px-4 font-bold text-on-surface">
 										{pr.materialName}
 									</td>
-									<td class="py-3.5 px-4 text-on-surface-variant">
+									<td class="py-3.5 px-4 text-sm font-medium text-slate-800 dark:text-slate-200">
 										{pr.spec || '-'}
 									</td>
 									<td class="py-3.5 px-3 text-right font-mono font-bold text-amber-600 text-xs">
