@@ -100,6 +100,23 @@
 		})
 	);
 
+	let selectedEmployees = $derived(
+		activeEmployees.filter((e: any) => selectedEmployeeIds.includes(e.payrollId))
+	);
+
+	let selectedInCurrentDivisionCount = $derived(
+		divisionEmployees.filter((e: any) => selectedEmployeeIds.includes(e.payrollId)).length
+	);
+
+	let computedCourseDivision = $derived.by(() => {
+		const divNames = Array.from(new Set(selectedEmployees.map((e: any) => e.divisionName).filter(Boolean)));
+		if (divNames.length > 0) {
+			return divNames.join(', ');
+		}
+		const targetDiv = divisions.find((d: any) => d.code === createCourseDivision);
+		return targetDiv?.name || createCourseDivision || 'All Dept';
+	});
+
 	function toggleCreateCourseEmployee(payrollId: string) {
 		if (selectedEmployeeIds.includes(payrollId)) {
 			selectedEmployeeIds = selectedEmployeeIds.filter((id) => id !== payrollId);
@@ -114,7 +131,12 @@
 		selectedEmployeeIds = Array.from(set);
 	}
 
-	function clearAllDivisionEmployees() {
+	function clearCurrentDivisionEmployees() {
+		const currentDivEmpIds = new Set(filteredDivisionEmployees.map((e: any) => e.payrollId));
+		selectedEmployeeIds = selectedEmployeeIds.filter((id) => !currentDivEmpIds.has(id));
+	}
+
+	function clearAllSelectedEmployees() {
 		selectedEmployeeIds = [];
 	}
 
@@ -3763,15 +3785,18 @@
 				<input
 					type="hidden"
 					name="division"
-					value={divisions.find((d: any) => d.code === createCourseDivision)?.name || createCourseDivision || 'All Dept'}
+					value={computedCourseDivision}
 				/>
 				<input
 					type="hidden"
 					name="representativeEmployees"
 					value={JSON.stringify(
-						activeEmployees
-							.filter((e: any) => selectedEmployeeIds.includes(e.payrollId))
-							.map((e: any) => ({ payrollId: e.payrollId, name: e.name, positionTitle: e.positionTitle }))
+						selectedEmployees.map((e: any) => ({
+							payrollId: e.payrollId,
+							name: e.name,
+							positionTitle: e.positionTitle,
+							department: e.divisionName || e.department || 'Operations'
+						}))
 					)}
 				/>
 				<input type="hidden" name="preTestQuestions" value={JSON.stringify(preTestQuestionsList)} />
@@ -3841,24 +3866,7 @@
 							</div>
 						</div>
 
-						<div>
-							<label class="font-bold text-on-surface block mb-1">Divisi Sasaran *</label>
-							<select
-								bind:value={createCourseDivision}
-								onchange={() => {
-									selectedEmployeeIds = [];
-									isEmployeeSelectionConfirmed = false;
-									createCourseEmployeeSearch = '';
-								}}
-								class="w-full px-3 py-2 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800 text-xs text-on-surface font-semibold"
-							>
-								<option value="">-- Pilih Divisi Sasaran --</option>
-								{#each divisions as d}
-									<option value={d.code}>{d.name}</option>
-								{/each}
-							</select>
-						</div>
-
+						<!-- Biaya Trainer & Peserta dinaikkan ke atas Divisi Sasaran -->
 						<div class="grid grid-cols-2 gap-3">
 							<div>
 								<label class="font-bold text-on-surface block mb-1">Biaya Trainer (IDR)</label>
@@ -3887,20 +3895,73 @@
 							</div>
 						</div>
 
+						<div>
+							<div class="flex items-center justify-between mb-1">
+								<label class="font-bold text-on-surface block">Divisi Sasaran *</label>
+								{#if selectedEmployeeIds.length > 0}
+									<span class="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
+										<span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+										<span>{selectedEmployeeIds.length} Terpilih ({computedCourseDivision})</span>
+									</span>
+								{/if}
+							</div>
+							<select
+								bind:value={createCourseDivision}
+								onchange={() => {
+									createCourseEmployeeSearch = '';
+									isEmployeeSelectionConfirmed = false;
+								}}
+								class="w-full px-3 py-2 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800 text-xs text-on-surface font-semibold"
+							>
+								<option value="">-- Pilih Divisi untuk Memilih Karyawan --</option>
+								{#each divisions as d}
+									<option value={d.code}>{d.name}</option>
+								{/each}
+							</select>
+							<p class="text-[10px] text-slate-400 mt-1">
+								Pilih divisi untuk memuat daftar karyawannya. Anda dapat berganti divisi untuk memilih perwakilan dari beberapa divisi berbeda tanpa menghapus pilihan sebelumnya.
+							</p>
+						</div>
+
 						<!-- SEKSI MULTI-SELECT KARYAWAN PERWAKILAN PER DIVISI -->
-						{#if createCourseDivision}
-							{@const selectedDivisionObj = divisions.find((d: any) => d.code === createCourseDivision)}
-							<div class="p-3.5 rounded-2xl bg-surface-container-low border border-slate-200 dark:border-slate-800 space-y-2.5">
-								{#if !isEmployeeSelectionConfirmed}
-									<!-- Mode Memilih Karyawan (Picker Aktif) -->
+						<div class="p-3.5 rounded-2xl bg-surface-container-low border border-slate-200 dark:border-slate-800 space-y-3">
+							<!-- Header & Reset Action -->
+							<div class="flex items-center justify-between pb-2 border-b border-slate-200/60 dark:border-slate-800/60">
+								<div class="flex items-center gap-2">
+									<span class="material-symbols-outlined text-primary text-base">group</span>
+									<span class="font-bold text-xs text-on-surface">Karyawan Perwakilan Pelatihan</span>
+									<span class="px-2 py-0.5 rounded-full text-[10px] font-black bg-primary/10 text-primary">
+										{selectedEmployeeIds.length} Total Dipilih
+									</span>
+								</div>
+
+								{#if selectedEmployeeIds.length > 0}
+									<button
+										type="button"
+										onclick={clearAllSelectedEmployees}
+										class="text-[11px] font-bold text-rose-500 hover:underline flex items-center gap-0.5 cursor-pointer"
+										title="Kosongkan seluruh pilihan peserta dari semua divisi"
+									>
+										<span class="material-symbols-outlined text-xs">delete</span>
+										<span>Reset Semua</span>
+									</button>
+								{/if}
+							</div>
+
+							<!-- Picker Karyawan Divisi Aktif (jika divisi dipilih) -->
+							{#if createCourseDivision}
+								{@const selectedDivisionObj = divisions.find((d: any) => d.code === createCourseDivision)}
+								<div class="p-3 rounded-xl bg-surface border border-slate-200 dark:border-slate-700/80 space-y-2.5">
 									<div class="flex items-center justify-between">
-										<div class="flex items-center gap-1.5">
-											<span class="material-symbols-outlined text-primary text-base">group</span>
-											<label class="font-bold text-on-surface">Karyawan Perwakilan Divisi</label>
-											<span class="px-2 py-0.5 rounded-full text-[10px] font-black bg-primary/10 text-primary">
-												{selectedEmployeeIds.length} Dipilih
-											</span>
+										<div>
+											<p class="text-[11px] font-bold text-on-surface">
+												Pilih dari Divisi: <span class="text-primary">{selectedDivisionObj?.name || createCourseDivision}</span>
+											</p>
+											<p class="text-[10px] text-slate-400">
+												{selectedInCurrentDivisionCount} dari {filteredDivisionEmployees.length} karyawan divisi ini dipilih
+											</p>
 										</div>
+
 										<div class="flex items-center gap-1.5">
 											<button
 												type="button"
@@ -3912,26 +3973,14 @@
 											</button>
 											<button
 												type="button"
-												onclick={clearAllDivisionEmployees}
-												disabled={selectedEmployeeIds.length === 0}
+												onclick={clearCurrentDivisionEmployees}
+												disabled={selectedInCurrentDivisionCount === 0}
 												class="px-2 py-1 rounded-lg bg-surface-container hover:bg-surface-container-high text-[11px] font-bold text-slate-500 disabled:opacity-50 cursor-pointer"
 											>
-												Reset
-											</button>
-											<button
-												type="button"
-												onclick={confirmEmployeeSelection}
-												class="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-bold flex items-center gap-1 shadow-xs cursor-pointer transition-all"
-											>
-												<span class="material-symbols-outlined text-xs">check</span>
-												<span>Selesai</span>
+												Batal Divisi Ini
 											</button>
 										</div>
 									</div>
-
-									<p class="text-[11px] text-slate-500">
-										Pilih perwakilan dari <strong>{selectedDivisionObj?.name || createCourseDivision}</strong> yang didaftarkan ke kursus ini:
-									</p>
 
 									<!-- Search Bar Karyawan Divisi -->
 									<div class="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800">
@@ -3939,7 +3988,7 @@
 										<input
 											type="text"
 											bind:value={createCourseEmployeeSearch}
-											placeholder="Cari nama atau NIK perwakilan..."
+											placeholder="Cari nama atau NIK di divisi ini..."
 											class="bg-transparent text-xs text-on-surface outline-none w-full placeholder:text-slate-400"
 										/>
 										{#if createCourseEmployeeSearch}
@@ -3985,62 +4034,57 @@
 											{createCourseEmployeeSearch ? 'Tidak ada karyawan yang cocok dengan pencarian.' : 'Belum ada data karyawan terdaftar di divisi ini.'}
 										</div>
 									{/if}
-								{:else}
-									<!-- Mode Selesai: Form Pilihan Sembunyi, Tampilkan Karyawan Terpilih -->
-									<div class="flex items-center justify-between">
-										<div class="flex items-center gap-2">
-											<span class="material-symbols-outlined text-emerald-600 dark:text-emerald-400 text-base">check_circle</span>
-											<div>
-												<h4 class="font-bold text-xs text-on-surface">Karyawan Perwakilan Terpilih</h4>
-												<p class="text-[10px] text-slate-500">Divisi {selectedDivisionObj?.name || createCourseDivision}</p>
-											</div>
-											<span class="px-2 py-0.5 rounded-full text-[10px] font-black bg-emerald-500/10 text-emerald-700 dark:text-emerald-300">
-												{selectedEmployeeIds.length} Karyawan
-											</span>
-										</div>
+								</div>
+							{:else}
+								<div class="p-3 text-center rounded-xl bg-surface border border-dashed border-slate-300 dark:border-slate-700/60 text-slate-400 text-xs">
+									<span>Silakan pilih <strong>Divisi Sasaran</strong> di atas untuk memilih karyawan perwakilan.</span>
+								</div>
+							{/if}
 
-										<button
-											type="button"
-											onclick={reopenEmployeeSelection}
-											class="px-2.5 py-1 rounded-lg border border-primary/30 bg-primary/10 hover:bg-primary/20 text-primary text-[11px] font-bold flex items-center gap-1 cursor-pointer transition-all"
-											title="Buka kembali daftar untuk menambah atau mengubah karyawan perwakilan"
-										>
-											<span class="material-symbols-outlined text-xs">edit</span>
-											<span>Ubah Pilihan</span>
-										</button>
-									</div>
-
-									{#if selectedEmployeeIds.length === 0}
-										<div class="p-3 text-center rounded-xl bg-surface-container/50 border border-dashed border-slate-300 dark:border-slate-700 text-slate-500 text-xs">
-											<span>Belum ada karyawan yang dipilih sebagai perwakilan.</span>
-											<button type="button" onclick={reopenEmployeeSelection} class="text-primary font-bold hover:underline ml-1 cursor-pointer">
-												Pilih Karyawan
-											</button>
-										</div>
-									{:else}
-										<div class="flex flex-wrap gap-1.5 max-h-40 overflow-y-auto pr-1 py-1">
-											{#each activeEmployees.filter((e: any) => selectedEmployeeIds.includes(e.payrollId)) as emp}
-												<div class="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-surface border border-slate-200 dark:border-slate-700 text-xs shadow-2xs hover:border-primary/40 transition-colors">
-													<span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-													<div class="flex flex-col text-left">
-														<span class="font-bold text-on-surface text-[11px] leading-tight">{emp.name}</span>
-														<span class="text-[9px] text-slate-400 font-mono leading-tight">{emp.payrollId} • {emp.positionTitle || 'Staf'}</span>
-													</div>
-													<button
-														type="button"
-														onclick={() => removeSelectedEmployee(emp.payrollId)}
-														class="text-slate-400 hover:text-rose-500 ml-1 p-0.5 rounded-full hover:bg-rose-500/10 cursor-pointer transition-colors"
-														title="Hapus {emp.name}"
-													>
-														<span class="material-symbols-outlined text-[13px]">close</span>
-													</button>
-												</div>
-											{/each}
-										</div>
+							<!-- Summary Chip Karyawan Terpilih Lintas Divisi -->
+							<div class="pt-1">
+								<div class="flex items-center justify-between mb-1.5">
+									<h5 class="text-[11px] font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1">
+										<span class="material-symbols-outlined text-xs text-emerald-500">check_circle</span>
+										<span>Daftar Peserta Terdaftar ({selectedEmployeeIds.length})</span>
+									</h5>
+									{#if selectedEmployeeIds.length > 0}
+										<span class="text-[10px] text-slate-400">Klik tanda silang (✕) untuk membatalkan</span>
 									{/if}
+								</div>
+
+								{#if selectedEmployeeIds.length === 0}
+									<div class="p-2.5 text-center rounded-xl bg-surface/50 border border-slate-200/60 dark:border-slate-800 text-slate-400 text-[11px]">
+										Belum ada peserta perwakilan yang dipilih.
+									</div>
+								{:else}
+									<div class="flex flex-wrap gap-1.5 max-h-36 overflow-y-auto pr-1 py-1">
+										{#each selectedEmployees as emp}
+											<div class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-surface border border-slate-200 dark:border-slate-700 text-xs shadow-2xs hover:border-primary/40 transition-colors">
+												<span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+												<div class="flex flex-col text-left">
+													<div class="flex items-center gap-1">
+														<span class="font-bold text-on-surface text-[11px] leading-tight">{emp.name}</span>
+														<span class="px-1.5 py-0.2 rounded text-[8px] font-bold bg-primary/10 text-primary uppercase">
+															{emp.divisionName || emp.department || 'Dept'}
+														</span>
+													</div>
+													<span class="text-[9px] text-slate-400 font-mono leading-tight">{emp.payrollId} • {emp.positionTitle || 'Staf'}</span>
+												</div>
+												<button
+													type="button"
+													onclick={() => removeSelectedEmployee(emp.payrollId)}
+													class="text-slate-400 hover:text-rose-500 ml-1 p-0.5 rounded-full hover:bg-rose-500/10 cursor-pointer transition-colors"
+													title="Hapus {emp.name}"
+												>
+													<span class="material-symbols-outlined text-[13px]">close</span>
+												</button>
+											</div>
+										{/each}
+									</div>
 								{/if}
 							</div>
-						{/if}
+						</div>
 
 						<!-- SEKSI JADWAL PELAKSANAAN SESI PELATIHAN -->
 						<div class="p-3.5 rounded-2xl bg-surface-container-low border border-slate-200 dark:border-slate-800 space-y-3">
