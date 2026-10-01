@@ -459,8 +459,16 @@ export const actions = {
 		const tagsInput = formData.get('tags')?.toString().trim() || '';
 		const tags = tagsInput ? tagsInput.split(',').map((t) => t.trim()) : ['LMS', based];
 
+		// Parameter Jadwal Sesi Pelatihan Terintegrasi
+		const sessionDate = formData.get('sessionDate')?.toString().trim() || '';
+		const startTime = formData.get('startTime')?.toString().trim() || '09:00';
+		const endTime = formData.get('endTime')?.toString().trim() || '11:30';
+		const sessionType = formData.get('sessionType')?.toString().trim() || 'OFFLINE';
+		const locationOrLink = formData.get('locationOrLink')?.toString().trim() || 'Ruang Aula Pelatihan BCS Cilegon';
+		const quota = Number(formData.get('quota')) || 30;
+
 		if (!title) {
-			return { success: false, message: 'Judul kursus wajib diisi.' };
+			return { success: false, message: 'Judul pelatihan wajib diisi.' };
 		}
 
 		// Validasi Soal Pre-Test & Post-Test (Wajib Diisi minimal 1 soal lengkap)
@@ -571,9 +579,42 @@ export const actions = {
 				`;
 			}
 
-			const successMsg = `Kursus "${title}" berhasil ditambahkan ke katalog LMS dengan ${validPreTest.length} soal Pre-Test & ${validPostTest.length} soal Post-Test.${
-				repEmployees.length > 0 ? ` (${repEmployees.length} karyawan perwakilan divisi berhasil didaftarkan)` : ''
-			}`;
+			// Otomatis buat jadwal sesi pelatihan perdana jika sessionDate diisi
+			let sessionCreated = false;
+			if (sessionDate) {
+				const sessionId = `TRN-${sessionDate}-${Date.now().toString().slice(-3)}`;
+				await sql`
+					INSERT INTO hris.lms_sessions (
+						id, course_id, title, trainer, trainer_type, cost_trainer, cost_trainee,
+						department, based, session_type, location_or_link, session_date,
+						start_time, end_time, target_role, quota, status, enrolled_count
+					) VALUES (
+						${sessionId}, ${id}, ${title}, ${instructor}, ${trainerType}, ${costTrainer}, ${costTrainee},
+						${division}, ${based}, ${sessionType}, ${locationOrLink}, ${sessionDate},
+						${startTime}, ${endTime}, 'All Staff', ${quota}, 'SCHEDULED', ${repEmployees.length}
+					);
+				`;
+				sessionCreated = true;
+
+				// Daftarkan karyawan perwakilan ke absensi sesi dengan status TERDAFTAR
+				if (Array.isArray(repEmployees) && repEmployees.length > 0) {
+					for (const emp of repEmployees) {
+						if (emp.payrollId) {
+							await sql`
+								INSERT INTO hris.lms_session_attendances (
+									session_id, payroll_id, employee_name, department, status, notes
+								) VALUES (
+									${sessionId}, ${emp.payrollId}, ${emp.name || emp.payrollId}, ${division}, 'TERDAFTAR', 'Terdaftar otomatis dari Program Pelatihan'
+								);
+							`;
+						}
+					}
+				}
+			}
+
+			const successMsg = `Program Pelatihan "${title}" berhasil disimpan${
+				sessionCreated ? ` beserta Jadwal Sesi (${sessionDate})` : ''
+			}.${repEmployees.length > 0 ? ` (${repEmployees.length} peserta perwakilan terdaftar)` : ''}`;
 
 			return { success: true, message: successMsg };
 		} catch (e: any) {
@@ -662,13 +703,26 @@ export const actions = {
 		}
 
 		try {
-			await sql`
-				INSERT INTO hris.lms_session_attendances (
-					session_id, payroll_id, employee_name, department, status, notes
-				) VALUES (
-					${sessionId}, ${payrollId}, ${employeeName}, ${department}, ${status}, ${notes}
-				);
+			const existing = await sql`
+				SELECT id FROM hris.lms_session_attendances
+				WHERE session_id = ${sessionId} AND payroll_id = ${payrollId}
+				LIMIT 1;
 			`;
+			if (existing.length > 0) {
+				await sql`
+					UPDATE hris.lms_session_attendances
+					SET status = ${status}, notes = ${notes}, attended_at = CURRENT_TIMESTAMP
+					WHERE id = ${existing[0].id};
+				`;
+			} else {
+				await sql`
+					INSERT INTO hris.lms_session_attendances (
+						session_id, payroll_id, employee_name, department, status, notes
+					) VALUES (
+						${sessionId}, ${payrollId}, ${employeeName}, ${department}, ${status}, ${notes}
+					);
+				`;
+			}
 			return { success: true, message: `Kehadiran ${employeeName} (${status}) berhasil dicatat.` };
 		} catch (e: any) {
 			return { success: false, message: 'Gagal mencatat absensi.' };

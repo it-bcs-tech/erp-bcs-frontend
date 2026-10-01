@@ -33,8 +33,8 @@
 	type TabType = 'catalog' | 'sessions' | 'evaluations' | 'safety_tna' | 'reports';
 	let activeTab = $state<TabType>('catalog');
 	const tabs = [
-		{ id: 'catalog', label: 'Katalog & Kursus', icon: 'auto_stories' },
-		{ id: 'sessions', label: 'Sesi Training & Absensi', icon: 'event_available' },
+		{ id: 'catalog', label: 'Program Pelatihan', icon: 'model_training' },
+		{ id: 'sessions', label: 'Jadwal & Absensi', icon: 'event_available' },
 		{ id: 'evaluations', label: 'Evaluasi Kirkpatrick', icon: 'rate_review' },
 		{ id: 'safety_tna', label: 'Competency & TNA Assessment', icon: 'psychology' },
 		{ id: 'reports', label: 'Laporan & E-Sertifikat', icon: 'workspace_premium' }
@@ -465,6 +465,7 @@
 	}
 
 	// Active Selections
+	let selectedCourseForSession = $state<string>('');
 	let activeCourseForPlayer = $state<any>(null);
 	let activeSessionForAttendance = $state<any>(null);
 	let activeEvalForSupervisor = $state<any>(null);
@@ -1028,7 +1029,7 @@
 				class="px-4 py-2 rounded-xl bg-primary text-on-primary text-xs font-bold hover:bg-primary/90 flex items-center gap-1.5 shadow-sm transition-all cursor-pointer"
 			>
 				<span class="material-symbols-outlined text-sm">add_circle</span>
-				<span>Tambah Kursus Baru</span>
+				<span>+ Tambah Pelatihan Baru</span>
 			</button>
 		</div>
 	</header>
@@ -1036,9 +1037,9 @@
 	<!-- KPI Metric Cards -->
 	<div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 flex-shrink-0">
 		<div class="p-4 rounded-2xl bg-surface-container-low border border-slate-200/60 dark:border-slate-800/60 shadow-xs">
-			<p class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Total Kursus</p>
+			<p class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Total Pelatihan</p>
 			<h3 class="text-xl font-black text-on-surface mt-1 font-mono">{metrics.totalCourses}</h3>
-			<p class="text-[10px] text-emerald-600 font-semibold mt-1">Aktif di Katalog</p>
+			<p class="text-[10px] text-emerald-600 font-semibold mt-1">Program Aktif</p>
 		</div>
 
 		<div class="p-4 rounded-2xl bg-surface-container-low border border-slate-200/60 dark:border-slate-800/60 shadow-xs">
@@ -1170,6 +1171,8 @@
 					{:else}
 						<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
 							{#each filteredCourses as course}
+								{@const courseSessions = sessions.filter((s) => s.courseId === course.id)}
+								{@const nearestSession = courseSessions.length > 0 ? courseSessions[courseSessions.length - 1] : null}
 								<div class="rounded-2xl bg-surface-container border border-slate-200/80 dark:border-slate-800/80 overflow-hidden flex flex-col justify-between group hover:border-primary/50 transition-all shadow-xs">
 									<div>
 										<!-- Thumbnail Banner -->
@@ -1225,6 +1228,45 @@
 												</span>
 											</div>
 
+											<!-- Widget Jadwal Sesi Terdekat & Absensi -->
+											{#if nearestSession}
+												<div class="p-2.5 rounded-xl bg-surface-container-high/60 border border-slate-200/80 dark:border-slate-800/80 text-[11px] space-y-1">
+													<div class="flex items-center justify-between">
+														<span class="text-primary font-bold flex items-center gap-1 text-[10px] uppercase tracking-wider">
+															<span class="material-symbols-outlined text-xs">event</span>
+															<span>Sesi Terdekat:</span>
+														</span>
+														<span class="px-2 py-0.2 rounded-full text-[9px] font-black uppercase {nearestSession.sessionType === 'ONLINE' ? 'bg-indigo-100 text-indigo-800 dark:bg-indigo-950 dark:text-indigo-300' : 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300'}">
+															{nearestSession.sessionType}
+														</span>
+													</div>
+													<p class="font-bold text-on-surface text-xs leading-snug">
+														{nearestSession.sessionDate} • {nearestSession.startTime} - {nearestSession.endTime} WIB
+													</p>
+													<p class="text-[10px] text-slate-500 truncate flex items-center gap-1">
+														<span class="material-symbols-outlined text-[11px]">location_on</span>
+														<span>{nearestSession.locationOrLink || 'Ruang Training'}</span>
+													</p>
+												</div>
+											{:else}
+												<div class="p-2.5 rounded-xl bg-surface-container-high/30 border border-dashed border-slate-300 dark:border-slate-700/60 text-[10px] text-slate-400 flex items-center justify-between">
+													<span class="flex items-center gap-1">
+														<span class="material-symbols-outlined text-xs">calendar_today</span>
+														<span>Belum ada jadwal sesi aktif</span>
+													</span>
+													<button
+														type="button"
+														onclick={() => {
+															selectedCourseForSession = course.id;
+															isSessionModalOpen = true;
+														}}
+														class="text-primary font-bold hover:underline cursor-pointer"
+													>
+														+ Jadwalkan
+													</button>
+												</div>
+											{/if}
+
 											<div class="pt-2 border-t border-slate-200/60 dark:border-slate-800/60 flex items-center justify-between text-[11px] text-slate-500">
 												<span class="flex items-center gap-1">
 													<span class="material-symbols-outlined text-xs">schedule</span>
@@ -1244,18 +1286,37 @@
 
 									<!-- Action Footer -->
 									<div class="p-4 pt-0 flex items-center justify-between gap-2 border-t border-slate-200/40 dark:border-slate-800/40 mt-2">
-										<span class="text-[10px] text-slate-400 truncate max-w-[130px]">
-											Instruktur: <strong class="text-slate-600 dark:text-slate-300">{course.instructor}</strong>
-										</span>
-
 										<button
 											type="button"
 											onclick={() => openCoursePlayer(course)}
-											class="px-3.5 py-1.5 rounded-xl bg-primary hover:bg-primary/90 text-on-primary text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer shadow-xs"
+											class="flex-1 py-1.5 rounded-xl border border-slate-300 dark:border-slate-700 hover:bg-surface-container text-on-surface text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer"
 										>
-											<span class="material-symbols-outlined text-sm">play_circle</span>
-											<span>Buka Player</span>
+											<span class="material-symbols-outlined text-sm text-primary">play_circle</span>
+											<span>Buka Materi</span>
 										</button>
+
+										{#if nearestSession}
+											<button
+												type="button"
+												onclick={() => openAttendanceModal(nearestSession)}
+												class="flex-1 py-1.5 rounded-xl bg-primary hover:bg-primary/90 text-on-primary text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-xs"
+											>
+												<span class="material-symbols-outlined text-sm">how_to_reg</span>
+												<span>Sesi & Absensi</span>
+											</button>
+										{:else}
+											<button
+												type="button"
+												onclick={() => {
+													selectedCourseForSession = course.id;
+													isSessionModalOpen = true;
+												}}
+												class="flex-1 py-1.5 rounded-xl bg-surface-container hover:bg-surface-container-high border border-slate-300 dark:border-slate-700 text-primary text-xs font-bold flex items-center justify-center gap-1 transition-all cursor-pointer"
+											>
+												<span class="material-symbols-outlined text-sm">event</span>
+												<span>+ Jadwal Sesi</span>
+											</button>
+										{/if}
 									</div>
 								</div>
 							{/each}
@@ -3648,8 +3709,8 @@
 		<div class="bg-surface rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden p-6 space-y-4 animate-in zoom-in-95 duration-150">
 			<div class="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800">
 				<div>
-					<h3 class="font-black text-base text-on-surface">Tambah Kursus Baru ke Katalog</h3>
-					<p class="text-[11px] text-slate-500">Standarisasi kurikulum LMS PT Buana Centra Swakarsa 2026</p>
+					<h3 class="font-black text-base text-on-surface">Tambah Program Pelatihan Baru</h3>
+					<p class="text-[11px] text-slate-500">Standarisasi program pelatihan & jadwal pelaksanaan PT BCS 2026</p>
 				</div>
 				<button type="button" onclick={() => (isCreateModalOpen = false)} class="w-8 h-8 rounded-full bg-surface-container flex items-center justify-center text-slate-400 hover:text-slate-600">
 					<span class="material-symbols-outlined text-lg">close</span>
@@ -3666,7 +3727,7 @@
 						: 'text-on-surface-variant hover:bg-surface-container'}"
 				>
 					<span class="material-symbols-outlined text-sm">info</span>
-					<span>1. Info & Divisi</span>
+					<span>1. Info & Jadwal Sesi</span>
 				</button>
 				<button
 					type="button"
@@ -3980,6 +4041,93 @@
 								{/if}
 							</div>
 						{/if}
+
+						<!-- SEKSI JADWAL PELAKSANAAN SESI PELATIHAN -->
+						<div class="p-3.5 rounded-2xl bg-surface-container-low border border-slate-200 dark:border-slate-800 space-y-3">
+							<div class="flex items-center gap-1.5 pb-2 border-b border-slate-200/60 dark:border-slate-800/60">
+								<span class="material-symbols-outlined text-primary text-base">calendar_month</span>
+								<h4 class="font-bold text-xs text-on-surface">Jadwal Pelaksanaan Sesi Pelatihan</h4>
+								<span class="px-2 py-0.5 rounded-full text-[9px] font-black uppercase bg-primary/10 text-primary ml-auto">
+									Otomatis Buat Sesi & Absensi
+								</span>
+							</div>
+
+							<div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+								<div>
+									<label class="font-bold text-on-surface block mb-1">Tanggal Pelatihan *</label>
+									<input
+										type="date"
+										name="sessionDate"
+										required
+										value={new Date().toISOString().split('T')[0]}
+										class="w-full px-2.5 py-2 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800 font-mono text-xs text-on-surface font-semibold"
+									/>
+								</div>
+
+								<div>
+									<label class="font-bold text-on-surface block mb-1">Jam Mulai</label>
+									<input
+										type="time"
+										name="startTime"
+										value="09:00"
+										class="w-full px-2 py-2 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800 font-mono text-xs text-on-surface"
+									/>
+								</div>
+
+								<div>
+									<label class="font-bold text-on-surface block mb-1">Jam Selesai</label>
+									<input
+										type="time"
+										name="endTime"
+										value="11:30"
+										class="w-full px-2 py-2 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800 font-mono text-xs text-on-surface"
+									/>
+								</div>
+							</div>
+
+							<div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+								<div>
+									<label class="font-bold text-on-surface block mb-1">Tipe Pelatihan</label>
+									<select
+										name="sessionType"
+										class="w-full px-3 py-2 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800 text-xs text-on-surface font-semibold"
+									>
+										<option value="OFFLINE">Tatap Muka (Offline)</option>
+										<option value="ONLINE">Daring / Webinar (Online)</option>
+									</select>
+								</div>
+
+								<div class="sm:col-span-2">
+									<label class="font-bold text-on-surface block mb-1">Lokasi Ruangan / Tautan Meeting *</label>
+									<input
+										type="text"
+										name="locationOrLink"
+										required
+										placeholder="Contoh: Ruang Aula Cilegon / Pool Gn. Putri / Google Meet link"
+										value="Ruang Aula Pelatihan BCS Cilegon"
+										class="w-full px-3 py-2 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800 text-xs text-on-surface"
+									/>
+								</div>
+							</div>
+
+							<div class="flex items-center justify-between text-[11px] text-slate-500 pt-1">
+								<span class="flex items-center gap-1 text-[10px]">
+									<span class="material-symbols-outlined text-xs text-emerald-500">info</span>
+									<span>Karyawan perwakilan yang dipilih otomatis terdaftar di daftar hadir sesi ini.</span>
+								</span>
+								<div class="flex items-center gap-1 shrink-0">
+									<span class="font-semibold text-on-surface text-[11px]">Kuota:</span>
+									<input
+										type="number"
+										name="quota"
+										value="30"
+										min="5"
+										max="200"
+										class="w-16 px-2 py-1 rounded-lg bg-surface-container border border-slate-200 dark:border-slate-800 text-center font-mono text-xs"
+									/>
+								</div>
+							</div>
+						</div>
 
 						<div class="grid grid-cols-2 gap-3">
 							<div>
@@ -4312,9 +4460,9 @@
 
 				<div class="grid grid-cols-2 gap-3">
 					<div>
-						<label class="font-bold text-on-surface block mb-1">Pilih Kursus Terkait</label>
-						<select name="courseId" class="w-full px-3 py-2 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800 text-xs text-on-surface">
-							<option value="">-- Tanpa Kursus Online --</option>
+						<label class="font-bold text-on-surface block mb-1">Pilih Program Pelatihan Terkait</label>
+						<select name="courseId" bind:value={selectedCourseForSession} class="w-full px-3 py-2 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800 text-xs text-on-surface font-semibold">
+							<option value="">-- Tanpa Materi Online --</option>
 							{#each courses as c}
 								<option value={c.id}>{c.title}</option>
 							{/each}
@@ -4417,62 +4565,147 @@
 <!-- MODAL 4: CATAT ABSENSI PESERTA (MARK ATTENDANCE)                        -->
 <!-- ════════════════════════════════════════════════════════════════════════ -->
 {#if isAttendanceModalOpen && activeSessionForAttendance}
+	{@const currentSessionAttendances = attendances.filter((a) => a.sessionId === activeSessionForAttendance.id)}
 	<div class="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-4">
-		<div class="bg-surface rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xl w-full max-w-md overflow-hidden p-6 space-y-4 animate-in zoom-in-95 duration-150">
+		<div class="bg-surface rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden p-6 space-y-4 animate-in zoom-in-95 duration-150">
+			<!-- Header Modal Absensi -->
 			<div class="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800">
 				<div>
-					<h3 class="font-black text-base text-on-surface">Input Kehadiran Peserta</h3>
-					<p class="text-xs text-on-surface-variant truncate max-w-xs">{activeSessionForAttendance.title}</p>
+					<div class="flex items-center gap-2">
+						<span class="material-symbols-outlined text-primary text-xl">how_to_reg</span>
+						<h3 class="font-black text-base text-on-surface">Presensi & Kehadiran Peserta Pelatihan</h3>
+					</div>
+					<p class="text-xs text-on-surface-variant mt-0.5 truncate max-w-lg">
+						{activeSessionForAttendance.title} • {activeSessionForAttendance.sessionDate} ({activeSessionForAttendance.startTime} - {activeSessionForAttendance.endTime})
+					</p>
 				</div>
-				<button type="button" onclick={() => (isAttendanceModalOpen = false)} class="w-8 h-8 rounded-full bg-surface-container flex items-center justify-center text-slate-400 hover:text-slate-600">
+				<button type="button" onclick={() => (isAttendanceModalOpen = false)} class="w-8 h-8 rounded-full bg-surface-container flex items-center justify-center text-slate-400 hover:text-slate-600 cursor-pointer">
 					<span class="material-symbols-outlined text-lg">close</span>
 				</button>
 			</div>
 
-			<form method="POST" action="?/markAttendance" use:enhance class="space-y-3.5 text-xs">
-				<input type="hidden" name="sessionId" value={activeSessionForAttendance.id} />
-
-				<div class="grid grid-cols-2 gap-3">
-					<div>
-						<label class="font-bold text-on-surface block mb-1">Payroll ID *</label>
-						<input type="text" name="payrollId" required placeholder="EMP-0042" class="w-full px-3 py-2 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800 font-mono" />
+			<!-- Daftar Peserta Sesi & Quick Mark Status -->
+			<div class="flex-1 overflow-y-auto space-y-4 pr-1 max-h-[60vh]">
+				<div>
+					<div class="flex items-center justify-between mb-2">
+						<h4 class="font-bold text-xs text-on-surface flex items-center gap-1.5">
+							<span class="material-symbols-outlined text-sm text-primary">groups</span>
+							<span>Daftar Peserta Terdaftar ({currentSessionAttendances.length})</span>
+						</h4>
+						<span class="text-[10px] text-slate-400">Klik status untuk update presensi</span>
 					</div>
 
-					<div>
-						<label class="font-bold text-on-surface block mb-1">Departemen</label>
-						<input type="text" name="department" value="Operations" class="w-full px-3 py-2 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800" />
-					</div>
+					{#if currentSessionAttendances.length === 0}
+						<div class="p-6 text-center rounded-2xl bg-surface-container border border-dashed border-slate-300 dark:border-slate-700 text-slate-400 text-xs space-y-1">
+							<span class="material-symbols-outlined text-2xl block text-slate-400">person_off</span>
+							<p class="font-bold">Belum ada peserta yang terdaftar di sesi ini.</p>
+							<p class="text-[11px]">Silakan tambahkan peserta baru melalui form di bawah.</p>
+						</div>
+					{:else}
+						<div class="rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden divide-y divide-slate-100 dark:divide-slate-800">
+							{#each currentSessionAttendances as att}
+								<div class="p-2.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2 hover:bg-surface-container/40 transition-colors">
+									<div>
+										<div class="flex items-center gap-2">
+											<p class="font-bold text-xs text-on-surface">{att.employeeName}</p>
+											<span class="px-2 py-0.2 rounded-md text-[9px] font-mono bg-surface-container text-slate-500">
+												{att.payrollId}
+											</span>
+										</div>
+										<p class="text-[10px] text-slate-400 mt-0.5">
+											{att.department} {#if att.notes}• <span class="italic">{att.notes}</span>{/if}
+										</p>
+									</div>
+
+									<!-- Quick Status Buttons Form -->
+									<div class="flex items-center gap-1">
+										{#each ['HADIR', 'IZIN', 'ALPA'] as st}
+											<form method="POST" action="?/markAttendance" use:enhance class="inline">
+												<input type="hidden" name="sessionId" value={activeSessionForAttendance.id} />
+												<input type="hidden" name="payrollId" value={att.payrollId} />
+												<input type="hidden" name="employeeName" value={att.employeeName} />
+												<input type="hidden" name="department" value={att.department} />
+												<input type="hidden" name="status" value={st} />
+												<button
+													type="submit"
+													class="px-2.5 py-1 rounded-lg text-[10px] font-black transition-all cursor-pointer shadow-2xs
+													{att.status === st
+														? st === 'HADIR'
+															? 'bg-emerald-600 text-white ring-2 ring-emerald-500/30'
+															: st === 'IZIN'
+															? 'bg-amber-500 text-slate-950 ring-2 ring-amber-500/30'
+															: 'bg-rose-600 text-white ring-2 ring-rose-500/30'
+														: 'bg-surface-container hover:bg-surface-container-high text-slate-500 border border-slate-200 dark:border-slate-700'}"
+												>
+													{st}
+												</button>
+											</form>
+										{/each}
+									</div>
+								</div>
+							{/each}
+						</div>
+					{/if}
 				</div>
 
-				<div>
-					<label class="font-bold text-on-surface block mb-1">Nama Lengkap Peserta *</label>
-					<input type="text" name="employeeName" required placeholder="Nama karyawan / driver..." class="w-full px-3 py-2 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800" />
-				</div>
+				<!-- Form Tambah Peserta Baru / Manual -->
+				<div class="p-3.5 rounded-2xl bg-surface-container-low border border-slate-200 dark:border-slate-800 space-y-3">
+					<h4 class="font-bold text-xs text-on-surface flex items-center gap-1">
+						<span class="material-symbols-outlined text-sm text-primary">person_add</span>
+						<span>Tambah Peserta Tambahan ke Sesi ini</span>
+					</h4>
 
-				<div>
-					<label class="font-bold text-on-surface block mb-1">Status Kehadiran</label>
-					<select name="status" class="w-full px-3 py-2 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800 font-bold">
-						<option value="HADIR">HADIR</option>
-						<option value="IZIN">IZIN</option>
-						<option value="ALPA">ALPA</option>
-					</select>
-				</div>
+					<form method="POST" action="?/markAttendance" use:enhance class="space-y-3 text-xs">
+						<input type="hidden" name="sessionId" value={activeSessionForAttendance.id} />
 
-				<div>
-					<label class="font-bold text-on-surface block mb-1">Catatan Kehadiran</label>
-					<input type="text" name="notes" placeholder="Hadir tepat waktu / alasan izin..." class="w-full px-3 py-2 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800" />
-				</div>
+						<div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+							<div>
+								<label class="font-bold text-on-surface block mb-1">Payroll ID / NIK *</label>
+								<input type="text" name="payrollId" required placeholder="Contoh: EMP-0042" class="w-full px-3 py-2 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800 font-mono text-xs" />
+							</div>
 
-				<div class="flex justify-end gap-2 pt-3 border-t border-slate-200 dark:border-slate-800">
-					<button type="button" onclick={() => (isAttendanceModalOpen = false)} class="px-4 py-2 rounded-xl border text-xs font-bold hover:bg-surface-container">
-						Batal
-					</button>
-					<button type="submit" class="px-4 py-2 rounded-xl bg-primary text-on-primary text-xs font-bold hover:bg-primary/90 flex items-center gap-1">
-						<span class="material-symbols-outlined text-sm">check</span>
-						<span>Simpan Absensi</span>
-					</button>
+							<div>
+								<label class="font-bold text-on-surface block mb-1">Departemen</label>
+								<input type="text" name="department" value={activeSessionForAttendance.department || 'Operations'} class="w-full px-3 py-2 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800 text-xs" />
+							</div>
+						</div>
+
+						<div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+							<div>
+								<label class="font-bold text-on-surface block mb-1">Nama Lengkap Peserta *</label>
+								<input type="text" name="employeeName" required placeholder="Nama karyawan..." class="w-full px-3 py-2 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800 text-xs" />
+							</div>
+
+							<div>
+								<label class="font-bold text-on-surface block mb-1">Status Kehadiran</label>
+								<select name="status" class="w-full px-3 py-2 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800 font-bold text-xs">
+									<option value="HADIR">HADIR</option>
+									<option value="IZIN">IZIN</option>
+									<option value="ALPA">ALPA</option>
+								</select>
+							</div>
+						</div>
+
+						<div>
+							<label class="font-bold text-on-surface block mb-1">Catatan Presensi (Opsional)</label>
+							<input type="text" name="notes" placeholder="Catatan kehadiran / konfirmasi izin..." class="w-full px-3 py-2 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800 text-xs" />
+						</div>
+
+						<div class="flex justify-end pt-1">
+							<button type="submit" class="px-3.5 py-1.5 rounded-xl bg-primary text-on-primary text-xs font-bold hover:bg-primary/90 flex items-center gap-1 shadow-xs cursor-pointer">
+								<span class="material-symbols-outlined text-sm">add</span>
+								<span>+ Daftarkan Kehadiran</span>
+							</button>
+						</div>
+					</form>
 				</div>
-			</form>
+			</div>
+
+			<div class="flex justify-end pt-3 border-t border-slate-200 dark:border-slate-800">
+				<button type="button" onclick={() => (isAttendanceModalOpen = false)} class="px-4 py-2 rounded-xl bg-surface-container hover:bg-surface-container-high text-xs font-bold text-on-surface cursor-pointer">
+					Tutup
+				</button>
+			</div>
 		</div>
 	</div>
 {/if}
