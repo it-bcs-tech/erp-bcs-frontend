@@ -474,8 +474,8 @@
 			}));
 	});
 
-	// List kompetensi terpilih dengan detail lengkap & terurut untuk Pinned Section (Seksi Atas)
-	const selectedCompetenciesDetailed = $derived.by(() => {
+	// Filtered kompetensi untuk modal picker (item yang diceklis otomatis naik ke posisi teratas)
+	const filteredModalCompetencies = $derived.by(() => {
 		const aspectOrder: Record<string, number> = {
 			'Core Competency': 1,
 			'Behavioral Competency': 2,
@@ -483,34 +483,29 @@
 		};
 
 		return competencyLibrary
-			.filter((c: any) => selectedCompStandards[c.code]?.selected)
-			.map((c: any) => ({
-				...c,
-				requiredLevel: selectedCompStandards[c.code]?.requiredLevel || 3
-			}))
+			.filter((c: any) => {
+				const matchSearch = compModalSearchQuery === '' ||
+					c.name.toLowerCase().includes(compModalSearchQuery.toLowerCase()) ||
+					c.code.toLowerCase().includes(compModalSearchQuery.toLowerCase());
+				const matchAspect = compModalSelectedAspect === 'All' || c.aspect === compModalSelectedAspect;
+				return matchSearch && matchAspect;
+			})
 			.sort((a: any, b: any) => {
+				const isCheckedA = selectedCompStandards[a.code]?.selected ? 1 : 0;
+				const isCheckedB = selectedCompStandards[b.code]?.selected ? 1 : 0;
+
+				// Item yang sudah diceklis diposisikan di paling atas
+				if (isCheckedA !== isCheckedB) {
+					return isCheckedB - isCheckedA;
+				}
+
+				// Di dalam kelompok status yang sama, urutkan berdasarkan Aspek lalu Kode
 				const aspectA = aspectOrder[a.aspect] || 99;
 				const aspectB = aspectOrder[b.aspect] || 99;
 				if (aspectA !== aspectB) return aspectA - aspectB;
+
 				return a.code.localeCompare(b.code, undefined, { numeric: true });
 			});
-	});
-
-	function removeSelectedComp(code: string) {
-		if (selectedCompStandards[code]) {
-			selectedCompStandards[code].selected = false;
-		}
-	}
-
-	// Filtered kompetensi untuk modal picker
-	const filteredModalCompetencies = $derived.by(() => {
-		return competencyLibrary.filter((c: any) => {
-			const matchSearch = compModalSearchQuery === '' ||
-				c.name.toLowerCase().includes(compModalSearchQuery.toLowerCase()) ||
-				c.code.toLowerCase().includes(compModalSearchQuery.toLowerCase());
-			const matchAspect = compModalSelectedAspect === 'All' || c.aspect === compModalSelectedAspect;
-			return matchSearch && matchAspect;
-		});
 	});
 
 	function toggleModalCompSelection(code: string) {
@@ -5709,176 +5704,114 @@
 				</div>
 
 				<!-- Area Tengah: Filter & Multi-Select Picker Kompetensi -->
-				<div class="p-5 flex flex-col flex-1 overflow-hidden space-y-4">
-					
-					<!-- ═══════════════════════════════════════════════════════════ -->
-					<!-- SEKSI ATAS: KOMPETENSI TERPILIH (PINNED SECTION)            -->
-					<!-- ═══════════════════════════════════════════════════════════ -->
-					{#if selectedCompetenciesDetailed.length > 0}
-						<div class="p-3.5 rounded-2xl bg-primary/5 dark:bg-primary/10 border border-primary/20 space-y-2.5">
-							<div class="flex items-center justify-between">
-								<div class="flex items-center gap-2">
-									<span class="material-symbols-outlined text-primary text-base">verified</span>
-									<span class="font-bold text-xs text-on-surface">Kompetensi Terpilih:</span>
-									<span class="px-2 py-0.5 rounded-full text-[11px] font-black bg-primary text-on-primary shadow-xs">
-										{selectedCompetenciesDetailed.length} Kompetensi
-									</span>
-								</div>
-
-								<button
-									type="button"
-									onclick={() => clearAllModalComps()}
-									class="px-2.5 py-1 rounded-lg bg-surface hover:bg-rose-500/10 text-[11px] font-bold text-slate-400 hover:text-rose-500 border border-slate-200 dark:border-slate-700 transition-all cursor-pointer flex items-center gap-1"
-								>
-									<span class="material-symbols-outlined text-xs">delete_sweep</span>
-									<span>Kosongkan Semua</span>
-								</button>
-							</div>
-
-							<!-- Scrollable Container untuk Kompetensi Terpilih -->
-							<div class="max-h-48 overflow-y-auto divide-y divide-primary/10 rounded-xl bg-surface border border-primary/20 pr-1">
-								{#each selectedCompetenciesDetailed as comp}
-									<div class="p-2.5 flex items-center justify-between gap-3 hover:bg-surface-container/60 transition-colors">
-										<div class="flex items-center gap-2.5 min-w-0">
-											<span class="px-1.5 py-0.5 rounded-md font-mono text-[10px] font-black shrink-0 {comp.aspect === 'Core Competency' ? 'bg-indigo-100 text-indigo-800 dark:bg-indigo-950 dark:text-indigo-300 border border-indigo-300 dark:border-indigo-800' : comp.aspect === 'Behavioral Competency' ? 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 border border-amber-300 dark:border-amber-800' : 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800'}">
-												{comp.code}
-											</span>
-											<div class="min-w-0">
-												<p class="text-xs font-bold text-on-surface truncate leading-tight">{comp.name}</p>
-												<p class="text-[10px] text-slate-400 leading-tight">{comp.aspect}</p>
-											</div>
-										</div>
-
-										<div class="flex items-center gap-2 shrink-0">
-											<div class="flex items-center gap-1">
-												<span class="text-[10px] font-bold text-slate-400">Target:</span>
-												<select
-													value={comp.requiredLevel}
-													onchange={(e) => setModalCompLevel(comp.code, Number((e.target as HTMLSelectElement).value))}
-													class="px-2 py-1 rounded-lg text-xs font-mono font-bold border border-primary/30 bg-primary/5 text-primary focus:ring-1 focus:ring-primary outline-none cursor-pointer"
-												>
-													<option value={1}>L1 (SOP Dasar)</option>
-													<option value={2}>L2 (Mandiri)</option>
-													<option value={3}>L3 (Problem Solving)</option>
-													<option value={4}>L4 (Supervisi/Analisis)</option>
-													<option value={5}>L5 (Expert/Inovator)</option>
-												</select>
-											</div>
-
-											<button
-												type="button"
-												onclick={() => removeSelectedComp(comp.code)}
-												class="w-7 h-7 rounded-lg bg-surface-container hover:bg-rose-500/10 text-slate-400 hover:text-rose-500 flex items-center justify-center transition-colors cursor-pointer"
-												title="Hapus kompetensi ini dari standar jabatan"
-											>
-												<span class="material-symbols-outlined text-sm">close</span>
-											</button>
-										</div>
-									</div>
-								{/each}
-							</div>
-						</div>
-					{:else}
-						<div class="p-3 rounded-2xl bg-surface-container/40 border border-dashed border-slate-300 dark:border-slate-700 text-center">
-							<p class="text-xs font-semibold text-slate-400">
-								Belum ada kompetensi yang dipilih. Silakan cari dan ceklis kompetensi pada katalog di bawah ini.
-							</p>
-						</div>
-					{/if}
-
-					<!-- ═══════════════════════════════════════════════════════════ -->
-					<!-- SEKSI BAWAH: KATALOG KOMPETENSI (PENCARIAN & PEMILIHAN)     -->
-					<!-- ═══════════════════════════════════════════════════════════ -->
-					<div class="flex flex-col flex-1 min-h-0 space-y-2.5">
-						<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
-							<div class="flex items-center gap-1.5">
-								<span class="material-symbols-outlined text-sm text-slate-400">menu_book</span>
-								<span class="font-bold text-on-surface">Katalog Kompetensi</span>
-								<span class="text-[11px] text-slate-400">({filteredModalCompetencies.length} tersedia)</span>
-							</div>
-
-							<div class="flex items-center gap-2">
-								<button
-									type="button"
-									onclick={() => selectAllFilteredModalComps()}
-									class="px-2.5 py-1 rounded-lg bg-surface-container-high hover:bg-slate-700 text-[11px] font-bold text-on-surface transition-all cursor-pointer"
-								>
-									Pilih Semua Hasil Filter ({filteredModalCompetencies.length})
-								</button>
-							</div>
-						</div>
-
-						<!-- Search & Filter Aspek -->
-						<div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
-							<div class="sm:col-span-2 relative">
-								<span class="material-symbols-outlined absolute left-3 top-2 text-slate-400 text-sm">search</span>
-								<input
-									type="text"
-									bind:value={compModalSearchQuery}
-									placeholder="Cari kode atau nama kompetensi..."
-									class="w-full pl-8 pr-3 py-1.5 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800 text-xs text-on-surface focus:outline-hidden"
-								/>
-							</div>
-							<select
-								bind:value={compModalSelectedAspect}
-								class="px-3 py-1.5 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800 text-xs text-on-surface"
-							>
-								<option value="All">Semua Aspek</option>
-								<option value="Core Competency">Core Competency</option>
-								<option value="Behavioral Competency">Behavioral Competency</option>
-								<option value="Technical Competency">Technical Competency</option>
-							</select>
-						</div>
-
-						<!-- List Checklist Katalog -->
-						<div class="flex-1 overflow-y-auto divide-y divide-slate-200/60 dark:divide-slate-800/60 rounded-2xl border border-slate-200/60 dark:border-slate-800/60 bg-surface min-h-[180px] max-h-56">
-							{#each filteredModalCompetencies as comp}
-								{@const isChecked = selectedCompStandards[comp.code]?.selected || false}
-								{@const currentLevel = selectedCompStandards[comp.code]?.requiredLevel || 3}
-								<div class="p-2.5 flex items-center justify-between gap-3 hover:bg-surface-container/40 transition-colors {isChecked ? 'bg-primary/5' : ''}">
-									<label class="flex items-center gap-3 cursor-pointer flex-1 min-w-0">
-										<input
-											type="checkbox"
-											checked={isChecked}
-											onchange={() => toggleModalCompSelection(comp.code)}
-											class="w-4 h-4 rounded-md border-slate-400 text-primary focus:ring-primary cursor-pointer"
-										/>
-										<div class="min-w-0">
-											<div class="flex items-center gap-2 flex-wrap">
-												<span class="px-1.5 py-0.5 rounded-md font-mono text-[10px] font-black bg-surface-container-high border border-slate-700 text-primary">
-													{comp.code}
-												</span>
-												<span class="text-[10px] text-slate-400 font-semibold">{comp.aspect}</span>
-											</div>
-											<p class="text-xs font-bold text-on-surface truncate">{comp.name}</p>
-										</div>
-									</label>
-
-									<div class="flex items-center gap-2 shrink-0">
-										{#if isChecked}
-											<span class="px-2 py-0.5 rounded-md text-[10px] font-bold bg-primary/20 text-primary flex items-center gap-1">
-												<span class="material-symbols-outlined text-xs">check</span>
-												<span>Terpilih (L{currentLevel})</span>
-											</span>
-										{:else}
-											<button
-												type="button"
-												onclick={() => toggleModalCompSelection(comp.code)}
-												class="px-2 py-0.5 rounded-md text-[10px] font-bold bg-surface-container hover:bg-primary/10 text-slate-400 hover:text-primary transition-colors cursor-pointer"
-											>
-												+ Pilih
-											</button>
-										{/if}
-									</div>
-								</div>
-							{/each}
-
-							{#if filteredModalCompetencies.length === 0}
-								<div class="p-8 text-center text-xs text-slate-400">
-									Tidak ditemukan kompetensi yang cocok dengan kata kunci pencarian.
-								</div>
+				<div class="p-5 flex flex-col flex-1 overflow-hidden space-y-3">
+					<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+						<div class="flex items-center gap-2">
+							<span class="font-bold text-on-surface">Pilih Kompetensi Wajib:</span>
+							<span class="px-2.5 py-0.5 rounded-full text-[11px] font-black bg-primary/10 text-primary border border-primary/20">
+								{selectedCompStandardsList.length} Dipilih
+							</span>
+							{#if selectedCompStandardsList.length > 0}
+								<span class="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold flex items-center gap-1">
+									<span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+									<span>(Otomatis diurutkan ke posisi teratas)</span>
+								</span>
 							{/if}
 						</div>
+
+						<div class="flex items-center gap-2 flex-wrap">
+							<button
+								type="button"
+								onclick={() => selectAllFilteredModalComps()}
+								class="px-2.5 py-1 rounded-lg bg-surface-container-high hover:bg-slate-700 text-[11px] font-bold text-on-surface transition-all cursor-pointer"
+							>
+								Pilih Semua ({filteredModalCompetencies.length})
+							</button>
+							<button
+								type="button"
+								onclick={() => clearAllModalComps()}
+								class="px-2.5 py-1 rounded-lg bg-surface-container text-[11px] font-bold text-slate-400 hover:text-rose-400 transition-all cursor-pointer"
+							>
+								Kosongkan
+							</button>
+						</div>
+					</div>
+
+					<!-- Search & Filter Aspek -->
+					<div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
+						<div class="sm:col-span-2 relative">
+							<span class="material-symbols-outlined absolute left-3 top-2 text-slate-400 text-sm">search</span>
+							<input
+								type="text"
+								bind:value={compModalSearchQuery}
+								placeholder="Cari kode atau nama kompetensi..."
+								class="w-full pl-8 pr-3 py-1.5 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800 text-xs text-on-surface focus:outline-hidden"
+							/>
+						</div>
+						<select
+							bind:value={compModalSelectedAspect}
+							class="px-3 py-1.5 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800 text-xs text-on-surface"
+						>
+							<option value="All">Semua Aspek</option>
+							<option value="Core Competency">Core Competency</option>
+							<option value="Behavioral Competency">Behavioral Competency</option>
+							<option value="Technical Competency">Technical Competency</option>
+						</select>
+					</div>
+
+					<!-- List Checklist Multi-Select: Satu Daftar Tunggal dengan Item Tercentang Otomatis Naik ke Atas -->
+					<div class="flex-1 overflow-y-auto divide-y divide-slate-200/60 dark:divide-slate-800/60 rounded-2xl border border-slate-200/60 dark:border-slate-800/60 bg-surface">
+						{#each filteredModalCompetencies as comp}
+							{@const isChecked = selectedCompStandards[comp.code]?.selected || false}
+							{@const currentLevel = selectedCompStandards[comp.code]?.requiredLevel || 3}
+							<div class="p-3 flex items-center justify-between gap-3 hover:bg-surface-container/40 transition-colors {isChecked ? 'bg-primary/5 dark:bg-primary/10 border-l-4 border-l-primary' : ''}">
+								<label class="flex items-center gap-3 cursor-pointer flex-1 min-w-0">
+									<input
+										type="checkbox"
+										checked={isChecked}
+										onchange={() => toggleModalCompSelection(comp.code)}
+										class="w-4 h-4 rounded-md border-slate-400 text-primary focus:ring-primary cursor-pointer"
+									/>
+									<div class="min-w-0">
+										<div class="flex items-center gap-2 flex-wrap">
+											<span class="px-1.5 py-0.5 rounded-md font-mono text-[10px] font-black shrink-0 {isChecked ? 'bg-primary text-on-primary' : 'bg-surface-container-high border border-slate-700 text-primary'}">
+												{comp.code}
+											</span>
+											<span class="text-[10px] text-slate-400 font-semibold">{comp.aspect}</span>
+											{#if isChecked}
+												<span class="px-1.5 py-0.5 rounded text-[9px] font-bold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+													✓ Terpilih
+												</span>
+											{/if}
+										</div>
+										<p class="text-xs font-bold text-on-surface truncate">{comp.name}</p>
+									</div>
+								</label>
+
+								<!-- Dropdown Target Level untuk kompetensi ini -->
+								<div class="flex items-center gap-1.5 shrink-0">
+									<span class="text-[10px] font-bold text-slate-400">Target Level:</span>
+									<select
+										disabled={!isChecked}
+										value={currentLevel}
+										onchange={(e) => setModalCompLevel(comp.code, Number((e.target as HTMLSelectElement).value))}
+										class="px-2 py-1 rounded-lg text-xs font-mono font-bold border border-slate-200 dark:border-slate-700 bg-surface-container text-on-surface disabled:opacity-40 disabled:cursor-not-allowed"
+									>
+										<option value={1}>L1 (SOP Dasar)</option>
+										<option value={2}>L2 (Mandiri)</option>
+										<option value={3}>L3 (Problem Solving)</option>
+										<option value={4}>L4 (Supervisi/Analisis)</option>
+										<option value={5}>L5 (Expert/Inovator)</option>
+									</select>
+								</div>
+							</div>
+						{/each}
+
+						{#if filteredModalCompetencies.length === 0}
+							<div class="p-8 text-center text-xs text-slate-400">
+								Tidak ditemukan kompetensi yang cocok dengan kata kunci pencarian.
+							</div>
+						{/if}
 					</div>
 				</div>
 
