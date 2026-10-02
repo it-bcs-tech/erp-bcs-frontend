@@ -148,7 +148,7 @@
 	let notesMap = $state<Record<string, string>>({});
 	let generalNotes = $state('Penilaian berkala bawahan langsung mengacu pada pengamatan kondisi nyata di lapangan.');
 
-	function getRating(payrollId: string, compCode: string, defaultTargetLevel: number): number {
+	function getRating(payrollId: string, compCode: string): number {
 		const key = `${payrollId}_${compCode}`;
 		if (ratingsMap[key] !== undefined) {
 			return ratingsMap[key];
@@ -159,7 +159,7 @@
 		if (existing) {
 			return existing.actualLevel;
 		}
-		return defaultTargetLevel;
+		return 0; // 0 = belum dipilih oleh penilai
 	}
 
 	function setRating(payrollId: string, compCode: string, level: number) {
@@ -179,13 +179,6 @@
 
 	function setNote(payrollId: string, compCode: string, text: string) {
 		notesMap[`${payrollId}_${compCode}`] = text;
-	}
-
-	function setAllToTargetForSelected() {
-		if (!selectedEmployee) return;
-		selectedEmployeeCompetencies.forEach((c: any) => {
-			ratingsMap[`${selectedEmployee.payrollId}_${c.competencyCode}`] = c.requiredLevel;
-		});
 	}
 
 	function resetRatingsForSelected() {
@@ -238,7 +231,7 @@
 		});
 	});
 
-	// Derived metrics untuk Progress Tim & Realtime Evaluasi Karyawan Terpilih
+	// Derived metrics untuk Progress Tim & Realtime Evaluasi Karyawan Terpilih (Blind Assessment)
 	const totalTeam = $derived(allDirectSubordinates.length);
 	const assessedTeamCount = $derived(
 		allDirectSubordinates.filter((e: any) => getEmployeeAssessmentStatus(e.payrollId, e.positionTitle).isAssessed).length
@@ -246,21 +239,22 @@
 
 	const selectedEmployeeRatings = $derived(
 		selectedEmployee
-			? selectedEmployeeCompetencies.map((c: any) => getRating(selectedEmployee.payrollId, c.competencyCode, c.requiredLevel))
+			? selectedEmployeeCompetencies.map((c: any) => getRating(selectedEmployee.payrollId, c.competencyCode))
 			: []
 	);
+	const selectedEmployeeAssessedRatings = $derived(
+		selectedEmployeeRatings.filter((r: number) => r > 0)
+	);
 	const selectedEmployeeAvg = $derived(
-		selectedEmployeeRatings.length
-			? (selectedEmployeeRatings.reduce((a: number, b: number) => a + b, 0) / selectedEmployeeRatings.length).toFixed(1)
-			: '0'
+		selectedEmployeeAssessedRatings.length
+			? (selectedEmployeeAssessedRatings.reduce((a: number, b: number) => a + b, 0) / selectedEmployeeAssessedRatings.length).toFixed(1)
+			: '0.0'
 	);
-	const selectedEmployeeGaps = $derived(
-		selectedEmployee
-			? selectedEmployeeCompetencies.filter((c: any) => getRating(selectedEmployee.payrollId, c.competencyCode, c.requiredLevel) < c.requiredLevel).length
-			: 0
+	const selectedEmployeeAssessedCount = $derived(
+		selectedEmployeeAssessedRatings.length
 	);
-	const selectedEmployeeQualified = $derived(
-		selectedEmployeeCompetencies.length - selectedEmployeeGaps
+	const selectedEmployeeIsComplete = $derived(
+		selectedEmployeeCompetencies.length > 0 && selectedEmployeeAssessedCount === selectedEmployeeCompetencies.length
 	);
 </script>
 
@@ -452,22 +446,15 @@
 										</div>
 									</div>
 
-									<!-- Badge Status Asesmen -->
+									<!-- Badge Status Asesmen Netral -->
 									<div class="shrink-0 text-right">
 										{#if status.isAssessed}
-											{#if status.gapsCount === 0}
-												<span class="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-[9.5px] font-black uppercase bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800">
-													<span class="material-symbols-outlined text-[11px]">check_circle</span>
-													<span>Lulus</span>
-												</span>
-											{:else}
-												<span class="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-[9.5px] font-black uppercase bg-rose-100 dark:bg-rose-950 text-rose-700 dark:text-rose-300 border border-rose-300 dark:border-rose-800">
-													<span class="material-symbols-outlined text-[11px]">warning</span>
-													<span>{status.gapsCount} GAP</span>
-												</span>
-											{/if}
+											<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9.5px] font-bold uppercase bg-primary/10 text-primary border border-primary/20">
+												<span class="material-symbols-outlined text-[11px]">task_alt</span>
+												<span>Sudah Dinilai</span>
+											</span>
 										{:else}
-											<span class="inline-flex items-center px-2 py-0.5 rounded-full text-[9.5px] font-bold uppercase bg-slate-100 dark:bg-slate-800 text-slate-500 border border-slate-200 dark:border-slate-700">
+											<span class="inline-flex items-center px-2 py-0.5 rounded-full text-[9.5px] font-bold uppercase bg-surface-container-high text-slate-400 border border-slate-200 dark:border-slate-700">
 												Belum Dinilai
 											</span>
 										{/if}
@@ -544,46 +531,46 @@
 								</div>
 							</div>
 
-							<!-- Action Cepat Set Target -->
-							<div class="flex items-center gap-2 self-start sm:self-auto flex-wrap">
-								<button
-									type="button"
-									onclick={setAllToTargetForSelected}
-									class="px-3 py-1.5 rounded-xl bg-surface-container-high hover:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5"
-									title="Set semua nilai ke target standar HR"
-								>
-									<span class="material-symbols-outlined text-sm">task_alt</span>
-									<span>Set Semua Target</span>
-								</button>
-
+							<!-- Action Reset Pengisian -->
+							<div class="flex items-center gap-2 self-start sm:self-auto">
 								<button
 									type="button"
 									onclick={resetRatingsForSelected}
-									class="px-2.5 py-1.5 rounded-xl bg-surface-container-high hover:bg-surface-container-highest text-slate-400 hover:text-on-surface text-xs font-bold transition-all cursor-pointer"
-									title="Reset pengisian kembali ke awal"
+									class="px-3 py-1.5 rounded-xl bg-surface-container-high hover:bg-surface-container-highest text-slate-400 hover:text-on-surface text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5"
+									title="Reset semua pengisian lembar evaluasi karyawan ini"
 								>
 									<span class="material-symbols-outlined text-sm">restart_alt</span>
+									<span>Reset Pengisian</span>
 								</button>
 							</div>
 						</div>
 
-						<!-- Realtime Calculation Metrics Bar -->
+						<!-- Realtime Calculation Metrics Bar (Netral & Objektif) -->
 						<div class="grid grid-cols-2 sm:grid-cols-4 gap-2.5 pt-3 border-t border-slate-200/40 dark:border-slate-800/40 text-xs">
 							<div class="p-2.5 rounded-2xl bg-surface border border-slate-200/60 dark:border-slate-800/60">
 								<p class="text-[10px] font-bold text-slate-400 uppercase">Total Kompetensi</p>
 								<p class="text-base font-black text-on-surface mt-0.5 font-mono">{selectedEmployeeCompetencies.length} Unit</p>
 							</div>
 							<div class="p-2.5 rounded-2xl bg-surface border border-slate-200/60 dark:border-slate-800/60">
+								<p class="text-[10px] font-bold text-slate-400 uppercase">Progres Penilaian</p>
+								<p class="text-base font-black text-primary mt-0.5 font-mono">
+									{selectedEmployeeAssessedCount} <span class="text-xs text-slate-400 font-normal">/ {selectedEmployeeCompetencies.length} Unit</span>
+								</p>
+							</div>
+							<div class="p-2.5 rounded-2xl bg-surface border border-slate-200/60 dark:border-slate-800/60">
 								<p class="text-[10px] font-bold text-slate-400 uppercase">Rata-rata Skor</p>
-								<p class="text-base font-black text-primary mt-0.5 font-mono">{selectedEmployeeAvg} <span class="text-xs text-slate-400">/ 5</span></p>
+								<p class="text-base font-black text-on-surface mt-0.5 font-mono">
+									{selectedEmployeeAvg} <span class="text-xs text-slate-400 font-normal">/ 5.0</span>
+								</p>
 							</div>
 							<div class="p-2.5 rounded-2xl bg-surface border border-slate-200/60 dark:border-slate-800/60">
-								<p class="text-[10px] font-bold text-emerald-500 uppercase">Memenuhi Syarat</p>
-								<p class="text-base font-black text-emerald-500 mt-0.5 font-mono">{selectedEmployeeQualified} Unit</p>
-							</div>
-							<div class="p-2.5 rounded-2xl bg-surface border border-slate-200/60 dark:border-slate-800/60">
-								<p class="text-[10px] font-bold text-rose-500 uppercase">Kesenjangan (GAP)</p>
-								<p class="text-base font-black text-rose-500 mt-0.5 font-mono">{selectedEmployeeGaps} Unit</p>
+								<p class="text-[10px] font-bold text-slate-400 uppercase">Status Lembar Evaluasi</p>
+								<p class="text-xs font-bold mt-1.5 flex items-center gap-1 {selectedEmployeeIsComplete ? 'text-primary' : 'text-amber-500'}">
+									<span class="material-symbols-outlined text-sm">
+										{selectedEmployeeIsComplete ? 'check_circle' : 'pending'}
+									</span>
+									<span>{selectedEmployeeIsComplete ? 'Siap Disimpan' : 'Belum Lengkap'}</span>
+								</p>
 							</div>
 						</div>
 					</div>
@@ -597,15 +584,12 @@
 						<span class="text-[10px] font-semibold text-primary">Klik baris deskripsi level untuk langsung menilai</span>
 					</div>
 
-					<!-- Snippet Kartu Evaluasi Kompetensi Interaktif -->
+					<!-- Snippet Kartu Evaluasi Kompetensi Objektif (Blind Assessment) -->
 					{#snippet competencyCard(comp: any, aspectTitle: string, aspectColor: string)}
-						{@const currentVal = getRating(selectedEmployee.payrollId, comp.competencyCode, comp.requiredLevel)}
-						{@const gap = currentVal - comp.requiredLevel}
-						{@const isQualified = gap >= 0}
-						{@const compObj = competencyLibrary.find((l: any) => l.code === comp.competencyCode)}
+						{@const currentVal = getRating(selectedEmployee.payrollId, comp.competencyCode)}
 
-						<div class="p-4 sm:p-5 rounded-3xl border transition-all {isQualified ? 'bg-surface border-slate-200/80 dark:border-slate-800/80 shadow-xs' : 'bg-rose-500/[0.03] border-rose-500/30'} space-y-3.5">
-							<!-- Header Kompetensi: Kode, Nama, Target, & Nilai Aktif -->
+						<div class="p-4 sm:p-5 rounded-3xl border bg-surface border-slate-200/80 dark:border-slate-800/80 shadow-xs space-y-3.5">
+							<!-- Header Kompetensi: Kode, Nama, & Nilai Terpilih -->
 							<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-200/50 dark:border-slate-800/50">
 								<div class="space-y-1">
 									<div class="flex items-center gap-2 flex-wrap">
@@ -616,17 +600,18 @@
 									</div>
 								</div>
 
-								<!-- Status Target & Skor Aktif Realtime -->
+								<!-- Status Nilai Terpilih -->
 								<div class="flex items-center gap-2 flex-wrap">
-									<span class="px-2.5 py-1 rounded-xl text-[11px] font-semibold bg-surface-container border border-slate-200 dark:border-slate-700 text-slate-400">
-										Target: <strong class="text-on-surface font-mono">Level {comp.requiredLevel}</strong>
-									</span>
-									<span class="px-2.5 py-1 rounded-xl text-[11px] font-black uppercase flex items-center gap-1.5 {isQualified ? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20' : 'bg-rose-500/10 text-rose-500 border border-rose-500/20'}">
-										<span class="material-symbols-outlined text-sm">
-											{isQualified ? 'check_circle' : 'warning'}
+									{#if currentVal > 0}
+										<span class="px-2.5 py-1 rounded-xl text-[11px] font-bold bg-primary/10 text-primary border border-primary/20 flex items-center gap-1.5">
+											<span class="material-symbols-outlined text-sm">check_circle</span>
+											<span>Level {currentVal} Terpilih</span>
 										</span>
-										<span>Nilai: L{currentVal} ({isQualified ? (gap > 0 ? `+${gap} Melebihi` : 'Sesuai Standar') : `${gap} GAP`})</span>
-									</span>
+									{:else}
+										<span class="px-2.5 py-1 rounded-xl text-[11px] font-semibold bg-surface-container border border-slate-200 dark:border-slate-700 text-slate-400">
+											Belum Dinilai
+										</span>
+									{/if}
 								</div>
 							</div>
 
@@ -642,8 +627,6 @@
 								<div class="grid grid-cols-1 gap-1.5">
 									{#each [1, 2, 3, 4, 5] as lvl}
 										{@const isSelected = currentVal === lvl}
-										{@const isTarget = comp.requiredLevel === lvl}
-										{@const isPassing = lvl >= comp.requiredLevel}
 										{@const desc = getLevelDescription(comp.competencyCode, lvl)}
 
 										<button
@@ -651,38 +634,27 @@
 											onclick={() => setRating(selectedEmployee.payrollId, comp.competencyCode, lvl)}
 											class="w-full text-left p-2.5 sm:p-3 rounded-2xl border transition-all cursor-pointer flex items-start gap-3 group
 											{isSelected
-												? isPassing
-													? 'bg-emerald-500/10 border-emerald-500 ring-1 ring-emerald-500/30 shadow-xs'
-													: 'bg-rose-500/10 border-rose-500 ring-1 ring-rose-500/30 shadow-xs'
+												? 'bg-primary/10 border-primary ring-1 ring-primary/30 shadow-xs'
 												: 'bg-surface-container-low hover:bg-surface-container-high border-slate-200/60 dark:border-slate-800/60'}"
 										>
 											<!-- Level Badge Number -->
 											<div class="shrink-0 flex items-center justify-center w-7 h-7 rounded-xl font-mono text-xs font-black transition-all
 												{isSelected
-													? isPassing
-														? 'bg-emerald-500 text-white shadow-xs scale-105'
-														: 'bg-rose-500 text-white shadow-xs scale-105'
+													? 'bg-primary text-on-primary shadow-xs scale-105'
 													: 'bg-surface-container-high text-slate-400 group-hover:text-on-surface'}">
 												{lvl}
 											</div>
 
-											<!-- Konten Level & Indikator Target -->
+											<!-- Konten Level -->
 											<div class="flex-1 min-w-0">
 												<div class="flex items-center gap-2 flex-wrap mb-0.5">
-													<span class="font-bold text-xs {isSelected ? (isPassing ? 'text-emerald-500' : 'text-rose-500') : 'text-on-surface'}">
+													<span class="font-bold text-xs {isSelected ? 'text-primary' : 'text-on-surface'}">
 														Level {lvl}
 													</span>
-													{#if isTarget}
-														<span class="px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-wider bg-primary/10 text-primary border border-primary/20">
-															Standar Jabatan
-														</span>
-													{/if}
 													{#if isSelected}
-														<span class="ml-auto inline-flex items-center gap-1 text-[10px] font-bold {isPassing ? 'text-emerald-500' : 'text-rose-500'}">
-															<span class="material-symbols-outlined text-xs">
-																{isPassing ? 'task_alt' : 'error'}
-															</span>
-															<span>{isPassing ? 'Terpilih (Lulus)' : 'Terpilih (GAP)'}</span>
+														<span class="ml-auto inline-flex items-center gap-1 text-[10px] font-bold text-primary">
+															<span class="material-symbols-outlined text-xs">check_circle</span>
+															<span>Level Terpilih</span>
 														</span>
 													{/if}
 												</div>
@@ -695,25 +667,12 @@
 								</div>
 							</div>
 
-							<!-- Rekomendasi Modul Pelatihan jika GAP < 0 -->
-							{#if !isQualified}
-								<div class="p-3 rounded-2xl bg-rose-500/10 border border-rose-500/25 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs text-rose-400">
-									<div class="flex items-center gap-2">
-										<span class="material-symbols-outlined text-lg text-rose-500">school</span>
-										<span>Rekomendasi Pelatihan LMS: <strong class="text-rose-300">{comp.defaultCourseTitle || 'Pelatihan Penguatan Kompetensi'}</strong></span>
-									</div>
-									<span class="text-[10px] font-bold text-rose-300 px-2 py-0.5 rounded bg-rose-500/20 self-start sm:self-auto">
-										Auto-Assign TNA
-									</span>
-								</div>
-							{/if}
-
 							<!-- Catatan Observasi Per Butir -->
 							<div class="pt-1">
-								<label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Catatan Observasi Khusus:</label>
+								<label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Catatan Observasi Khusus (Opsional):</label>
 								<input
 									type="text"
-									placeholder="Tuliskan catatan observasi atau bukti kinerja nyata untuk kompetensi ini..."
+									placeholder="Tuliskan catatan observasi atau bukti perilaku nyata untuk kompetensi ini..."
 									value={getNote(selectedEmployee.payrollId, comp.competencyCode)}
 									oninput={(e) => setNote(selectedEmployee.payrollId, comp.competencyCode, (e.target as HTMLInputElement).value)}
 									class="w-full px-3.5 py-2 rounded-xl bg-surface-container border border-slate-200/80 dark:border-slate-800 text-xs text-on-surface placeholder:text-slate-400 outline-none focus:border-primary transition-all"
@@ -881,24 +840,27 @@
 										department: selectedEmployee.department || currentAssessor?.department || 'General',
 										competencyCode: comp.competencyCode,
 										requiredLevel: comp.requiredLevel,
-										actualLevel: getRating(selectedEmployee.payrollId, comp.competencyCode, comp.requiredLevel),
+										actualLevel: getRating(selectedEmployee.payrollId, comp.competencyCode) || 3,
 										notes: getNote(selectedEmployee.payrollId, comp.competencyCode)
 									}))
 								)}
 							/>
 
 							<div class="text-[11px] text-slate-400 font-medium">
-								Penilaian langsung tersimpan ke sistem TNA. Jika terdapat GAP, karyawan otomatis direkomendasikan materi pelatihan terkait.
+								Penilaian objektif akan tersimpan ke basis data evaluasi kompetensi SDM PT BCS.
 							</div>
 
 							<button
 								type="submit"
-								disabled={isSubmitting}
+								disabled={isSubmitting || !selectedEmployeeIsComplete}
 								class="px-6 py-2.5 rounded-xl bg-primary text-on-primary text-xs font-bold shadow-md hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2 cursor-pointer self-stretch sm:self-auto"
 							>
 								{#if isSubmitting}
 									<span class="material-symbols-outlined text-sm animate-spin">progress_activity</span>
 									<span>Menyimpan Asesmen...</span>
+								{:else if !selectedEmployeeIsComplete}
+									<span class="material-symbols-outlined text-sm">edit_note</span>
+									<span>Lengkapi Semua Nilai ({selectedEmployeeAssessedCount}/{selectedEmployeeCompetencies.length})</span>
 								{:else}
 									<span class="material-symbols-outlined text-sm">save</span>
 									<span>Simpan Penilaian {selectedEmployee.name}</span>
@@ -951,10 +913,7 @@
 								<th class="p-3">Nama Karyawan</th>
 								<th class="p-3">Posisi Jabatan</th>
 								<th class="p-3">Kompetensi</th>
-								<th class="p-3 text-center">Standar</th>
-								<th class="p-3 text-center">Aktual</th>
-								<th class="p-3 text-center">GAP</th>
-								<th class="p-3">Status</th>
+								<th class="p-3 text-center">Nilai Diberikan</th>
 								<th class="p-3">Catatan Observasi</th>
 								<th class="p-3">Asesor</th>
 								<th class="p-3">Tanggal</th>
@@ -963,7 +922,7 @@
 						<tbody class="divide-y divide-slate-200/60 dark:divide-slate-800/60">
 							{#each filteredHistory as a}
 								<tr class="hover:bg-surface-container/40">
-									<td class="p-3 font-mono font-bold text-indigo-400">{a.period}</td>
+									<td class="p-3 font-mono font-bold text-primary">{a.period}</td>
 									<td class="p-3">
 										<p class="font-bold text-on-surface">{a.employeeName}</p>
 										<p class="font-mono text-[10px] text-slate-400">{a.payrollId}</p>
@@ -973,14 +932,9 @@
 										<span class="font-mono text-[10px] font-bold text-primary mr-1">[{a.competencyCode}]</span>
 										<span>{a.competencyName}</span>
 									</td>
-									<td class="p-3 text-center font-mono">L{a.requiredLevel}</td>
-									<td class="p-3 text-center font-mono font-black">L{a.actualLevel}</td>
-									<td class="p-3 text-center font-mono font-black {a.gap < 0 ? 'text-rose-500' : 'text-emerald-500'}">
-										{a.gap > 0 ? `+${a.gap}` : a.gap}
-									</td>
-									<td class="p-3">
-										<span class="px-2 py-0.5 rounded-full text-[10px] font-bold {a.status === 'Qualified' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30' : 'bg-rose-500/10 text-rose-400 border border-rose-500/30'}">
-											{a.status}
+									<td class="p-3 text-center">
+										<span class="inline-flex items-center px-2.5 py-1 rounded-xl font-mono text-xs font-black bg-primary/10 text-primary border border-primary/20">
+											Level {a.actualLevel}
 										</span>
 									</td>
 									<td class="p-3 text-slate-500 max-w-[200px] truncate" title={a.notes}>
@@ -993,7 +947,7 @@
 
 							{#if filteredHistory.length === 0}
 								<tr>
-									<td colspan="11" class="p-8 text-center text-slate-400">
+									<td colspan="8" class="p-8 text-center text-slate-400">
 										<span class="material-symbols-outlined text-4xl block mb-2 text-slate-300">search_off</span>
 										<p class="font-bold">Tidak ada riwayat asesmen yang cocok dengan filter pencarian.</p>
 									</td>
