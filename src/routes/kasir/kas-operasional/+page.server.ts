@@ -95,6 +95,136 @@ export const load: PageServerLoad = async ({ locals }) => {
 		// Sort newest first for display
 		ledgerWithBalance.reverse();
 
+		// 6. Shifts pending Daily Closing
+		const pendingShifts = await sql`
+			SELECT 
+				id,
+				session_number as "sessionNumber",
+				shift_name as "shiftName",
+				shift_date as "shiftDate",
+				cashier_name as "cashierName",
+				opened_at as "openedAt",
+				closed_at as "closedAt",
+				opening_cash as "openingCash",
+				total_cash_in as "totalCashIn",
+				total_cash_out as "totalCashOut",
+				expected_closing_cash as "expectedClosingCash",
+				actual_closing_cash as "actualClosingCash",
+				cash_difference as "cashDifference",
+				handover_to as "handoverTo",
+				total_ujo_count as "totalUjoCount",
+				total_ujo_amount as "totalUjoAmount",
+				total_dn_count as "totalDnCount",
+				closing_notes as "closingNotes"
+			FROM finance.kasir_shift_sessions
+			WHERE status = 'CLOSED' AND daily_closing_id IS NULL
+			ORDER BY opened_at ASC
+		`;
+
+		// Calculate daily reconciliation summary if there are pending shifts
+		let reconciliationSummary: any = null;
+		if (pendingShifts.length > 0) {
+			const shiftIds = pendingShifts.map((s: any) => s.id);
+			const initialOpeningCash = parseFloat(pendingShifts[0].openingCash) || 0;
+			const latestActualClosingCash = parseFloat(pendingShifts[pendingShifts.length - 1].actualClosingCash) || 0;
+
+			const totalUjoPaid = pendingShifts.reduce((acc: number, s: any) => acc + (parseFloat(s.totalUjoAmount) || 0), 0);
+			const totalUjoCount = pendingShifts.reduce((acc: number, s: any) => acc + (parseInt(s.totalUjoCount) || 0), 0);
+			const totalDnCount = pendingShifts.reduce((acc: number, s: any) => acc + (parseInt(s.totalDnCount) || 0), 0);
+
+			// Query ledger mutations linked to these shifts
+			const shiftLedger = await sql`
+				SELECT 
+					direction,
+					category,
+					COALESCE(SUM(amount), 0) as total
+				FROM finance.kasir_cash_ledger
+				WHERE shift_session_id = ANY(${shiftIds})
+				GROUP BY direction, category
+			`;
+
+			let totalFundDropped = 0;
+			let totalRefundReceived = 0;
+			let totalDnClaimPaid = 0;
+			let totalOtherExpenses = 0;
+
+			for (const row of shiftLedger) {
+				const amt = parseFloat(row.total) || 0;
+				if (row.direction === 'IN') {
+					if (['DROP_DANA_FINANCE', 'TOPUP_KAS_SHIFT', 'PENARIKAN_KAS_SHIFT'].includes(row.category)) {
+						totalFundDropped += amt;
+					} else {
+						totalRefundReceived += amt;
+					}
+				} else if (row.direction === 'OUT') {
+					if (['SETTLEMENT_DN_EXTRA', 'KLAIM_SURAT_JALAN'].includes(row.category)) {
+						totalDnClaimPaid += amt;
+					} else if (row.category !== 'PENGELUARAN_UJO') {
+						totalOtherExpenses += amt;
+					}
+				}
+			}
+
+			const totalCashOutFromShifts = pendingShifts.reduce((acc: number, s: any) => acc + (parseFloat(s.totalCashOut) || 0), 0);
+			const totalCashOut = Math.max(totalCashOutFromShifts, totalUjoPaid + totalDnClaimPaid + totalOtherExpenses);
+			const totalCashAvailable = initialOpeningCash + totalFundDropped;
+			const expectedClosingCash = totalCashAvailable - totalCashOut + totalRefundReceived;
+			const actualClosingCash = latestActualClosingCash;
+			const cashDifference = actualClosingCash - expectedClosingCash;
+			const status = Math.abs(cashDifference) < 1 ? 'BALANCED' : 'DISCREPANCY';
+
+			reconciliationSummary = {
+				shiftCount: pendingShifts.length,
+				shiftIds,
+				periodStart: pendingShifts[0].openedAt,
+				periodEnd: pendingShifts[pendingShifts.length - 1].closedAt,
+				openingCash: initialOpeningCash,
+				totalFundDropped,
+				totalCashAvailable,
+				totalUjoPaid,
+				totalUjoCount,
+				totalDnClaimPaid,
+				totalDnCount,
+				totalOtherExpenses,
+				totalRefundReceived,
+				totalCashOut,
+				expectedClosingCash,
+				actualClosingCash,
+				cashDifference,
+				status
+			};
+		}
+
+		// 7. Daily Closing History
+		const dailyClosingHistory = await sql`
+			SELECT 
+				id,
+				closing_number as "closingNumber",
+				closing_date as "closingDate",
+				period_start as "periodStart",
+				period_end as "periodEnd",
+				opening_cash as "openingCash",
+				total_fund_dropped as "totalFundDropped",
+				total_cash_available as "totalCashAvailable",
+				total_ujo_paid as "totalUjoPaid",
+				total_dn_claim_paid as "totalDnClaimPaid",
+				total_other_expenses as "totalOtherExpenses",
+				total_refund_received as "totalRefundReceived",
+				total_cash_out as "totalCashOut",
+				expected_closing_cash as "expectedClosingCash",
+				actual_closing_cash as "actualClosingCash",
+				cash_difference as "cashDifference",
+				difference_reason as "differenceReason",
+				status,
+				shift_session_ids as "shiftSessionIds",
+				closed_by as "closedBy",
+				notes,
+				created_at as "createdAt"
+			FROM finance.kasir_daily_closing
+			ORDER BY closing_date DESC, created_at DESC
+			LIMIT 30
+		`;
+
 		return {
 			stats: {
 				currentBalance,
@@ -106,7 +236,10 @@ export const load: PageServerLoad = async ({ locals }) => {
 				pendingTotal
 			},
 			fundRequests: fundRequests as any[],
-			ledger: ledgerWithBalance.slice(0, 100) as any[]
+			ledger: ledgerWithBalance.slice(0, 100) as any[],
+			pendingShifts: pendingShifts as any[],
+			reconciliationSummary,
+			dailyClosingHistory: dailyClosingHistory as any[]
 		};
 	} catch (error) {
 		console.error("Error loading Kas Operasional:", error);
@@ -121,7 +254,10 @@ export const load: PageServerLoad = async ({ locals }) => {
 				pendingTotal: 0
 			},
 			fundRequests: [],
-			ledger: []
+			ledger: [],
+			pendingShifts: [],
+			reconciliationSummary: null,
+			dailyClosingHistory: []
 		};
 	}
 };
@@ -425,5 +561,125 @@ export const actions: Actions = {
 			console.error("Direct expense error:", e);
 			return fail(500, { error: e.message || 'Gagal mencatat pengeluaran kas.' });
 		}
+	},
+
+	finalizeDailyClosing: async ({ request, locals }) => {
+		const data = await request.formData();
+		const shiftIdsRaw = data.get('shiftIds') as string;
+		const shiftIds: number[] = shiftIdsRaw 
+			? shiftIdsRaw.split(',').map(id => parseInt(id.trim())).filter(id => !isNaN(id)) 
+			: [];
+
+		if (shiftIds.length === 0) {
+			return fail(400, { message: 'Tidak ada shift session yang dipilih untuk di-closing.' });
+		}
+
+		const openingCash = parseFloat(data.get('openingCash') as string) || 0;
+		const totalFundDropped = parseFloat(data.get('totalFundDropped') as string) || 0;
+		const totalCashAvailable = parseFloat(data.get('totalCashAvailable') as string) || (openingCash + totalFundDropped);
+		const totalUjoPaid = parseFloat(data.get('totalUjoPaid') as string) || 0;
+		const totalDnClaimPaid = parseFloat(data.get('totalDnClaimPaid') as string) || 0;
+		const totalOtherExpenses = parseFloat(data.get('totalOtherExpenses') as string) || 0;
+		const totalRefundReceived = parseFloat(data.get('totalRefundReceived') as string) || 0;
+		const totalCashOut = parseFloat(data.get('totalCashOut') as string) || (totalUjoPaid + totalDnClaimPaid + totalOtherExpenses);
+		const expectedClosingCash = parseFloat(data.get('expectedClosingCash') as string) || (totalCashAvailable - totalCashOut + totalRefundReceived);
+		const actualClosingCash = parseFloat(data.get('actualClosingCash') as string) || 0;
+		const cashDifference = parseFloat(data.get('cashDifference') as string) || (actualClosingCash - expectedClosingCash);
+		const differenceReason = (data.get('differenceReason') as string)?.trim() || null;
+		const notes = (data.get('notes') as string)?.trim() || null;
+		const periodStart = data.get('periodStart') as string || null;
+		const periodEnd = data.get('periodEnd') as string || null;
+		const user = locals?.user?.name || 'Petugas Keuangan';
+
+		const status = Math.abs(cashDifference) < 1 ? 'BALANCED' : 'DISCREPANCY';
+
+		try {
+			let createdClosing: any = null;
+			await sql.begin(async (sql) => {
+				const now = new Date();
+				const yy = String(now.getFullYear()).slice(-2);
+				const mm = String(now.getMonth() + 1).padStart(2, '0');
+				const dd = String(now.getDate()).padStart(2, '0');
+				const prefix = `DCL-${yy}${mm}${dd}-`;
+
+				const countRes = await sql`
+					SELECT COUNT(*) as count 
+					FROM finance.kasir_daily_closing 
+					WHERE closing_number LIKE ${prefix + '%'}
+				`;
+				const seq = parseInt(countRes[0].count) + 1;
+				const closingNumber = `${prefix}${String(seq).padStart(3, '0')}`;
+				const closingDate = now.toISOString().split('T')[0];
+
+				const insertRes = await sql`
+					INSERT INTO finance.kasir_daily_closing (
+						closing_number,
+						closing_date,
+						period_start,
+						period_end,
+						opening_cash,
+						total_fund_dropped,
+						total_cash_available,
+						total_ujo_paid,
+						total_dn_claim_paid,
+						total_other_expenses,
+						total_refund_received,
+						total_cash_out,
+						expected_closing_cash,
+						actual_closing_cash,
+						cash_difference,
+						difference_reason,
+						status,
+						shift_session_ids,
+						closed_by,
+						notes
+					) VALUES (
+						${closingNumber},
+						${closingDate},
+						${periodStart ? new Date(periodStart) : null},
+						${periodEnd ? new Date(periodEnd) : null},
+						${openingCash},
+						${totalFundDropped},
+						${totalCashAvailable},
+						${totalUjoPaid},
+						${totalDnClaimPaid},
+						${totalOtherExpenses},
+						${totalRefundReceived},
+						${totalCashOut},
+						${expectedClosingCash},
+						${actualClosingCash},
+						${cashDifference},
+						${differenceReason},
+						${status},
+						${shiftIds},
+						${user},
+						${notes}
+					)
+					RETURNING id, closing_number, closing_date, expected_closing_cash, actual_closing_cash, cash_difference, status
+				`;
+
+				createdClosing = insertRes[0];
+
+				// Link closed shifts to this daily closing
+				await sql`
+					UPDATE finance.kasir_shift_sessions
+					SET daily_closing_id = ${createdClosing.id},
+					    updated_at = CURRENT_TIMESTAMP
+					WHERE id = ANY(${shiftIds})
+				`;
+			});
+
+			return {
+				success: true,
+				action: 'finalizeDailyClosing',
+				closingId: createdClosing?.id,
+				closingNumber: createdClosing?.closing_number,
+				message: `Closing Harian ${createdClosing?.closing_number} berhasil difinalisasi!`
+			};
+		} catch (e: any) {
+			console.error("Error finalizing daily closing:", e);
+			return fail(500, { error: e.message || 'Gagal memfinalisasi Closing Harian.' });
+		}
 	}
 };
+

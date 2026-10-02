@@ -7,9 +7,12 @@
 	let stats = $derived(data.stats);
 	let fundRequests = $derived(data.fundRequests || []);
 	let ledger = $derived(data.ledger || []);
+	let pendingShifts = $derived(data.pendingShifts || []);
+	let reconciliationSummary = $derived(data.reconciliationSummary);
+	let dailyClosingHistory = $derived(data.dailyClosingHistory || []);
 
 	// Navigation Tabs
-	let activeMainTab = $state<'REQUESTS' | 'LEDGER'>('REQUESTS');
+	let activeMainTab = $state<'REQUESTS' | 'LEDGER' | 'CLOSING_HARIAN'>('REQUESTS');
 
 	// Filters for Fund Requests
 	let requestFilterStatus = $state<string>('ALL');
@@ -42,9 +45,12 @@
 	let showDirectModal = $state(false);
 	let showConfirmModal = $state(false);
 	let selectedRequestToConfirm = $state<any>(null);
+	let selectedClosingForPrint = $state<any>(null);
 
 	// Form Submission State
 	let isSubmitting = $state(false);
+	let closingNotes = $state('');
+	let differenceReason = $state('');
 
 	// Toast / Notification
 	let toastMessage = $state<string | null>(null);
@@ -57,6 +63,8 @@
 			showDirectModal = false;
 			showConfirmModal = false;
 			selectedRequestToConfirm = null;
+			closingNotes = '';
+			differenceReason = '';
 			toastType = 'success';
 			toastMessage = form.message || 'Operasi berhasil!';
 			setTimeout(() => { toastMessage = null; }, 5000);
@@ -236,7 +244,7 @@
 
 	<!-- Main Tabs Nav -->
 	<div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-slate-200/70 dark:border-slate-800/70 pb-3">
-		<div class="inline-flex p-1 rounded-2xl bg-surface-container-low border border-slate-200/70 dark:border-slate-800/70">
+		<div class="inline-flex p-1 rounded-2xl bg-surface-container-low border border-slate-200/70 dark:border-slate-800/70 flex-wrap">
 			<button 
 				class="px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 {activeMainTab === 'REQUESTS' ? 'bg-emerald-600 text-white' : 'text-on-surface hover:bg-surface-container'}"
 				onclick={() => activeMainTab = 'REQUESTS'}
@@ -255,6 +263,18 @@
 			>
 				<span class="material-symbols-outlined text-base">menu_book</span>
 				<span>Buku Kas & Mutasi Saldo</span>
+			</button>
+			<button 
+				class="px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 {activeMainTab === 'CLOSING_HARIAN' ? 'bg-emerald-600 text-white' : 'text-on-surface hover:bg-surface-container'}"
+				onclick={() => activeMainTab = 'CLOSING_HARIAN'}
+			>
+				<span class="material-symbols-outlined text-base">rule_settings</span>
+				<span>Closing Harian Keuangan</span>
+				{#if pendingShifts.length > 0}
+					<span class="px-1.5 py-0.5 rounded-full text-[10px] font-black bg-amber-400 text-amber-950 ml-1 animate-pulse">
+						{pendingShifts.length} Shift Siap
+					</span>
+				{/if}
 			</button>
 		</div>
 
@@ -280,7 +300,7 @@
 					Diterima ({fundRequests.filter((r: any) => r.status === 'RECEIVED').length})
 				</button>
 			</div>
-		{:else}
+		{:else if activeMainTab === 'LEDGER'}
 			<div class="flex items-center gap-3 w-full sm:w-auto">
 				<!-- Clean borderless search input -->
 				<div class="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-surface-container-low focus-within:ring-2 focus-within:ring-emerald-500/30 flex-1 sm:w-64">
@@ -312,6 +332,13 @@
 						Keluar (OUT)
 					</button>
 				</div>
+			</div>
+		{:else if activeMainTab === 'CLOSING_HARIAN'}
+			<div class="flex items-center gap-2 text-xs">
+				<span class="px-3 py-1.5 rounded-xl bg-surface-container-low border border-slate-200/70 dark:border-slate-800/70 font-semibold text-on-surface-variant flex items-center gap-1.5">
+					<span class="material-symbols-outlined text-base text-emerald-600 dark:text-emerald-400">schedule</span>
+					<span>Audit Harian: Jam 08:00 - 09:00 WIB</span>
+				</span>
 			</div>
 		{/if}
 	</div>
@@ -525,6 +552,378 @@
 						{/each}
 					</tbody>
 				</table>
+			</div>
+		</div>
+	{/if}
+
+	<!-- Tab 3: Closing Harian Keuangan (Audit 3 Shift Kasir) -->
+	{#if activeMainTab === 'CLOSING_HARIAN'}
+		<div class="space-y-6">
+			<!-- Banner Info Audit Pagi -->
+			<div class="p-5 rounded-2xl bg-surface-container-lowest border border-slate-200/70 dark:border-slate-800/70 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+				<div class="flex items-center gap-3.5">
+					<div class="w-12 h-12 rounded-2xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center border border-emerald-500/20 flex-shrink-0">
+						<span class="material-symbols-outlined text-2xl">policy</span>
+					</div>
+					<div>
+						<h2 class="text-base font-black text-on-surface">Rekonsiliasi & Closing Harian Keuangan</h2>
+						<p class="text-xs text-on-surface-variant mt-0.5">
+							Audit harian rutin jam 08:00–09:00 WIB untuk mencocokkan drop dana modal awal keuangan dengan akumulasi pengeluaran 3 shift kasir dan sisa fisik uang kasir.
+						</p>
+					</div>
+				</div>
+				<div class="flex items-center gap-2 flex-shrink-0">
+					{#if pendingShifts.length > 0}
+						<span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-amber-50 text-amber-700 dark:bg-amber-950/50 dark:text-amber-300 border border-amber-200 dark:border-amber-800">
+							<span class="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span>
+							{pendingShifts.length} Shift Siap Direkonsiliasi
+						</span>
+					{:else}
+						<span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
+							<span class="material-symbols-outlined text-sm">verified</span>
+							Semua Shift Terekonsiliasi
+						</span>
+					{/if}
+				</div>
+			</div>
+
+			{#if pendingShifts.length > 0 && reconciliationSummary}
+				<!-- Reconciliation Status Alert Banner -->
+				{#if reconciliationSummary.status === 'BALANCED'}
+					<div class="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 flex items-center gap-3.5 text-xs text-emerald-900 dark:text-emerald-200">
+						<span class="material-symbols-outlined text-emerald-600 text-2xl flex-shrink-0">check_circle</span>
+						<div>
+							<strong class="font-bold text-sm block text-emerald-800 dark:text-emerald-300">Status Rekonsiliasi: BALANCE (Cocok 100%)</strong>
+							<span>Total dana kas yang tersedia cocok persis dengan akumulasi pengeluaran dan sisa uang fisik kasir (Selisih: Rp 0).</span>
+						</div>
+					</div>
+				{:else if reconciliationSummary.cashDifference > 0}
+					<div class="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center gap-3.5 text-xs text-amber-900 dark:text-amber-200">
+						<span class="material-symbols-outlined text-amber-600 text-2xl flex-shrink-0">warning</span>
+						<div>
+							<strong class="font-bold text-sm block text-amber-800 dark:text-amber-300">
+								Status Rekonsiliasi: SELISIH LEBIH (+{formatCurrency(reconciliationSummary.cashDifference)})
+							</strong>
+							<span>Sisa uang fisik aktual di tangan kasir melebihi saldo sistem kasir. Mohon masukkan justifikasi investigasi sebelum melakukan finalisasi.</span>
+						</div>
+					</div>
+				{:else}
+					<div class="p-4 rounded-2xl bg-rose-500/10 border border-rose-500/30 flex items-center gap-3.5 text-xs text-rose-900 dark:text-rose-200">
+						<span class="material-symbols-outlined text-rose-600 text-2xl flex-shrink-0">error</span>
+						<div>
+							<strong class="font-bold text-sm block text-rose-800 dark:text-rose-300">
+								Status Rekonsiliasi: SELISIH KURANG (-{formatCurrency(Math.abs(reconciliationSummary.cashDifference))})
+							</strong>
+							<span>Sisa uang fisik aktual di tangan kasir lebih kecil dari saldo sistem kasir. Mohon cantumkan catatan investigasi sebelum melakukan finalisasi.</span>
+						</div>
+					</div>
+				{/if}
+
+				<!-- Bento Grid Summary Cards -->
+				<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+					<!-- Modal Awal Siklus -->
+					<div class="p-5 rounded-2xl bg-surface-container-lowest border border-slate-200/70 dark:border-slate-800/70 flex flex-col justify-between">
+						<div class="flex items-center justify-between mb-2">
+							<span class="text-xs font-bold text-on-surface-variant uppercase tracking-wider">1. Modal Awal Kasir</span>
+							<div class="w-8 h-8 rounded-lg bg-surface-container text-on-surface flex items-center justify-center">
+								<span class="material-symbols-outlined text-lg">flight_takeoff</span>
+							</div>
+						</div>
+						<div class="text-xl font-black font-mono text-on-surface">
+							{formatCurrency(reconciliationSummary.openingCash)}
+						</div>
+						<p class="text-[11px] text-on-surface-variant mt-2">
+							Kas awal shift pertama siklus ini
+						</p>
+					</div>
+
+					<!-- Total Drop Dana Keuangan -->
+					<div class="p-5 rounded-2xl bg-surface-container-lowest border border-slate-200/70 dark:border-slate-800/70 flex flex-col justify-between">
+						<div class="flex items-center justify-between mb-2">
+							<span class="text-xs font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">2. Drop Dana Keuangan</span>
+							<div class="w-8 h-8 rounded-lg bg-emerald-500/10 text-emerald-600 flex items-center justify-center">
+								<span class="material-symbols-outlined text-lg">add_card</span>
+							</div>
+						</div>
+						<div class="text-xl font-black font-mono text-emerald-600 dark:text-emerald-400">
+							{formatCurrency(reconciliationSummary.totalFundDropped)}
+						</div>
+						<p class="text-[11px] text-on-surface-variant mt-2">
+							Total modal: <strong class="font-mono text-on-surface">{formatCurrency(reconciliationSummary.totalCashAvailable)}</strong>
+						</p>
+					</div>
+
+					<!-- Realisasi Pengeluaran Kasir -->
+					<div class="p-5 rounded-2xl bg-surface-container-lowest border border-slate-200/70 dark:border-slate-800/70 flex flex-col justify-between">
+						<div class="flex items-center justify-between mb-2">
+							<span class="text-xs font-bold text-rose-600 dark:text-rose-400 uppercase tracking-wider">3. Realisasi Pengeluaran</span>
+							<div class="w-8 h-8 rounded-lg bg-rose-500/10 text-rose-600 flex items-center justify-center">
+								<span class="material-symbols-outlined text-lg">payments</span>
+							</div>
+						</div>
+						<div class="text-xl font-black font-mono text-rose-600 dark:text-rose-400">
+							{formatCurrency(reconciliationSummary.totalCashOut)}
+						</div>
+						<p class="text-[11px] text-on-surface-variant mt-2">
+							UJO: {reconciliationSummary.totalUjoCount} rit ({formatCurrency(reconciliationSummary.totalUjoPaid)})
+						</p>
+					</div>
+
+					<!-- Sisa Fisik Kasir & Selisih -->
+					<div class="p-5 rounded-2xl bg-surface-container-lowest border border-slate-200/70 dark:border-slate-800/70 flex flex-col justify-between">
+						<div class="flex items-center justify-between mb-2">
+							<span class="text-xs font-bold uppercase tracking-wider {reconciliationSummary.status === 'BALANCED' ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400'}">
+								4. Sisa Fisik Kasir
+							</span>
+							<div class="w-8 h-8 rounded-lg {reconciliationSummary.status === 'BALANCED' ? 'bg-emerald-500/10 text-emerald-600' : 'bg-amber-500/10 text-amber-600'} flex items-center justify-center">
+								<span class="material-symbols-outlined text-lg">point_of_sale</span>
+							</div>
+						</div>
+						<div class="text-xl font-black font-mono text-on-surface">
+							{formatCurrency(reconciliationSummary.actualClosingCash)}
+						</div>
+						<p class="text-[11px] font-bold mt-2 {reconciliationSummary.cashDifference === 0 ? 'text-emerald-600' : reconciliationSummary.cashDifference > 0 ? 'text-amber-600' : 'text-rose-600'}">
+							Selisih: {reconciliationSummary.cashDifference >= 0 ? '+' : ''}{formatCurrency(reconciliationSummary.cashDifference)}
+						</p>
+					</div>
+				</div>
+
+				<!-- Form Finalisasi Closing Harian -->
+				<div class="rounded-2xl bg-surface-container-lowest border border-slate-200/70 dark:border-slate-800/70 p-6">
+					<div class="flex items-center gap-2 mb-4">
+						<span class="material-symbols-outlined text-emerald-600 dark:text-emerald-400">assignment_turned_in</span>
+						<h3 class="text-sm font-bold text-on-surface uppercase tracking-wider">Form Finalisasi & Berita Acara Closing Harian</h3>
+					</div>
+
+					<form method="POST" action="?/finalizeDailyClosing" use:enhance={() => {
+						isSubmitting = true;
+						return async ({ update }) => {
+							await update();
+							isSubmitting = false;
+						};
+					}} class="space-y-4">
+						<!-- Hidden Calculation Fields -->
+						<input type="hidden" name="shiftIds" value={reconciliationSummary.shiftIds.join(',')} />
+						<input type="hidden" name="openingCash" value={reconciliationSummary.openingCash} />
+						<input type="hidden" name="totalFundDropped" value={reconciliationSummary.totalFundDropped} />
+						<input type="hidden" name="totalCashAvailable" value={reconciliationSummary.totalCashAvailable} />
+						<input type="hidden" name="totalUjoPaid" value={reconciliationSummary.totalUjoPaid} />
+						<input type="hidden" name="totalDnClaimPaid" value={reconciliationSummary.totalDnClaimPaid} />
+						<input type="hidden" name="totalOtherExpenses" value={reconciliationSummary.totalOtherExpenses} />
+						<input type="hidden" name="totalRefundReceived" value={reconciliationSummary.totalRefundReceived} />
+						<input type="hidden" name="totalCashOut" value={reconciliationSummary.totalCashOut} />
+						<input type="hidden" name="expectedClosingCash" value={reconciliationSummary.expectedClosingCash} />
+						<input type="hidden" name="actualClosingCash" value={reconciliationSummary.actualClosingCash} />
+						<input type="hidden" name="cashDifference" value={reconciliationSummary.cashDifference} />
+						<input type="hidden" name="periodStart" value={reconciliationSummary.periodStart} />
+						<input type="hidden" name="periodEnd" value={reconciliationSummary.periodEnd} />
+
+						<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+							{#if reconciliationSummary.status !== 'BALANCED'}
+								<div class="md:col-span-2">
+									<label class="block text-xs font-bold text-rose-600 dark:text-rose-400 uppercase tracking-wider mb-1.5" for="diffReason">
+										Catatan Investigasi Selisih Kas (Wajib Diisi) <span class="text-rose-500">*</span>
+									</label>
+									<textarea 
+										id="diffReason"
+										name="differenceReason"
+										rows="2"
+										required
+										bind:value={differenceReason}
+										placeholder="Jelaskan alasan atau kronologi selisih kas antara sistem dan fisik kasir..."
+										class="w-full px-3.5 py-2.5 rounded-xl text-xs bg-surface-container-low border border-rose-300 dark:border-rose-800 text-on-surface focus:outline-none focus:ring-2 focus:ring-rose-500/30"
+									></textarea>
+								</div>
+							{/if}
+
+							<div class="md:col-span-2">
+								<label class="block text-xs font-bold text-on-surface uppercase tracking-wider mb-1.5" for="generalNotes">
+									Catatan Tambahan Petugas Keuangan (Opsional)
+								</label>
+								<input 
+									id="generalNotes"
+									type="text"
+									name="notes"
+									bind:value={closingNotes}
+									placeholder="Contoh: Seluruh bukti fisik tanda terima UJO dan DN lengkap & tervalidasi."
+									class="w-full px-3.5 py-2.5 rounded-xl text-xs bg-surface-container-low border border-slate-200 dark:border-slate-800 text-on-surface focus:outline-none focus:ring-2 focus:ring-emerald-500/30"
+								/>
+							</div>
+						</div>
+
+						<div class="pt-3 border-t border-slate-200/70 dark:border-slate-800/70 flex flex-col sm:flex-row items-center justify-between gap-3">
+							<p class="text-[11px] text-on-surface-variant flex items-center gap-1.5">
+								<span class="material-symbols-outlined text-sm text-emerald-600">lock</span>
+								<span>Finalisasi akan mengunci {pendingShifts.length} shift kasir dan menerbitkan Berita Acara Rekonsiliasi resmi.</span>
+							</p>
+
+							<button 
+								type="submit" 
+								disabled={isSubmitting}
+								class="w-full sm:w-auto px-6 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white text-xs font-bold transition-colors flex items-center justify-center gap-2 shadow-sm"
+							>
+								<span class="material-symbols-outlined text-base">{isSubmitting ? 'sync' : 'verified'}</span>
+								<span>{isSubmitting ? 'Memproses Closing...' : 'Finalisasi Closing Harian'}</span>
+							</button>
+						</div>
+					</form>
+				</div>
+
+				<!-- Rincian Shift Kasir yang Direkonsiliasi -->
+				<div class="rounded-2xl bg-surface-container-lowest border border-slate-200/70 dark:border-slate-800/70 overflow-hidden">
+					<div class="px-5 py-4 border-b border-slate-200/70 dark:border-slate-800/70 flex items-center justify-between bg-surface-container-low/40">
+						<h3 class="text-xs font-bold text-on-surface uppercase tracking-wider flex items-center gap-2">
+							<span class="material-symbols-outlined text-base text-emerald-600">schedule</span>
+							<span>Daftar {pendingShifts.length} Shift Kasir yang Termasuk Dalam Closing Ini</span>
+						</h3>
+					</div>
+					<div class="overflow-x-auto">
+						<table class="w-full text-left border-collapse">
+							<thead>
+								<tr class="border-b border-slate-200/70 dark:border-slate-800/70 bg-surface-container-low/20 text-[11px] font-bold text-on-surface-variant uppercase tracking-wider">
+									<th class="py-3 px-4">Shift & Sesi</th>
+									<th class="py-3 px-4">Kasir Bertugas</th>
+									<th class="py-3 px-4">Jam Sesi</th>
+									<th class="py-3 px-4 text-right">Modal Awal</th>
+									<th class="py-3 px-4 text-right">Kas Masuk</th>
+									<th class="py-3 px-4 text-right">Kas Keluar</th>
+									<th class="py-3 px-4 text-right">Fisik Diserahkan</th>
+									<th class="py-3 px-4 text-center">Selisih</th>
+									<th class="py-3 px-4">Handover Ke</th>
+								</tr>
+							</thead>
+							<tbody class="divide-y divide-slate-200/60 dark:divide-slate-800/60 text-xs font-medium">
+								{#each pendingShifts as s}
+									<tr class="hover:bg-surface-container/30 transition-colors">
+										<td class="py-3 px-4">
+											<span class="font-bold text-on-surface">{s.shiftName}</span>
+											<p class="text-[10px] font-mono text-on-surface-variant">{s.sessionNumber}</p>
+										</td>
+										<td class="py-3 px-4 font-semibold text-on-surface">
+											{s.cashierName}
+										</td>
+										<td class="py-3 px-4 text-[11px] text-on-surface-variant font-mono">
+											{formatDateTime(s.openedAt)}<br/>s.d. {formatDateTime(s.closedAt)}
+										</td>
+										<td class="py-3 px-4 text-right font-mono font-semibold">
+											{formatCurrency(parseFloat(s.openingCash))}
+										</td>
+										<td class="py-3 px-4 text-right font-mono text-emerald-600 dark:text-emerald-400">
+											+{formatCurrency(parseFloat(s.totalCashIn))}
+										</td>
+										<td class="py-3 px-4 text-right font-mono text-rose-600 dark:text-rose-400">
+											-{formatCurrency(parseFloat(s.totalCashOut))}
+											<p class="text-[10px] text-on-surface-variant font-normal">UJO: {s.totalUjoCount} | DN: {s.totalDnCount}</p>
+										</td>
+										<td class="py-3 px-4 text-right font-mono font-bold text-on-surface bg-surface-container-low/20">
+											{formatCurrency(parseFloat(s.actualClosingCash))}
+										</td>
+										<td class="py-3 px-4 text-center font-mono text-xs">
+											{#if parseFloat(s.cashDifference) === 0}
+												<span class="text-emerald-600 font-bold">Rp 0</span>
+											{:else}
+												<span class="text-rose-600 font-bold">{formatCurrency(parseFloat(s.cashDifference))}</span>
+											{/if}
+										</td>
+										<td class="py-3 px-4 text-[11px] text-on-surface-variant">
+											{s.handoverTo || '-'}
+										</td>
+									</tr>
+								{/each}
+							</tbody>
+						</table>
+					</div>
+				</div>
+			{:else}
+				<div class="rounded-2xl bg-surface-container-lowest border border-slate-200/70 dark:border-slate-800/70 p-12 text-center text-on-surface-variant">
+					<div class="w-16 h-16 rounded-3xl bg-emerald-500/10 text-emerald-600 mx-auto flex items-center justify-center mb-4">
+						<span class="material-symbols-outlined text-3xl">task_alt</span>
+					</div>
+					<h3 class="text-base font-bold text-on-surface mb-1">Seluruh Shift Kasir Sudah Direkonsiliasi</h3>
+					<p class="text-xs text-on-surface-variant max-w-md mx-auto">
+						Tidak ada sesi shift kasir tertutup yang menunggu closing. Sesi shift baru akan muncul di sini setelah kasir menyelesaikan shift mereka.
+					</p>
+				</div>
+			{/if}
+
+			<!-- Riwayat Closing Harian Sebelumnya -->
+			<div class="rounded-2xl bg-surface-container-lowest border border-slate-200/70 dark:border-slate-800/70 overflow-hidden">
+				<div class="px-5 py-4 border-b border-slate-200/70 dark:border-slate-800/70 flex items-center justify-between bg-surface-container-low/40">
+					<h3 class="text-xs font-bold text-on-surface uppercase tracking-wider flex items-center gap-2">
+						<span class="material-symbols-outlined text-base text-emerald-600">history</span>
+						<span>Riwayat Berita Acara Closing Harian Keuangan</span>
+					</h3>
+					<span class="text-xs text-on-surface-variant">{dailyClosingHistory.length} Berita Acara Tersimpan</span>
+				</div>
+
+				<div class="overflow-x-auto">
+					<table class="w-full text-left border-collapse">
+						<thead>
+							<tr class="border-b border-slate-200/70 dark:border-slate-800/70 bg-surface-container-low/20 text-[11px] font-bold text-on-surface-variant uppercase tracking-wider">
+								<th class="py-3 px-4">No. Dokumen</th>
+								<th class="py-3 px-4">Tanggal Closing</th>
+								<th class="py-3 px-4 text-right">Modal Awal + Drop</th>
+								<th class="py-3 px-4 text-right">Realisasi Keluar</th>
+								<th class="py-3 px-4 text-right">Sisa Fisik Kasir</th>
+								<th class="py-3 px-4 text-center">Status</th>
+								<th class="py-3 px-4">Ditutup Oleh</th>
+								<th class="py-3 px-4 text-right">Aksi</th>
+							</tr>
+						</thead>
+						<tbody class="divide-y divide-slate-200/60 dark:divide-slate-800/60 text-xs font-medium">
+							{#if dailyClosingHistory.length === 0}
+								<tr>
+									<td colspan="8" class="text-center py-8 text-on-surface-variant">
+										Belum ada riwayat closing harian yang tersimpan.
+									</td>
+								</tr>
+							{/if}
+							{#each dailyClosingHistory as hist}
+								<tr class="hover:bg-surface-container/30 transition-colors">
+									<td class="py-3 px-4 font-mono font-bold text-emerald-600 dark:text-emerald-400">
+										{hist.closingNumber}
+									</td>
+									<td class="py-3 px-4 text-on-surface">
+										{formatDate(hist.closingDate)}
+										<p class="text-[10px] text-on-surface-variant font-mono">{formatDateTime(hist.periodStart)} s.d. {formatDateTime(hist.periodEnd)}</p>
+									</td>
+									<td class="py-3 px-4 text-right font-mono font-semibold">
+										{formatCurrency(parseFloat(hist.totalCashAvailable))}
+									</td>
+									<td class="py-3 px-4 text-right font-mono text-rose-600 dark:text-rose-400">
+										-{formatCurrency(parseFloat(hist.totalCashOut))}
+									</td>
+									<td class="py-3 px-4 text-right font-mono font-bold text-on-surface bg-surface-container-low/20">
+										{formatCurrency(parseFloat(hist.actualClosingCash))}
+									</td>
+									<td class="py-3 px-4 text-center">
+										{#if hist.status === 'BALANCED'}
+											<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
+												BALANCE
+											</span>
+										{:else}
+											<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-50 text-rose-700 dark:bg-rose-950/50 dark:text-rose-300 border border-rose-200 dark:border-rose-800">
+												SELISIH {formatCurrency(parseFloat(hist.cashDifference))}
+											</span>
+										{/if}
+									</td>
+									<td class="py-3 px-4 text-on-surface-variant text-[11px]">
+										{hist.closedBy || 'Keuangan'}
+									</td>
+									<td class="py-3 px-4 text-right">
+										<button 
+											class="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-surface-container-low hover:bg-surface-container text-xs font-bold text-on-surface transition-colors flex items-center gap-1.5 ml-auto"
+											onclick={() => selectedClosingForPrint = hist}
+										>
+											<span class="material-symbols-outlined text-sm text-emerald-600">print</span>
+											<span>Cetak Berita Acara</span>
+										</button>
+									</td>
+								</tr>
+							{/each}
+						</tbody>
+					</table>
+				</div>
 			</div>
 		</div>
 	{/if}
@@ -860,3 +1259,250 @@
 		</div>
 	</div>
 {/if}
+
+<!-- MODAL 4: Cetak Berita Acara Rekonsiliasi Kas Harian -->
+{#if selectedClosingForPrint}
+	<div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-xs overflow-y-auto no-print">
+		<div class="w-full max-w-4xl bg-white text-slate-900 rounded-3xl shadow-2xl overflow-hidden my-8 animate-in fade-in zoom-in-95 duration-150">
+			<!-- Modal Controls Header (Hidden in Print) -->
+			<div class="px-6 py-4 border-b border-slate-200 bg-slate-50 flex items-center justify-between no-print">
+				<div class="flex items-center gap-2">
+					<span class="material-symbols-outlined text-emerald-600 text-xl">description</span>
+					<h3 class="text-sm font-bold text-slate-800">Pratinjau Berita Acara Rekonsiliasi Kas Harian</h3>
+				</div>
+				<div class="flex items-center gap-2">
+					<button 
+						type="button"
+						onclick={() => window.print()}
+						class="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition-colors flex items-center gap-1.5 shadow-sm"
+					>
+						<span class="material-symbols-outlined text-sm">print</span>
+						<span>Cetak / Unduh PDF</span>
+					</button>
+					<button 
+						type="button"
+						onclick={() => selectedClosingForPrint = null}
+						class="px-3 py-2 rounded-xl text-slate-500 hover:text-slate-800 text-xs font-bold hover:bg-slate-200/60 transition-colors"
+					>
+						Tutup
+					</button>
+				</div>
+			</div>
+
+			<!-- Document Content Area (Printable Sheet) -->
+			<div class="p-8 sm:p-12 print:p-0 printable-document bg-white text-slate-900">
+				<!-- Kop Dokumen Resmi BCS -->
+				<div class="border-b-2 border-slate-900 pb-4 mb-6">
+					<div class="flex items-start justify-between gap-4">
+						<div class="flex items-center gap-3">
+							<div class="w-12 h-12 rounded-xl bg-emerald-700 text-white flex items-center justify-center font-black text-xl">
+								BCS
+							</div>
+							<div>
+								<h1 class="text-lg font-black tracking-tight text-slate-900">PT BUANA CENTRA SWAKARSA</h1>
+								<p class="text-[10px] text-slate-600 uppercase font-semibold tracking-wider">Logistics & Transportation Services</p>
+								<p class="text-[10px] text-slate-500">Jl. Raya Anyer Km. 122, Ciwandan, Kota Cilegon - Banten</p>
+							</div>
+						</div>
+						<div class="text-right">
+							<span class="inline-block px-3 py-1 rounded-md text-[10px] font-mono font-bold {selectedClosingForPrint.status === 'BALANCED' ? 'bg-emerald-100 text-emerald-800 border border-emerald-300' : 'bg-rose-100 text-rose-800 border border-rose-300'}">
+								{selectedClosingForPrint.status === 'BALANCED' ? 'STATUS: BALANCE' : 'STATUS: DISCREPANCY'}
+							</span>
+							<p class="text-xs font-mono font-bold text-slate-800 mt-1">{selectedClosingForPrint.closingNumber}</p>
+						</div>
+					</div>
+
+					<div class="mt-6 text-center">
+						<h2 class="text-base font-black uppercase tracking-wider text-slate-900">
+							BERITA ACARA REKONSILIASI KAS OPERASIONAL HARIAN
+						</h2>
+						<p class="text-xs font-medium text-slate-600 mt-0.5">
+							Tanggal: <strong>{formatDate(selectedClosingForPrint.closingDate)}</strong> • Periode Siklus 24 Jam Kasir
+						</p>
+					</div>
+				</div>
+
+				<!-- Section I: Metadata Dokumen -->
+				<div class="grid grid-cols-2 gap-4 text-xs mb-6 p-4 rounded-xl bg-slate-50 border border-slate-200">
+					<div>
+						<p class="text-slate-500 text-[11px]">No. Dokumen Closing:</p>
+						<p class="font-mono font-bold text-slate-800">{selectedClosingForPrint.closingNumber}</p>
+						<p class="text-slate-500 text-[11px] mt-2">Periode Transaksi Shift:</p>
+						<p class="font-mono font-semibold text-slate-800">
+							{formatDateTime(selectedClosingForPrint.periodStart)} s.d. {formatDateTime(selectedClosingForPrint.periodEnd)}
+						</p>
+					</div>
+					<div>
+						<p class="text-slate-500 text-[11px]">Petugas Keuangan / Audit:</p>
+						<p class="font-bold text-slate-800">{selectedClosingForPrint.closedBy || 'Tim Keuangan'}</p>
+						<p class="text-slate-500 text-[11px] mt-2">Waktu Finalisasi Dokumen:</p>
+						<p class="font-mono font-semibold text-slate-800">{formatDateTime(selectedClosingForPrint.createdAt)}</p>
+					</div>
+				</div>
+
+				<!-- Section II: Tabel Rekonsiliasi Arus Kas -->
+				<div class="mb-6">
+					<h4 class="text-xs font-bold uppercase tracking-wider text-slate-800 mb-2">
+						A. Rekonsiliasi Modal Awal & Drop Dana Keuangan vs Realisasi Kasir
+					</h4>
+					<table class="w-full text-xs border border-slate-300 border-collapse">
+						<tbody>
+							<tr class="border-b border-slate-200 bg-slate-50">
+								<td class="p-2.5 font-medium text-slate-700">1. Modal Kas Awal Siklus (Shift Pertama)</td>
+								<td class="p-2.5 text-right font-mono font-bold text-slate-900 w-48">
+									{formatCurrency(parseFloat(selectedClosingForPrint.openingCash))}
+								</td>
+							</tr>
+							<tr class="border-b border-slate-200">
+								<td class="p-2.5 font-medium text-slate-700">2. Drop Tambahan Dana dari Keuangan / Brankas</td>
+								<td class="p-2.5 text-right font-mono font-bold text-emerald-700 w-48">
+									+{formatCurrency(parseFloat(selectedClosingForPrint.totalFundDropped))}
+								</td>
+							</tr>
+							<tr class="border-b-2 border-slate-400 bg-emerald-50/50 font-bold text-slate-900">
+								<td class="p-2.5">TOTAL MODAL KAS DIKELOLA KASIR (1 + 2)</td>
+								<td class="p-2.5 text-right font-mono text-emerald-800">
+									{formatCurrency(parseFloat(selectedClosingForPrint.totalCashAvailable))}
+								</td>
+							</tr>
+							<tr class="border-b border-slate-200">
+								<td class="p-2.5 font-medium text-slate-700 pl-6">• Realisasi Pencairan UJO Supir</td>
+								<td class="p-2.5 text-right font-mono text-rose-700">
+									-{formatCurrency(parseFloat(selectedClosingForPrint.totalUjoPaid))}
+								</td>
+							</tr>
+							<tr class="border-b border-slate-200">
+								<td class="p-2.5 font-medium text-slate-700 pl-6">• Realisasi Klaim Extra Cost Surat Jalan Balik (DN)</td>
+								<td class="p-2.5 text-right font-mono text-rose-700">
+									-{formatCurrency(parseFloat(selectedClosingForPrint.totalDnClaimPaid))}
+								</td>
+							</tr>
+							<tr class="border-b border-slate-200">
+								<td class="p-2.5 font-medium text-slate-700 pl-6">• Biaya Operasional Kasir Lainnya</td>
+								<td class="p-2.5 text-right font-mono text-rose-700">
+									-{formatCurrency(parseFloat(selectedClosingForPrint.totalOtherExpenses))}
+								</td>
+							</tr>
+							{#if parseFloat(selectedClosingForPrint.totalRefundReceived) > 0}
+								<tr class="border-b border-slate-200">
+									<td class="p-2.5 font-medium text-slate-700 pl-6">• Penerimaan Pengembalian Sisa Kas / Titipan Supir</td>
+									<td class="p-2.5 text-right font-mono text-emerald-700">
+										+{formatCurrency(parseFloat(selectedClosingForPrint.totalRefundReceived))}
+									</td>
+								</tr>
+							{/if}
+							<tr class="border-b-2 border-slate-400 bg-rose-50/50 font-bold text-slate-900">
+								<td class="p-2.5">TOTAL REALISASI PENGELUARAN KASIR 3 SHIFT</td>
+								<td class="p-2.5 text-right font-mono text-rose-800">
+									-{formatCurrency(parseFloat(selectedClosingForPrint.totalCashOut))}
+								</td>
+							</tr>
+							<tr class="border-b border-slate-200 bg-slate-50 font-semibold text-slate-800">
+								<td class="p-2.5">SALDO KAS SISTEM YANG SEHARUSNYA (EXPECTED CASH)</td>
+								<td class="p-2.5 text-right font-mono font-bold text-slate-900">
+									{formatCurrency(parseFloat(selectedClosingForPrint.expectedClosingCash))}
+								</td>
+							</tr>
+							<tr class="border-b-2 border-slate-400 bg-slate-100 font-bold text-slate-900">
+								<td class="p-2.5">SALDO FISIK AKTUAL HASIL SERAH TERIMA KASIR KE SHIFT 1</td>
+								<td class="p-2.5 text-right font-mono text-slate-900">
+									{formatCurrency(parseFloat(selectedClosingForPrint.actualClosingCash))}
+								</td>
+							</tr>
+							<tr class="border-b border-slate-900 font-black {parseFloat(selectedClosingForPrint.cashDifference) === 0 ? 'bg-emerald-100 text-emerald-900' : 'bg-rose-100 text-rose-900'}">
+								<td class="p-3 text-sm">SELISIH KAS (FISIK vs SISTEM)</td>
+								<td class="p-3 text-right font-mono text-sm">
+									{parseFloat(selectedClosingForPrint.cashDifference) >= 0 ? '+' : ''}{formatCurrency(parseFloat(selectedClosingForPrint.cashDifference))}
+								</td>
+							</tr>
+						</tbody>
+					</table>
+				</div>
+
+				<!-- Section III: Catatan Investigasi -->
+				<div class="mb-8 p-3.5 rounded-xl bg-slate-50 border border-slate-200 text-xs">
+					<p class="font-bold text-slate-800 mb-1">Catatan & Kronologi Investigasi Selisih:</p>
+					<p class="text-slate-700 italic">
+						{selectedClosingForPrint.differenceReason || 'Nihil / Selisih Rp 0. Sisa fisik uang kasir cocok sempurna dengan perhitungan sistem.'}
+					</p>
+					{#if selectedClosingForPrint.notes}
+						<p class="font-bold text-slate-800 mt-2 mb-0.5">Catatan Umum Keuangan:</p>
+						<p class="text-slate-700">{selectedClosingForPrint.notes}</p>
+					{/if}
+				</div>
+
+				<!-- Section IV: Kolom 5 Tanda Tangan Resmi -->
+				<div class="mt-8 pt-4 border-t border-slate-300">
+					<p class="text-center text-xs font-bold uppercase tracking-wider text-slate-700 mb-6">
+						PENGESAHAN & PERTANGGUNGJAWABAN SERAH TERIMA FISIK KAS OPERASIONAL
+					</p>
+					<div class="grid grid-cols-5 gap-2 text-center text-[10px]">
+						<!-- Kasir 1 -->
+						<div class="border border-slate-200 rounded-lg p-2.5 flex flex-col justify-between h-28">
+							<p class="font-bold text-slate-700">Kasir Shift 1</p>
+							<div class="border-b border-slate-300 w-3/4 mx-auto mb-1"></div>
+							<p class="text-slate-500 font-medium">( .......................... )</p>
+						</div>
+
+						<!-- Kasir 2 -->
+						<div class="border border-slate-200 rounded-lg p-2.5 flex flex-col justify-between h-28">
+							<p class="font-bold text-slate-700">Kasir Shift 2</p>
+							<div class="border-b border-slate-300 w-3/4 mx-auto mb-1"></div>
+							<p class="text-slate-500 font-medium">( .......................... )</p>
+						</div>
+
+						<!-- Kasir 3 -->
+						<div class="border border-slate-200 rounded-lg p-2.5 flex flex-col justify-between h-28">
+							<p class="font-bold text-slate-700">Kasir Shift 3</p>
+							<div class="border-b border-slate-300 w-3/4 mx-auto mb-1"></div>
+							<p class="text-slate-500 font-medium">( .......................... )</p>
+						</div>
+
+						<!-- Keuangan -->
+						<div class="border border-slate-200 rounded-lg p-2.5 flex flex-col justify-between h-28 bg-slate-50">
+							<p class="font-bold text-slate-800">Petugas Keuangan</p>
+							<div class="border-b border-slate-400 w-3/4 mx-auto mb-1"></div>
+							<p class="font-bold text-slate-800">{selectedClosingForPrint.closedBy || 'Keuangan'}</p>
+						</div>
+
+						<!-- Supervisor Keuangan -->
+						<div class="border border-slate-200 rounded-lg p-2.5 flex flex-col justify-between h-28 bg-slate-50">
+							<p class="font-bold text-slate-800">Finance Supervisor</p>
+							<div class="border-b border-slate-400 w-3/4 mx-auto mb-1"></div>
+							<p class="text-slate-500 font-medium">( .......................... )</p>
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+{/if}
+
+<style>
+	@media print {
+		:global(body) {
+			background: white !important;
+			color: black !important;
+		}
+		:global(header), 
+		:global(aside), 
+		:global(nav), 
+		:global(footer), 
+		:global(.no-print) {
+			display: none !important;
+		}
+		.printable-document {
+			position: absolute !important;
+			left: 0 !important;
+			top: 0 !important;
+			width: 100% !important;
+			margin: 0 !important;
+			padding: 0 !important;
+			box-shadow: none !important;
+			border: none !important;
+			background: white !important;
+			color: black !important;
+		}
+	}
+</style>
+
