@@ -57,12 +57,57 @@
 	let tnaFilterDept = $state('All');
 	let tnaFilterStatus = $state('All');
 
-	// Report Sub-tabs (Spreadsheet Master Specification: Sheet 306150899)
+	// Report Sub-tabs (Spreadsheet Master Specification: Sheet 306150899 - Unifikasi 5 Laporan Master)
 	type ReportType = 'training' | 'course' | 'attendance' | 'assessment' | 'competency_gap' | 'certificates';
 	let activeReportType = $state<ReportType>('training');
 	let reportSearchQuery = $state('');
 	let reportFilterDept = $state('All');
+	let reportFilterCategory = $state('All');
 	let reportFilterBased = $state('All');
+
+	// Unified Laporan Program Pelatihan (Agregasi Kurikulum + Sesi + Biaya)
+	const unifiedTrainingReports = $derived.by(() => {
+		return courses.map((c: any) => {
+			const matchedSessions = sessions.filter((s: any) => s.courseId === c.id);
+			const totalSessions = matchedSessions.length;
+			const completedSessions = matchedSessions.filter((s: any) => s.status === 'COMPLETED').length;
+			const latestSession = matchedSessions[0];
+
+			const costTrainer = Number(c.costTrainer ?? (latestSession?.costTrainer ?? 0));
+			const costTrainee = Number(c.costTrainee ?? (latestSession?.costTrainee ?? 0));
+			const enrolledCount = Number(c.enrolledCount) || 0;
+			const totalCost = costTrainer + (costTrainee * enrolledCount);
+
+			const trainer = c.instructor || latestSession?.trainer || '-';
+			const trainerType = c.instructorType || latestSession?.trainerType || 'Internal';
+
+			return {
+				...c,
+				totalSessions,
+				completedSessions,
+				latestSession,
+				costTrainer,
+				costTrainee,
+				totalCost,
+				trainer,
+				trainerType,
+				sessionDate: latestSession?.sessionDate || '-',
+				locationOrLink: latestSession?.locationOrLink || '-'
+			};
+		}).filter((item: any) => {
+			const q = reportSearchQuery.trim().toLowerCase();
+			const matchSearch = !q ||
+				item.title.toLowerCase().includes(q) ||
+				item.id.toLowerCase().includes(q) ||
+				(item.trainer && item.trainer.toLowerCase().includes(q));
+
+			const matchDept = reportFilterDept === 'All' || item.department === reportFilterDept || item.division === reportFilterDept;
+			const matchCategory = reportFilterCategory === 'All' || item.category === reportFilterCategory;
+			const matchBased = reportFilterBased === 'All' || item.based === reportFilterBased;
+
+			return matchSearch && matchDept && matchCategory && matchBased;
+		});
+	});
 
 	// Modals State
 	let isCreateModalOpen = $state(false);
@@ -932,46 +977,50 @@
 		let rows: any[][] = [];
 		let filename = '';
 
-		if (activeReportType === 'training') {
-			headers = ['No', 'ID Sesi', 'Nama Training', 'Kategori', 'Based', 'Tanggal Sesi', 'Trainer', 'Tipe Trainer', 'Departemen', 'Biaya Trainer', 'Biaya Trainee', 'Total Biaya', 'Lokasi / Link', 'Status'];
-			rows = sessions.map((s: any, idx: number) => [
+		if (activeReportType === 'training' || activeReportType === 'course') {
+			headers = [
+				'No',
+				'ID Pelatihan',
+				'Judul Program Pelatihan',
+				'Kategori',
+				'Based',
+				'Divisi / Departemen',
+				'Durasi (Jam)',
+				'Passing Grade',
+				'Peserta Terdaftar',
+				'Completion Rate (%)',
+				'Total Sesi',
+				'Tanggal Sesi',
+				'Trainer / Instruktur',
+				'Tipe Trainer',
+				'Biaya Trainer (IDR)',
+				'Biaya Peserta (IDR)',
+				'Total Biaya (IDR)',
+				'Lokasi / Format',
+				'Status'
+			];
+			rows = unifiedTrainingReports.map((item: any, idx: number) => [
 				idx + 1,
-				`"${s.id}"`,
-				`"${s.title}"`,
-				`"${courses.find((c: any) => c.id === s.courseId)?.category || 'Safety'}"`,
-				`"${s.based || 'Mandatory'}"`,
-				`"${s.sessionDate}"`,
-				`"${s.trainer}"`,
-				`"${s.trainerType || 'Internal'}"`,
-				`"${s.department || 'Operations'}"`,
-				s.costTrainer || 500000,
-				s.costTrainee || 0,
-				(s.costTrainer || 500000) + (s.costTrainee || 0),
-				`"${s.locationOrLink}"`,
-				`"${s.status}"`
+				`"${item.id}"`,
+				`"${item.title}"`,
+				`"${item.category || '-'}"`,
+				`"${item.based || 'Mandatory'}"`,
+				`"${item.department || item.division || 'Semua Divisi'}"`,
+				item.durationHours || 2,
+				item.passingGrade || 75,
+				item.enrolledCount || 0,
+				`"${item.completionRate || 0}%"`,
+				item.totalSessions,
+				`"${item.sessionDate || '-'}"`,
+				`"${item.trainer || '-'}"`,
+				`"${item.trainerType || 'Internal'}"`,
+				item.costTrainer || 0,
+				item.costTrainee || 0,
+				item.totalCost || 0,
+				`"${item.locationOrLink || '-'}"`,
+				`"${item.status || 'ACTIVE'}"`
 			]);
-			filename = `Training_Report_BCS_${new Date().toISOString().split('T')[0]}.csv`;
-		} else if (activeReportType === 'course') {
-			headers = ['No', 'ID Kursus', 'Judul Kursus', 'Kategori', 'Based', 'Level', 'Durasi (Jam)', 'Modul', 'Passing Grade', 'Peserta', 'Completion Rate (%)', 'Rating', 'Trainer', 'Tipe Trainer', 'Biaya Trainer', 'Departemen'];
-			rows = courses.map((c: any, idx: number) => [
-				idx + 1,
-				`"${c.id}"`,
-				`"${c.title}"`,
-				`"${c.category}"`,
-				`"${c.based || 'Mandatory'}"`,
-				`"${c.level}"`,
-				c.durationHours,
-				c.modulesCount,
-				c.passingGrade,
-				c.enrolledCount,
-				`${c.completionRate}%`,
-				c.rating,
-				`"${c.instructor}"`,
-				`"${c.trainerType || 'Internal'}"`,
-				c.costTrainer || 500000,
-				`"${c.department || 'Operations'}"`
-			]);
-			filename = `Course_Report_BCS_${new Date().toISOString().split('T')[0]}.csv`;
+			filename = `Laporan_Program_Pelatihan_BCS_${new Date().toISOString().split('T')[0]}.csv`;
 		} else if (activeReportType === 'attendance') {
 			headers = ['No', 'Nama Peserta', 'Payroll ID', 'Departemen', 'Sesi Training', 'Waktu Hadir', 'Status Kehadiran', 'Catatan'];
 			rows = attendances.map((a: any, idx: number) => [
@@ -2934,35 +2983,23 @@
 								class="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold flex items-center gap-2 shadow-sm transition-all cursor-pointer"
 							>
 								<span class="material-symbols-outlined text-sm">download</span>
-								<span>Export CSV ({activeReportType.replace('_', ' ').toUpperCase()})</span>
+								<span>Export CSV ({activeReportType === 'training' || activeReportType === 'course' ? 'PROGRAM PELATIHAN' : activeReportType.replace('_', ' ').toUpperCase()})</span>
 							</button>
 						</div>
 					</div>
 
-					<!-- 6 Sub-Tab Navigation for Reports -->
+					<!-- 5 Sub-Tab Navigation for Reports -->
 					<div class="flex items-center gap-1.5 overflow-x-auto pb-1 border-b border-slate-200/40 dark:border-slate-800/40 text-xs">
 						<button
 							type="button"
 							onclick={() => (activeReportType = 'training')}
 							class="px-3 py-2 rounded-xl font-bold whitespace-nowrap transition-all flex items-center gap-1.5 cursor-pointer
-							{activeReportType === 'training'
+							{activeReportType === 'training' || activeReportType === 'course'
 								? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-xs'
 								: 'bg-surface-container text-on-surface-variant hover:bg-surface-container-high'}"
 						>
 							<span class="material-symbols-outlined text-sm">model_training</span>
-							<span>1. Training Report</span>
-						</button>
-
-						<button
-							type="button"
-							onclick={() => (activeReportType = 'course')}
-							class="px-3 py-2 rounded-xl font-bold whitespace-nowrap transition-all flex items-center gap-1.5 cursor-pointer
-							{activeReportType === 'course'
-								? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-xs'
-								: 'bg-surface-container text-on-surface-variant hover:bg-surface-container-high'}"
-						>
-							<span class="material-symbols-outlined text-sm">menu_book</span>
-							<span>2. Course Report</span>
+							<span>1. Laporan Program Pelatihan ({unifiedTrainingReports.length})</span>
 						</button>
 
 						<button
@@ -2974,7 +3011,7 @@
 								: 'bg-surface-container text-on-surface-variant hover:bg-surface-container-high'}"
 						>
 							<span class="material-symbols-outlined text-sm">how_to_reg</span>
-							<span>3. Attendance Report</span>
+							<span>2. Laporan Kehadiran ({attendances.length})</span>
 						</button>
 
 						<button
@@ -2986,7 +3023,7 @@
 								: 'bg-surface-container text-on-surface-variant hover:bg-surface-container-high'}"
 						>
 							<span class="material-symbols-outlined text-sm">assignment_turned_in</span>
-							<span>4. Assessment Report</span>
+							<span>3. Laporan Asesmen ({certificates.length})</span>
 						</button>
 
 						<button
@@ -2998,7 +3035,7 @@
 								: 'bg-surface-container text-on-surface-variant hover:bg-surface-container-high'}"
 						>
 							<span class="material-symbols-outlined text-sm">troubleshoot</span>
-							<span>5. Competency Gap Report (TNA)</span>
+							<span>4. Laporan GAP Kompetensi (TNA)</span>
 						</button>
 
 						<button
@@ -3010,146 +3047,188 @@
 								: 'bg-surface-container text-on-surface-variant hover:bg-surface-container-high'}"
 						>
 							<span class="material-symbols-outlined text-sm">workspace_premium</span>
-							<span>6. E-Sertifikat Digital</span>
+							<span>5. E-Sertifikat Digital ({certificates.length})</span>
 						</button>
 					</div>
 
-					<!-- REPORT 1: TRAINING REPORT -->
-					{#if activeReportType === 'training'}
+					<!-- REPORT 1: LAPORAN PROGRAM PELATIHAN (UNIFIED) -->
+					{#if activeReportType === 'training' || activeReportType === 'course'}
 						<div class="space-y-4">
-							<div class="p-4 rounded-2xl bg-surface-container/60 border border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+							<!-- Header & Summary Metrics -->
+							<div class="p-4 rounded-2xl bg-surface-container/60 border border-slate-200 dark:border-slate-800 flex flex-col md:flex-row md:items-center justify-between gap-4">
 								<div class="space-y-1">
-									<h4 class="font-bold text-xs text-on-surface uppercase tracking-wider">Laporan Pelaksanaan Training (Training Report)</h4>
-									<p class="text-xs text-on-surface-variant">Menampilkan status sesi, klasifikasi Based, evaluasi Kirkpatrick L1/L3/L4, serta rincian biaya.</p>
+									<h4 class="font-bold text-xs text-on-surface uppercase tracking-wider flex items-center gap-2">
+										<span>Laporan Komprehensif Program Pelatihan</span>
+										<span class="px-2 py-0.5 rounded-full text-[10px] font-black bg-primary/10 text-primary border border-primary/20">
+											Standard BCS
+										</span>
+									</h4>
+									<p class="text-xs text-on-surface-variant">
+										Rekapitulasi kurikulum, rasio kelulusan peserta, sesi pelaksanaan terdaftar, dan estimasi realisasi biaya.
+									</p>
 								</div>
-								<div class="flex items-center gap-2 text-xs font-mono">
-									<span class="px-2.5 py-1 rounded-lg bg-surface-container font-bold text-slate-600 dark:text-slate-300">
-										Total Sesi: {sessions.length}
+								<div class="flex flex-wrap items-center gap-2 text-xs font-mono">
+									<span class="px-2.5 py-1.5 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-700 font-bold text-on-surface">
+										Total: <strong class="text-primary">{unifiedTrainingReports.length}</strong> Program
 									</span>
-									<span class="px-2.5 py-1 rounded-lg bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 font-bold">
-										Selesai: {sessions.filter((s: any) => s.status === 'COMPLETED').length}
+									<span class="px-2.5 py-1.5 rounded-xl bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300 font-bold">
+										Peserta: {unifiedTrainingReports.reduce((acc, c) => acc + (c.enrolledCount || 0), 0)} Org
+									</span>
+									<span class="px-2.5 py-1.5 rounded-xl bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 font-bold">
+										Biaya: Rp {unifiedTrainingReports.reduce((acc, c) => acc + (c.totalCost || 0), 0).toLocaleString('id-ID')}
 									</span>
 								</div>
 							</div>
 
-							<div class="rounded-xl border border-slate-200 dark:border-slate-800 overflow-x-auto">
-								<table class="w-full text-xs text-left whitespace-nowrap">
-									<thead class="bg-surface-container-high font-bold text-on-surface border-b border-slate-200 dark:border-slate-800">
-										<tr>
-											<th class="p-3">ID & Judul Training</th>
-											<th class="p-3">Kategori</th>
-											<th class="p-3">Based</th>
-											<th class="p-3">Tanggal Pelaksanaan</th>
-											<th class="p-3">Trainer & Asal</th>
-											<th class="p-3 text-center">Eval L1 (Reaksi)</th>
-											<th class="p-3 text-center">Eval L3 (Perilaku)</th>
-											<th class="p-3 text-center">Eval L4 (Dampak)</th>
-											<th class="p-3 text-right">Biaya Trainer</th>
-											<th class="p-3 text-right">Total Biaya</th>
-											<th class="p-3">Lokasi / Format</th>
-											<th class="p-3 text-center">Status</th>
-										</tr>
-									</thead>
-									<tbody class="divide-y divide-slate-200 dark:divide-slate-800">
-										{#each sessions as s}
-											{@const courseMatch = courses.find((c: any) => c.id === s.courseId)}
-											<tr class="hover:bg-surface-container/50">
-												<td class="p-3">
-													<p class="font-bold text-on-surface">{s.title}</p>
-													<p class="font-mono text-[10px] text-slate-400">{s.id}</p>
-												</td>
-												<td class="p-3 text-slate-600 dark:text-slate-300">{courseMatch?.category || 'Safety'}</td>
-												<td class="p-3">
-													<span class="px-2 py-0.5 rounded text-[9.5px] font-black uppercase
-														{s.based === 'Mandatory' ? 'bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300' :
-														s.based === 'Additional' ? 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300' :
-														'bg-purple-100 text-purple-800 dark:bg-purple-950 dark:text-purple-300'}">
-														{s.based || 'Mandatory'}
-													</span>
-												</td>
-												<td class="p-3 font-mono text-slate-500">{s.sessionDate}</td>
-												<td class="p-3">
-													<p class="font-semibold text-on-surface">{s.trainer}</p>
-													<span class="text-[10px] font-bold text-slate-400 uppercase">{s.trainerType || 'Internal'}</span>
-												</td>
-												<td class="p-3 text-center font-mono font-bold text-amber-600">4.9 ★</td>
-												<td class="p-3 text-center font-mono font-bold text-blue-600">4.8 / 5</td>
-												<td class="p-3 text-center font-mono font-bold text-emerald-600">4.9 / 5</td>
-												<td class="p-3 text-right font-mono font-semibold">Rp {Number(s.costTrainer || 500000).toLocaleString('id-ID')}</td>
-												<td class="p-3 text-right font-mono font-bold text-emerald-600">Rp {Number(s.costTrainer || 500000).toLocaleString('id-ID')}</td>
-												<td class="p-3 text-slate-500 truncate max-w-[150px]">{s.locationOrLink}</td>
-												<td class="p-3 text-center">
-													<span class="px-2 py-0.5 rounded-full text-[10px] font-black uppercase
-														{s.status === 'COMPLETED' ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300' : 'bg-blue-100 text-blue-800'}">
-														{s.status}
-													</span>
-												</td>
-											</tr>
+							<!-- Toolbar Filter: Pencarian, Kategori, Divisi & Based -->
+							<div class="p-3 rounded-2xl bg-surface-container border border-slate-200/60 dark:border-slate-800/60 flex flex-col sm:flex-row sm:items-center gap-2.5 text-xs">
+								<div class="relative flex-1">
+									<span class="material-symbols-outlined absolute left-3 top-2.5 text-slate-400 text-sm">search</span>
+									<input
+										type="text"
+										bind:value={reportSearchQuery}
+										placeholder="Cari ID, judul pelatihan, atau instruktur..."
+										class="w-full pl-8 pr-3 py-2 rounded-xl bg-surface border border-slate-200 dark:border-slate-700 text-xs text-on-surface outline-none"
+									/>
+									{#if reportSearchQuery}
+										<button type="button" onclick={() => (reportSearchQuery = '')} class="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600">
+											<span class="material-symbols-outlined text-xs">close</span>
+										</button>
+									{/if}
+								</div>
+
+								<div class="flex items-center gap-2 flex-wrap">
+									<select
+										bind:value={reportFilterCategory}
+										class="px-3 py-2 rounded-xl bg-surface border border-slate-200 dark:border-slate-700 text-xs text-on-surface font-semibold"
+									>
+										<option value="All">Semua Kategori</option>
+										{#each categories.filter(c => c !== 'All') as cat}
+											<option value={cat}>{cat}</option>
 										{/each}
-									</tbody>
-								</table>
-							</div>
-						</div>
+									</select>
 
-					<!-- REPORT 2: COURSE REPORT -->
-					{:else if activeReportType === 'course'}
-						<div class="space-y-4">
-							<div class="p-4 rounded-2xl bg-surface-container/60 border border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-								<div class="space-y-1">
-									<h4 class="font-bold text-xs text-on-surface uppercase tracking-wider">Laporan Katalog Kursus (Course Report)</h4>
-									<p class="text-xs text-on-surface-variant">Rincian status kursus, passing grade, rasio penyelesaian peserta, dan departemen target.</p>
+									<select
+										bind:value={reportFilterDept}
+										class="px-3 py-2 rounded-xl bg-surface border border-slate-200 dark:border-slate-700 text-xs text-on-surface font-semibold"
+									>
+										<option value="All">Semua Divisi / Dept</option>
+										{#each divisions as d}
+											<option value={d.name}>{d.name}</option>
+										{/each}
+									</select>
+
+									<select
+										bind:value={reportFilterBased}
+										class="px-3 py-2 rounded-xl bg-surface border border-slate-200 dark:border-slate-700 text-xs text-on-surface font-semibold"
+									>
+										<option value="All">Semua Based</option>
+										<option value="Mandatory">Mandatory</option>
+										<option value="Additional">Additional</option>
+										<option value="Gap Competency">Gap Competency</option>
+									</select>
+
+									{#if reportSearchQuery || reportFilterCategory !== 'All' || reportFilterDept !== 'All' || reportFilterBased !== 'All'}
+										<button
+											type="button"
+											onclick={() => {
+												reportSearchQuery = '';
+												reportFilterCategory = 'All';
+												reportFilterDept = 'All';
+												reportFilterBased = 'All';
+											}}
+											class="px-2.5 py-2 rounded-xl bg-surface-container-high text-[11px] font-bold text-slate-400 hover:text-rose-500 transition-colors cursor-pointer"
+										>
+											Reset
+										</button>
+									{/if}
 								</div>
-								<span class="px-3 py-1 rounded-lg bg-surface-container font-mono text-xs font-bold text-slate-600 dark:text-slate-300">
-									Total Kursus: {courses.length}
-								</span>
 							</div>
 
-							<div class="rounded-xl border border-slate-200 dark:border-slate-800 overflow-x-auto">
+							<!-- Tabel Komprehensif Program Pelatihan -->
+							<div class="rounded-2xl border border-slate-200 dark:border-slate-800 overflow-x-auto shadow-xs">
 								<table class="w-full text-xs text-left whitespace-nowrap">
 									<thead class="bg-surface-container-high font-bold text-on-surface border-b border-slate-200 dark:border-slate-800">
 										<tr>
-											<th class="p-3">ID Kursus</th>
-											<th class="p-3">Judul Kursus</th>
-											<th class="p-3">Kategori</th>
-											<th class="p-3">Based</th>
-											<th class="p-3">Departemen Target</th>
-											<th class="p-3 text-center">Durasi</th>
-											<th class="p-3 text-center">Modul</th>
-											<th class="p-3 text-center">Passing Grade</th>
+											<th class="p-3">Program Pelatihan</th>
+											<th class="p-3">Kategori & Based</th>
+											<th class="p-3">Divisi Sasaran</th>
+											<th class="p-3 text-center">Kurikulum & Lulus</th>
 											<th class="p-3 text-center">Peserta</th>
-											<th class="p-3 text-center">Completion Rate</th>
-											<th class="p-3 text-center">Rating</th>
+											<th class="p-3 text-center">Sesi Terdaftar</th>
+											<th class="p-3">Instruktur & Tipe</th>
+											<th class="p-3 text-right">Biaya Trainer</th>
+											<th class="p-3 text-right">Total Anggaran</th>
 											<th class="p-3 text-center">Status</th>
 										</tr>
 									</thead>
 									<tbody class="divide-y divide-slate-200 dark:divide-slate-800">
-										{#each courses as c}
-											<tr class="hover:bg-surface-container/50">
-												<td class="p-3 font-mono font-bold text-primary">{c.id}</td>
-												<td class="p-3 font-bold text-on-surface">{c.title}</td>
-												<td class="p-3 text-slate-600 dark:text-slate-300">{c.category}</td>
+										{#each unifiedTrainingReports as item}
+											<tr class="hover:bg-surface-container/50 transition-colors">
 												<td class="p-3">
-													<span class="px-2 py-0.5 rounded text-[9.5px] font-black uppercase
-														{c.based === 'Mandatory' ? 'bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300' :
-														c.based === 'Additional' ? 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300' :
-														'bg-purple-100 text-purple-800 dark:bg-purple-950 dark:text-purple-300'}">
-														{c.based || 'Mandatory'}
+													<p class="font-bold text-on-surface text-xs leading-snug">{item.title}</p>
+													<p class="font-mono text-[10px] text-primary">{item.id}</p>
+												</td>
+												<td class="p-3">
+													<div class="flex items-center gap-1.5 flex-wrap">
+														<span class="text-slate-600 dark:text-slate-300 font-medium">{item.category}</span>
+														<span class="px-1.5 py-0.5 rounded text-[9px] font-black uppercase
+															{item.based === 'Mandatory' ? 'bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300' :
+															item.based === 'Additional' ? 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300' :
+															'bg-purple-100 text-purple-800 dark:bg-purple-950 dark:text-purple-300'}">
+															{item.based || 'Mandatory'}
+														</span>
+													</div>
+												</td>
+												<td class="p-3">
+													<span class="px-2 py-0.5 rounded-lg bg-surface border border-slate-200 dark:border-slate-700 text-[10px] font-semibold text-on-surface">
+														{item.department || item.division || 'Semua Divisi'}
 													</span>
 												</td>
-												<td class="p-3 font-medium text-slate-500">{c.department || 'All Dept'}</td>
-												<td class="p-3 text-center font-mono">{c.durationHours} Jam</td>
-												<td class="p-3 text-center font-mono">{c.modulesCount}</td>
-												<td class="p-3 text-center font-mono font-bold text-slate-700 dark:text-slate-200">{c.passingGrade}</td>
-												<td class="p-3 text-center font-mono font-bold text-blue-600">{c.enrolledCount} Org</td>
-												<td class="p-3 text-center font-mono font-bold text-emerald-600">{c.completionRate}%</td>
-												<td class="p-3 text-center font-mono font-bold text-amber-500">{c.rating.toFixed(1)} ★</td>
+												<td class="p-3 text-center font-mono">
+													<p class="font-semibold text-slate-700 dark:text-slate-200">{item.durationHours} Jam</p>
+													<p class="text-[10px] text-slate-400">Min. {item.passingGrade}%</p>
+												</td>
+												<td class="p-3 text-center font-mono">
+													<p class="font-bold text-blue-600">{item.enrolledCount || 0} Org</p>
+													<p class="text-[10px] text-emerald-600 font-semibold">{item.completionRate || 0}% Selesai</p>
+												</td>
 												<td class="p-3 text-center">
-													<span class="px-2 py-0.5 rounded-full text-[10px] font-black uppercase bg-emerald-100 text-emerald-800">
-														{c.status}
+													<span class="px-2 py-0.5 rounded-md font-mono text-[10px] font-bold {item.totalSessions > 0 ? 'bg-primary/10 text-primary' : 'bg-surface-container text-slate-400'}">
+														{item.totalSessions} Sesi
+													</span>
+													{#if item.sessionDate !== '-'}
+														<p class="text-[10px] text-slate-400 font-mono mt-0.5">{item.sessionDate}</p>
+													{/if}
+												</td>
+												<td class="p-3">
+													<p class="font-semibold text-on-surface">{item.trainer}</p>
+													<span class="text-[9.5px] font-black uppercase text-slate-400 tracking-wider">
+														{item.trainerType}
+													</span>
+												</td>
+												<td class="p-3 text-right font-mono font-medium text-slate-600 dark:text-slate-300">
+													Rp {Number(item.costTrainer).toLocaleString('id-ID')}
+												</td>
+												<td class="p-3 text-right font-mono font-bold text-emerald-600 dark:text-emerald-400">
+													Rp {Number(item.totalCost).toLocaleString('id-ID')}
+												</td>
+												<td class="p-3 text-center">
+													<span class="px-2 py-0.5 rounded-full text-[10px] font-black uppercase {item.status === 'COMPLETED' ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300' : 'bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300'}">
+														{item.status || 'ACTIVE'}
 													</span>
 												</td>
 											</tr>
 										{/each}
+
+										{#if unifiedTrainingReports.length === 0}
+											<tr>
+												<td colspan="10" class="p-8 text-center text-slate-400">
+													<span class="material-symbols-outlined text-4xl block mb-2 text-slate-300">search_off</span>
+													<p class="font-bold">Tidak ada data program pelatihan yang cocok dengan filter.</p>
+												</td>
+											</tr>
+										{/if}
 									</tbody>
 								</table>
 							</div>
@@ -3325,7 +3404,7 @@
 							</div>
 						</div>
 
-					<!-- REPORT 6: E-SERTIFIKAT DIGITAL -->
+					<!-- REPORT 5: E-SERTIFIKAT DIGITAL -->
 					{:else if activeReportType === 'certificates'}
 						<div class="space-y-4">
 							<div class="p-4 rounded-2xl bg-surface-container/60 border border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -3344,7 +3423,7 @@
 										<tr>
 											<th class="p-3">No. Sertifikat</th>
 											<th class="p-3">Nama Karyawan</th>
-											<th class="p-3">Kursus Pelatihan</th>
+											<th class="p-3">Program Pelatihan</th>
 											<th class="p-3">Kategori</th>
 											<th class="p-3 text-center">Nilai Ujian</th>
 											<th class="p-3">Tanggal Terbit</th>
