@@ -275,6 +275,20 @@
 		});
 	}
 
+	function addQuestionToCurrentQuiz() {
+		addQuestion(createQuizTab);
+	}
+
+	function removeQuestionFromCurrentQuiz(id: string) {
+		if (createQuizTab === 'PRE_TEST') {
+			const idx = preTestQuestionsList.findIndex((q) => q.id === id);
+			if (idx !== -1) removeQuestion('PRE_TEST', idx);
+		} else {
+			const idx = postTestQuestionsList.findIndex((q) => q.id === id);
+			if (idx !== -1) removeQuestion('POST_TEST', idx);
+		}
+	}
+
 	let isPreTestValid = $derived(
 		preTestQuestionsList.length >= 1 &&
 		preTestQuestionsList.every((q) => {
@@ -4427,14 +4441,27 @@
 								</button>
 							</div>
 
-							<button
-								type="button"
-								onclick={addQuestionToCurrentQuiz}
-								class="px-3 py-1.5 rounded-xl bg-surface-container hover:bg-surface-container-high text-xs font-bold text-primary flex items-center gap-1 cursor-pointer transition-all border border-slate-200 dark:border-slate-700/60"
-							>
-								<span class="material-symbols-outlined text-xs">add</span>
-								<span>+ Tambah Soal {createQuizTab === 'PRE_TEST' ? 'Pre-Test' : 'Post-Test'}</span>
-							</button>
+							<div class="flex items-center gap-1.5">
+								{#if createQuizTab === 'POST_TEST'}
+									<button
+										type="button"
+										onclick={copyPreTestToPostTest}
+										class="px-2.5 py-1.5 rounded-xl bg-surface-container hover:bg-surface-container-high text-xs font-bold text-amber-600 dark:text-amber-400 flex items-center gap-1 cursor-pointer transition-all border border-slate-200 dark:border-slate-700/60"
+										title="Salin seluruh pertanyaan dari Pre-Test"
+									>
+										<span class="material-symbols-outlined text-xs">content_copy</span>
+										<span>Salin dari Pre-Test</span>
+									</button>
+								{/if}
+								<button
+									type="button"
+									onclick={addQuestionToCurrentQuiz}
+									class="px-3 py-1.5 rounded-xl bg-surface-container hover:bg-surface-container-high text-xs font-bold text-primary flex items-center gap-1 cursor-pointer transition-all border border-slate-200 dark:border-slate-700/60"
+								>
+									<span class="material-symbols-outlined text-xs">add</span>
+									<span>+ Tambah Soal {createQuizTab === 'PRE_TEST' ? 'Pre-Test' : 'Post-Test'}</span>
+								</button>
+							</div>
 						</div>
 
 						<p class="text-[11px] text-slate-500">
