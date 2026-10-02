@@ -100,6 +100,23 @@ export const load: PageServerLoad = async ({ locals }) => {
 			ORDER BY a.assessment_date DESC;
 		`;
 
+		// 8. Ambil Evaluasi Pasca-Training Kirkpatrick (Level 3 & Level 4)
+		const postTrainingEvals = await sql`
+			SELECT 
+				e.*, 
+				c.title as course_title,
+				c.category as course_category,
+				k.title as position_title,
+				t.title as position_name,
+				COALESCE(d.dept_name, 'General') as department
+			FROM hris.lms_evaluations_l3_l4 e
+			JOIN hris.lms_courses c ON c.id = e.course_id
+			LEFT JOIN master.m_karyawan k ON k.payroll_id = e.payroll_id
+			LEFT JOIN master.m_title t ON t.title_code = k.title
+			LEFT JOIN master.m_dept d ON d.dept_code = k.dept_id
+			ORDER BY e.id DESC;
+		`;
+
 		return {
 			currentUser: locals.user || null,
 			activeAssessors: activeAssessors.map((a: any) => ({
@@ -164,6 +181,33 @@ export const load: PageServerLoad = async ({ locals }) => {
 				period: a.period || String(new Date().getFullYear()),
 				assessmentDate: a.assessment_date ? a.assessment_date.toISOString().split('T')[0] : '',
 				notes: a.notes || ''
+			})),
+			postTrainingEvals: postTrainingEvals.map((e: any) => ({
+				id: e.id,
+				courseId: e.course_id,
+				courseTitle: e.course_title,
+				courseCategory: e.course_category || 'Training',
+				payrollId: e.payroll_id,
+				employeeName: e.employee_name,
+				supervisorName: e.supervisor_name,
+				positionTitle: e.position_name || e.position_title || 'Staff',
+				department: e.department,
+				dueDate: e.due_date ? new Date(e.due_date).toISOString().split('T')[0] : '',
+				trainingCompletedAt: e.training_completed_at ? new Date(e.training_completed_at).toISOString().split('T')[0] : (e.due_date ? new Date(new Date(e.due_date).getTime() - 90*24*60*60*1000).toISOString().split('T')[0] : ''),
+				// Level 3 Fields
+				l3Status: e.l3_status || (e.status === 'COMPLETED' ? 'COMPLETED' : 'PENDING'),
+				l3MaterialScore: e.l3_material_absorption_score || 4,
+				l3BehaviorScore: e.behavior_score || 4,
+				l3SopScore: e.sop_compliance_score || 4,
+				l3Notes: e.l3_notes || e.supervisor_notes || '',
+				l3ReviewedAt: e.l3_reviewed_at ? new Date(e.l3_reviewed_at).toISOString().split('T')[0] : '',
+				// Level 4 Fields
+				l4Status: e.l4_status || (e.status === 'COMPLETED' ? 'COMPLETED' : 'PENDING'),
+				l4BusinessScore: e.business_impact_score || 4,
+				l4ProductivityScore: e.l4_productivity_score || 4,
+				l4IncidentNotes: e.incident_reduction_notes || '',
+				l4Notes: e.l4_notes || e.supervisor_notes || '',
+				l4ReviewedAt: e.l4_reviewed_at ? new Date(e.l4_reviewed_at).toISOString().split('T')[0] : ''
 			})),
 			assessmentPeriods: [
 				String(new Date().getFullYear()),
@@ -290,6 +334,73 @@ export const actions = {
 		} catch (e: any) {
 			logError('DIRECT_BATCH_ASSESSMENT_FAIL', e?.message);
 			return { success: false, message: `Failed to save direct assessment: ${e?.message || 'Database error'}` };
+		}
+	},
+
+	// 2. Submit Evaluasi Pasca-Training Level 3 (Segera Setelah Training & L1 Reaction)
+	submitEvaluationL3: async ({ request }) => {
+		const formData = await request.formData();
+		const evalId = Number(formData.get('evalId'));
+		const materialScore = Number(formData.get('materialAbsorptionScore')) || 4;
+		const behaviorScore = Number(formData.get('behaviorScore')) || 4;
+		const sopScore = Number(formData.get('sopComplianceScore')) || 4;
+		const notes = formData.get('notes')?.toString() || '';
+		const assessorName = formData.get('assessorName')?.toString() || 'Supervisor';
+
+		if (!evalId) return { success: false, message: 'ID Evaluasi tidak ditemukan.' };
+
+		try {
+			await sql`
+				UPDATE hris.lms_evaluations_l3_l4
+				SET
+					l3_status = 'COMPLETED',
+					l3_material_absorption_score = ${materialScore},
+					behavior_score = ${behaviorScore},
+					sop_compliance_score = ${sopScore},
+					l3_notes = ${notes},
+					supervisor_notes = COALESCE(supervisor_notes, ${notes}),
+					l3_reviewed_at = CURRENT_TIMESTAMP,
+					supervisor_name = ${assessorName}
+				WHERE id = ${evalId};
+			`;
+			return { success: true, message: 'Evaluasi Pasca-Training Level 3 (Segera) berhasil disimpan!' };
+		} catch (e: any) {
+			logError('DIRECT_EVAL_L3_FAIL', e?.message);
+			return { success: false, message: 'Gagal menyimpan evaluasi Level 3.' };
+		}
+	},
+
+	// 3. Submit Evaluasi Pasca-Training Level 4 (Dampak Bisnis & Hasil Nyata H+3 Bulan)
+	submitEvaluationL4: async ({ request }) => {
+		const formData = await request.formData();
+		const evalId = Number(formData.get('evalId'));
+		const businessScore = Number(formData.get('businessImpactScore')) || 4;
+		const productivityScore = Number(formData.get('productivityScore')) || 4;
+		const incidentNotes = formData.get('incidentReductionNotes')?.toString() || '';
+		const notes = formData.get('notes')?.toString() || '';
+		const assessorName = formData.get('assessorName')?.toString() || 'Supervisor';
+
+		if (!evalId) return { success: false, message: 'ID Evaluasi tidak ditemukan.' };
+
+		try {
+			await sql`
+				UPDATE hris.lms_evaluations_l3_l4
+				SET
+					l4_status = 'COMPLETED',
+					business_impact_score = ${businessScore},
+					l4_productivity_score = ${productivityScore},
+					incident_reduction_notes = ${incidentNotes},
+					l4_notes = ${notes},
+					l4_reviewed_at = CURRENT_TIMESTAMP,
+					status = 'COMPLETED',
+					reviewed_at = CURRENT_TIMESTAMP,
+					supervisor_name = ${assessorName}
+				WHERE id = ${evalId};
+			`;
+			return { success: true, message: 'Evaluasi Pasca-Training Level 4 (Dampak 3 Bulan) berhasil disimpan!' };
+		} catch (e: any) {
+			logError('DIRECT_EVAL_L4_FAIL', e?.message);
+			return { success: false, message: 'Gagal menyimpan evaluasi Level 4.' };
 		}
 	}
 } satisfies Actions;

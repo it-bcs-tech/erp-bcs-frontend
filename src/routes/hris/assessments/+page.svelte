@@ -209,8 +209,88 @@
 	let isRubricModalOpen = $state(false);
 	let selectedCompForRubric = $state<any>(null);
 
-	// Tab View State: 'form' | 'history'
-	let activeViewTab = $state<'form' | 'history'>('form');
+	// Tab View State: 'annual' | 'post_training_l3' | 'post_training_l4' | 'history'
+	let activeViewTab = $state<'annual' | 'post_training_l3' | 'post_training_l4' | 'history'>('annual');
+
+	// Data Evaluasi Pasca-Training Kirkpatrick (Level 3 & Level 4)
+	const postTrainingEvals = $derived((data as any).postTrainingEvals || []);
+
+	const assessorDirectSubordinateIds = $derived(
+		new Set(allDirectSubordinates.map((e: any) => e.payrollId))
+	);
+
+	const subordinatePostTrainingEvals = $derived.by(() => {
+		if (allDirectSubordinates.length === 0) return postTrainingEvals;
+		return postTrainingEvals.filter((e: any) => assessorDirectSubordinateIds.has(e.payrollId));
+	});
+
+	// Level 3: Evaluasi Segera Pasca-Training
+	const l3PendingEvals = $derived(
+		subordinatePostTrainingEvals.filter((e: any) => e.l3Status === 'PENDING')
+	);
+	const l3CompletedEvals = $derived(
+		subordinatePostTrainingEvals.filter((e: any) => e.l3Status === 'COMPLETED')
+	);
+	const l3PendingCount = $derived(l3PendingEvals.length);
+
+	// Level 4: Evaluasi Dampak Bisnis H+3 Bulan
+	const todayDateStr = new Date().toISOString().split('T')[0];
+	const l4ReadyEvals = $derived(
+		subordinatePostTrainingEvals.filter(
+			(e: any) => e.l4Status === 'PENDING' && (!e.dueDate || e.dueDate <= todayDateStr)
+		)
+	);
+	const l4UpcomingEvals = $derived(
+		subordinatePostTrainingEvals.filter(
+			(e: any) => e.l4Status === 'PENDING' && e.dueDate && e.dueDate > todayDateStr
+		)
+	);
+	const l4CompletedEvals = $derived(
+		subordinatePostTrainingEvals.filter((e: any) => e.l4Status === 'COMPLETED')
+	);
+	const l4ReadyCount = $derived(l4ReadyEvals.length);
+
+	// Modal State Level 3
+	let isL3ModalOpen = $state(false);
+	let selectedL3Eval = $state<any>(null);
+	let l3MaterialScore = $state(4);
+	let l3BehaviorScore = $state(4);
+	let l3SopScore = $state(4);
+	let l3Notes = $state('');
+
+	function openL3Modal(item: any) {
+		selectedL3Eval = item;
+		l3MaterialScore = item.l3MaterialScore || 4;
+		l3BehaviorScore = item.l3BehaviorScore || 4;
+		l3SopScore = item.l3SopScore || 4;
+		l3Notes = item.l3Notes || '';
+		isL3ModalOpen = true;
+	}
+
+	// Modal State Level 4
+	let isL4ModalOpen = $state(false);
+	let selectedL4Eval = $state<any>(null);
+	let l4BusinessScore = $state(4);
+	let l4ProductivityScore = $state(4);
+	let l4IncidentNotes = $state('');
+	let l4Notes = $state('');
+
+	function openL4Modal(item: any) {
+		selectedL4Eval = item;
+		l4BusinessScore = item.l4BusinessScore || 4;
+		l4ProductivityScore = item.l4ProductivityScore || 4;
+		l4IncidentNotes = item.l4IncidentNotes || '';
+		l4Notes = item.l4Notes || '';
+		isL4ModalOpen = true;
+	}
+
+	function getDaysRemaining(dueDateStr: string): number {
+		if (!dueDateStr) return 0;
+		const due = new Date(dueDateStr).getTime();
+		const now = new Date().getTime();
+		const diff = Math.ceil((due - now) / (1000 * 60 * 60 * 24));
+		return diff > 0 ? diff : 0;
+	}
 
 	// History Search Query
 	let historySearchQuery = $state('');
@@ -275,30 +355,58 @@
 			</div>
 		</div>
 
-		<!-- Navigasi Tab Form vs Riwayat -->
-		<div class="flex items-center gap-1.5 p-1 rounded-xl bg-surface-container-high border border-slate-200/60 dark:border-slate-800/60 self-start md:self-auto">
+		<!-- Navigasi 4 Tab Penilaian Atasan -->
+		<div class="flex items-center gap-1.5 p-1 rounded-2xl bg-surface-container-high border border-slate-200/60 dark:border-slate-800/60 self-start md:self-auto overflow-x-auto max-w-full">
 			<button
 				type="button"
-				onclick={() => (activeViewTab = 'form')}
-				class="px-4 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5
-				{activeViewTab === 'form' ? 'bg-primary text-on-primary shadow-xs' : 'text-slate-400 hover:text-on-surface'}"
+				onclick={() => (activeViewTab = 'annual')}
+				class="px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 whitespace-nowrap
+				{activeViewTab === 'annual' ? 'bg-primary text-on-primary shadow-xs' : 'text-slate-400 hover:text-on-surface'}"
 			>
 				<span class="material-symbols-outlined text-sm">assignment_ind</span>
-				<span>Lembar Penilaian Individu</span>
+				<span>1. Asesmen Tahunan (Annual)</span>
+			</button>
+			<button
+				type="button"
+				onclick={() => (activeViewTab = 'post_training_l3')}
+				class="px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 whitespace-nowrap
+				{activeViewTab === 'post_training_l3' ? 'bg-primary text-on-primary shadow-xs' : 'text-slate-400 hover:text-on-surface'}"
+			>
+				<span class="material-symbols-outlined text-sm">school</span>
+				<span>2. Pasca-Training Segera (L3)</span>
+				{#if l3PendingCount > 0}
+					<span class="px-1.5 py-0.2 rounded-full text-[9px] font-black bg-rose-500 text-white">
+						{l3PendingCount}
+					</span>
+				{/if}
+			</button>
+			<button
+				type="button"
+				onclick={() => (activeViewTab = 'post_training_l4')}
+				class="px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 whitespace-nowrap
+				{activeViewTab === 'post_training_l4' ? 'bg-primary text-on-primary shadow-xs' : 'text-slate-400 hover:text-on-surface'}"
+			>
+				<span class="material-symbols-outlined text-sm">trending_up</span>
+				<span>3. Pasca-Training 3 Bulan (L4)</span>
+				{#if l4ReadyCount > 0}
+					<span class="px-1.5 py-0.2 rounded-full text-[9px] font-black bg-amber-500 text-white">
+						{l4ReadyCount}
+					</span>
+				{/if}
 			</button>
 			<button
 				type="button"
 				onclick={() => (activeViewTab = 'history')}
-				class="px-4 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5
+				class="px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 whitespace-nowrap
 				{activeViewTab === 'history' ? 'bg-primary text-on-primary shadow-xs' : 'text-slate-400 hover:text-on-surface'}"
 			>
 				<span class="material-symbols-outlined text-sm">history</span>
-				<span>Riwayat Asesmen ({existingAssessments.length})</span>
+				<span>Riwayat Penilaian</span>
 			</button>
 		</div>
 	</div>
 
-	{#if activeViewTab === 'form'}
+	{#if activeViewTab === 'annual'}
 		<!-- Top Assessor & Period Toolbar -->
 		<div class="p-4 rounded-3xl bg-surface-container border border-slate-200/60 dark:border-slate-800/60 flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-xs">
 			<div class="flex flex-col sm:flex-row sm:items-center gap-3 flex-1">
@@ -872,6 +980,418 @@
 			</div>
 		</div>
 
+	{:else if activeViewTab === 'post_training_l3'}
+		<!-- ═══════════════════════════════════════════════════════════════ -->
+		<!-- TAB 2: PASCA-TRAINING SEGERA (LEVEL 3 KIRKPATRICK)               -->
+		<!-- ═══════════════════════════════════════════════════════════════ -->
+		<div class="space-y-6">
+			<!-- Banner Panduan Level 3 -->
+			<div class="p-5 rounded-3xl bg-linear-to-r from-blue-500/10 via-indigo-500/5 to-transparent border border-blue-500/20 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+				<div class="flex items-start gap-3.5">
+					<div class="w-10 h-10 rounded-2xl bg-blue-500/20 text-blue-500 flex items-center justify-center shrink-0">
+						<span class="material-symbols-outlined text-xl">psychology</span>
+					</div>
+					<div>
+						<div class="flex items-center gap-2">
+							<h3 class="text-sm font-black text-on-surface">Evaluasi Pasca-Training Segera (Kirkpatrick Level 3: Behavior & Perilaku Kerja)</h3>
+							<span class="px-2 py-0.5 rounded-full text-[10px] font-black bg-blue-500 text-white">Fase 1 Pasca-Training</span>
+						</div>
+						<p class="text-xs text-on-surface-variant mt-1 leading-relaxed max-w-3xl">
+							Diisi oleh atasan langsung segera setelah karyawan menyelesaikan sesi pelatihan & mengisi kuesioner reaksi (Level 1). Fokus pada serapan materi pelatihan, kepatuhan SOP baru di tempat kerja, serta kesiapan menerapkan ilmu yang diperoleh.
+						</p>
+					</div>
+				</div>
+				<div class="flex items-center gap-3 shrink-0">
+					<div class="text-right">
+						<div class="text-xs text-on-surface-variant font-medium">Antrean Menunggu Review</div>
+						<div class="text-lg font-black text-blue-500">{l3PendingCount} Karyawan</div>
+					</div>
+				</div>
+			</div>
+
+			<!-- Daftar Butuh Penilaian Segera -->
+			<div class="space-y-3">
+				<div class="flex items-center justify-between">
+					<div class="flex items-center gap-2">
+						<span class="material-symbols-outlined text-primary text-base">pending_actions</span>
+						<h4 class="text-xs font-black uppercase tracking-wider text-on-surface">Antrean Butuh Penilaian Segera</h4>
+						<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/15 text-amber-600 dark:text-amber-400">
+							{l3PendingEvals.length} Menunggu
+						</span>
+					</div>
+				</div>
+
+				{#if l3PendingEvals.length === 0}
+					<div class="p-8 rounded-3xl bg-surface-container border border-slate-200/60 dark:border-slate-800/60 text-center space-y-2">
+						<span class="material-symbols-outlined text-4xl text-emerald-500">task_alt</span>
+						<h5 class="text-sm font-black text-on-surface">Semua Karyawan Sudah Dievaluasi Level 3</h5>
+						<p class="text-xs text-on-surface-variant max-w-md mx-auto">
+							Tidak ada antrean penilaian pasca-training segera yang tertunda untuk bawahan Anda saat ini.
+						</p>
+					</div>
+				{:else}
+					<div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+						{#each l3PendingEvals as item}
+							<div class="p-5 rounded-3xl bg-surface border border-slate-200/70 dark:border-slate-800/70 shadow-xs hover:shadow-md transition-all flex flex-col justify-between space-y-4">
+								<div class="space-y-3">
+									<div class="flex items-start justify-between gap-2">
+										<div class="flex items-center gap-3">
+											<div class="w-10 h-10 rounded-2xl bg-primary/10 text-primary font-black text-sm flex items-center justify-center shrink-0">
+												{item.employeeName.charAt(0)}
+											</div>
+											<div>
+												<h5 class="text-xs font-black text-on-surface line-clamp-1">{item.employeeName}</h5>
+												<p class="text-[11px] text-on-surface-variant font-mono">{item.payrollId} • {item.positionTitle}</p>
+											</div>
+										</div>
+										<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/15 text-amber-600 dark:text-amber-400 whitespace-nowrap">
+											Pending Review
+										</span>
+									</div>
+
+									<div class="p-3 rounded-2xl bg-surface-container space-y-1.5 border border-slate-200/40 dark:border-slate-800/40">
+										<div class="flex items-center justify-between text-[11px]">
+											<span class="text-on-surface-variant font-medium">Kursus/Training:</span>
+											<span class="px-1.5 py-0.5 rounded-md text-[9px] font-bold bg-indigo-500/10 text-indigo-500">{item.courseCategory}</span>
+										</div>
+										<p class="text-xs font-bold text-on-surface line-clamp-2">{item.courseTitle}</p>
+										<div class="flex items-center gap-1.5 text-[10px] text-on-surface-variant pt-1 border-t border-slate-200/40 dark:border-slate-700/40">
+											<span class="material-symbols-outlined text-xs">event_available</span>
+											<span>Selesai: {item.trainingCompletedAt || '-'}</span>
+										</div>
+									</div>
+								</div>
+
+								<button
+									type="button"
+									onclick={() => openL3Modal(item)}
+									class="w-full py-2.5 px-4 rounded-xl bg-primary text-on-primary font-bold text-xs flex items-center justify-center gap-2 shadow-xs hover:opacity-90 active:scale-98 transition-all cursor-pointer"
+								>
+									<span class="material-symbols-outlined text-sm">rate_review</span>
+									<span>Beri Penilaian Level 3</span>
+								</button>
+							</div>
+						{/each}
+					</div>
+				{/if}
+			</div>
+
+			<!-- Riwayat Evaluasi Selesai (Level 3) -->
+			<div class="space-y-3 pt-4">
+				<div class="flex items-center justify-between">
+					<div class="flex items-center gap-2">
+						<span class="material-symbols-outlined text-emerald-500 text-base">check_circle</span>
+						<h4 class="text-xs font-black uppercase tracking-wider text-on-surface">Riwayat Penilaian Selesai (Level 3)</h4>
+						<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/15 text-emerald-600 dark:text-emerald-400">
+							{l3CompletedEvals.length} Selesai
+						</span>
+					</div>
+				</div>
+
+				{#if l3CompletedEvals.length > 0}
+					<div class="rounded-3xl border border-slate-200/60 dark:border-slate-800/60 overflow-hidden shadow-xs bg-surface">
+						<div class="overflow-x-auto">
+							<table class="w-full text-xs text-left">
+								<thead class="bg-surface-container-high border-b border-slate-200/60 dark:border-slate-800/60 font-bold text-on-surface">
+									<tr>
+										<th class="p-3">Karyawan</th>
+										<th class="p-3">Pelatihan</th>
+										<th class="p-3 text-center">Serapan Materi</th>
+										<th class="p-3 text-center">Perilaku</th>
+										<th class="p-3 text-center">Kepatuhan SOP</th>
+										<th class="p-3">Tgl Review</th>
+										<th class="p-3">Catatan Review</th>
+										<th class="p-3 text-right">Aksi</th>
+									</tr>
+								</thead>
+								<tbody class="divide-y divide-slate-200/60 dark:divide-slate-800/60">
+									{#each l3CompletedEvals as item}
+										<tr class="hover:bg-surface-container/50">
+											<td class="p-3">
+												<div class="font-bold text-on-surface">{item.employeeName}</div>
+												<div class="text-[10px] font-mono text-on-surface-variant">{item.payrollId} • {item.positionTitle}</div>
+											</td>
+											<td class="p-3">
+												<div class="font-bold text-on-surface">{item.courseTitle}</div>
+												<div class="text-[10px] text-on-surface-variant">{item.courseCategory}</div>
+											</td>
+											<td class="p-3 text-center">
+												<span class="px-2 py-0.5 rounded-lg text-xs font-bold bg-indigo-500/10 text-indigo-500">
+													{item.l3MaterialScore} / 5
+												</span>
+											</td>
+											<td class="p-3 text-center">
+												<span class="px-2 py-0.5 rounded-lg text-xs font-bold bg-blue-500/10 text-blue-500">
+													{item.l3BehaviorScore} / 5
+												</span>
+											</td>
+											<td class="p-3 text-center">
+												<span class="px-2 py-0.5 rounded-lg text-xs font-bold bg-teal-500/10 text-teal-500">
+													{item.l3SopScore} / 5
+												</span>
+											</td>
+											<td class="p-3 text-on-surface-variant font-mono text-[11px]">
+												{item.l3ReviewedAt || '-'}
+											</td>
+											<td class="p-3 text-on-surface-variant max-w-xs truncate">
+												{item.l3Notes || '-'}
+											</td>
+											<td class="p-3 text-right">
+												<button
+													type="button"
+													onclick={() => openL3Modal(item)}
+													class="px-2.5 py-1 rounded-lg bg-surface-container border border-slate-200 dark:border-slate-700 text-xs font-bold hover:bg-surface-container-high cursor-pointer"
+												>
+													Edit
+												</button>
+											</td>
+										</tr>
+									{/each}
+								</tbody>
+							</table>
+						</div>
+					</div>
+				{/if}
+			</div>
+		</div>
+
+	{:else if activeViewTab === 'post_training_l4'}
+		<!-- ═══════════════════════════════════════════════════════════════ -->
+		<!-- TAB 3: PASCA-TRAINING 3 BULAN (LEVEL 4 KIRKPATRICK)              -->
+		<!-- ═══════════════════════════════════════════════════════════════ -->
+		<div class="space-y-6">
+			<!-- Banner Panduan Level 4 -->
+			<div class="p-5 rounded-3xl bg-linear-to-r from-amber-500/10 via-orange-500/5 to-transparent border border-amber-500/20 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+				<div class="flex items-start gap-3.5">
+					<div class="w-10 h-10 rounded-2xl bg-amber-500/20 text-amber-500 flex items-center justify-center shrink-0">
+						<span class="material-symbols-outlined text-xl">trending_up</span>
+					</div>
+					<div>
+						<div class="flex items-center gap-2">
+							<h3 class="text-sm font-black text-on-surface">Evaluasi Dampak Bisnis 3 Bulan (Kirkpatrick Level 4: Business Results)</h3>
+							<span class="px-2 py-0.5 rounded-full text-[10px] font-black bg-amber-500 text-white">Fase 2 Pasca-Training (H+90 Hari)</span>
+						</div>
+						<p class="text-xs text-on-surface-variant mt-1 leading-relaxed max-w-3xl">
+							Diisi oleh atasan langsung setelah masa observasi kerja 3 bulan pasca-training. Tujuannya membuktikan dampak nyata terhadap efisiensi unit kerja, produktivitas harian, serta penurunan angka komplain/insiden kerja.
+						</p>
+					</div>
+				</div>
+				<div class="flex items-center gap-3 shrink-0">
+					<div class="text-right">
+						<div class="text-xs text-on-surface-variant font-medium">Jatuh Tempo Hari Ini</div>
+						<div class="text-lg font-black text-amber-500">{l4ReadyCount} Karyawan</div>
+					</div>
+				</div>
+			</div>
+
+			<!-- Bagian 1: Antrean Siap Dinilai (Jatuh Tempo >= 3 Bulan) -->
+			<div class="space-y-3">
+				<div class="flex items-center justify-between">
+					<div class="flex items-center gap-2">
+						<span class="material-symbols-outlined text-amber-500 text-base">notifications_active</span>
+						<h4 class="text-xs font-black uppercase tracking-wider text-on-surface">Siap Dinilai (Masa Observasi 3 Bulan Terpenuhi)</h4>
+						<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/15 text-amber-600 dark:text-amber-400">
+							{l4ReadyEvals.length} Jatuh Tempo
+						</span>
+					</div>
+				</div>
+
+				{#if l4ReadyEvals.length === 0}
+					<div class="p-8 rounded-3xl bg-surface-container border border-slate-200/60 dark:border-slate-800/60 text-center space-y-2">
+						<span class="material-symbols-outlined text-4xl text-emerald-500">verified</span>
+						<h5 class="text-sm font-black text-on-surface">Tidak Ada Evaluasi Jatuh Tempo</h5>
+						<p class="text-xs text-on-surface-variant max-w-md mx-auto">
+							Semua evaluasi Level 4 yang jatuh tempo sudah Anda lengkapi. Periksa daftar jadwal mendatang di bawah untuk pelatihan yang sedang berjalan.
+						</p>
+					</div>
+				{:else}
+					<div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+						{#each l4ReadyEvals as item}
+							<div class="p-5 rounded-3xl bg-surface border-2 border-amber-500/30 dark:border-amber-500/20 shadow-xs flex flex-col justify-between space-y-4">
+								<div class="space-y-3">
+									<div class="flex items-start justify-between gap-2">
+										<div class="flex items-center gap-3">
+											<div class="w-10 h-10 rounded-2xl bg-amber-500/10 text-amber-600 font-black text-sm flex items-center justify-center shrink-0">
+												{item.employeeName.charAt(0)}
+											</div>
+											<div>
+												<h5 class="text-xs font-black text-on-surface line-clamp-1">{item.employeeName}</h5>
+												<p class="text-[11px] text-on-surface-variant font-mono">{item.payrollId} • {item.positionTitle}</p>
+											</div>
+										</div>
+										<span class="px-2 py-0.5 rounded-full text-[10px] font-black bg-rose-500/15 text-rose-600 dark:text-rose-400 whitespace-nowrap">
+											Jatuh Tempo
+										</span>
+									</div>
+
+									<div class="p-3 rounded-2xl bg-surface-container space-y-1.5 border border-slate-200/40 dark:border-slate-800/40">
+										<div class="flex items-center justify-between text-[11px]">
+											<span class="text-on-surface-variant font-medium">Training:</span>
+											<span class="px-1.5 py-0.5 rounded-md text-[9px] font-bold bg-amber-500/10 text-amber-600">{item.courseCategory}</span>
+										</div>
+										<p class="text-xs font-bold text-on-surface line-clamp-2">{item.courseTitle}</p>
+										<div class="grid grid-cols-2 gap-2 pt-2 border-t border-slate-200/40 dark:border-slate-700/40 text-[10px]">
+											<div>
+												<span class="text-on-surface-variant block">Selesai Training:</span>
+												<span class="font-mono font-bold text-on-surface">{item.trainingCompletedAt || '-'}</span>
+											</div>
+											<div>
+												<span class="text-on-surface-variant block">Target Evaluasi:</span>
+												<span class="font-mono font-black text-amber-600 dark:text-amber-400">{item.dueDate || '-'}</span>
+											</div>
+										</div>
+									</div>
+								</div>
+
+								<button
+									type="button"
+									onclick={() => openL4Modal(item)}
+									class="w-full py-2.5 px-4 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-xs active:scale-98 transition-all cursor-pointer"
+								>
+									<span class="material-symbols-outlined text-sm">checklist</span>
+									<span>Evaluasi Hasil 3 Bulan</span>
+								</button>
+							</div>
+						{/each}
+					</div>
+				{/if}
+			</div>
+
+			<!-- Bagian 2: Jadwal Mendatang (Masa Observasi Masih Berjalan) -->
+			<div class="space-y-3 pt-4">
+				<div class="flex items-center justify-between">
+					<div class="flex items-center gap-2">
+						<span class="material-symbols-outlined text-slate-400 text-base">hourglass_top</span>
+						<h4 class="text-xs font-black uppercase tracking-wider text-on-surface">Jadwal Mendatang (Masa Observasi 3 Bulan Berjalan)</h4>
+						<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-500/15 text-slate-600 dark:text-slate-400">
+							{l4UpcomingEvals.length} Berjalan
+						</span>
+					</div>
+				</div>
+
+				{#if l4UpcomingEvals.length > 0}
+					<div class="rounded-3xl border border-slate-200/60 dark:border-slate-800/60 overflow-hidden shadow-xs bg-surface">
+						<div class="overflow-x-auto">
+							<table class="w-full text-xs text-left">
+								<thead class="bg-surface-container-high border-b border-slate-200/60 dark:border-slate-800/60 font-bold text-on-surface">
+									<tr>
+										<th class="p-3">Karyawan</th>
+										<th class="p-3">Pelatihan</th>
+										<th class="p-3">Tgl Selesai Training</th>
+										<th class="p-3">Jadwal Penilaian Level 4</th>
+										<th class="p-3 text-center">Hitung Mundur</th>
+										<th class="p-3 text-right">Status Form</th>
+									</tr>
+								</thead>
+								<tbody class="divide-y divide-slate-200/60 dark:divide-slate-800/60">
+									{#each l4UpcomingEvals as item}
+										<tr class="hover:bg-surface-container/50">
+											<td class="p-3">
+												<div class="font-bold text-on-surface">{item.employeeName}</div>
+												<div class="text-[10px] font-mono text-on-surface-variant">{item.payrollId} • {item.positionTitle}</div>
+											</td>
+											<td class="p-3">
+												<div class="font-bold text-on-surface">{item.courseTitle}</div>
+												<div class="text-[10px] text-on-surface-variant">{item.courseCategory}</div>
+											</td>
+											<td class="p-3 font-mono text-on-surface-variant">
+												{item.trainingCompletedAt || '-'}
+											</td>
+											<td class="p-3 font-mono font-bold text-on-surface">
+												{item.dueDate || '-'}
+											</td>
+											<td class="p-3 text-center">
+												<span class="px-2.5 py-1 rounded-xl text-xs font-black bg-blue-500/10 text-blue-500">
+													{getDaysRemaining(item.dueDate)} hari lagi
+												</span>
+											</td>
+											<td class="p-3 text-right">
+												<span class="px-2 py-0.5 rounded-md text-[10px] font-bold bg-slate-500/10 text-slate-400">
+													Observasi Berjalan
+												</span>
+											</td>
+										</tr>
+									{/each}
+								</tbody>
+							</table>
+						</div>
+					</div>
+				{/if}
+			</div>
+
+			<!-- Bagian 3: Riwayat Penilaian Selesai Level 4 -->
+			<div class="space-y-3 pt-4">
+				<div class="flex items-center justify-between">
+					<div class="flex items-center gap-2">
+						<span class="material-symbols-outlined text-emerald-500 text-base">verified</span>
+						<h4 class="text-xs font-black uppercase tracking-wider text-on-surface">Riwayat Penilaian Selesai (Level 4)</h4>
+						<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/15 text-emerald-600 dark:text-emerald-400">
+							{l4CompletedEvals.length} Selesai
+						</span>
+					</div>
+				</div>
+
+				{#if l4CompletedEvals.length > 0}
+					<div class="rounded-3xl border border-slate-200/60 dark:border-slate-800/60 overflow-hidden shadow-xs bg-surface">
+						<div class="overflow-x-auto">
+							<table class="w-full text-xs text-left">
+								<thead class="bg-surface-container-high border-b border-slate-200/60 dark:border-slate-800/60 font-bold text-on-surface">
+									<tr>
+										<th class="p-3">Karyawan</th>
+										<th class="p-3">Pelatihan</th>
+										<th class="p-3 text-center">Dampak Bisnis</th>
+										<th class="p-3 text-center">Produktivitas</th>
+										<th class="p-3">Reduksi Insiden/Error</th>
+										<th class="p-3">Tgl Review</th>
+										<th class="p-3 text-right">Aksi</th>
+									</tr>
+								</thead>
+								<tbody class="divide-y divide-slate-200/60 dark:divide-slate-800/60">
+									{#each l4CompletedEvals as item}
+										<tr class="hover:bg-surface-container/50">
+											<td class="p-3">
+												<div class="font-bold text-on-surface">{item.employeeName}</div>
+												<div class="text-[10px] font-mono text-on-surface-variant">{item.payrollId} • {item.positionTitle}</div>
+											</td>
+											<td class="p-3">
+												<div class="font-bold text-on-surface">{item.courseTitle}</div>
+												<div class="text-[10px] text-on-surface-variant">{item.courseCategory}</div>
+											</td>
+											<td class="p-3 text-center">
+												<span class="px-2 py-0.5 rounded-lg text-xs font-bold bg-amber-500/10 text-amber-600">
+													{item.l4BusinessScore} / 5
+												</span>
+											</td>
+											<td class="p-3 text-center">
+												<span class="px-2 py-0.5 rounded-lg text-xs font-bold bg-emerald-500/10 text-emerald-600">
+													{item.l4ProductivityScore} / 5
+												</span>
+											</td>
+											<td class="p-3 text-on-surface-variant max-w-xs truncate">
+												{item.l4IncidentNotes || '-'}
+											</td>
+											<td class="p-3 text-on-surface-variant font-mono text-[11px]">
+												{item.l4ReviewedAt || '-'}
+											</td>
+											<td class="p-3 text-right">
+												<button
+													type="button"
+													onclick={() => openL4Modal(item)}
+													class="px-2.5 py-1 rounded-lg bg-surface-container border border-slate-200 dark:border-slate-700 text-xs font-bold hover:bg-surface-container-high cursor-pointer"
+												>
+													Edit
+												</button>
+											</td>
+										</tr>
+									{/each}
+								</tbody>
+							</table>
+						</div>
+					</div>
+				{/if}
+			</div>
+		</div>
+
 	{:else if activeViewTab === 'history'}
 		<!-- ═══════════════════════════════════════════════════════════════ -->
 		<!-- TAB RIWAYAT ASESMEN (HISTORY VIEW)                              -->
@@ -994,6 +1514,304 @@
 					Tutup
 				</button>
 			</div>
+		</div>
+	</div>
+{/if}
+
+<!-- Modal Form Evaluasi Pasca-Training Segera (Level 3) -->
+{#if isL3ModalOpen && selectedL3Eval}
+	<div class="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-4">
+		<div class="bg-surface rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xl w-full max-w-xl overflow-hidden p-6 space-y-5 animate-in zoom-in-95 duration-150">
+			<div class="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800">
+				<div>
+					<div class="flex items-center gap-2">
+						<span class="material-symbols-outlined text-blue-500 text-lg">psychology</span>
+						<h3 class="font-black text-base text-on-surface">Penilaian Pasca-Training Segera (Level 3)</h3>
+					</div>
+					<p class="text-xs text-on-surface-variant mt-0.5">Evaluasi serapan materi & perilaku kerja awal</p>
+				</div>
+				<button type="button" onclick={() => (isL3ModalOpen = false)} class="w-8 h-8 rounded-full bg-surface-container flex items-center justify-center text-slate-400 hover:text-slate-600 cursor-pointer">
+					<span class="material-symbols-outlined text-lg">close</span>
+				</button>
+			</div>
+
+			<form
+				method="POST"
+				action="?/submitEvaluationL3"
+				use:enhance={() => {
+					isSubmitting = true;
+					return async ({ result, update }) => {
+						isSubmitting = false;
+						if (result.type === 'success') {
+							notifySuccess(result.data?.message || 'Evaluasi Level 3 berhasil disimpan!');
+							isL3ModalOpen = false;
+						} else {
+							notifyError(result.data?.message || 'Gagal menyimpan evaluasi.');
+						}
+						await update();
+					};
+				}}
+				class="space-y-4"
+			>
+				<input type="hidden" name="evalId" value={selectedL3Eval.id} />
+				<input type="hidden" name="assessorName" value={currentAssessor?.name || currentUser?.name || 'Supervisor'} />
+
+				<!-- Info Box Karyawan & Kursus -->
+				<div class="p-3.5 rounded-2xl bg-surface-container border border-slate-200/60 dark:border-slate-800/60 space-y-1">
+					<div class="flex justify-between items-start">
+						<div>
+							<h4 class="text-xs font-black text-on-surface">{selectedL3Eval.employeeName}</h4>
+							<p class="text-[11px] font-mono text-on-surface-variant">{selectedL3Eval.payrollId} • {selectedL3Eval.positionTitle}</p>
+						</div>
+						<span class="px-2 py-0.5 rounded-md text-[10px] font-bold bg-blue-500/10 text-blue-500">
+							{selectedL3Eval.courseCategory}
+						</span>
+					</div>
+					<p class="text-xs font-semibold text-primary pt-1 border-t border-slate-200/50 dark:border-slate-700/50">
+						{selectedL3Eval.courseTitle}
+					</p>
+				</div>
+
+				<!-- Butir Penilaian 1: Serapan Materi -->
+				<div class="space-y-2">
+					<div class="flex justify-between items-center text-xs">
+						<span class="font-bold text-on-surface">1. Serapan & Penguasaan Materi</span>
+						<span class="font-mono font-black text-blue-500">Skor: {l3MaterialScore} / 5</span>
+					</div>
+					<p class="text-[11px] text-on-surface-variant">Seberapa baik karyawan memahami konsep teori dan petunjuk teknis yang diajarkan.</p>
+					<div class="grid grid-cols-5 gap-1.5">
+						{#each [1, 2, 3, 4, 5] as lvl}
+							<button
+								type="button"
+								onclick={() => (l3MaterialScore = lvl)}
+								class="py-2 rounded-xl text-xs font-bold transition-all border cursor-pointer
+								{l3MaterialScore === lvl ? 'bg-blue-500 text-white border-blue-500 shadow-xs' : 'bg-surface border-slate-200 dark:border-slate-700 text-on-surface hover:bg-surface-container'}"
+							>
+								{lvl}
+							</button>
+						{/each}
+					</div>
+					<input type="hidden" name="materialAbsorptionScore" value={l3MaterialScore} />
+				</div>
+
+				<!-- Butir Penilaian 2: Perilaku Kerja -->
+				<div class="space-y-2">
+					<div class="flex justify-between items-center text-xs">
+						<span class="font-bold text-on-surface">2. Perubahan Sikap & Perilaku Kerja</span>
+						<span class="font-mono font-black text-blue-500">Skor: {l3BehaviorScore} / 5</span>
+					</div>
+					<p class="text-[11px] text-on-surface-variant">Inisiatif dan motivasi positif karyawan dalam menerapkan materi di tim kerja.</p>
+					<div class="grid grid-cols-5 gap-1.5">
+						{#each [1, 2, 3, 4, 5] as lvl}
+							<button
+								type="button"
+								onclick={() => (l3BehaviorScore = lvl)}
+								class="py-2 rounded-xl text-xs font-bold transition-all border cursor-pointer
+								{l3BehaviorScore === lvl ? 'bg-blue-500 text-white border-blue-500 shadow-xs' : 'bg-surface border-slate-200 dark:border-slate-700 text-on-surface hover:bg-surface-container'}"
+							>
+								{lvl}
+							</button>
+						{/each}
+					</div>
+					<input type="hidden" name="behaviorScore" value={l3BehaviorScore} />
+				</div>
+
+				<!-- Butir Penilaian 3: Kepatuhan SOP Baru -->
+				<div class="space-y-2">
+					<div class="flex justify-between items-center text-xs">
+						<span class="font-bold text-on-surface">3. Kepatuhan terhadap SOP Baru / Standar Operasional</span>
+						<span class="font-mono font-black text-blue-500">Skor: {l3SopScore} / 5</span>
+					</div>
+					<p class="text-[11px] text-on-surface-variant">Tingkat disiplin dan konsistensi menerapkan metode kerja baru pasca-training.</p>
+					<div class="grid grid-cols-5 gap-1.5">
+						{#each [1, 2, 3, 4, 5] as lvl}
+							<button
+								type="button"
+								onclick={() => (l3SopScore = lvl)}
+								class="py-2 rounded-xl text-xs font-bold transition-all border cursor-pointer
+								{l3SopScore === lvl ? 'bg-blue-500 text-white border-blue-500 shadow-xs' : 'bg-surface border-slate-200 dark:border-slate-700 text-on-surface hover:bg-surface-container'}"
+							>
+								{lvl}
+							</button>
+						{/each}
+					</div>
+					<input type="hidden" name="sopComplianceScore" value={l3SopScore} />
+				</div>
+
+				<!-- Catatan Atasan -->
+				<div class="space-y-1.5">
+					<label class="text-xs font-bold text-on-surface block">Catatan & Arahan Atasan Langsung</label>
+					<textarea
+						name="notes"
+						bind:value={l3Notes}
+						rows="3"
+						placeholder="Tuliskan catatan observasi awal atau arahan bimbingan pasca-training..."
+						class="w-full p-3 rounded-2xl bg-surface border border-slate-200 dark:border-slate-700 text-xs text-on-surface outline-none focus:ring-2 focus:ring-primary"
+					></textarea>
+				</div>
+
+				<div class="flex justify-end gap-2.5 pt-3 border-t border-slate-200 dark:border-slate-800">
+					<button
+						type="button"
+						onclick={() => (isL3ModalOpen = false)}
+						class="px-4 py-2 rounded-xl bg-surface-container text-xs font-bold hover:bg-surface-container-high cursor-pointer"
+					>
+						Batal
+					</button>
+					<button
+						type="submit"
+						disabled={isSubmitting}
+						class="px-5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-xs flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+					>
+						<span class="material-symbols-outlined text-sm">save</span>
+						<span>{isSubmitting ? 'Menyimpan...' : 'Simpan Evaluasi Level 3'}</span>
+					</button>
+				</div>
+			</form>
+		</div>
+	</div>
+{/if}
+
+<!-- Modal Form Evaluasi Pasca-Training 3 Bulan (Level 4) -->
+{#if isL4ModalOpen && selectedL4Eval}
+	<div class="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-4">
+		<div class="bg-surface rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xl w-full max-w-xl overflow-hidden p-6 space-y-5 animate-in zoom-in-95 duration-150">
+			<div class="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800">
+				<div>
+					<div class="flex items-center gap-2">
+						<span class="material-symbols-outlined text-amber-500 text-lg">trending_up</span>
+						<h3 class="font-black text-base text-on-surface">Penilaian Dampak Bisnis 3 Bulan (Level 4)</h3>
+					</div>
+					<p class="text-xs text-on-surface-variant mt-0.5">Evaluasi hasil nyata & produktivitas kerja setelah masa observasi 3 bulan</p>
+				</div>
+				<button type="button" onclick={() => (isL4ModalOpen = false)} class="w-8 h-8 rounded-full bg-surface-container flex items-center justify-center text-slate-400 hover:text-slate-600 cursor-pointer">
+					<span class="material-symbols-outlined text-lg">close</span>
+				</button>
+			</div>
+
+			<form
+				method="POST"
+				action="?/submitEvaluationL4"
+				use:enhance={() => {
+					isSubmitting = true;
+					return async ({ result, update }) => {
+						isSubmitting = false;
+						if (result.type === 'success') {
+							notifySuccess(result.data?.message || 'Evaluasi Level 4 berhasil disimpan!');
+							isL4ModalOpen = false;
+						} else {
+							notifyError(result.data?.message || 'Gagal menyimpan evaluasi.');
+						}
+						await update();
+					};
+				}}
+				class="space-y-4"
+			>
+				<input type="hidden" name="evalId" value={selectedL4Eval.id} />
+				<input type="hidden" name="assessorName" value={currentAssessor?.name || currentUser?.name || 'Supervisor'} />
+
+				<!-- Info Box Karyawan & Kursus -->
+				<div class="p-3.5 rounded-2xl bg-surface-container border border-slate-200/60 dark:border-slate-800/60 space-y-1">
+					<div class="flex justify-between items-start">
+						<div>
+							<h4 class="text-xs font-black text-on-surface">{selectedL4Eval.employeeName}</h4>
+							<p class="text-[11px] font-mono text-on-surface-variant">{selectedL4Eval.payrollId} • {selectedL4Eval.positionTitle}</p>
+						</div>
+						<span class="px-2 py-0.5 rounded-md text-[10px] font-bold bg-amber-500/10 text-amber-600">
+							H+90 Hari Observasi
+						</span>
+					</div>
+					<p class="text-xs font-semibold text-primary pt-1 border-t border-slate-200/50 dark:border-slate-700/50">
+						{selectedL4Eval.courseTitle}
+					</p>
+				</div>
+
+				<!-- Butir Penilaian 1: Dampak Efisiensi Bisnis -->
+				<div class="space-y-2">
+					<div class="flex justify-between items-center text-xs">
+						<span class="font-bold text-on-surface">1. Dampak terhadap Efisiensi & Hasil Bisnis Unit Kerja</span>
+						<span class="font-mono font-black text-amber-500">Skor: {l4BusinessScore} / 5</span>
+					</div>
+					<p class="text-[11px] text-on-surface-variant">Penghematan waktu, biaya, atau peningkatan kualitas layanan di departemen.</p>
+					<div class="grid grid-cols-5 gap-1.5">
+						{#each [1, 2, 3, 4, 5] as lvl}
+							<button
+								type="button"
+								onclick={() => (l4BusinessScore = lvl)}
+								class="py-2 rounded-xl text-xs font-bold transition-all border cursor-pointer
+								{l4BusinessScore === lvl ? 'bg-amber-500 text-white border-amber-500 shadow-xs' : 'bg-surface border-slate-200 dark:border-slate-700 text-on-surface hover:bg-surface-container'}"
+							>
+								{lvl}
+							</button>
+						{/each}
+					</div>
+					<input type="hidden" name="businessImpactScore" value={l4BusinessScore} />
+				</div>
+
+				<!-- Butir Penilaian 2: Peningkatan Produktivitas -->
+				<div class="space-y-2">
+					<div class="flex justify-between items-center text-xs">
+						<span class="font-bold text-on-surface">2. Peningkatan Produktivitas / Output Kerja</span>
+						<span class="font-mono font-black text-amber-500">Skor: {l4ProductivityScore} / 5</span>
+					</div>
+					<p class="text-[11px] text-on-surface-variant">Kecepatan penyelesaian tugas operasional dan pencapaian target kerja bawahan.</p>
+					<div class="grid grid-cols-5 gap-1.5">
+						{#each [1, 2, 3, 4, 5] as lvl}
+							<button
+								type="button"
+								onclick={() => (l4ProductivityScore = lvl)}
+								class="py-2 rounded-xl text-xs font-bold transition-all border cursor-pointer
+								{l4ProductivityScore === lvl ? 'bg-amber-500 text-white border-amber-500 shadow-xs' : 'bg-surface border-slate-200 dark:border-slate-700 text-on-surface hover:bg-surface-container'}"
+							>
+								{lvl}
+							</button>
+						{/each}
+					</div>
+					<input type="hidden" name="productivityScore" value={l4ProductivityScore} />
+				</div>
+
+				<!-- Butir Penilaian 3: Penurunan Insiden / Kesalahan Kerja -->
+				<div class="space-y-1.5">
+					<label class="text-xs font-bold text-on-surface block">3. Reduksi Insiden, Kerusakan, atau Kesalahan Kerja (Opsional)</label>
+					<textarea
+						name="incidentReductionNotes"
+						bind:value={l4IncidentNotes}
+						rows="2"
+						placeholder="Contoh: Mengurangi kesalahan salah hitung stok di gudang, komplain pelanggan berkurang 50%..."
+						class="w-full p-3 rounded-2xl bg-surface border border-slate-200 dark:border-slate-700 text-xs text-on-surface outline-none focus:ring-2 focus:ring-primary"
+					></textarea>
+				</div>
+
+				<!-- Catatan Jangka Panjang -->
+				<div class="space-y-1.5">
+					<label class="text-xs font-bold text-on-surface block">Rekomendasi / Catatan Evaluasi Akhir</label>
+					<textarea
+						name="notes"
+						bind:value={l4Notes}
+						rows="2"
+						placeholder="Tuliskan rekomendasi jenjang karir, penugasan proyek baru, atau evaluasi akhir..."
+						class="w-full p-3 rounded-2xl bg-surface border border-slate-200 dark:border-slate-700 text-xs text-on-surface outline-none focus:ring-2 focus:ring-primary"
+					></textarea>
+				</div>
+
+				<div class="flex justify-end gap-2.5 pt-3 border-t border-slate-200 dark:border-slate-800">
+					<button
+						type="button"
+						onclick={() => (isL4ModalOpen = false)}
+						class="px-4 py-2 rounded-xl bg-surface-container text-xs font-bold hover:bg-surface-container-high cursor-pointer"
+					>
+						Batal
+					</button>
+					<button
+						type="submit"
+						disabled={isSubmitting}
+						class="px-5 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold shadow-xs flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+					>
+						<span class="material-symbols-outlined text-sm">save</span>
+						<span>{isSubmitting ? 'Menyimpan...' : 'Simpan Evaluasi Level 4'}</span>
+					</button>
+				</div>
+			</form>
 		</div>
 	</div>
 {/if}
