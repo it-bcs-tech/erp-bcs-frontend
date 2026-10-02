@@ -152,9 +152,19 @@
 		selectedEmployeeIds = selectedEmployeeIds.filter((id) => id !== payrollId);
 	}
 
-	// Create Course Wizard & Quiz Builder State
-	let createModalStep = $state<1 | 2 | 3>(1);
+	// Create Course Wizard (5 Steps) & Quiz Builder State
+	let createModalStep = $state<1 | 2 | 3 | 4 | 5>(1);
 	let createQuizTab = $state<'PRE_TEST' | 'POST_TEST'>('PRE_TEST');
+
+	// State Jadwal Pelatihan Step 3
+	let createCourseSessionStartDate = $state(new Date().toISOString().split('T')[0]);
+	let createCourseSessionEndDate = $state(new Date().toISOString().split('T')[0]);
+	let createCourseStartTime = $state('09:00');
+	let createCourseEndTime = $state('11:30');
+	let createCourseSessionType = $state<'OFFLINE' | 'ONLINE' | 'HYBRID'>('OFFLINE');
+	let createCourseLocationOrLink = $state('Ruang Aula Pelatihan BCS Cilegon');
+	let createCourseTargetRole = $state('Semua Peserta / Perwakilan Divisi');
+	let createCourseQuota = $state(30);
 
 	interface QuizQuestionItem {
 		id: string;
@@ -297,7 +307,7 @@
 				spawnToast({
 					id: Date.now().toString(),
 					title: 'Validasi',
-					message: 'Judul kursus pelatihan wajib diisi terlebih dahulu.',
+					message: 'Judul program pelatihan wajib diisi terlebih dahulu.',
 					type: 'WARNING',
 					timestamp: new Date().toISOString()
 				});
@@ -306,6 +316,20 @@
 			createModalStep = 2;
 		} else if (createModalStep === 2) {
 			createModalStep = 3;
+		} else if (createModalStep === 3) {
+			if (!createCourseLocationOrLink.trim()) {
+				spawnToast({
+					id: Date.now().toString(),
+					title: 'Validasi',
+					message: 'Lokasi ruangan atau tautan meeting wajib diisi.',
+					type: 'WARNING',
+					timestamp: new Date().toISOString()
+				});
+				return;
+			}
+			createModalStep = 4;
+		} else if (createModalStep === 4) {
+			createModalStep = 5;
 		}
 	}
 
@@ -318,6 +342,14 @@
 		createCourseEmployeeSearch = '';
 		selectedEmployeeIds = [];
 		isEmployeeSelectionConfirmed = false;
+		createCourseSessionStartDate = new Date().toISOString().split('T')[0];
+		createCourseSessionEndDate = new Date().toISOString().split('T')[0];
+		createCourseStartTime = '09:00';
+		createCourseEndTime = '11:30';
+		createCourseSessionType = 'OFFLINE';
+		createCourseLocationOrLink = 'Ruang Aula Pelatihan BCS Cilegon';
+		createCourseTargetRole = 'Semua Peserta / Perwakilan Divisi';
+		createCourseQuota = 30;
 		createCourseMaterialUrl = '';
 		showMaterialPreview = true;
 		preTestQuestionsList = [
@@ -3739,41 +3771,61 @@
 				</button>
 			</div>
 
-			<!-- Stepper Indicator Header -->
-			<div class="grid grid-cols-3 border border-slate-200 dark:border-slate-800 rounded-2xl bg-surface-container-low text-[11px] font-bold p-1 gap-1">
+			<!-- Stepper Indicator Header (5 Steps) -->
+			<div class="grid grid-cols-2 sm:grid-cols-5 border border-slate-200 dark:border-slate-800 rounded-2xl bg-surface-container-low text-[11px] font-bold p-1 gap-1">
 				<button
 					type="button"
 					onclick={() => (createModalStep = 1)}
-					class="py-2 rounded-xl flex items-center justify-center gap-1.5 transition-all cursor-pointer {createModalStep === 1
+					class="py-2 px-2 rounded-xl flex items-center justify-center gap-1.5 transition-all cursor-pointer {createModalStep === 1
 						? 'bg-primary text-on-primary font-black shadow-xs'
 						: 'text-on-surface-variant hover:bg-surface-container'}"
 				>
 					<span class="material-symbols-outlined text-sm">info</span>
-					<span>1. Info & Jadwal Sesi</span>
+					<span>1. Info & Biaya</span>
 				</button>
 				<button
 					type="button"
 					onclick={() => (createModalStep = 2)}
-					class="py-2 rounded-xl flex items-center justify-center gap-1.5 transition-all cursor-pointer {createModalStep === 2
+					class="py-2 px-2 rounded-xl flex items-center justify-center gap-1.5 transition-all cursor-pointer {createModalStep === 2
 						? 'bg-primary text-on-primary font-black shadow-xs'
 						: 'text-on-surface-variant hover:bg-surface-container'}"
 				>
-					<span class="material-symbols-outlined text-sm">link</span>
-					<span>2. Link Materi</span>
+					<span class="material-symbols-outlined text-sm">group</span>
+					<span>2. Peserta ({selectedEmployeeIds.length})</span>
 				</button>
 				<button
 					type="button"
 					onclick={() => (createModalStep = 3)}
-					class="py-2 rounded-xl flex items-center justify-center gap-1.5 transition-all cursor-pointer {createModalStep === 3
+					class="py-2 px-2 rounded-xl flex items-center justify-center gap-1.5 transition-all cursor-pointer {createModalStep === 3
+						? 'bg-primary text-on-primary font-black shadow-xs'
+						: 'text-on-surface-variant hover:bg-surface-container'}"
+				>
+					<span class="material-symbols-outlined text-sm">calendar_month</span>
+					<span>3. Jadwal Sesi</span>
+				</button>
+				<button
+					type="button"
+					onclick={() => (createModalStep = 4)}
+					class="py-2 px-2 rounded-xl flex items-center justify-center gap-1.5 transition-all cursor-pointer {createModalStep === 4
+						? 'bg-primary text-on-primary font-black shadow-xs'
+						: 'text-on-surface-variant hover:bg-surface-container'}"
+				>
+					<span class="material-symbols-outlined text-sm">video_library</span>
+					<span>4. Materi Modul</span>
+				</button>
+				<button
+					type="button"
+					onclick={() => (createModalStep = 5)}
+					class="py-2 px-2 rounded-xl flex items-center justify-center gap-1.5 transition-all cursor-pointer {createModalStep === 5
 						? 'bg-primary text-on-primary font-black shadow-xs'
 						: isCreateCourseReadyToSubmit
 						? 'text-emerald-600 hover:bg-surface-container'
 						: 'text-amber-600 hover:bg-surface-container'}"
 				>
 					<span class="material-symbols-outlined text-sm">quiz</span>
-					<span>3. Soal Asesmen</span>
+					<span>5. Asesmen</span>
 					{#if !isCreateCourseReadyToSubmit}
-						<span class="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span>
+						<span class="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
 					{:else}
 						<span class="material-symbols-outlined text-xs text-emerald-500">check</span>
 					{/if}
@@ -3799,17 +3851,25 @@
 						}))
 					)}
 				/>
+				<input type="hidden" name="sessionDate" value={createCourseSessionStartDate} />
+				<input type="hidden" name="sessionEndDate" value={createCourseSessionEndDate} />
+				<input type="hidden" name="startTime" value={createCourseStartTime} />
+				<input type="hidden" name="endTime" value={createCourseEndTime} />
+				<input type="hidden" name="sessionType" value={createCourseSessionType} />
+				<input type="hidden" name="locationOrLink" value={createCourseLocationOrLink} />
+				<input type="hidden" name="targetRole" value={createCourseTargetRole} />
+				<input type="hidden" name="quota" value={createCourseQuota} />
 				<input type="hidden" name="preTestQuestions" value={JSON.stringify(preTestQuestionsList)} />
 				<input type="hidden" name="postTestQuestions" value={JSON.stringify(postTestQuestionsList)} />
 
 				<!-- Scrollable Form Body -->
 				<div class="flex-1 overflow-y-auto pr-1 space-y-3.5 max-h-[60vh]">
 					<!-- ══════════════════════════════════════════════════════════════ -->
-					<!-- LANGKAH 1: INFO KURSUS & DIVISI SASARAN                       -->
+					<!-- LANGKAH 1: INFO PROGRAM & BIAYA PELATIHAN                     -->
 					<!-- ══════════════════════════════════════════════════════════════ -->
 					<div class={createModalStep === 1 ? 'space-y-3.5' : 'hidden'}>
 						<div>
-							<label class="font-bold text-on-surface block mb-1">Judul Kursus Pelatihan *</label>
+							<label class="font-bold text-on-surface block mb-1">Judul Program Pelatihan *</label>
 							<input
 								type="text"
 								name="title"
@@ -3866,7 +3926,6 @@
 							</div>
 						</div>
 
-						<!-- Biaya Trainer & Peserta dinaikkan ke atas Divisi Sasaran -->
 						<div class="grid grid-cols-2 gap-3">
 							<div>
 								<label class="font-bold text-on-surface block mb-1">Biaya Trainer (IDR)</label>
@@ -3896,56 +3955,46 @@
 						</div>
 
 						<div>
-							<div class="flex items-center justify-between mb-1">
-								<label class="font-bold text-on-surface block">Divisi Sasaran *</label>
-								{#if selectedEmployeeIds.length > 0}
-									<span class="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
-										<span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-										<span>{selectedEmployeeIds.length} Terpilih ({computedCourseDivision})</span>
-									</span>
-								{/if}
-							</div>
-							<select
-								bind:value={createCourseDivision}
-								onchange={() => {
-									createCourseEmployeeSearch = '';
-									isEmployeeSelectionConfirmed = false;
-								}}
-								class="w-full px-3 py-2 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800 text-xs text-on-surface font-semibold"
-							>
-								<option value="">-- Pilih Divisi untuk Memilih Karyawan --</option>
-								{#each divisions as d}
-									<option value={d.code}>{d.name}</option>
-								{/each}
+							<label class="font-bold text-on-surface block mb-1">Tingkat Kesulitan (Level)</label>
+							<select name="level" class="w-full px-3 py-2 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800 text-xs text-on-surface">
+								<option value="Beginner">Dasar (Beginner)</option>
+								<option value="Intermediate">Menengah (Intermediate)</option>
+								<option value="Advanced">Lanjutan (Advanced)</option>
 							</select>
-							<p class="text-[10px] text-slate-400 mt-1">
-								Pilih divisi untuk memuat daftar karyawannya. Anda dapat berganti divisi untuk memilih perwakilan dari beberapa divisi berbeda tanpa menghapus pilihan sebelumnya.
-							</p>
 						</div>
+					</div>
 
-						<!-- SEKSI MULTI-SELECT KARYAWAN PERWAKILAN PER DIVISI -->
+					<!-- ══════════════════════════════════════════════════════════════ -->
+					<!-- LANGKAH 2: TARGET DIVISI & PEMILIHAN PESERTA                   -->
+					<!-- ══════════════════════════════════════════════════════════════ -->
+					<div class={createModalStep === 2 ? 'space-y-3.5' : 'hidden'}>
 						<div class="p-3.5 rounded-2xl bg-surface-container-low border border-slate-200 dark:border-slate-800 space-y-3">
-							<!-- Header & Reset Action -->
-							<div class="flex items-center justify-between pb-2 border-b border-slate-200/60 dark:border-slate-800/60">
-								<div class="flex items-center gap-2">
-									<span class="material-symbols-outlined text-primary text-base">group</span>
-									<span class="font-bold text-xs text-on-surface">Karyawan Perwakilan Pelatihan</span>
-									<span class="px-2 py-0.5 rounded-full text-[10px] font-black bg-primary/10 text-primary">
-										{selectedEmployeeIds.length} Total Dipilih
-									</span>
+							<div>
+								<div class="flex items-center justify-between mb-1">
+									<label class="font-bold text-on-surface block text-xs">Pilih Divisi Sasaran</label>
+									{#if selectedEmployeeIds.length > 0}
+										<span class="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
+											<span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+											<span>{selectedEmployeeIds.length} Terpilih ({computedCourseDivision})</span>
+										</span>
+									{/if}
 								</div>
-
-								{#if selectedEmployeeIds.length > 0}
-									<button
-										type="button"
-										onclick={clearAllSelectedEmployees}
-										class="text-[11px] font-bold text-rose-500 hover:underline flex items-center gap-0.5 cursor-pointer"
-										title="Kosongkan seluruh pilihan peserta dari semua divisi"
-									>
-										<span class="material-symbols-outlined text-xs">delete</span>
-										<span>Reset Semua</span>
-									</button>
-								{/if}
+								<select
+									bind:value={createCourseDivision}
+									onchange={() => {
+										createCourseEmployeeSearch = '';
+										isEmployeeSelectionConfirmed = false;
+									}}
+									class="w-full px-3 py-2 rounded-xl bg-surface border border-slate-200 dark:border-slate-700 text-xs text-on-surface font-semibold"
+								>
+									<option value="">-- Pilih Divisi untuk Memuat Karyawan --</option>
+									{#each divisions as d}
+										<option value={d.code}>{d.name}</option>
+									{/each}
+								</select>
+								<p class="text-[10px] text-slate-400 mt-1">
+									Pilih divisi untuk memuat daftar karyawannya. Anda dapat berganti divisi untuk memilih perwakilan dari beberapa divisi berbeda tanpa menghapus pilihan sebelumnya.
+								</p>
 							</div>
 
 							<!-- Picker Karyawan Divisi Aktif (jika divisi dipilih) -->
@@ -4000,7 +4049,7 @@
 
 									<!-- Daftar Karyawan Checkbox Grid -->
 									{#if filteredDivisionEmployees.length > 0}
-										<div class="max-h-36 overflow-y-auto space-y-1 pr-1 divide-y divide-slate-100 dark:divide-slate-800/60">
+										<div class="max-h-44 overflow-y-auto space-y-1 pr-1 divide-y divide-slate-100 dark:divide-slate-800/60">
 											{#each filteredDivisionEmployees as emp}
 												{@const isSelected = selectedEmployeeIds.includes(emp.payrollId)}
 												<button
@@ -4036,8 +4085,8 @@
 									{/if}
 								</div>
 							{:else}
-								<div class="p-3 text-center rounded-xl bg-surface border border-dashed border-slate-300 dark:border-slate-700/60 text-slate-400 text-xs">
-									<span>Silakan pilih <strong>Divisi Sasaran</strong> di atas untuk memilih karyawan perwakilan.</span>
+								<div class="p-4 text-center rounded-xl bg-surface border border-dashed border-slate-300 dark:border-slate-700/60 text-slate-400 text-xs">
+									<span>Silakan pilih <strong>Divisi Sasaran</strong> di atas untuk memuat daftar peserta.</span>
 								</div>
 							{/if}
 
@@ -4049,16 +4098,23 @@
 										<span>Daftar Peserta Terdaftar ({selectedEmployeeIds.length})</span>
 									</h5>
 									{#if selectedEmployeeIds.length > 0}
-										<span class="text-[10px] text-slate-400">Klik tanda silang (✕) untuk membatalkan</span>
+										<button
+											type="button"
+											onclick={clearAllSelectedEmployees}
+											class="text-[10px] font-bold text-rose-500 hover:underline flex items-center gap-0.5 cursor-pointer"
+										>
+											<span class="material-symbols-outlined text-xs">delete</span>
+											<span>Reset Semua Peserta</span>
+										</button>
 									{/if}
 								</div>
 
 								{#if selectedEmployeeIds.length === 0}
-									<div class="p-2.5 text-center rounded-xl bg-surface/50 border border-slate-200/60 dark:border-slate-800 text-slate-400 text-[11px]">
-										Belum ada peserta perwakilan yang dipilih.
+									<div class="p-3 text-center rounded-xl bg-surface/50 border border-slate-200/60 dark:border-slate-800 text-slate-400 text-[11px]">
+										Belum ada peserta perwakilan yang dipilih (pendaftaran peserta dapat dilakukan menyusul).
 									</div>
 								{:else}
-									<div class="flex flex-wrap gap-1.5 max-h-36 overflow-y-auto pr-1 py-1">
+									<div class="flex flex-wrap gap-1.5 max-h-40 overflow-y-auto pr-1 py-1">
 										{#each selectedEmployees as emp}
 											<div class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-surface border border-slate-200 dark:border-slate-700 text-xs shadow-2xs hover:border-primary/40 transition-colors">
 												<span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
@@ -4085,36 +4141,56 @@
 								{/if}
 							</div>
 						</div>
+					</div>
 
-						<!-- SEKSI JADWAL PELAKSANAAN SESI PELATIHAN -->
+					<!-- ══════════════════════════════════════════════════════════════ -->
+					<!-- LANGKAH 3: JADWAL & LOKASI PELAKSANAAN SESI                    -->
+					<!-- ══════════════════════════════════════════════════════════════ -->
+					<div class={createModalStep === 3 ? 'space-y-3.5' : 'hidden'}>
 						<div class="p-3.5 rounded-2xl bg-surface-container-low border border-slate-200 dark:border-slate-800 space-y-3">
 							<div class="flex items-center gap-1.5 pb-2 border-b border-slate-200/60 dark:border-slate-800/60">
 								<span class="material-symbols-outlined text-primary text-base">calendar_month</span>
-								<h4 class="font-bold text-xs text-on-surface">Jadwal Pelaksanaan Sesi Pelatihan</h4>
+								<div>
+									<h4 class="font-bold text-xs text-on-surface">Jadwal Pelaksanaan Sesi Pelatihan</h4>
+									<p class="text-[10px] text-slate-400">Atur periode tanggal, jam harian, dan ruangan / tautan pelatihan</p>
+								</div>
 								<span class="px-2 py-0.5 rounded-full text-[9px] font-black uppercase bg-primary/10 text-primary ml-auto">
 									Otomatis Buat Sesi & Absensi
 								</span>
 							</div>
 
-							<div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+							<div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
 								<div>
-									<label class="font-bold text-on-surface block mb-1">Tanggal Pelatihan *</label>
+									<label class="font-bold text-on-surface block mb-1">Tanggal Mulai Pelatihan *</label>
 									<input
 										type="date"
 										name="sessionDate"
 										required
-										value={new Date().toISOString().split('T')[0]}
-										class="w-full px-2.5 py-2 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800 font-mono text-xs text-on-surface font-semibold"
+										bind:value={createCourseSessionStartDate}
+										class="w-full px-2.5 py-2 rounded-xl bg-surface border border-slate-200 dark:border-slate-700 font-mono text-xs text-on-surface font-semibold"
 									/>
 								</div>
 
+								<div>
+									<label class="font-bold text-on-surface block mb-1">Tanggal Berakhir Pelatihan *</label>
+									<input
+										type="date"
+										name="sessionEndDate"
+										required
+										bind:value={createCourseSessionEndDate}
+										class="w-full px-2.5 py-2 rounded-xl bg-surface border border-slate-200 dark:border-slate-700 font-mono text-xs text-on-surface font-semibold"
+									/>
+								</div>
+							</div>
+
+							<div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
 								<div>
 									<label class="font-bold text-on-surface block mb-1">Jam Mulai</label>
 									<input
 										type="time"
 										name="startTime"
-										value="09:00"
-										class="w-full px-2 py-2 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800 font-mono text-xs text-on-surface"
+										bind:value={createCourseStartTime}
+										class="w-full px-2 py-2 rounded-xl bg-surface border border-slate-200 dark:border-slate-700 font-mono text-xs text-on-surface"
 									/>
 								</div>
 
@@ -4123,232 +4199,280 @@
 									<input
 										type="time"
 										name="endTime"
-										value="11:30"
-										class="w-full px-2 py-2 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800 font-mono text-xs text-on-surface"
+										bind:value={createCourseEndTime}
+										class="w-full px-2 py-2 rounded-xl bg-surface border border-slate-200 dark:border-slate-700 font-mono text-xs text-on-surface"
 									/>
 								</div>
-							</div>
 
-							<div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
 								<div>
 									<label class="font-bold text-on-surface block mb-1">Tipe Pelatihan</label>
 									<select
 										name="sessionType"
-										class="w-full px-3 py-2 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800 text-xs text-on-surface font-semibold"
+										bind:value={createCourseSessionType}
+										class="w-full px-3 py-2 rounded-xl bg-surface border border-slate-200 dark:border-slate-700 text-xs text-on-surface font-semibold"
 									>
 										<option value="OFFLINE">Tatap Muka (Offline)</option>
 										<option value="ONLINE">Daring / Webinar (Online)</option>
+										<option value="HYBRID">Hybrid (Tatap Muka & Daring)</option>
 									</select>
 								</div>
+							</div>
 
+							<div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
 								<div class="sm:col-span-2">
 									<label class="font-bold text-on-surface block mb-1">Lokasi Ruangan / Tautan Meeting *</label>
 									<input
 										type="text"
 										name="locationOrLink"
 										required
+										bind:value={createCourseLocationOrLink}
 										placeholder="Contoh: Ruang Aula Cilegon / Pool Gn. Putri / Google Meet link"
-										value="Ruang Aula Pelatihan BCS Cilegon"
-										class="w-full px-3 py-2 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800 text-xs text-on-surface"
+										class="w-full px-3 py-2 rounded-xl bg-surface border border-slate-200 dark:border-slate-700 text-xs text-on-surface"
 									/>
 								</div>
-							</div>
 
-							<div class="flex items-center justify-between text-[11px] text-slate-500 pt-1">
-								<span class="flex items-center gap-1 text-[10px]">
-									<span class="material-symbols-outlined text-xs text-emerald-500">info</span>
-									<span>Karyawan perwakilan yang dipilih otomatis terdaftar di daftar hadir sesi ini.</span>
-								</span>
-								<div class="flex items-center gap-1 shrink-0">
-									<span class="font-semibold text-on-surface text-[11px]">Kuota:</span>
+								<div>
+									<label class="font-bold text-on-surface block mb-1">Kuota Maksimal Peserta</label>
 									<input
 										type="number"
 										name="quota"
-										value="30"
+										bind:value={createCourseQuota}
 										min="5"
-										max="200"
-										class="w-16 px-2 py-1 rounded-lg bg-surface-container border border-slate-200 dark:border-slate-800 text-center font-mono text-xs"
+										max="500"
+										class="w-full px-3 py-2 rounded-xl bg-surface border border-slate-200 dark:border-slate-700 font-mono text-xs text-on-surface"
 									/>
 								</div>
 							</div>
-						</div>
 
-						<div class="grid grid-cols-2 gap-3">
-							<div>
-								<label class="font-bold text-on-surface block mb-1">Durasi (Jam)</label>
-								<input type="number" name="durationHours" value="2.0" step="0.5" class="w-full px-3 py-2 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800 font-mono text-xs" />
-							</div>
-
-							<div>
-								<label class="font-bold text-on-surface block mb-1">Passing Grade (%)</label>
-								<input type="number" name="passingGrade" value="75" min="50" max="100" class="w-full px-3 py-2 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800 font-mono text-xs" />
-							</div>
-						</div>
-
-						<div>
-							<label class="font-bold text-on-surface block mb-1">Deskripsi Singkat Kursus</label>
-							<textarea name="description" rows="2" placeholder="Uraikan kompetensi dan hasil belajar dari kursus ini..." class="w-full px-3 py-2 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800 resize-none text-xs"></textarea>
-						</div>
-					</div>
-
-					<!-- ══════════════════════════════════════════════════════════════ -->
-					<!-- LANGKAH 2: LINK MATERI EMBED & LIVE PREVIEW                   -->
-					<!-- ══════════════════════════════════════════════════════════════ -->
-					<div class={createModalStep === 2 ? 'space-y-3' : 'hidden'}>
-						<div class="flex items-center justify-between">
-							<label class="font-bold text-on-surface flex items-center gap-1.5">
-								<span class="material-symbols-outlined text-sm text-primary">link</span>
-								<span>Link Materi Pembelajaran (Embed Iframe)</span>
-							</label>
-							<span class="text-[10px] text-slate-400">YouTube, Google Slides/Docs/Drive, Loom, Canva, Vimeo, PDF</span>
-						</div>
-
-						<div class="flex gap-2">
-							<input
-								type="url"
-								name="materialUrl"
-								bind:value={createCourseMaterialUrl}
-								placeholder="Contoh: https://www.youtube.com/watch?v=... atau https://docs.google.com/presentation/d/..."
-								class="w-full px-3 py-2.5 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800 text-xs text-on-surface font-mono focus:ring-1 focus:ring-primary outline-none"
-							/>
-							{#if createCourseMaterialUrl.trim()}
-								<button
-									type="button"
-									onclick={() => (showMaterialPreview = !showMaterialPreview)}
-									class="px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 text-xs font-bold hover:bg-surface-container flex items-center gap-1 whitespace-nowrap cursor-pointer"
-								>
-									<span class="material-symbols-outlined text-sm">{showMaterialPreview ? 'visibility_off' : 'visibility'}</span>
-									<span>{showMaterialPreview ? 'Sembunyikan' : 'Preview'}</span>
-								</button>
-							{/if}
-						</div>
-
-						{#if createCourseMaterialUrl.trim() && showMaterialPreview}
-							{@const embedSrc = formatEmbedUrl(createCourseMaterialUrl)}
-							{@const platform = detectEmbedPlatform(createCourseMaterialUrl)}
-							<div class="p-3.5 rounded-2xl bg-surface-container-high border border-primary/20 space-y-2 animate-in fade-in duration-200">
-								<div class="flex items-center justify-between text-[11px]">
-									<div class="flex items-center gap-1.5 font-bold text-primary">
-										<span class="material-symbols-outlined text-sm">{platform.icon}</span>
-										<span>Live Preview ({platform.name}):</span>
-									</div>
-									<span class="text-[10px] text-slate-400 truncate max-w-xs font-mono">{embedSrc}</span>
+							<!-- Widget Preview Jadwal Sesi -->
+							<div class="p-3 rounded-xl bg-surface border border-primary/20 space-y-1.5">
+								<p class="text-[10px] font-bold text-primary uppercase tracking-wider flex items-center gap-1">
+									<span class="material-symbols-outlined text-xs">preview</span>
+									<span>Pratinjau Ringkasan Agenda Sesi:</span>
+								</p>
+								<div class="flex flex-wrap items-center gap-2 text-xs font-bold text-on-surface">
+									<span>📅 {createCourseSessionStartDate === createCourseSessionEndDate ? createCourseSessionStartDate : `${createCourseSessionStartDate} s/d ${createCourseSessionEndDate}`}</span>
+									<span>•</span>
+									<span>⏰ {createCourseStartTime} - {createCourseEndTime} WIB</span>
+									<span>•</span>
+									<span class="px-2 py-0.5 rounded text-[10px] font-black uppercase {createCourseSessionType === 'ONLINE' ? 'bg-indigo-100 text-indigo-800 dark:bg-indigo-950 dark:text-indigo-300' : 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300'}">
+										{createCourseSessionType}
+									</span>
 								</div>
-								<div class="w-full h-64 rounded-xl overflow-hidden bg-black/10 border border-slate-200 dark:border-slate-800 shadow-inner">
-									<iframe
-										src={embedSrc}
-										title="Preview Materi Pelatihan"
-										class="w-full h-full border-0"
-										allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-										allowfullscreen
-									></iframe>
-								</div>
-								<p class="text-[10px] text-slate-400 italic">
-									* Materi ini akan langsung ter-embed di Modul 1 Course Player tanpa perlu membuka tab baru / keluar dari aplikasi.
+								<p class="text-[11px] text-slate-500 flex items-center gap-1 truncate">
+									<span class="material-symbols-outlined text-xs">location_on</span>
+									<span>{createCourseLocationOrLink || '-'} (Kapasitas: {createCourseQuota} Peserta)</span>
 								</p>
 							</div>
-						{/if}
-
-						<div class="p-4 rounded-2xl bg-surface-container-low border border-slate-200 dark:border-slate-800 space-y-2">
-							<div class="flex items-center gap-2 text-xs font-bold text-on-surface">
-								<span class="material-symbols-outlined text-primary text-sm">integration_instructions</span>
-								<span>Struktur Kurikulum Otomatis:</span>
-							</div>
-							<ul class="text-[11px] text-slate-500 space-y-1 pl-4 list-disc">
-								<li><strong>Modul 1:</strong> Materi Utama Pelatihan (Embed video / slide presentasi).</li>
-								<li><strong>Modul 2:</strong> SOP & Prosedur Keselamatan Kerja Terkait.</li>
-								<li><strong>Modul 3:</strong> Evaluasi Post-Test Kelulusan Kursus.</li>
-							</ul>
 						</div>
 					</div>
 
 					<!-- ══════════════════════════════════════════════════════════════ -->
-					<!-- LANGKAH 3: ASESMEN PRE-TEST & POST-TEST BUILDER              -->
+					<!-- LANGKAH 4: MATERI PELATIHAN, DURASI & DESKRIPSI               -->
 					<!-- ══════════════════════════════════════════════════════════════ -->
-					<div class={createModalStep === 3 ? 'space-y-3.5' : 'hidden'}>
-						<!-- Sub-tab Switcher Pre-Test vs Post-Test -->
-						<div class="flex items-center justify-between p-2.5 rounded-2xl bg-surface-container-low border border-slate-200 dark:border-slate-800">
-							<div class="flex items-center gap-1.5">
+					<div class={createModalStep === 4 ? 'space-y-3.5' : 'hidden'}>
+						<div class="p-3.5 rounded-2xl bg-surface-container-low border border-slate-200 dark:border-slate-800 space-y-3">
+							<div class="grid grid-cols-2 gap-3">
+								<div>
+									<label class="font-bold text-on-surface block mb-1">Durasi Total (Jam)</label>
+									<input type="number" name="durationHours" value="2.0" step="0.5" class="w-full px-3 py-2 rounded-xl bg-surface border border-slate-200 dark:border-slate-700 font-mono text-xs" />
+								</div>
+
+								<div>
+									<label class="font-bold text-on-surface block mb-1">Passing Grade Kelulusan (%)</label>
+									<input type="number" name="passingGrade" value="75" min="50" max="100" class="w-full px-3 py-2 rounded-xl bg-surface border border-slate-200 dark:border-slate-700 font-mono text-xs" />
+								</div>
+							</div>
+
+							<div>
+								<label class="font-bold text-on-surface block mb-1">Deskripsi Singkat Program</label>
+								<textarea name="description" rows="2" placeholder="Uraikan kompetensi dan sasaran belajar dari pelatihan ini..." class="w-full px-3 py-2 rounded-xl bg-surface border border-slate-200 dark:border-slate-700 resize-none text-xs"></textarea>
+							</div>
+
+							<div>
+								<div class="flex items-center justify-between mb-1">
+									<label class="font-bold text-on-surface flex items-center gap-1.5">
+										<span class="material-symbols-outlined text-sm text-primary">link</span>
+										<span>Link Materi Pembelajaran (Embed Iframe)</span>
+									</label>
+									<span class="text-[10px] text-slate-400">YouTube, Google Drive/Docs, Loom, Canva, PDF</span>
+								</div>
+
+								<div class="flex items-center gap-2">
+									<input
+										type="url"
+										name="materialUrl"
+										bind:value={createCourseMaterialUrl}
+										placeholder="https://www.youtube.com/watch?v=... atau Google Drive share link"
+										class="w-full px-3 py-2 rounded-xl bg-surface border border-slate-200 dark:border-slate-700 text-xs text-on-surface font-mono"
+									/>
+									{#if createCourseMaterialUrl}
+										<button
+											type="button"
+											onclick={() => (showMaterialPreview = !showMaterialPreview)}
+											class="px-3 py-2 rounded-xl bg-surface-container hover:bg-surface-container-high text-xs font-bold text-primary shrink-0 flex items-center gap-1 cursor-pointer"
+										>
+											<span class="material-symbols-outlined text-xs">{showMaterialPreview ? 'visibility_off' : 'visibility'}</span>
+											<span>{showMaterialPreview ? 'Tutup Preview' : 'Lihat'}</span>
+										</button>
+									{/if}
+								</div>
+
+								<!-- Quick Link Templates -->
+								<div class="flex flex-wrap items-center gap-1.5 mt-2">
+									<span class="text-[10px] text-slate-400">Contoh format:</span>
+									<button
+										type="button"
+										onclick={() => (createCourseMaterialUrl = 'https://www.youtube.com/watch?v=dQw4w9WgXcQ')}
+										class="px-2 py-0.5 rounded text-[10px] bg-red-100 dark:bg-red-950/60 text-red-600 dark:text-red-400 font-medium hover:underline"
+									>
+										YouTube Video
+									</button>
+									<button
+										type="button"
+										onclick={() => (createCourseMaterialUrl = 'https://docs.google.com/presentation/d/e/sample/pub?start=false')}
+										class="px-2 py-0.5 rounded text-[10px] bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-400 font-medium hover:underline"
+									>
+										Google Slides
+									</button>
+									<button
+										type="button"
+										onclick={() => (createCourseMaterialUrl = 'https://drive.google.com/file/d/sample/preview')}
+										class="px-2 py-0.5 rounded text-[10px] bg-blue-100 dark:bg-blue-950/60 text-blue-700 dark:text-blue-400 font-medium hover:underline"
+									>
+										Drive PDF
+									</button>
+								</div>
+							</div>
+
+							<!-- Live Preview Player jika URL diisi -->
+							{#if createCourseMaterialUrl && showMaterialPreview}
+								{@const embedSrc = formatEmbedUrl(createCourseMaterialUrl)}
+								{@const platform = detectEmbedPlatform(createCourseMaterialUrl)}
+								<div class="mt-2 rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-800 bg-black/5 dark:bg-black/40">
+									<div class="p-2.5 bg-surface-container flex items-center justify-between text-xs">
+										<div class="flex items-center gap-2">
+											<span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+											<span class="font-bold text-on-surface">Pratinjau Materi ({platform})</span>
+										</div>
+										<a
+											href={createCourseMaterialUrl}
+											target="_blank"
+											rel="noopener noreferrer"
+											class="text-primary hover:underline text-[11px] flex items-center gap-1"
+										>
+											<span>Buka Link Asli</span>
+											<span class="material-symbols-outlined text-xs">open_in_new</span>
+										</a>
+									</div>
+									<div class="relative w-full aspect-video bg-black/90">
+										{#if embedSrc}
+											<iframe
+												src={embedSrc}
+												title="Preview Materi Pembelajaran"
+												class="w-full h-full border-0"
+												allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+												allowfullscreen
+											></iframe>
+										{:else}
+											<div class="w-full h-full flex flex-col items-center justify-center text-slate-400 p-6 text-center">
+												<span class="material-symbols-outlined text-3xl mb-2">broken_image</span>
+												<p class="text-xs">Format URL tidak dapat di-embed langsung sebagai iframe.</p>
+												<p class="text-[11px] text-slate-500 mt-1">Gunakan link YouTube, Google Drive/Slides, Vimeo, atau file PDF publik.</p>
+											</div>
+										{/if}
+									</div>
+								</div>
+							{/if}
+
+							<div>
+								<label class="font-bold text-on-surface block mb-1">Tag / Kata Kunci (Dipisahkan koma)</label>
+								<input type="text" name="tags" placeholder="Contoh: Defensive, HSE, Angkutan, 2026" class="w-full px-3 py-2 rounded-xl bg-surface border border-slate-200 dark:border-slate-700 text-xs" />
+							</div>
+						</div>
+					</div>
+
+					<!-- ══════════════════════════════════════════════════════════════ -->
+					<!-- LANGKAH 5: BANK SOAL PRE-TEST & POST-TEST                    -->
+					<!-- ══════════════════════════════════════════════════════════════ -->
+					<div class={createModalStep === 5 ? 'space-y-3.5' : 'hidden'}>
+						<!-- Sub-Tab Pre-Test vs Post-Test -->
+						<div class="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-2">
+							<div class="flex items-center gap-1 bg-surface-container p-1 rounded-xl text-xs font-bold">
 								<button
 									type="button"
 									onclick={() => (createQuizTab = 'PRE_TEST')}
-									class="px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 {createQuizTab === 'PRE_TEST'
-										? 'bg-primary text-on-primary shadow-xs'
-										: 'bg-surface-container text-on-surface-variant hover:bg-surface-container-high'}"
+									class="px-3 py-1.5 rounded-lg transition-all cursor-pointer flex items-center gap-1 {createQuizTab === 'PRE_TEST'
+										? 'bg-primary text-on-primary shadow-xs font-black'
+										: 'text-on-surface-variant hover:text-on-surface'}"
 								>
-									<span>Pre-Test ({preTestQuestionsList.length} Soal)</span>
+									<span class="material-symbols-outlined text-xs">assignment_turned_in</span>
+									<span>1. Pre-Test ({preTestQuestionsList.length} Soal)</span>
 									{#if isPreTestValid}
-										<span class="material-symbols-outlined text-[14px] text-emerald-400">check_circle</span>
+										<span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
 									{/if}
 								</button>
 								<button
 									type="button"
 									onclick={() => (createQuizTab = 'POST_TEST')}
-									class="px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 {createQuizTab === 'POST_TEST'
-										? 'bg-primary text-on-primary shadow-xs'
-										: 'bg-surface-container text-on-surface-variant hover:bg-surface-container-high'}"
+									class="px-3 py-1.5 rounded-lg transition-all cursor-pointer flex items-center gap-1 {createQuizTab === 'POST_TEST'
+										? 'bg-primary text-on-primary shadow-xs font-black'
+										: 'text-on-surface-variant hover:text-on-surface'}"
 								>
-									<span>Post-Test ({postTestQuestionsList.length} Soal)</span>
+									<span class="material-symbols-outlined text-xs">grade</span>
+									<span>2. Post-Test ({postTestQuestionsList.length} Soal)</span>
 									{#if isPostTestValid}
-										<span class="material-symbols-outlined text-[14px] text-emerald-400">check_circle</span>
+										<span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
 									{/if}
 								</button>
 							</div>
 
-							<div class="flex items-center gap-2">
-								{#if createQuizTab === 'POST_TEST'}
-									<button
-										type="button"
-										onclick={copyPreTestToPostTest}
-										class="px-2.5 py-1.5 rounded-xl border border-primary/30 bg-primary/10 text-primary hover:bg-primary/20 text-[11px] font-bold flex items-center gap-1 cursor-pointer transition-all"
-										title="Salin seluruh butir pertanyaan dan opsi jawaban dari Pre-Test"
-									>
-										<span class="material-symbols-outlined text-xs">content_copy</span>
-										<span>Salin dari Pre-Test</span>
-									</button>
-								{/if}
-								<button
-									type="button"
-									onclick={() => addQuestion(createQuizTab)}
-									class="px-3 py-1.5 rounded-xl bg-primary text-on-primary text-[11px] font-bold hover:bg-primary/90 flex items-center gap-1 shadow-xs cursor-pointer"
-								>
-									<span class="material-symbols-outlined text-xs">add</span>
-									<span>Tambah Soal</span>
-								</button>
-							</div>
+							<button
+								type="button"
+								onclick={addQuestionToCurrentQuiz}
+								class="px-3 py-1.5 rounded-xl bg-surface-container hover:bg-surface-container-high text-xs font-bold text-primary flex items-center gap-1 cursor-pointer transition-all border border-slate-200 dark:border-slate-700/60"
+							>
+								<span class="material-symbols-outlined text-xs">add</span>
+								<span>+ Tambah Soal {createQuizTab === 'PRE_TEST' ? 'Pre-Test' : 'Post-Test'}</span>
+							</button>
 						</div>
 
-						<p class="text-[11px] text-slate-500 px-1">
+						<p class="text-[11px] text-slate-500">
 							{createQuizTab === 'PRE_TEST'
-								? 'Soal Pre-Test akan dikerjakan peserta di Langkah 1 Player untuk mengukur pemahaman awal sebelum membuka modul materi.'
-								: 'Soal Post-Test akan dikerjakan di Langkah 3 Player untuk penentuan kelulusan peserta (Passing Grade) dan penerbitan sertifikat.'}
+								? 'Soal Pre-Test akan dikerjakan peserta di awal sebelum mengakses materi untuk mengukur baseline kompetensi.'
+								: 'Soal Post-Test akan dikerjakan peserta setelah menyelesaikan seluruh modul materi untuk menentukan kelulusan sertifikasi.'}
 						</p>
 
-						<!-- Dynamic Question Cards List -->
-						<div class="space-y-3 max-h-72 overflow-y-auto pr-1">
-							{#each currentQuizQuestions as q, qIdx (q.id)}
-								<div class="p-3.5 rounded-2xl bg-surface-container border border-slate-200 dark:border-slate-800 space-y-2.5 shadow-xs">
-									<div class="flex items-center justify-between pb-1 border-b border-slate-200/60 dark:border-slate-700/60">
-										<span class="font-bold text-xs text-primary flex items-center gap-1">
-											<span class="material-symbols-outlined text-sm">help</span>
-											<span>Soal #{qIdx + 1} ({createQuizTab === 'PRE_TEST' ? 'Pre-Test' : 'Post-Test'})</span>
-										</span>
+						<!-- Dynamic Questions List -->
+						<div class="space-y-4">
+							{#each currentQuizQuestions as q, index}
+								<div class="p-4 rounded-2xl bg-surface-container-low border border-slate-200 dark:border-slate-800 space-y-3">
+									<div class="flex items-center justify-between pb-2 border-b border-slate-200/60 dark:border-slate-800/60">
 										<div class="flex items-center gap-2">
+											<span class="w-6 h-6 rounded-full bg-primary/10 text-primary text-xs font-black flex items-center justify-center">
+												{index + 1}
+											</span>
+											<span class="font-bold text-xs text-on-surface">Butir Pertanyaan #{index + 1}</span>
+										</div>
+
+										<div class="flex items-center gap-2">
+											<!-- Question Type Selector -->
 											<select
 												bind:value={q.questionType}
-												class="text-[11px] font-bold px-2 py-1 rounded-lg bg-surface border border-slate-200 dark:border-slate-700 text-on-surface focus:ring-1 focus:ring-primary outline-none cursor-pointer"
+												class="px-2 py-1 rounded-lg bg-surface border border-slate-200 dark:border-slate-700 text-[11px] font-bold text-on-surface"
 											>
 												<option value="MCQ">Pilihan Ganda (MCQ)</option>
-												<option value="ESSAY">Essay / Uraian Bebas</option>
+												<option value="ESSAY">Uraian / Essay</option>
 											</select>
+
 											{#if currentQuizQuestions.length > 1}
 												<button
 													type="button"
-													onclick={() => removeQuestion(createQuizTab, qIdx)}
-													class="text-rose-500 hover:text-rose-700 text-[11px] font-bold flex items-center gap-0.5 cursor-pointer ml-1"
+													onclick={() => removeQuestionFromCurrentQuiz(q.id)}
+													class="text-slate-400 hover:text-rose-500 p-1 rounded-lg hover:bg-rose-500/10 cursor-pointer"
+													title="Hapus soal ini"
 												>
-													<span class="material-symbols-outlined text-sm">delete</span>
-													<span>Hapus</span>
+													<span class="material-symbols-outlined text-base">delete</span>
 												</button>
 											{/if}
 										</div>
@@ -4356,24 +4480,26 @@
 
 									<!-- Question Text Input -->
 									<div>
-										<label class="font-semibold text-slate-600 dark:text-slate-400 block mb-1">Pertanyaan *</label>
-										<input
-											type="text"
+										<label class="font-bold text-[11px] text-on-surface block mb-1">Teks Pertanyaan *</label>
+										<textarea
 											bind:value={q.questionText}
-											placeholder={`Ketik teks pertanyaan nomor ${qIdx + 1}...`}
-											class="w-full px-3 py-2 rounded-xl bg-surface border border-slate-200 dark:border-slate-700 text-xs text-on-surface focus:ring-1 focus:ring-primary outline-none"
-										/>
+											rows="2"
+											placeholder="Tuliskan pertanyaan soal..."
+											class="w-full px-3 py-2 rounded-xl bg-surface border border-slate-200 dark:border-slate-700 text-xs text-on-surface resize-none focus:ring-1 focus:ring-primary outline-none"
+										></textarea>
 									</div>
 
 									{#if q.questionType === 'MCQ'}
-										<!-- Options A, B, C, D -->
-										<div class="space-y-1.5 pt-1">
-											<label class="font-semibold text-slate-600 dark:text-slate-400 block">
-												Pilihan Jawaban (Pilih radio untuk Kunci Jawaban Benar) *
-											</label>
+										<!-- Multiple Choice Options A, B, C, D -->
+										<div class="space-y-2 pt-1">
+											<div class="flex items-center justify-between text-[11px]">
+												<span class="font-bold text-slate-500">Opsi Jawaban & Kunci Benar:</span>
+												<span class="text-[10px] text-slate-400">Pilih radio button untuk menentukan kunci</span>
+											</div>
+
 											{#each q.options as opt}
 												<div class="flex items-center gap-2">
-													<label class="flex items-center gap-1 cursor-pointer">
+													<label class="flex items-center gap-1.5 cursor-pointer shrink-0">
 														<input
 															type="radio"
 															name={`correct_${q.id}`}
@@ -4454,13 +4580,21 @@
 					</div>
 
 					<div class="flex items-center gap-2">
-						{#if createModalStep < 3}
+						{#if createModalStep < 5}
 							<button
 								type="button"
 								onclick={nextCreateStep}
 								class="px-5 py-2 rounded-xl bg-primary text-on-primary text-xs font-bold hover:bg-primary/90 flex items-center gap-1.5 shadow-sm cursor-pointer"
 							>
-								<span>Lanjut: {createModalStep === 1 ? 'Materi & Embed' : 'Soal Pre/Post Test'}</span>
+								<span>
+									Lanjut: {createModalStep === 1
+										? 'Peserta & Divisi'
+										: createModalStep === 2
+										? 'Jadwal Sesi'
+										: createModalStep === 3
+										? 'Materi Modul'
+										: 'Soal Asesmen'}
+								</span>
 								<span class="material-symbols-outlined text-xs">arrow_forward</span>
 							</button>
 						{:else}
@@ -4470,7 +4604,7 @@
 								class="px-5 py-2 rounded-xl bg-primary text-on-primary text-xs font-bold hover:bg-primary/90 flex items-center gap-1.5 shadow-sm cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
 							>
 								<span class="material-symbols-outlined text-sm">save</span>
-								<span>Simpan Kursus ke Database</span>
+								<span>Simpan & Terbitkan Pelatihan</span>
 							</button>
 						{/if}
 					</div>

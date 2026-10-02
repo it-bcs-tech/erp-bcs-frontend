@@ -277,6 +277,7 @@ export const load: PageServerLoad = async () => {
 				sessionType: s.session_type,
 				locationOrLink: s.location_or_link,
 				sessionDate: s.session_date ? s.session_date.toISOString().split('T')[0] : '',
+				sessionEndDate: s.end_date ? s.end_date.toISOString().split('T')[0] : (s.session_date ? s.session_date.toISOString().split('T')[0] : ''),
 				startTime: s.start_time,
 				endTime: s.end_time,
 				targetRole: s.target_role,
@@ -461,6 +462,7 @@ export const actions = {
 
 		// Parameter Jadwal Sesi Pelatihan Terintegrasi
 		const sessionDate = formData.get('sessionDate')?.toString().trim() || '';
+		const sessionEndDate = formData.get('sessionEndDate')?.toString().trim() || sessionDate;
 		const startTime = formData.get('startTime')?.toString().trim() || '09:00';
 		const endTime = formData.get('endTime')?.toString().trim() || '11:30';
 		const sessionType = formData.get('sessionType')?.toString().trim() || 'OFFLINE';
@@ -586,11 +588,11 @@ export const actions = {
 				await sql`
 					INSERT INTO hris.lms_sessions (
 						id, course_id, title, trainer, trainer_type, cost_trainer, cost_trainee,
-						department, based, session_type, location_or_link, session_date,
+						department, based, session_type, location_or_link, session_date, end_date,
 						start_time, end_time, target_role, quota, status, enrolled_count
 					) VALUES (
 						${sessionId}, ${id}, ${title}, ${instructor}, ${trainerType}, ${costTrainer}, ${costTrainee},
-						${division}, ${based}, ${sessionType}, ${locationOrLink}, ${sessionDate},
+						${division}, ${based}, ${sessionType}, ${locationOrLink}, ${sessionDate}, ${sessionEndDate || sessionDate},
 						${startTime}, ${endTime}, 'All Staff', ${quota}, 'SCHEDULED', ${repEmployees.length}
 					);
 				`;
@@ -659,6 +661,7 @@ export const actions = {
 		const sessionType = formData.get('sessionType')?.toString() || 'OFFLINE';
 		const locationOrLink = formData.get('locationOrLink')?.toString().trim();
 		const sessionDate = formData.get('sessionDate')?.toString();
+		const sessionEndDate = formData.get('sessionEndDate')?.toString() || sessionDate;
 		const startTime = formData.get('startTime')?.toString() || '09:00';
 		const endTime = formData.get('endTime')?.toString() || '11:00';
 		const targetRole = formData.get('targetRole')?.toString().trim() || 'All Staff';
@@ -674,11 +677,11 @@ export const actions = {
 			await sql`
 				INSERT INTO hris.lms_sessions (
 					id, course_id, title, trainer, trainer_type, cost_trainer, cost_trainee,
-					department, based, session_type, location_or_link, session_date,
+					department, based, session_type, location_or_link, session_date, end_date,
 					start_time, end_time, target_role, quota, status
 				) VALUES (
 					${id}, ${courseId}, ${title}, ${trainer}, ${trainerType}, ${costTrainer}, ${costTrainee},
-					${department}, ${based}, ${sessionType}, ${locationOrLink}, ${sessionDate},
+					${department}, ${based}, ${sessionType}, ${locationOrLink}, ${sessionDate}, ${sessionEndDate || sessionDate},
 					${startTime}, ${endTime}, ${targetRole}, ${quota}, 'SCHEDULED'
 				);
 			`;
