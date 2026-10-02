@@ -222,6 +222,9 @@ export const actions = {
 				const gap = Number(item.actualLevel) - Number(item.requiredLevel);
 				const status = gap < 0 ? 'Gap Competency' : 'Qualified';
 				const defaultCourseId = courseMap.get(item.competencyCode) || null;
+				const currentPosTitle = (item as any).positionTitle || positionTitle;
+				const currentDept = (item as any).department || department;
+				const currentNotes = (item as any).notes?.trim() || notes;
 
 				let trainingStatus = 'NONE';
 				let enrollmentId: number | null = null;
@@ -257,9 +260,9 @@ export const actions = {
 						assessor_name, assessment_date, period, notes,
 						assigned_course_id, enrollment_id, training_status
 					) VALUES (
-						${item.payrollId}, ${item.employeeName}, ${positionTitle}, ${department},
+						${item.payrollId}, ${item.employeeName}, ${currentPosTitle}, ${currentDept},
 						${item.competencyCode}, ${item.requiredLevel}, ${item.actualLevel}, ${status},
-						${assessorName}, CURRENT_DATE, ${period}, ${notes},
+						${assessorName}, CURRENT_DATE, ${period}, ${currentNotes},
 						${defaultCourseId}, ${enrollmentId}, ${trainingStatus}
 					)
 					ON CONFLICT (payroll_id, competency_code, period)
@@ -279,9 +282,10 @@ export const actions = {
 				`;
 			}
 
+			const targetName = evaluations[0]?.employeeName;
 			return {
 				success: true,
-				message: `Direct assessment for period ${period} (${positionTitle}) successfully saved! (${qualifiedCount} Qualified, ${gapCount} Gap assigned to TNA training).`
+				message: `Penilaian untuk ${targetName || positionTitle} (Periode ${period}) berhasil disimpan! (${qualifiedCount} Sesuai Standar, ${gapCount} Kesenjangan/GAP otomatis direkomendasikan kursus TNA).`
 			};
 		} catch (e: any) {
 			logError('DIRECT_BATCH_ASSESSMENT_FAIL', e?.message);
