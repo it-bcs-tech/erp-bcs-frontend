@@ -3968,13 +3968,17 @@
 							</div>
 						</div>
 
+						<input type="hidden" name="level" value="Beginner" />
+
 						<div>
-							<label class="font-bold text-on-surface block mb-1">Tingkat Kesulitan (Level)</label>
-							<select name="level" class="w-full px-3 py-2 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800 text-xs text-on-surface">
-								<option value="Beginner">Dasar (Beginner)</option>
-								<option value="Intermediate">Menengah (Intermediate)</option>
-								<option value="Advanced">Lanjutan (Advanced)</option>
-							</select>
+							<label class="font-bold text-on-surface block mb-1">Deskripsi Singkat Pelatihan *</label>
+							<textarea
+								name="description"
+								rows="3"
+								required
+								placeholder="Uraikan kompetensi, latar belakang, dan sasaran dari program pelatihan ini..."
+								class="w-full px-3 py-2 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800 resize-none text-xs text-on-surface focus:ring-1 focus:ring-primary outline-none"
+							></textarea>
 						</div>
 					</div>
 
@@ -4015,86 +4019,123 @@
 							{#if createCourseDivision}
 								{@const selectedDivisionObj = divisions.find((d: any) => d.code === createCourseDivision)}
 								<div class="p-3 rounded-xl bg-surface border border-slate-200 dark:border-slate-700/80 space-y-2.5">
-									<div class="flex items-center justify-between">
-										<div>
-											<p class="text-[11px] font-bold text-on-surface">
-												Pilih dari Divisi: <span class="text-primary">{selectedDivisionObj?.name || createCourseDivision}</span>
-											</p>
-											<p class="text-[10px] text-slate-400">
-												{selectedInCurrentDivisionCount} dari {filteredDivisionEmployees.length} karyawan divisi ini dipilih
-											</p>
-										</div>
+									{#if !isEmployeeSelectionConfirmed}
+										<!-- Mode Memilih Karyawan -->
+										<div class="flex items-center justify-between">
+											<div>
+												<p class="text-[11px] font-bold text-on-surface">
+													Pilih dari Divisi: <span class="text-primary">{selectedDivisionObj?.name || createCourseDivision}</span>
+												</p>
+												<p class="text-[10px] text-slate-400">
+													{selectedInCurrentDivisionCount} dari {filteredDivisionEmployees.length} karyawan divisi ini dipilih
+												</p>
+											</div>
 
-										<div class="flex items-center gap-1.5">
-											<button
-												type="button"
-												onclick={selectAllDivisionEmployees}
-												disabled={filteredDivisionEmployees.length === 0}
-												class="px-2 py-1 rounded-lg bg-surface-container hover:bg-surface-container-high text-[11px] font-bold text-primary disabled:opacity-50 cursor-pointer"
-											>
-												Pilih Semua
-											</button>
-											<button
-												type="button"
-												onclick={clearCurrentDivisionEmployees}
-												disabled={selectedInCurrentDivisionCount === 0}
-												class="px-2 py-1 rounded-lg bg-surface-container hover:bg-surface-container-high text-[11px] font-bold text-slate-500 disabled:opacity-50 cursor-pointer"
-											>
-												Batal Divisi Ini
-											</button>
-										</div>
-									</div>
-
-									<!-- Search Bar Karyawan Divisi -->
-									<div class="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800">
-										<span class="material-symbols-outlined text-slate-400 text-sm">search</span>
-										<input
-											type="text"
-											bind:value={createCourseEmployeeSearch}
-											placeholder="Cari nama atau NIK di divisi ini..."
-											class="bg-transparent text-xs text-on-surface outline-none w-full placeholder:text-slate-400"
-										/>
-										{#if createCourseEmployeeSearch}
-											<button type="button" onclick={() => (createCourseEmployeeSearch = '')} class="text-slate-400 hover:text-slate-600">
-												<span class="material-symbols-outlined text-xs">close</span>
-											</button>
-										{/if}
-									</div>
-
-									<!-- Daftar Karyawan Checkbox Grid -->
-									{#if filteredDivisionEmployees.length > 0}
-										<div class="max-h-44 overflow-y-auto space-y-1 pr-1 divide-y divide-slate-100 dark:divide-slate-800/60">
-											{#each filteredDivisionEmployees as emp}
-												{@const isSelected = selectedEmployeeIds.includes(emp.payrollId)}
+											<div class="flex items-center gap-1.5">
 												<button
 													type="button"
-													onclick={() => toggleCreateCourseEmployee(emp.payrollId)}
-													class="w-full text-left p-2 rounded-xl flex items-center justify-between transition-all cursor-pointer {isSelected
-														? 'bg-primary/10 border border-primary/30 text-primary'
-														: 'hover:bg-surface-container text-on-surface'}"
+													onclick={selectAllDivisionEmployees}
+													disabled={filteredDivisionEmployees.length === 0}
+													class="px-2 py-1 rounded-lg bg-surface-container hover:bg-surface-container-high text-[11px] font-bold text-primary disabled:opacity-50 cursor-pointer"
 												>
-													<div class="flex items-center gap-2.5 truncate">
-														<div class="w-4 h-4 rounded-md flex items-center justify-center border {isSelected ? 'bg-primary border-primary text-on-primary' : 'border-slate-300 dark:border-slate-600 bg-surface'}">
-															{#if isSelected}
-																<span class="material-symbols-outlined text-[12px]">check</span>
-															{/if}
-														</div>
-														<div class="truncate">
-															<p class="font-bold text-xs truncate leading-tight">{emp.name}</p>
-															<p class="text-[10px] text-slate-400 leading-tight">
-																{emp.payrollId} • {emp.positionTitle || 'Staf'}
-															</p>
-														</div>
-													</div>
-													<span class="text-[10px] font-bold px-2 py-0.5 rounded-md {isSelected ? 'bg-primary/20 text-primary' : 'bg-surface-container text-slate-400'}">
-														{isSelected ? 'Terpilih' : 'Pilih'}
-													</span>
+													Pilih Semua
 												</button>
-											{/each}
+												<button
+													type="button"
+													onclick={clearCurrentDivisionEmployees}
+													disabled={selectedInCurrentDivisionCount === 0}
+													class="px-2 py-1 rounded-lg bg-surface-container hover:bg-surface-container-high text-[11px] font-bold text-slate-500 disabled:opacity-50 cursor-pointer"
+												>
+													Batal Divisi Ini
+												</button>
+												<button
+													type="button"
+													onclick={confirmEmployeeSelection}
+													class="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-bold flex items-center gap-1 shadow-xs cursor-pointer transition-all"
+													title="Tutup/konfirmasi daftar pilihan divisi ini"
+												>
+													<span class="material-symbols-outlined text-xs">check</span>
+													<span>Selesai</span>
+												</button>
+											</div>
 										</div>
+
+										<!-- Search Bar Karyawan Divisi -->
+										<div class="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800">
+											<span class="material-symbols-outlined text-slate-400 text-sm">search</span>
+											<input
+												type="text"
+												bind:value={createCourseEmployeeSearch}
+												placeholder="Cari nama atau NIK di divisi ini..."
+												class="bg-transparent text-xs text-on-surface outline-none w-full placeholder:text-slate-400"
+											/>
+											{#if createCourseEmployeeSearch}
+												<button type="button" onclick={() => (createCourseEmployeeSearch = '')} class="text-slate-400 hover:text-slate-600">
+													<span class="material-symbols-outlined text-xs">close</span>
+												</button>
+											{/if}
+										</div>
+
+										<!-- Daftar Karyawan Checkbox Grid -->
+										{#if filteredDivisionEmployees.length > 0}
+											<div class="max-h-44 overflow-y-auto space-y-1 pr-1 divide-y divide-slate-100 dark:divide-slate-800/60">
+												{#each filteredDivisionEmployees as emp}
+													{@const isSelected = selectedEmployeeIds.includes(emp.payrollId)}
+													<button
+														type="button"
+														onclick={() => toggleCreateCourseEmployee(emp.payrollId)}
+														class="w-full text-left p-2 rounded-xl flex items-center justify-between transition-all cursor-pointer {isSelected
+															? 'bg-primary/10 border border-primary/30 text-primary'
+															: 'hover:bg-surface-container text-on-surface'}"
+													>
+														<div class="flex items-center gap-2.5 truncate">
+															<div class="w-4 h-4 rounded-md flex items-center justify-center border {isSelected ? 'bg-primary border-primary text-on-primary' : 'border-slate-300 dark:border-slate-600 bg-surface'}">
+																{#if isSelected}
+																	<span class="material-symbols-outlined text-[12px]">check</span>
+																{/if}
+															</div>
+															<div class="truncate">
+																<p class="font-bold text-xs truncate leading-tight">{emp.name}</p>
+																<p class="text-[10px] text-slate-400 leading-tight">
+																	{emp.payrollId} • {emp.positionTitle || 'Staf'}
+																</p>
+															</div>
+														</div>
+														<span class="text-[10px] font-bold px-2 py-0.5 rounded-md {isSelected ? 'bg-primary/20 text-primary' : 'bg-surface-container text-slate-400'}">
+															{isSelected ? 'Terpilih' : 'Pilih'}
+														</span>
+													</button>
+												{/each}
+											</div>
+										{:else}
+											<div class="p-3 text-center rounded-xl bg-surface-container/60 text-slate-400 text-xs">
+												{createCourseEmployeeSearch ? 'Tidak ada karyawan yang cocok dengan pencarian.' : 'Belum ada data karyawan terdaftar di divisi ini.'}
+											</div>
+										{/if}
 									{:else}
-										<div class="p-3 text-center rounded-xl bg-surface-container/60 text-slate-400 text-xs">
-											{createCourseEmployeeSearch ? 'Tidak ada karyawan yang cocok dengan pencarian.' : 'Belum ada data karyawan terdaftar di divisi ini.'}
+										<!-- Mode Selesai / Terkonfirmasi: Box Menciut Rapi -->
+										<div class="flex items-center justify-between py-0.5">
+											<div class="flex items-center gap-2">
+												<span class="material-symbols-outlined text-emerald-500 text-lg">check_circle</span>
+												<div>
+													<p class="font-bold text-xs text-on-surface">
+														Pilihan Divisi {selectedDivisionObj?.name || createCourseDivision} Disimpan
+													</p>
+													<p class="text-[10px] text-slate-400">
+														{selectedInCurrentDivisionCount} karyawan dari divisi ini telah dipilih
+													</p>
+												</div>
+											</div>
+
+											<button
+												type="button"
+												onclick={reopenEmployeeSelection}
+												class="px-2.5 py-1 rounded-lg border border-primary/30 bg-primary/10 hover:bg-primary/20 text-primary text-[11px] font-bold flex items-center gap-1 cursor-pointer transition-all"
+												title="Buka kembali daftar untuk menambah atau mengubah perwakilan divisi ini"
+											>
+												<span class="material-symbols-outlined text-xs">edit</span>
+												<span>Ubah Pilihan</span>
+											</button>
 										</div>
 									{/if}
 								</div>
@@ -4282,7 +4323,7 @@
 					</div>
 
 					<!-- ══════════════════════════════════════════════════════════════ -->
-					<!-- LANGKAH 4: MATERI PELATIHAN, DURASI & DESKRIPSI               -->
+					<!-- LANGKAH 4: MATERI PELATIHAN & DURASI                         -->
 					<!-- ══════════════════════════════════════════════════════════════ -->
 					<div class={createModalStep === 4 ? 'space-y-3.5' : 'hidden'}>
 						<div class="p-3.5 rounded-2xl bg-surface-container-low border border-slate-200 dark:border-slate-800 space-y-3">
@@ -4296,11 +4337,6 @@
 									<label class="font-bold text-on-surface block mb-1">Passing Grade Kelulusan (%)</label>
 									<input type="number" name="passingGrade" value="75" min="50" max="100" class="w-full px-3 py-2 rounded-xl bg-surface border border-slate-200 dark:border-slate-700 font-mono text-xs" />
 								</div>
-							</div>
-
-							<div>
-								<label class="font-bold text-on-surface block mb-1">Deskripsi Singkat Program</label>
-								<textarea name="description" rows="2" placeholder="Uraikan kompetensi dan sasaran belajar dari pelatihan ini..." class="w-full px-3 py-2 rounded-xl bg-surface border border-slate-200 dark:border-slate-700 resize-none text-xs"></textarea>
 							</div>
 
 							<div>
