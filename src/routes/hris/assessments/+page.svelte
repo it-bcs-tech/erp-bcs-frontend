@@ -196,6 +196,22 @@
 		});
 	}
 
+	function getLevelDescription(compCode: string, lvl: number): string {
+		const compObj = competencyLibrary.find((l: any) => l.code === compCode);
+		const ind = compObj?.levelIndicators?.find((i: any) => i.level === lvl || Number(i.level) === lvl);
+		if (ind && ind.desc && ind.desc.trim()) {
+			return ind.desc.trim();
+		}
+		const defaultLabels: Record<number, string> = {
+			1: 'Pemahaman konsep dasar & SOP operasional rutin dengan supervisi langsung.',
+			2: 'Pelaksanaan tugas secara mandiri sesuai standar mutu tanpa pengawasan konstan.',
+			3: 'Kemampuan pemecahan masalah (troubleshooting), adaptif terhadap situasi kerja dan kendala operasional.',
+			4: 'Mampu membimbing/mentoring rekan kerja, mengontrol kepatuhan sistem, dan koordinasi tim.',
+			5: 'Ahli / rujukan strategis organisasi, mampu melakukan optimasi sistemik dan inovasi berkelanjutan.'
+		};
+		return defaultLabels[lvl] || `Indikator perilaku level ${lvl}`;
+	}
+
 	// Modal Rubrik Indikator Level 1-5
 	let isRubricModalOpen = $state(false);
 	let selectedCompForRubric = $state<any>(null);
@@ -355,9 +371,9 @@
 		<div class="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
 			
 			<!-- ─── PANEL KIRI: DAFTAR BAWAHAN LANGSUNG (col-span-4) ─────── -->
-			<div class="lg:col-span-4 space-y-3">
-				<div class="p-4 rounded-3xl bg-surface-container border border-slate-200/60 dark:border-slate-800/60 space-y-3 shadow-xs">
-					<div class="flex items-center justify-between">
+			<div class="lg:col-span-4 lg:sticky lg:top-4 lg:self-start space-y-3 z-10">
+				<div class="p-4 rounded-3xl bg-surface-container border border-slate-200/60 dark:border-slate-800/60 flex flex-col max-h-[calc(100vh-2.5rem)] shadow-xs">
+					<div class="flex items-center justify-between shrink-0 mb-3">
 						<div class="flex items-center gap-1.5">
 							<span class="material-symbols-outlined text-sm text-primary">diversity_3</span>
 							<h3 class="font-bold text-xs text-on-surface uppercase tracking-wider">Anggota Tim Bawahan</h3>
@@ -368,7 +384,7 @@
 					</div>
 
 					<!-- Search & Position Filter -->
-					<div class="space-y-2">
+					<div class="space-y-2 shrink-0 mb-3">
 						<div class="relative">
 							<span class="material-symbols-outlined absolute left-2.5 top-2 text-slate-400 text-sm">search</span>
 							<input
@@ -413,8 +429,8 @@
 						</div>
 					</div>
 
-					<!-- List Kartu Bawahan Langsung -->
-					<div class="space-y-2 max-h-[580px] overflow-y-auto pr-1">
+					<!-- List Kartu Bawahan Langsung (Scroll Internal Mandiri) -->
+					<div class="space-y-2 overflow-y-auto pr-1 flex-1 min-h-0">
 						{#each filteredSubordinates as emp}
 							{@const isSelected = emp.payrollId === selectedEmployeePayrollId}
 							{@const status = getEmployeeAssessmentStatus(emp.payrollId, emp.positionTitle)}
@@ -573,13 +589,138 @@
 					</div>
 
 					<!-- Panduan Skala Kemahiran -->
-					<div class="p-3 rounded-2xl bg-surface-container-low border border-slate-200/60 dark:border-slate-800/60 flex items-center justify-between text-xs text-slate-400">
-						<span class="font-bold text-on-surface flex items-center gap-1 text-[11px]">
+					<div class="p-3 rounded-2xl bg-surface-container-low border border-slate-200/60 dark:border-slate-800/60 flex flex-col sm:flex-row sm:items-center justify-between gap-1 text-xs text-slate-400">
+						<span class="font-bold text-on-surface flex items-center gap-1.5 text-[11px]">
 							<span class="material-symbols-outlined text-sm text-primary">info</span>
-							<span>Skala Level: 1 (SOP Dasar) • 2 (Mandiri) • 3 (Problem Solving) • 4 (Supervisi) • 5 (Inovator/Ahli)</span>
+							<span>Leveling: 1 (SOP Dasar) • 2 (Mandiri) • 3 (Problem Solving) • 4 (Supervisi) • 5 (Inovator/Ahli)</span>
 						</span>
-						<span class="text-[10px] font-semibold">Klik angka 1-5 untuk menilai</span>
+						<span class="text-[10px] font-semibold text-primary">Klik baris deskripsi level untuk langsung menilai</span>
 					</div>
+
+					<!-- Snippet Kartu Evaluasi Kompetensi Interaktif -->
+					{#snippet competencyCard(comp: any, aspectTitle: string, aspectColor: string)}
+						{@const currentVal = getRating(selectedEmployee.payrollId, comp.competencyCode, comp.requiredLevel)}
+						{@const gap = currentVal - comp.requiredLevel}
+						{@const isQualified = gap >= 0}
+						{@const compObj = competencyLibrary.find((l: any) => l.code === comp.competencyCode)}
+
+						<div class="p-4 sm:p-5 rounded-3xl border transition-all {isQualified ? 'bg-surface border-slate-200/80 dark:border-slate-800/80 shadow-xs' : 'bg-rose-500/[0.03] border-rose-500/30'} space-y-3.5">
+							<!-- Header Kompetensi: Kode, Nama, Target, & Nilai Aktif -->
+							<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-200/50 dark:border-slate-800/50">
+								<div class="space-y-1">
+									<div class="flex items-center gap-2 flex-wrap">
+										<span class="font-mono text-[11px] font-black px-2 py-0.5 rounded bg-surface-container-high text-primary border border-slate-700/40">
+											{comp.competencyCode}
+										</span>
+										<span class="font-bold text-sm text-on-surface">{comp.competencyName}</span>
+									</div>
+								</div>
+
+								<!-- Status Target & Skor Aktif Realtime -->
+								<div class="flex items-center gap-2 flex-wrap">
+									<span class="px-2.5 py-1 rounded-xl text-[11px] font-semibold bg-surface-container border border-slate-200 dark:border-slate-700 text-slate-400">
+										Target: <strong class="text-on-surface font-mono">Level {comp.requiredLevel}</strong>
+									</span>
+									<span class="px-2.5 py-1 rounded-xl text-[11px] font-black uppercase flex items-center gap-1.5 {isQualified ? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20' : 'bg-rose-500/10 text-rose-500 border border-rose-500/20'}">
+										<span class="material-symbols-outlined text-sm">
+											{isQualified ? 'check_circle' : 'warning'}
+										</span>
+										<span>Nilai: L{currentVal} ({isQualified ? (gap > 0 ? `+${gap} Melebihi` : 'Sesuai Standar') : `${gap} GAP`})</span>
+									</span>
+								</div>
+							</div>
+
+							<!-- 5 Baris Leveling Interaktif (Klik Baris untuk Memilih Nilai Langsung) -->
+							<div class="space-y-2">
+								<div class="flex items-center justify-between">
+									<span class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+										Pilih Level Perilaku Karyawan:
+									</span>
+									<span class="text-[10px] text-slate-400 font-medium">Klik pada baris level untuk memberi nilai</span>
+								</div>
+								
+								<div class="grid grid-cols-1 gap-1.5">
+									{#each [1, 2, 3, 4, 5] as lvl}
+										{@const isSelected = currentVal === lvl}
+										{@const isTarget = comp.requiredLevel === lvl}
+										{@const isPassing = lvl >= comp.requiredLevel}
+										{@const desc = getLevelDescription(comp.competencyCode, lvl)}
+
+										<button
+											type="button"
+											onclick={() => setRating(selectedEmployee.payrollId, comp.competencyCode, lvl)}
+											class="w-full text-left p-2.5 sm:p-3 rounded-2xl border transition-all cursor-pointer flex items-start gap-3 group
+											{isSelected
+												? isPassing
+													? 'bg-emerald-500/10 border-emerald-500 ring-1 ring-emerald-500/30 shadow-xs'
+													: 'bg-rose-500/10 border-rose-500 ring-1 ring-rose-500/30 shadow-xs'
+												: 'bg-surface-container-low hover:bg-surface-container-high border-slate-200/60 dark:border-slate-800/60'}"
+										>
+											<!-- Level Badge Number -->
+											<div class="shrink-0 flex items-center justify-center w-7 h-7 rounded-xl font-mono text-xs font-black transition-all
+												{isSelected
+													? isPassing
+														? 'bg-emerald-500 text-white shadow-xs scale-105'
+														: 'bg-rose-500 text-white shadow-xs scale-105'
+													: 'bg-surface-container-high text-slate-400 group-hover:text-on-surface'}">
+												{lvl}
+											</div>
+
+											<!-- Konten Level & Indikator Target -->
+											<div class="flex-1 min-w-0">
+												<div class="flex items-center gap-2 flex-wrap mb-0.5">
+													<span class="font-bold text-xs {isSelected ? (isPassing ? 'text-emerald-500' : 'text-rose-500') : 'text-on-surface'}">
+														Level {lvl}
+													</span>
+													{#if isTarget}
+														<span class="px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-wider bg-primary/10 text-primary border border-primary/20">
+															Standar Jabatan
+														</span>
+													{/if}
+													{#if isSelected}
+														<span class="ml-auto inline-flex items-center gap-1 text-[10px] font-bold {isPassing ? 'text-emerald-500' : 'text-rose-500'}">
+															<span class="material-symbols-outlined text-xs">
+																{isPassing ? 'task_alt' : 'error'}
+															</span>
+															<span>{isPassing ? 'Terpilih (Lulus)' : 'Terpilih (GAP)'}</span>
+														</span>
+													{/if}
+												</div>
+												<p class="text-xs {isSelected ? 'text-on-surface font-medium' : 'text-slate-400 group-hover:text-slate-300'} leading-relaxed">
+													{desc}
+												</p>
+											</div>
+										</button>
+									{/each}
+								</div>
+							</div>
+
+							<!-- Rekomendasi Modul Pelatihan jika GAP < 0 -->
+							{#if !isQualified}
+								<div class="p-3 rounded-2xl bg-rose-500/10 border border-rose-500/25 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs text-rose-400">
+									<div class="flex items-center gap-2">
+										<span class="material-symbols-outlined text-lg text-rose-500">school</span>
+										<span>Rekomendasi Pelatihan LMS: <strong class="text-rose-300">{comp.defaultCourseTitle || 'Pelatihan Penguatan Kompetensi'}</strong></span>
+									</div>
+									<span class="text-[10px] font-bold text-rose-300 px-2 py-0.5 rounded bg-rose-500/20 self-start sm:self-auto">
+										Auto-Assign TNA
+									</span>
+								</div>
+							{/if}
+
+							<!-- Catatan Observasi Per Butir -->
+							<div class="pt-1">
+								<label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Catatan Observasi Khusus:</label>
+								<input
+									type="text"
+									placeholder="Tuliskan catatan observasi atau bukti kinerja nyata untuk kompetensi ini..."
+									value={getNote(selectedEmployee.payrollId, comp.competencyCode)}
+									oninput={(e) => setNote(selectedEmployee.payrollId, comp.competencyCode, (e.target as HTMLInputElement).value)}
+									class="w-full px-3.5 py-2 rounded-xl bg-surface-container border border-slate-200/80 dark:border-slate-800 text-xs text-on-surface placeholder:text-slate-400 outline-none focus:border-primary transition-all"
+								/>
+							</div>
+						</div>
+					{/snippet}
 
 					<!-- Form Penilaian Kompetensi Individu -->
 					<div class="space-y-4">
@@ -594,83 +735,9 @@
 									</h4>
 								</div>
 
-								<div class="space-y-2">
-									{#each coreCompetencies as comp}
-										{@const currentVal = getRating(selectedEmployee.payrollId, comp.competencyCode, comp.requiredLevel)}
-										{@const gap = currentVal - comp.requiredLevel}
-										{@const isQualified = gap >= 0}
-										{@const compObj = competencyLibrary.find((l: any) => l.code === comp.competencyCode)}
-										<div class="p-3.5 rounded-2xl border transition-all {isQualified ? 'bg-surface border-slate-200 dark:border-slate-800' : 'bg-rose-500/5 border-rose-500/30'} space-y-2.5">
-											<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-												<div class="flex items-center gap-2">
-													<span class="font-mono text-[10px] font-black px-1.5 py-0.5 rounded bg-surface-container text-primary border border-slate-700">
-														{comp.competencyCode}
-													</span>
-													<span class="font-bold text-xs text-on-surface">{comp.competencyName}</span>
-													{#if compObj}
-														<button
-															type="button"
-															onclick={() => {
-																selectedCompForRubric = compObj;
-																isRubricModalOpen = true;
-															}}
-															class="w-5 h-5 rounded-full bg-surface-container hover:bg-primary/20 hover:text-primary flex items-center justify-center text-slate-400 transition-all cursor-pointer"
-															title="Buka Rubrik Level 1 s.d. 5"
-														>
-															<span class="material-symbols-outlined text-xs">info</span>
-														</button>
-													{/if}
-												</div>
-
-												<!-- Rating Selector Pill 1-5 -->
-												<div class="flex items-center gap-2">
-													<span class="text-[10px] font-mono text-slate-400 font-semibold">
-														Target: <strong>L{comp.requiredLevel}</strong>
-													</span>
-
-													<div class="inline-flex items-center p-1 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-700 gap-1">
-														{#each [1, 2, 3, 4, 5] as lvl}
-															<button
-																type="button"
-																onclick={() => setRating(selectedEmployee.payrollId, comp.competencyCode, lvl)}
-																class="w-7 h-7 rounded-lg font-mono text-xs font-black transition-all cursor-pointer flex items-center justify-center
-																{currentVal === lvl
-																	? lvl >= comp.requiredLevel
-																		? 'bg-emerald-500 text-white shadow-xs scale-105'
-																		: 'bg-rose-500 text-white shadow-xs scale-105'
-																	: 'text-slate-400 hover:text-on-surface hover:bg-surface-container-high'}"
-															>
-																{lvl}
-															</button>
-														{/each}
-													</div>
-
-													<span class="px-2 py-0.5 rounded-md text-[10px] font-black uppercase {isQualified ? 'bg-emerald-500/10 text-emerald-500' : 'bg-rose-500/15 text-rose-500'}">
-														{isQualified ? (gap > 0 ? `+${gap}` : 'Sesuai') : `GAP ${gap}`}
-													</span>
-												</div>
-											</div>
-
-											<!-- Rekomendasi Modul Pelatihan jika GAP < 0 -->
-											{#if !isQualified}
-												<div class="p-2.5 rounded-xl bg-rose-500/10 border border-rose-500/20 flex items-center justify-between text-xs text-rose-400">
-													<div class="flex items-center gap-2">
-														<span class="material-symbols-outlined text-base">school</span>
-														<span>Rekomendasi Pelatihan: <strong>{comp.defaultCourseTitle || 'Pelatihan Penguatan Kompetensi Dasar'}</strong></span>
-													</div>
-													<span class="text-[10px] font-semibold text-rose-300">Otomatis ditugaskan</span>
-												</div>
-											{/if}
-
-											<!-- Catatan Observasi Per Butir -->
-											<input
-												type="text"
-												placeholder="Catatan pengamatan untuk kompetensi ini (opsional)..."
-												value={getNote(selectedEmployee.payrollId, comp.competencyCode)}
-												oninput={(e) => setNote(selectedEmployee.payrollId, comp.competencyCode, (e.target as HTMLInputElement).value)}
-												class="w-full px-3 py-1.5 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800 text-[11px] text-on-surface placeholder:text-slate-400 outline-none"
-											/>
-										</div>
+								<div class="space-y-3">
+									{#each coreCompetencies as comp (comp.competencyCode)}
+										{@render competencyCard(comp, 'Core Competency', 'indigo')}
 									{/each}
 								</div>
 							</div>
@@ -686,81 +753,9 @@
 									</h4>
 								</div>
 
-								<div class="space-y-2">
-									{#each behavioralCompetencies as comp}
-										{@const currentVal = getRating(selectedEmployee.payrollId, comp.competencyCode, comp.requiredLevel)}
-										{@const gap = currentVal - comp.requiredLevel}
-										{@const isQualified = gap >= 0}
-										{@const compObj = competencyLibrary.find((l: any) => l.code === comp.competencyCode)}
-										<div class="p-3.5 rounded-2xl border transition-all {isQualified ? 'bg-surface border-slate-200 dark:border-slate-800' : 'bg-rose-500/5 border-rose-500/30'} space-y-2.5">
-											<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-												<div class="flex items-center gap-2">
-													<span class="font-mono text-[10px] font-black px-1.5 py-0.5 rounded bg-surface-container text-primary border border-slate-700">
-														{comp.competencyCode}
-													</span>
-													<span class="font-bold text-xs text-on-surface">{comp.competencyName}</span>
-													{#if compObj}
-														<button
-															type="button"
-															onclick={() => {
-																selectedCompForRubric = compObj;
-																isRubricModalOpen = true;
-															}}
-															class="w-5 h-5 rounded-full bg-surface-container hover:bg-primary/20 hover:text-primary flex items-center justify-center text-slate-400 transition-all cursor-pointer"
-															title="Buka Rubrik Level 1 s.d. 5"
-														>
-															<span class="material-symbols-outlined text-xs">info</span>
-														</button>
-													{/if}
-												</div>
-
-												<!-- Rating Selector Pill 1-5 -->
-												<div class="flex items-center gap-2">
-													<span class="text-[10px] font-mono text-slate-400 font-semibold">
-														Target: <strong>L{comp.requiredLevel}</strong>
-													</span>
-
-													<div class="inline-flex items-center p-1 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-700 gap-1">
-														{#each [1, 2, 3, 4, 5] as lvl}
-															<button
-																type="button"
-																onclick={() => setRating(selectedEmployee.payrollId, comp.competencyCode, lvl)}
-																class="w-7 h-7 rounded-lg font-mono text-xs font-black transition-all cursor-pointer flex items-center justify-center
-																{currentVal === lvl
-																	? lvl >= comp.requiredLevel
-																		? 'bg-emerald-500 text-white shadow-xs scale-105'
-																		: 'bg-rose-500 text-white shadow-xs scale-105'
-																	: 'text-slate-400 hover:text-on-surface hover:bg-surface-container-high'}"
-															>
-																{lvl}
-															</button>
-														{/each}
-													</div>
-
-													<span class="px-2 py-0.5 rounded-md text-[10px] font-black uppercase {isQualified ? 'bg-emerald-500/10 text-emerald-500' : 'bg-rose-500/15 text-rose-500'}">
-														{isQualified ? (gap > 0 ? `+${gap}` : 'Sesuai') : `GAP ${gap}`}
-													</span>
-												</div>
-											</div>
-
-											{#if !isQualified}
-												<div class="p-2.5 rounded-xl bg-rose-500/10 border border-rose-500/20 flex items-center justify-between text-xs text-rose-400">
-													<div class="flex items-center gap-2">
-														<span class="material-symbols-outlined text-base">school</span>
-														<span>Rekomendasi Pelatihan: <strong>{comp.defaultCourseTitle || 'Pelatihan Soft Skills & Perilaku Kerja'}</strong></span>
-													</div>
-													<span class="text-[10px] font-semibold text-rose-300">Otomatis ditugaskan</span>
-												</div>
-											{/if}
-
-											<input
-												type="text"
-												placeholder="Catatan pengamatan untuk kompetensi ini (opsional)..."
-												value={getNote(selectedEmployee.payrollId, comp.competencyCode)}
-												oninput={(e) => setNote(selectedEmployee.payrollId, comp.competencyCode, (e.target as HTMLInputElement).value)}
-												class="w-full px-3 py-1.5 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800 text-[11px] text-on-surface placeholder:text-slate-400 outline-none"
-											/>
-										</div>
+								<div class="space-y-3">
+									{#each behavioralCompetencies as comp (comp.competencyCode)}
+										{@render competencyCard(comp, 'Behavioral Competency', 'amber')}
 									{/each}
 								</div>
 							</div>
@@ -776,81 +771,9 @@
 									</h4>
 								</div>
 
-								<div class="space-y-2">
-									{#each technicalCompetencies as comp}
-										{@const currentVal = getRating(selectedEmployee.payrollId, comp.competencyCode, comp.requiredLevel)}
-										{@const gap = currentVal - comp.requiredLevel}
-										{@const isQualified = gap >= 0}
-										{@const compObj = competencyLibrary.find((l: any) => l.code === comp.competencyCode)}
-										<div class="p-3.5 rounded-2xl border transition-all {isQualified ? 'bg-surface border-slate-200 dark:border-slate-800' : 'bg-rose-500/5 border-rose-500/30'} space-y-2.5">
-											<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-												<div class="flex items-center gap-2">
-													<span class="font-mono text-[10px] font-black px-1.5 py-0.5 rounded bg-surface-container text-primary border border-slate-700">
-														{comp.competencyCode}
-													</span>
-													<span class="font-bold text-xs text-on-surface">{comp.competencyName}</span>
-													{#if compObj}
-														<button
-															type="button"
-															onclick={() => {
-																selectedCompForRubric = compObj;
-																isRubricModalOpen = true;
-															}}
-															class="w-5 h-5 rounded-full bg-surface-container hover:bg-primary/20 hover:text-primary flex items-center justify-center text-slate-400 transition-all cursor-pointer"
-															title="Buka Rubrik Level 1 s.d. 5"
-														>
-															<span class="material-symbols-outlined text-xs">info</span>
-														</button>
-													{/if}
-												</div>
-
-												<!-- Rating Selector Pill 1-5 -->
-												<div class="flex items-center gap-2">
-													<span class="text-[10px] font-mono text-slate-400 font-semibold">
-														Target: <strong>L{comp.requiredLevel}</strong>
-													</span>
-
-													<div class="inline-flex items-center p-1 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-700 gap-1">
-														{#each [1, 2, 3, 4, 5] as lvl}
-															<button
-																type="button"
-																onclick={() => setRating(selectedEmployee.payrollId, comp.competencyCode, lvl)}
-																class="w-7 h-7 rounded-lg font-mono text-xs font-black transition-all cursor-pointer flex items-center justify-center
-																{currentVal === lvl
-																	? lvl >= comp.requiredLevel
-																		? 'bg-emerald-500 text-white shadow-xs scale-105'
-																		: 'bg-rose-500 text-white shadow-xs scale-105'
-																	: 'text-slate-400 hover:text-on-surface hover:bg-surface-container-high'}"
-															>
-																{lvl}
-															</button>
-														{/each}
-													</div>
-
-													<span class="px-2 py-0.5 rounded-md text-[10px] font-black uppercase {isQualified ? 'bg-emerald-500/10 text-emerald-500' : 'bg-rose-500/15 text-rose-500'}">
-														{isQualified ? (gap > 0 ? `+${gap}` : 'Sesuai') : `GAP ${gap}`}
-													</span>
-												</div>
-											</div>
-
-											{#if !isQualified}
-												<div class="p-2.5 rounded-xl bg-rose-500/10 border border-rose-500/20 flex items-center justify-between text-xs text-rose-400">
-													<div class="flex items-center gap-2">
-														<span class="material-symbols-outlined text-base">school</span>
-														<span>Rekomendasi Pelatihan: <strong>{comp.defaultCourseTitle || 'Pelatihan Teknis Lapangan'}</strong></span>
-													</div>
-													<span class="text-[10px] font-semibold text-rose-300">Otomatis ditugaskan</span>
-												</div>
-											{/if}
-
-											<input
-												type="text"
-												placeholder="Catatan pengamatan untuk kompetensi ini (opsional)..."
-												value={getNote(selectedEmployee.payrollId, comp.competencyCode)}
-												oninput={(e) => setNote(selectedEmployee.payrollId, comp.competencyCode, (e.target as HTMLInputElement).value)}
-												class="w-full px-3 py-1.5 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800 text-[11px] text-on-surface placeholder:text-slate-400 outline-none"
-											/>
-										</div>
+								<div class="space-y-3">
+									{#each technicalCompetencies as comp (comp.competencyCode)}
+										{@render competencyCard(comp, 'Technical Competency', 'emerald')}
 									{/each}
 								</div>
 							</div>
