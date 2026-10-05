@@ -1957,20 +1957,42 @@
 									</p>
 								</div>
 
-								<div class="pt-3 border-t border-slate-200/60 dark:border-slate-800/60 flex items-center justify-between">
+								<div class="pt-3 border-t border-slate-200/60 dark:border-slate-800/60 flex items-center justify-between gap-2">
 									<div class="text-[11px] text-slate-500">
 										Jam: <strong>{s.startTime} - {s.endTime}</strong>
-										<div class="text-[10px] text-slate-400">Kuota: {s.actualAttendeeCount} / {s.quota} Peserta</div>
+										<div class="text-[10px] text-slate-400">Peserta: {s.actualAttendeeCount} / {s.quota}</div>
 									</div>
 
-									<button
-										type="button"
-										onclick={() => openAttendanceModal(s)}
-										class="px-3 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 hover:bg-surface-container-high text-xs font-bold text-on-surface flex items-center gap-1 transition-all cursor-pointer"
-									>
-										<span class="material-symbols-outlined text-xs">how_to_reg</span>
-										<span>Absensi</span>
-									</button>
+									<div class="flex items-center gap-1.5">
+										<button
+											type="button"
+											onclick={() => openAttendanceModal(s)}
+											class="px-2.5 py-1.5 rounded-xl border border-slate-300 dark:border-slate-700 hover:bg-surface-container-high text-xs font-bold text-on-surface flex items-center gap-1 transition-all cursor-pointer shadow-2xs"
+											title="Kelola Absensi Peserta"
+										>
+											<span class="material-symbols-outlined text-xs">how_to_reg</span>
+											<span>Absensi</span>
+										</button>
+
+										{#if s.status === 'COMPLETED'}
+											<span class="px-2.5 py-1.5 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-[10px] font-black flex items-center gap-1">
+												<span class="material-symbols-outlined text-xs">verified</span>
+												<span>Selesai</span>
+											</span>
+										{:else}
+											<form method="POST" action="?/completeSessionAndGenerateEvaluations" use:enhance class="inline">
+												<input type="hidden" name="sessionId" value={s.id} />
+												<button
+													type="submit"
+													class="px-2.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold flex items-center gap-1 transition-all cursor-pointer shadow-xs"
+													title="Selesaikan Sesi & Buat Antrean Evaluasi Atasan Langsung"
+												>
+													<span class="material-symbols-outlined text-xs">task_alt</span>
+													<span>Selesaikan Sesi</span>
+												</button>
+											</form>
+										{/if}
+									</div>
 								</div>
 							</div>
 						{/each}
@@ -6303,12 +6325,35 @@
 			<!-- Daftar Peserta Sesi & Quick Mark Status -->
 			<div class="flex-1 overflow-y-auto space-y-4 pr-1 max-h-[60vh]">
 				<div>
-					<div class="flex items-center justify-between mb-2">
+					<div class="flex items-center justify-between mb-2 gap-2 flex-wrap">
 						<h4 class="font-bold text-xs text-on-surface flex items-center gap-1.5">
 							<span class="material-symbols-outlined text-sm text-primary">groups</span>
 							<span>Daftar Peserta Terdaftar ({currentSessionAttendances.length})</span>
 						</h4>
-						<span class="text-[10px] text-slate-400">Klik status untuk update presensi</span>
+						<div class="flex items-center gap-2">
+							<form method="POST" action="?/markAllAttendancePresent" use:enhance class="inline">
+								<input type="hidden" name="sessionId" value={activeSessionForAttendance.id} />
+								<button
+									type="submit"
+									class="px-2.5 py-1 rounded-xl bg-blue-500/10 text-blue-600 dark:text-blue-400 hover:bg-blue-500/20 text-[11px] font-bold flex items-center gap-1 transition-all cursor-pointer"
+									title="Tandai semua peserta berstatus HADIR"
+								>
+									<span class="material-symbols-outlined text-xs">done_all</span>
+									<span>Tandai Semua Hadir</span>
+								</button>
+							</form>
+							<form method="POST" action="?/completeSessionAndGenerateEvaluations" use:enhance class="inline">
+								<input type="hidden" name="sessionId" value={activeSessionForAttendance.id} />
+								<button
+									type="submit"
+									class="px-2.5 py-1 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-[11px] font-bold flex items-center gap-1 transition-all cursor-pointer shadow-xs"
+									title="Selesaikan Sesi & Buat Antrean Evaluasi Atasan Langsung"
+								>
+									<span class="material-symbols-outlined text-xs">verified</span>
+									<span>Selesaikan Sesi & Buat Evaluasi</span>
+								</button>
+							</form>
+						</div>
 					</div>
 
 					{#if currentSessionAttendances.length === 0}

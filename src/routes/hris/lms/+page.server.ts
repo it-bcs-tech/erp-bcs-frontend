@@ -795,6 +795,149 @@ export const actions = {
 		}
 	},
 
+	// Selesaikan Sesi Pelatihan & Aktifkan Tiket Evaluasi Pasca-Training Atasan (L4 Pre-Test 10 Hari & L3/L4 Post-Test 3 Bulan)
+	completeSessionAndGenerateEvaluations: async ({ request }) => {
+		const formData = await request.formData();
+		const sessionId = formData.get('sessionId')?.toString();
+
+		if (!sessionId) return { success: false, message: 'ID Sesi tidak ditemukan.' };
+
+		try {
+			// 1. Ambil data sesi & kursus
+			const sessionRows = await sql`
+				SELECT s.*, c.title as course_title, c.category as course_category
+				FROM hris.lms_sessions s
+				JOIN hris.lms_courses c ON c.id = s.course_id
+				WHERE s.id = ${sessionId}
+				LIMIT 1;
+			`;
+			if (sessionRows.length === 0) {
+				return { success: false, message: 'Sesi pelatihan tidak ditemukan.' };
+			}
+			const session = sessionRows[0];
+
+			// 2. Ambil seluruh peserta sesi
+			const attendees = await sql`
+				SELECT a.*, kb.title as employee_title
+				FROM hris.lms_session_attendances a
+				LEFT JOIN master.m_karyawan kb ON kb.payroll_id = a.payroll_id
+				WHERE a.session_id = ${sessionId};
+			`;
+
+			if (attendees.length === 0) {
+				return { success: false, message: 'Belum ada peserta yang terdaftar pada sesi ini.' };
+			}
+
+			// Filter peserta HADIR. Jika belum ada yang di-set HADIR (masih TERDAFTAR semua), otomatis jadikan HADIR semua
+			const presentAttendees = attendees.filter((a) => a.status === 'HADIR');
+			const targetAttendees = presentAttendees.length > 0 ? presentAttendees : attendees;
+
+			let count = 0;
+			const completedDate = session.end_date || session.session_date || new Date().toISOString().split('T')[0];
+
+			for (const att of targetAttendees) {
+				// Cari atasan langsung
+				const supRows = await sql`
+					SELECT ka.nama_karyawan as supervisor_name
+					FROM master.m_karyawan kb
+					JOIN master.m_hierarchy h ON h.title_bawahan = kb.title
+					JOIN master.m_karyawan ka ON ka.title = h.title_atasan AND ka.aktif = 'Y'
+					WHERE kb.payroll_id = ${att.payroll_id}
+					LIMIT 1;
+				`;
+				const supervisorName = supRows[0]?.supervisor_name || 'Supervisor Operasional';
+
+				// Buat / Update antrean evaluasi L3 & L4
+				const existing = await sql`
+					SELECT id FROM hris.lms_evaluations_l3_l4
+					WHERE course_id = ${session.course_id} AND payroll_id = ${att.payroll_id}
+					LIMIT 1;
+				`;
+
+				if (existing.length > 0) {
+					await sql`
+						UPDATE hris.lms_evaluations_l3_l4
+						SET 
+							training_completed_at = ${completedDate},
+							supervisor_name = ${supervisorName},
+							l4_pre_status = CASE WHEN l4_pre_status = 'REVIEWED' THEN 'REVIEWED' ELSE 'PENDING' END,
+							l4_pre_due_date = COALESCE(l4_pre_due_date, ${completedDate}::date + INTERVAL '10 days'),
+							due_date = ${completedDate}::date + INTERVAL '3 months',
+							l3_status = CASE WHEN l3_status = 'COMPLETED' THEN 'COMPLETED' ELSE 'PENDING' END,
+							l4_status = CASE WHEN l4_status = 'COMPLETED' THEN 'COMPLETED' ELSE 'PENDING' END,
+							status = 'PENDING'
+						WHERE id = ${existing[0].id};
+					`;
+				} else {
+					await sql`
+						INSERT INTO hris.lms_evaluations_l3_l4 (
+							course_id, payroll_id, employee_name, supervisor_name,
+							training_completed_at, due_date, status,
+							l4_pre_status, l4_pre_due_date,
+							l3_status, l4_status
+						) VALUES (
+							${session.course_id}, ${att.payroll_id}, ${att.employee_name}, ${supervisorName},
+							${completedDate}, ${completedDate}::date + INTERVAL '3 months', 'PENDING',
+							'PENDING', ${completedDate}::date + INTERVAL '10 days',
+							'PENDING', 'PENDING'
+						);
+					`;
+				}
+
+				// Update enrollment status
+				await sql`
+					UPDATE hris.lms_enrollments
+					SET status = 'COMPLETED', progress_percent = 100, completed_modules_count = 3
+					WHERE course_id = ${session.course_id} AND payroll_id = ${att.payroll_id};
+				`;
+
+				// Update attendance status jika tadinya masih TERDAFTAR
+				if (att.status !== 'HADIR') {
+					await sql`
+						UPDATE hris.lms_session_attendances
+						SET status = 'HADIR', attended_at = CURRENT_TIMESTAMP
+						WHERE id = ${att.id};
+					`;
+				}
+
+				count++;
+			}
+
+			// 3. Update status sesi menjadi COMPLETED
+			await sql`
+				UPDATE hris.lms_sessions
+				SET status = 'COMPLETED'
+				WHERE id = ${sessionId};
+			`;
+
+			return {
+				success: true,
+				message: `Sesi "${session.title}" berhasil diselesaikan! Tiket evaluasi pasca-training (${count} karyawan) telah aktif untuk atasan langsung (Level 4 Pre-Test 10 Hari & Level 3 & 4 Post-Test 3 Bulan).`
+			};
+		} catch (e: any) {
+			logError('COMPLETE_SESSION_ERROR', e?.message);
+			return { success: false, message: `Gagal menyelesaikan sesi: ${e?.message || 'Database error'}` };
+		}
+	},
+
+	// Tandai Semua Peserta Sesi HADIR Sekaligus
+	markAllAttendancePresent: async ({ request }) => {
+		const formData = await request.formData();
+		const sessionId = formData.get('sessionId')?.toString();
+		if (!sessionId) return { success: false, message: 'ID Sesi tidak ditemukan.' };
+
+		try {
+			await sql`
+				UPDATE hris.lms_session_attendances
+				SET status = 'HADIR', attended_at = CURRENT_TIMESTAMP
+				WHERE session_id = ${sessionId};
+			`;
+			return { success: true, message: 'Semua peserta terdaftar berhasil ditandai HADIR.' };
+		} catch (e: any) {
+			return { success: false, message: 'Gagal memperbarui presensi.' };
+		}
+	},
+
 	// 5. Submit Post-Test & Terbitkan Sertifikat Otomatis
 	submitPostTest: async ({ request }) => {
 		const formData = await request.formData();
@@ -903,15 +1046,17 @@ export const actions = {
 			`;
 
 			// Cari direct supervisor dari karyawan
-			const empRows = await sql`
-				SELECT direct_supervisor, department, title_name 
-				FROM hris.m_karyawan 
-				WHERE payroll_id = ${payrollId} OR nik = ${payrollId} 
+			const supRows = await sql`
+				SELECT ka.nama_karyawan as supervisor_name
+				FROM master.m_karyawan kb
+				JOIN master.m_hierarchy h ON h.title_bawahan = kb.title
+				JOIN master.m_karyawan ka ON ka.title = h.title_atasan AND ka.aktif = 'Y'
+				WHERE kb.payroll_id = ${payrollId}
 				LIMIT 1;
 			`;
-			const supervisorName = empRows[0]?.direct_supervisor || 'Supervisor Operasional';
+			const supervisorName = supRows[0]?.supervisor_name || 'Supervisor Operasional';
 
-			// Jadwalkan / aktifkan antrean Evaluasi Pasca-Training Segera (L3) & 3 Bulan (L4)
+			// Jadwalkan / aktifkan antrean Evaluasi Pasca-Training Segera (L4 Pre-Test 10 Hari, L3 Behavior 3 Bulan, L4 Post-Test 3 Bulan)
 			const existingL3L4 = await sql`
 				SELECT id FROM hris.lms_evaluations_l3_l4
 				WHERE course_id = ${courseId} AND payroll_id = ${payrollId}
@@ -921,18 +1066,25 @@ export const actions = {
 				await sql`
 					UPDATE hris.lms_evaluations_l3_l4
 					SET training_completed_at = CURRENT_TIMESTAMP,
+					    supervisor_name = COALESCE(NULLIF(${supervisorName}, 'Supervisor Operasional'), supervisor_name),
+					    l4_pre_status = CASE WHEN l4_pre_status = 'REVIEWED' THEN 'REVIEWED' ELSE 'PENDING' END,
+					    l4_pre_due_date = COALESCE(l4_pre_due_date, CURRENT_DATE + INTERVAL '10 days'),
 					    due_date = CURRENT_DATE + INTERVAL '3 months',
-					    l3_status = 'PENDING'
+					    l3_status = CASE WHEN l3_status = 'COMPLETED' THEN 'COMPLETED' ELSE 'PENDING' END,
+					    l4_status = CASE WHEN l4_status = 'COMPLETED' THEN 'COMPLETED' ELSE 'PENDING' END,
+					    status = 'PENDING'
 					WHERE id = ${existingL3L4[0].id};
 				`;
 			} else {
 				await sql`
 					INSERT INTO hris.lms_evaluations_l3_l4 (
 						course_id, payroll_id, employee_name, supervisor_name,
-						training_completed_at, due_date, status, l3_status, l4_status
+						training_completed_at, due_date, status, l3_status, l4_status,
+						l4_pre_status, l4_pre_due_date
 					) VALUES (
 						${courseId}, ${payrollId}, ${employeeName}, ${supervisorName},
-						CURRENT_TIMESTAMP, CURRENT_DATE + INTERVAL '3 months', 'PENDING', 'PENDING', 'PENDING'
+						CURRENT_TIMESTAMP, CURRENT_DATE + INTERVAL '3 months', 'PENDING', 'PENDING', 'PENDING',
+						'PENDING', CURRENT_DATE + INTERVAL '10 days'
 					);
 				`;
 			}
