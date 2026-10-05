@@ -615,7 +615,73 @@
 	let postTestAnswered = $state<Record<number, string>>({});
 	let preTestSubmitted = $state(false);
 	let postTestResult = $state<{ passed: boolean; score: number; certNumber?: string } | null>(null);
-	let evalL1Ratings = $state({ content: 5, instructor: 5, facility: 5, recommendation: 5, notes: '' });
+	// Evaluasi Level 1 Kirkpatrick (18 Indikator: 15 Likert + 3 Esai)
+	let evalL1State = $state({
+		// 1. Program & Materi Pelatihan (Skala 1-5)
+		q1_systematic: 5,
+		q2_completeness: 5,
+		q3_relevance: 5,
+		q4_duration: 5,
+		q5_knowledge_gain: 5,
+		// 2. Instruktur / Trainer / Fasilitator (Skala 1-5)
+		q6_mastery: 5,
+		q7_delivery: 5,
+		q8_engagement: 5,
+		q9_qa: 5,
+		// 3. Sarana, Prasarana & Fasilitas (Skala 1-5)
+		q10_venue: 5,
+		q11_tools: 5,
+		q12_refreshment: 5,
+		q13_cleanliness: 5,
+		q14_committee: 5,
+		q15_discipline: 5,
+		// 4. Esai Kualitatif / Feedback Terbuka
+		appliedBenefit: '',
+		impressions: '',
+		suggestions: ''
+	});
+
+	let isSubmittingEvalL1 = $state(false);
+
+	const evalL1MaterialAvg = $derived(
+		Number(((evalL1State.q1_systematic + evalL1State.q2_completeness + evalL1State.q3_relevance + evalL1State.q4_duration + evalL1State.q5_knowledge_gain) / 5).toFixed(2))
+	);
+	const evalL1InstructorAvg = $derived(
+		Number(((evalL1State.q6_mastery + evalL1State.q7_delivery + evalL1State.q8_engagement + evalL1State.q9_qa) / 4).toFixed(2))
+	);
+	const evalL1FacilityAvg = $derived(
+		Number(((evalL1State.q10_venue + evalL1State.q11_tools + evalL1State.q12_refreshment + evalL1State.q13_cleanliness + evalL1State.q14_committee + evalL1State.q15_discipline) / 6).toFixed(2))
+	);
+	const evalL1OverallAvg = $derived(
+		Number(((evalL1MaterialAvg + evalL1InstructorAvg + evalL1FacilityAvg) / 3).toFixed(2))
+	);
+
+	const evalL1FilledCount = $derived.by(() => {
+		let count = 0;
+		const likertKeys = [
+			'q1_systematic', 'q2_completeness', 'q3_relevance', 'q4_duration', 'q5_knowledge_gain',
+			'q6_mastery', 'q7_delivery', 'q8_engagement', 'q9_qa',
+			'q10_venue', 'q11_tools', 'q12_refreshment', 'q13_cleanliness', 'q14_committee', 'q15_discipline'
+		] as const;
+		for (const k of likertKeys) {
+			if (evalL1State[k] >= 1 && evalL1State[k] <= 5) count++;
+		}
+		if (evalL1State.appliedBenefit.trim().length > 0) count++;
+		if (evalL1State.impressions.trim().length > 0) count++;
+		if (evalL1State.suggestions.trim().length > 0) count++;
+		return count;
+	});
+
+	const isEvalL1Complete = $derived(evalL1FilledCount === 18);
+
+	// Modal Detail Preview Evaluasi Level 1 di Admin LMS
+	let isL1DetailModalOpen = $state(false);
+	let selectedL1Detail = $state<any>(null);
+
+	function openL1DetailModal(item: any) {
+		selectedL1Detail = item;
+		isL1DetailModalOpen = true;
+	}
 
 	// Filtered Courses in Catalog
 	let filteredCourses = $derived(
@@ -876,7 +942,26 @@
 		postTestAnswered = {};
 		preTestSubmitted = false;
 		postTestResult = null;
-		evalL1Ratings = { content: 5, instructor: 5, facility: 5, recommendation: 5, notes: '' };
+		evalL1State = {
+			q1_systematic: 5,
+			q2_completeness: 5,
+			q3_relevance: 5,
+			q4_duration: 5,
+			q5_knowledge_gain: 5,
+			q6_mastery: 5,
+			q7_delivery: 5,
+			q8_engagement: 5,
+			q9_qa: 5,
+			q10_venue: 5,
+			q11_tools: 5,
+			q12_refreshment: 5,
+			q13_cleanliness: 5,
+			q14_committee: 5,
+			q15_discipline: 5,
+			appliedBenefit: '',
+			impressions: '',
+			suggestions: ''
+		};
 		isPlayerModalOpen = true;
 	}
 
@@ -1622,53 +1707,145 @@
 
 					<!-- SUB-TAB 1: LEVEL 1 REACTION -->
 					{#if evalSubTab === 'l1'}
-						<div class="space-y-4">
-							<div class="p-4 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-between">
-								<div class="flex items-center gap-3">
-									<span class="material-symbols-outlined text-amber-500 text-2xl">insights</span>
+						<div class="space-y-5">
+							<!-- 4 KPI Summary Cards Level 1 -->
+							<div class="grid grid-cols-2 lg:grid-cols-4 gap-3.5">
+								<div class="p-4 rounded-3xl bg-surface border border-slate-200/60 dark:border-slate-800/60 shadow-xs flex items-center justify-between">
 									<div>
-										<h4 class="font-black text-sm text-on-surface">Evaluasi Level 1 (Reaction) Kirkpatrick</h4>
-										<p class="text-xs text-on-surface-variant">Survei kepuasan peserta wajib diisi tepat setelah lulus post-test</p>
+										<span class="text-[10px] font-bold text-slate-400 block uppercase tracking-wider">Kepuasan Global</span>
+										<p class="text-xl font-black text-amber-500 font-mono mt-0.5 flex items-center gap-1">
+											<span>{metrics.avgSatisfaction || '4.8'}</span>
+											<span class="text-xs text-slate-400 font-normal">/ 5.0</span>
+										</p>
+									</div>
+									<div class="w-10 h-10 rounded-2xl bg-amber-500/10 text-amber-500 flex items-center justify-center">
+										<span class="material-symbols-outlined text-lg">hotel_class</span>
 									</div>
 								</div>
-								<div class="text-right">
-									<span class="text-xs text-slate-500">Skor Rata-rata:</span>
-									<p class="font-black text-lg text-amber-600 font-mono flex items-center justify-end gap-1">
-										<span>{metrics.avgSatisfaction}</span>
-										<span class="material-symbols-outlined text-sm">star</span>
-									</p>
+
+								<div class="p-4 rounded-3xl bg-surface border border-slate-200/60 dark:border-slate-800/60 shadow-xs flex items-center justify-between">
+									<div>
+										<span class="text-[10px] font-bold text-slate-400 block uppercase tracking-wider">Kualitas Materi</span>
+										<p class="text-xl font-black text-blue-500 font-mono mt-0.5 flex items-center gap-1">
+											<span>{metrics.avgMaterial || '4.8'}</span>
+											<span class="text-xs text-slate-400 font-normal">/ 5.0</span>
+										</p>
+									</div>
+									<div class="w-10 h-10 rounded-2xl bg-blue-500/10 text-blue-500 flex items-center justify-center">
+										<span class="material-symbols-outlined text-lg">menu_book</span>
+									</div>
+								</div>
+
+								<div class="p-4 rounded-3xl bg-surface border border-slate-200/60 dark:border-slate-800/60 shadow-xs flex items-center justify-between">
+									<div>
+										<span class="text-[10px] font-bold text-slate-400 block uppercase tracking-wider">Kompetensi Trainer</span>
+										<p class="text-xl font-black text-purple-500 font-mono mt-0.5 flex items-center gap-1">
+											<span>{metrics.avgInstructor || '4.9'}</span>
+											<span class="text-xs text-slate-400 font-normal">/ 5.0</span>
+										</p>
+									</div>
+									<div class="w-10 h-10 rounded-2xl bg-purple-500/10 text-purple-500 flex items-center justify-center">
+										<span class="material-symbols-outlined text-lg">co_present</span>
+									</div>
+								</div>
+
+								<div class="p-4 rounded-3xl bg-surface border border-slate-200/60 dark:border-slate-800/60 shadow-xs flex items-center justify-between">
+									<div>
+										<span class="text-[10px] font-bold text-slate-400 block uppercase tracking-wider">Sarana & Layanan</span>
+										<p class="text-xl font-black text-teal-500 font-mono mt-0.5 flex items-center gap-1">
+											<span>{metrics.avgFacility || '4.7'}</span>
+											<span class="text-xs text-slate-400 font-normal">/ 5.0</span>
+										</p>
+									</div>
+									<div class="w-10 h-10 rounded-2xl bg-teal-500/10 text-teal-500 flex items-center justify-center">
+										<span class="material-symbols-outlined text-lg">apartment</span>
+									</div>
 								</div>
 							</div>
 
-							<div class="rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden">
-								<table class="w-full text-xs text-left">
-									<thead class="bg-surface-container-high font-bold text-on-surface border-b border-slate-200 dark:border-slate-800">
-										<tr>
-											<th class="p-3">Tanggal</th>
-											<th class="p-3">Nama Peserta</th>
-											<th class="p-3">Kursus Pelatihan</th>
-											<th class="p-3 text-center">Materi</th>
-											<th class="p-3 text-center">Instruktur</th>
-											<th class="p-3 text-center">Fasilitas</th>
-											<th class="p-3 text-center">Rekomendasi</th>
-											<th class="p-3">Catatan Feedback Peserta</th>
-										</tr>
-									</thead>
-									<tbody class="divide-y divide-slate-200 dark:divide-slate-800">
-										{#each evaluationsL1 as e}
-											<tr class="hover:bg-surface-container/50">
-												<td class="p-3 font-mono text-slate-500">{e.submittedAt}</td>
-												<td class="p-3 font-bold text-on-surface">{e.employeeName}</td>
-												<td class="p-3 font-semibold text-on-surface">{e.courseTitle}</td>
-												<td class="p-3 text-center font-bold text-amber-500">★ {e.contentRating}</td>
-												<td class="p-3 text-center font-bold text-amber-500">★ {e.instructorRating}</td>
-												<td class="p-3 text-center font-bold text-amber-500">★ {e.facilityRating}</td>
-												<td class="p-3 text-center font-bold text-amber-500">★ {e.recommendationRating}</td>
-												<td class="p-3 text-slate-600 dark:text-slate-300 italic max-w-xs truncate">"{e.feedbackNotes}"</td>
+							<!-- Tabel Hasil Evaluasi Level 1 -->
+							<div class="rounded-3xl border border-slate-200/60 dark:border-slate-800/60 overflow-hidden shadow-xs bg-surface">
+								<div class="p-4 bg-surface-container-high border-b border-slate-200/60 dark:border-slate-800/60 flex items-center justify-between">
+									<div class="flex items-center gap-2">
+										<span class="material-symbols-outlined text-amber-500 text-lg">reviews</span>
+										<h4 class="font-black text-xs uppercase tracking-wider text-on-surface">Daftar Respons Evaluasi Level 1 (Reaction) Peserta</h4>
+										<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/15 text-amber-600 dark:text-amber-400">
+											{evaluationsL1.length} Respons
+										</span>
+									</div>
+								</div>
+
+								<div class="overflow-x-auto">
+									<table class="w-full text-xs text-left">
+										<thead class="bg-surface-container border-b border-slate-200/60 dark:border-slate-800/60 font-bold text-on-surface">
+											<tr>
+												<th class="p-3">Tanggal Submit</th>
+												<th class="p-3">Peserta</th>
+												<th class="p-3">Kursus Pelatihan</th>
+												<th class="p-3">Metode</th>
+												<th class="p-3 text-center">Materi (5)</th>
+												<th class="p-3 text-center">Trainer (4)</th>
+												<th class="p-3 text-center">Fasilitas (6)</th>
+												<th class="p-3 text-center">Skor Total</th>
+												<th class="p-3 text-right">Rincian</th>
 											</tr>
-										{/each}
-									</tbody>
-								</table>
+										</thead>
+										<tbody class="divide-y divide-slate-200/60 dark:divide-slate-800/60">
+											{#if evaluationsL1.length === 0}
+												<tr>
+													<td colspan="9" class="p-8 text-center text-slate-400">
+														Belum ada data evaluasi Level 1 yang disubmit.
+													</td>
+												</tr>
+											{:else}
+												{#each evaluationsL1 as e}
+													<tr class="hover:bg-surface-container/50">
+														<td class="p-3 font-mono text-slate-500">{e.submittedAt || '-'}</td>
+														<td class="p-3">
+															<div class="font-bold text-on-surface">{e.employeeName}</div>
+															<div class="text-[10px] font-mono text-on-surface-variant">{e.payrollId}</div>
+														</td>
+														<td class="p-3 font-semibold text-on-surface max-w-xs">{e.courseTitle}</td>
+														<td class="p-3">
+															<span class="px-2 py-0.5 rounded-md text-[10px] font-bold
+															{e.deliveryMethod === 'Offline' ? 'bg-orange-500/10 text-orange-600 dark:text-orange-400' : 'bg-blue-500/10 text-blue-600 dark:text-blue-400'}">
+																{e.deliveryMethod || 'Online'}
+															</span>
+														</td>
+														<td class="p-3 text-center">
+															<span class="px-2 py-0.5 rounded-lg text-xs font-mono font-bold bg-blue-500/10 text-blue-500">
+																{e.materialScore || e.contentRating} / 5
+															</span>
+														</td>
+														<td class="p-3 text-center">
+															<span class="px-2 py-0.5 rounded-lg text-xs font-mono font-bold bg-purple-500/10 text-purple-500">
+																{e.instructorScore || e.instructorRating} / 5
+															</span>
+														</td>
+														<td class="p-3 text-center">
+															<span class="px-2 py-0.5 rounded-lg text-xs font-mono font-bold bg-teal-500/10 text-teal-500">
+																{e.facilityScore || e.facilityRating} / 5
+															</span>
+														</td>
+														<td class="p-3 text-center font-black font-mono text-amber-500">
+															★ {e.overallScore || ((e.contentRating + e.instructorRating + e.facilityRating)/3).toFixed(1)}
+														</td>
+														<td class="p-3 text-right">
+															<button
+																type="button"
+																onclick={() => openL1DetailModal(e)}
+																class="px-2.5 py-1 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-700 text-xs font-bold hover:bg-surface-container-high transition-all cursor-pointer flex items-center gap-1 ml-auto"
+															>
+																<span class="material-symbols-outlined text-xs">visibility</span>
+																<span>Lihat 18 Butir</span>
+															</button>
+														</td>
+													</tr>
+												{/each}
+											{/if}
+										</tbody>
+									</table>
+								</div>
 							</div>
 						</div>
 
@@ -3753,65 +3930,474 @@
 
 				<!-- STEP 4: EVALUASI LEVEL 1 (REACTION) -->
 				{:else if playerStep === 4}
-					<div class="max-w-xl mx-auto space-y-6">
-						<div class="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 text-center space-y-1">
-							<span class="material-symbols-outlined text-emerald-600 text-4xl">check_circle</span>
-							<h4 class="font-black text-base text-on-surface">Selamat! Anda LULUS Post-Test</h4>
-							<p class="text-xs text-on-surface-variant">
-								Nilai Post-Test: <strong class="text-emerald-600 font-mono text-sm">{postTestResult?.score || 90}/100</strong>. Harap lengkapi evaluasi reaksi sebelum mengunduh sertifikat.
-							</p>
+					<div class="max-w-3xl mx-auto space-y-6">
+						<!-- Banner Lulus Post-Test & Status Gate -->
+						<div class="p-5 rounded-3xl bg-linear-to-r from-emerald-500/15 via-teal-500/10 to-transparent border border-emerald-500/30 flex flex-col sm:flex-row items-center justify-between gap-4">
+							<div class="flex items-center gap-3.5">
+								<div class="w-12 h-12 rounded-2xl bg-emerald-500/20 text-emerald-600 flex items-center justify-center shrink-0">
+									<span class="material-symbols-outlined text-2xl">workspace_premium</span>
+								</div>
+								<div>
+									<h4 class="font-black text-sm text-on-surface">Selamat! Anda LULUS Post-Test ({postTestResult?.score || 90}/100)</h4>
+									<p class="text-xs text-on-surface-variant mt-0.5">
+										Langkah Terakhir: Lengkapi 18 butir Evaluasi Reaksi (Kirkpatrick Level 1) untuk menerbitkan E-Sertifikat resmi Anda.
+									</p>
+								</div>
+							</div>
+							<div class="text-right shrink-0">
+								<span class="text-[10px] font-bold text-slate-400 block uppercase tracking-wider">Kelengkapan Form</span>
+								<div class="flex items-center gap-2 mt-0.5">
+									<div class="w-24 h-2 rounded-full bg-slate-200 dark:bg-slate-700 overflow-hidden">
+										<div class="h-full bg-emerald-500 transition-all duration-300" style="width: {(evalL1FilledCount / 18) * 100}%"></div>
+									</div>
+									<span class="font-mono text-xs font-black {isEvalL1Complete ? 'text-emerald-500' : 'text-amber-500'}">
+										{evalL1FilledCount}/18
+									</span>
+								</div>
+							</div>
 						</div>
 
-						<div class="p-5 rounded-2xl bg-surface-container border border-slate-200 dark:border-slate-800 space-y-4">
-							<h5 class="font-black text-xs uppercase tracking-wider text-slate-500">Evaluasi Kepuasan Pelatihan (Kirkpatrick Level 1)</h5>
+						<form
+							method="POST"
+							action="?/submitEvaluationL1"
+							use:enhance={() => {
+								isSubmittingEvalL1 = true;
+								return async ({ result, update }) => {
+									isSubmittingEvalL1 = false;
+									if (result.type === 'success') {
+										spawnToast({
+											id: Date.now().toString(),
+											title: 'Evaluasi Berhasil Disimpan',
+											message: result.data?.message || 'E-Sertifikat resmi Anda telah diterbitkan!',
+											type: 'INFO',
+											timestamp: new Date().toISOString()
+										});
+										playerStep = 5;
+									} else {
+										spawnToast({
+											id: Date.now().toString(),
+											title: 'Gagal Menyimpan Evaluasi',
+											message: result.data?.message || 'Terjadi kesalahan sistem.',
+											type: 'WARNING',
+											timestamp: new Date().toISOString()
+										});
+									}
+									await update();
+								};
+							}}
+							class="space-y-6"
+						>
+							<input type="hidden" name="courseId" value={activeCourseForPlayer?.id || ''} />
+							<input type="hidden" name="payrollId" value={currentUser?.payrollId || 'EMP-0042'} />
+							<input type="hidden" name="employeeName" value={currentUser?.name || 'GUNTORO MUHAMAD'} />
+							<input
+								type="hidden"
+								name="deliveryMethod"
+								value={(activeCourseForPlayer?.sessionType || activeCourseForPlayer?.category?.toLowerCase().includes('in-house') || activeCourseForPlayer?.category?.toLowerCase().includes('offline')) ? 'Offline' : 'Online'}
+							/>
+							<input type="hidden" name="materialScore" value={evalL1MaterialAvg} />
+							<input type="hidden" name="instructorScore" value={evalL1InstructorAvg} />
+							<input type="hidden" name="facilityScore" value={evalL1FacilityAvg} />
+							<input type="hidden" name="overallScore" value={evalL1OverallAvg} />
+							<input type="hidden" name="appliedBenefit" value={evalL1State.appliedBenefit} />
+							<input type="hidden" name="impressions" value={evalL1State.impressions} />
+							<input type="hidden" name="suggestions" value={evalL1State.suggestions} />
+							<input type="hidden" name="answers" value={JSON.stringify(evalL1State)} />
 
-							<div class="space-y-3 text-xs">
-								<div class="flex justify-between items-center">
-									<span>Kualitas & Manfaat Materi:</span>
-									<select bind:value={evalL1Ratings.content} class="px-3 py-1 rounded-lg bg-surface border border-slate-300 dark:border-slate-700">
-										<option value={5}>5 - Sangat Baik</option>
-										<option value={4}>4 - Baik</option>
-										<option value={3}>3 - Cukup</option>
-									</select>
+							<!-- 1. BAGIAN 1: PROGRAM & MATERI PELATIHAN -->
+							<div class="p-5 rounded-3xl bg-surface-container border border-slate-200/70 dark:border-slate-800/70 space-y-4">
+								<div class="flex items-center justify-between pb-3 border-b border-slate-200/50 dark:border-slate-800/50">
+									<div class="flex items-center gap-2.5">
+										<div class="w-7 h-7 rounded-xl bg-blue-500/15 text-blue-500 flex items-center justify-center text-xs font-black">1</div>
+										<div>
+											<h5 class="font-black text-xs uppercase tracking-wider text-on-surface">Program & Materi Pelatihan</h5>
+											<p class="text-[11px] text-on-surface-variant">Feedback terhadap materi dan sistematika pelatihan</p>
+										</div>
+									</div>
+									<span class="px-2.5 py-1 rounded-xl text-xs font-mono font-bold bg-blue-500/10 text-blue-500">
+										Rata-rata: {evalL1MaterialAvg} / 5
+									</span>
 								</div>
 
-								<div class="flex justify-between items-center">
-									<span>Kompetensi & Cara Mengajar Instruktur:</span>
-									<select bind:value={evalL1Ratings.instructor} class="px-3 py-1 rounded-lg bg-surface border border-slate-300 dark:border-slate-700">
-										<option value={5}>5 - Sangat Baik</option>
-										<option value={4}>4 - Baik</option>
-										<option value={3}>3 - Cukup</option>
-									</select>
-								</div>
+								<div class="space-y-3.5 text-xs">
+									<!-- P1 -->
+									<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-3 rounded-2xl bg-surface border border-slate-200/50 dark:border-slate-700/50">
+										<span class="text-on-surface font-semibold flex-1">1. Materi pelatihan sudah tersistematika dengan baik</span>
+										<div class="flex items-center gap-1.5 shrink-0">
+											{#each [1, 2, 3, 4, 5] as num}
+												<button
+													type="button"
+													onclick={() => (evalL1State.q1_systematic = num)}
+													class="w-8 h-8 rounded-xl font-bold transition-all border cursor-pointer text-xs
+													{evalL1State.q1_systematic === num ? 'bg-blue-600 text-white border-blue-600 shadow-xs' : 'bg-surface-container text-on-surface border-slate-200 dark:border-slate-700 hover:border-blue-400'}"
+												>
+													{num}
+												</button>
+											{/each}
+										</div>
+									</div>
 
-								<div class="flex justify-between items-center">
-									<span>Kemudahan Akses Platform LMS / Fasilitas:</span>
-									<select bind:value={evalL1Ratings.facility} class="px-3 py-1 rounded-lg bg-surface border border-slate-300 dark:border-slate-700">
-										<option value={5}>5 - Sangat Baik</option>
-										<option value={4}>4 - Baik</option>
-										<option value={3}>3 - Cukup</option>
-									</select>
-								</div>
+									<!-- P2 -->
+									<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-3 rounded-2xl bg-surface border border-slate-200/50 dark:border-slate-700/50">
+										<span class="text-on-surface font-semibold flex-1">2. Kelengkapan materi yang diberikan</span>
+										<div class="flex items-center gap-1.5 shrink-0">
+											{#each [1, 2, 3, 4, 5] as num}
+												<button
+													type="button"
+													onclick={() => (evalL1State.q2_completeness = num)}
+													class="w-8 h-8 rounded-xl font-bold transition-all border cursor-pointer text-xs
+													{evalL1State.q2_completeness === num ? 'bg-blue-600 text-white border-blue-600 shadow-xs' : 'bg-surface-container text-on-surface border-slate-200 dark:border-slate-700 hover:border-blue-400'}"
+												>
+													{num}
+												</button>
+											{/each}
+										</div>
+									</div>
 
-								<div class="space-y-1 pt-2">
-									<label class="font-bold text-on-surface block">Komentar & Masukan Kualitatif:</label>
-									<textarea
-										bind:value={evalL1Ratings.notes}
-										rows="3"
-										placeholder="Uraikan saran perbaikan atau materi yang sangat bermanfaat bagi pekerjaan Anda..."
-										class="w-full p-2.5 rounded-xl bg-surface border border-slate-300 dark:border-slate-700 resize-none text-xs"
-									></textarea>
+									<!-- P3 -->
+									<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-3 rounded-2xl bg-surface border border-slate-200/50 dark:border-slate-700/50">
+										<span class="text-on-surface font-semibold flex-1">3. Manfaat / kesesuaian materi dengan kebutuhan tugas sehari-hari</span>
+										<div class="flex items-center gap-1.5 shrink-0">
+											{#each [1, 2, 3, 4, 5] as num}
+												<button
+													type="button"
+													onclick={() => (evalL1State.q3_relevance = num)}
+													class="w-8 h-8 rounded-xl font-bold transition-all border cursor-pointer text-xs
+													{evalL1State.q3_relevance === num ? 'bg-blue-600 text-white border-blue-600 shadow-xs' : 'bg-surface-container text-on-surface border-slate-200 dark:border-slate-700 hover:border-blue-400'}"
+												>
+													{num}
+												</button>
+											{/each}
+										</div>
+									</div>
+
+									<!-- P4 -->
+									<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-3 rounded-2xl bg-surface border border-slate-200/50 dark:border-slate-700/50">
+										<span class="text-on-surface font-semibold flex-1">4. Durasi (lama waktu) dari penyelenggaraan pelatihan</span>
+										<div class="flex items-center gap-1.5 shrink-0">
+											{#each [1, 2, 3, 4, 5] as num}
+												<button
+													type="button"
+													onclick={() => (evalL1State.q4_duration = num)}
+													class="w-8 h-8 rounded-xl font-bold transition-all border cursor-pointer text-xs
+													{evalL1State.q4_duration === num ? 'bg-blue-600 text-white border-blue-600 shadow-xs' : 'bg-surface-container text-on-surface border-slate-200 dark:border-slate-700 hover:border-blue-400'}"
+												>
+													{num}
+												</button>
+											{/each}
+										</div>
+									</div>
+
+									<!-- P5 -->
+									<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-3 rounded-2xl bg-surface border border-slate-200/50 dark:border-slate-700/50">
+										<span class="text-on-surface font-semibold flex-1">5. Tambahan pengetahuan selama mengikuti pelatihan</span>
+										<div class="flex items-center gap-1.5 shrink-0">
+											{#each [1, 2, 3, 4, 5] as num}
+												<button
+													type="button"
+													onclick={() => (evalL1State.q5_knowledge_gain = num)}
+													class="w-8 h-8 rounded-xl font-bold transition-all border cursor-pointer text-xs
+													{evalL1State.q5_knowledge_gain === num ? 'bg-blue-600 text-white border-blue-600 shadow-xs' : 'bg-surface-container text-on-surface border-slate-200 dark:border-slate-700 hover:border-blue-400'}"
+												>
+													{num}
+												</button>
+											{/each}
+										</div>
+									</div>
 								</div>
 							</div>
 
-							<button
-								type="button"
-								onclick={handleLocalEvalL1Submit}
-								class="w-full py-2.5 rounded-xl bg-primary text-on-primary font-bold text-xs shadow-md hover:bg-primary/90 transition-all cursor-pointer"
-							>
-								Simpan Evaluasi & Terbitkan E-Sertifikat
-							</button>
-						</div>
+							<!-- 2. BAGIAN 2: INSTRUKTUR / TRAINER -->
+							<div class="p-5 rounded-3xl bg-surface-container border border-slate-200/70 dark:border-slate-800/70 space-y-4">
+								<div class="flex items-center justify-between pb-3 border-b border-slate-200/50 dark:border-slate-800/50">
+									<div class="flex items-center gap-2.5">
+										<div class="w-7 h-7 rounded-xl bg-purple-500/15 text-purple-500 flex items-center justify-center text-xs font-black">2</div>
+										<div>
+											<h5 class="font-black text-xs uppercase tracking-wider text-on-surface">Instruktur / Trainer / Fasilitator</h5>
+											<p class="text-[11px] text-on-surface-variant">Feedback terhadap kompetensi dan cara pengajaran instruktur</p>
+										</div>
+									</div>
+									<span class="px-2.5 py-1 rounded-xl text-xs font-mono font-bold bg-purple-500/10 text-purple-500">
+										Rata-rata: {evalL1InstructorAvg} / 5
+									</span>
+								</div>
+
+								<div class="space-y-3.5 text-xs">
+									<!-- P6 -->
+									<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-3 rounded-2xl bg-surface border border-slate-200/50 dark:border-slate-700/50">
+										<span class="text-on-surface font-semibold flex-1">6. Penguasaan materi training oleh instruktur</span>
+										<div class="flex items-center gap-1.5 shrink-0">
+											{#each [1, 2, 3, 4, 5] as num}
+												<button
+													type="button"
+													onclick={() => (evalL1State.q6_mastery = num)}
+													class="w-8 h-8 rounded-xl font-bold transition-all border cursor-pointer text-xs
+													{evalL1State.q6_mastery === num ? 'bg-purple-600 text-white border-purple-600 shadow-xs' : 'bg-surface-container text-on-surface border-slate-200 dark:border-slate-700 hover:border-purple-400'}"
+												>
+													{num}
+												</button>
+											{/each}
+										</div>
+									</div>
+
+									<!-- P7 -->
+									<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-3 rounded-2xl bg-surface border border-slate-200/50 dark:border-slate-700/50">
+										<span class="text-on-surface font-semibold flex-1">7. Cara penyampaian / metode menyampaikan materi</span>
+										<div class="flex items-center gap-1.5 shrink-0">
+											{#each [1, 2, 3, 4, 5] as num}
+												<button
+													type="button"
+													onclick={() => (evalL1State.q7_delivery = num)}
+													class="w-8 h-8 rounded-xl font-bold transition-all border cursor-pointer text-xs
+													{evalL1State.q7_delivery === num ? 'bg-purple-600 text-white border-purple-600 shadow-xs' : 'bg-surface-container text-on-surface border-slate-200 dark:border-slate-700 hover:border-purple-400'}"
+												>
+													{num}
+												</button>
+											{/each}
+										</div>
+									</div>
+
+									<!-- P8 -->
+									<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-3 rounded-2xl bg-surface border border-slate-200/50 dark:border-slate-700/50">
+										<span class="text-on-surface font-semibold flex-1">8. Kemampuan membangkitkan partisipasi dan keaktifan peserta</span>
+										<div class="flex items-center gap-1.5 shrink-0">
+											{#each [1, 2, 3, 4, 5] as num}
+												<button
+													type="button"
+													onclick={() => (evalL1State.q8_engagement = num)}
+													class="w-8 h-8 rounded-xl font-bold transition-all border cursor-pointer text-xs
+													{evalL1State.q8_engagement === num ? 'bg-purple-600 text-white border-purple-600 shadow-xs' : 'bg-surface-container text-on-surface border-slate-200 dark:border-slate-700 hover:border-purple-400'}"
+												>
+													{num}
+												</button>
+											{/each}
+										</div>
+									</div>
+
+									<!-- P9 -->
+									<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-3 rounded-2xl bg-surface border border-slate-200/50 dark:border-slate-700/50">
+										<span class="text-on-surface font-semibold flex-1">9. Kemampuan dan ketepatan dalam menjawab pertanyaan peserta</span>
+										<div class="flex items-center gap-1.5 shrink-0">
+											{#each [1, 2, 3, 4, 5] as num}
+												<button
+													type="button"
+													onclick={() => (evalL1State.q9_qa = num)}
+													class="w-8 h-8 rounded-xl font-bold transition-all border cursor-pointer text-xs
+													{evalL1State.q9_qa === num ? 'bg-purple-600 text-white border-purple-600 shadow-xs' : 'bg-surface-container text-on-surface border-slate-200 dark:border-slate-700 hover:border-purple-400'}"
+												>
+													{num}
+												</button>
+											{/each}
+										</div>
+									</div>
+								</div>
+							</div>
+
+							<!-- 3. BAGIAN 3: SARANA, PRASARANA & FASILITAS -->
+							<div class="p-5 rounded-3xl bg-surface-container border border-slate-200/70 dark:border-slate-800/70 space-y-4">
+								<div class="flex items-center justify-between pb-3 border-b border-slate-200/50 dark:border-slate-800/50">
+									<div class="flex items-center gap-2.5">
+										<div class="w-7 h-7 rounded-xl bg-teal-500/15 text-teal-500 flex items-center justify-center text-xs font-black">3</div>
+										<div>
+											<h5 class="font-black text-xs uppercase tracking-wider text-on-surface">Sarana, Prasarana & Fasilitas Training</h5>
+											<p class="text-[11px] text-on-surface-variant">Feedback terhadap media, kenyamanan, dan pelayanan operasional</p>
+										</div>
+									</div>
+									<span class="px-2.5 py-1 rounded-xl text-xs font-mono font-bold bg-teal-500/10 text-teal-500">
+										Rata-rata: {evalL1FacilityAvg} / 5
+									</span>
+								</div>
+
+								<div class="space-y-3.5 text-xs">
+									<!-- P10 -->
+									<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-3 rounded-2xl bg-surface border border-slate-200/50 dark:border-slate-700/50">
+										<span class="text-on-surface font-semibold flex-1">
+											10. Tempat pelaksanaan pelatihan / Kenyamanan antarmuka LMS
+										</span>
+										<div class="flex items-center gap-1.5 shrink-0">
+											{#each [1, 2, 3, 4, 5] as num}
+												<button
+													type="button"
+													onclick={() => (evalL1State.q10_venue = num)}
+													class="w-8 h-8 rounded-xl font-bold transition-all border cursor-pointer text-xs
+													{evalL1State.q10_venue === num ? 'bg-teal-600 text-white border-teal-600 shadow-xs' : 'bg-surface-container text-on-surface border-slate-200 dark:border-slate-700 hover:border-teal-400'}"
+												>
+													{num}
+												</button>
+											{/each}
+										</div>
+									</div>
+
+									<!-- P11 -->
+									<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-3 rounded-2xl bg-surface border border-slate-200/50 dark:border-slate-700/50">
+										<span class="text-on-surface font-semibold flex-1">
+											11. Alat, peralatan praktikum, atau media pembelajaran yang digunakan
+										</span>
+										<div class="flex items-center gap-1.5 shrink-0">
+											{#each [1, 2, 3, 4, 5] as num}
+												<button
+													type="button"
+													onclick={() => (evalL1State.q11_tools = num)}
+													class="w-8 h-8 rounded-xl font-bold transition-all border cursor-pointer text-xs
+													{evalL1State.q11_tools === num ? 'bg-teal-600 text-white border-teal-600 shadow-xs' : 'bg-surface-container text-on-surface border-slate-200 dark:border-slate-700 hover:border-teal-400'}"
+												>
+													{num}
+												</button>
+											{/each}
+										</div>
+									</div>
+
+									<!-- P12 -->
+									<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-3 rounded-2xl bg-surface border border-slate-200/50 dark:border-slate-700/50">
+										<span class="text-on-surface font-semibold flex-1">
+											12. Konsumsi makanan/minuman (Tatap Muka) atau Kualitas Audio/Video (Online)
+										</span>
+										<div class="flex items-center gap-1.5 shrink-0">
+											{#each [1, 2, 3, 4, 5] as num}
+												<button
+													type="button"
+													onclick={() => (evalL1State.q12_refreshment = num)}
+													class="w-8 h-8 rounded-xl font-bold transition-all border cursor-pointer text-xs
+													{evalL1State.q12_refreshment === num ? 'bg-teal-600 text-white border-teal-600 shadow-xs' : 'bg-surface-container text-on-surface border-slate-200 dark:border-slate-700 hover:border-teal-400'}"
+												>
+													{num}
+												</button>
+											{/each}
+										</div>
+									</div>
+
+									<!-- P13 -->
+									<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-3 rounded-2xl bg-surface border border-slate-200/50 dark:border-slate-700/50">
+										<span class="text-on-surface font-semibold flex-1">
+											13. Kebersihan ruang fasilitas (Offline) atau Kemudahan akses navigasi platform (Online)
+										</span>
+										<div class="flex items-center gap-1.5 shrink-0">
+											{#each [1, 2, 3, 4, 5] as num}
+												<button
+													type="button"
+													onclick={() => (evalL1State.q13_cleanliness = num)}
+													class="w-8 h-8 rounded-xl font-bold transition-all border cursor-pointer text-xs
+													{evalL1State.q13_cleanliness === num ? 'bg-teal-600 text-white border-teal-600 shadow-xs' : 'bg-surface-container text-on-surface border-slate-200 dark:border-slate-700 hover:border-teal-400'}"
+												>
+													{num}
+												</button>
+											{/each}
+										</div>
+									</div>
+
+									<!-- P14 -->
+									<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-3 rounded-2xl bg-surface border border-slate-200/50 dark:border-slate-700/50">
+										<span class="text-on-surface font-semibold flex-1">
+											14. Pelayanan personil / panitia & dukungan teknis yang diberikan
+										</span>
+										<div class="flex items-center gap-1.5 shrink-0">
+											{#each [1, 2, 3, 4, 5] as num}
+												<button
+													type="button"
+													onclick={() => (evalL1State.q14_committee = num)}
+													class="w-8 h-8 rounded-xl font-bold transition-all border cursor-pointer text-xs
+													{evalL1State.q14_committee === num ? 'bg-teal-600 text-white border-teal-600 shadow-xs' : 'bg-surface-container text-on-surface border-slate-200 dark:border-slate-700 hover:border-teal-400'}"
+												>
+													{num}
+												</button>
+											{/each}
+										</div>
+									</div>
+
+									<!-- P15 -->
+									<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-3 rounded-2xl bg-surface border border-slate-200/50 dark:border-slate-700/50">
+										<span class="text-on-surface font-semibold flex-1">
+											15. Tata tertib & peraturan yang diberlakukan selama pelatihan
+										</span>
+										<div class="flex items-center gap-1.5 shrink-0">
+											{#each [1, 2, 3, 4, 5] as num}
+												<button
+													type="button"
+													onclick={() => (evalL1State.q15_discipline = num)}
+													class="w-8 h-8 rounded-xl font-bold transition-all border cursor-pointer text-xs
+													{evalL1State.q15_discipline === num ? 'bg-teal-600 text-white border-teal-600 shadow-xs' : 'bg-surface-container text-on-surface border-slate-200 dark:border-slate-700 hover:border-teal-400'}"
+												>
+													{num}
+												</button>
+											{/each}
+										</div>
+									</div>
+								</div>
+							</div>
+
+							<!-- 4. BAGIAN 4: ISIAN SINGKAT / URAIAN KUALITATIF -->
+							<div class="p-5 rounded-3xl bg-surface-container border border-slate-200/70 dark:border-slate-800/70 space-y-4">
+								<div class="flex items-center gap-2.5 pb-3 border-b border-slate-200/50 dark:border-slate-800/50">
+									<div class="w-7 h-7 rounded-xl bg-amber-500/15 text-amber-500 flex items-center justify-center text-xs font-black">4</div>
+									<div>
+										<h5 class="font-black text-xs uppercase tracking-wider text-on-surface">Uraian Kualitatif & Rencana Aksi (Wajib)</h5>
+										<p class="text-[11px] text-on-surface-variant">Tuliskan pengalaman nyata dan rencana penerapan di tempat kerja</p>
+									</div>
+								</div>
+
+								<div class="space-y-4 text-xs">
+									<!-- P16 -->
+									<div class="space-y-1.5">
+										<label class="font-bold text-on-surface block">
+											16. Manfaat/Sistem/Metode/Hal apa yang menurut Anda dapat diterapkan di perusahaan? *
+										</label>
+										<textarea
+											bind:value={evalL1State.appliedBenefit}
+											rows="2"
+											placeholder="Contoh: Penerapan checklist inspeksi ban harian, SOP penanganan komplain logistik..."
+											class="w-full p-3 rounded-2xl bg-surface border border-slate-200 dark:border-slate-700 text-xs text-on-surface outline-none focus:ring-2 focus:ring-primary"
+										></textarea>
+									</div>
+
+									<!-- P17 -->
+									<div class="space-y-1.5">
+										<label class="font-bold text-on-surface block">
+											17. Kesan selama mengikuti pelatihan *
+										</label>
+										<textarea
+											bind:value={evalL1State.impressions}
+											rows="2"
+											placeholder="Tuliskan kesan Anda mengenai materi, interaksi, atau pengalaman belajar..."
+											class="w-full p-3 rounded-2xl bg-surface border border-slate-200 dark:border-slate-700 text-xs text-on-surface outline-none focus:ring-2 focus:ring-primary"
+										></textarea>
+									</div>
+
+									<!-- P18 -->
+									<div class="space-y-1.5">
+										<label class="font-bold text-on-surface block">
+											18. Saran dan masukan perbaikan ke depan *
+										</label>
+										<textarea
+											bind:value={evalL1State.suggestions}
+											rows="2"
+											placeholder="Tuliskan saran untuk penyelenggaraan pelatihan berikutnya..."
+											class="w-full p-3 rounded-2xl bg-surface border border-slate-200 dark:border-slate-700 text-xs text-on-surface outline-none focus:ring-2 focus:ring-primary"
+										></textarea>
+									</div>
+								</div>
+							</div>
+
+							<!-- SUBMIT BUTTON MANDATORY GATE -->
+							<div class="pt-2">
+								<button
+									type="submit"
+									disabled={!isEvalL1Complete || isSubmittingEvalL1}
+									class="w-full py-3.5 px-6 rounded-2xl text-xs font-black flex items-center justify-center gap-2 shadow-md transition-all cursor-pointer
+									{isEvalL1Complete ? 'bg-emerald-600 hover:bg-emerald-500 text-white active:scale-99' : 'bg-slate-200 dark:bg-slate-800 text-slate-400 cursor-not-allowed'}"
+								>
+									{#if isSubmittingEvalL1}
+										<span class="material-symbols-outlined text-sm animate-spin">progress_activity</span>
+										<span>Menyimpan Evaluasi...</span>
+									{:else if isEvalL1Complete}
+										<span class="material-symbols-outlined text-base">workspace_premium</span>
+										<span>Simpan Evaluasi & Terbitkan E-Sertifikat Resmi</span>
+									{:else}
+										<span class="material-symbols-outlined text-base">lock</span>
+										<span>Lengkapi Semua Butir ({evalL1FilledCount}/18 Terisi, Sisa {18 - evalL1FilledCount} Lagi)</span>
+									{/if}
+								</button>
+							</div>
+						</form>
 					</div>
 
 				<!-- STEP 5: SELESAI / E-SERTIFIKAT -->
@@ -6194,6 +6780,221 @@
 					</button>
 				</div>
 			</form>
+		</div>
+	</div>
+{/if}
+
+<!-- ════════════════════════════════════════════════════════════════════════ -->
+<!-- MODAL 14: LIHAT DETAIL 18 BUTIR EVALUASI LEVEL 1 (REACTION)             -->
+<!-- ════════════════════════════════════════════════════════════════════════ -->
+{#if isL1DetailModalOpen && selectedL1Detail}
+	<div class="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-4">
+		<div class="bg-surface rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xl w-full max-w-3xl max-h-[92vh] flex flex-col overflow-hidden animate-in zoom-in-95 duration-150">
+			<!-- Header Modal -->
+			<div class="flex items-center justify-between p-5 border-b border-slate-200 dark:border-slate-800">
+				<div>
+					<div class="flex items-center gap-2">
+						<span class="material-symbols-outlined text-amber-500 text-xl">reviews</span>
+						<h3 class="font-black text-base text-on-surface">Rincian Evaluasi Reaksi Peserta (Kirkpatrick Level 1)</h3>
+					</div>
+					<p class="text-xs text-on-surface-variant mt-0.5">
+						Peserta: <strong>{selectedL1Detail.employeeName}</strong> ({selectedL1Detail.payrollId}) • {selectedL1Detail.courseTitle}
+					</p>
+				</div>
+				<button type="button" onclick={() => (isL1DetailModalOpen = false)} class="w-8 h-8 rounded-full bg-surface-container flex items-center justify-center text-slate-400 hover:text-slate-600 cursor-pointer">
+					<span class="material-symbols-outlined text-lg">close</span>
+				</button>
+			</div>
+
+			<!-- Body Modal (Scrollable) -->
+			<div class="p-6 overflow-y-auto space-y-6">
+				<!-- Skor Agregat Kategori -->
+				<div class="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+					<div class="p-3.5 rounded-2xl bg-blue-500/10 border border-blue-500/20 text-center">
+						<span class="text-slate-500 block text-[10px] uppercase font-bold">Materi Pelatihan</span>
+						<span class="text-base font-black text-blue-600 font-mono mt-0.5 block">
+							{selectedL1Detail.materialScore || selectedL1Detail.contentRating} / 5
+						</span>
+					</div>
+					<div class="p-3.5 rounded-2xl bg-purple-500/10 border border-purple-500/20 text-center">
+						<span class="text-slate-500 block text-[10px] uppercase font-bold">Trainer / Instruktur</span>
+						<span class="text-base font-black text-purple-600 font-mono mt-0.5 block">
+							{selectedL1Detail.instructorScore || selectedL1Detail.instructorRating} / 5
+						</span>
+					</div>
+					<div class="p-3.5 rounded-2xl bg-teal-500/10 border border-teal-500/20 text-center">
+						<span class="text-slate-500 block text-[10px] uppercase font-bold">Fasilitas & Sarana</span>
+						<span class="text-base font-black text-teal-600 font-mono mt-0.5 block">
+							{selectedL1Detail.facilityScore || selectedL1Detail.facilityRating} / 5
+						</span>
+					</div>
+					<div class="p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-center">
+						<span class="text-slate-500 block text-[10px] uppercase font-bold">Skor Keseluruhan</span>
+						<span class="text-base font-black text-amber-600 font-mono mt-0.5 block">
+							★ {selectedL1Detail.overallScore || ((selectedL1Detail.contentRating + selectedL1Detail.instructorRating + selectedL1Detail.facilityRating) / 3).toFixed(1)}
+						</span>
+					</div>
+				</div>
+
+				<!-- Bagian 1: Materi -->
+				<div class="space-y-3">
+					<h4 class="text-xs font-black uppercase tracking-wider text-blue-600 flex items-center gap-1.5">
+						<span class="material-symbols-outlined text-sm">menu_book</span>
+						<span>Bagian 1: Program & Materi Pelatihan</span>
+					</h4>
+					<div class="space-y-2 text-xs">
+						<div class="p-3 rounded-2xl bg-surface-container flex items-center justify-between">
+							<span>1. Materi pelatihan sudah tersistematika dengan baik</span>
+							<span class="px-2.5 py-1 rounded-xl font-bold bg-blue-500/10 text-blue-600 font-mono">
+								{selectedL1Detail.answers?.q1_systematic || selectedL1Detail.materialScore || selectedL1Detail.contentRating} / 5
+							</span>
+						</div>
+						<div class="p-3 rounded-2xl bg-surface-container flex items-center justify-between">
+							<span>2. Kelengkapan materi yang diberikan</span>
+							<span class="px-2.5 py-1 rounded-xl font-bold bg-blue-500/10 text-blue-600 font-mono">
+								{selectedL1Detail.answers?.q2_completeness || selectedL1Detail.materialScore || selectedL1Detail.contentRating} / 5
+							</span>
+						</div>
+						<div class="p-3 rounded-2xl bg-surface-container flex items-center justify-between">
+							<span>3. Manfaat / kesesuaian materi dengan kebutuhan tugas sehari-hari</span>
+							<span class="px-2.5 py-1 rounded-xl font-bold bg-blue-500/10 text-blue-600 font-mono">
+								{selectedL1Detail.answers?.q3_relevance || selectedL1Detail.materialScore || selectedL1Detail.contentRating} / 5
+							</span>
+						</div>
+						<div class="p-3 rounded-2xl bg-surface-container flex items-center justify-between">
+							<span>4. Durasi (lama waktu) dari penyelenggaraan pelatihan</span>
+							<span class="px-2.5 py-1 rounded-xl font-bold bg-blue-500/10 text-blue-600 font-mono">
+								{selectedL1Detail.answers?.q4_duration || selectedL1Detail.materialScore || selectedL1Detail.contentRating} / 5
+							</span>
+						</div>
+						<div class="p-3 rounded-2xl bg-surface-container flex items-center justify-between">
+							<span>5. Tambahan pengetahuan selama mengikuti pelatihan</span>
+							<span class="px-2.5 py-1 rounded-xl font-bold bg-blue-500/10 text-blue-600 font-mono">
+								{selectedL1Detail.answers?.q5_knowledge_gain || selectedL1Detail.materialScore || selectedL1Detail.contentRating} / 5
+							</span>
+						</div>
+					</div>
+				</div>
+
+				<!-- Bagian 2: Instruktur -->
+				<div class="space-y-3">
+					<h4 class="text-xs font-black uppercase tracking-wider text-purple-600 flex items-center gap-1.5">
+						<span class="material-symbols-outlined text-sm">co_present</span>
+						<span>Bagian 2: Instruktur / Trainer / Fasilitator</span>
+					</h4>
+					<div class="space-y-2 text-xs">
+						<div class="p-3 rounded-2xl bg-surface-container flex items-center justify-between">
+							<span>6. Penguasaan materi training oleh instruktur</span>
+							<span class="px-2.5 py-1 rounded-xl font-bold bg-purple-500/10 text-purple-600 font-mono">
+								{selectedL1Detail.answers?.q6_mastery || selectedL1Detail.instructorScore || selectedL1Detail.instructorRating} / 5
+							</span>
+						</div>
+						<div class="p-3 rounded-2xl bg-surface-container flex items-center justify-between">
+							<span>7. Cara penyampaian / metode menyampaikan materi</span>
+							<span class="px-2.5 py-1 rounded-xl font-bold bg-purple-500/10 text-purple-600 font-mono">
+								{selectedL1Detail.answers?.q7_delivery || selectedL1Detail.instructorScore || selectedL1Detail.instructorRating} / 5
+							</span>
+						</div>
+						<div class="p-3 rounded-2xl bg-surface-container flex items-center justify-between">
+							<span>8. Kemampuan membangkitkan partisipasi dan keaktifan peserta</span>
+							<span class="px-2.5 py-1 rounded-xl font-bold bg-purple-500/10 text-purple-600 font-mono">
+								{selectedL1Detail.answers?.q8_engagement || selectedL1Detail.instructorScore || selectedL1Detail.instructorRating} / 5
+							</span>
+						</div>
+						<div class="p-3 rounded-2xl bg-surface-container flex items-center justify-between">
+							<span>9. Kemampuan dan ketepatan dalam menjawab pertanyaan peserta</span>
+							<span class="px-2.5 py-1 rounded-xl font-bold bg-purple-500/10 text-purple-600 font-mono">
+								{selectedL1Detail.answers?.q9_qa || selectedL1Detail.instructorScore || selectedL1Detail.instructorRating} / 5
+							</span>
+						</div>
+					</div>
+				</div>
+
+				<!-- Bagian 3: Fasilitas -->
+				<div class="space-y-3">
+					<h4 class="text-xs font-black uppercase tracking-wider text-teal-600 flex items-center gap-1.5">
+						<span class="material-symbols-outlined text-sm">apartment</span>
+						<span>Bagian 3: Sarana, Prasarana & Fasilitas Training ({selectedL1Detail.deliveryMethod || 'Online'})</span>
+					</h4>
+					<div class="space-y-2 text-xs">
+						<div class="p-3 rounded-2xl bg-surface-container flex items-center justify-between">
+							<span>10. Tempat pelaksanaan pelatihan / Kenyamanan antarmuka LMS</span>
+							<span class="px-2.5 py-1 rounded-xl font-bold bg-teal-500/10 text-teal-600 font-mono">
+								{selectedL1Detail.answers?.q10_venue || selectedL1Detail.facilityScore || selectedL1Detail.facilityRating} / 5
+							</span>
+						</div>
+						<div class="p-3 rounded-2xl bg-surface-container flex items-center justify-between">
+							<span>11. Alat, peralatan praktikum, atau media pembelajaran digital</span>
+							<span class="px-2.5 py-1 rounded-xl font-bold bg-teal-500/10 text-teal-600 font-mono">
+								{selectedL1Detail.answers?.q11_tools || selectedL1Detail.facilityScore || selectedL1Detail.facilityRating} / 5
+							</span>
+						</div>
+						<div class="p-3 rounded-2xl bg-surface-container flex items-center justify-between">
+							<span>12. Konsumsi makanan/minuman (Offline) atau Kualitas Audio/Video (Online)</span>
+							<span class="px-2.5 py-1 rounded-xl font-bold bg-teal-500/10 text-teal-600 font-mono">
+								{selectedL1Detail.answers?.q12_refreshment || selectedL1Detail.facilityScore || selectedL1Detail.facilityRating} / 5
+							</span>
+						</div>
+						<div class="p-3 rounded-2xl bg-surface-container flex items-center justify-between">
+							<span>13. Kebersihan fasilitas (Offline) atau Navigasi platform LMS (Online)</span>
+							<span class="px-2.5 py-1 rounded-xl font-bold bg-teal-500/10 text-teal-600 font-mono">
+								{selectedL1Detail.answers?.q13_cleanliness || selectedL1Detail.facilityScore || selectedL1Detail.facilityRating} / 5
+							</span>
+						</div>
+						<div class="p-3 rounded-2xl bg-surface-container flex items-center justify-between">
+							<span>14. Pelayanan personil / panitia & dukungan teknis</span>
+							<span class="px-2.5 py-1 rounded-xl font-bold bg-teal-500/10 text-teal-600 font-mono">
+								{selectedL1Detail.answers?.q14_committee || selectedL1Detail.facilityScore || selectedL1Detail.facilityRating} / 5
+							</span>
+						</div>
+						<div class="p-3 rounded-2xl bg-surface-container flex items-center justify-between">
+							<span>15. Tata tertib & peraturan yang diberlakukan selama pelatihan</span>
+							<span class="px-2.5 py-1 rounded-xl font-bold bg-teal-500/10 text-teal-600 font-mono">
+								{selectedL1Detail.answers?.q15_discipline || selectedL1Detail.facilityScore || selectedL1Detail.facilityRating} / 5
+							</span>
+						</div>
+					</div>
+				</div>
+
+				<!-- Bagian 4: Esai Kualitatif -->
+				<div class="space-y-3">
+					<h4 class="text-xs font-black uppercase tracking-wider text-amber-600 flex items-center gap-1.5">
+						<span class="material-symbols-outlined text-sm">edit_note</span>
+						<span>Bagian 4: Uraian Esai Kualitatif & Feedback Peserta</span>
+					</h4>
+					<div class="space-y-3 text-xs">
+						<div class="p-4 rounded-2xl bg-surface-container space-y-1">
+							<span class="font-bold text-on-surface block">16. Manfaat / Rencana Penerapan di Perusahaan:</span>
+							<p class="text-on-surface-variant italic">
+								"{selectedL1Detail.appliedBenefit || selectedL1Detail.answers?.appliedBenefit || selectedL1Detail.feedbackNotes || 'Tidak ada catatan.'}"
+							</p>
+						</div>
+						<div class="p-4 rounded-2xl bg-surface-container space-y-1">
+							<span class="font-bold text-on-surface block">17. Kesan selama Mengikuti Pelatihan:</span>
+							<p class="text-on-surface-variant italic">
+								"{selectedL1Detail.impressions || selectedL1Detail.answers?.impressions || 'Tidak ada catatan.'}"
+							</p>
+						</div>
+						<div class="p-4 rounded-2xl bg-surface-container space-y-1">
+							<span class="font-bold text-on-surface block">18. Saran dan Masukan Perbaikan ke Depan:</span>
+							<p class="text-on-surface-variant italic">
+								"{selectedL1Detail.suggestions || selectedL1Detail.answers?.suggestions || 'Tidak ada catatan.'}"
+							</p>
+						</div>
+					</div>
+				</div>
+			</div>
+
+			<!-- Footer Modal -->
+			<div class="p-4 border-t border-slate-200 dark:border-slate-800 flex justify-end">
+				<button
+					type="button"
+					onclick={() => (isL1DetailModalOpen = false)}
+					class="px-5 py-2 rounded-xl bg-primary text-on-primary font-bold text-xs shadow-xs hover:opacity-90 cursor-pointer"
+				>
+					Tutup
+				</button>
+			</div>
 		</div>
 	</div>
 {/if}

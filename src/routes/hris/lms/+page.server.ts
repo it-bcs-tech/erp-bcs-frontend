@@ -173,10 +173,28 @@ export const load: PageServerLoad = async () => {
 		const pendingSupervisorReviews = evalL3L4Rows.filter((r) => r.status === 'PENDING').length;
 		const avgSatisfaction = evalL1Rows.length
 			? (
-					evalL1Rows.reduce((acc, curr) => acc + (curr.content_rating + curr.instructor_rating) / 2, 0) /
+					evalL1Rows.reduce((acc, curr) => acc + Number(curr.overall_score || (curr.content_rating + curr.instructor_rating) / 2), 0) /
 					evalL1Rows.length
 				).toFixed(1)
 			: '4.8';
+		const avgMaterial = evalL1Rows.length
+			? (
+					evalL1Rows.reduce((acc, curr) => acc + Number(curr.material_score || curr.content_rating || 5), 0) /
+					evalL1Rows.length
+				).toFixed(1)
+			: '4.8';
+		const avgInstructor = evalL1Rows.length
+			? (
+					evalL1Rows.reduce((acc, curr) => acc + Number(curr.instructor_score || curr.instructor_rating || 5), 0) /
+					evalL1Rows.length
+				).toFixed(1)
+			: '4.9';
+		const avgFacility = evalL1Rows.length
+			? (
+					evalL1Rows.reduce((acc, curr) => acc + Number(curr.facility_score || curr.facility_rating || 5), 0) /
+					evalL1Rows.length
+				).toFixed(1)
+			: '4.7';
 
 		// 12. Master 16 Trainer Resmi PT Buana Centra Swakarsa (Spreadsheet Master)
 		const masterTrainers = [
@@ -225,6 +243,9 @@ export const load: PageServerLoad = async () => {
 				totalCertificates,
 				pendingSupervisorReviews,
 				avgSatisfaction: Number(avgSatisfaction),
+				avgMaterial: Number(avgMaterial),
+				avgInstructor: Number(avgInstructor),
+				avgFacility: Number(avgFacility),
 				activeLearners: 135,
 				complianceRate: 94.5
 			},
@@ -303,11 +324,20 @@ export const load: PageServerLoad = async () => {
 				courseTitle: e.course_title,
 				payrollId: e.payroll_id,
 				employeeName: e.employee_name,
-				contentRating: e.content_rating,
-				instructorRating: e.instructor_rating,
-				facilityRating: e.facility_rating,
-				recommendationRating: e.recommendation_rating,
-				feedbackNotes: e.feedback_notes,
+				deliveryMethod: e.delivery_method || 'Online',
+				contentRating: Number(e.content_rating || 5),
+				instructorRating: Number(e.instructor_rating || 5),
+				facilityRating: Number(e.facility_rating || 5),
+				recommendationRating: Number(e.recommendation_rating || 5),
+				materialScore: Number(e.material_score || e.content_rating || 5),
+				instructorScore: Number(e.instructor_score || e.instructor_rating || 5),
+				facilityScore: Number(e.facility_score || e.facility_rating || 5),
+				overallScore: Number(e.overall_score || ((Number(e.material_score || e.content_rating || 5) + Number(e.instructor_score || e.instructor_rating || 5) + Number(e.facility_score || e.facility_rating || 5)) / 3).toFixed(1)),
+				appliedBenefit: e.applied_benefit || '',
+				impressions: e.impressions || '',
+				suggestions: e.suggestions || '',
+				feedbackNotes: e.feedback_notes || '',
+				answers: e.answers || {},
 				submittedAt: e.submitted_at ? e.submitted_at.toISOString().split('T')[0] : ''
 			})),
 			evaluationsL3L4: evalL3L4Rows.map((e) => ({
@@ -795,27 +825,89 @@ export const actions = {
 		const courseId = formData.get('courseId')?.toString();
 		const payrollId = formData.get('payrollId')?.toString() || 'EMP-0042';
 		const employeeName = formData.get('employeeName')?.toString() || 'GUNTORO MUHAMAD';
-		const contentRating = Number(formData.get('contentRating')) || 5;
-		const instructorRating = Number(formData.get('instructorRating')) || 5;
-		const facilityRating = Number(formData.get('facilityRating')) || 5;
-		const recommendationRating = Number(formData.get('recommendationRating')) || 5;
-		const feedbackNotes = formData.get('feedbackNotes')?.toString() || '';
+		const deliveryMethod = formData.get('deliveryMethod')?.toString() || 'Online';
+		const answersRaw = formData.get('answers')?.toString() || '{}';
+
+		let answers: Record<string, any> = {};
+		try {
+			answers = JSON.parse(answersRaw);
+		} catch (err) {
+			answers = {};
+		}
+
+		const materialScore = Number(formData.get('materialScore')) || 5;
+		const instructorScore = Number(formData.get('instructorScore')) || 5;
+		const facilityScore = Number(formData.get('facilityScore')) || 5;
+		const overallScore = Number(formData.get('overallScore')) || Number(((materialScore + instructorScore + facilityScore) / 3).toFixed(2));
+
+		const appliedBenefit = formData.get('appliedBenefit')?.toString().trim() || answers.appliedBenefit || '';
+		const impressions = formData.get('impressions')?.toString().trim() || answers.impressions || '';
+		const suggestions = formData.get('suggestions')?.toString().trim() || answers.suggestions || '';
+		const feedbackNotes = [appliedBenefit, impressions, suggestions].filter(Boolean).join(' | ');
 
 		if (!courseId) return { success: false, message: 'Course ID tidak valid.' };
 
 		try {
 			await sql`
 				INSERT INTO hris.lms_evaluations_l1 (
-					course_id, payroll_id, employee_name, content_rating, instructor_rating,
-					facility_rating, recommendation_rating, feedback_notes
+					course_id, payroll_id, employee_name, delivery_method,
+					content_rating, instructor_rating, facility_rating, recommendation_rating,
+					material_score, instructor_score, facility_score, overall_score,
+					applied_benefit, impressions, suggestions, feedback_notes, answers, submitted_at
 				) VALUES (
-					${courseId}, ${payrollId}, ${employeeName}, ${contentRating}, ${instructorRating},
-					${facilityRating}, ${recommendationRating}, ${feedbackNotes}
+					${courseId}, ${payrollId}, ${employeeName}, ${deliveryMethod},
+					${Math.round(materialScore)}, ${Math.round(instructorScore)}, ${Math.round(facilityScore)}, 5,
+					${materialScore}, ${instructorScore}, ${facilityScore}, ${overallScore},
+					${appliedBenefit}, ${impressions}, ${suggestions}, ${feedbackNotes}, ${JSON.stringify(answers)}::jsonb, CURRENT_TIMESTAMP
 				);
 			`;
-			return { success: true, message: 'Terima kasih! Survei evaluasi Level 1 berhasil disimpan.' };
+
+			// Update status kelulusan enrollment peserta
+			await sql`
+				UPDATE hris.lms_enrollments
+				SET status = 'COMPLETED', progress = 100, updated_at = CURRENT_TIMESTAMP
+				WHERE course_id = ${courseId} AND payroll_id = ${payrollId};
+			`;
+
+			// Cari direct supervisor dari karyawan
+			const empRows = await sql`
+				SELECT direct_supervisor, department, title_name 
+				FROM hris.m_karyawan 
+				WHERE payroll_id = ${payrollId} OR nik = ${payrollId} 
+				LIMIT 1;
+			`;
+			const supervisorName = empRows[0]?.direct_supervisor || 'Supervisor Operasional';
+
+			// Jadwalkan / aktifkan antrean Evaluasi Pasca-Training Segera (L3) & 3 Bulan (L4)
+			const existingL3L4 = await sql`
+				SELECT id FROM hris.lms_evaluations_l3_l4
+				WHERE course_id = ${courseId} AND payroll_id = ${payrollId}
+				LIMIT 1;
+			`;
+			if (existingL3L4.length > 0) {
+				await sql`
+					UPDATE hris.lms_evaluations_l3_l4
+					SET training_completed_at = CURRENT_TIMESTAMP,
+					    due_date = CURRENT_DATE + INTERVAL '3 months',
+					    l3_status = 'PENDING'
+					WHERE id = ${existingL3L4[0].id};
+				`;
+			} else {
+				await sql`
+					INSERT INTO hris.lms_evaluations_l3_l4 (
+						course_id, payroll_id, employee_name, supervisor_name,
+						training_completed_at, due_date, status, l3_status, l4_status
+					) VALUES (
+						${courseId}, ${payrollId}, ${employeeName}, ${supervisorName},
+						CURRENT_TIMESTAMP, CURRENT_DATE + INTERVAL '3 months', 'PENDING', 'PENDING', 'PENDING'
+					);
+				`;
+			}
+
+			return { success: true, message: 'Terima kasih! Survei Evaluasi Level 1 berhasil disimpan. Sertifikat resmi Anda telah terbit.' };
 		} catch (e: any) {
-			return { success: false, message: 'Gagal menyimpan evaluasi Level 1.' };
+			logError('EVAL_L1_SUBMIT_ERROR', 'Gagal menyimpan evaluasi Level 1', e?.message);
+			return { success: false, message: `Gagal menyimpan evaluasi Level 1: ${e?.message || 'Database error'}` };
 		}
 	},
 
