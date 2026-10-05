@@ -69,11 +69,20 @@ export const load: PageServerLoad = async ({ locals }) => {
 			ORDER BY e.submitted_at DESC;
 		`;
 
-		// 6. Ambil Evaluasi Kirkpatrick Level 3 & 4 (Review Atasan H+3 Bulan)
+		// 6. Ambil Evaluasi Kirkpatrick Level 3 & 4 (Review Atasan Pre-Test 10 Hari & Post-Test H+3 Bulan)
 		const evalL3L4Rows = await sql`
-			SELECT e.*, c.title as course_title
+			SELECT 
+				e.*, 
+				c.title as course_title,
+				c.category as course_category,
+				k.title as position_title,
+				t.title as position_name,
+				COALESCE(d.dept_name, 'General') as department
 			FROM hris.lms_evaluations_l3_l4 e
 			JOIN hris.lms_courses c ON c.id = e.course_id
+			LEFT JOIN master.m_karyawan k ON k.payroll_id = e.payroll_id
+			LEFT JOIN master.m_title t ON t.title_code = k.title
+			LEFT JOIN master.m_dept d ON d.dept_code = k.dept_id
 			ORDER BY 
 				CASE WHEN e.status = 'PENDING' THEN 0 ELSE 1 END,
 				e.due_date ASC;
@@ -344,17 +353,40 @@ export const load: PageServerLoad = async ({ locals }) => {
 				id: e.id,
 				courseId: e.course_id,
 				courseTitle: e.course_title,
+				courseCategory: e.course_category || 'Training',
 				payrollId: e.payroll_id,
 				employeeName: e.employee_name,
 				supervisorName: e.supervisor_name,
-				dueDate: e.due_date ? e.due_date.toISOString().split('T')[0] : '',
+				positionTitle: e.position_name || e.position_title || 'Staff',
+				department: e.department || 'General',
+				trainingCompletedAt: e.training_completed_at ? new Date(e.training_completed_at).toISOString().split('T')[0] : (e.due_date ? new Date(new Date(e.due_date).getTime() - 90*24*60*60*1000).toISOString().split('T')[0] : ''),
+				dueDate: e.due_date ? new Date(e.due_date).toISOString().split('T')[0] : '',
 				status: e.status,
+				// Level 4 Pre-Test Fields (10 Hari)
+				l4PreStatus: e.l4_pre_status || 'PENDING',
+				l4PreDueDate: e.l4_pre_due_date ? new Date(e.l4_pre_due_date).toISOString().split('T')[0] : (e.training_completed_at ? new Date(new Date(e.training_completed_at).getTime() + 10*24*60*60*1000).toISOString().split('T')[0] : ''),
+				l4PreSkillCategory: e.l4_pre_skill_category || 'Technical Skill',
+				l4PreMetrics: e.l4_pre_metrics || {},
+				l4PreNotes: e.l4_pre_notes || '',
+				l4PreReviewedAt: e.l4_pre_reviewed_at ? new Date(e.l4_pre_reviewed_at).toISOString().split('T')[0] : '',
+				// Level 3 Behavior Fields (3 Bulan - 15 Butir)
+				l3Status: e.l3_status || 'PENDING',
+				l3Answers: e.l3_answers || {},
+				l3Feedback: e.l3_feedback || '',
+				l3AvgScore: e.l3_avg_score ? Number(e.l3_avg_score) : null,
+				l3ReviewedAt: e.l3_reviewed_at ? new Date(e.l3_reviewed_at).toISOString().split('T')[0] : '',
+				// Level 4 Post-Test Fields (3 Bulan - Dampak & Metrik)
+				l4Status: e.l4_status || 'PENDING',
+				l4PostMetrics: e.l4_post_metrics || {},
+				l4PostNotes: e.l4_post_notes || '',
+				l4PostReviewedAt: e.l4_post_reviewed_at ? new Date(e.l4_post_reviewed_at).toISOString().split('T')[0] : '',
+				// Legacy / Summary Skor
 				behaviorScore: e.behavior_score,
 				sopComplianceScore: e.sop_compliance_score,
 				businessImpactScore: e.business_impact_score,
 				incidentReductionNotes: e.incident_reduction_notes,
 				supervisorNotes: e.supervisor_notes,
-				reviewedAt: e.reviewed_at ? e.reviewed_at.toISOString().split('T')[0] : ''
+				reviewedAt: e.reviewed_at ? new Date(e.reviewed_at).toISOString().split('T')[0] : ''
 			})),
 			trainingRequests: trainingRequestsRows.map((r) => ({
 				id: r.id,
