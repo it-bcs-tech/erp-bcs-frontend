@@ -201,7 +201,14 @@ export const load: PageServerLoad = async ({ locals }) => {
 				l3SopScore: e.sop_compliance_score || 4,
 				l3Notes: e.l3_notes || e.supervisor_notes || '',
 				l3ReviewedAt: e.l3_reviewed_at ? new Date(e.l3_reviewed_at).toISOString().split('T')[0] : '',
-				// Level 4 Fields
+				// Level 4 Pre-Test Fields (Baseline 3 Bulan Sebelum Training - SLA 10 Hari)
+				l4PreStatus: e.l4_pre_status || 'PENDING',
+				l4PreDueDate: e.l4_pre_due_date ? new Date(e.l4_pre_due_date).toISOString().split('T')[0] : (e.training_completed_at ? new Date(new Date(e.training_completed_at).getTime() + 10*24*60*60*1000).toISOString().split('T')[0] : ''),
+				l4PreSkillCategory: e.l4_pre_skill_category || 'Technical Skill',
+				l4PreMetrics: e.l4_pre_metrics || {},
+				l4PreNotes: e.l4_pre_notes || '',
+				l4PreReviewedAt: e.l4_pre_reviewed_at ? new Date(e.l4_pre_reviewed_at).toISOString().split('T')[0] : '',
+				// Level 4 Post-Test Fields (Dampak Nyata H+3 Bulan)
 				l4Status: e.l4_status || (e.status === 'COMPLETED' ? 'COMPLETED' : 'PENDING'),
 				l4BusinessScore: e.business_impact_score || 4,
 				l4ProductivityScore: e.l4_productivity_score || 4,
@@ -401,6 +408,43 @@ export const actions = {
 		} catch (e: any) {
 			logError('DIRECT_EVAL_L4_FAIL', e?.message);
 			return { success: false, message: 'Gagal menyimpan evaluasi Level 4.' };
+		}
+	},
+
+	// 4. Submit Evaluasi Pasca-Training Level 4 Pre-Test (Baseline 3 Bulan Sebelum Pelatihan - SLA 10 Hari)
+	submitEvaluationL4PreTest: async ({ request }) => {
+		const formData = await request.formData();
+		const evalId = Number(formData.get('evalId'));
+		const skillCategory = formData.get('skillCategory')?.toString() || 'Technical Skill';
+		const metricsRaw = formData.get('metrics')?.toString() || '{}';
+		const notes = formData.get('notes')?.toString() || '';
+		const assessorName = formData.get('assessorName')?.toString() || 'Supervisor';
+
+		if (!evalId) return { success: false, message: 'ID Evaluasi tidak ditemukan.' };
+
+		let metrics: Record<string, any> = {};
+		try {
+			metrics = JSON.parse(metricsRaw);
+		} catch (err) {
+			metrics = {};
+		}
+
+		try {
+			await sql`
+				UPDATE hris.lms_evaluations_l3_l4
+				SET
+					l4_pre_status = 'COMPLETED',
+					l4_pre_skill_category = ${skillCategory},
+					l4_pre_metrics = ${JSON.stringify(metrics)}::jsonb,
+					l4_pre_notes = ${notes},
+					l4_pre_reviewed_at = CURRENT_TIMESTAMP,
+					supervisor_name = ${assessorName}
+				WHERE id = ${evalId};
+			`;
+			return { success: true, message: 'Evaluasi Level 4 Pre-Test (Baseline 3 Bulan Sebelum Training) berhasil disimpan!' };
+		} catch (e: any) {
+			logError('DIRECT_EVAL_L4_PRE_FAIL', e?.message);
+			return { success: false, message: 'Gagal menyimpan evaluasi Level 4 Pre-Test.' };
 		}
 	}
 } satisfies Actions;

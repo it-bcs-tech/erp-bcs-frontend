@@ -209,8 +209,8 @@
 	let isRubricModalOpen = $state(false);
 	let selectedCompForRubric = $state<any>(null);
 
-	// Tab View State: 'annual' | 'post_training_l3' | 'post_training_l4' | 'history'
-	let activeViewTab = $state<'annual' | 'post_training_l3' | 'post_training_l4' | 'history'>('annual');
+	// Tab View State: 5 Tab Penilaian Atasan
+	let activeViewTab = $state<'annual' | 'post_training_l3' | 'post_training_l4_pre' | 'post_training_l4_post' | 'history'>('annual');
 
 	// Data Evaluasi Pasca-Training Kirkpatrick (Level 3 & Level 4)
 	const postTrainingEvals = $derived((data as any).postTrainingEvals || []);
@@ -233,8 +233,117 @@
 	);
 	const l3PendingCount = $derived(l3PendingEvals.length);
 
-	// Level 4: Evaluasi Dampak Bisnis H+3 Bulan
+	// Level 4 Pre-Test: Baseline 3 Bulan Sebelum Training (SLA 10 Hari Pasca-Training)
 	const todayDateStr = new Date().toISOString().split('T')[0];
+	const l4PrePendingEvals = $derived(
+		subordinatePostTrainingEvals.filter((e: any) => e.l4PreStatus === 'PENDING')
+	);
+	const l4PreCompletedEvals = $derived(
+		subordinatePostTrainingEvals.filter((e: any) => e.l4PreStatus === 'COMPLETED')
+	);
+	const l4PrePendingCount = $derived(l4PrePendingEvals.length);
+
+	function getPreRemainingDays(dueDateStr: string): { days: number; isOverdue: boolean } {
+		if (!dueDateStr) return { days: 0, isOverdue: false };
+		const due = new Date(dueDateStr).getTime();
+		const now = new Date(todayDateStr).getTime();
+		const diffDays = Math.round((due - now) / (1000 * 60 * 60 * 24));
+		return {
+			days: Math.abs(diffDays),
+			isOverdue: diffDays < 0
+		};
+	}
+
+	// Definisi 4 Kategori Skill Level 4 Pre-Test sesuai Master Spreadsheet
+	const preSkillCategoryDefinitions = {
+		'Technical Skill': {
+			label: 'Technical Skill',
+			icon: 'engineering',
+			badgeColor: 'bg-blue-500/10 text-blue-600 border-blue-500/20',
+			description: 'Keterampilan operasional & teknis sesuai fungsi jabatan.',
+			metrics: [
+				{ id: 'p1', label: 'Waktu Penyelesaian Pekerjaan Teknis', unit: 'Jam', hint: 'Total waktu penyelesaian per pekerjaan sesuai SOP (dalam 3 bulan sebelum pelatihan).' },
+				{ id: 'p2', label: 'Error / Rework Teknis', unit: 'Kejadian', hint: 'Total kesalahan teknis atau pekerjaan ulang akibat ketidaksesuaian prosedur.' },
+				{ id: 'p3', label: 'Penerapan Materi Teknis', unit: 'Penerapan', hint: 'Frekuensi penerapan keterampilan teknis di lingkungan kerja nyata.' },
+				{ id: 'p4', label: 'Eskalasi Teknis ke Atasan', unit: 'Kasus', hint: 'Masalah teknis yang tidak dapat diselesaikan mandiri sehingga perlu eskalasi.' }
+			]
+		},
+		'Soft Skill': {
+			label: 'Soft Skill',
+			icon: 'psychology',
+			badgeColor: 'bg-purple-500/10 text-purple-600 border-purple-500/20',
+			description: 'Komunikasi, kepemimpinan, kerjasama tim, dan inisiatif personal.',
+			metrics: [
+				{ id: 'p1', label: 'Keterlambatan Tugas', unit: 'Kejadian', hint: 'Jumlah keterlambatan penyelesaian tugas dari jadwal yang disepakati.' },
+				{ id: 'p2', label: 'Komplain Internal / Rekan Kerja', unit: 'Komplain', hint: 'Komplain atau keluhan terkait sikap kerja, komunikasi, atau cara kerja tim.' },
+				{ id: 'p3', label: 'Penerapan Soft Skill Kerja', unit: 'Kasus', hint: 'Masalah kerja atau dinamika tim yang berhasil diselesaikan dengan pendekatan positif.' },
+				{ id: 'p4', label: 'Keputusan Kerja Mandiri', unit: 'Keputusan', hint: 'Keputusan kerja mandiri yang tepat tanpa harus menunggu instruksi atasan.' }
+			]
+		},
+		'Safety': {
+			label: 'Safety (K3)',
+			icon: 'health_and_safety',
+			badgeColor: 'bg-rose-500/10 text-rose-600 border-rose-500/20',
+			description: 'Kepatuhan K3, kesadaran bahaya, dan perlindungan lingkungan kerja.',
+			metrics: [
+				{ id: 'p1', label: 'Insiden / Kecelakaan Kerja', unit: 'Kejadian', hint: 'Kejadian insiden atau kecelakaan kerja yang melibatkan karyawan.' },
+				{ id: 'p2', label: 'Pelanggaran Prosedur Safety', unit: 'Pelanggaran', hint: 'Pelanggaran terhadap SOP K3/safety atau kelalaian pemakaian APD.' },
+				{ id: 'p3', label: 'Pelaporan Potensi Bahaya (Hazard)', unit: 'Laporan', hint: 'Keaktifan membuat laporan identifikasi bahaya/unsafe condition.' },
+				{ id: 'p4', label: 'Keputusan Safety Mandiri', unit: 'Keputusan', hint: 'Tindakan stop work authority atau inisiatif pencegahan bahaya secara mandiri.' }
+			]
+		},
+		'Hard Skill': {
+			label: 'Hard Skill',
+			icon: 'precision_manufacturing',
+			badgeColor: 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20',
+			description: 'Kecepatan, akurasi, dan kapabilitas penanganan peralatan/sistem.',
+			metrics: [
+				{ id: 'p1', label: 'Produktivitas Output Kerja', unit: 'Output', hint: 'Jumlah output atau volume pekerjaan yang diselesaikan per periode kerja.' },
+				{ id: 'p2', label: 'Waktu Per Satuan Output', unit: 'Menit', hint: 'Rata-rata waktu yang dihabiskan untuk menyelesaikan satu unit pekerjaan.' },
+				{ id: 'p3', label: 'Kualitas & Akurasi Hasil Kerja', unit: 'Kejadian', hint: 'Frekuensi kesalahan atau cacat hasil kerja yang memerlukan koreksi.' },
+				{ id: 'p4', label: 'Pemecahan Masalah Mandiri', unit: 'Kasus', hint: 'Kasus kendala operasional yang berhasil diselesaikan tanpa bantuan pihak lain.' }
+			]
+		}
+	};
+
+	// Modal State Level 4 Pre-Test
+	let isL4PreModalOpen = $state(false);
+	let selectedL4PreEval = $state<any>(null);
+	let l4PreSkillCategory = $state<'Technical Skill' | 'Soft Skill' | 'Safety' | 'Hard Skill'>('Technical Skill');
+	let l4PreMetrics = $state<Record<string, number | string>>({
+		p1: '',
+		p2: '',
+		p3: '',
+		p4: ''
+	});
+	let l4PreNotes = $state('');
+
+	function openL4PreModal(item: any) {
+		selectedL4PreEval = item;
+		let cat: 'Technical Skill' | 'Soft Skill' | 'Safety' | 'Hard Skill' = 'Technical Skill';
+		if (item.l4PreSkillCategory && preSkillCategoryDefinitions[item.l4PreSkillCategory as keyof typeof preSkillCategoryDefinitions]) {
+			cat = item.l4PreSkillCategory;
+		} else if (item.courseCategory?.toUpperCase().includes('SAFETY') || item.courseCategory?.toUpperCase().includes('K3')) {
+			cat = 'Safety';
+		} else if (item.courseCategory?.toUpperCase().includes('SOFT') || item.courseCategory?.toUpperCase().includes('LEADERSHIP')) {
+			cat = 'Soft Skill';
+		} else if (item.courseCategory?.toUpperCase().includes('HARD') || item.courseCategory?.toUpperCase().includes('MACHINE')) {
+			cat = 'Hard Skill';
+		}
+		l4PreSkillCategory = cat;
+
+		const m = item.l4PreMetrics || {};
+		l4PreMetrics = {
+			p1: m.p1 !== undefined && m.p1 !== null ? m.p1 : '',
+			p2: m.p2 !== undefined && m.p2 !== null ? m.p2 : '',
+			p3: m.p3 !== undefined && m.p3 !== null ? m.p3 : '',
+			p4: m.p4 !== undefined && m.p4 !== null ? m.p4 : ''
+		};
+		l4PreNotes = item.l4PreNotes || '';
+		isL4PreModalOpen = true;
+	}
+
+	// Level 4 Post-Test: Evaluasi Dampak Bisnis H+3 Bulan
 	const l4ReadyEvals = $derived(
 		subordinatePostTrainingEvals.filter(
 			(e: any) => e.l4Status === 'PENDING' && (!e.dueDate || e.dueDate <= todayDateStr)
@@ -267,7 +376,7 @@
 		isL3ModalOpen = true;
 	}
 
-	// Modal State Level 4
+	// Modal State Level 4 Post-Test
 	let isL4ModalOpen = $state(false);
 	let selectedL4Eval = $state<any>(null);
 	let l4BusinessScore = $state(4);
@@ -355,21 +464,21 @@
 			</div>
 		</div>
 
-		<!-- Navigasi 4 Tab Penilaian Atasan -->
+		<!-- Navigasi 5 Tab Penilaian Atasan -->
 		<div class="flex items-center gap-1.5 p-1 rounded-2xl bg-surface-container-high border border-slate-200/60 dark:border-slate-800/60 self-start md:self-auto overflow-x-auto max-w-full">
 			<button
 				type="button"
 				onclick={() => (activeViewTab = 'annual')}
-				class="px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 whitespace-nowrap
+				class="px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 whitespace-nowrap
 				{activeViewTab === 'annual' ? 'bg-primary text-on-primary shadow-xs' : 'text-slate-400 hover:text-on-surface'}"
 			>
 				<span class="material-symbols-outlined text-sm">assignment_ind</span>
-				<span>1. Asesmen Tahunan (Annual)</span>
+				<span>1. Asesmen Tahunan</span>
 			</button>
 			<button
 				type="button"
 				onclick={() => (activeViewTab = 'post_training_l3')}
-				class="px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 whitespace-nowrap
+				class="px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 whitespace-nowrap
 				{activeViewTab === 'post_training_l3' ? 'bg-primary text-on-primary shadow-xs' : 'text-slate-400 hover:text-on-surface'}"
 			>
 				<span class="material-symbols-outlined text-sm">school</span>
@@ -382,12 +491,26 @@
 			</button>
 			<button
 				type="button"
-				onclick={() => (activeViewTab = 'post_training_l4')}
-				class="px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 whitespace-nowrap
-				{activeViewTab === 'post_training_l4' ? 'bg-primary text-on-primary shadow-xs' : 'text-slate-400 hover:text-on-surface'}"
+				onclick={() => (activeViewTab = 'post_training_l4_pre')}
+				class="px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 whitespace-nowrap
+				{activeViewTab === 'post_training_l4_pre' ? 'bg-primary text-on-primary shadow-xs' : 'text-slate-400 hover:text-on-surface'}"
+			>
+				<span class="material-symbols-outlined text-sm">history_edu</span>
+				<span>3. Level 4 Pre-Test (10 Hari)</span>
+				{#if l4PrePendingCount > 0}
+					<span class="px-1.5 py-0.2 rounded-full text-[9px] font-black bg-indigo-500 text-white">
+						{l4PrePendingCount}
+					</span>
+				{/if}
+			</button>
+			<button
+				type="button"
+				onclick={() => (activeViewTab = 'post_training_l4_post')}
+				class="px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 whitespace-nowrap
+				{activeViewTab === 'post_training_l4_post' ? 'bg-primary text-on-primary shadow-xs' : 'text-slate-400 hover:text-on-surface'}"
 			>
 				<span class="material-symbols-outlined text-sm">trending_up</span>
-				<span>3. Pasca-Training 3 Bulan (L4)</span>
+				<span>4. Level 4 Post-Test (3 Bulan)</span>
 				{#if l4ReadyCount > 0}
 					<span class="px-1.5 py-0.2 rounded-full text-[9px] font-black bg-amber-500 text-white">
 						{l4ReadyCount}
@@ -397,11 +520,11 @@
 			<button
 				type="button"
 				onclick={() => (activeViewTab = 'history')}
-				class="px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 whitespace-nowrap
+				class="px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 whitespace-nowrap
 				{activeViewTab === 'history' ? 'bg-primary text-on-primary shadow-xs' : 'text-slate-400 hover:text-on-surface'}"
 			>
 				<span class="material-symbols-outlined text-sm">history</span>
-				<span>Riwayat Penilaian</span>
+				<span>Riwayat</span>
 			</button>
 		</div>
 	</div>
@@ -1155,9 +1278,211 @@
 			</div>
 		</div>
 
-	{:else if activeViewTab === 'post_training_l4'}
+	{:else if activeViewTab === 'post_training_l4_pre'}
 		<!-- ═══════════════════════════════════════════════════════════════ -->
-		<!-- TAB 3: PASCA-TRAINING 3 BULAN (LEVEL 4 KIRKPATRICK)              -->
+		<!-- TAB 3: LEVEL 4 PRE-TEST (BASELINE 3 BULAN SEBELUM TRAINING)      -->
+		<!-- ═══════════════════════════════════════════════════════════════ -->
+		<div class="space-y-6">
+			<!-- Banner Panduan Level 4 Pre-Test -->
+			<div class="p-5 rounded-3xl bg-linear-to-r from-indigo-500/10 via-blue-500/5 to-transparent border border-indigo-500/20 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+				<div class="flex items-start gap-3.5">
+					<div class="w-10 h-10 rounded-2xl bg-indigo-500/20 text-indigo-500 flex items-center justify-center shrink-0">
+						<span class="material-symbols-outlined text-xl">history_edu</span>
+					</div>
+					<div>
+						<div class="flex items-center gap-2">
+							<h3 class="text-sm font-black text-on-surface">Evaluasi Baseline Kondisi 3 Bulan Sebelum Training (Level 4 Pre-Test)</h3>
+							<span class="px-2 py-0.5 rounded-full text-[10px] font-black bg-indigo-500 text-white">Masa Pengisian: 10 Hari</span>
+						</div>
+						<p class="text-xs text-on-surface-variant mt-1 leading-relaxed max-w-3xl">
+							Diisi oleh atasan langsung segera setelah karyawan menyelesaikan pelatihan (berbarengan pengisian Level 1). Berfungsi sebagai <strong>data dasar (baseline)</strong> performa karyawan dalam 3 bulan <em>sebelum</em> training untuk dikomparasikan dengan dampak nyata pada Level 4 Post-Test (setelah 3 bulan kerja di lapangan).
+						</p>
+					</div>
+				</div>
+				<div class="flex items-center gap-3 shrink-0">
+					<div class="text-right">
+						<div class="text-xs text-on-surface-variant font-medium">Antrean Menunggu</div>
+						<div class="text-lg font-black text-indigo-500">{l4PrePendingCount} Karyawan</div>
+					</div>
+				</div>
+			</div>
+
+			<!-- Bagian 1: Antrean Pengisian Pre-Test (SLA 10 Hari) -->
+			<div class="space-y-3">
+				<div class="flex items-center justify-between">
+					<div class="flex items-center gap-2">
+						<span class="material-symbols-outlined text-indigo-500 text-base">pending_actions</span>
+						<h4 class="text-xs font-black uppercase tracking-wider text-on-surface">Antrean Pengisian Baseline (Tenggat 10 Hari)</h4>
+						<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-500/15 text-indigo-600 dark:text-indigo-400">
+							{l4PrePendingEvals.length} Perlu Dinilai
+						</span>
+					</div>
+				</div>
+
+				{#if l4PrePendingEvals.length === 0}
+					<div class="p-8 rounded-3xl bg-surface-container border border-slate-200/60 dark:border-slate-800/60 text-center space-y-2">
+						<span class="material-symbols-outlined text-4xl text-emerald-500">task_alt</span>
+						<h5 class="text-sm font-black text-on-surface">Semua Evaluasi Pre-Test Selesai</h5>
+						<p class="text-xs text-on-surface-variant max-w-md mx-auto">
+							Tidak ada antrean Level 4 Pre-Test yang tertunda. Seluruh data baseline kondisi 3 bulan sebelum training telah terisi lengkap.
+						</p>
+					</div>
+				{:else}
+					<div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+						{#each l4PrePendingEvals as item}
+							{@const remaining = getPreRemainingDays(item.l4PreDueDate)}
+							<div class="p-5 rounded-3xl bg-surface border-2 {remaining.isOverdue ? 'border-rose-500/40 dark:border-rose-500/30' : 'border-indigo-500/30 dark:border-indigo-500/20'} shadow-xs flex flex-col justify-between space-y-4">
+								<div class="space-y-3">
+									<div class="flex items-start justify-between gap-2">
+										<div class="flex items-center gap-3">
+											<div class="w-10 h-10 rounded-2xl {remaining.isOverdue ? 'bg-rose-500/10 text-rose-600' : 'bg-indigo-500/10 text-indigo-600'} font-black text-sm flex items-center justify-center shrink-0">
+												{item.employeeName.charAt(0)}
+											</div>
+											<div>
+												<h5 class="text-xs font-black text-on-surface line-clamp-1">{item.employeeName}</h5>
+												<p class="text-[11px] text-on-surface-variant font-mono">{item.payrollId} • {item.positionTitle}</p>
+											</div>
+										</div>
+										{#if remaining.isOverdue}
+											<span class="px-2 py-0.5 rounded-full text-[10px] font-black bg-rose-500/15 text-rose-600 dark:text-rose-400 whitespace-nowrap animate-pulse">
+												Overdue ({remaining.days} hr)
+											</span>
+										{:else}
+											<span class="px-2 py-0.5 rounded-full text-[10px] font-black bg-indigo-500/15 text-indigo-600 dark:text-indigo-400 whitespace-nowrap">
+												Sisa {remaining.days} hr
+											</span>
+										{/if}
+									</div>
+
+									<div class="p-3 rounded-2xl bg-surface-container space-y-1.5 border border-slate-200/40 dark:border-slate-800/40">
+										<div class="flex items-center justify-between text-[11px]">
+											<span class="text-on-surface-variant font-medium">Training:</span>
+											<span class="px-1.5 py-0.5 rounded-md text-[9px] font-bold bg-indigo-500/10 text-indigo-600">{item.courseCategory}</span>
+										</div>
+										<p class="text-xs font-bold text-on-surface line-clamp-2">{item.courseTitle}</p>
+										<div class="grid grid-cols-2 gap-2 pt-2 border-t border-slate-200/40 dark:border-slate-700/40 text-[10px]">
+											<div>
+												<span class="text-on-surface-variant block">Selesai Training:</span>
+												<span class="font-mono font-bold text-on-surface">{item.trainingCompletedAt || '-'}</span>
+											</div>
+											<div>
+												<span class="text-on-surface-variant block">Batas Waktu (SLA):</span>
+												<span class="font-mono font-black {remaining.isOverdue ? 'text-rose-600' : 'text-indigo-600'}">{item.l4PreDueDate || '-'}</span>
+											</div>
+										</div>
+									</div>
+								</div>
+
+								<button
+									type="button"
+									onclick={() => openL4PreModal(item)}
+									class="w-full py-2.5 px-4 rounded-xl {remaining.isOverdue ? 'bg-rose-600 hover:bg-rose-700' : 'bg-indigo-600 hover:bg-indigo-700'} text-white font-bold text-xs flex items-center justify-center gap-2 shadow-xs active:scale-98 transition-all cursor-pointer"
+								>
+									<span class="material-symbols-outlined text-sm">edit_note</span>
+									<span>Isi Evaluasi Pre-Test (Baseline)</span>
+								</button>
+							</div>
+						{/each}
+					</div>
+				{/if}
+			</div>
+
+			<!-- Bagian 2: Riwayat Evaluasi Selesai (Level 4 Pre-Test) -->
+			<div class="space-y-3 pt-4">
+				<div class="flex items-center justify-between">
+					<div class="flex items-center gap-2">
+						<span class="material-symbols-outlined text-emerald-500 text-base">verified</span>
+						<h4 class="text-xs font-black uppercase tracking-wider text-on-surface">Riwayat Baseline Selesai (Level 4 Pre-Test)</h4>
+						<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/15 text-emerald-600 dark:text-emerald-400">
+							{l4PreCompletedEvals.length} Selesai
+						</span>
+					</div>
+				</div>
+
+				{#if l4PreCompletedEvals.length > 0}
+					<div class="rounded-3xl border border-slate-200/60 dark:border-slate-800/60 overflow-hidden shadow-xs bg-surface">
+						<div class="overflow-x-auto">
+							<table class="w-full text-xs text-left">
+								<thead class="bg-surface-container-high border-b border-slate-200/60 dark:border-slate-800/60 font-bold text-on-surface">
+									<tr>
+										<th class="p-3">Karyawan</th>
+										<th class="p-3">Pelatihan</th>
+										<th class="p-3">Kategori Skill</th>
+										<th class="p-3">Metrik Baseline (3 Bln Pra-Training)</th>
+										<th class="p-3">Tgl Review</th>
+										<th class="p-3">Catatan</th>
+										<th class="p-3 text-right">Aksi</th>
+									</tr>
+								</thead>
+								<tbody class="divide-y divide-slate-200/60 dark:divide-slate-800/60">
+									{#each l4PreCompletedEvals as item}
+										{@const catConfig = preSkillCategoryDefinitions[item.l4PreSkillCategory as keyof typeof preSkillCategoryDefinitions] || preSkillCategoryDefinitions['Technical Skill']}
+										<tr class="hover:bg-surface-container/50">
+											<td class="p-3">
+												<div class="font-bold text-on-surface">{item.employeeName}</div>
+												<div class="text-[10px] font-mono text-on-surface-variant">{item.payrollId} • {item.positionTitle}</div>
+											</td>
+											<td class="p-3">
+												<div class="font-bold text-on-surface">{item.courseTitle}</div>
+												<div class="text-[10px] text-on-surface-variant">{item.courseCategory}</div>
+											</td>
+											<td class="p-3">
+												<span class="px-2 py-0.5 rounded-lg text-xs font-bold border {catConfig.badgeColor}">
+													{item.l4PreSkillCategory || 'Technical Skill'}
+												</span>
+											</td>
+											<td class="p-3">
+												<div class="grid grid-cols-2 gap-1 text-[11px]">
+													<div class="flex items-center gap-1 font-mono">
+														<span class="text-slate-400">P1:</span>
+														<strong class="text-on-surface">{item.l4PreMetrics?.p1 ?? '-'}</strong>
+														<span class="text-[9px] text-slate-400">({catConfig.metrics[0].unit})</span>
+													</div>
+													<div class="flex items-center gap-1 font-mono">
+														<span class="text-slate-400">P2:</span>
+														<strong class="text-on-surface">{item.l4PreMetrics?.p2 ?? '-'}</strong>
+														<span class="text-[9px] text-slate-400">({catConfig.metrics[1].unit})</span>
+													</div>
+													<div class="flex items-center gap-1 font-mono">
+														<span class="text-slate-400">P3:</span>
+														<strong class="text-on-surface">{item.l4PreMetrics?.p3 ?? '-'}</strong>
+														<span class="text-[9px] text-slate-400">({catConfig.metrics[2].unit})</span>
+													</div>
+													<div class="flex items-center gap-1 font-mono">
+														<span class="text-slate-400">P4:</span>
+														<strong class="text-on-surface">{item.l4PreMetrics?.p4 ?? '-'}</strong>
+														<span class="text-[9px] text-slate-400">({catConfig.metrics[3].unit})</span>
+													</div>
+												</div>
+											</td>
+											<td class="p-3 text-on-surface-variant font-mono text-[11px]">
+												{item.l4PreReviewedAt || '-'}
+											</td>
+											<td class="p-3 text-on-surface-variant max-w-xs truncate">
+												{item.l4PreNotes || '-'}
+											</td>
+											<td class="p-3 text-right">
+												<button
+													type="button"
+													onclick={() => openL4PreModal(item)}
+													class="px-2.5 py-1 rounded-lg bg-surface-container border border-slate-200 dark:border-slate-700 text-xs font-bold hover:bg-surface-container-high cursor-pointer"
+												>
+													Edit
+												</button>
+											</td>
+										</tr>
+									{/each}
+								</tbody>
+							</table>
+						</div>
+					</div>
+				{/if}
+			</div>
+		</div>
+
+	{:else if activeViewTab === 'post_training_l4_post'}
+		<!-- ═══════════════════════════════════════════════════════════════ -->
+		<!-- TAB 4: PASCA-TRAINING 3 BULAN (LEVEL 4 KIRKPATRICK: POST-TEST)   -->
 		<!-- ═══════════════════════════════════════════════════════════════ -->
 		<div class="space-y-6">
 			<!-- Banner Panduan Level 4 -->
@@ -1809,6 +2134,194 @@
 					>
 						<span class="material-symbols-outlined text-sm">save</span>
 						<span>{isSubmitting ? 'Menyimpan...' : 'Simpan Evaluasi Level 4'}</span>
+					</button>
+				</div>
+			</form>
+		</div>
+	</div>
+{/if}
+
+<!-- Modal Form Evaluasi Baseline 3 Bulan Sebelum Training (Level 4 Pre-Test) -->
+{#if isL4PreModalOpen && selectedL4PreEval}
+	{@const catConfig = preSkillCategoryDefinitions[l4PreSkillCategory] || preSkillCategoryDefinitions['Technical Skill']}
+	{@const remaining = getPreRemainingDays(selectedL4PreEval.l4PreDueDate)}
+	<div class="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
+		<div class="bg-surface rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xl w-full max-w-2xl overflow-hidden p-6 space-y-5 animate-in zoom-in-95 duration-150 my-8 max-h-[92vh] flex flex-col">
+			<!-- Header Modal -->
+			<div class="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800 shrink-0">
+				<div>
+					<div class="flex items-center gap-2">
+						<span class="material-symbols-outlined text-indigo-500 text-xl">history_edu</span>
+						<h3 class="font-black text-base text-on-surface">Evaluasi Baseline 3 Bulan Pra-Training (Level 4 Pre-Test)</h3>
+					</div>
+					<p class="text-xs text-on-surface-variant mt-0.5">
+						Data kondisi kerja riil karyawan dalam 3 bulan <em>sebelum</em> mengikuti pelatihan (Tenggat SLA: 10 Hari)
+					</p>
+				</div>
+				<button type="button" onclick={() => (isL4PreModalOpen = false)} class="w-8 h-8 rounded-full bg-surface-container flex items-center justify-center text-slate-400 hover:text-slate-600 cursor-pointer">
+					<span class="material-symbols-outlined text-lg">close</span>
+				</button>
+			</div>
+
+			<!-- Body Modal (Scrollable) -->
+			<form
+				method="POST"
+				action="?/submitEvaluationL4PreTest"
+				use:enhance={() => {
+					isSubmitting = true;
+					return async ({ result, update }) => {
+						isSubmitting = false;
+						if (result.type === 'success') {
+							notifySuccess(result.data?.message || 'Evaluasi Level 4 Pre-Test berhasil disimpan!');
+							isL4PreModalOpen = false;
+						} else {
+							notifyError(result.data?.message || 'Gagal menyimpan evaluasi Pre-Test.');
+						}
+						await update();
+					};
+				}}
+				class="space-y-5 overflow-y-auto pr-1 flex-1"
+			>
+				<input type="hidden" name="evalId" value={selectedL4PreEval.id} />
+				<input type="hidden" name="assessorName" value={currentAssessor?.name || currentUser?.name || 'Supervisor'} />
+				<input type="hidden" name="skillCategory" value={l4PreSkillCategory} />
+				<input type="hidden" name="metrics" value={JSON.stringify(l4PreMetrics)} />
+
+				<!-- Info Box Karyawan & Training -->
+				<div class="p-4 rounded-2xl bg-surface-container border border-slate-200/60 dark:border-slate-800/60 space-y-2">
+					<div class="flex flex-col sm:flex-row justify-between sm:items-center gap-2">
+						<div>
+							<h4 class="text-sm font-black text-on-surface">{selectedL4PreEval.employeeName}</h4>
+							<p class="text-xs font-mono text-on-surface-variant">{selectedL4PreEval.payrollId} • {selectedL4PreEval.positionTitle} ({selectedL4PreEval.department})</p>
+						</div>
+						<div>
+							{#if remaining.isOverdue}
+								<span class="px-2.5 py-1 rounded-full text-xs font-black bg-rose-500/15 text-rose-600 dark:text-rose-400 inline-flex items-center gap-1 animate-pulse">
+									<span class="material-symbols-outlined text-sm">warning</span>
+									<span>Terlambat {remaining.days} Hari</span>
+								</span>
+							{:else}
+								<span class="px-2.5 py-1 rounded-full text-xs font-black bg-indigo-500/15 text-indigo-600 dark:text-indigo-400 inline-flex items-center gap-1">
+									<span class="material-symbols-outlined text-sm">schedule</span>
+									<span>Sisa {remaining.days} Hari</span>
+								</span>
+							{/if}
+						</div>
+					</div>
+					<div class="pt-2 border-t border-slate-200/50 dark:border-slate-700/50 flex flex-wrap items-center justify-between gap-2 text-xs">
+						<div class="text-primary font-semibold">
+							<span class="text-slate-400">Pelatihan:</span> {selectedL4PreEval.courseTitle}
+						</div>
+						<div class="text-slate-400 font-mono text-[11px]">
+							Selesai: <strong class="text-on-surface">{selectedL4PreEval.trainingCompletedAt || '-'}</strong> | Jatuh Tempo: <strong class="text-indigo-600">{selectedL4PreEval.l4PreDueDate || '-'}</strong>
+						</div>
+					</div>
+				</div>
+
+				<!-- Kategori Skill Switcher (4 Tab Kategori Sesuai Spreadsheet) -->
+				<div class="space-y-2">
+					<div class="flex items-center justify-between">
+						<label class="text-xs font-black uppercase tracking-wider text-on-surface">Pilih Kategori Keahlian (Skill Category) *</label>
+						<span class="text-[11px] text-slate-400">Pilih kategori yang paling dominan dalam pelatihan ini</span>
+					</div>
+					<div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
+						{#each (Object.keys(preSkillCategoryDefinitions) as Array<'Technical Skill' | 'Soft Skill' | 'Safety' | 'Hard Skill'>) as catKey}
+							{@const itemCat = preSkillCategoryDefinitions[catKey]}
+							<button
+								type="button"
+								onclick={() => (l4PreSkillCategory = catKey)}
+								class="p-2.5 rounded-2xl border text-left transition-all cursor-pointer flex flex-col items-start gap-1.5
+								{l4PreSkillCategory === catKey
+									? 'bg-indigo-600 text-white border-indigo-600 shadow-xs'
+									: 'bg-surface border-slate-200 dark:border-slate-700 text-on-surface hover:bg-surface-container'}"
+							>
+								<div class="flex items-center gap-1.5">
+									<span class="material-symbols-outlined text-base {l4PreSkillCategory === catKey ? 'text-white' : 'text-indigo-500'}">
+										{itemCat.icon}
+									</span>
+									<span class="text-xs font-black leading-tight">{itemCat.label}</span>
+								</div>
+								<span class="text-[10px] {l4PreSkillCategory === catKey ? 'text-indigo-100' : 'text-slate-400'} line-clamp-1">
+									{itemCat.description}
+								</span>
+							</button>
+						{/each}
+					</div>
+				</div>
+
+				<!-- 4 Indikator Metrik P1–P4 Sesuai Master Spreadsheet -->
+				<div class="space-y-3 p-4 rounded-2xl bg-surface-container-high/60 border border-slate-200/60 dark:border-slate-800/60">
+					<div class="flex items-center gap-2 pb-2 border-b border-slate-200/60 dark:border-slate-700/60">
+						<span class="material-symbols-outlined text-indigo-500 text-lg">{catConfig.icon}</span>
+						<div>
+							<h5 class="text-xs font-black text-on-surface">4 Indikator Pengukuran Baseline: {catConfig.label}</h5>
+							<p class="text-[11px] text-slate-400">Kondisi aktual rata-rata dalam rentang 3 bulan <em>sebelum</em> training dimulai.</p>
+						</div>
+					</div>
+
+					<div class="grid grid-cols-1 md:grid-cols-2 gap-3.5 pt-1">
+						{#each catConfig.metrics as metric, idx}
+							<div class="p-3 rounded-xl bg-surface border border-slate-200 dark:border-slate-700 space-y-1.5">
+								<div class="flex items-start justify-between gap-1">
+									<label class="text-xs font-bold text-on-surface leading-snug">
+										<span class="text-indigo-600 font-mono mr-1">P{idx + 1}.</span> {metric.label}
+									</label>
+									<span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-surface-container text-slate-400 font-mono shrink-0">
+										{metric.unit}
+									</span>
+								</div>
+								<p class="text-[10px] text-slate-400 leading-tight">
+									{metric.hint}
+								</p>
+								<div class="relative pt-1">
+									<input
+										type="number"
+										step="any"
+										min="0"
+										bind:value={l4PreMetrics[metric.id]}
+										required
+										placeholder={`Angka numerik (contoh: 0, 2, 5.5)...`}
+										class="w-full px-3 py-1.5 pr-14 rounded-lg bg-surface-container-low border border-slate-300 dark:border-slate-600 text-xs font-black text-on-surface font-mono outline-none focus:ring-2 focus:ring-indigo-500"
+									/>
+									<span class="absolute right-3 top-2.5 text-[11px] font-bold text-slate-400 pointer-events-none">
+										{metric.unit}
+									</span>
+								</div>
+							</div>
+						{/each}
+					</div>
+				</div>
+
+				<!-- Catatan Observasi Tambahan -->
+				<div class="space-y-1.5">
+					<label class="text-xs font-bold text-on-surface block">
+						Catatan Observasi Kondisi Pra-Pelatihan (Opsional)
+					</label>
+					<textarea
+						name="notes"
+						bind:value={l4PreNotes}
+						rows="2"
+						placeholder="Uraikan catatan kondisi kerja spesifik karyawan sebelum mengikuti pelatihan ini..."
+						class="w-full p-3 rounded-2xl bg-surface border border-slate-200 dark:border-slate-700 text-xs text-on-surface outline-none focus:ring-2 focus:ring-indigo-500"
+					></textarea>
+				</div>
+
+				<!-- Action Buttons -->
+				<div class="flex justify-end gap-2.5 pt-3 border-t border-slate-200 dark:border-slate-800 shrink-0">
+					<button
+						type="button"
+						onclick={() => (isL4PreModalOpen = false)}
+						class="px-4 py-2 rounded-xl bg-surface-container text-xs font-bold hover:bg-surface-container-high cursor-pointer"
+					>
+						Batal
+					</button>
+					<button
+						type="submit"
+						disabled={isSubmitting}
+						class="px-5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold shadow-xs flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+					>
+						<span class="material-symbols-outlined text-sm">save</span>
+						<span>{isSubmitting ? 'Menyimpan Baseline...' : 'Simpan Evaluasi Level 4 Pre-Test'}</span>
 					</button>
 				</div>
 			</form>
