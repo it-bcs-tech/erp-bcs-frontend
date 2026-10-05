@@ -612,6 +612,7 @@
 	// Sequential Player Engine State
 	// Steps: 1 = Pre-Test, 2 = Modules (Materi), 3 = Post-Test, 4 = Evaluasi Level 1, 5 = Selesai / Sertifikat
 	let playerStep = $state<1 | 2 | 3 | 4 | 5>(1);
+	let isOfflineAttendedCourse = $state(false);
 	let activeModuleIndex = $state(0);
 	let preTestAnswered = $state<Record<number, string>>({});
 	let postTestAnswered = $state<Record<number, string>>({});
@@ -1275,9 +1276,38 @@
 		quizQuestions.filter((q: any) => q.courseId === activeCourseForPlayer?.id && q.quizType === 'POST_TEST')
 	);
 
+	function isUserAttendedOffline(courseId: string) {
+		const userPayroll = (currentUser?.payrollId || currentUser?.nik || 'EMP-0042').toString().trim().toLowerCase();
+		const userName = (currentUser?.name || 'GUNTORO MUHAMAD').toString().trim().toLowerCase();
+
+		return attendances.some((a: any) => {
+			const matchCourse = a.courseId === courseId || sessions.some((s: any) => s.id === a.sessionId && s.courseId === courseId);
+			if (!matchCourse) return false;
+			const aPayroll = (a.payrollId || '').toString().trim().toLowerCase();
+			const aName = (a.employeeName || '').toString().trim().toLowerCase();
+			const isMatch = (userPayroll && aPayroll === userPayroll) || (userName && aName === userName);
+			return isMatch && a.status === 'HADIR';
+		});
+	}
+
+	function hasUserSubmittedL1(courseId: string) {
+		const userPayroll = (currentUser?.payrollId || currentUser?.nik || 'EMP-0042').toString().trim().toLowerCase();
+		const userName = (currentUser?.name || 'GUNTORO MUHAMAD').toString().trim().toLowerCase();
+
+		return evaluationsL1.some((e: any) => {
+			if (e.courseId !== courseId) return false;
+			const ePayroll = (e.payrollId || '').toString().trim().toLowerCase();
+			const eName = (e.employeeName || '').toString().trim().toLowerCase();
+			return (userPayroll && ePayroll === userPayroll) || (userName && eName === userName);
+		});
+	}
+
+	let pendingOfflineL1Courses = $derived(
+		courses.filter((c: any) => isUserAttendedOffline(c.id) && !hasUserSubmittedL1(c.id))
+	);
+
 	function openCoursePlayer(course: any) {
 		activeCourseForPlayer = course;
-		playerStep = 1;
 		activeModuleIndex = 0;
 		preTestAnswered = {};
 		postTestAnswered = {};
@@ -1303,6 +1333,22 @@
 			impressions: '',
 			suggestions: ''
 		};
+
+		const attendedOffline = isUserAttendedOffline(course.id);
+		const submittedL1 = hasUserSubmittedL1(course.id);
+
+		if (submittedL1) {
+			isOfflineAttendedCourse = attendedOffline;
+			playerStep = 5;
+		} else if (attendedOffline) {
+			isOfflineAttendedCourse = true;
+			preTestSubmitted = true;
+			playerStep = 4;
+		} else {
+			isOfflineAttendedCourse = false;
+			playerStep = 1;
+		}
+
 		isPlayerModalOpen = true;
 	}
 
@@ -1668,7 +1714,42 @@
 			<!-- TAB 1: KATALOG & KURSUS -->
 			{#if activeTab === 'catalog'}
 				<div class="space-y-6">
-					<!-- Filter & Search Bar -->
+					<!-- Notification Banner: Pelatihan Tatap Muka Menunggu Evaluasi Level 1 -->
+					{#if pendingOfflineL1Courses.length > 0}
+						<div class="p-4 rounded-2xl bg-gradient-to-r from-amber-500/15 via-emerald-500/10 to-teal-500/15 border border-amber-500/30 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 animate-in fade-in duration-200">
+							<div class="flex items-center gap-3">
+								<div class="w-10 h-10 rounded-xl bg-amber-500/20 text-amber-600 flex items-center justify-center shrink-0">
+									<span class="material-symbols-outlined text-xl">rate_review</span>
+								</div>
+								<div>
+									<div class="flex items-center gap-2">
+										<span class="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-amber-500/20 text-amber-700 dark:text-amber-300">
+											Tiket Evaluasi Tatap Muka
+										</span>
+										<span class="text-xs font-bold text-on-surface">
+											{pendingOfflineL1Courses.length} Pelatihan Selesai Dihadiri
+										</span>
+									</div>
+									<p class="text-xs text-on-surface-variant mt-0.5">
+										Kehadiran Anda pada kelas tatap muka telah terkonfirmasi. Silakan lengkapi form Evaluasi Level 1 (Reaction) untuk langsung mengunduh E-Sertifikat resmi Anda.
+									</p>
+								</div>
+							</div>
+							<div class="flex flex-wrap items-center gap-2 shrink-0">
+								{#each pendingOfflineL1Courses as pCourse}
+									<button
+										type="button"
+										onclick={() => openCoursePlayer(pCourse)}
+										class="px-3.5 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 text-xs font-black flex items-center gap-1.5 transition-all cursor-pointer shadow-xs"
+									>
+										<span class="material-symbols-outlined text-sm">assignment_turned_in</span>
+										<span>Isi Evaluasi ({pCourse.title.length > 20 ? pCourse.title.substring(0, 20) + '...' : pCourse.title})</span>
+									</button>
+								{/each}
+							</div>
+						</div>
+					{/if}
+
 					<!-- Filter & Search Bar -->
 					<div class="space-y-2.5">
 						<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -1739,6 +1820,8 @@
 							{#each filteredCourses as course}
 								{@const courseSessions = sessions.filter((s) => s.courseId === course.id)}
 								{@const nearestSession = courseSessions.length > 0 ? courseSessions[courseSessions.length - 1] : null}
+								{@const isOfflineAttended = isUserAttendedOffline(course.id)}
+								{@const isL1Submitted = hasUserSubmittedL1(course.id)}
 								<div class="rounded-2xl bg-surface-container border border-slate-200/80 dark:border-slate-800/80 overflow-hidden flex flex-col justify-between group hover:border-primary/50 transition-all shadow-xs">
 									<div>
 										<!-- Thumbnail Banner -->
@@ -1750,6 +1833,17 @@
 											/>
 											<div class="absolute inset-0 bg-gradient-to-t from-black/85 via-black/30 to-transparent"></div>
 											<div class="absolute top-3 left-3 flex flex-wrap items-center gap-1.5">
+												{#if isOfflineAttended && !isL1Submitted}
+													<span class="px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-wider bg-amber-500 text-slate-950 flex items-center gap-1 shadow-sm animate-pulse">
+														<span class="material-symbols-outlined text-[10px]">rate_review</span>
+														<span>Wajib Evaluasi Lvl 1</span>
+													</span>
+												{:else if isL1Submitted}
+													<span class="px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-wider bg-emerald-600 text-white flex items-center gap-1 shadow-sm">
+														<span class="material-symbols-outlined text-[10px]">workspace_premium</span>
+														<span>Tuntas & Bersertifikat</span>
+													</span>
+												{/if}
 												<span class="px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-wider
 													{course.based === 'Mandatory' ? 'bg-rose-500 text-white' :
 													course.based === 'Additional' ? 'bg-amber-500 text-slate-950 font-bold' :
@@ -1852,14 +1946,34 @@
 
 									<!-- Action Footer -->
 									<div class="p-4 pt-0 flex items-center justify-between gap-2 border-t border-slate-200/40 dark:border-slate-800/40 mt-2">
-										<button
-											type="button"
-											onclick={() => openCoursePlayer(course)}
-											class="flex-1 py-1.5 rounded-xl border border-slate-300 dark:border-slate-700 hover:bg-surface-container text-on-surface text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer"
-										>
-											<span class="material-symbols-outlined text-sm text-primary">play_circle</span>
-											<span>Buka Materi</span>
-										</button>
+										{#if isOfflineAttended && !isL1Submitted}
+											<button
+												type="button"
+												onclick={() => openCoursePlayer(course)}
+												class="flex-1 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 text-xs font-black flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-xs animate-pulse"
+											>
+												<span class="material-symbols-outlined text-sm">rate_review</span>
+												<span>Isi Evaluasi Lvl 1</span>
+											</button>
+										{:else if isL1Submitted}
+											<button
+												type="button"
+												onclick={() => openCoursePlayer(course)}
+												class="flex-1 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-xs"
+											>
+												<span class="material-symbols-outlined text-sm">workspace_premium</span>
+												<span>E-Sertifikat</span>
+											</button>
+										{:else}
+											<button
+												type="button"
+												onclick={() => openCoursePlayer(course)}
+												class="flex-1 py-1.5 rounded-xl border border-slate-300 dark:border-slate-700 hover:bg-surface-container text-on-surface text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer"
+											>
+												<span class="material-symbols-outlined text-sm text-primary">play_circle</span>
+												<span>Buka Materi</span>
+											</button>
+										{/if}
 
 										{#if nearestSession}
 											<button
@@ -4481,21 +4595,21 @@
 			<!-- Sequential Progress Bar -->
 			<div class="grid grid-cols-5 border-b border-slate-200 dark:border-slate-800 text-[11px] font-bold bg-surface-container-high/40">
 				<div class="p-2.5 text-center flex items-center justify-center gap-1.5 border-r border-slate-200 dark:border-slate-800
-					{playerStep === 1 ? 'bg-primary text-on-primary font-black' : playerStep > 1 ? 'text-emerald-600' : 'text-slate-400'}">
-					<span class="material-symbols-outlined text-xs">{playerStep > 1 ? 'check_circle' : 'looks_one'}</span>
-					<span>1. Pre-Test</span>
+					{playerStep === 1 ? 'bg-primary text-on-primary font-black' : (playerStep > 1 || isOfflineAttendedCourse) ? 'text-emerald-600' : 'text-slate-400'}">
+					<span class="material-symbols-outlined text-xs">{(playerStep > 1 || isOfflineAttendedCourse) ? 'check_circle' : 'looks_one'}</span>
+					<span>{isOfflineAttendedCourse ? '1. Pre-Test (Kelas)' : '1. Pre-Test'}</span>
 				</div>
 
 				<div class="p-2.5 text-center flex items-center justify-center gap-1.5 border-r border-slate-200 dark:border-slate-800
-					{playerStep === 2 ? 'bg-primary text-on-primary font-black' : playerStep > 2 ? 'text-emerald-600' : 'text-slate-400'}">
-					<span class="material-symbols-outlined text-xs">{playerStep > 2 ? 'check_circle' : 'looks_two'}</span>
-					<span>2. Modul Materi</span>
+					{playerStep === 2 ? 'bg-primary text-on-primary font-black' : (playerStep > 2 || isOfflineAttendedCourse) ? 'text-emerald-600' : 'text-slate-400'}">
+					<span class="material-symbols-outlined text-xs">{(playerStep > 2 || isOfflineAttendedCourse) ? 'check_circle' : 'looks_two'}</span>
+					<span>{isOfflineAttendedCourse ? '2. Modul (Kelas)' : '2. Modul Materi'}</span>
 				</div>
 
 				<div class="p-2.5 text-center flex items-center justify-center gap-1.5 border-r border-slate-200 dark:border-slate-800
-					{playerStep === 3 ? 'bg-primary text-on-primary font-black' : playerStep > 3 ? 'text-emerald-600' : 'text-slate-400'}">
-					<span class="material-symbols-outlined text-xs">{playerStep > 3 ? 'check_circle' : 'looks_3'}</span>
-					<span>3. Post-Test</span>
+					{playerStep === 3 ? 'bg-primary text-on-primary font-black' : (playerStep > 3 || isOfflineAttendedCourse) ? 'text-emerald-600' : 'text-slate-400'}">
+					<span class="material-symbols-outlined text-xs">{(playerStep > 3 || isOfflineAttendedCourse) ? 'check_circle' : 'looks_3'}</span>
+					<span>{isOfflineAttendedCourse ? '3. Post-Test (Kelas)' : '3. Post-Test'}</span>
 				</div>
 
 				<div class="p-2.5 text-center flex items-center justify-center gap-1.5 border-r border-slate-200 dark:border-slate-800
@@ -4740,31 +4854,66 @@
 				<!-- STEP 4: EVALUASI LEVEL 1 (REACTION) -->
 				{:else if playerStep === 4}
 					<div class="max-w-3xl mx-auto space-y-6">
-						<!-- Banner Lulus Post-Test & Status Gate -->
-						<div class="p-5 rounded-3xl bg-linear-to-r from-emerald-500/15 via-teal-500/10 to-transparent border border-emerald-500/30 flex flex-col sm:flex-row items-center justify-between gap-4">
-							<div class="flex items-center gap-3.5">
-								<div class="w-12 h-12 rounded-2xl bg-emerald-500/20 text-emerald-600 flex items-center justify-center shrink-0">
-									<span class="material-symbols-outlined text-2xl">workspace_premium</span>
-								</div>
-								<div>
-									<h4 class="font-black text-sm text-on-surface">Selamat! Anda LULUS Post-Test ({postTestResult?.score || 90}/100)</h4>
-									<p class="text-xs text-on-surface-variant mt-0.5">
-										Langkah Terakhir: Lengkapi 18 butir Evaluasi Reaksi (Kirkpatrick Level 1) untuk menerbitkan E-Sertifikat resmi Anda.
-									</p>
-								</div>
-							</div>
-							<div class="text-right shrink-0">
-								<span class="text-[10px] font-bold text-slate-400 block uppercase tracking-wider">Kelengkapan Form</span>
-								<div class="flex items-center gap-2 mt-0.5">
-									<div class="w-24 h-2 rounded-full bg-slate-200 dark:bg-slate-700 overflow-hidden">
-										<div class="h-full bg-emerald-500 transition-all duration-300" style="width: {(evalL1FilledCount / 18) * 100}%"></div>
+						{#if isOfflineAttendedCourse}
+							<!-- Banner Khusus Kelas Tatap Muka -->
+							<div class="p-5 rounded-3xl bg-linear-to-r from-emerald-500/15 via-teal-500/10 to-transparent border border-emerald-500/30 flex flex-col sm:flex-row items-center justify-between gap-4">
+								<div class="flex items-center gap-3.5">
+									<div class="w-12 h-12 rounded-2xl bg-emerald-500/20 text-emerald-600 flex items-center justify-center shrink-0">
+										<span class="material-symbols-outlined text-2xl">co_present</span>
 									</div>
-									<span class="font-mono text-xs font-black {isEvalL1Complete ? 'text-emerald-500' : 'text-amber-500'}">
-										{evalL1FilledCount}/18
-									</span>
+									<div>
+										<div class="flex items-center gap-2">
+											<span class="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-emerald-500/20 text-emerald-700 dark:text-emerald-300">Tatap Muka Selesai Dihadiri</span>
+											<span class="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
+												<span class="material-symbols-outlined text-xs">check_circle</span>
+												Presensi Kelas HADIR
+											</span>
+										</div>
+										<h4 class="font-black text-sm text-on-surface mt-1">Evaluasi Reaksi Pelatihan Tatap Muka</h4>
+										<p class="text-xs text-on-surface-variant mt-0.5">
+											Pelatihan tatap muka Anda telah selesai dihadiri di kelas. Silakan lengkapi 18 butir Evaluasi Level 1 berikut untuk langsung mengunduh E-Sertifikat resmi Anda.
+										</p>
+									</div>
+								</div>
+								<div class="text-right shrink-0">
+									<span class="text-[10px] font-bold text-slate-400 block uppercase tracking-wider">Kelengkapan Form</span>
+									<div class="flex items-center gap-2 mt-0.5">
+										<div class="w-24 h-2 rounded-full bg-slate-200 dark:bg-slate-700 overflow-hidden">
+											<div class="h-full bg-emerald-500 transition-all duration-300" style="width: {(evalL1FilledCount / 18) * 100}%"></div>
+										</div>
+										<span class="font-mono text-xs font-black {isEvalL1Complete ? 'text-emerald-500' : 'text-amber-500'}">
+											{evalL1FilledCount}/18
+										</span>
+									</div>
 								</div>
 							</div>
-						</div>
+						{:else}
+							<!-- Banner Lulus Post-Test & Status Gate (Online) -->
+							<div class="p-5 rounded-3xl bg-linear-to-r from-emerald-500/15 via-teal-500/10 to-transparent border border-emerald-500/30 flex flex-col sm:flex-row items-center justify-between gap-4">
+								<div class="flex items-center gap-3.5">
+									<div class="w-12 h-12 rounded-2xl bg-emerald-500/20 text-emerald-600 flex items-center justify-center shrink-0">
+										<span class="material-symbols-outlined text-2xl">workspace_premium</span>
+									</div>
+									<div>
+										<h4 class="font-black text-sm text-on-surface">Selamat! Anda LULUS Post-Test ({postTestResult?.score || 90}/100)</h4>
+										<p class="text-xs text-on-surface-variant mt-0.5">
+											Langkah Terakhir: Lengkapi 18 butir Evaluasi Reaksi (Kirkpatrick Level 1) untuk menerbitkan E-Sertifikat resmi Anda.
+										</p>
+									</div>
+								</div>
+								<div class="text-right shrink-0">
+									<span class="text-[10px] font-bold text-slate-400 block uppercase tracking-wider">Kelengkapan Form</span>
+									<div class="flex items-center gap-2 mt-0.5">
+										<div class="w-24 h-2 rounded-full bg-slate-200 dark:bg-slate-700 overflow-hidden">
+											<div class="h-full bg-emerald-500 transition-all duration-300" style="width: {(evalL1FilledCount / 18) * 100}%"></div>
+										</div>
+										<span class="font-mono text-xs font-black {isEvalL1Complete ? 'text-emerald-500' : 'text-amber-500'}">
+											{evalL1FilledCount}/18
+										</span>
+									</div>
+								</div>
+							</div>
+						{/if}
 
 						<form
 							method="POST"
@@ -4802,7 +4951,7 @@
 							<input
 								type="hidden"
 								name="deliveryMethod"
-								value={(activeCourseForPlayer?.sessionType || activeCourseForPlayer?.category?.toLowerCase().includes('in-house') || activeCourseForPlayer?.category?.toLowerCase().includes('offline')) ? 'Offline' : 'Online'}
+								value={isOfflineAttendedCourse ? 'Offline' : (activeCourseForPlayer?.sessionType || activeCourseForPlayer?.category?.toLowerCase().includes('in-house') || activeCourseForPlayer?.category?.toLowerCase().includes('offline')) ? 'Offline' : 'Online'}
 							/>
 							<input type="hidden" name="materialScore" value={evalL1MaterialAvg} />
 							<input type="hidden" name="instructorScore" value={evalL1InstructorAvg} />
@@ -5219,21 +5368,22 @@
 						<div class="space-y-1">
 							<h3 class="font-black text-xl text-on-surface">Kursus Selesai & Terakreditasi!</h3>
 							<p class="text-xs text-on-surface-variant leading-relaxed">
-								Selamat kepada <strong>GUNTORO MUHAMAD</strong> atas keberhasilan menyelesaikan kursus <em>{activeCourseForPlayer.title}</em>. E-Sertifikat resmi Anda telah terbit di sistem HRIS.
+								Selamat kepada <strong>{currentUser?.name || 'GUNTORO MUHAMAD'}</strong> atas keberhasilan menyelesaikan kursus <em>{activeCourseForPlayer.title}</em>. E-Sertifikat resmi Anda telah terbit di sistem HRIS.
 							</p>
 						</div>
 
-						<div class="p-4 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800 text-left text-xs space-y-1">
-							<p class="text-slate-500">Nomor Sertifikat: <strong class="font-mono text-primary">{postTestResult?.certNumber || 'CERT-BCS-2026-0889'}</strong></p>
-							<p class="text-slate-500">Nilai Akhir: <strong class="font-mono text-emerald-600">{postTestResult?.score || 95}/100</strong></p>
-							<p class="text-slate-500">Status Evaluasi Atasan: <span class="text-amber-600 font-bold">Dijadwalkan H+3 Bulan</span></p>
+						<div class="p-4 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800 text-left text-xs space-y-1.5">
+							<p class="text-slate-500">Nomor Sertifikat: <strong class="font-mono text-primary">{postTestResult?.certNumber || `CERT-BCS-2026-${(activeCourseForPlayer.id || '01').replace(/\D/g, '').padEnd(4, '0').slice(0, 4)}`}</strong></p>
+							<p class="text-slate-500">Metode Pelatihan: <strong class="font-semibold text-on-surface">{isOfflineAttendedCourse ? 'Tatap Muka (In-House Offline)' : 'E-Learning (Online)'}</strong></p>
+							<p class="text-slate-500">Nilai Akhir: <strong class="font-mono text-emerald-600">{postTestResult?.score || (isOfflineAttendedCourse ? 'Lulus Kelas Tatap Muka' : 95)}/100</strong></p>
+							<p class="text-slate-500">Status Evaluasi Atasan: <span class="text-amber-600 font-bold">{isOfflineAttendedCourse ? 'Level 4 Pre-Test (SLA 10 Hari) & Level 3/4 Post-Test (3 Bulan) Aktif' : 'Dijadwalkan H+3 Bulan'}</span></p>
 						</div>
 
 						<div class="flex gap-3 justify-center pt-2">
 							<button
 								type="button"
 								onclick={() => (isPlayerModalOpen = false)}
-								class="px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 text-xs font-bold hover:bg-surface-container"
+								class="px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 text-xs font-bold hover:bg-surface-container cursor-pointer"
 							>
 								Tutup Player
 							</button>
@@ -5241,19 +5391,20 @@
 							<button
 								type="button"
 								onclick={() => {
+									const certNum = postTestResult?.certNumber || `CERT-BCS-2026-${(activeCourseForPlayer.id || '01').replace(/\D/g, '').padEnd(4, '0').slice(0, 4)}`;
 									isPlayerModalOpen = false;
 									openCertificate({
-										certificateNumber: postTestResult?.certNumber || 'CERT-BCS-2026-0889',
-										payrollId: 'EMP-0042',
-										employeeName: 'GUNTORO MUHAMAD',
+										certificateNumber: certNum,
+										payrollId: currentUser?.payrollId || 'EMP-0042',
+										employeeName: currentUser?.name || 'GUNTORO MUHAMAD',
 										courseTitle: activeCourseForPlayer.title,
 										category: activeCourseForPlayer.category,
 										score: postTestResult?.score || 95,
 										issuedAt: new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }),
-										qrVerifyUrl: `https://academy.bcslabs.tech/verify/${postTestResult?.certNumber || 'CERT-BCS-2026-0889'}`
+										qrVerifyUrl: `https://academy.bcslabs.tech/verify/${certNum}`
 									});
 								}}
-								class="px-5 py-2.5 rounded-xl bg-primary text-on-primary text-xs font-bold hover:bg-primary/90 shadow-md flex items-center gap-1.5"
+								class="px-5 py-2.5 rounded-xl bg-primary text-on-primary text-xs font-bold hover:bg-primary/90 shadow-md flex items-center gap-1.5 cursor-pointer"
 							>
 								<span class="material-symbols-outlined text-sm">print</span>
 								<span>Buka & Cetak E-Sertifikat</span>

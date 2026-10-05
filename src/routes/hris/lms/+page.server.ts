@@ -54,11 +54,11 @@ export const load: PageServerLoad = async ({ locals }) => {
 
 		// 4. Ambil Data Absensi Sesi
 		const attendancesRows = await sql`
-			SELECT a.*, s.title as session_title
+			SELECT a.*, s.title as session_title, s.course_id
 			FROM hris.lms_session_attendances a
 			JOIN hris.lms_sessions s ON s.id = a.session_id
 			ORDER BY a.attended_at DESC
-			LIMIT 50;
+			LIMIT 500;
 		`;
 
 		// 5. Ambil Evaluasi Kirkpatrick Level 1 (Reaction)
@@ -320,6 +320,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 				id: a.id,
 				sessionId: a.session_id,
 				sessionTitle: a.session_title,
+				courseId: a.course_id,
 				payrollId: a.payroll_id,
 				employeeName: a.employee_name,
 				department: a.department,
