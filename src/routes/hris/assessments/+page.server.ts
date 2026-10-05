@@ -194,11 +194,14 @@ export const load: PageServerLoad = async ({ locals }) => {
 				department: e.department,
 				dueDate: e.due_date ? new Date(e.due_date).toISOString().split('T')[0] : '',
 				trainingCompletedAt: e.training_completed_at ? new Date(e.training_completed_at).toISOString().split('T')[0] : (e.due_date ? new Date(new Date(e.due_date).getTime() - 90*24*60*60*1000).toISOString().split('T')[0] : ''),
-				// Level 3 Fields
-				l3Status: e.l3_status || (e.status === 'COMPLETED' ? 'COMPLETED' : 'PENDING'),
-				l3MaterialScore: e.l3_material_absorption_score || 4,
-				l3BehaviorScore: e.behavior_score || 4,
-				l3SopScore: e.sop_compliance_score || 4,
+				// Level 3 Fields (Behavior H+3 Bulan)
+				l3Status: e.l3_status || 'PENDING',
+				l3Answers: e.l3_answers || {},
+				l3Feedback: e.l3_feedback || '',
+				l3AvgScore: e.l3_avg_score ? Number(e.l3_avg_score) : null,
+				l3MaterialScore: e.l3_material_absorption_score || 3,
+				l3BehaviorScore: e.behavior_score || 3,
+				l3SopScore: e.sop_compliance_score || 3,
 				l3Notes: e.l3_notes || e.supervisor_notes || '',
 				l3ReviewedAt: e.l3_reviewed_at ? new Date(e.l3_reviewed_at).toISOString().split('T')[0] : '',
 				// Level 4 Pre-Test Fields (Baseline 3 Bulan Sebelum Training - SLA 10 Hari)
@@ -209,7 +212,10 @@ export const load: PageServerLoad = async ({ locals }) => {
 				l4PreNotes: e.l4_pre_notes || '',
 				l4PreReviewedAt: e.l4_pre_reviewed_at ? new Date(e.l4_pre_reviewed_at).toISOString().split('T')[0] : '',
 				// Level 4 Post-Test Fields (Dampak Nyata H+3 Bulan)
-				l4Status: e.l4_status || (e.status === 'COMPLETED' ? 'COMPLETED' : 'PENDING'),
+				l4Status: e.l4_status || 'PENDING',
+				l4PostMetrics: e.l4_post_metrics || {},
+				l4PostNotes: e.l4_post_notes || '',
+				l4PostReviewedAt: e.l4_post_reviewed_at ? new Date(e.l4_post_reviewed_at).toISOString().split('T')[0] : '',
 				l4BusinessScore: e.business_impact_score || 4,
 				l4ProductivityScore: e.l4_productivity_score || 4,
 				l4IncidentNotes: e.incident_reduction_notes || '',
@@ -344,59 +350,72 @@ export const actions = {
 		}
 	},
 
-	// 2. Submit Evaluasi Pasca-Training Level 3 (Segera Setelah Training & L1 Reaction)
+	// 2. Submit Evaluasi Pasca-Training Level 3 (Behavior 3 Bulan Pasca-Pelatihan - 15 Butir Skala 1-3)
 	submitEvaluationL3: async ({ request }) => {
 		const formData = await request.formData();
 		const evalId = Number(formData.get('evalId'));
-		const materialScore = Number(formData.get('materialAbsorptionScore')) || 4;
-		const behaviorScore = Number(formData.get('behaviorScore')) || 4;
-		const sopScore = Number(formData.get('sopComplianceScore')) || 4;
-		const notes = formData.get('notes')?.toString() || '';
+		const answersRaw = formData.get('answers')?.toString() || '{}';
+		const feedback = formData.get('feedback')?.toString() || '';
 		const assessorName = formData.get('assessorName')?.toString() || 'Supervisor';
 
 		if (!evalId) return { success: false, message: 'ID Evaluasi tidak ditemukan.' };
+
+		let answers: Record<string, number> = {};
+		try {
+			answers = JSON.parse(answersRaw);
+		} catch (err) {
+			answers = {};
+		}
+
+		const values = Object.values(answers).filter((v) => typeof v === 'number' && v > 0);
+		const avgScore = values.length > 0 ? (values.reduce((a, b) => a + b, 0) / values.length).toFixed(2) : '3.00';
 
 		try {
 			await sql`
 				UPDATE hris.lms_evaluations_l3_l4
 				SET
 					l3_status = 'COMPLETED',
-					l3_material_absorption_score = ${materialScore},
-					behavior_score = ${behaviorScore},
-					sop_compliance_score = ${sopScore},
-					l3_notes = ${notes},
-					supervisor_notes = COALESCE(supervisor_notes, ${notes}),
+					l3_answers = ${JSON.stringify(answers)}::jsonb,
+					l3_feedback = ${feedback},
+					l3_avg_score = ${avgScore},
+					l3_notes = ${feedback},
+					supervisor_notes = COALESCE(supervisor_notes, ${feedback}),
 					l3_reviewed_at = CURRENT_TIMESTAMP,
 					supervisor_name = ${assessorName}
 				WHERE id = ${evalId};
 			`;
-			return { success: true, message: 'Evaluasi Pasca-Training Level 3 (Segera) berhasil disimpan!' };
+			return { success: true, message: 'Evaluasi Pasca-Training Level 3 (Behavior 3 Bulan) berhasil disimpan!' };
 		} catch (e: any) {
 			logError('DIRECT_EVAL_L3_FAIL', e?.message);
 			return { success: false, message: 'Gagal menyimpan evaluasi Level 3.' };
 		}
 	},
 
-	// 3. Submit Evaluasi Pasca-Training Level 4 (Dampak Bisnis & Hasil Nyata H+3 Bulan)
+	// 3. Submit Evaluasi Pasca-Training Level 4 Post-Test (Dampak Bisnis & Hasil Nyata H+3 Bulan)
 	submitEvaluationL4: async ({ request }) => {
 		const formData = await request.formData();
 		const evalId = Number(formData.get('evalId'));
-		const businessScore = Number(formData.get('businessImpactScore')) || 4;
-		const productivityScore = Number(formData.get('productivityScore')) || 4;
-		const incidentNotes = formData.get('incidentReductionNotes')?.toString() || '';
+		const metricsRaw = formData.get('metrics')?.toString() || '{}';
 		const notes = formData.get('notes')?.toString() || '';
 		const assessorName = formData.get('assessorName')?.toString() || 'Supervisor';
 
 		if (!evalId) return { success: false, message: 'ID Evaluasi tidak ditemukan.' };
+
+		let metrics: Record<string, any> = {};
+		try {
+			metrics = JSON.parse(metricsRaw);
+		} catch (err) {
+			metrics = {};
+		}
 
 		try {
 			await sql`
 				UPDATE hris.lms_evaluations_l3_l4
 				SET
 					l4_status = 'COMPLETED',
-					business_impact_score = ${businessScore},
-					l4_productivity_score = ${productivityScore},
-					incident_reduction_notes = ${incidentNotes},
+					l4_post_metrics = ${JSON.stringify(metrics)}::jsonb,
+					l4_post_notes = ${notes},
+					l4_post_reviewed_at = CURRENT_TIMESTAMP,
 					l4_notes = ${notes},
 					l4_reviewed_at = CURRENT_TIMESTAMP,
 					status = 'COMPLETED',
@@ -404,10 +423,10 @@ export const actions = {
 					supervisor_name = ${assessorName}
 				WHERE id = ${evalId};
 			`;
-			return { success: true, message: 'Evaluasi Pasca-Training Level 4 (Dampak 3 Bulan) berhasil disimpan!' };
+			return { success: true, message: 'Evaluasi Level 4 Post-Test (Dampak 3 Bulan) berhasil disimpan!' };
 		} catch (e: any) {
 			logError('DIRECT_EVAL_L4_FAIL', e?.message);
-			return { success: false, message: 'Gagal menyimpan evaluasi Level 4.' };
+			return { success: false, message: 'Gagal menyimpan evaluasi Level 4 Post-Test.' };
 		}
 	},
 
