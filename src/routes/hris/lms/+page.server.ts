@@ -10,7 +10,7 @@ import sql from '$lib/server/db';
 import { logError } from '$lib/utils/logger';
 import { formatEmbedUrl } from '$lib/utils/embed';
 
-export const load: PageServerLoad = async () => {
+export const load: PageServerLoad = async ({ locals }) => {
 	try {
 		// 1. Ambil Kursus & Modul Terkait
 		const coursesRows = await sql`
@@ -459,6 +459,7 @@ export const load: PageServerLoad = async () => {
 			],
 			tnaMatrix,
 			safetyStats,
+			currentUser: locals.user || null,
 			dataSource: 'postgresql' as const
 		};
 	} catch (err: any) {

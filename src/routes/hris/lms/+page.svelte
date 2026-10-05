@@ -28,6 +28,7 @@
 	const activeEmployees = $derived((data as any).activeEmployees || []);
 	const currentYear = new Date().getFullYear();
 	const assessmentPeriods = $derived((data as any).assessmentPeriods || [String(currentYear), String(currentYear - 1), String(currentYear - 2)]);
+	const currentUser = $derived((data as any).currentUser);
 
 	// Tabs State (5 Tab Utama)
 	type TabType = 'catalog' | 'sessions' | 'evaluations' | 'safety_tna' | 'reports';
