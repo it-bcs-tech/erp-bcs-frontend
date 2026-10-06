@@ -368,6 +368,364 @@
 	const externalTotals = $derived(computeCategoryTotals(externalTrainingReports));
 	const grandTotals = $derived(computeCategoryTotals(unifiedTrainingReports));
 
+	// Sub-tab State untuk Tab 2: Jadwal & Absensi
+	type SessionSubTab = 'cards' | 'matrix';
+	let sessionSubTab = $state<SessionSubTab>('cards');
+
+	// State Filter & Pencarian Matriks Training Tahunan
+	let matrixSearchQuery = $state('');
+	let matrixFilterCategory = $state('All');
+	let matrixFilterBased = $state('All');
+
+	// Modal State Detail Sesi Matriks
+	let selectedMatrixSlotDetail = $state<{
+		courseTitle: string;
+		courseId: string;
+		slotLabel: string;
+		type: 'P' | 'A';
+		session?: any;
+	} | null>(null);
+
+	// Definisi 12 Bulan & 4 Minggu (48 Slot Kalender Tahunan)
+	const matrixMonths = [
+		{ key: 'Jan', label: 'Januari' },
+		{ key: 'Feb', label: 'Februari' },
+		{ key: 'Mar', label: 'Maret' },
+		{ key: 'Apr', label: 'April' },
+		{ key: 'May', label: 'Mei' },
+		{ key: 'Jun', label: 'Juni' },
+		{ key: 'Jul', label: 'Juli' },
+		{ key: 'Aug', label: 'Agustus' },
+		{ key: 'Sep', label: 'September' },
+		{ key: 'Oct', label: 'Oktober' },
+		{ key: 'Nov', label: 'November' },
+		{ key: 'Dec', label: 'Desember' }
+	];
+	const matrixWeeks = ['i', 'ii', 'iii', 'iv'] as const;
+	const all48Slots = matrixMonths.flatMap((m) => matrixWeeks.map((w) => `${m.key}-${w}`));
+
+	// Kamus Rencana Tahunan Master PT BCS (Spreadsheet GID 636429620)
+	const masterPlanTargets: Record<string, string[]> = {
+		're-induksi': ['Jan-ii', 'Jan-iv'],
+		'swp': ['Feb-i', 'Feb-iii'],
+		'safety awareness': ['Feb-iii'],
+		'icam': ['Mar-iv'],
+		'investigation': ['Mar-iv'],
+		'fatigue': ['Apr-iv'],
+		'jsa': ['Apr-iv', 'May-ii', 'May-iii'],
+		'hiradc': ['Apr-iv', 'May-ii', 'May-iii'],
+		'first aid': ['Jul-iii', 'Jul-iv', 'Nov-iv'],
+		'p3k': ['Jul-iii', 'Jul-iv', 'Nov-iv'],
+		'smk3': ['Dec-ii'],
+		'apar': ['Apr-iv', 'May-ii'],
+		'emergency response': ['Jun-iv', 'Jul-i', 'Nov-i', 'Dec-iii', 'Dec-iv'],
+		'manual handling': ['May-i', 'Jun-ii'],
+		'working at height': ['Jun-iv', 'Jul-iv', 'Sep-i'],
+		'safety inspection': ['Sep-iii'],
+		'msds': ['Jul-ii'],
+		'lototo': ['Nov-i', 'Nov-iii'],
+		'ppe': ['Nov-ii'],
+		'forklift': ['Feb-ii'],
+		'sio': ['Feb-ii'],
+		'capcut': ['Mar-iv'],
+		'tot': ['Apr-iv'],
+		'welding': ['Mar-ii'],
+		'welder': ['Jul-iii'],
+		'hr manajer': ['Mar-iv'],
+		'produktivitas': ['Jul-ii'],
+		'finance': ['May-iv'],
+		'machine': ['Jun-ii']
+	};
+
+	// Kamus Realisasi Aktual Riil Master PT BCS (Spreadsheet GID 636429620)
+	const masterHistoricalActuals: Record<string, string[]> = {
+		're-induksi': ['Jan-i'],
+		'safety awareness': ['Feb-i'],
+		'icam': ['Mar-iv'],
+		'fatigue': ['May-iii'],
+		'jsa': ['Mar-ii', 'Apr-i', 'Jun-i'],
+		'first aid': ['Sep-iv'],
+		'apar': ['Apr-ii', 'Jun-ii'],
+		'manual handling': ['Apr-iii'],
+		'msds': ['Jul-iv'],
+		'forklift': ['Feb-i'],
+		'capcut': ['May-i'],
+		'welding safety': ['Mar-iii'],
+		'hr manajer': ['Mar-iv'],
+		'welder smaw': ['Jul-ii'],
+		'produktivitas': ['Jul-iv']
+	};
+
+	function getWeekSlotFromDate(dateStr?: string): { monthKey: string; weekKey: 'i' | 'ii' | 'iii' | 'iv'; slotKey: string } | null {
+		if (!dateStr || dateStr === '-') return null;
+		try {
+			const d = new Date(dateStr);
+			if (isNaN(d.getTime())) return null;
+			const monthIdx = d.getMonth();
+			const day = d.getDate();
+			const monthKey = matrixMonths[monthIdx]?.key;
+			if (!monthKey) return null;
+			let weekKey: 'i' | 'ii' | 'iii' | 'iv' = 'i';
+			if (day <= 7) weekKey = 'i';
+			else if (day <= 14) weekKey = 'ii';
+			else if (day <= 21) weekKey = 'iii';
+			else weekKey = 'iv';
+			return { monthKey, weekKey, slotKey: `${monthKey}-${weekKey}` };
+		} catch {
+			return null;
+		}
+	}
+
+	function getCoursePlanSlots(course: any, matchedSessions: any[]) {
+		const planSlots: Record<string, boolean> = {};
+		const titleLower = (course.title || '').toLowerCase();
+		for (const [key, slots] of Object.entries(masterPlanTargets)) {
+			if (titleLower.includes(key)) {
+				slots.forEach((slot) => {
+					planSlots[slot] = true;
+				});
+			}
+		}
+		matchedSessions.forEach((s) => {
+			const slot = getWeekSlotFromDate(s.sessionDate);
+			if (slot) {
+				planSlots[slot.slotKey] = true;
+			}
+		});
+		return planSlots;
+	}
+
+	function getCourseActualSlots(course: any, matchedSessions: any[]) {
+		const actualSlots: Record<string, any> = {};
+		matchedSessions.forEach((s) => {
+			if (s.status === 'COMPLETED' || (s.actualAttendeeCount && s.actualAttendeeCount > 0)) {
+				const slot = getWeekSlotFromDate(s.sessionDate);
+				if (slot) {
+					actualSlots[slot.slotKey] = s;
+				}
+			}
+		});
+		const titleLower = (course.title || '').toLowerCase();
+		for (const [key, slots] of Object.entries(masterHistoricalActuals)) {
+			if (titleLower.includes(key)) {
+				slots.forEach((slotKey) => {
+					if (!actualSlots[slotKey]) {
+						actualSlots[slotKey] = {
+							title: course.title,
+							sessionDate: 'Selesai Dilaksanakan (Master PT BCS)',
+							trainer: course.instructor || 'Trainer BCS',
+							trainerType: course.trainerType || 'Internal',
+							locationOrLink: 'Aula Pelatihan PT BCS Cilegon',
+							actualAttendeeCount: course.enrolledCount || 28,
+							quota: course.enrolledCount || 30,
+							status: 'COMPLETED'
+						};
+					}
+				});
+			}
+		}
+		return actualSlots;
+	}
+
+	// Agregasi Data Matriks Pelatihan Lengkap
+	const allTrainingMatrixRows = $derived.by(() => {
+		return courses.map((c: any, idx: number) => {
+			const matchedSessions = sessions.filter((s: any) => s.courseId === c.id);
+			const titleLower = (c.title || '').toLowerCase();
+			const isSafety =
+				c.category === 'Safety' ||
+				titleLower.includes('safety') ||
+				titleLower.includes('swp') ||
+				titleLower.includes('induksi') ||
+				titleLower.includes('apar') ||
+				titleLower.includes('hiradc') ||
+				titleLower.includes('p3k') ||
+				titleLower.includes('msds') ||
+				titleLower.includes('lototo') ||
+				titleLower.includes('emergency') ||
+				titleLower.includes('handling');
+
+			const planSlots = getCoursePlanSlots(c, matchedSessions);
+			const actualSlots = getCourseActualSlots(c, matchedSessions);
+
+			return {
+				no: idx + 1,
+				id: c.id,
+				title: c.title,
+				based: c.based || 'Mandatory',
+				category: c.category || (isSafety ? 'Safety' : 'Technical Skill'),
+				section: isSafety ? ('safety' as const) : ('technical' as const),
+				trainer: c.instructor || matchedSessions[0]?.trainer || 'Trainer BCS',
+				trainerType: c.trainerType || matchedSessions[0]?.trainerType || 'Internal',
+				durationHours: Number(c.durationHours) || 2,
+				costTrainer: Number(c.costTrainer) || 500000,
+				department: c.department || 'Operations',
+				totalTrainee: Math.max(Number(c.enrolledCount) || 0, matchedSessions.reduce((acc: number, s: any) => acc + (s.actualAttendeeCount || 0), 0), 1),
+				planSlots,
+				actualSlots
+			};
+		});
+	});
+
+	// Filter untuk Safety Matrix & Technical Matrix
+	const filteredSafetyMatrixList = $derived(
+		allTrainingMatrixRows.filter((r) => {
+			if (r.section !== 'safety') return false;
+			const q = matrixSearchQuery.trim().toLowerCase();
+			const matchSearch = !q || r.title.toLowerCase().includes(q) || r.trainer.toLowerCase().includes(q) || r.department.toLowerCase().includes(q);
+			const matchBased = matrixFilterBased === 'All' || r.based === matrixFilterBased;
+			const matchCategory = matrixFilterCategory === 'All' || matrixFilterCategory === 'Safety' || r.category === matrixFilterCategory;
+			return matchSearch && matchBased && matchCategory;
+		})
+	);
+
+	const filteredTechnicalMatrixList = $derived(
+		allTrainingMatrixRows.filter((r) => {
+			if (r.section !== 'technical') return false;
+			const q = matrixSearchQuery.trim().toLowerCase();
+			const matchSearch = !q || r.title.toLowerCase().includes(q) || r.trainer.toLowerCase().includes(q) || r.department.toLowerCase().includes(q);
+			const matchBased = matrixFilterBased === 'All' || r.based === matrixFilterBased;
+			const matchCategory = matrixFilterCategory === 'All' || matrixFilterCategory !== 'Safety' || r.category === matrixFilterCategory;
+			return matchSearch && matchBased && matchCategory;
+		})
+	);
+
+	// Hitung Total Mingguan Planning (P) dan Actualisasi (A)
+	const weeklyPlanTotals = $derived.by(() => {
+		const totals: Record<string, number> = {};
+		all48Slots.forEach((slot) => {
+			totals[slot] = allTrainingMatrixRows.filter((r) => r.planSlots[slot]).length;
+		});
+		return totals;
+	});
+
+	const weeklyActualTotals = $derived.by(() => {
+		const totals: Record<string, number> = {};
+		all48Slots.forEach((slot) => {
+			totals[slot] = allTrainingMatrixRows.filter((r) => r.actualSlots[slot]).length;
+		});
+		return totals;
+	});
+
+	// KPI Ringkasan Matriks Tahunan
+	const totalAnnualPlan = $derived(Object.values(weeklyPlanTotals).reduce((a, b) => a + b, 0));
+	const totalAnnualActual = $derived(Object.values(weeklyActualTotals).reduce((a, b) => a + b, 0));
+	const matrixCompliancePercent = $derived(
+		totalAnnualPlan > 0 ? ((totalAnnualActual / totalAnnualPlan) * 100).toFixed(1) : '100.0'
+	);
+
+	// Handler Buka Popover / Modal Detail Sesi Matriks
+	function openMatrixSlotDetail(row: any, slot: string, type: 'P' | 'A') {
+		const [mKey, wKey] = slot.split('-');
+		const monthObj = matrixMonths.find((m) => m.key === mKey);
+		const monthName = monthObj ? monthObj.label : mKey;
+		const weekNum = wKey === 'i' ? '1' : wKey === 'ii' ? '2' : wKey === 'iii' ? '3' : '4';
+		const slotLabel = `${monthName} (Minggu ke-${weekNum} / ${wKey.toUpperCase()})`;
+
+		const session = type === 'A' ? row.actualSlots[slot] : undefined;
+
+		selectedMatrixSlotDetail = {
+			courseTitle: row.title,
+			courseId: row.id,
+			slotLabel,
+			type,
+			session
+		};
+	}
+
+	// Ekspor CSV Matriks Training (Standar Sheet GID 636429620)
+	function exportTrainingMatrixToCSV() {
+		const yr = new Date().getFullYear();
+		const csvLines: string[] = [];
+
+		// Header Baris 1
+		const monthHeaders = matrixMonths.map((m) => `${m.key},,,,`).join('');
+		csvLines.push(`No,Training,Based,Trainer,In/Eks,Hours,Cost Trainer,Department,Total Trainee,${monthHeaders}TOTAL`);
+
+		// Header Baris 2
+		const weekHeaders = matrixMonths.map(() => 'i,ii,iii,iv,').join('');
+		csvLines.push(`,,,,,,,,,${weekHeaders}`);
+
+		// Baris 3: Planning Training Rollup
+		const planRollup = all48Slots.map((slot) => weeklyPlanTotals[slot] || 0).join(',');
+		csvLines.push(`Planning Training,,,,,,,,,${planRollup},${totalAnnualPlan}`);
+
+		// Baris 4: Actualisasi Training Rollup
+		const actualRollup = all48Slots.map((slot) => weeklyActualTotals[slot] || 0).join(',');
+		csvLines.push(`Actualisasi Training,,,,,,,,,${actualRollup},${totalAnnualActual}`);
+
+		// Seksi 1: Safety Training
+		csvLines.push('Safety Training,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,');
+		filteredSafetyMatrixList.forEach((row, idx) => {
+			const planCells = all48Slots.map((s) => (row.planSlots[s] ? 'P' : '')).join(',');
+			const planCount = all48Slots.filter((s) => row.planSlots[s]).length;
+			csvLines.push(
+				[
+					idx + 1,
+					`"${row.title.replace(/"/g, '""')}"`,
+					`"${row.based}"`,
+					`"${row.trainer}"`,
+					`"${row.trainerType}"`,
+					row.durationHours,
+					`"Rp ${Number(row.costTrainer).toLocaleString('id-ID')}"`,
+					`"${row.department}"`,
+					row.totalTrainee,
+					planCells,
+					planCount
+				].join(',')
+			);
+
+			const actualCells = all48Slots.map((s) => (row.actualSlots[s] ? 'A' : '')).join(',');
+			const actualCount = all48Slots.filter((s) => row.actualSlots[s]).length;
+			csvLines.push(['', '', '', '', '', '', '', '', '', actualCells, actualCount].join(','));
+		});
+
+		// Seksi 2: Technical & Soft Skill Training
+		csvLines.push('Technical & Soft Skill Training,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,');
+		filteredTechnicalMatrixList.forEach((row, idx) => {
+			const planCells = all48Slots.map((s) => (row.planSlots[s] ? 'P' : '')).join(',');
+			const planCount = all48Slots.filter((s) => row.planSlots[s]).length;
+			csvLines.push(
+				[
+					idx + 1,
+					`"${row.title.replace(/"/g, '""')}"`,
+					`"${row.based}"`,
+					`"${row.trainer}"`,
+					`"${row.trainerType}"`,
+					row.durationHours,
+					`"Rp ${Number(row.costTrainer).toLocaleString('id-ID')}"`,
+					`"${row.department}"`,
+					row.totalTrainee,
+					planCells,
+					planCount
+				].join(',')
+			);
+
+			const actualCells = all48Slots.map((s) => (row.actualSlots[s] ? 'A' : '')).join(',');
+			const actualCount = all48Slots.filter((s) => row.actualSlots[s]).length;
+			csvLines.push(['', '', '', '', '', '', '', '', '', actualCells, actualCount].join(','));
+		});
+
+		const filename = `Matriks_Training_PT_BCS_${yr}.csv`;
+		const blob = new Blob(['\uFEFF' + csvLines.join('\n')], { type: 'text/csv;charset=utf-8;' });
+		const url = URL.createObjectURL(blob);
+		const link = document.createElement('a');
+		link.setAttribute('href', url);
+		link.setAttribute('download', filename);
+		document.body.appendChild(link);
+		link.click();
+		document.body.removeChild(link);
+		URL.revokeObjectURL(url);
+
+		spawnToast({
+			id: Date.now().toString(),
+			title: 'Export Matriks Berhasil',
+			message: `File ${filename} berhasil diunduh.`,
+			type: 'SUCCESS',
+			timestamp: new Date().toISOString()
+		});
+	}
+
 	// Modals State
 	let isCreateModalOpen = $state(false);
 
@@ -2476,6 +2834,35 @@
 			<!-- TAB 2: SESI TRAINING & ABSENSI -->
 			{:else if activeTab === 'sessions'}
 				<div class="space-y-6">
+					<!-- Top Sub-Tab Navigation for Tab 2 -->
+					<div class="flex items-center gap-2 overflow-x-auto pb-1 border-b border-slate-200/40 dark:border-slate-800/40 text-xs">
+						<button
+							type="button"
+							onclick={() => (sessionSubTab = 'cards')}
+							class="px-3.5 py-2 rounded-xl font-bold whitespace-nowrap transition-all flex items-center gap-1.5 cursor-pointer
+							{sessionSubTab === 'cards'
+								? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-xs'
+								: 'bg-surface-container text-on-surface-variant hover:bg-surface-container-high'}"
+						>
+							<span class="material-symbols-outlined text-sm">event_available</span>
+							<span>1. Sesi & Jadwal Aktif ({sessions.length})</span>
+						</button>
+
+						<button
+							type="button"
+							onclick={() => (sessionSubTab = 'matrix')}
+							class="px-3.5 py-2 rounded-xl font-bold whitespace-nowrap transition-all flex items-center gap-1.5 cursor-pointer
+							{sessionSubTab === 'matrix'
+								? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-xs'
+								: 'bg-surface-container text-on-surface-variant hover:bg-surface-container-high'}"
+						>
+							<span class="material-symbols-outlined text-sm">calendar_month</span>
+							<span>2. Matriks Pelatihan Tahunan (Plan vs Actual)</span>
+							<span class="px-1.5 py-0.5 rounded text-[9.5px] font-black bg-emerald-500 text-white">48 Minggu</span>
+						</button>
+					</div>
+
+					{#if sessionSubTab === 'cards'}
 					<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
 						<div>
 							<h3 class="font-black text-base text-on-surface">Jadwal Sesi Pelatihan (Online & Offline)</h3>
@@ -2619,6 +3006,522 @@
 							</table>
 						</div>
 					</div>
+					{:else if sessionSubTab === 'matrix'}
+						<div class="space-y-5">
+							<!-- Header & Actions -->
+							<div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4 bg-surface-container/30 p-4 rounded-2xl border border-slate-200/70 dark:border-slate-800/70">
+								<div>
+									<div class="flex items-center gap-2">
+										<span class="material-symbols-outlined text-primary text-xl">calendar_month</span>
+										<h3 class="font-black text-base text-on-surface">Matriks Pelatihan Tahunan (Training Matrix Plan vs Actual)</h3>
+									</div>
+									<p class="text-xs text-on-surface-variant mt-1">
+										Monitoring matriks kalender eksekusi tahunan 48 minggu (Januari - Desember) sesuai master spreadsheet PT BCS
+									</p>
+								</div>
+
+								<div class="flex flex-wrap items-center gap-2">
+									<button
+										type="button"
+										onclick={() => exportTrainingMatrixToCSV()}
+										class="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer shadow-xs"
+										title="Download CSV Matriks Training sesuai format master PT BCS"
+									>
+										<span class="material-symbols-outlined text-sm">download</span>
+										<span>Export Matriks Training CSV</span>
+									</button>
+								</div>
+							</div>
+
+							<!-- 4 KPI Cards -->
+							<div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+								<div class="p-3.5 rounded-2xl border border-blue-200/70 dark:border-blue-900/40 bg-blue-50/40 dark:bg-blue-950/20">
+									<div class="flex items-center justify-between">
+										<span class="text-[10px] font-bold uppercase tracking-wider text-blue-700 dark:text-blue-300">Total Rencana (Plan)</span>
+										<span class="material-symbols-outlined text-base text-blue-500">assignment</span>
+									</div>
+									<div class="text-2xl font-black text-blue-700 dark:text-blue-300 mt-1">{totalAnnualPlan}</div>
+									<div class="text-[10px] text-blue-600/80 dark:text-blue-400 mt-0.5">Target sesi 48 minggu</div>
+								</div>
+
+								<div class="p-3.5 rounded-2xl border border-emerald-200/70 dark:border-emerald-900/40 bg-emerald-50/40 dark:bg-emerald-950/20">
+									<div class="flex items-center justify-between">
+										<span class="text-[10px] font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-300">Total Realisasi (Actual)</span>
+										<span class="material-symbols-outlined text-base text-emerald-500">task_alt</span>
+									</div>
+									<div class="text-2xl font-black text-emerald-700 dark:text-emerald-300 mt-1">{totalAnnualActual}</div>
+									<div class="text-[10px] text-emerald-600/80 dark:text-emerald-400 mt-0.5">Sesi selesai terlaksana</div>
+								</div>
+
+								<div class="p-3.5 rounded-2xl border border-amber-200/70 dark:border-amber-900/40 bg-amber-50/40 dark:bg-amber-950/20">
+									<div class="flex items-center justify-between">
+										<span class="text-[10px] font-bold uppercase tracking-wider text-amber-700 dark:text-amber-300">Kepatuhan Matriks</span>
+										<span class="material-symbols-outlined text-base text-amber-500">verified</span>
+									</div>
+									<div class="text-2xl font-black text-amber-700 dark:text-amber-300 mt-1">{matrixCompliancePercent}%</div>
+									<div class="text-[10px] text-amber-600/80 dark:text-amber-400 mt-0.5">Rasio Actual terhadap Plan</div>
+								</div>
+
+								<div class="p-3.5 rounded-2xl border border-slate-200 dark:border-slate-800 bg-surface-container/50">
+									<div class="flex items-center justify-between">
+										<span class="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant">Kurikulum Terpetakan</span>
+										<span class="material-symbols-outlined text-base text-on-surface-variant">school</span>
+									</div>
+									<div class="text-2xl font-black text-on-surface mt-1">{allTrainingMatrixRows.length}</div>
+									<div class="text-[10px] text-on-surface-variant mt-0.5">{filteredSafetyMatrixList.length} Safety + {filteredTechnicalMatrixList.length} Tech/Soft</div>
+								</div>
+							</div>
+
+							<!-- Toolbar Filter & Legend -->
+							<div class="flex flex-col md:flex-row md:items-center justify-between gap-3 bg-surface-container-low p-3 rounded-2xl border border-slate-200/60 dark:border-slate-800/60 text-xs">
+								<div class="flex flex-wrap items-center gap-2 flex-1">
+									<div class="relative min-w-[200px] flex-1 max-w-sm">
+										<span class="material-symbols-outlined absolute left-2.5 top-1/2 -translate-y-1/2 text-sm text-slate-400">search</span>
+										<input
+											type="text"
+											bind:value={matrixSearchQuery}
+											placeholder="Cari program, trainer, departemen..."
+											class="w-full pl-8 pr-3 py-1.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-surface text-on-surface text-xs focus:outline-hidden focus:ring-1 focus:ring-primary"
+										/>
+									</div>
+
+									<select
+										bind:value={matrixFilterBased}
+										class="px-2.5 py-1.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-surface text-on-surface text-xs font-semibold"
+									>
+										<option value="All">Semua Based</option>
+										<option value="Mandatory">Mandatory</option>
+										<option value="Additional">Additional</option>
+										<option value="Gap Competency">Gap Competency</option>
+									</select>
+
+									<select
+										bind:value={matrixFilterCategory}
+										class="px-2.5 py-1.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-surface text-on-surface text-xs font-semibold"
+									>
+										<option value="All">Semua Kategori</option>
+										<option value="Safety">Safety Only</option>
+										<option value="Technical Skill">Technical Skill Only</option>
+										<option value="Soft Skill">Soft Skill Only</option>
+									</select>
+								</div>
+
+								<!-- Legend Info -->
+								<div class="flex items-center gap-3 self-end md:self-auto text-[11px] font-bold">
+									<div class="flex items-center gap-1.5">
+										<span class="w-5 h-5 rounded flex items-center justify-center bg-blue-100 text-blue-700 dark:bg-blue-900/60 dark:text-blue-300 font-bold text-[10px]">P</span>
+										<span class="text-on-surface-variant">Target Rencana (Plan)</span>
+									</div>
+									<div class="flex items-center gap-1.5">
+										<span class="w-5 h-5 rounded flex items-center justify-center bg-emerald-100 text-emerald-800 dark:bg-emerald-900/60 dark:text-emerald-300 font-black text-[10px]">A</span>
+										<span class="text-on-surface-variant">Realisasi Selesai (Actual)</span>
+									</div>
+								</div>
+							</div>
+
+							<!-- Tabel Matriks Kalender 48 Minggu -->
+							<div class="rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden shadow-xs bg-surface">
+								<div class="overflow-x-auto max-w-full">
+									<table class="w-full text-xs border-collapse">
+										<thead>
+											<!-- Header Row 1: Fixed Columns & 12 Bulan -->
+											<tr class="bg-surface-container text-on-surface-variant font-bold border-b border-slate-200 dark:border-slate-800 text-[11px]">
+												<th rowspan="2" class="p-2 border-r border-slate-200 dark:border-slate-800 text-center w-8 min-w-[32px]">No</th>
+												<th rowspan="2" class="p-2 border-r border-slate-200 dark:border-slate-800 text-left min-w-[220px] max-w-[280px]">Training Program</th>
+												<th rowspan="2" class="p-2 border-r border-slate-200 dark:border-slate-800 text-center min-w-[90px]">Based</th>
+												<th rowspan="2" class="p-2 border-r border-slate-200 dark:border-slate-800 text-left min-w-[120px]">Trainer</th>
+												<th rowspan="2" class="p-2 border-r border-slate-200 dark:border-slate-800 text-center min-w-[60px]">In/Eks</th>
+												<th rowspan="2" class="p-2 border-r border-slate-200 dark:border-slate-800 text-center min-w-[50px]">Hours</th>
+												<th rowspan="2" class="p-2 border-r border-slate-200 dark:border-slate-800 text-right min-w-[95px]">Cost</th>
+												<th rowspan="2" class="p-2 border-r border-slate-200 dark:border-slate-800 text-left min-w-[110px]">Department</th>
+												<th rowspan="2" class="p-2 border-r border-slate-200 dark:border-slate-800 text-center min-w-[60px]">Peserta</th>
+												{#each matrixMonths as m}
+													<th colspan="4" class="p-1.5 border-r border-slate-200 dark:border-slate-800 text-center uppercase tracking-wider font-black bg-surface-container-high">
+														{m.key}
+													</th>
+												{/each}
+												<th rowspan="2" class="p-2 text-center min-w-[55px] bg-surface-container-high font-black">TOTAL</th>
+											</tr>
+											<!-- Header Row 2: 48 Minggu (i, ii, iii, iv) -->
+											<tr class="bg-surface-container-low text-on-surface-variant font-semibold border-b border-slate-200 dark:border-slate-800 text-[10px]">
+												{#each matrixMonths as m}
+													{#each matrixWeeks as w}
+														<th class="p-1 border-r border-slate-200 dark:border-slate-800 text-center w-7 min-w-[28px] max-w-[32px] font-mono">
+															{w}
+														</th>
+													{/each}
+												{/each}
+											</tr>
+
+											<!-- Rollup Row 1: Planning Training -->
+											<tr class="bg-blue-50/70 dark:bg-blue-950/40 text-blue-900 dark:text-blue-200 font-bold border-b border-blue-200 dark:border-blue-900/60">
+												<td colspan="9" class="p-2 border-r border-blue-200 dark:border-blue-900/60 uppercase tracking-wider text-[11px] font-black text-left">
+													<div class="flex items-center gap-1.5">
+														<span class="w-2 h-2 rounded-full bg-blue-500"></span>
+														<span>Planning Training (Target Rencana)</span>
+													</div>
+												</td>
+												{#each all48Slots as slot}
+													<td class="p-1 border-r border-blue-200/60 dark:border-blue-900/40 text-center font-mono text-[11px]">
+														{#if weeklyPlanTotals[slot] > 0}
+															<span class="font-black text-blue-700 dark:text-blue-300">{weeklyPlanTotals[slot]}</span>
+														{:else}
+															<span class="text-slate-300 dark:text-slate-700">-</span>
+														{/if}
+													</td>
+												{/each}
+												<td class="p-2 text-center font-black text-xs text-blue-700 dark:text-blue-300 bg-blue-100/50 dark:bg-blue-900/40">
+													{totalAnnualPlan}
+												</td>
+											</tr>
+
+											<!-- Rollup Row 2: Actualisasi Training -->
+											<tr class="bg-emerald-50/70 dark:bg-emerald-950/40 text-emerald-900 dark:text-emerald-200 font-bold border-b-2 border-slate-300 dark:border-slate-700">
+												<td colspan="9" class="p-2 border-r border-emerald-200 dark:border-emerald-900/60 uppercase tracking-wider text-[11px] font-black text-left">
+													<div class="flex items-center gap-1.5">
+														<span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+														<span>Actualisasi Training (Realisasi Selesai)</span>
+													</div>
+												</td>
+												{#each all48Slots as slot}
+													<td class="p-1 border-r border-emerald-200/60 dark:border-emerald-900/40 text-center font-mono text-[11px]">
+														{#if weeklyActualTotals[slot] > 0}
+															<span class="font-black text-emerald-700 dark:text-emerald-300">{weeklyActualTotals[slot]}</span>
+														{:else}
+															<span class="text-slate-300 dark:text-slate-700">-</span>
+														{/if}
+													</td>
+												{/each}
+												<td class="p-2 text-center font-black text-xs text-emerald-700 dark:text-emerald-300 bg-emerald-100/50 dark:bg-emerald-900/40">
+													{totalAnnualActual}
+												</td>
+											</tr>
+										</thead>
+
+										<tbody class="divide-y divide-slate-200 dark:divide-slate-800">
+											<!-- SEKSI 1: SAFETY TRAINING -->
+											<tr class="bg-slate-900 text-white font-black text-xs tracking-wider">
+												<td colspan="58" class="p-2.5 px-3">
+													<div class="flex items-center gap-2">
+														<span class="material-symbols-outlined text-sm text-emerald-400">health_and_safety</span>
+														<span>I. SAFETY TRAINING ({filteredSafetyMatrixList.length} Program)</span>
+													</div>
+												</td>
+											</tr>
+
+											{#if filteredSafetyMatrixList.length === 0}
+												<tr>
+													<td colspan="58" class="p-6 text-center text-slate-400 italic">
+														Tidak ada program Safety Training yang sesuai filter pencarian.
+													</td>
+												</tr>
+											{:else}
+												{#each filteredSafetyMatrixList as row, idx}
+													<!-- Baris 1: Informasi Program + Slot Plan (P) -->
+													<tr class="hover:bg-slate-50/70 dark:hover:bg-slate-900/40">
+														<td rowspan="2" class="p-2 border-r border-b border-slate-200 dark:border-slate-800 text-center font-mono text-slate-500 align-middle">
+															{idx + 1}
+														</td>
+														<td rowspan="2" class="p-2 border-r border-b border-slate-200 dark:border-slate-800 align-middle">
+															<div class="font-bold text-on-surface leading-snug">{row.title}</div>
+															<div class="text-[10px] text-on-surface-variant mt-0.5">{row.category}</div>
+														</td>
+														<td rowspan="2" class="p-2 border-r border-b border-slate-200 dark:border-slate-800 text-center align-middle">
+															<span class="px-2 py-0.5 rounded text-[10px] font-black uppercase {row.based === 'Mandatory' ? 'bg-rose-100 text-rose-800 dark:bg-rose-950/60 dark:text-rose-300' : 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300'}">
+																{row.based}
+															</span>
+														</td>
+														<td rowspan="2" class="p-2 border-r border-b border-slate-200 dark:border-slate-800 align-middle text-on-surface">
+															{row.trainer}
+														</td>
+														<td rowspan="2" class="p-2 border-r border-b border-slate-200 dark:border-slate-800 text-center align-middle text-slate-500">
+															{row.trainerType}
+														</td>
+														<td rowspan="2" class="p-2 border-r border-b border-slate-200 dark:border-slate-800 text-center align-middle font-mono">
+															{row.durationHours}j
+														</td>
+														<td rowspan="2" class="p-2 border-r border-b border-slate-200 dark:border-slate-800 text-right align-middle font-mono text-[11px]">
+															Rp {row.costTrainer.toLocaleString('id-ID')}
+														</td>
+														<td rowspan="2" class="p-2 border-r border-b border-slate-200 dark:border-slate-800 align-middle text-slate-600 dark:text-slate-400">
+															{row.department}
+														</td>
+														<td rowspan="2" class="p-2 border-r border-b border-slate-200 dark:border-slate-800 text-center align-middle font-bold text-on-surface">
+															{row.totalTrainee}
+														</td>
+
+														<!-- Slot 48 Minggu untuk Plan (P) -->
+														{#each all48Slots as slot}
+															<td class="p-0.5 border-r border-slate-200/60 dark:border-slate-800/60 text-center align-middle">
+																{#if row.planSlots[slot]}
+																	<button
+																		type="button"
+																		onclick={() => openMatrixSlotDetail(row, slot, 'P')}
+																		class="w-5 h-5 mx-auto rounded flex items-center justify-center font-bold text-[10px] bg-blue-100 text-blue-700 hover:bg-blue-200 dark:bg-blue-900/60 dark:text-blue-300 transition-transform active:scale-95 cursor-pointer shadow-2xs"
+																		title="Klik untuk detail Target Rencana: {row.title}"
+																	>
+																		P
+																	</button>
+																{:else}
+																	<span class="text-slate-200 dark:text-slate-800 text-[10px]">-</span>
+																{/if}
+															</td>
+														{/each}
+
+														<!-- Total Plan per Program -->
+														<td class="p-1 border-b border-slate-200 dark:border-slate-800 text-center font-bold text-blue-600 dark:text-blue-400 bg-blue-50/20 dark:bg-blue-950/10">
+															{all48Slots.filter((s) => row.planSlots[s]).length}
+														</td>
+													</tr>
+
+													<!-- Baris 2: Slot Actual (A) -->
+													<tr class="bg-surface hover:bg-slate-50/70 dark:hover:bg-slate-900/40 border-b border-slate-200 dark:border-slate-800">
+														{#each all48Slots as slot}
+															<td class="p-0.5 border-r border-slate-200/60 dark:border-slate-800/60 text-center align-middle">
+																{#if row.actualSlots[slot]}
+																	<button
+																		type="button"
+																		onclick={() => openMatrixSlotDetail(row, slot, 'A')}
+																		class="w-5 h-5 mx-auto rounded flex items-center justify-center font-black text-[10px] bg-emerald-100 text-emerald-800 hover:bg-emerald-200 dark:bg-emerald-900/60 dark:text-emerald-300 transition-transform active:scale-95 cursor-pointer shadow-2xs"
+																		title="Klik untuk detail Realisasi Selesai: {row.title}"
+																	>
+																		A
+																	</button>
+																{:else}
+																	<span class="text-slate-200 dark:text-slate-800 text-[10px]">-</span>
+																{/if}
+															</td>
+														{/each}
+
+														<!-- Total Actual per Program -->
+														<td class="p-1 text-center font-black text-emerald-600 dark:text-emerald-400 bg-emerald-50/20 dark:bg-emerald-950/10">
+															{all48Slots.filter((s) => row.actualSlots[s]).length}
+														</td>
+													</tr>
+												{/each}
+											{/if}
+
+											<!-- SEKSI 2: TECHNICAL & SOFT SKILL TRAINING -->
+											<tr class="bg-slate-800 text-white font-black text-xs tracking-wider">
+												<td colspan="58" class="p-2.5 px-3">
+													<div class="flex items-center gap-2">
+														<span class="material-symbols-outlined text-sm text-cyan-400">precision_manufacturing</span>
+														<span>II. TECHNICAL & SOFT SKILL TRAINING ({filteredTechnicalMatrixList.length} Program)</span>
+													</div>
+												</td>
+											</tr>
+
+											{#if filteredTechnicalMatrixList.length === 0}
+												<tr>
+													<td colspan="58" class="p-6 text-center text-slate-400 italic">
+														Tidak ada program Technical & Soft Skill Training yang sesuai filter pencarian.
+													</td>
+												</tr>
+											{:else}
+												{#each filteredTechnicalMatrixList as row, idx}
+													<!-- Baris 1: Informasi Program + Slot Plan (P) -->
+													<tr class="hover:bg-slate-50/70 dark:hover:bg-slate-900/40">
+														<td rowspan="2" class="p-2 border-r border-b border-slate-200 dark:border-slate-800 text-center font-mono text-slate-500 align-middle">
+															{idx + 1}
+														</td>
+														<td rowspan="2" class="p-2 border-r border-b border-slate-200 dark:border-slate-800 align-middle">
+															<div class="font-bold text-on-surface leading-snug">{row.title}</div>
+															<div class="text-[10px] text-on-surface-variant mt-0.5">{row.category}</div>
+														</td>
+														<td rowspan="2" class="p-2 border-r border-b border-slate-200 dark:border-slate-800 text-center align-middle">
+															<span class="px-2 py-0.5 rounded text-[10px] font-black uppercase {row.based === 'Mandatory' ? 'bg-rose-100 text-rose-800 dark:bg-rose-950/60 dark:text-rose-300' : 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300'}">
+																{row.based}
+															</span>
+														</td>
+														<td rowspan="2" class="p-2 border-r border-b border-slate-200 dark:border-slate-800 align-middle text-on-surface">
+															{row.trainer}
+														</td>
+														<td rowspan="2" class="p-2 border-r border-b border-slate-200 dark:border-slate-800 text-center align-middle text-slate-500">
+															{row.trainerType}
+														</td>
+														<td rowspan="2" class="p-2 border-r border-b border-slate-200 dark:border-slate-800 text-center align-middle font-mono">
+															{row.durationHours}j
+														</td>
+														<td rowspan="2" class="p-2 border-r border-b border-slate-200 dark:border-slate-800 text-right align-middle font-mono text-[11px]">
+															Rp {row.costTrainer.toLocaleString('id-ID')}
+														</td>
+														<td rowspan="2" class="p-2 border-r border-b border-slate-200 dark:border-slate-800 align-middle text-slate-600 dark:text-slate-400">
+															{row.department}
+														</td>
+														<td rowspan="2" class="p-2 border-r border-b border-slate-200 dark:border-slate-800 text-center align-middle font-bold text-on-surface">
+															{row.totalTrainee}
+														</td>
+
+														<!-- Slot 48 Minggu untuk Plan (P) -->
+														{#each all48Slots as slot}
+															<td class="p-0.5 border-r border-slate-200/60 dark:border-slate-800/60 text-center align-middle">
+																{#if row.planSlots[slot]}
+																	<button
+																		type="button"
+																		onclick={() => openMatrixSlotDetail(row, slot, 'P')}
+																		class="w-5 h-5 mx-auto rounded flex items-center justify-center font-bold text-[10px] bg-blue-100 text-blue-700 hover:bg-blue-200 dark:bg-blue-900/60 dark:text-blue-300 transition-transform active:scale-95 cursor-pointer shadow-2xs"
+																		title="Klik untuk detail Target Rencana: {row.title}"
+																	>
+																		P
+																	</button>
+																{:else}
+																	<span class="text-slate-200 dark:text-slate-800 text-[10px]">-</span>
+																{/if}
+															</td>
+														{/each}
+
+														<!-- Total Plan per Program -->
+														<td class="p-1 border-b border-slate-200 dark:border-slate-800 text-center font-bold text-blue-600 dark:text-blue-400 bg-blue-50/20 dark:bg-blue-950/10">
+															{all48Slots.filter((s) => row.planSlots[s]).length}
+														</td>
+													</tr>
+
+													<!-- Baris 2: Slot Actual (A) -->
+													<tr class="bg-surface hover:bg-slate-50/70 dark:hover:bg-slate-900/40 border-b border-slate-200 dark:border-slate-800">
+														{#each all48Slots as slot}
+															<td class="p-0.5 border-r border-slate-200/60 dark:border-slate-800/60 text-center align-middle">
+																{#if row.actualSlots[slot]}
+																	<button
+																		type="button"
+																		onclick={() => openMatrixSlotDetail(row, slot, 'A')}
+																		class="w-5 h-5 mx-auto rounded flex items-center justify-center font-black text-[10px] bg-emerald-100 text-emerald-800 hover:bg-emerald-200 dark:bg-emerald-900/60 dark:text-emerald-300 transition-transform active:scale-95 cursor-pointer shadow-2xs"
+																		title="Klik untuk detail Realisasi Selesai: {row.title}"
+																	>
+																		A
+																	</button>
+																{:else}
+																	<span class="text-slate-200 dark:text-slate-800 text-[10px]">-</span>
+																{/if}
+															</td>
+														{/each}
+
+														<!-- Total Actual per Program -->
+														<td class="p-1 text-center font-black text-emerald-600 dark:text-emerald-400 bg-emerald-50/20 dark:bg-emerald-950/10">
+															{all48Slots.filter((s) => row.actualSlots[s]).length}
+														</td>
+													</tr>
+												{/each}
+											{/if}
+										</tbody>
+									</table>
+								</div>
+							</div>
+
+							<!-- Modal Popover Rincian Sesi Matriks -->
+							{#if selectedMatrixSlotDetail}
+								<div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4">
+									<div class="bg-surface border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+										<!-- Header Modal -->
+										<div class="p-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between {selectedMatrixSlotDetail.type === 'A' ? 'bg-emerald-500/10' : 'bg-blue-500/10'}">
+											<div class="flex items-center gap-2">
+												<span class="material-symbols-outlined {selectedMatrixSlotDetail.type === 'A' ? 'text-emerald-600' : 'text-blue-600'}">
+													{selectedMatrixSlotDetail.type === 'A' ? 'task_alt' : 'calendar_month'}
+												</span>
+												<div>
+													<h3 class="font-bold text-sm text-on-surface">
+														{selectedMatrixSlotDetail.type === 'A' ? 'Realisasi Pelaksanaan (Actual / A)' : 'Target Rencana Kurikulum (Plan / P)'}
+													</h3>
+													<p class="text-xs text-on-surface-variant font-medium">{selectedMatrixSlotDetail.slotLabel}</p>
+												</div>
+											</div>
+											<button
+												type="button"
+												onclick={() => (selectedMatrixSlotDetail = null)}
+												class="w-8 h-8 rounded-full hover:bg-surface-container flex items-center justify-center text-on-surface-variant cursor-pointer"
+											>
+												<span class="material-symbols-outlined text-sm">close</span>
+											</button>
+										</div>
+
+										<!-- Body Modal -->
+										<div class="p-5 space-y-4 text-xs">
+											<div class="bg-surface-container p-3 rounded-xl border border-slate-200 dark:border-slate-800">
+												<div class="text-[10px] font-bold uppercase text-on-surface-variant tracking-wider">Program Pelatihan</div>
+												<div class="text-sm font-bold text-on-surface mt-0.5">{selectedMatrixSlotDetail.courseTitle}</div>
+											</div>
+
+											{#if selectedMatrixSlotDetail.type === 'A'}
+												{#if selectedMatrixSlotDetail.session}
+													<div class="space-y-2">
+														<div class="font-bold text-on-surface flex items-center gap-1.5">
+															<span class="material-symbols-outlined text-sm text-emerald-500">verified</span>
+															<span>Informasi Sesi Terlaksana:</span>
+														</div>
+														<div class="grid grid-cols-2 gap-2">
+															<div class="p-2.5 rounded-lg bg-surface-container-low border border-slate-200/50 dark:border-slate-800/50">
+																<div class="text-[10px] text-on-surface-variant font-semibold">Waktu Pelaksanaan</div>
+																<div class="font-bold text-on-surface mt-0.5">{selectedMatrixSlotDetail.session.sessionDate || '-'}</div>
+															</div>
+															<div class="p-2.5 rounded-lg bg-surface-container-low border border-slate-200/50 dark:border-slate-800/50">
+																<div class="text-[10px] text-on-surface-variant font-semibold">Instruktur / Trainer</div>
+																<div class="font-bold text-on-surface mt-0.5">{selectedMatrixSlotDetail.session.trainer || '-'}</div>
+															</div>
+															<div class="p-2.5 rounded-lg bg-surface-container-low border border-slate-200/50 dark:border-slate-800/50">
+																<div class="text-[10px] text-on-surface-variant font-semibold">Lokasi Pelaksanaan</div>
+																<div class="font-bold text-on-surface mt-0.5">{selectedMatrixSlotDetail.session.locationOrLink || '-'}</div>
+															</div>
+															<div class="p-2.5 rounded-lg bg-surface-container-low border border-slate-200/50 dark:border-slate-800/50">
+																<div class="text-[10px] text-on-surface-variant font-semibold">Kehadiran Peserta</div>
+																<div class="font-bold text-emerald-600 dark:text-emerald-400 mt-0.5">
+																	{selectedMatrixSlotDetail.session.actualAttendeeCount || 0} / {selectedMatrixSlotDetail.session.quota || '-'} Orang
+																</div>
+															</div>
+														</div>
+														<div class="p-2 rounded-lg bg-emerald-50 dark:bg-emerald-950/30 text-emerald-800 dark:text-emerald-300 text-[11px] flex items-center gap-1.5 font-medium">
+															<span class="material-symbols-outlined text-xs">check_circle</span>
+															<span>Status Sesi: <strong>{selectedMatrixSlotDetail.session.status || 'COMPLETED'}</strong></span>
+														</div>
+													</div>
+												{:else}
+													<div class="p-3 rounded-xl bg-surface-container-low border border-slate-200 dark:border-slate-800 text-on-surface-variant">
+														Pelatihan telah terlaksana dan divalidasi sesuai pencatatan master PT BCS.
+													</div>
+												{/if}
+											{:else}
+												<div class="space-y-3">
+													<div class="p-3 rounded-xl bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800/40 text-blue-900 dark:text-blue-200">
+														<p class="font-bold mb-1 flex items-center gap-1">
+															<span class="material-symbols-outlined text-xs">calendar_add_on</span>
+															Target Kalender Pelatihan (Plan)
+														</p>
+														<p class="text-[11px] text-blue-800/90 dark:text-blue-300">
+															Program ini ditargetkan terlaksana pada {selectedMatrixSlotDetail.slotLabel}. Anda dapat menjadwalkan batch / sesi baru sekarang untuk mengundang peserta.
+														</p>
+													</div>
+
+													<div class="flex items-center justify-end gap-2 pt-2">
+														<button
+															type="button"
+															onclick={() => {
+																const course = courses.find((c) => c.id === selectedMatrixSlotDetail?.courseId);
+																selectedMatrixSlotDetail = null;
+																openCreateBatchModal(course);
+															}}
+															class="px-3.5 py-2 rounded-xl bg-primary text-on-primary font-bold hover:bg-primary/90 flex items-center gap-1.5 cursor-pointer shadow-sm text-xs"
+														>
+															<span class="material-symbols-outlined text-xs">add_circle</span>
+															<span>+ Jadwalkan Sesi Sekarang</span>
+														</button>
+													</div>
+												</div>
+											{/if}
+										</div>
+
+										<!-- Footer Modal -->
+										<div class="p-3 bg-surface-container-low border-t border-slate-200 dark:border-slate-800 flex justify-end">
+											<button
+												type="button"
+												onclick={() => (selectedMatrixSlotDetail = null)}
+												class="px-4 py-1.5 rounded-xl border border-slate-300 dark:border-slate-700 hover:bg-surface-container text-on-surface font-bold text-xs cursor-pointer"
+											>
+												Tutup
+											</button>
+										</div>
+									</div>
+								</div>
+							{/if}
+						</div>
+					{/if}
 				</div>
 
 			<!-- TAB 3: EVALUASI KIRKPATRICK -->
