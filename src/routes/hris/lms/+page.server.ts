@@ -711,11 +711,11 @@ export const actions = {
 		}
 	},
 
-	// 3. Tambah Jadwal Sesi Training Baru
+	// 3. Tambah Jadwal Sesi Training / Batch Lanjutan Baru
 	createSession: async ({ request }) => {
 		const formData = await request.formData();
 		const title = formData.get('title')?.toString().trim();
-		const courseId = formData.get('courseId')?.toString().trim() || null;
+		const courseId = formData.get('courseId')?.toString().trim();
 		const trainer = formData.get('trainer')?.toString().trim();
 		const trainerType = formData.get('trainerType')?.toString().trim() || 'Internal';
 		const costTrainer = Number(formData.get('costTrainer')) || (trainerType === 'Internal' ? 500000 : 2500000);
@@ -730,9 +730,21 @@ export const actions = {
 		const endTime = formData.get('endTime')?.toString() || '11:00';
 		const targetRole = formData.get('targetRole')?.toString().trim() || 'All Staff';
 		const quota = Number(formData.get('quota')) || 30;
+		const repEmployeesRaw = formData.get('representativeEmployees')?.toString();
+
+		let repEmployees: any[] = [];
+		try {
+			if (repEmployeesRaw) repEmployees = JSON.parse(repEmployeesRaw);
+		} catch (e) {
+			repEmployees = [];
+		}
+
+		if (!courseId) {
+			return { success: false, message: 'Harap pilih Program Pelatihan terkait untuk sesi ini.' };
+		}
 
 		if (!title || !trainer || !locationOrLink || !sessionDate) {
-			return { success: false, message: 'Harap isi seluruh field jadwal sesi training.' };
+			return { success: false, message: 'Harap isi seluruh field jadwal sesi pelatihan.' };
 		}
 
 		const id = `TRN-${sessionDate}-${Date.now().toString().slice(-3)}`;
@@ -742,16 +754,58 @@ export const actions = {
 				INSERT INTO hris.lms_sessions (
 					id, course_id, title, trainer, trainer_type, cost_trainer, cost_trainee,
 					department, based, session_type, location_or_link, session_date, end_date,
-					start_time, end_time, target_role, quota, status
+					start_time, end_time, target_role, quota, status, enrolled_count
 				) VALUES (
 					${id}, ${courseId}, ${title}, ${trainer}, ${trainerType}, ${costTrainer}, ${costTrainee},
 					${department}, ${based}, ${sessionType}, ${locationOrLink}, ${sessionDate}, ${sessionEndDate || sessionDate},
-					${startTime}, ${endTime}, ${targetRole}, ${quota}, 'SCHEDULED'
+					${startTime}, ${endTime}, ${targetRole}, ${quota}, 'SCHEDULED', ${repEmployees.length}
 				);
 			`;
-			return { success: true, message: `Jadwal sesi training "${title}" berhasil dibuat.` };
+
+			// Daftarkan karyawan perwakilan ke absensi sesi dan enrollments
+			if (Array.isArray(repEmployees) && repEmployees.length > 0) {
+				for (const emp of repEmployees) {
+					if (emp.payrollId) {
+						// 1. Absensi Sesi
+						await sql`
+							INSERT INTO hris.lms_session_attendances (
+								session_id, payroll_id, employee_name, department, status, notes
+							) VALUES (
+								${id}, ${emp.payrollId}, ${emp.name || emp.payrollId}, ${emp.department || department}, 'TERDAFTAR', 'Terdaftar otomatis pada Batch Sesi'
+							);
+						`;
+
+						// 2. LMS Enrollment
+						await sql`
+							INSERT INTO hris.lms_enrollments (
+								course_id, payroll_id, employee_name, status, progress_percent,
+								completed_modules_count, total_modules_count, is_tna_gap
+							) VALUES (
+								${courseId}, ${emp.payrollId}, ${emp.name || emp.payrollId}, 'ENROLLED', 0,
+								0, 3, false
+							) ON CONFLICT (course_id, payroll_id) DO NOTHING;
+						`;
+					}
+				}
+
+				// Update total enrolled count pada course
+				await sql`
+					UPDATE hris.lms_courses
+					SET enrolled_count = (
+						SELECT COUNT(DISTINCT payroll_id) FROM hris.lms_enrollments WHERE course_id = ${courseId}
+					)
+					WHERE id = ${courseId};
+				`;
+			}
+
+			const msg = `Batch Sesi "${title}" berhasil dijadwalkan!${
+				repEmployees.length > 0 ? ` (${repEmployees.length} peserta terdaftar ke presensi sesi)` : ''
+			}`;
+
+			return { success: true, message: msg };
 		} catch (e: any) {
-			return { success: false, message: 'Gagal menyimpan jadwal sesi training.' };
+			logError('LMS_CREATE_SESSION_FAIL', e?.message);
+			return { success: false, message: `Gagal menyimpan jadwal sesi: ${e?.message || 'Database error'}` };
 		}
 	},
 

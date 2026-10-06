@@ -604,6 +604,110 @@
 
 	// Active Selections
 	let selectedCourseForSession = $state<string>('');
+	let sessionBatchTitle = $state<string>('');
+	let sessionBatchTrainer = $state<string>('');
+	let sessionBatchTrainerType = $state<string>('Internal');
+	let sessionBatchCostTrainer = $state<number>(500000);
+	let sessionBatchDepartment = $state<string>('Operations');
+	let sessionBatchBased = $state<string>('Mandatory');
+	let sessionBatchType = $state<string>('OFFLINE');
+	let sessionBatchLocation = $state<string>('Ruang Aula Training BCS Cilegon');
+	let sessionBatchStartDate = $state<string>(new Date().toISOString().split('T')[0]);
+	let sessionBatchEndDate = $state<string>(new Date().toISOString().split('T')[0]);
+	let sessionBatchStartTime = $state<string>('09:00');
+	let sessionBatchEndTime = $state<string>('11:30');
+	let sessionBatchQuota = $state<number>(30);
+
+	// Peserta Batch Sesi State
+	let sessionBatchDivision = $state<string>('');
+	let sessionBatchEmployeeSearch = $state<string>('');
+	let sessionBatchSelectedEmployeeIds = $state<string[]>([]);
+
+	let sessionBatchDivisionEmployees = $derived(
+		sessionBatchDivision
+			? activeEmployees.filter(
+					(e: any) =>
+						e.divisionCode === sessionBatchDivision ||
+						e.divisionName === sessionBatchDivision ||
+						(divisions.find((d: any) => d.code === sessionBatchDivision)?.name === e.divisionName)
+				)
+			: []
+	);
+
+	let sessionBatchFilteredDivisionEmployees = $derived(
+		sessionBatchDivisionEmployees.filter((e: any) => {
+			if (!sessionBatchEmployeeSearch.trim()) return true;
+			const q = sessionBatchEmployeeSearch.toLowerCase();
+			return (
+				(e.name && e.name.toLowerCase().includes(q)) ||
+				(e.payrollId && e.payrollId.toLowerCase().includes(q)) ||
+				(e.positionTitle && e.positionTitle.toLowerCase().includes(q))
+			);
+		})
+	);
+
+	let sessionBatchSelectedEmployees = $derived(
+		activeEmployees.filter((e: any) => sessionBatchSelectedEmployeeIds.includes(e.payrollId))
+	);
+
+	let selectedCourseObjForSession = $derived(
+		courses.find((c: any) => c.id === selectedCourseForSession) || null
+	);
+
+	function toggleSessionBatchEmployee(payrollId: string) {
+		if (sessionBatchSelectedEmployeeIds.includes(payrollId)) {
+			sessionBatchSelectedEmployeeIds = sessionBatchSelectedEmployeeIds.filter((id) => id !== payrollId);
+		} else {
+			sessionBatchSelectedEmployeeIds = [...sessionBatchSelectedEmployeeIds, payrollId];
+		}
+	}
+
+	function removeSessionBatchEmployee(payrollId: string) {
+		sessionBatchSelectedEmployeeIds = sessionBatchSelectedEmployeeIds.filter((id) => id !== payrollId);
+	}
+
+	function clearAllSessionBatchEmployees() {
+		sessionBatchSelectedEmployeeIds = [];
+	}
+
+	function handleCourseSelectedForSession(courseId: string) {
+		selectedCourseForSession = courseId;
+		if (!courseId) return;
+		const course = courses.find((c: any) => c.id === courseId);
+		if (course) {
+			const existingBatchesCount = sessions.filter((s: any) => s.courseId === course.id).length;
+			sessionBatchTitle = `${course.title} - Batch ${existingBatchesCount + 1}`;
+			sessionBatchTrainer = course.instructor || masterTrainers[0]?.name || 'Trainer Internal';
+			sessionBatchTrainerType = course.trainerType || 'Internal';
+			sessionBatchCostTrainer = course.costTrainer || 500000;
+			sessionBatchDepartment = course.department || 'Operations';
+			sessionBatchBased = course.based || 'Mandatory';
+			sessionBatchType = course.sessionType || 'OFFLINE';
+			sessionBatchLocation = course.locationOrLink || 'Ruang Aula Training BCS Cilegon';
+			sessionBatchQuota = course.quota || 30;
+		}
+	}
+
+	function openCreateBatchModal(preSelectedCourse?: any) {
+		sessionBatchSelectedEmployeeIds = [];
+		sessionBatchEmployeeSearch = '';
+		sessionBatchDivision = '';
+		sessionBatchStartDate = new Date().toISOString().split('T')[0];
+		sessionBatchEndDate = new Date().toISOString().split('T')[0];
+		sessionBatchStartTime = '09:00';
+		sessionBatchEndTime = '11:30';
+
+		if (preSelectedCourse) {
+			handleCourseSelectedForSession(preSelectedCourse.id);
+		} else if (courses.length > 0) {
+			handleCourseSelectedForSession(courses[0].id);
+		} else {
+			selectedCourseForSession = '';
+			sessionBatchTitle = '';
+		}
+
+		isSessionModalOpen = true;
+	}
 	let activeCourseForPlayer = $state<any>(null);
 	let activeSessionForAttendance = $state<any>(null);
 	let activeEvalForSupervisor = $state<any>(null);
@@ -1976,25 +2080,32 @@
 										{/if}
 
 										{#if nearestSession}
-											<button
-												type="button"
-												onclick={() => openAttendanceModal(nearestSession)}
-												class="flex-1 py-1.5 rounded-xl bg-primary hover:bg-primary/90 text-on-primary text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-xs"
-											>
-												<span class="material-symbols-outlined text-sm">how_to_reg</span>
-												<span>Sesi & Absensi</span>
-											</button>
+											<div class="flex-1 flex items-center gap-1.5">
+												<button
+													type="button"
+													onclick={() => openAttendanceModal(nearestSession)}
+													class="flex-1 py-1.5 rounded-xl bg-primary hover:bg-primary/90 text-on-primary text-xs font-bold flex items-center justify-center gap-1 transition-all cursor-pointer shadow-xs"
+												>
+													<span class="material-symbols-outlined text-sm">how_to_reg</span>
+													<span>Presensi</span>
+												</button>
+												<button
+													type="button"
+													onclick={() => openCreateBatchModal(course)}
+													class="px-2.5 py-1.5 rounded-xl bg-surface-container hover:bg-surface-container-high border border-slate-300 dark:border-slate-700 text-primary text-xs font-bold flex items-center justify-center transition-all cursor-pointer"
+													title="Buka Batch Baru untuk Program Ini"
+												>
+													<span class="material-symbols-outlined text-sm">add</span>
+												</button>
+											</div>
 										{:else}
 											<button
 												type="button"
-												onclick={() => {
-													selectedCourseForSession = course.id;
-													isSessionModalOpen = true;
-												}}
+												onclick={() => openCreateBatchModal(course)}
 												class="flex-1 py-1.5 rounded-xl bg-surface-container hover:bg-surface-container-high border border-slate-300 dark:border-slate-700 text-primary text-xs font-bold flex items-center justify-center gap-1 transition-all cursor-pointer"
 											>
-												<span class="material-symbols-outlined text-sm">event</span>
-												<span>+ Jadwal Sesi</span>
+												<span class="material-symbols-outlined text-sm">add_circle</span>
+												<span>+ Buka Batch Baru</span>
 											</button>
 										{/if}
 									</div>
@@ -2015,11 +2126,11 @@
 
 						<button
 							type="button"
-							onclick={() => isSessionModalOpen = true}
+							onclick={() => openCreateBatchModal()}
 							class="px-4 py-2 rounded-xl bg-primary text-on-primary text-xs font-bold hover:bg-primary/90 flex items-center gap-1.5 shadow-sm transition-all cursor-pointer self-start sm:self-auto"
 						>
-							<span class="material-symbols-outlined text-sm">event</span>
-							<span>Jadwalkan Sesi Baru</span>
+							<span class="material-symbols-outlined text-sm">add_circle</span>
+							<span>+ Tambah Batch / Sesi Lanjutan</span>
 						</button>
 					</div>
 
@@ -6326,123 +6437,399 @@
 {/if}
 
 <!-- ════════════════════════════════════════════════════════════════════════ -->
-<!-- MODAL 3: JADWAL SESI TRAINING BARU (CREATE SESSION)                     -->
+<!-- MODAL 3: TAMBAH BATCH / SESI LANJUTAN PELATIHAN (CREATE SESSION BATCH)    -->
 <!-- ════════════════════════════════════════════════════════════════════════ -->
 {#if isSessionModalOpen}
 	<div class="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-4">
-		<div class="bg-surface rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xl w-full max-w-lg max-h-[90vh] flex flex-col overflow-hidden p-6 space-y-4 animate-in zoom-in-95 duration-150">
+		<div class="bg-surface rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden p-6 space-y-4 animate-in zoom-in-95 duration-150">
+			<!-- Header Modal -->
 			<div class="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800">
-				<div>
-					<h3 class="font-black text-base text-on-surface">Jadwalkan Sesi Training Baru</h3>
-					<p class="text-[11px] text-slate-500">Input jadwal sesi training resmi internal maupun sertifikasi</p>
+				<div class="flex items-center gap-3">
+					<div class="w-10 h-10 rounded-2xl bg-primary/10 text-primary flex items-center justify-center shrink-0">
+						<span class="material-symbols-outlined text-xl">event_upcoming</span>
+					</div>
+					<div>
+						<h3 class="font-black text-base text-on-surface">Tambah Batch / Sesi Lanjutan Pelatihan</h3>
+						<p class="text-[11px] text-slate-500">Buka jadwal batch baru untuk program pelatihan yang sudah terdaftar di katalog</p>
+					</div>
 				</div>
-				<button type="button" onclick={() => (isSessionModalOpen = false)} class="w-8 h-8 rounded-full bg-surface-container flex items-center justify-center text-slate-400 hover:text-slate-600">
+				<button type="button" onclick={() => (isSessionModalOpen = false)} class="w-8 h-8 rounded-full bg-surface-container flex items-center justify-center text-slate-400 hover:text-slate-600 cursor-pointer">
 					<span class="material-symbols-outlined text-lg">close</span>
 				</button>
 			</div>
 
-			<form method="POST" action="?/createSession" use:enhance class="space-y-3.5 text-xs overflow-y-auto pr-1">
-				<div>
-					<label class="font-bold text-on-surface block mb-1">Judul Sesi Pelatihan *</label>
-					<input type="text" name="title" required placeholder="Contoh: Re-Induksi Keselamatan & SWP Batch 2..." class="w-full px-3 py-2 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800 text-xs text-on-surface" />
-				</div>
+			<form method="POST" action="?/createSession" use:enhance class="flex flex-col flex-1 overflow-hidden space-y-4 text-xs">
+				<!-- Hidden Form State -->
+				<input
+					type="hidden"
+					name="representativeEmployees"
+					value={JSON.stringify(
+						sessionBatchSelectedEmployees.map((e: any) => ({
+							payrollId: e.payrollId,
+							name: e.name,
+							positionTitle: e.positionTitle,
+							department: e.divisionName || e.department || sessionBatchDepartment
+						}))
+					)}
+				/>
+				<input type="hidden" name="sessionEndDate" value={sessionBatchEndDate || sessionBatchStartDate} />
 
-				<div class="grid grid-cols-2 gap-3">
-					<div>
-						<label class="font-bold text-on-surface block mb-1">Pilih Program Pelatihan Terkait</label>
-						<select name="courseId" bind:value={selectedCourseForSession} class="w-full px-3 py-2 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800 text-xs text-on-surface font-semibold">
-							<option value="">-- Tanpa Materi Online --</option>
-							{#each courses as c}
-								<option value={c.id}>{c.title}</option>
-							{/each}
-						</select>
-					</div>
+				<!-- Scrollable Body -->
+				<div class="flex-1 overflow-y-auto pr-1 space-y-4 max-h-[62vh]">
+					<!-- 1. PROGRAM PELATIHAN INDUK (WAJIB) -->
+					<div class="p-4 rounded-2xl bg-surface-container-low border border-slate-200 dark:border-slate-800 space-y-3">
+						<div class="flex items-center gap-1.5 pb-2 border-b border-slate-200/60 dark:border-slate-800/60">
+							<span class="material-symbols-outlined text-primary text-base">school</span>
+							<h4 class="font-bold text-xs text-on-surface">1. Program Pelatihan Induk (Wajib)</h4>
+						</div>
 
-					<div>
-						<label class="font-bold text-on-surface block mb-1">Klasifikasi Based *</label>
-						<select name="based" class="w-full px-3 py-2 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800 text-xs font-bold text-on-surface">
-							<option value="Mandatory">Mandatory (Wajib K3)</option>
-							<option value="Additional">Additional (Pengembangan)</option>
-							<option value="Gap Competency">Gap Competency (TNA Plan)</option>
-						</select>
-					</div>
-				</div>
-
-				<div class="grid grid-cols-2 gap-3">
-					<div>
-						<label class="font-bold text-on-surface block mb-1">Nama Trainer *</label>
-						<select name="trainer" class="w-full px-3 py-2 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800 text-xs text-on-surface">
-							{#each masterTrainers as t}
-								<option value={t.name}>{t.name} ({t.title})</option>
-							{/each}
-							<option value="Instruktur Eksternal">Instruktur Eksternal Lembaga</option>
-						</select>
-					</div>
-
-					<div>
-						<label class="font-bold text-on-surface block mb-1">Tipe Trainer & Sesi</label>
-						<div class="grid grid-cols-2 gap-2">
-							<select name="trainerType" class="w-full px-2 py-2 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800 text-xs text-on-surface">
-								<option value="Internal">Internal</option>
-								<option value="Eksternal">Eksternal</option>
-							</select>
-							<select name="sessionType" class="w-full px-2 py-2 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800 text-xs text-on-surface">
-								<option value="OFFLINE">Offline</option>
-								<option value="ONLINE">Online</option>
+						<div>
+							<label class="font-bold text-on-surface block mb-1">Pilih Program Pelatihan Terkait *</label>
+							<select
+								name="courseId"
+								required
+								bind:value={selectedCourseForSession}
+								onchange={(e) => handleCourseSelectedForSession(e.currentTarget.value)}
+								class="w-full px-3 py-2 rounded-xl bg-surface border border-slate-200 dark:border-slate-700 text-xs text-on-surface font-semibold focus:ring-1 focus:ring-primary outline-none"
+							>
+								<option value="" disabled>-- Pilih Program Pelatihan dari Katalog --</option>
+								{#each courses as c}
+									<option value={c.id}>
+										{c.title} ({c.category} • {c.based || 'Mandatory'})
+									</option>
+								{/each}
 							</select>
 						</div>
+
+						{#if selectedCourseObjForSession}
+							<div class="p-3 rounded-xl bg-surface border border-slate-200/80 dark:border-slate-700/80 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+								<div class="space-y-0.5">
+									<div class="flex items-center gap-2">
+										<span class="px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-wider bg-primary/10 text-primary">
+											{selectedCourseObjForSession.category}
+										</span>
+										<span class="px-2 py-0.5 rounded-md text-[9px] font-bold uppercase tracking-wider bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300">
+											{selectedCourseObjForSession.based || 'Mandatory'}
+										</span>
+										<span class="text-[11px] font-mono text-slate-400">ID: {selectedCourseObjForSession.id}</span>
+									</div>
+									<p class="text-[11px] text-slate-500">
+										Instruktur Default: <strong>{selectedCourseObjForSession.instructor}</strong> • Durasi: <strong>{selectedCourseObjForSession.durationHours} Jam</strong>
+									</p>
+								</div>
+								<div class="text-left sm:text-right shrink-0">
+									<span class="px-2.5 py-1 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-bold text-[10px] inline-flex items-center gap-1">
+										<span class="material-symbols-outlined text-xs">history_edu</span>
+										<span>{sessions.filter((s: any) => s.courseId === selectedCourseObjForSession?.id).length} Batch Telah Terdaftar</span>
+									</span>
+								</div>
+							</div>
+						{/if}
+
+						<div>
+							<label class="font-bold text-on-surface block mb-1">Judul Sesi Batch *</label>
+							<input
+								type="text"
+								name="title"
+								required
+								bind:value={sessionBatchTitle}
+								placeholder="Contoh: Defensive Driving Angkutan Berat - Batch 2"
+								class="w-full px-3 py-2 rounded-xl bg-surface border border-slate-200 dark:border-slate-700 text-xs text-on-surface font-semibold focus:ring-1 focus:ring-primary outline-none"
+							/>
+						</div>
+					</div>
+
+					<!-- 2. DETAIL PELAKSANAAN & PENGAJAR (AUTO-POPULATE DARI INDUK) -->
+					<div class="p-4 rounded-2xl bg-surface-container-low border border-slate-200 dark:border-slate-800 space-y-3">
+						<div class="flex items-center justify-between pb-2 border-b border-slate-200/60 dark:border-slate-800/60">
+							<div class="flex items-center gap-1.5">
+								<span class="material-symbols-outlined text-primary text-base">person</span>
+								<h4 class="font-bold text-xs text-on-surface">2. Detail Pelaksanaan & Pengajar</h4>
+							</div>
+							<span class="text-[10px] text-slate-400">Otomatis terisi dari program induk (dapat disesuaikan)</span>
+						</div>
+
+						<div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+							<div>
+								<label class="font-bold text-on-surface block mb-1">Nama Trainer / Instruktur *</label>
+								<select
+									name="trainer"
+									bind:value={sessionBatchTrainer}
+									class="w-full px-3 py-2 rounded-xl bg-surface border border-slate-200 dark:border-slate-700 text-xs text-on-surface"
+								>
+									{#each masterTrainers as t}
+										<option value={t.name}>{t.name} ({t.title})</option>
+									{/each}
+									<option value="Instruktur Eksternal">Instruktur Eksternal Lembaga</option>
+								</select>
+							</div>
+
+							<div>
+								<label class="font-bold text-on-surface block mb-1">Tipe Trainer & Tipe Sesi</label>
+								<div class="grid grid-cols-2 gap-2">
+									<select
+										name="trainerType"
+										bind:value={sessionBatchTrainerType}
+										class="w-full px-2 py-2 rounded-xl bg-surface border border-slate-200 dark:border-slate-700 text-xs text-on-surface"
+									>
+										<option value="Internal">Internal</option>
+										<option value="Eksternal">Eksternal</option>
+									</select>
+									<select
+										name="sessionType"
+										bind:value={sessionBatchType}
+										class="w-full px-2 py-2 rounded-xl bg-surface border border-slate-200 dark:border-slate-700 text-xs text-on-surface font-semibold"
+									>
+										<option value="OFFLINE">Tatap Muka (Offline)</option>
+										<option value="ONLINE">Daring (Online)</option>
+										<option value="HYBRID">Hybrid</option>
+									</select>
+								</div>
+							</div>
+						</div>
+
+						<div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+							<div>
+								<label class="font-bold text-on-surface block mb-1">Klasifikasi Based</label>
+								<select
+									name="based"
+									bind:value={sessionBatchBased}
+									class="w-full px-3 py-2 rounded-xl bg-surface border border-slate-200 dark:border-slate-700 text-xs text-on-surface"
+								>
+									<option value="Mandatory">Mandatory (Wajib K3)</option>
+									<option value="Additional">Additional (Pengembangan)</option>
+									<option value="Gap Competency">Gap Competency (TNA)</option>
+								</select>
+							</div>
+
+							<div>
+								<label class="font-bold text-on-surface block mb-1">Departemen Sasaran</label>
+								<select
+									name="department"
+									bind:value={sessionBatchDepartment}
+									class="w-full px-3 py-2 rounded-xl bg-surface border border-slate-200 dark:border-slate-700 text-xs text-on-surface"
+								>
+									<option value="All Dept">All Dept</option>
+									<option value="Operations">Operations</option>
+									<option value="Driver">Driver & Armada</option>
+									<option value="Transport (Maintenance & Asset)">Transport (Maintenance & Asset)</option>
+									<option value="Project 4">Project 4</option>
+									<option value="Labour Project 1">Labour Project 1</option>
+									<option value="QHSE & Safety">QHSE & Safety</option>
+								</select>
+							</div>
+
+							<div>
+								<label class="font-bold text-on-surface block mb-1">Biaya Trainer (IDR)</label>
+								<input
+									type="number"
+									name="costTrainer"
+									bind:value={sessionBatchCostTrainer}
+									step="50000"
+									class="w-full px-3 py-2 rounded-xl bg-surface border border-slate-200 dark:border-slate-700 font-mono text-xs text-on-surface"
+								/>
+							</div>
+						</div>
+					</div>
+
+					<!-- 3. WAKTU, LOKASI & KUOTA BATCH -->
+					<div class="p-4 rounded-2xl bg-surface-container-low border border-slate-200 dark:border-slate-800 space-y-3">
+						<div class="flex items-center gap-1.5 pb-2 border-b border-slate-200/60 dark:border-slate-800/60">
+							<span class="material-symbols-outlined text-primary text-base">calendar_month</span>
+							<h4 class="font-bold text-xs text-on-surface">3. Jadwal Waktu, Lokasi & Kuota Batch</h4>
+						</div>
+
+						<div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+							<div>
+								<label class="font-bold text-on-surface block mb-1">Tanggal Mulai *</label>
+								<input
+									type="date"
+									name="sessionDate"
+									required
+									bind:value={sessionBatchStartDate}
+									class="w-full px-2.5 py-2 rounded-xl bg-surface border border-slate-200 dark:border-slate-700 font-mono text-xs text-on-surface font-semibold"
+								/>
+							</div>
+
+							<div>
+								<label class="font-bold text-on-surface block mb-1">Tanggal Selesai *</label>
+								<input
+									type="date"
+									required
+									bind:value={sessionBatchEndDate}
+									class="w-full px-2.5 py-2 rounded-xl bg-surface border border-slate-200 dark:border-slate-700 font-mono text-xs text-on-surface font-semibold"
+								/>
+							</div>
+						</div>
+
+						<div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+							<div>
+								<label class="font-bold text-on-surface block mb-1">Jam Pelaksanaan</label>
+								<div class="grid grid-cols-2 gap-2">
+									<input
+										type="time"
+										name="startTime"
+										bind:value={sessionBatchStartTime}
+										class="w-full px-2 py-2 rounded-xl bg-surface border border-slate-200 dark:border-slate-700 font-mono text-xs text-on-surface"
+									/>
+									<input
+										type="time"
+										name="endTime"
+										bind:value={sessionBatchEndTime}
+										class="w-full px-2 py-2 rounded-xl bg-surface border border-slate-200 dark:border-slate-700 font-mono text-xs text-on-surface"
+									/>
+								</div>
+							</div>
+
+							<div>
+								<label class="font-bold text-on-surface block mb-1">Kuota Maksimal Peserta</label>
+								<input
+									type="number"
+									name="quota"
+									bind:value={sessionBatchQuota}
+									min="5"
+									max="500"
+									class="w-full px-3 py-2 rounded-xl bg-surface border border-slate-200 dark:border-slate-700 font-mono text-xs text-on-surface"
+								/>
+							</div>
+						</div>
+
+						<div>
+							<label class="font-bold text-on-surface block mb-1">Lokasi Ruangan / Tautan Meeting *</label>
+							<input
+								type="text"
+								name="locationOrLink"
+								required
+								bind:value={sessionBatchLocation}
+								placeholder="Ruang Aula Training BCS Cilegon atau https://meet.google.com/..."
+								class="w-full px-3 py-2 rounded-xl bg-surface border border-slate-200 dark:border-slate-700 text-xs text-on-surface"
+							/>
+						</div>
+					</div>
+
+					<!-- 4. PESERTA BATCH INI (DIRECT REGISTRATION KE PRESENSI) -->
+					<div class="p-4 rounded-2xl bg-surface-container-low border border-slate-200 dark:border-slate-800 space-y-3">
+						<div class="flex items-center justify-between pb-2 border-b border-slate-200/60 dark:border-slate-800/60">
+							<div class="flex items-center gap-1.5">
+								<span class="material-symbols-outlined text-primary text-base">group_add</span>
+								<h4 class="font-bold text-xs text-on-surface">
+									4. Peserta Batch Ini ({sessionBatchSelectedEmployeeIds.length} Karyawan)
+								</h4>
+							</div>
+							<span class="text-[10px] text-slate-400">Opsional • Peserta otomatis masuk daftar presensi sesi</span>
+						</div>
+
+						<!-- Filter Divisi & Search Peserta -->
+						<div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+							<div>
+								<label class="font-bold text-on-surface block mb-1 text-[11px]">Filter Divisi Sasaran</label>
+								<select
+									bind:value={sessionBatchDivision}
+									class="w-full px-2.5 py-1.5 rounded-xl bg-surface border border-slate-200 dark:border-slate-700 text-xs text-on-surface"
+								>
+									<option value="">-- Pilih Divisi untuk Memuat Karyawan --</option>
+									{#each divisions as div}
+										<option value={div.code}>{div.name} ({div.code})</option>
+									{/each}
+								</select>
+							</div>
+
+							<div>
+								<label class="font-bold text-on-surface block mb-1 text-[11px]">Cari Karyawan</label>
+								<div class="relative">
+									<span class="material-symbols-outlined absolute left-2.5 top-2 text-slate-400 text-xs">search</span>
+									<input
+										type="text"
+										bind:value={sessionBatchEmployeeSearch}
+										placeholder="Ketik nama atau NIK..."
+										class="w-full pl-7 pr-3 py-1.5 rounded-xl bg-surface border border-slate-200 dark:border-slate-700 text-xs text-on-surface outline-none"
+									/>
+								</div>
+							</div>
+						</div>
+
+						<!-- Daftar Karyawan Checkbox Grid -->
+						{#if sessionBatchDivision}
+							{#if sessionBatchFilteredDivisionEmployees.length > 0}
+								<div class="max-h-36 overflow-y-auto space-y-1 p-2 rounded-xl bg-surface border border-slate-200/80 dark:border-slate-700/80 divide-y divide-slate-100 dark:divide-slate-800/60">
+									{#each sessionBatchFilteredDivisionEmployees as emp}
+										{@const isSelected = sessionBatchSelectedEmployeeIds.includes(emp.payrollId)}
+										<button
+											type="button"
+											onclick={() => toggleSessionBatchEmployee(emp.payrollId)}
+											class="w-full text-left p-1.5 rounded-lg flex items-center justify-between transition-all cursor-pointer {isSelected ? 'bg-primary/10 text-primary font-bold' : 'hover:bg-surface-container text-on-surface'}"
+										>
+											<div class="flex items-center gap-2 truncate">
+												<div class="w-3.5 h-3.5 rounded flex items-center justify-center border {isSelected ? 'bg-primary border-primary text-on-primary' : 'border-slate-300 dark:border-slate-600 bg-surface'}">
+													{#if isSelected}
+														<span class="material-symbols-outlined text-[10px]">check</span>
+													{/if}
+												</div>
+												<span class="truncate text-xs">{emp.name} ({emp.payrollId})</span>
+											</div>
+											<span class="text-[10px] text-slate-400 font-mono truncate">{emp.positionTitle || 'Staf'}</span>
+										</button>
+									{/each}
+								</div>
+							{:else}
+								<div class="p-3 text-center rounded-xl bg-surface border border-dashed border-slate-300 dark:border-slate-700 text-slate-400 text-[11px]">
+									Tidak ada karyawan yang cocok dengan pencarian di divisi ini.
+								</div>
+							{/if}
+						{/if}
+
+						<!-- Selected Chips Preview -->
+						{#if sessionBatchSelectedEmployees.length > 0}
+							<div class="space-y-1.5 pt-1">
+								<div class="flex items-center justify-between">
+									<span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+										Karyawan Terpilih ({sessionBatchSelectedEmployees.length}):
+									</span>
+									<button
+										type="button"
+										onclick={clearAllSessionBatchEmployees}
+										class="text-[10px] text-rose-500 hover:underline font-bold cursor-pointer"
+									>
+										Hapus Semua
+									</button>
+								</div>
+								<div class="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto p-1">
+									{#each sessionBatchSelectedEmployees as emp}
+										<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-surface border border-slate-200 dark:border-slate-700 text-[11px] shadow-2xs">
+											<span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+											<span class="font-bold text-on-surface">{emp.name}</span>
+											<span class="text-[9px] text-slate-400">({emp.payrollId})</span>
+											<button
+												type="button"
+												onclick={() => removeSessionBatchEmployee(emp.payrollId)}
+												class="text-slate-400 hover:text-rose-500 ml-0.5 cursor-pointer"
+											>
+												<span class="material-symbols-outlined text-[11px]">close</span>
+											</button>
+										</span>
+									{/each}
+								</div>
+							</div>
+						{/if}
 					</div>
 				</div>
 
-				<div class="grid grid-cols-2 gap-3">
-					<div>
-						<label class="font-bold text-on-surface block mb-1">Departemen Peserta</label>
-						<select name="department" class="w-full px-3 py-2 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800 text-xs text-on-surface">
-							<option value="All Dept">All Dept</option>
-							<option value="Project 4">Project 4</option>
-							<option value="Operations">Operations</option>
-							<option value="Driver">Driver & Armada</option>
-							<option value="Transport (Maintenance & Asset)">Transport (Maintenance & Asset)</option>
-							<option value="Labour Project 1">Labour Project 1</option>
-							<option value="QHSE & Safety">QHSE & Safety</option>
-						</select>
-					</div>
-
-					<div>
-						<label class="font-bold text-on-surface block mb-1">Biaya Trainer (IDR)</label>
-						<input type="number" name="costTrainer" value="500000" step="50000" class="w-full px-3 py-2 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800 font-mono text-xs" />
-					</div>
-				</div>
-
-				<div>
-					<label class="font-bold text-on-surface block mb-1">Lokasi / Tautan Meeting *</label>
-					<input type="text" name="locationOrLink" required placeholder="Ruang Aula Training BCS Cilegon atau https://meet.google.com/..." class="w-full px-3 py-2 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800 text-xs text-on-surface" />
-				</div>
-
-				<div class="grid grid-cols-3 gap-2">
-					<div>
-						<label class="font-bold text-on-surface block mb-1">Tanggal *</label>
-						<input type="date" name="sessionDate" required class="w-full px-2.5 py-2 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800 font-mono text-xs text-on-surface" />
-					</div>
-
-					<div>
-						<label class="font-bold text-on-surface block mb-1">Jam Mulai</label>
-						<input type="time" name="startTime" value="09:00" class="w-full px-2 py-2 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800 font-mono text-xs text-on-surface" />
-					</div>
-
-					<div>
-						<label class="font-bold text-on-surface block mb-1">Jam Selesai</label>
-						<input type="time" name="endTime" value="11:30" class="w-full px-2 py-2 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800 font-mono text-xs text-on-surface" />
-					</div>
-				</div>
-
-				<div class="flex justify-end gap-2 pt-3 border-t border-slate-200 dark:border-slate-800">
-					<button type="button" onclick={() => (isSessionModalOpen = false)} class="px-4 py-2 rounded-xl border border-slate-300 dark:border-slate-700 text-xs font-bold hover:bg-surface-container cursor-pointer">
+				<!-- Footer Form -->
+				<div class="flex items-center justify-between pt-3 border-t border-slate-200 dark:border-slate-800">
+					<button
+						type="button"
+						onclick={() => (isSessionModalOpen = false)}
+						class="px-4 py-2 rounded-xl border border-slate-300 dark:border-slate-700 text-xs font-bold hover:bg-surface-container cursor-pointer"
+					>
 						Batal
 					</button>
-					<button type="submit" class="px-4 py-2 rounded-xl bg-primary text-on-primary text-xs font-bold hover:bg-primary/90 flex items-center gap-1 shadow-sm cursor-pointer">
-						<span class="material-symbols-outlined text-sm">event</span>
-						<span>Simpan Jadwal Sesi</span>
+
+					<button
+						type="submit"
+						class="px-5 py-2.5 rounded-xl bg-primary text-on-primary text-xs font-bold hover:bg-primary/90 flex items-center gap-1.5 shadow-md cursor-pointer transition-all active:scale-98"
+					>
+						<span class="material-symbols-outlined text-sm">event_available</span>
+						<span>Simpan Batch Sesi {sessionBatchSelectedEmployeeIds.length > 0 ? `(${sessionBatchSelectedEmployeeIds.length} Peserta Terdaftar)` : ''}</span>
 					</button>
 				</div>
 			</form>
