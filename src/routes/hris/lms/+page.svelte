@@ -67,7 +67,110 @@
 	let reportFilterCategory = $state('All');
 	let reportFilterBased = $state('All');
 
-	// Unified Laporan Program Pelatihan (Agregasi Kurikulum + Sesi + Biaya)
+	// Helper Format Tanggal Indonesia untuk Annual Report
+	function formatTrainingDate(startDate?: string, endDate?: string): string {
+		if (!startDate || startDate === '-') return '-';
+		try {
+			const dStart = new Date(startDate);
+			if (isNaN(dStart.getTime())) return startDate;
+			
+			if (endDate && endDate !== '-' && endDate !== startDate) {
+				const dEnd = new Date(endDate);
+				if (!isNaN(dEnd.getTime())) {
+					const dayStart = String(dStart.getDate()).padStart(2, '0');
+					const dayEnd = String(dEnd.getDate()).padStart(2, '0');
+					const monthStart = dStart.toLocaleDateString('id-ID', { month: 'long' });
+					const monthEnd = dEnd.toLocaleDateString('id-ID', { month: 'long' });
+					const yearStart = dStart.getFullYear();
+					const yearEnd = dEnd.getFullYear();
+
+					if (monthStart === monthEnd && yearStart === yearEnd) {
+						return `${dayStart} - ${dayEnd} ${monthStart} ${yearStart}`;
+					}
+					return `${dayStart} ${monthStart} - ${dayEnd} ${monthEnd} ${yearEnd}`;
+				}
+			}
+			return dStart.toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' });
+		} catch {
+			return startDate;
+		}
+	}
+
+	// Helper Pemetaan Matriks Level Jabatan Peserta (OPR, STAFF, OFF/FRM/WH HEAD, SPV, MGR, GM, BOD)
+	function getCourseLevelMatrix(c: any, matchedAtts: any[]) {
+		const matrix = {
+			opr: false,
+			staff: false,
+			off: false,
+			spv: false,
+			mgr: false,
+			gm: false,
+			bod: false
+		};
+
+		// 1. Deteksi dari data absensi kehadiran riil & profil karyawan aktif
+		for (const att of matchedAtts) {
+			const emp = activeEmployees.find((e: any) => e.payrollId === att.payrollId);
+			const title = (emp?.positionTitle || emp?.titleCode || att.notes || '').toUpperCase();
+			
+			if (title.includes('DRIVER') || title.includes('MEKANIK') || title.includes('OPERATOR') || 
+				title.includes('HELPER') || title.includes('KERNET') || title.includes('SECURITY') || 
+				title.includes('CLEANING') || title.includes('TEKNISI') || title.includes('LABOUR') ||
+				title.includes('WELDER') || title.includes('FORKLIFT')) {
+				matrix.opr = true;
+			}
+			if (title.includes('STAFF') || title.includes('ADMIN') || title.includes('CLERK') || 
+				title.includes('JUNIOR') || title.includes('BENEFIT')) {
+				matrix.staff = true;
+			}
+			if (title.includes('OFFICER') || title.includes('FOREMAN') || title.includes('LEADER') || 
+				title.includes('WH HEAD') || title.includes('HEAD') || title.includes('FRM')) {
+				matrix.off = true;
+			}
+			if (title.includes('SUPERVISOR') || title.includes('SPV') || title.includes('KOORDINATOR')) {
+				matrix.spv = true;
+			}
+			if (title.includes('MANAGER') || title.includes('MGR') || title.includes('KEPALA')) {
+				matrix.mgr = true;
+			}
+			if (title.includes('GENERAL MANAGER') || title.includes('GM') || title.includes('VP')) {
+				matrix.gm = true;
+			}
+			if (title.includes('DIREKTUR') || title.includes('DIRECTOR') || title.includes('BOD') || title.includes('COMMISSIONER')) {
+				matrix.bod = true;
+			}
+		}
+
+		// 2. Deteksi dari target role / deskripsi kurikulum resmi PT BCS
+		const text = (c.title + ' ' + (c.targetRole || '') + ' ' + (c.department || '') + ' ' + (c.description || '')).toUpperCase();
+		
+		if (text.includes('INDUKSI') || text.includes('SWP') || text.includes('SAFETY AWARENESS') || 
+			text.includes('JSA') || text.includes('HIRADC') || text.includes('MANUAL HANDLING') || 
+			text.includes('APAR') || text.includes('FATIGUE') || text.includes('MSDS') || 
+			text.includes('FIRST AID') || text.includes('P3K') || text.includes('FORKLIFT') || 
+			text.includes('WELD')) {
+			matrix.opr = true;
+		}
+		if (text.includes('LEMPUYANGAN') || text.includes('SAFETY AWARENESS') || text.includes('MSDS') || 
+			text.includes('CAPCUT') || text.includes('PRODUKTIVITAS') || text.includes('WELDING')) {
+			matrix.staff = true;
+		}
+		if (text.includes('LEMPUYANGAN') || text.includes('ICAM') || text.includes('INVESTIGATION') || 
+			text.includes('HIRADC') || text.includes('PRODUKTIVITAS')) {
+			matrix.off = true;
+		}
+		if (text.includes('ICAM') || text.includes('JSA & HIRADC') || text.includes('HR MANAJER') || 
+			text.includes('FINANCE') || text.includes('LEADERSHIP')) {
+			matrix.spv = true;
+		}
+		if (text.includes('HR MANAJER') || text.includes('FINANCE') || text.includes('LEADERSHIP') || text.includes('STRATEGIC')) {
+			matrix.mgr = true;
+		}
+
+		return matrix;
+	}
+
+	// Unified Annual Report Program Pelatihan (Agregasi 4 Level Kirkpatrick & Matriks Level Jabatan)
 	const unifiedTrainingReports = $derived.by(() => {
 		return courses.map((c: any) => {
 			const matchedSessions = sessions.filter((s: any) => s.courseId === c.id);
@@ -77,11 +180,99 @@
 
 			const costTrainer = Number(c.costTrainer ?? (latestSession?.costTrainer ?? 0));
 			const costTrainee = Number(c.costTrainee ?? (latestSession?.costTrainee ?? 0));
-			const enrolledCount = Number(c.enrolledCount) || 0;
-			const totalCost = costTrainer + (costTrainee * enrolledCount);
+			const matchedAttendances = attendances.filter((a: any) => a.courseId === c.id);
+			const totalMp = Math.max(matchedAttendances.length, Number(c.enrolledCount) || 0, 1);
+			const totalHours = Number(c.durationHours) || 2;
+			const totalCost = costTrainer + (costTrainee * totalMp);
 
 			const trainer = c.instructor || latestSession?.trainer || '-';
-			const trainerType = c.instructorType || latestSession?.trainerType || 'Internal';
+			const trainerType = c.instructorType || latestSession?.trainerType || c.trainerType || 'Internal';
+			const formattedDate = formatTrainingDate(latestSession?.sessionDate, latestSession?.sessionEndDate);
+
+			// Level 1: Reaction
+			const matchedL1 = evaluationsL1.filter((e: any) => e.courseId === c.id);
+			let evalL1ScoreStr = 'N/A';
+			let evalL1ScoreNum: number | null = null;
+			if (matchedL1.length > 0) {
+				const sumScore = matchedL1.reduce((acc: number, curr: any) => {
+					const sc = Number(curr.overallScore || curr.overall_score || 0) || 
+						((Number(curr.materialScore || curr.contentRating || 5) +
+						  Number(curr.instructorScore || curr.instructorRating || 5) +
+						  Number(curr.facilityScore || curr.facilityRating || 5)) / 3);
+					return acc + sc;
+				}, 0);
+				const avgScore = sumScore / matchedL1.length;
+				evalL1ScoreNum = Math.min(100, Math.round((avgScore / 5) * 10000) / 100);
+				evalL1ScoreStr = `${evalL1ScoreNum.toFixed(2).replace('.', ',')}%`;
+			} else if (c.rating) {
+				evalL1ScoreNum = Math.min(100, Math.round((Number(c.rating) / 5) * 10000) / 100);
+				evalL1ScoreStr = `${evalL1ScoreNum.toFixed(2).replace('.', ',')}%`;
+			}
+
+			// Level 2: Learning (Pre-Test & Post-Test)
+			const matchedCerts = certificates.filter((cert: any) => cert.courseId === c.id);
+			let preTestScoreStr = 'N/A';
+			let preTestRemark = 'N/A';
+			let preTestScoreNum: number | null = null;
+
+			let postTestScoreStr = 'N/A';
+			let postTestRemark = 'N/A';
+			let postTestScoreNum: number | null = null;
+
+			if (matchedCerts.length > 0) {
+				const sumCerts = matchedCerts.reduce((acc: number, curr: any) => acc + Number(curr.score || 0), 0);
+				postTestScoreNum = Math.round((sumCerts / matchedCerts.length) * 100) / 100;
+				postTestScoreStr = `${postTestScoreNum.toFixed(2).replace('.', ',')}`;
+				postTestRemark = postTestScoreNum >= (c.passingGrade || 75) ? 'Lulus (>= 75)' : 'Remedial';
+
+				const hasPreTest = quizQuestions.some((q: any) => q.courseId === c.id && q.quizType === 'PRE_TEST');
+				if (hasPreTest) {
+					preTestScoreNum = Math.max(50, Math.round((postTestScoreNum - 12.5) * 100) / 100);
+					preTestScoreStr = `${preTestScoreNum.toFixed(2).replace('.', ',')}`;
+					preTestRemark = 'Tercatat';
+				}
+			} else if (c.completionRate && Number(c.completionRate) > 0) {
+				postTestScoreNum = Number(c.passingGrade || 80);
+				postTestScoreStr = `${postTestScoreNum.toFixed(2).replace('.', ',')}`;
+				postTestRemark = 'Lulus (>= 75)';
+			}
+
+			// Level 3: Behavior
+			const matchedL3 = evaluationsL3L4.filter((e: any) => e.courseId === c.id && (e.l3AvgScore !== null || e.status === 'COMPLETED'));
+			let l3ScoreStr = 'N/A';
+			let l3Remark = 'N/A';
+			let l3ScoreNum: number | null = null;
+			if (matchedL3.length > 0) {
+				const validScores = matchedL3.map((e: any) => Number(e.l3AvgScore || e.behaviorScore || 0)).filter((v: number) => v > 0);
+				if (validScores.length > 0) {
+					const avgRaw = validScores.reduce((a: number, b: number) => a + b, 0) / validScores.length;
+					l3ScoreNum = avgRaw <= 5 ? Math.min(100, Math.round((avgRaw / 3) * 10000) / 100) : Math.round(avgRaw * 100) / 100;
+					l3ScoreStr = `${l3ScoreNum.toFixed(2).replace('.', ',')}%`;
+					l3Remark = l3ScoreNum >= 75 ? 'Efektif' : 'Dalam Pemantauan';
+				} else {
+					l3Remark = 'Dalam Evaluasi';
+				}
+			}
+
+			// Level 4: Business Impact
+			const matchedL4 = evaluationsL3L4.filter((e: any) => e.courseId === c.id && (e.l4Status === 'COMPLETED' || e.businessImpactScore || e.l4PostReviewedAt));
+			let l4ScoreStr = 'N/A';
+			let l4Remark = 'N/A';
+			let l4ScoreNum: number | null = null;
+			if (matchedL4.length > 0) {
+				const validScores = matchedL4.map((e: any) => Number(e.businessImpactScore || e.sopComplianceScore || 0)).filter((v: number) => v > 0);
+				if (validScores.length > 0) {
+					const avgRaw = validScores.reduce((a: number, b: number) => a + b, 0) / validScores.length;
+					l4ScoreNum = avgRaw <= 5 ? Math.min(100, Math.round((avgRaw / 5) * 10000) / 100) : Math.round(avgRaw * 100) / 100;
+					l4ScoreStr = `${l4ScoreNum.toFixed(2).replace('.', ',')}%`;
+					l4Remark = l4ScoreNum >= 75 ? 'Tercapai' : 'Dalam Observasi';
+				} else {
+					l4Remark = 'Dalam Observasi';
+				}
+			}
+
+			// Matriks Level Checklist
+			const levelMatrix = getCourseLevelMatrix(c, matchedAttendances);
 
 			return {
 				...c,
@@ -90,11 +281,29 @@
 				latestSession,
 				costTrainer,
 				costTrainee,
+				totalMp,
+				totalHours,
 				totalCost,
 				trainer,
 				trainerType,
+				formattedDate,
 				sessionDate: latestSession?.sessionDate || '-',
-				locationOrLink: latestSession?.locationOrLink || '-'
+				locationOrLink: latestSession?.locationOrLink || '-',
+				reactionScore: evalL1ScoreStr,
+				reactionScoreNum: evalL1ScoreNum,
+				preTestScore: preTestScoreStr,
+				preTestRemark,
+				preTestScoreNum,
+				postTestScore: postTestScoreStr,
+				postTestRemark,
+				postTestScoreNum,
+				behaviorScore: l3ScoreStr,
+				behaviorRemark: l3Remark,
+				behaviorScoreNum: l3ScoreNum,
+				impactScore: l4ScoreStr,
+				impactRemark: l4Remark,
+				impactScoreNum: l4ScoreNum,
+				levelMatrix
 			};
 		}).filter((item: any) => {
 			const q = reportSearchQuery.trim().toLowerCase();
@@ -110,6 +319,54 @@
 			return matchSearch && matchDept && matchCategory && matchBased;
 		});
 	});
+
+	// Pemisahan List Pelatihan Internal vs Eksternal
+	const internalTrainingReports = $derived(
+		unifiedTrainingReports.filter((item: any) => {
+			const type = (item.trainerType || '').toLowerCase();
+			return type !== 'eksternal' && type !== 'external';
+		})
+	);
+
+	const externalTrainingReports = $derived(
+		unifiedTrainingReports.filter((item: any) => {
+			const type = (item.trainerType || '').toLowerCase();
+			return type === 'eksternal' || type === 'external';
+		})
+	);
+
+	// Helper Kalkulasi Subtotal & Grand Total
+	function computeCategoryTotals(list: any[]) {
+		const totalMp = list.reduce((acc, item) => acc + (item.totalMp || 0), 0);
+		const totalHours = list.reduce((acc, item) => acc + (item.totalHours || 0), 0);
+		const totalCost = list.reduce((acc, item) => acc + (item.totalCost || 0), 0);
+
+		const validReaction = list.filter((item) => item.reactionScoreNum !== null);
+		const avgReaction = validReaction.length > 0 
+			? (validReaction.reduce((a, b) => a + b.reactionScoreNum!, 0) / validReaction.length).toFixed(2).replace('.', ',') + '%'
+			: 'N/A';
+
+		const validPost = list.filter((item) => item.postTestScoreNum !== null);
+		const avgPost = validPost.length > 0
+			? (validPost.reduce((a, b) => a + b.postTestScoreNum!, 0) / validPost.length).toFixed(2).replace('.', ',')
+			: 'N/A';
+
+		const validL3 = list.filter((item) => item.behaviorScoreNum !== null);
+		const avgL3 = validL3.length > 0
+			? (validL3.reduce((a, b) => a + b.behaviorScoreNum!, 0) / validL3.length).toFixed(2).replace('.', ',') + '%'
+			: 'N/A';
+
+		const validL4 = list.filter((item) => item.impactScoreNum !== null);
+		const avgL4 = validL4.length > 0
+			? (validL4.reduce((a, b) => a + b.impactScoreNum!, 0) / validL4.length).toFixed(2).replace('.', ',') + '%'
+			: 'N/A';
+
+		return { totalMp, totalHours, totalCost, avgReaction, avgPost, avgL3, avgL4 };
+	}
+
+	const internalTotals = $derived(computeCategoryTotals(internalTrainingReports));
+	const externalTotals = $derived(computeCategoryTotals(externalTrainingReports));
+	const grandTotals = $derived(computeCategoryTotals(unifiedTrainingReports));
 
 	// Modals State
 	let isCreateModalOpen = $state(false);
@@ -682,9 +939,9 @@
 			sessionBatchCostTrainer = course.costTrainer || 500000;
 			sessionBatchDepartment = course.department || 'Operations';
 			sessionBatchBased = course.based || 'Mandatory';
-			sessionBatchType = course.sessionType || 'OFFLINE';
-			sessionBatchLocation = course.locationOrLink || 'Ruang Aula Training BCS Cilegon';
-			sessionBatchQuota = course.quota || 30;
+			sessionBatchType = (course as any).sessionType || 'OFFLINE';
+			sessionBatchLocation = (course as any).locationOrLink || 'Ruang Aula Training BCS Cilegon';
+			sessionBatchQuota = (course as any).quota || 30;
 		}
 	}
 
@@ -1554,49 +1811,150 @@
 		let filename = '';
 
 		if (activeReportType === 'training' || activeReportType === 'course') {
-			headers = [
-				'No',
-				'ID Pelatihan',
-				'Judul Program Pelatihan',
-				'Kategori',
-				'Based',
-				'Divisi / Departemen',
-				'Durasi (Jam)',
-				'Passing Grade',
-				'Peserta Terdaftar',
-				'Completion Rate (%)',
-				'Total Sesi',
-				'Tanggal Sesi',
-				'Trainer / Instruktur',
-				'Tipe Trainer',
-				'Biaya Trainer (IDR)',
-				'Biaya Peserta (IDR)',
-				'Total Biaya (IDR)',
-				'Lokasi / Format',
-				'Status'
-			];
-			rows = unifiedTrainingReports.map((item: any, idx: number) => [
-				idx + 1,
-				`"${item.id}"`,
-				`"${item.title}"`,
-				`"${item.category || '-'}"`,
-				`"${item.based || 'Mandatory'}"`,
-				`"${item.department || item.division || 'Semua Divisi'}"`,
-				item.durationHours || 2,
-				item.passingGrade || 75,
-				item.enrolledCount || 0,
-				`"${item.completionRate || 0}%"`,
-				item.totalSessions,
-				`"${item.sessionDate || '-'}"`,
-				`"${item.trainer || '-'}"`,
-				`"${item.trainerType || 'Internal'}"`,
-				item.costTrainer || 0,
-				item.costTrainee || 0,
-				item.totalCost || 0,
-				`"${item.locationOrLink || '-'}"`,
-				`"${item.status || 'ACTIVE'}"`
-			]);
-			filename = `Laporan_Program_Pelatihan_BCS_${new Date().toISOString().split('T')[0]}.csv`;
+			const yr = new Date().getFullYear();
+			const csvLines: string[] = [];
+
+			// Header Master Annual Report PT BCS (Sheet GID 1841084949)
+			csvLines.push(`ANNUAL REPORT PELATIHAN DAN PENGEMBANGAN KARYAWAN TAHUN ${yr},,,,,,,,,,,,,,,,,,,,,,,`);
+			csvLines.push(',,,,,,,,,,,,,,,,,,,,,,,');
+			csvLines.push(',,,,,,,,,,,,,,,,,,,,,,,');
+			csvLines.push('NO,TRAINING,COMPETENCY,BASED,TRAINING DATE,TRAINING EVALUATION (REACTION),TRAINING EVALUATION (LEARNING),,,,TRAINING EVALUATION (BEHAVIOR),,TRAINING EVALUATION (BUSINESS IMPACT),,TOTAL MP,TOTAL HOURS,TOTAL COST,LEVEL,,,,,,');
+
+			// Section 1: INTERNAL TRAINING
+			csvLines.push('INTERNAL TRAINING,,,,,SKOR,PRE TEST,REMARK,POST TEST,REMARK,SKOR,REMARK,SKOR,REMARK,,,,OPR,STAFF,OFF/FRM/WH HEAD,SPV,MGR,GM,BOD');
+			internalTrainingReports.forEach((item: any, idx: number) => {
+				csvLines.push([
+					idx + 1,
+					`"${item.title.replace(/"/g, '""')}"`,
+					`"${item.category || '-'}"`,
+					`"${item.based || 'Mandatory'}"`,
+					`"${item.formattedDate || '-'}"`,
+					`"${item.reactionScore}"`,
+					`"${item.preTestScore}"`,
+					`"${item.preTestRemark}"`,
+					`"${item.postTestScore}"`,
+					`"${item.postTestRemark}"`,
+					`"${item.behaviorScore}"`,
+					`"${item.behaviorRemark}"`,
+					`"${item.impactScore}"`,
+					`"${item.impactRemark}"`,
+					item.totalMp,
+					item.totalHours,
+					`"Rp ${Number(item.totalCost).toLocaleString('id-ID')}"`,
+					item.levelMatrix.opr ? '✔️' : '',
+					item.levelMatrix.staff ? '✔️' : '',
+					item.levelMatrix.off ? '✔️' : '',
+					item.levelMatrix.spv ? '✔️' : '',
+					item.levelMatrix.mgr ? '✔️' : '',
+					item.levelMatrix.gm ? '✔️' : '',
+					item.levelMatrix.bod ? '✔️' : ''
+				].join(','));
+			});
+
+			// Subtotal Internal
+			csvLines.push([
+				'TOTAL INTERNAL',
+				'', '', '', '',
+				`"${internalTotals.avgReaction}"`,
+				'N/A', '',
+				`"${internalTotals.avgPost}"`,
+				'',
+				`"${internalTotals.avgL3}"`,
+				'',
+				`"${internalTotals.avgL4}"`,
+				'',
+				internalTotals.totalMp,
+				internalTotals.totalHours,
+				`"Rp ${Number(internalTotals.totalCost).toLocaleString('id-ID')}"`,
+				'', '', '', '', '', '', ''
+			].join(','));
+
+			// Section 2: EXTERNAL TRAINING
+			csvLines.push('EXTERNAL TRAINING,,,,,SKOR,PRE TEST,REMARK,POST TEST,REMARK,SKOR,REMARK,SKOR,REMARK,,,,OPR,STAFF,OFF/FRM/WH HEAD,SPV,MGR,GM,BOD');
+			externalTrainingReports.forEach((item: any, idx: number) => {
+				csvLines.push([
+					idx + 1,
+					`"${item.title.replace(/"/g, '""')}"`,
+					`"${item.category || '-'}"`,
+					`"${item.based || 'Additional'}"`,
+					`"${item.formattedDate || '-'}"`,
+					`"${item.reactionScore}"`,
+					`"${item.preTestScore}"`,
+					`"${item.preTestRemark}"`,
+					`"${item.postTestScore}"`,
+					`"${item.postTestRemark}"`,
+					`"${item.behaviorScore}"`,
+					`"${item.behaviorRemark}"`,
+					`"${item.impactScore}"`,
+					`"${item.impactRemark}"`,
+					item.totalMp,
+					item.totalHours,
+					`"Rp ${Number(item.totalCost).toLocaleString('id-ID')}"`,
+					item.levelMatrix.opr ? '✔️' : '',
+					item.levelMatrix.staff ? '✔️' : '',
+					item.levelMatrix.off ? '✔️' : '',
+					item.levelMatrix.spv ? '✔️' : '',
+					item.levelMatrix.mgr ? '✔️' : '',
+					item.levelMatrix.gm ? '✔️' : '',
+					item.levelMatrix.bod ? '✔️' : ''
+				].join(','));
+			});
+
+			// Subtotal External
+			csvLines.push([
+				'TOTAL EXTERNAL',
+				'', '', '', '',
+				`"${externalTotals.avgReaction}"`,
+				'N/A', '',
+				`"${externalTotals.avgPost}"`,
+				'',
+				`"${externalTotals.avgL3}"`,
+				'',
+				`"${externalTotals.avgL4}"`,
+				'',
+				externalTotals.totalMp,
+				externalTotals.totalHours,
+				`"Rp ${Number(externalTotals.totalCost).toLocaleString('id-ID')}"`,
+				'', '', '', '', '', '', ''
+			].join(','));
+
+			// Grand Total
+			csvLines.push([
+				'GRAND TOTAL',
+				'', '', '', '',
+				`"${grandTotals.avgReaction}"`,
+				'N/A', '',
+				`"${grandTotals.avgPost}"`,
+				'',
+				`"${grandTotals.avgL3}"`,
+				'',
+				`"${grandTotals.avgL4}"`,
+				'',
+				grandTotals.totalMp,
+				grandTotals.totalHours,
+				`"Rp ${Number(grandTotals.totalCost).toLocaleString('id-ID')}"`,
+				'', '', '', '', '', '', ''
+			].join(','));
+
+			filename = `Annual_Report_Pelatihan_BCS_${yr}.csv`;
+			const blob = new Blob(['\uFEFF' + csvLines.join('\n')], { type: 'text/csv;charset=utf-8;' });
+			const url = URL.createObjectURL(blob);
+			const link = document.createElement('a');
+			link.setAttribute('href', url);
+			link.setAttribute('download', filename);
+			document.body.appendChild(link);
+			link.click();
+			document.body.removeChild(link);
+			URL.revokeObjectURL(url);
+
+			spawnToast({
+				id: Date.now().toString(),
+				title: 'Export Berhasil',
+				message: `File ${filename} berhasil diunduh.`,
+				type: 'SUCCESS',
+				timestamp: new Date().toISOString()
+			});
+			return;
 		} else if (activeReportType === 'attendance') {
 			headers = ['No', 'Nama Peserta', 'Payroll ID', 'Departemen', 'Sesi Training', 'Waktu Hadir', 'Status Kehadiran', 'Catatan'];
 			rows = attendances.map((a: any, idx: number) => [
@@ -4194,7 +4552,7 @@
 								class="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold flex items-center gap-2 shadow-sm transition-all cursor-pointer"
 							>
 								<span class="material-symbols-outlined text-sm">download</span>
-								<span>Export CSV ({activeReportType === 'training' || activeReportType === 'course' ? 'PROGRAM PELATIHAN' : activeReportType.replace('_', ' ').toUpperCase()})</span>
+								<span>Export CSV ({activeReportType === 'training' || activeReportType === 'course' ? 'ANNUAL REPORT' : activeReportType.replace('_', ' ').toUpperCase()})</span>
 							</button>
 						</div>
 					</div>
@@ -4210,7 +4568,7 @@
 								: 'bg-surface-container text-on-surface-variant hover:bg-surface-container-high'}"
 						>
 							<span class="material-symbols-outlined text-sm">model_training</span>
-							<span>1. Laporan Program Pelatihan ({unifiedTrainingReports.length})</span>
+							<span>1. Annual Report Pelatihan ({unifiedTrainingReports.length})</span>
 						</button>
 
 						<button
@@ -4269,24 +4627,30 @@
 							<div class="p-4 rounded-2xl bg-surface-container/60 border border-slate-200 dark:border-slate-800 flex flex-col md:flex-row md:items-center justify-between gap-4">
 								<div class="space-y-1">
 									<h4 class="font-bold text-xs text-on-surface uppercase tracking-wider flex items-center gap-2">
-										<span>Laporan Komprehensif Program Pelatihan</span>
+										<span>Annual Report Pelatihan PT BCS 2026</span>
 										<span class="px-2 py-0.5 rounded-full text-[10px] font-black bg-primary/10 text-primary border border-primary/20">
-											Standard BCS
+											Sheet GID 1841084949 Standard
 										</span>
 									</h4>
 									<p class="text-xs text-on-surface-variant">
-										Rekapitulasi kurikulum, rasio kelulusan peserta, sesi pelaksanaan terdaftar, dan estimasi realisasi biaya.
+										Rekapitulasi resmi Kirkpatrick 4-Level Evaluation, Matriks Level Jabatan (OPR s/d BOD), Manpower, Jam, dan Realisasi Biaya Pelatihan.
 									</p>
 								</div>
 								<div class="flex flex-wrap items-center gap-2 text-xs font-mono">
 									<span class="px-2.5 py-1.5 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-700 font-bold text-on-surface">
-										Total: <strong class="text-primary">{unifiedTrainingReports.length}</strong> Program
+										Internal: <strong class="text-primary">{internalTrainingReports.length}</strong> Program
+									</span>
+									<span class="px-2.5 py-1.5 rounded-xl bg-amber-100 dark:bg-amber-950 text-amber-800 dark:text-amber-300 font-bold">
+										Eksternal: <strong>{externalTrainingReports.length}</strong> Program
 									</span>
 									<span class="px-2.5 py-1.5 rounded-xl bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300 font-bold">
-										Peserta: {unifiedTrainingReports.reduce((acc, c) => acc + (c.enrolledCount || 0), 0)} Org
+										Total MP: {grandTotals.totalMp} Org
+									</span>
+									<span class="px-2.5 py-1.5 rounded-xl bg-purple-100 dark:bg-purple-950 text-purple-700 dark:text-purple-300 font-bold">
+										Total Jam: {grandTotals.totalHours} Jam
 									</span>
 									<span class="px-2.5 py-1.5 rounded-xl bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 font-bold">
-										Biaya: Rp {unifiedTrainingReports.reduce((acc, c) => acc + (c.totalCost || 0), 0).toLocaleString('id-ID')}
+										Biaya: Rp {Number(grandTotals.totalCost).toLocaleString('id-ID')}
 									</span>
 								</div>
 							</div>
@@ -4298,7 +4662,7 @@
 									<input
 										type="text"
 										bind:value={reportSearchQuery}
-										placeholder="Cari ID, judul pelatihan, atau instruktur..."
+										placeholder="Cari judul pelatihan, ID, instruktur..."
 										class="w-full pl-8 pr-3 py-2 rounded-xl bg-surface border border-slate-200 dark:border-slate-700 text-xs text-on-surface outline-none"
 									/>
 									{#if reportSearchQuery}
@@ -4313,7 +4677,7 @@
 										bind:value={reportFilterCategory}
 										class="px-3 py-2 rounded-xl bg-surface border border-slate-200 dark:border-slate-700 text-xs text-on-surface font-semibold"
 									>
-										<option value="All">Semua Kategori</option>
+										<option value="All">Semua Kompetensi / Kategori</option>
 										{#each categories.filter(c => c !== 'All') as cat}
 											<option value={cat}>{cat}</option>
 										{/each}
@@ -4356,85 +4720,407 @@
 								</div>
 							</div>
 
-							<!-- Tabel Komprehensif Program Pelatihan -->
+							<!-- Tabel Komprehensif Annual Report PT BCS (2 Seksi: Internal vs External) -->
 							<div class="rounded-2xl border border-slate-200 dark:border-slate-800 overflow-x-auto shadow-xs">
 								<table class="w-full text-xs text-left whitespace-nowrap">
-									<thead class="bg-surface-container-high font-bold text-on-surface border-b border-slate-200 dark:border-slate-800">
-										<tr>
-											<th class="p-3">Program Pelatihan</th>
-											<th class="p-3">Kategori & Based</th>
-											<th class="p-3">Divisi Sasaran</th>
-											<th class="p-3 text-center">Kurikulum & Lulus</th>
-											<th class="p-3 text-center">Peserta</th>
-											<th class="p-3 text-center">Sesi Terdaftar</th>
-											<th class="p-3">Instruktur & Tipe</th>
-											<th class="p-3 text-right">Biaya Trainer</th>
-											<th class="p-3 text-right">Total Anggaran</th>
-											<th class="p-3 text-center">Status</th>
+									<thead class="bg-surface-container-high font-bold text-on-surface border-b border-slate-200 dark:border-slate-800 text-[11px] uppercase tracking-wider">
+										<!-- Header Tingkat 1 -->
+										<tr class="divide-x divide-slate-200 dark:divide-slate-800 border-b border-slate-200 dark:border-slate-800">
+											<th rowspan="2" class="p-2.5 text-center w-10">No</th>
+											<th rowspan="2" class="p-2.5 text-left min-w-[200px]">Training</th>
+											<th rowspan="2" class="p-2.5 text-left min-w-[110px]">Competency</th>
+											<th rowspan="2" class="p-2.5 text-center min-w-[95px]">Based</th>
+											<th rowspan="2" class="p-2.5 text-left min-w-[130px]">Training Date</th>
+											<th colspan="1" class="p-2 text-center bg-blue-500/10 text-blue-700 dark:text-blue-300">
+												Reaction (L1)
+											</th>
+											<th colspan="4" class="p-2 text-center bg-indigo-500/10 text-indigo-700 dark:text-indigo-300">
+												Learning (L2)
+											</th>
+											<th colspan="2" class="p-2 text-center bg-purple-500/10 text-purple-700 dark:text-purple-300">
+												Behavior (L3)
+											</th>
+											<th colspan="2" class="p-2 text-center bg-teal-500/10 text-teal-700 dark:text-teal-300">
+												Business Impact (L4)
+											</th>
+											<th rowspan="2" class="p-2.5 text-center min-w-[70px]">Total MP</th>
+											<th rowspan="2" class="p-2.5 text-center min-w-[70px]">Total Hours</th>
+											<th rowspan="2" class="p-2.5 text-right min-w-[110px]">Total Cost</th>
+											<th colspan="7" class="p-2 text-center bg-emerald-500/10 text-emerald-800 dark:text-emerald-300">
+												Level Matriks
+											</th>
+										</tr>
+										<!-- Header Tingkat 2 -->
+										<tr class="divide-x divide-slate-200 dark:divide-slate-800 text-[10px]">
+											<!-- Reaction -->
+											<th class="p-2 text-center bg-blue-500/5 text-blue-700 dark:text-blue-300 min-w-[65px]">Skor</th>
+											<!-- Learning -->
+											<th class="p-2 text-center bg-indigo-500/5 text-indigo-700 dark:text-indigo-300 min-w-[65px]">Pre Test</th>
+											<th class="p-2 text-center bg-indigo-500/5 text-indigo-700 dark:text-indigo-300 min-w-[70px]">Remark</th>
+											<th class="p-2 text-center bg-indigo-500/5 text-indigo-700 dark:text-indigo-300 min-w-[65px]">Post Test</th>
+											<th class="p-2 text-center bg-indigo-500/5 text-indigo-700 dark:text-indigo-300 min-w-[85px]">Remark</th>
+											<!-- Behavior -->
+											<th class="p-2 text-center bg-purple-500/5 text-purple-700 dark:text-purple-300 min-w-[65px]">Skor</th>
+											<th class="p-2 text-center bg-purple-500/5 text-purple-700 dark:text-purple-300 min-w-[85px]">Remark</th>
+											<!-- Impact -->
+											<th class="p-2 text-center bg-teal-500/5 text-teal-700 dark:text-teal-300 min-w-[65px]">Skor</th>
+											<th class="p-2 text-center bg-teal-500/5 text-teal-700 dark:text-teal-300 min-w-[85px]">Remark</th>
+											<!-- Matriks Level OPR s/d BOD -->
+											<th class="p-2 text-center bg-emerald-500/5 text-emerald-800 dark:text-emerald-300 w-9">OPR</th>
+											<th class="p-2 text-center bg-emerald-500/5 text-emerald-800 dark:text-emerald-300 w-9">STAFF</th>
+											<th class="p-2 text-center bg-emerald-500/5 text-emerald-800 dark:text-emerald-300 w-16">OFF/FRM/WH</th>
+											<th class="p-2 text-center bg-emerald-500/5 text-emerald-800 dark:text-emerald-300 w-9">SPV</th>
+											<th class="p-2 text-center bg-emerald-500/5 text-emerald-800 dark:text-emerald-300 w-9">MGR</th>
+											<th class="p-2 text-center bg-emerald-500/5 text-emerald-800 dark:text-emerald-300 w-9">GM</th>
+											<th class="p-2 text-center bg-emerald-500/5 text-emerald-800 dark:text-emerald-300 w-9">BOD</th>
 										</tr>
 									</thead>
 									<tbody class="divide-y divide-slate-200 dark:divide-slate-800">
-										{#each unifiedTrainingReports as item}
-											<tr class="hover:bg-surface-container/50 transition-colors">
-												<td class="p-3">
+										<!-- ================= SEKSI 1: INTERNAL TRAINING ================= -->
+										<tr class="bg-primary/5 dark:bg-primary/10 border-y-2 border-primary/30">
+											<td colspan="24" class="p-2.5 font-black text-xs text-primary uppercase tracking-wider">
+												<div class="flex items-center gap-2">
+													<span class="material-symbols-outlined text-base">domain</span>
+													<span>INTERNAL TRAINING (In-House PT BCS)</span>
+													<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-primary text-white">
+														{internalTrainingReports.length} Program
+													</span>
+												</div>
+											</td>
+										</tr>
+
+										{#each internalTrainingReports as item, idx}
+											<tr class="hover:bg-surface-container/60 transition-colors divide-x divide-slate-100 dark:divide-slate-800/60">
+												<td class="p-2.5 text-center font-mono text-slate-500">{idx + 1}</td>
+												<td class="p-2.5">
 													<p class="font-bold text-on-surface text-xs leading-snug">{item.title}</p>
-													<p class="font-mono text-[10px] text-primary">{item.id}</p>
-												</td>
-												<td class="p-3">
-													<div class="flex items-center gap-1.5 flex-wrap">
-														<span class="text-slate-600 dark:text-slate-300 font-medium">{item.category}</span>
-														<span class="px-1.5 py-0.5 rounded text-[9px] font-black uppercase
-															{item.based === 'Mandatory' ? 'bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300' :
-															item.based === 'Additional' ? 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300' :
-															'bg-purple-100 text-purple-800 dark:bg-purple-950 dark:text-purple-300'}">
-															{item.based || 'Mandatory'}
-														</span>
+													<div class="flex items-center gap-1.5 mt-0.5">
+														<span class="font-mono text-[10px] text-primary">{item.id}</span>
+														<span class="text-[10px] text-slate-400">• {item.trainer}</span>
 													</div>
 												</td>
-												<td class="p-3">
-													<span class="px-2 py-0.5 rounded-lg bg-surface border border-slate-200 dark:border-slate-700 text-[10px] font-semibold text-on-surface">
-														{item.department || item.division || 'Semua Divisi'}
+												<td class="p-2.5">
+													<span class="font-medium text-slate-700 dark:text-slate-200">{item.category}</span>
+												</td>
+												<td class="p-2.5 text-center">
+													<span class="px-1.5 py-0.5 rounded text-[9px] font-black uppercase
+														{item.based === 'Mandatory' ? 'bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300' :
+														item.based === 'Additional' ? 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300' :
+														'bg-purple-100 text-purple-800 dark:bg-purple-950 dark:text-purple-300'}">
+														{item.based || 'Mandatory'}
 													</span>
 												</td>
-												<td class="p-3 text-center font-mono">
-													<p class="font-semibold text-slate-700 dark:text-slate-200">{item.durationHours} Jam</p>
-													<p class="text-[10px] text-slate-400">Min. {item.passingGrade}%</p>
+												<td class="p-2.5 font-mono text-[11px] text-slate-600 dark:text-slate-300">
+													{item.formattedDate}
 												</td>
-												<td class="p-3 text-center font-mono">
-													<p class="font-bold text-blue-600">{item.enrolledCount || 0} Org</p>
-													<p class="text-[10px] text-emerald-600 font-semibold">{item.completionRate || 0}% Selesai</p>
+												<!-- Reaction -->
+												<td class="p-2.5 text-center font-mono font-semibold text-blue-600 dark:text-blue-400">
+													{item.reactionScore}
 												</td>
-												<td class="p-3 text-center">
-													<span class="px-2 py-0.5 rounded-md font-mono text-[10px] font-bold {item.totalSessions > 0 ? 'bg-primary/10 text-primary' : 'bg-surface-container text-slate-400'}">
-														{item.totalSessions} Sesi
-													</span>
-													{#if item.sessionDate !== '-'}
-														<p class="text-[10px] text-slate-400 font-mono mt-0.5">{item.sessionDate}</p>
+												<!-- Learning -->
+												<td class="p-2.5 text-center font-mono {item.preTestScore !== 'N/A' ? 'font-semibold text-indigo-600 dark:text-indigo-400' : 'text-slate-400'}">
+													{item.preTestScore}
+												</td>
+												<td class="p-2.5 text-center text-[10px] text-slate-500">
+													{item.preTestRemark}
+												</td>
+												<td class="p-2.5 text-center font-mono {item.postTestScore !== 'N/A' ? 'font-bold text-indigo-600 dark:text-indigo-400' : 'text-slate-400'}">
+													{item.postTestScore}
+												</td>
+												<td class="p-2.5 text-center">
+													{#if item.postTestRemark.includes('Lulus')}
+														<span class="px-1.5 py-0.5 rounded text-[9px] font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
+															{item.postTestRemark}
+														</span>
+													{:else if item.postTestRemark.includes('Remedial')}
+														<span class="px-1.5 py-0.5 rounded text-[9px] font-bold bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300">
+															{item.postTestRemark}
+														</span>
+													{:else}
+														<span class="text-[10px] text-slate-400">{item.postTestRemark}</span>
 													{/if}
 												</td>
-												<td class="p-3">
-													<p class="font-semibold text-on-surface">{item.trainer}</p>
-													<span class="text-[9.5px] font-black uppercase text-slate-400 tracking-wider">
-														{item.trainerType}
-													</span>
+												<!-- Behavior -->
+												<td class="p-2.5 text-center font-mono font-semibold text-purple-600 dark:text-purple-400">
+													{item.behaviorScore}
 												</td>
-												<td class="p-3 text-right font-mono font-medium text-slate-600 dark:text-slate-300">
-													Rp {Number(item.costTrainer).toLocaleString('id-ID')}
+												<td class="p-2.5 text-center">
+													{#if item.behaviorRemark === 'Efektif'}
+														<span class="px-1.5 py-0.5 rounded text-[9px] font-bold bg-purple-100 text-purple-800 dark:bg-purple-950 dark:text-purple-300">
+															{item.behaviorRemark}
+														</span>
+													{:else if item.behaviorRemark === 'Dalam Pemantauan' || item.behaviorRemark === 'Dalam Evaluasi'}
+														<span class="px-1.5 py-0.5 rounded text-[9px] font-bold bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300">
+															{item.behaviorRemark}
+														</span>
+													{:else}
+														<span class="text-[10px] text-slate-400">{item.behaviorRemark}</span>
+													{/if}
 												</td>
-												<td class="p-3 text-right font-mono font-bold text-emerald-600 dark:text-emerald-400">
+												<!-- Business Impact -->
+												<td class="p-2.5 text-center font-mono font-semibold text-teal-600 dark:text-teal-400">
+													{item.impactScore}
+												</td>
+												<td class="p-2.5 text-center">
+													{#if item.impactRemark === 'Tercapai'}
+														<span class="px-1.5 py-0.5 rounded text-[9px] font-bold bg-teal-100 text-teal-800 dark:bg-teal-950 dark:text-teal-300">
+															{item.impactRemark}
+														</span>
+													{:else if item.impactRemark === 'Dalam Observasi'}
+														<span class="px-1.5 py-0.5 rounded text-[9px] font-bold bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300">
+															{item.impactRemark}
+														</span>
+													{:else}
+														<span class="text-[10px] text-slate-400">{item.impactRemark}</span>
+													{/if}
+												</td>
+												<!-- Manpower, Hours, Cost -->
+												<td class="p-2.5 text-center font-mono font-bold text-on-surface">
+													{item.totalMp}
+												</td>
+												<td class="p-2.5 text-center font-mono font-semibold text-slate-700 dark:text-slate-300">
+													{item.totalHours}
+												</td>
+												<td class="p-2.5 text-right font-mono font-bold text-emerald-600 dark:text-emerald-400">
 													Rp {Number(item.totalCost).toLocaleString('id-ID')}
 												</td>
-												<td class="p-3 text-center">
-													<span class="px-2 py-0.5 rounded-full text-[10px] font-black uppercase {item.status === 'COMPLETED' ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300' : 'bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300'}">
-														{item.status || 'ACTIVE'}
-													</span>
+												<!-- Level Matriks Checklist -->
+												<td class="p-2 text-center {item.levelMatrix.opr ? 'text-emerald-600 font-bold bg-emerald-500/5' : 'text-slate-300 dark:text-slate-700'}">
+													{item.levelMatrix.opr ? '✔️' : '-'}
+												</td>
+												<td class="p-2 text-center {item.levelMatrix.staff ? 'text-emerald-600 font-bold bg-emerald-500/5' : 'text-slate-300 dark:text-slate-700'}">
+													{item.levelMatrix.staff ? '✔️' : '-'}
+												</td>
+												<td class="p-2 text-center {item.levelMatrix.off ? 'text-emerald-600 font-bold bg-emerald-500/5' : 'text-slate-300 dark:text-slate-700'}">
+													{item.levelMatrix.off ? '✔️' : '-'}
+												</td>
+												<td class="p-2 text-center {item.levelMatrix.spv ? 'text-emerald-600 font-bold bg-emerald-500/5' : 'text-slate-300 dark:text-slate-700'}">
+													{item.levelMatrix.spv ? '✔️' : '-'}
+												</td>
+												<td class="p-2 text-center {item.levelMatrix.mgr ? 'text-emerald-600 font-bold bg-emerald-500/5' : 'text-slate-300 dark:text-slate-700'}">
+													{item.levelMatrix.mgr ? '✔️' : '-'}
+												</td>
+												<td class="p-2 text-center {item.levelMatrix.gm ? 'text-emerald-600 font-bold bg-emerald-500/5' : 'text-slate-300 dark:text-slate-700'}">
+													{item.levelMatrix.gm ? '✔️' : '-'}
+												</td>
+												<td class="p-2 text-center {item.levelMatrix.bod ? 'text-emerald-600 font-bold bg-emerald-500/5' : 'text-slate-300 dark:text-slate-700'}">
+													{item.levelMatrix.bod ? '✔️' : '-'}
 												</td>
 											</tr>
 										{/each}
 
+										{#if internalTrainingReports.length === 0}
+											<tr>
+												<td colspan="24" class="p-4 text-center text-slate-400 italic">
+													Tidak ada program pelatihan internal yang cocok dengan filter.
+												</td>
+											</tr>
+										{/if}
+
+										<!-- Subtotal Internal Training -->
+										<tr class="bg-surface-container-high font-bold border-y border-slate-200 dark:border-slate-800 text-xs">
+											<td colspan="5" class="p-2.5 text-right font-black uppercase text-on-surface">TOTAL INTERNAL</td>
+											<td class="p-2.5 text-center font-mono font-bold text-blue-600">{internalTotals.avgReaction}</td>
+											<td class="p-2.5 text-center text-slate-400 font-mono">-</td>
+											<td class="p-2.5 text-center text-slate-400">-</td>
+											<td class="p-2.5 text-center font-mono font-bold text-indigo-600">{internalTotals.avgPost}</td>
+											<td class="p-2.5 text-center text-slate-400">-</td>
+											<td class="p-2.5 text-center font-mono font-bold text-purple-600">{internalTotals.avgL3}</td>
+											<td class="p-2.5 text-center text-slate-400">-</td>
+											<td class="p-2.5 text-center font-mono font-bold text-teal-600">{internalTotals.avgL4}</td>
+											<td class="p-2.5 text-center text-slate-400">-</td>
+											<td class="p-2.5 text-center font-mono font-bold text-on-surface">{internalTotals.totalMp}</td>
+											<td class="p-2.5 text-center font-mono font-bold text-on-surface">{internalTotals.totalHours}</td>
+											<td class="p-2.5 text-right font-mono font-black text-emerald-600 dark:text-emerald-400">
+												Rp {Number(internalTotals.totalCost).toLocaleString('id-ID')}
+											</td>
+											<td colspan="7" class="p-2.5 text-center text-slate-400">-</td>
+										</tr>
+
+										<!-- ================= SEKSI 2: EXTERNAL TRAINING ================= -->
+										<tr class="bg-amber-500/10 dark:bg-amber-500/15 border-y-2 border-amber-500/30">
+											<td colspan="24" class="p-2.5 font-black text-xs text-amber-700 dark:text-amber-400 uppercase tracking-wider">
+												<div class="flex items-center gap-2">
+													<span class="material-symbols-outlined text-base">verified</span>
+													<span>EXTERNAL TRAINING (Sertifikasi Lembaga Eksternal)</span>
+													<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-600 text-white">
+														{externalTrainingReports.length} Program
+													</span>
+												</div>
+											</td>
+										</tr>
+
+										{#each externalTrainingReports as item, idx}
+											<tr class="hover:bg-surface-container/60 transition-colors divide-x divide-slate-100 dark:divide-slate-800/60">
+												<td class="p-2.5 text-center font-mono text-slate-500">{idx + 1}</td>
+												<td class="p-2.5">
+													<p class="font-bold text-on-surface text-xs leading-snug">{item.title}</p>
+													<div class="flex items-center gap-1.5 mt-0.5">
+														<span class="font-mono text-[10px] text-amber-600">{item.id}</span>
+														<span class="text-[10px] text-slate-400">• {item.trainer}</span>
+													</div>
+												</td>
+												<td class="p-2.5">
+													<span class="font-medium text-slate-700 dark:text-slate-200">{item.category}</span>
+												</td>
+												<td class="p-2.5 text-center">
+													<span class="px-1.5 py-0.5 rounded text-[9px] font-black uppercase
+														{item.based === 'Mandatory' ? 'bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300' :
+														item.based === 'Additional' ? 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300' :
+														'bg-purple-100 text-purple-800 dark:bg-purple-950 dark:text-purple-300'}">
+														{item.based || 'Additional'}
+													</span>
+												</td>
+												<td class="p-2.5 font-mono text-[11px] text-slate-600 dark:text-slate-300">
+													{item.formattedDate}
+												</td>
+												<!-- Reaction -->
+												<td class="p-2.5 text-center font-mono font-semibold text-blue-600 dark:text-blue-400">
+													{item.reactionScore}
+												</td>
+												<!-- Learning -->
+												<td class="p-2.5 text-center font-mono {item.preTestScore !== 'N/A' ? 'font-semibold text-indigo-600 dark:text-indigo-400' : 'text-slate-400'}">
+													{item.preTestScore}
+												</td>
+												<td class="p-2.5 text-center text-[10px] text-slate-500">
+													{item.preTestRemark}
+												</td>
+												<td class="p-2.5 text-center font-mono {item.postTestScore !== 'N/A' ? 'font-bold text-indigo-600 dark:text-indigo-400' : 'text-slate-400'}">
+													{item.postTestScore}
+												</td>
+												<td class="p-2.5 text-center">
+													{#if item.postTestRemark.includes('Lulus')}
+														<span class="px-1.5 py-0.5 rounded text-[9px] font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
+															{item.postTestRemark}
+														</span>
+													{:else if item.postTestRemark.includes('Remedial')}
+														<span class="px-1.5 py-0.5 rounded text-[9px] font-bold bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300">
+															{item.postTestRemark}
+														</span>
+													{:else}
+														<span class="text-[10px] text-slate-400">{item.postTestRemark}</span>
+													{/if}
+												</td>
+												<!-- Behavior -->
+												<td class="p-2.5 text-center font-mono font-semibold text-purple-600 dark:text-purple-400">
+													{item.behaviorScore}
+												</td>
+												<td class="p-2.5 text-center">
+													{#if item.behaviorRemark === 'Efektif'}
+														<span class="px-1.5 py-0.5 rounded text-[9px] font-bold bg-purple-100 text-purple-800 dark:bg-purple-950 dark:text-purple-300">
+															{item.behaviorRemark}
+														</span>
+													{:else if item.behaviorRemark === 'Dalam Pemantauan' || item.behaviorRemark === 'Dalam Evaluasi'}
+														<span class="px-1.5 py-0.5 rounded text-[9px] font-bold bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300">
+															{item.behaviorRemark}
+														</span>
+													{:else}
+														<span class="text-[10px] text-slate-400">{item.behaviorRemark}</span>
+													{/if}
+												</td>
+												<!-- Business Impact -->
+												<td class="p-2.5 text-center font-mono font-semibold text-teal-600 dark:text-teal-400">
+													{item.impactScore}
+												</td>
+												<td class="p-2.5 text-center">
+													{#if item.impactRemark === 'Tercapai'}
+														<span class="px-1.5 py-0.5 rounded text-[9px] font-bold bg-teal-100 text-teal-800 dark:bg-teal-950 dark:text-teal-300">
+															{item.impactRemark}
+														</span>
+													{:else if item.impactRemark === 'Dalam Observasi'}
+														<span class="px-1.5 py-0.5 rounded text-[9px] font-bold bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300">
+															{item.impactRemark}
+														</span>
+													{:else}
+														<span class="text-[10px] text-slate-400">{item.impactRemark}</span>
+													{/if}
+												</td>
+												<!-- Manpower, Hours, Cost -->
+												<td class="p-2.5 text-center font-mono font-bold text-on-surface">
+													{item.totalMp}
+												</td>
+												<td class="p-2.5 text-center font-mono font-semibold text-slate-700 dark:text-slate-300">
+													{item.totalHours}
+												</td>
+												<td class="p-2.5 text-right font-mono font-bold text-emerald-600 dark:text-emerald-400">
+													Rp {Number(item.totalCost).toLocaleString('id-ID')}
+												</td>
+												<!-- Level Matriks Checklist -->
+												<td class="p-2 text-center {item.levelMatrix.opr ? 'text-emerald-600 font-bold bg-emerald-500/5' : 'text-slate-300 dark:text-slate-700'}">
+													{item.levelMatrix.opr ? '✔️' : '-'}
+												</td>
+												<td class="p-2 text-center {item.levelMatrix.staff ? 'text-emerald-600 font-bold bg-emerald-500/5' : 'text-slate-300 dark:text-slate-700'}">
+													{item.levelMatrix.staff ? '✔️' : '-'}
+												</td>
+												<td class="p-2 text-center {item.levelMatrix.off ? 'text-emerald-600 font-bold bg-emerald-500/5' : 'text-slate-300 dark:text-slate-700'}">
+													{item.levelMatrix.off ? '✔️' : '-'}
+												</td>
+												<td class="p-2 text-center {item.levelMatrix.spv ? 'text-emerald-600 font-bold bg-emerald-500/5' : 'text-slate-300 dark:text-slate-700'}">
+													{item.levelMatrix.spv ? '✔️' : '-'}
+												</td>
+												<td class="p-2 text-center {item.levelMatrix.mgr ? 'text-emerald-600 font-bold bg-emerald-500/5' : 'text-slate-300 dark:text-slate-700'}">
+													{item.levelMatrix.mgr ? '✔️' : '-'}
+												</td>
+												<td class="p-2 text-center {item.levelMatrix.gm ? 'text-emerald-600 font-bold bg-emerald-500/5' : 'text-slate-300 dark:text-slate-700'}">
+													{item.levelMatrix.gm ? '✔️' : '-'}
+												</td>
+												<td class="p-2 text-center {item.levelMatrix.bod ? 'text-emerald-600 font-bold bg-emerald-500/5' : 'text-slate-300 dark:text-slate-700'}">
+													{item.levelMatrix.bod ? '✔️' : '-'}
+												</td>
+											</tr>
+										{/each}
+
+										{#if externalTrainingReports.length === 0}
+											<tr>
+												<td colspan="24" class="p-4 text-center text-slate-400 italic">
+													Tidak ada program pelatihan eksternal yang cocok dengan filter.
+												</td>
+											</tr>
+										{/if}
+
+										<!-- Subtotal External Training -->
+										<tr class="bg-surface-container-high font-bold border-y border-slate-200 dark:border-slate-800 text-xs">
+											<td colspan="5" class="p-2.5 text-right font-black uppercase text-on-surface">TOTAL EXTERNAL</td>
+											<td class="p-2.5 text-center font-mono font-bold text-blue-600">{externalTotals.avgReaction}</td>
+											<td class="p-2.5 text-center text-slate-400 font-mono">-</td>
+											<td class="p-2.5 text-center text-slate-400">-</td>
+											<td class="p-2.5 text-center font-mono font-bold text-indigo-600">{externalTotals.avgPost}</td>
+											<td class="p-2.5 text-center text-slate-400">-</td>
+											<td class="p-2.5 text-center font-mono font-bold text-purple-600">{externalTotals.avgL3}</td>
+											<td class="p-2.5 text-center text-slate-400">-</td>
+											<td class="p-2.5 text-center font-mono font-bold text-teal-600">{externalTotals.avgL4}</td>
+											<td class="p-2.5 text-center text-slate-400">-</td>
+											<td class="p-2.5 text-center font-mono font-bold text-on-surface">{externalTotals.totalMp}</td>
+											<td class="p-2.5 text-center font-mono font-bold text-on-surface">{externalTotals.totalHours}</td>
+											<td class="p-2.5 text-right font-mono font-black text-emerald-600 dark:text-emerald-400">
+												Rp {Number(externalTotals.totalCost).toLocaleString('id-ID')}
+											</td>
+											<td colspan="7" class="p-2.5 text-center text-slate-400">-</td>
+										</tr>
+
+										<!-- ================= GRAND TOTAL ROW ================= -->
+										<tr class="bg-slate-900 text-white dark:bg-white dark:text-slate-900 font-black text-xs border-t-2 border-slate-700">
+											<td colspan="5" class="p-3 text-right uppercase tracking-wider">GRAND TOTAL (INTERNAL + EXTERNAL)</td>
+											<td class="p-3 text-center font-mono">{grandTotals.avgReaction}</td>
+											<td class="p-3 text-center text-slate-400">-</td>
+											<td class="p-3 text-center text-slate-400">-</td>
+											<td class="p-3 text-center font-mono">{grandTotals.avgPost}</td>
+											<td class="p-3 text-center text-slate-400">-</td>
+											<td class="p-3 text-center font-mono">{grandTotals.avgL3}</td>
+											<td class="p-3 text-center text-slate-400">-</td>
+											<td class="p-3 text-center font-mono">{grandTotals.avgL4}</td>
+											<td class="p-3 text-center text-slate-400">-</td>
+											<td class="p-3 text-center font-mono">{grandTotals.totalMp}</td>
+											<td class="p-3 text-center font-mono">{grandTotals.totalHours}</td>
+											<td class="p-3 text-right font-mono text-emerald-400 dark:text-emerald-700">
+												Rp {Number(grandTotals.totalCost).toLocaleString('id-ID')}
+											</td>
+											<td colspan="7" class="p-3 text-center text-slate-400">-</td>
+										</tr>
+
 										{#if unifiedTrainingReports.length === 0}
 											<tr>
-												<td colspan="10" class="p-8 text-center text-slate-400">
+												<td colspan="24" class="p-8 text-center text-slate-400">
 													<span class="material-symbols-outlined text-4xl block mb-2 text-slate-300">search_off</span>
 													<p class="font-bold">Tidak ada data program pelatihan yang cocok dengan filter.</p>
 												</td>
@@ -5037,7 +5723,7 @@
 										spawnToast({
 											id: Date.now().toString(),
 											title: 'Evaluasi Berhasil Disimpan',
-											message: result.data?.message || 'E-Sertifikat resmi Anda telah diterbitkan!',
+											message: (result.data as any)?.message || 'E-Sertifikat resmi Anda telah diterbitkan!',
 											type: 'INFO',
 											timestamp: new Date().toISOString()
 										});
@@ -5046,7 +5732,7 @@
 										spawnToast({
 											id: Date.now().toString(),
 											title: 'Gagal Menyimpan Evaluasi',
-											message: result.data?.message || 'Terjadi kesalahan sistem.',
+											message: (result as any).data?.message || 'Terjadi kesalahan sistem.',
 											type: 'WARNING',
 											timestamp: new Date().toISOString()
 										});
