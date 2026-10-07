@@ -476,6 +476,15 @@
 		}
 	}
 
+	function getSlotFriendlyLabel(dateStr?: string): string | null {
+		const slot = getWeekSlotFromDate(dateStr);
+		if (!slot) return null;
+		const monthObj = matrixMonths.find((m) => m.key === slot.monthKey);
+		const monthName = monthObj ? monthObj.label : slot.monthKey;
+		const weekNum = slot.weekKey === 'i' ? '1' : slot.weekKey === 'ii' ? '2' : slot.weekKey === 'iii' ? '3' : '4';
+		return `${monthName} - Minggu ke-${weekNum} (${slot.slotKey})`;
+	}
+
 	function getCoursePlanSlots(course: any, matchedSessions: any[]) {
 		const planSlots: Record<string, boolean> = {};
 		const titleLower = (course.title || '').toLowerCase();
@@ -7572,6 +7581,12 @@
 										bind:value={createCourseSessionStartDate}
 										class="w-full px-2.5 py-2 rounded-xl bg-surface border border-slate-200 dark:border-slate-700 font-mono text-xs text-on-surface font-semibold"
 									/>
+									{#if getSlotFriendlyLabel(createCourseSessionStartDate)}
+										<div class="mt-1.5 flex items-center gap-1.5 text-[10.5px] font-bold text-blue-600 dark:text-blue-400 bg-blue-500/10 px-2.5 py-1 rounded-lg border border-blue-500/20 animate-in fade-in">
+											<span class="material-symbols-outlined text-xs">calendar_month</span>
+											<span>🎯 Target Matriks Plan (P): {getSlotFriendlyLabel(createCourseSessionStartDate)}</span>
+										</div>
+									{/if}
 								</div>
 
 								<div>
@@ -8238,6 +8253,12 @@
 									bind:value={sessionBatchStartDate}
 									class="w-full px-2.5 py-2 rounded-xl bg-surface border border-slate-200 dark:border-slate-700 font-mono text-xs text-on-surface font-semibold"
 								/>
+								{#if getSlotFriendlyLabel(sessionBatchStartDate)}
+									<div class="mt-1.5 flex items-center gap-1.5 text-[10.5px] font-bold text-blue-600 dark:text-blue-400 bg-blue-500/10 px-2.5 py-1 rounded-lg border border-blue-500/20 animate-in fade-in">
+										<span class="material-symbols-outlined text-xs">calendar_month</span>
+										<span>🎯 Target Matriks Plan (P): {getSlotFriendlyLabel(sessionBatchStartDate)}</span>
+									</div>
+								{/if}
 							</div>
 
 							<div>
