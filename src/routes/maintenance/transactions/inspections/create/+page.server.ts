@@ -15,8 +15,8 @@ export const load: PageServerLoad = async ({ cookies }) => {
 			try {
 				const user = verifyUserData(userDataCookie);
 				currentInspector = { 
-					id: user.payroll_id || user.id || user.username || '', 
-					name: user.nama || user.username || 'Inspector Workshop' 
+					id: user.payrollId || user.payroll_id || (user.id ? String(user.id) : '') || '', 
+					name: user.name || user.nama || user.username || 'Inspector Workshop' 
 				};
 			} catch (e) {}
 		}
@@ -148,8 +148,8 @@ export const actions: Actions = {
 		if (userDataCookie && !inspector_id) {
 			try {
 				const user = verifyUserData(userDataCookie);
-				inspector_name = user.nama || user.username || inspector_name;
-				inspector_id = user.payroll_id || user.id || user.username || '';
+				inspector_name = user.name || user.nama || user.username || inspector_name;
+				inspector_id = user.payrollId || user.payroll_id || (user.id ? String(user.id) : '') || inspector_id;
 			} catch (e) {}
 		}
 
