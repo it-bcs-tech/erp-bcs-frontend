@@ -38,6 +38,9 @@
 
 	function getStatusBadge(status: string) {
 		const s = status.toUpperCase();
+		if (s.includes('DISPENSATION')) {
+			return 'bg-amber-100 text-amber-900 dark:bg-amber-950/70 dark:text-amber-200 border-amber-400 dark:border-amber-700 font-bold';
+		}
 		if (s.includes('PROGRESS') || s.includes('PROSES')) {
 			return 'bg-sky-50 text-sky-700 dark:bg-sky-950/50 dark:text-sky-300 border-sky-200 dark:border-sky-800';
 		}
@@ -77,7 +80,7 @@
 	</header>
 
 	<!-- Metric Quick Summary Pills -->
-	<div class="grid grid-cols-2 sm:grid-cols-5 gap-3">
+	<div class="grid grid-cols-2 sm:grid-cols-6 gap-3">
 		<button onclick={() => handleStatusChange('All')} class="p-4 rounded-xl text-left bg-surface-container-lowest border {statusFilter === 'All' ? 'border-primary ring-2 ring-primary/20' : 'border-slate-200/70 dark:border-slate-800/70'} transition-all">
 			<div class="text-[11px] font-bold text-on-surface-variant uppercase tracking-wider">Total SPK</div>
 			<div class="text-2xl font-black text-on-surface mt-1">{metrics.total}</div>
@@ -90,12 +93,16 @@
 			<div class="text-[11px] font-bold text-sky-600 uppercase tracking-wider">Dikerjakan</div>
 			<div class="text-2xl font-black text-sky-600 mt-1">{metrics.progress}</div>
 		</button>
+		<button onclick={() => handleStatusChange('DISPENSATION_ACTIVE')} class="p-4 rounded-xl text-left bg-surface-container-lowest border {statusFilter === 'DISPENSATION_ACTIVE' ? 'border-amber-500 ring-2 ring-amber-500/20' : 'border-slate-200/70 dark:border-slate-800/70'} transition-all">
+			<div class="text-[11px] font-bold text-amber-600 uppercase tracking-wider">Dispensasi</div>
+			<div class="text-2xl font-black text-amber-600 mt-1">{metrics.dispensation}</div>
+		</button>
 		<button onclick={() => handleStatusChange('READY_FOR_REINSPECTION')} class="p-4 rounded-xl text-left bg-surface-container-lowest border {statusFilter === 'READY_FOR_REINSPECTION' ? 'border-purple-500 ring-2 ring-purple-500/20' : 'border-slate-200/70 dark:border-slate-800/70'} transition-all">
-			<div class="text-[11px] font-bold text-purple-600 uppercase tracking-wider">Siap Re-Inspeksi</div>
+			<div class="text-[11px] font-bold text-purple-600 uppercase tracking-wider">Siap Re-Inspek</div>
 			<div class="text-2xl font-black text-purple-600 mt-1">{metrics.reinspect}</div>
 		</button>
 		<button onclick={() => handleStatusChange('Closed')} class="p-4 rounded-xl text-left bg-surface-container-lowest border {statusFilter === 'Closed' ? 'border-emerald-500 ring-2 ring-emerald-500/20' : 'border-slate-200/70 dark:border-slate-800/70'} transition-all">
-			<div class="text-[11px] font-bold text-emerald-600 uppercase tracking-wider">Selesai (Closed)</div>
+			<div class="text-[11px] font-bold text-emerald-600 uppercase tracking-wider">Selesai</div>
 			<div class="text-2xl font-black text-emerald-600 mt-1">{metrics.closed}</div>
 		</button>
 	</div>
@@ -119,6 +126,7 @@
 				{ id: 'ACTIVE', label: 'Aktif di Bengkel' },
 				{ id: 'Open', label: 'Open' },
 				{ id: 'Proses', label: 'Dikerjakan' },
+				{ id: 'DISPENSATION_ACTIVE', label: 'Dispensasi Jalan' },
 				{ id: 'READY_FOR_REINSPECTION', label: 'Re-Inspeksi' },
 				{ id: 'Closed', label: 'Closed' }
 			] as tab}

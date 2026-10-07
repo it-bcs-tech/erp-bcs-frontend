@@ -81,6 +81,7 @@ export const load: PageServerLoad = async ({ url }) => {
 				COUNT(*) as total_count,
 				COUNT(*) FILTER (WHERE status = 'Open' OR status = 'PENDING_ASSIGNMENT') as pending_count,
 				COUNT(*) FILTER (WHERE status ILIKE '%proses%' OR status ILIKE '%progress%') as progress_count,
+				COUNT(*) FILTER (WHERE status = 'DISPENSATION_ACTIVE') as dispensation_count,
 				COUNT(*) FILTER (WHERE status = 'READY_FOR_REINSPECTION' OR status ILIKE '%reinspect%') as reinspect_count,
 				COUNT(*) FILTER (WHERE status ILIKE '%close%' OR status ILIKE '%complete%') as closed_count
 			FROM fleet.work_orders
@@ -119,6 +120,7 @@ export const load: PageServerLoad = async ({ url }) => {
 				total: parseInt(metricsQuery[0]?.total_count || '0'),
 				pending: parseInt(metricsQuery[0]?.pending_count || '0'),
 				progress: parseInt(metricsQuery[0]?.progress_count || '0'),
+				dispensation: parseInt(metricsQuery[0]?.dispensation_count || '0'),
 				reinspect: parseInt(metricsQuery[0]?.reinspect_count || '0'),
 				closed: parseInt(metricsQuery[0]?.closed_count || '0')
 			}
@@ -129,7 +131,7 @@ export const load: PageServerLoad = async ({ url }) => {
 		return {
 			records: [],
 			meta: { currentPage: 1, perPage: 10, total: 0, totalPages: 1 },
-			metrics: { total: 0, pending: 0, progress: 0, reinspect: 0, closed: 0 }
+			metrics: { total: 0, pending: 0, progress: 0, dispensation: 0, reinspect: 0, closed: 0 }
 		};
 	}
 };

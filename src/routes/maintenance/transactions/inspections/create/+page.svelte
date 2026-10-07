@@ -7,8 +7,12 @@
 
 	const units = $derived(data.units || []);
 	const drivers = $derived(data.drivers || []);
+	const activeDispensations = $derived(data.activeDispensations || []);
 
 	let selectedUnitId = $state('');
+	let selectedUnitDispensation = $derived(
+		activeDispensations.find((d: any) => d.unitId === selectedUnitId)
+	);
 	let selectedUnitType = $state<'DT' | 'TR'>('DT');
 	let inspectionType = $state('MASUK');
 	let selectedDriverId = $state('');
@@ -261,6 +265,42 @@
 					/>
 				</div>
 			</div>
+
+			{#if selectedUnitDispensation}
+				<div class="mt-4 p-4 rounded-xl bg-amber-500/10 border-2 border-amber-500/40 text-on-surface text-xs space-y-2">
+					<div class="flex items-center gap-2 font-bold text-amber-800 dark:text-amber-300">
+						<span class="material-symbols-outlined text-[20px]">warning</span>
+						<span>Peringatan: Unit Sedang dalam Masa Dispensasi Jalan (SPK: {selectedUnitDispensation.woNo})</span>
+					</div>
+					<p class="text-on-surface-variant">
+						Unit ini diizinkan beroperasi sementara meskipun ada item perbaikan yang belum tuntas.
+						{#if selectedUnitDispensation.commitmentDate}
+							Komitmen kembali ke bengkel: <b>{new Date(selectedUnitDispensation.commitmentDate).toLocaleDateString('id-ID', { dateStyle: 'long' })}</b>.
+						{/if}
+					</p>
+					{#if selectedUnitDispensation.recommendation}
+						<div class="text-[11px] bg-surface-container/60 p-2 rounded-lg">
+							<span class="font-bold text-on-surface">Catatan Mekanik:</span> <i>{selectedUnitDispensation.recommendation}</i>
+						</div>
+					{/if}
+					{#if selectedUnitDispensation.deferredItems && selectedUnitDispensation.deferredItems.length > 0}
+						<div class="text-[11px]">
+							<span class="font-bold text-on-surface">Item tertunda:</span> {selectedUnitDispensation.deferredItems.map((i: any) => i.item).join(', ')}
+						</div>
+					{/if}
+					<div class="pt-1 flex flex-wrap items-center gap-2">
+						<a 
+							href="/maintenance/transactions/work-orders/{encodeURIComponent(selectedUnitDispensation.woNo)}"
+							target="_blank"
+							class="inline-flex items-center gap-1 font-bold text-primary hover:underline"
+						>
+							<span>Buka Lembar SPK Bengkel</span>
+							<span class="material-symbols-outlined text-[13px]">open_in_new</span>
+						</a>
+						<span class="text-on-surface-variant">• Apabila unit masuk untuk menyelesaikan sisa perbaikan, pastikan klik "Kembali ke Bengkel" pada SPK!</span>
+					</div>
+				</div>
+			{/if}
 		</div>
 
 		<!-- Section 2: Pemeriksaan Kesehatan Driver (Tensi & Alkohol) -->

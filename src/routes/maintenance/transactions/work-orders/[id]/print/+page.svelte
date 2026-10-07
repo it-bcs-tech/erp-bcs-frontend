@@ -185,6 +185,84 @@
 			</tr>
 		</tbody>
 	</table>
+
+	<!-- Lembar Persetujuan Rilis Bersyarat (Dispensasi Jalan) -->
+	{#if wo.dispensationData?.is_requested || wo.status === 'DISPENSATION_ACTIVE'}
+		<div class="border border-black mb-3 mt-4 print:break-inside-avoid">
+			<div class="font-bold uppercase tracking-wider text-[10px] bg-slate-200 p-1 border-b border-black text-center">
+				LEMBAR PERSETUJUAN DISPENSASI JALAN (RILIS BERSYARAT 3 PIHAK)
+			</div>
+			
+			<div class="p-2 text-[10px] space-y-1.5 border-b border-black">
+				<div class="grid grid-cols-2 gap-3">
+					<div>
+						<b>Rekomendasi Teknis Mekanik:</b>
+						<p class="italic">{wo.dispensationData.recommendation || '-'}</p>
+					</div>
+					<div>
+						<b>Alasan Kebutuhan Operasional:</b>
+						<p class="italic">{wo.dispensationData.operational_reason || '-'}</p>
+					</div>
+				</div>
+				<div class="flex justify-between pt-1 border-t border-slate-200 text-[10px]">
+					<div><b>Target Komitmen Kembali ke Bengkel:</b> {wo.dispensationData.commitment_date ? new Date(wo.dispensationData.commitment_date).toLocaleDateString('id-ID', { dateStyle: 'long' }) : '-'}</div>
+					<div><b>Status Rilis:</b> {wo.status === 'DISPENSATION_ACTIVE' ? 'DISETUJUI PENUH (UNIT BOLEH JALAN)' : 'MENUNGGU PERSETUJUAN LENGKAP'}</div>
+				</div>
+			</div>
+
+			<!-- Daftar Item Tertunda -->
+			{#if wo.dispensationData.deferred_items && wo.dispensationData.deferred_items.length > 0}
+				<div class="p-1.5 bg-slate-50 border-b border-black text-[9px]">
+					<b>Item Perbaikan Tertunda:</b> 
+					{wo.dispensationData.deferred_items.map(d => `${d.item} (${d.category})`).join(', ')}
+				</div>
+			{/if}
+
+			<!-- Signatures 3 Pihak -->
+			<table class="w-full border-collapse text-center text-[10px]">
+				<thead>
+					<tr class="bg-slate-100 font-bold">
+						<th class="border-r border-b border-black p-1 w-1/3">1. PIHAK MAINTENANCE<br/>(KEPALA BENGKEL)</th>
+						<th class="border-r border-b border-black p-1 w-1/3">2. PIHAK INSPEKSI<br/>(CHECKER / QHSE)</th>
+						<th class="border-b border-black p-1 w-1/3">3. PIHAK OPERASIONAL<br/>(DISPATCHER / KA. OPS)</th>
+					</tr>
+				</thead>
+				<tbody>
+					<tr>
+						<td class="border-r border-black p-5 align-bottom">
+							{#if wo.dispensationData.approval_maintenance?.approved}
+								<div class="text-[9px] text-emerald-800 font-bold mb-1">✓ DISETUJUI SISTEM</div>
+								<div class="text-[8px] text-slate-600 font-mono">{wo.dispensationData.approval_maintenance.at ? new Date(wo.dispensationData.approval_maintenance.at).toLocaleString('id-ID') : ''}</div>
+							{:else}
+								<div class="text-[9px] text-slate-400 italic mb-1">[ Belum Disetujui ]</div>
+							{/if}
+						</td>
+						<td class="border-r border-black p-5 align-bottom">
+							{#if wo.dispensationData.approval_inspek?.approved}
+								<div class="text-[9px] text-emerald-800 font-bold mb-1">✓ DISETUJUI SISTEM</div>
+								<div class="text-[8px] text-slate-600 font-mono">{wo.dispensationData.approval_inspek.at ? new Date(wo.dispensationData.approval_inspek.at).toLocaleString('id-ID') : ''}</div>
+							{:else}
+								<div class="text-[9px] text-slate-400 italic mb-1">[ Belum Disetujui ]</div>
+							{/if}
+						</td>
+						<td class="border-black p-5 align-bottom">
+							{#if wo.dispensationData.approval_operational?.approved}
+								<div class="text-[9px] text-emerald-800 font-bold mb-1">✓ DISETUJUI SISTEM</div>
+								<div class="text-[8px] text-slate-600 font-mono">{wo.dispensationData.approval_operational.at ? new Date(wo.dispensationData.approval_operational.at).toLocaleString('id-ID') : ''}</div>
+							{:else}
+								<div class="text-[9px] text-slate-400 italic mb-1">[ Belum Disetujui ]</div>
+							{/if}
+						</td>
+					</tr>
+					<tr class="font-bold">
+						<td class="border-r border-t border-black p-1">({wo.dispensationData.approval_maintenance?.by || '....................................'})</td>
+						<td class="border-r border-t border-black p-1">({wo.dispensationData.approval_inspek?.by || '....................................'})</td>
+						<td class="border-t border-black p-1">({wo.dispensationData.approval_operational?.by || '....................................'})</td>
+					</tr>
+				</tbody>
+			</table>
+		</div>
+	{/if}
 </div>
 
 <style>

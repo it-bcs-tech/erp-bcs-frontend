@@ -124,7 +124,20 @@ export const load: PageServerLoad = async ({ params }) => {
 					remark: p.keterangan
 				})),
 				conclusion: wo.conclusion || '',
-				createdBy: wo.created_by
+				createdBy: wo.created_by,
+				recommendation: wo.recommendation || '',
+				operationalReason: wo.operational_reason || '',
+				commitmentDate: wo.commitment_date ? new Date(wo.commitment_date).toISOString().slice(0, 10) : null,
+				dispensationData: wo.dispensation_data || {
+					is_requested: false,
+					recommendation: wo.recommendation || '',
+					operational_reason: wo.operational_reason || '',
+					commitment_date: wo.commitment_date ? new Date(wo.commitment_date).toISOString().slice(0, 10) : null,
+					deferred_items: [],
+					approval_maintenance: { approved: false, by: null, at: null, notes: '' },
+					approval_inspek: { approved: false, by: null, at: null, notes: '' },
+					approval_operational: { approved: false, by: null, at: null, notes: '' }
+				}
 			},
 			materials: materials.map(m => ({
 				id: m.id,
@@ -357,6 +370,180 @@ export const actions: Actions = {
 		} catch (e) {
 			console.error("Error sending to reinspection:", e);
 			return fail(500, { error: true, message: 'Gagal mengirim ke Re-Inspeksi.' });
+		}
+	},
+
+	// 5. Request Dispensation (Mekanik mengajukan izin jalan sementara sebelum perbaikan tuntas)
+	requestDispensation: async ({ request, params, cookies }) => {
+		const idOrNo = decodeURIComponent(params.id);
+		const data = await request.formData();
+		const recommendation = data.get('recommendation')?.toString() || '';
+		const operational_reason = data.get('operational_reason')?.toString() || '';
+		const commitment_date = data.get('commitment_date')?.toString() || null;
+
+		let applicantName = 'Mekanik / Workshop';
+		const userDataCookie = cookies.get('user_data');
+		if (userDataCookie) {
+			try {
+				const user = verifyUserData(userDataCookie);
+				applicantName = user.nama || user.username || 'Mekanik / Workshop';
+			} catch (e) {}
+		}
+
+		if (!recommendation || !operational_reason) {
+			return fail(400, { missing: true, message: 'Rekomendasi teknis dan alasan operasional wajib diisi.' });
+		}
+
+		try {
+			const woRes = await sql`SELECT wo_no, repaired_items, dispensation_data FROM fleet.work_orders WHERE wo_no = ${idOrNo} OR id::text = ${idOrNo}`;
+			if (woRes.length === 0) return fail(404, { message: 'WO tidak ditemukan.' });
+
+			const wo = woRes[0];
+			const items: any[] = Array.isArray(wo.repaired_items) ? wo.repaired_items : [];
+			const deferredItems = items.filter(i => i.status !== 'RESOLVED');
+
+			const dispensationData = {
+				is_requested: true,
+				requested_by: applicantName,
+				requested_at: new Date().toISOString(),
+				recommendation,
+				operational_reason,
+				commitment_date,
+				deferred_items: deferredItems.map(d => ({ id: d.id, item: d.item, category: d.category })),
+				approval_maintenance: { approved: false, by: null, at: null, notes: '' },
+				approval_inspek: { approved: false, by: null, at: null, notes: '' },
+				approval_operational: { approved: false, by: null, at: null, notes: '' }
+			};
+
+			await sql`
+				UPDATE fleet.work_orders
+				SET recommendation = ${recommendation},
+				    operational_reason = ${operational_reason},
+				    commitment_date = ${commitment_date},
+				    dispensation_data = ${JSON.stringify(dispensationData)},
+				    updated_at = NOW()
+				WHERE wo_no = ${wo.wo_no}
+			`;
+
+			return { success: true, message: 'Pengajuan dispensasi jalan berhasil dikirim untuk persetujuan 3 pihak.' };
+		} catch (e) {
+			console.error("Error requesting dispensation:", e);
+			return fail(500, { error: true, message: 'Gagal mengajukan dispensasi jalan.' });
+		}
+	},
+
+	// 6. Approve Dispensation (Persetujuan bertingkat Maintenance, Inspek, dan Operational)
+	approveDispensation: async ({ request, params, cookies }) => {
+		const idOrNo = decodeURIComponent(params.id);
+		const data = await request.formData();
+		const role_type = data.get('role_type')?.toString(); // 'maintenance' | 'inspek' | 'operational'
+		const notes = data.get('notes')?.toString() || '';
+
+		let approverName = 'Approver';
+		const userDataCookie = cookies.get('user_data');
+		if (userDataCookie) {
+			try {
+				const user = verifyUserData(userDataCookie);
+				approverName = user.nama || user.username || 'Approver';
+			} catch (e) {}
+		}
+
+		if (!role_type || !['maintenance', 'inspek', 'operational'].includes(role_type)) {
+			return fail(400, { message: 'Pihak approval tidak valid.' });
+		}
+
+		try {
+			const woRes = await sql`SELECT wo_no, unit_id, dispensation_data FROM fleet.work_orders WHERE wo_no = ${idOrNo} OR id::text = ${idOrNo}`;
+			if (woRes.length === 0) return fail(404, { message: 'WO tidak ditemukan.' });
+
+			const wo = woRes[0];
+			let disp = wo.dispensation_data || {};
+
+			const approvalKey = `approval_${role_type}`;
+			disp[approvalKey] = {
+				approved: true,
+				by: approverName,
+				at: new Date().toISOString(),
+				notes
+			};
+
+			// Check if all 3 approvals are now true
+			const allApproved = 
+				disp.approval_maintenance?.approved === true &&
+				disp.approval_inspek?.approved === true &&
+				disp.approval_operational?.approved === true;
+
+			if (allApproved) {
+				// 1. Set WO status to DISPENSATION_ACTIVE
+				await sql`
+					UPDATE fleet.work_orders
+					SET status = 'DISPENSATION_ACTIVE',
+					    dispensation_data = ${JSON.stringify(disp)},
+					    updated_at = NOW()
+					WHERE wo_no = ${wo.wo_no}
+				`;
+
+				// 2. Unlock vehicle in fleet.unit (Set to STANDBY so OCS Dispatcher can assign trip)
+				if (wo.unit_id) {
+					await sql`
+						UPDATE fleet.unit
+						SET current_state = 'STANDBY',
+						    updated_at = NOW()
+						WHERE nomor_unit = ${wo.unit_id}
+					`;
+				}
+
+				return { success: true, message: 'Dispensasi jalan telah disetujui lengkap oleh 3 pihak! Unit kini siap operasi (STANDBY).' };
+			} else {
+				// Save partial approval
+				await sql`
+					UPDATE fleet.work_orders
+					SET dispensation_data = ${JSON.stringify(disp)},
+					    updated_at = NOW()
+					WHERE wo_no = ${wo.wo_no}
+				`;
+
+				return { success: true, message: `Persetujuan dari pihak ${role_type.toUpperCase()} berhasil dicatat.` };
+			}
+
+		} catch (e) {
+			console.error("Error approving dispensation:", e);
+			return fail(500, { error: true, message: 'Gagal memproses persetujuan dispensasi.' });
+		}
+	},
+
+	// 7. Return to Workshop (Unit kembali dari trip dispensasi ke pool bengkel)
+	returnToWorkshop: async ({ params }) => {
+		const idOrNo = decodeURIComponent(params.id);
+
+		try {
+			const woRes = await sql`SELECT wo_no, unit_id FROM fleet.work_orders WHERE wo_no = ${idOrNo} OR id::text = ${idOrNo}`;
+			if (woRes.length === 0) return fail(404, { message: 'WO tidak ditemukan.' });
+
+			const wo = woRes[0];
+
+			// 1. Revert WO status to 'Proses'
+			await sql`
+				UPDATE fleet.work_orders
+				SET status = 'Proses',
+				    updated_at = NOW()
+				WHERE wo_no = ${wo.wo_no}
+			`;
+
+			// 2. Lock vehicle back to 'MAINTENANCE' in fleet.unit
+			if (wo.unit_id) {
+				await sql`
+					UPDATE fleet.unit
+					SET current_state = 'MAINTENANCE',
+					    updated_at = NOW()
+					WHERE nomor_unit = ${wo.unit_id}
+				`;
+			}
+
+			return { success: true, message: 'Unit telah ditandai kembali ke bengkel. Status unit terkunci (MAINTENANCE) untuk melanjutkan sisa perbaikan.' };
+		} catch (e) {
+			console.error("Error returning to workshop:", e);
+			return fail(500, { error: true, message: 'Gagal mengembalikan status unit ke bengkel.' });
 		}
 	}
 };

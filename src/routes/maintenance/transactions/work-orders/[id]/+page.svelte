@@ -10,6 +10,11 @@
 
 	let isAssignModalOpen = $state(false);
 	let isSparepartModalOpen = $state(false);
+	let isDispensationModalOpen = $state(false);
+
+	let dispensationRec = $state(wo.dispensationData?.recommendation || '');
+	let dispensationReason = $state(wo.dispensationData?.operational_reason || '');
+	let dispensationCommitment = $state(wo.dispensationData?.commitment_date || '');
 
 	// Sparepart picker state
 	let searchMaterial = $state('');
@@ -46,6 +51,9 @@
 
 	function getStatusBadge(status: string) {
 		const s = status.toUpperCase();
+		if (s.includes('DISPENSATION')) {
+			return 'bg-amber-100 text-amber-900 dark:bg-amber-950/70 dark:text-amber-200 border-amber-400 dark:border-amber-700 font-bold';
+		}
 		if (s.includes('PROGRESS') || s.includes('PROSES')) {
 			return 'bg-sky-50 text-sky-700 dark:bg-sky-950/50 dark:text-sky-300 border-sky-200 dark:border-sky-800';
 		}
@@ -83,6 +91,16 @@
 		</div>
 
 		<div class="flex items-center gap-2">
+			{#if !allItemsResolved && wo.status !== 'Closed' && wo.status !== 'READY_FOR_REINSPECTION' && !wo.dispensationData?.is_requested}
+				<button 
+					type="button" 
+					onclick={() => isDispensationModalOpen = true}
+					class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs shadow-sm transition-all"
+				>
+					<span class="material-symbols-outlined text-[16px]">release_alert</span>
+					<span>Ajukan Dispensasi Jalan</span>
+				</button>
+			{/if}
 			{#if wo.status === 'READY_FOR_REINSPECTION'}
 				<a href="/maintenance/transactions/inspections/{encodeURIComponent(wo.inspectionNo || wo.woNo)}/re-inspect" class="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-purple-600 text-white font-bold text-xs hover:bg-purple-700 shadow-sm transition-all">
 					<span class="material-symbols-outlined text-[16px]">verified</span>
@@ -100,6 +118,243 @@
 		<div class="p-4 rounded-xl {form.success ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' : 'bg-rose-50 text-rose-800 border border-rose-200'} text-xs font-bold flex items-center gap-2">
 			<span class="material-symbols-outlined text-[18px]">{form.success ? 'check_circle' : 'error'}</span>
 			{form.message}
+		</div>
+	{/if}
+
+	<!-- Banner: Dispensasi Jalan Aktif (Rilis Bersyarat) -->
+	{#if wo.status === 'DISPENSATION_ACTIVE'}
+		<div class="p-5 rounded-2xl bg-amber-500/10 border-2 border-amber-500/40 text-on-surface space-y-4">
+			<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+				<div class="flex items-start gap-3">
+					<div class="p-2.5 rounded-xl bg-amber-500/20 text-amber-600 dark:text-amber-400 mt-0.5">
+						<span class="material-symbols-outlined text-2xl">warning</span>
+					</div>
+					<div>
+						<div class="flex items-center gap-2">
+							<h3 class="text-sm font-black uppercase tracking-wider text-amber-900 dark:text-amber-100">Dispensasi Jalan Aktif (Rilis Bersyarat)</h3>
+							<span class="px-2 py-0.5 rounded text-[10px] font-black bg-amber-500 text-white uppercase tracking-wider">Unit Beroperasi</span>
+						</div>
+						<p class="text-xs text-on-surface-variant mt-0.5">
+							Unit diizinkan beroperasi sementara dengan rekomendasi teknis & telah disetujui penuh oleh Maintenance, Inspek, dan Operational.
+						</p>
+					</div>
+				</div>
+
+				<form method="POST" action="?/returnToWorkshop" use:enhance>
+					<button 
+						type="submit" 
+						class="px-4 py-2.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs shadow-sm flex items-center gap-1.5 transition-all"
+					>
+						<span class="material-symbols-outlined text-[16px]">build_circle</span>
+						<span>Tandai Unit Kembali ke Bengkel</span>
+					</button>
+				</form>
+			</div>
+
+			<!-- Dispensation details -->
+			<div class="grid grid-cols-1 md:grid-cols-3 gap-3 p-3.5 rounded-xl bg-surface-container/60 text-xs">
+				<div>
+					<span class="text-[10px] font-bold text-on-surface-variant uppercase">Rekomendasi Mekanik:</span>
+					<p class="font-semibold text-on-surface mt-0.5">{wo.dispensationData?.recommendation || '-'}</p>
+				</div>
+				<div>
+					<span class="text-[10px] font-bold text-on-surface-variant uppercase">Alasan Kebutuhan Operasional:</span>
+					<p class="font-semibold text-on-surface mt-0.5">{wo.dispensationData?.operational_reason || '-'}</p>
+				</div>
+				<div>
+					<span class="text-[10px] font-bold text-on-surface-variant uppercase">Target Kembali ke Bengkel:</span>
+					<p class="font-mono font-bold text-primary mt-0.5">
+						{wo.dispensationData?.commitment_date ? new Date(wo.dispensationData.commitment_date).toLocaleDateString('id-ID', { dateStyle: 'long' }) : '-'}
+					</p>
+				</div>
+			</div>
+
+			<!-- 3 Approvers summary -->
+			<div class="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs pt-1 border-t border-amber-500/20">
+				<div class="flex items-center gap-2">
+					<span class="material-symbols-outlined text-emerald-600 text-[18px]">verified</span>
+					<div>
+						<span class="text-[10px] font-bold text-on-surface-variant uppercase">1. Maintenance:</span>
+						<div class="font-bold text-on-surface">{wo.dispensationData?.approval_maintenance?.by || 'Disetujui'}</div>
+					</div>
+				</div>
+				<div class="flex items-center gap-2">
+					<span class="material-symbols-outlined text-emerald-600 text-[18px]">verified</span>
+					<div>
+						<span class="text-[10px] font-bold text-on-surface-variant uppercase">2. Inspeksi:</span>
+						<div class="font-bold text-on-surface">{wo.dispensationData?.approval_inspek?.by || 'Disetujui'}</div>
+					</div>
+				</div>
+				<div class="flex items-center gap-2">
+					<span class="material-symbols-outlined text-emerald-600 text-[18px]">verified</span>
+					<div>
+						<span class="text-[10px] font-bold text-on-surface-variant uppercase">3. Operational:</span>
+						<div class="font-bold text-on-surface">{wo.dispensationData?.approval_operational?.by || 'Disetujui'}</div>
+					</div>
+				</div>
+			</div>
+		</div>
+	{/if}
+
+	<!-- Banner: Menunggu Persetujuan Dispensasi Jalan (3 Pihak) -->
+	{#if wo.dispensationData?.is_requested && wo.status !== 'DISPENSATION_ACTIVE' && wo.status !== 'Closed'}
+		<div class="p-6 rounded-2xl bg-surface-container-lowest border-2 border-amber-500/40 space-y-4">
+			<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200 dark:border-slate-800 pb-3">
+				<div>
+					<div class="flex items-center gap-2">
+						<span class="material-symbols-outlined text-amber-500 text-[22px]">pending_actions</span>
+						<h3 class="text-sm font-black text-on-surface uppercase tracking-wider">Menunggu Persetujuan Dispensasi Jalan (3 Pihak)</h3>
+					</div>
+					<p class="text-xs text-on-surface-variant mt-0.5">
+						Mekanik mengajukan izin jalan sementara. Unit baru dapat dirilis (STANDBY) setelah disetujui bertingkat oleh Maintenance, Inspek, dan Operational.
+					</p>
+				</div>
+				<span class="px-3 py-1 rounded-full text-xs font-black bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 border border-amber-300">
+					Menunggu Persetujuan
+				</span>
+			</div>
+
+			<!-- Dispensation Request Info -->
+			<div class="grid grid-cols-1 md:grid-cols-3 gap-3 p-3.5 rounded-xl bg-surface-container text-xs">
+				<div>
+					<span class="text-[10px] font-bold text-on-surface-variant uppercase">Rekomendasi Mekanik:</span>
+					<p class="font-semibold text-on-surface mt-0.5">{wo.dispensationData.recommendation || '-'}</p>
+					<span class="text-[10px] text-on-surface-variant">Diajukan oleh: <b>{wo.dispensationData.requested_by || 'Mekanik'}</b></span>
+				</div>
+				<div>
+					<span class="text-[10px] font-bold text-on-surface-variant uppercase">Alasan Kebutuhan Operasional:</span>
+					<p class="font-semibold text-on-surface mt-0.5">{wo.dispensationData.operational_reason || '-'}</p>
+				</div>
+				<div>
+					<span class="text-[10px] font-bold text-on-surface-variant uppercase">Target Kembali ke Bengkel:</span>
+					<p class="font-mono font-bold text-primary mt-0.5">
+						{wo.dispensationData.commitment_date ? new Date(wo.dispensationData.commitment_date).toLocaleDateString('id-ID', { dateStyle: 'long' }) : '-'}
+					</p>
+				</div>
+			</div>
+
+			<!-- 3-Party Approval Cards -->
+			<div class="grid grid-cols-1 md:grid-cols-3 gap-4 pt-1">
+				<!-- 1. Maintenance Approval -->
+				<div class="p-4 rounded-xl border {wo.dispensationData.approval_maintenance?.approved ? 'bg-emerald-50/40 dark:bg-emerald-950/20 border-emerald-300 dark:border-emerald-800' : 'bg-surface-container-low border-slate-200 dark:border-slate-800'} space-y-2">
+					<div class="flex items-center justify-between">
+						<span class="text-[11px] font-bold uppercase tracking-wider text-on-surface">1. Pihak Maintenance</span>
+						{#if wo.dispensationData.approval_maintenance?.approved}
+							<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800 flex items-center gap-1">
+								<span class="material-symbols-outlined text-[13px]">check</span> Disetujui
+							</span>
+						{:else}
+							<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800">Menunggu</span>
+						{/if}
+					</div>
+
+					{#if wo.dispensationData.approval_maintenance?.approved}
+						<div class="text-xs space-y-1">
+							<div class="text-[11px] text-on-surface">Disetujui oleh: <b>{wo.dispensationData.approval_maintenance.by}</b></div>
+							{#if wo.dispensationData.approval_maintenance.notes}
+								<div class="text-[10px] text-on-surface-variant italic">"{wo.dispensationData.approval_maintenance.notes}"</div>
+							{/if}
+						</div>
+					{:else}
+						<form method="POST" action="?/approveDispensation" use:enhance class="space-y-2 pt-1">
+							<input type="hidden" name="role_type" value="maintenance" />
+							<input 
+								type="text" 
+								name="notes" 
+								placeholder="Catatan Ka. Bengkel (opsional)..." 
+								class="w-full text-xs px-2.5 py-1.5 rounded-lg bg-surface-container border border-slate-200 dark:border-slate-800 text-on-surface outline-none"
+							/>
+							<button 
+								type="submit" 
+								class="w-full py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-2xs transition-all flex items-center justify-center gap-1"
+							>
+								<span class="material-symbols-outlined text-[15px]">check_circle</span>
+								<span>Setujui (Ka. Bengkel)</span>
+							</button>
+						</form>
+					{/if}
+				</div>
+
+				<!-- 2. Inspek Approval -->
+				<div class="p-4 rounded-xl border {wo.dispensationData.approval_inspek?.approved ? 'bg-emerald-50/40 dark:bg-emerald-950/20 border-emerald-300 dark:border-emerald-800' : 'bg-surface-container-low border-slate-200 dark:border-slate-800'} space-y-2">
+					<div class="flex items-center justify-between">
+						<span class="text-[11px] font-bold uppercase tracking-wider text-on-surface">2. Pihak Inspeksi</span>
+						{#if wo.dispensationData.approval_inspek?.approved}
+							<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800 flex items-center gap-1">
+								<span class="material-symbols-outlined text-[13px]">check</span> Disetujui
+							</span>
+						{:else}
+							<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800">Menunggu</span>
+						{/if}
+					</div>
+
+					{#if wo.dispensationData.approval_inspek?.approved}
+						<div class="text-xs space-y-1">
+							<div class="text-[11px] text-on-surface">Disetujui oleh: <b>{wo.dispensationData.approval_inspek.by}</b></div>
+							{#if wo.dispensationData.approval_inspek.notes}
+								<div class="text-[10px] text-on-surface-variant italic">"{wo.dispensationData.approval_inspek.notes}"</div>
+							{/if}
+						</div>
+					{:else}
+						<form method="POST" action="?/approveDispensation" use:enhance class="space-y-2 pt-1">
+							<input type="hidden" name="role_type" value="inspek" />
+							<input 
+								type="text" 
+								name="notes" 
+								placeholder="Catatan Tim Inspek (opsional)..." 
+								class="w-full text-xs px-2.5 py-1.5 rounded-lg bg-surface-container border border-slate-200 dark:border-slate-800 text-on-surface outline-none"
+							/>
+							<button 
+								type="submit" 
+								class="w-full py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-2xs transition-all flex items-center justify-center gap-1"
+							>
+								<span class="material-symbols-outlined text-[15px]">check_circle</span>
+								<span>Setujui (Tim Inspeksi)</span>
+							</button>
+						</form>
+					{/if}
+				</div>
+
+				<!-- 3. Operational Approval -->
+				<div class="p-4 rounded-xl border {wo.dispensationData.approval_operational?.approved ? 'bg-emerald-50/40 dark:bg-emerald-950/20 border-emerald-300 dark:border-emerald-800' : 'bg-surface-container-low border-slate-200 dark:border-slate-800'} space-y-2">
+					<div class="flex items-center justify-between">
+						<span class="text-[11px] font-bold uppercase tracking-wider text-on-surface">3. Pihak Operasional</span>
+						{#if wo.dispensationData.approval_operational?.approved}
+							<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800 flex items-center gap-1">
+								<span class="material-symbols-outlined text-[13px]">check</span> Disetujui
+							</span>
+						{:else}
+							<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800">Menunggu</span>
+						{/if}
+					</div>
+
+					{#if wo.dispensationData.approval_operational?.approved}
+						<div class="text-xs space-y-1">
+							<div class="text-[11px] text-on-surface">Disetujui oleh: <b>{wo.dispensationData.approval_operational.by}</b></div>
+							{#if wo.dispensationData.approval_operational.notes}
+								<div class="text-[10px] text-on-surface-variant italic">"{wo.dispensationData.approval_operational.notes}"</div>
+							{/if}
+						</div>
+					{:else}
+						<form method="POST" action="?/approveDispensation" use:enhance class="space-y-2 pt-1">
+							<input type="hidden" name="role_type" value="operational" />
+							<input 
+								type="text" 
+								name="notes" 
+								placeholder="Catatan Ka. Operasional (opsional)..." 
+								class="w-full text-xs px-2.5 py-1.5 rounded-lg bg-surface-container border border-slate-200 dark:border-slate-800 text-on-surface outline-none"
+							/>
+							<button 
+								type="submit" 
+								class="w-full py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-2xs transition-all flex items-center justify-center gap-1"
+							>
+								<span class="material-symbols-outlined text-[15px]">check_circle</span>
+								<span>Setujui (Ka. Operasional)</span>
+							</button>
+						</form>
+					{/if}
+				</div>
+			</div>
 		</div>
 	{/if}
 
@@ -477,7 +732,16 @@
 					<span class="material-symbols-outlined text-[16px]">lock</span>
 					<span>SPK Telah Ditutup (Selesai & Armada Siap Jalan)</span>
 				</div>
-			{:else}
+				{#if !allItemsResolved && wo.status !== 'Closed' && wo.status !== 'READY_FOR_REINSPECTION' && !wo.dispensationData?.is_requested}
+					<button 
+						type="button" 
+						onclick={() => isDispensationModalOpen = true}
+						class="px-4 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs shadow-sm transition-all flex items-center gap-1.5"
+					>
+						<span class="material-symbols-outlined text-[16px]">release_alert</span>
+						<span>Ajukan Dispensasi Jalan</span>
+					</button>
+				{/if}
 				<form method="POST" action="?/sendToReinspection" use:enhance>
 					<button 
 						type="submit" 
@@ -491,4 +755,105 @@
 			{/if}
 		</div>
 	</div>
+
+	<!-- Modal Ajukan Dispensasi Jalan (Rilis Bersyarat) -->
+	{#if isDispensationModalOpen}
+		<div class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4">
+			<div class="w-full max-w-xl rounded-2xl bg-surface-container-lowest border border-slate-200 dark:border-slate-800 p-6 shadow-2xl space-y-4">
+				<div class="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3">
+					<div>
+						<h3 class="text-sm font-black text-on-surface uppercase tracking-wider flex items-center gap-2">
+							<span class="material-symbols-outlined text-amber-500 text-[20px]">release_alert</span>
+							Pengajuan Dispensasi Jalan (Rilis Bersyarat)
+						</h3>
+						<p class="text-xs text-on-surface-variant mt-0.5">
+							Mekanik memberikan rekomendasi teknis bahwa unit aman beroperasi sementara. Memerlukan persetujuan 3 pihak.
+						</p>
+					</div>
+					<button onclick={() => isDispensationModalOpen = false} class="text-on-surface-variant hover:text-on-surface p-1">
+						<span class="material-symbols-outlined text-[20px]">close</span>
+					</button>
+				</div>
+
+				<form method="POST" action="?/requestDispensation" use:enhance={() => {
+					return async ({ update }) => {
+						isDispensationModalOpen = false;
+						await update();
+					};
+				}} class="space-y-4 text-xs">
+					<!-- Deferred items notice -->
+					<div class="p-3 rounded-xl bg-amber-50/60 dark:bg-amber-950/20 border border-amber-200/80 dark:border-amber-800/50 space-y-1.5">
+						<span class="text-[11px] font-bold text-amber-900 dark:text-amber-200 uppercase">
+							Item yang Belum Selesai ({totalItems - resolvedItemsCount} item):
+						</span>
+						<ul class="list-disc list-inside text-on-surface-variant space-y-0.5 max-h-32 overflow-y-auto">
+							{#each wo.repairedItems.filter((i: any) => i.status !== 'RESOLVED') as item}
+								<li><span class="font-bold text-on-surface">{item.item}</span> ({item.category})</li>
+							{/each}
+						</ul>
+					</div>
+
+					<div>
+						<label for="disp_recommendation" class="block font-bold text-on-surface-variant uppercase mb-1">
+							Rekomendasi Teknis Mekanik *
+						</label>
+						<textarea 
+							id="disp_recommendation"
+							name="recommendation" 
+							bind:value={dispensationRec}
+							rows="3" 
+							required 
+							placeholder="Contoh: Kerusakan minor lampu bak/karet wiper tidak fatal untuk rute jarak dekat siang hari. Sistem rem utama dan kemudi aman..."
+							class="w-full px-3 py-2 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800 text-on-surface outline-none"
+						></textarea>
+					</div>
+
+					<div>
+						<label for="disp_operational_reason" class="block font-bold text-on-surface-variant uppercase mb-1">
+							Alasan Kebutuhan Operasional *
+						</label>
+						<textarea 
+							id="disp_operational_reason"
+							name="operational_reason" 
+							bind:value={dispensationReason}
+							rows="2" 
+							required 
+							placeholder="Contoh: Unit mendesak ditugaskan untuk muatan semen curah PT Indocement Merak trip prioritas..."
+							class="w-full px-3 py-2 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800 text-on-surface outline-none"
+						></textarea>
+					</div>
+
+					<div>
+						<label for="disp_commitment_date" class="block font-bold text-on-surface-variant uppercase mb-1">
+							Target Tanggal Komitmen Kembali ke Bengkel *
+						</label>
+						<input 
+							id="disp_commitment_date"
+							type="date" 
+							name="commitment_date" 
+							bind:value={dispensationCommitment}
+							required 
+							class="w-full px-3 py-2 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800 text-on-surface font-mono outline-none"
+						/>
+					</div>
+
+					<div class="flex justify-end gap-2 pt-2 border-t border-slate-200 dark:border-slate-800">
+						<button 
+							type="button" 
+							onclick={() => isDispensationModalOpen = false}
+							class="px-4 py-2 rounded-xl bg-surface-container text-on-surface font-semibold text-xs hover:bg-surface-container-high transition-all"
+						>
+							Batal
+						</button>
+						<button 
+							type="submit" 
+							class="px-5 py-2 rounded-xl bg-primary text-on-primary font-bold text-xs hover:opacity-95 shadow-sm transition-all"
+						>
+							Kirim Pengajuan
+						</button>
+					</div>
+				</form>
+			</div>
+		</div>
+	{/if}
 </div>

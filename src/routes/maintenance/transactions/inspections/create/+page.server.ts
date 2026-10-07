@@ -37,6 +37,19 @@ export const load: PageServerLoad = async () => {
 			ORDER BY k.nama_karyawan ASC
 		`;
 
+		// 3. Fetch active dispensations
+		const activeDispensations = await sql`
+			SELECT 
+				w.wo_no, 
+				w.unit_id, 
+				w.recommendation, 
+				w.operational_reason,
+				w.commitment_date,
+				w.dispensation_data
+			FROM fleet.work_orders w
+			WHERE w.status = 'DISPENSATION_ACTIVE'
+		`;
+
 		return {
 			units: units.map(u => ({
 				id: u.id,
@@ -50,11 +63,19 @@ export const load: PageServerLoad = async () => {
 				id: d.id,
 				name: d.name,
 				birthDate: d.tgl_lahir
+			})),
+			activeDispensations: activeDispensations.map(d => ({
+				woNo: d.wo_no,
+				unitId: d.unit_id,
+				recommendation: d.recommendation || '',
+				operationalReason: d.operational_reason || '',
+				commitmentDate: d.commitment_date ? new Date(d.commitment_date).toISOString().slice(0, 10) : null,
+				deferredItems: (d.dispensation_data?.deferred_items || []) as any[]
 			}))
 		};
 	} catch (error) {
 		console.error("Database error loading inspection form data:", error);
-		return { units: [], drivers: [] };
+		return { units: [], drivers: [], activeDispensations: [] };
 	}
 };
 
