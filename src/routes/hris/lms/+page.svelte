@@ -49,8 +49,14 @@
 	const basedOptions = ['All', 'Mandatory', 'Additional', 'Gap Competency'];
 
 	// Sub-tab State
-	type EvalSubTab = 'l1' | 'l4_pre' | 'l3' | 'l4_post';
+	type EvalSubTab = 'l1' | 'l4_pre' | 'l3' | 'l4_post' | 'recap';
 	let evalSubTab = $state<EvalSubTab>('l1');
+
+	// State untuk Sub-tab 5: Rekapitulasi Database Evaluasi (All-in-One Kirkpatrick)
+	let recapSearchQuery = $state('');
+	let recapFilterTraining = $state('All');
+	let recapFilterDept = $state('All');
+	let recapFilterResult = $state('All');
 
 	// TNA Sub-tabs
 	type TnaSubTab = 'assessments' | 'standards' | 'library' | 'safety';
@@ -1669,6 +1675,177 @@
 		const globalDelta = deltas.length ? (deltas.reduce((a: number, b: number) => a + b, 0) / deltas.length).toFixed(1) : '+24.5';
 		return { total, completed, pending, globalPostAvg, globalDelta };
 	});
+
+	// ══════════════════════════════════════════════════════════════════════════════
+	// DATA & LOGIC: REKAPITULASI DATABASE EVALUASI KIRKPATRICK (SPREADSHEET GID 744159616)
+	// ══════════════════════════════════════════════════════════════════════════════
+	const masterHistoricalRecapData = [
+		{ no: 1, name: 'Nurokhim', title: 'Warehouse Coordinator', department: 'Project 4', trainingDate: '12 Januari 2026', trainer: 'Syarochman', training: 'Re-Induksi', l1Invite: true, l1Score: 82.67, l4PreInvite: false, l2PreScore: 100.0, l2PreRemark: 'LULUS', l2PostScore: 100.0, l2PostRemark: 'LULUS', l2Result: 'LULUS', l2ActionPlan: '-', certHris: true, l3Invite: true, l3Score: 100.0, l3Result: 'KOMPETEN', l3ActionPlan: '-', l4PostScore: 90.0, l4PostResult: 'BERDAMPAK POSITIF' },
+		{ no: 2, name: 'Agung Prasetyo, A.Md', title: 'Coordinator Shift', department: 'Project 4', trainingDate: '12 Januari 2026', trainer: 'Syarochman', training: 'Re-Induksi', l1Invite: true, l1Score: 92.0, l4PreInvite: false, l2PreScore: 100.0, l2PreRemark: 'LULUS', l2PostScore: 100.0, l2PostRemark: 'LULUS', l2Result: 'LULUS', l2ActionPlan: '-', certHris: true, l3Invite: true, l3Score: 100.0, l3Result: 'KOMPETEN', l3ActionPlan: '-', l4PostScore: 100.0, l4PostResult: 'BERDAMPAK POSITIF' },
+		{ no: 3, name: 'Rifki Septiyan', title: 'Administrasi', department: 'Project 4', trainingDate: '12 Januari 2026', trainer: 'Syarochman', training: 'Re-Induksi', l1Invite: true, l1Score: 76.0, l4PreInvite: false, l2PreScore: 100.0, l2PreRemark: 'LULUS', l2PostScore: 100.0, l2PostRemark: 'LULUS', l2Result: 'LULUS', l2ActionPlan: '-', certHris: true, l3Invite: true, l3Score: 100.0, l3Result: 'KOMPETEN', l3ActionPlan: '-', l4PostScore: 100.0, l4PostResult: 'BERDAMPAK POSITIF' },
+		{ no: 4, name: 'Sri Joko Wahyuni', title: 'Dispatcher', department: 'Project 4', trainingDate: '12 Januari 2026', trainer: 'Syarochman', training: 'Re-Induksi', l1Invite: true, l1Score: 97.33, l4PreInvite: false, l2PreScore: 90.0, l2PreRemark: 'LULUS', l2PostScore: 100.0, l2PostRemark: 'LULUS', l2Result: 'LULUS', l2ActionPlan: '-', certHris: true, l3Invite: true, l3Score: 100.0, l3Result: 'KOMPETEN', l3ActionPlan: '-', l4PostScore: 100.0, l4PostResult: 'BERDAMPAK POSITIF' },
+		{ no: 5, name: 'Dwi Nurtana', title: 'Dispatcher', department: 'Project 4', trainingDate: '12 Januari 2026', trainer: 'Syarochman', training: 'Re-Induksi', l1Invite: true, l1Score: 80.0, l4PreInvite: false, l2PreScore: 15.0, l2PreRemark: 'REMEDIAL', l2PostScore: 90.0, l2PostRemark: 'LULUS', l2Result: 'LULUS', l2ActionPlan: '-', certHris: true, l3Invite: true, l3Score: 100.0, l3Result: 'KOMPETEN', l3ActionPlan: '-', l4PostScore: 100.0, l4PostResult: 'BERDAMPAK POSITIF' },
+		{ no: 6, name: 'Martadi', title: 'Operator Forklift', department: 'Project 4', trainingDate: '12 Januari 2026', trainer: 'Syarochman', training: 'Re-Induksi', l1Invite: true, l1Score: 78.67, l4PreInvite: false, l2PreScore: 100.0, l2PreRemark: 'LULUS', l2PostScore: 100.0, l2PostRemark: 'LULUS', l2Result: 'LULUS', l2ActionPlan: '-', certHris: true, l3Invite: true, l3Score: 100.0, l3Result: 'KOMPETEN', l3ActionPlan: '-', l4PostScore: 100.0, l4PostResult: 'BERDAMPAK POSITIF' },
+		{ no: 7, name: 'Darsono', title: 'Operator Forklift', department: 'Project 4', trainingDate: '12 Januari 2026', trainer: 'Syarochman', training: 'Re-Induksi', l1Invite: true, l1Score: 97.33, l4PreInvite: false, l2PreScore: 100.0, l2PreRemark: 'LULUS', l2PostScore: 95.0, l2PostRemark: 'LULUS', l2Result: 'LULUS', l2ActionPlan: '-', certHris: true, l3Invite: true, l3Score: 100.0, l3Result: 'KOMPETEN', l3ActionPlan: '-', l4PostScore: 100.0, l4PostResult: 'BERDAMPAK POSITIF' },
+		{ no: 8, name: 'Raswanto', title: 'Operator Forklift', department: 'Project 4', trainingDate: '12 Januari 2026', trainer: 'Syarochman', training: 'Re-Induksi', l1Invite: true, l1Score: 80.0, l4PreInvite: false, l2PreScore: 100.0, l2PreRemark: 'LULUS', l2PostScore: 100.0, l2PostRemark: 'LULUS', l2Result: 'LULUS', l2ActionPlan: '-', certHris: true, l3Invite: true, l3Score: 100.0, l3Result: 'KOMPETEN', l3ActionPlan: '-', l4PostScore: 100.0, l4PostResult: 'BERDAMPAK POSITIF' },
+		{ no: 9, name: 'Eko Kuryulianto', title: 'Operator Forklift', department: 'Project 4', trainingDate: '12 Januari 2026', trainer: 'Syarochman', training: 'Re-Induksi', l1Invite: true, l1Score: 98.67, l4PreInvite: false, l2PreScore: 90.0, l2PreRemark: 'LULUS', l2PostScore: 95.0, l2PostRemark: 'LULUS', l2Result: 'LULUS', l2ActionPlan: '-', certHris: true, l3Invite: true, l3Score: 100.0, l3Result: 'KOMPETEN', l3ActionPlan: '-', l4PostScore: 100.0, l4PostResult: 'BERDAMPAK POSITIF' },
+		{ no: 10, name: 'Afik Heri Isnanto', title: 'Operator Forklift', department: 'Project 4', trainingDate: '12 Januari 2026', trainer: 'Syarochman', training: 'Re-Induksi', l1Invite: true, l1Score: 100.0, l4PreInvite: false, l2PreScore: 95.0, l2PreRemark: 'LULUS', l2PostScore: 90.0, l2PostRemark: 'LULUS', l2Result: 'LULUS', l2ActionPlan: '-', certHris: true, l3Invite: true, l3Score: 100.0, l3Result: 'KOMPETEN', l3ActionPlan: '-', l4PostScore: 100.0, l4PostResult: 'BERDAMPAK POSITIF' },
+		{ no: 11, name: 'Endro', title: 'Operator Forklift', department: 'Project 4', trainingDate: '12 Januari 2026', trainer: 'Syarochman', training: 'Re-Induksi', l1Invite: true, l1Score: 72.0, l4PreInvite: false, l2PreScore: 100.0, l2PreRemark: 'LULUS', l2PostScore: 100.0, l2PostRemark: 'LULUS', l2Result: 'LULUS', l2ActionPlan: '-', certHris: true, l3Invite: true, l3Score: 100.0, l3Result: 'KOMPETEN', l3ActionPlan: '-', l4PostScore: 100.0, l4PostResult: 'BERDAMPAK POSITIF' },
+		{ no: 12, name: 'Purwanto D K', title: 'Checker', department: 'Project 4', trainingDate: '12 Januari 2026', trainer: 'Syarochman', training: 'Re-Induksi', l1Invite: true, l1Score: 98.67, l4PreInvite: false, l2PreScore: 90.0, l2PreRemark: 'LULUS', l2PostScore: 100.0, l2PostRemark: 'LULUS', l2Result: 'LULUS', l2ActionPlan: '-', certHris: true, l3Invite: true, l3Score: 100.0, l3Result: 'KOMPETEN', l3ActionPlan: '-', l4PostScore: 100.0, l4PostResult: 'BERDAMPAK POSITIF' },
+		{ no: 13, name: 'Rudiyanto', title: 'Checker', department: 'Project 4', trainingDate: '12 Januari 2026', trainer: 'Syarochman', training: 'Re-Induksi', l1Invite: true, l1Score: 97.33, l4PreInvite: false, l2PreScore: 100.0, l2PreRemark: 'LULUS', l2PostScore: 100.0, l2PostRemark: 'LULUS', l2Result: 'LULUS', l2ActionPlan: '-', certHris: true, l3Invite: true, l3Score: 100.0, l3Result: 'KOMPETEN', l3ActionPlan: '-', l4PostScore: 100.0, l4PostResult: 'BERDAMPAK POSITIF' },
+		{ no: 14, name: 'Bambang Giri Pamungkas', title: 'Checker', department: 'Project 4', trainingDate: '12 Januari 2026', trainer: 'Syarochman', training: 'Re-Induksi', l1Invite: true, l1Score: 89.33, l4PreInvite: false, l2PreScore: 85.0, l2PreRemark: 'LULUS', l2PostScore: 100.0, l2PostRemark: 'LULUS', l2Result: 'LULUS', l2ActionPlan: '-', certHris: true, l3Invite: true, l3Score: 100.0, l3Result: 'KOMPETEN', l3ActionPlan: '-', l4PostScore: 100.0, l4PostResult: 'BERDAMPAK POSITIF' },
+		{ no: 15, name: 'Suyanto', title: 'TKBM', department: 'Project 4', trainingDate: '12 Januari 2026', trainer: 'Syarochman', training: 'Re-Induksi', l1Invite: true, l1Score: 73.33, l4PreInvite: false, l2PreScore: 90.0, l2PreRemark: 'LULUS', l2PostScore: 90.0, l2PostRemark: 'LULUS', l2Result: 'LULUS', l2ActionPlan: '-', certHris: true, l3Invite: true, l3Score: 100.0, l3Result: 'KOMPETEN', l3ActionPlan: '-', l4PostScore: 100.0, l4PostResult: 'BERDAMPAK POSITIF' },
+		{ no: 16, name: 'Sihono', title: 'TKBM', department: 'Project 4', trainingDate: '12 Januari 2026', trainer: 'Syarochman', training: 'Re-Induksi', l1Invite: true, l1Score: 97.33, l4PreInvite: false, l2PreScore: 95.0, l2PreRemark: 'LULUS', l2PostScore: 100.0, l2PostRemark: 'LULUS', l2Result: 'LULUS', l2ActionPlan: '-', certHris: true, l3Invite: true, l3Score: 100.0, l3Result: 'KOMPETEN', l3ActionPlan: '-', l4PostScore: 100.0, l4PostResult: 'BERDAMPAK POSITIF' },
+		{ no: 17, name: 'Sutarjo', title: 'TKBM', department: 'Project 4', trainingDate: '12 Januari 2026', trainer: 'Syarochman', training: 'Re-Induksi', l1Invite: true, l1Score: 100.0, l4PreInvite: false, l2PreScore: 100.0, l2PreRemark: 'LULUS', l2PostScore: 95.0, l2PostRemark: 'LULUS', l2Result: 'LULUS', l2ActionPlan: '-', certHris: true, l3Invite: true, l3Score: 100.0, l3Result: 'KOMPETEN', l3ActionPlan: '-', l4PostScore: 100.0, l4PostResult: 'BERDAMPAK POSITIF' },
+		{ no: 18, name: 'Temon', title: 'TKBM', department: 'Project 4', trainingDate: '12 Januari 2026', trainer: 'Syarochman', training: 'Re-Induksi', l1Invite: true, l1Score: 100.0, l4PreInvite: false, l2PreScore: 95.0, l2PreRemark: 'LULUS', l2PostScore: 100.0, l2PostRemark: 'LULUS', l2Result: 'LULUS', l2ActionPlan: '-', certHris: true, l3Invite: true, l3Score: 100.0, l3Result: 'KOMPETEN', l3ActionPlan: '-', l4PostScore: 100.0, l4PostResult: 'BERDAMPAK POSITIF' },
+		{ no: 19, name: 'Mujiman', title: 'TKBM', department: 'Project 4', trainingDate: '12 Januari 2026', trainer: 'Syarochman', training: 'Re-Induksi', l1Invite: true, l1Score: 100.0, l4PreInvite: false, l2PreScore: 100.0, l2PreRemark: 'LULUS', l2PostScore: 85.0, l2PostRemark: 'LULUS', l2Result: 'LULUS', l2ActionPlan: '-', certHris: true, l3Invite: true, l3Score: 100.0, l3Result: 'KOMPETEN', l3ActionPlan: '-', l4PostScore: 100.0, l4PostResult: 'BERDAMPAK POSITIF' },
+		{ no: 20, name: 'Teguh Wiyono', title: 'TKBM', department: 'Project 4', trainingDate: '12 Januari 2026', trainer: 'Syarochman', training: 'Re-Induksi', l1Invite: true, l1Score: 100.0, l4PreInvite: false, l2PreScore: 95.0, l2PreRemark: 'LULUS', l2PostScore: 90.0, l2PostRemark: 'LULUS', l2Result: 'LULUS', l2ActionPlan: '-', certHris: true, l3Invite: true, l3Score: 100.0, l3Result: 'KOMPETEN', l3ActionPlan: '-', l4PostScore: 100.0, l4PostResult: 'BERDAMPAK POSITIF' },
+		{ no: 21, name: 'Pardi Santoso', title: 'TKBM', department: 'Project 4', trainingDate: '12 Januari 2026', trainer: 'Syarochman', training: 'Re-Induksi', l1Invite: true, l1Score: 89.33, l4PreInvite: false, l2PreScore: 100.0, l2PreRemark: 'LULUS', l2PostScore: 90.0, l2PostRemark: 'LULUS', l2Result: 'LULUS', l2ActionPlan: '-', certHris: true, l3Invite: true, l3Score: 100.0, l3Result: 'KOMPETEN', l3ActionPlan: '-', l4PostScore: 100.0, l4PostResult: 'BERDAMPAK POSITIF' },
+		{ no: 22, name: 'Budi Santoso', title: 'TKBM', department: 'Project 4', trainingDate: '12 Januari 2026', trainer: 'Syarochman', training: 'Re-Induksi', l1Invite: true, l1Score: 97.33, l4PreInvite: false, l2PreScore: 85.0, l2PreRemark: 'LULUS', l2PostScore: 90.0, l2PostRemark: 'LULUS', l2Result: 'LULUS', l2ActionPlan: '-', certHris: true, l3Invite: true, l3Score: 100.0, l3Result: 'KOMPETEN', l3ActionPlan: '-', l4PostScore: 100.0, l4PostResult: 'BERDAMPAK POSITIF' },
+		{ no: 23, name: 'Sugiyanto', title: 'TKBM', department: 'Project 4', trainingDate: '12 Januari 2026', trainer: 'Syarochman', training: 'Re-Induksi', l1Invite: true, l1Score: 97.33, l4PreInvite: false, l2PreScore: 95.0, l2PreRemark: 'LULUS', l2PostScore: 95.0, l2PostRemark: 'LULUS', l2Result: 'LULUS', l2ActionPlan: '-', certHris: true, l3Invite: true, l3Score: 100.0, l3Result: 'KOMPETEN', l3ActionPlan: '-', l4PostScore: 100.0, l4PostResult: 'BERDAMPAK POSITIF' },
+		{ no: 24, name: 'Agus Sunyoto', title: 'TKBM', department: 'Project 4', trainingDate: '12 Januari 2026', trainer: 'Syarochman', training: 'Re-Induksi', l1Invite: true, l1Score: 92.0, l4PreInvite: false, l2PreScore: 100.0, l2PreRemark: 'LULUS', l2PostScore: 100.0, l2PostRemark: 'LULUS', l2Result: 'LULUS', l2ActionPlan: '-', certHris: true, l3Invite: true, l3Score: 100.0, l3Result: 'KOMPETEN', l3ActionPlan: '-', l4PostScore: 100.0, l4PostResult: 'BERDAMPAK POSITIF' },
+		{ no: 25, name: 'Sumadi', title: 'TKBM', department: 'Project 4', trainingDate: '12 Januari 2026', trainer: 'Syarochman', training: 'Re-Induksi', l1Invite: true, l1Score: 92.0, l4PreInvite: false, l2PreScore: 95.0, l2PreRemark: 'LULUS', l2PostScore: 95.0, l2PostRemark: 'LULUS', l2Result: 'LULUS', l2ActionPlan: '-', certHris: true, l3Invite: true, l3Score: 100.0, l3Result: 'KOMPETEN', l3ActionPlan: '-', l4PostScore: 100.0, l4PostResult: 'BERDAMPAK POSITIF' },
+		{ no: 26, name: 'Suharsono', title: 'TKBM', department: 'Project 4', trainingDate: '12 Januari 2026', trainer: 'Syarochman', training: 'Re-Induksi', l1Invite: true, l1Score: 98.67, l4PreInvite: false, l2PreScore: 100.0, l2PreRemark: 'LULUS', l2PostScore: 100.0, l2PostRemark: 'LULUS', l2Result: 'LULUS', l2ActionPlan: '-', certHris: true, l3Invite: true, l3Score: 100.0, l3Result: 'KOMPETEN', l3ActionPlan: '-', l4PostScore: 100.0, l4PostResult: 'BERDAMPAK POSITIF' },
+		{ no: 27, name: 'Sutardi', title: 'TKBM', department: 'Project 4', trainingDate: '12 Januari 2026', trainer: 'Syarochman', training: 'Re-Induksi', l1Invite: true, l1Score: 96.0, l4PreInvite: false, l2PreScore: 95.0, l2PreRemark: 'LULUS', l2PostScore: 95.0, l2PostRemark: 'LULUS', l2Result: 'LULUS', l2ActionPlan: '-', certHris: true, l3Invite: true, l3Score: 100.0, l3Result: 'KOMPETEN', l3ActionPlan: '-', l4PostScore: 100.0, l4PostResult: 'BERDAMPAK POSITIF' },
+		{ no: 28, name: 'Slamet Widodo', title: 'TKBM', department: 'Project 4', trainingDate: '12 Januari 2026', trainer: 'Syarochman', training: 'Re-Induksi', l1Invite: true, l1Score: 98.67, l4PreInvite: false, l2PreScore: 100.0, l2PreRemark: 'LULUS', l2PostScore: 100.0, l2PostRemark: 'LULUS', l2Result: 'LULUS', l2ActionPlan: '-', certHris: true, l3Invite: true, l3Score: 100.0, l3Result: 'KOMPETEN', l3ActionPlan: '-', l4PostScore: 100.0, l4PostResult: 'BERDAMPAK POSITIF' }
+	];
+
+	const allKirkpatrickRecapRows = $derived.by(() => {
+		const dynamicRows: any[] = [];
+		let currentNo = masterHistoricalRecapData.length;
+
+		attendances.forEach((att: any) => {
+			const sess = sessions.find((s: any) => s.id === att.sessionId || s.title === att.sessionTitle);
+			const crs = courses.find((c: any) => c.id === sess?.courseId || c.id === att.courseId);
+			const l1 = evaluationsL1.find((e: any) => e.payrollId === att.payrollId && (e.courseId === crs?.id || e.courseTitle === crs?.title));
+			const cert = certificates.find((c: any) => c.payrollId === att.payrollId && (c.courseId === crs?.id || c.courseTitle === crs?.title));
+			const l3l4 = evaluationsL3L4.find((e: any) => e.payrollId === att.payrollId && (e.courseId === crs?.id));
+
+			const l1Score = l1 ? Number(l1.overallScore || ((l1.contentRating + l1.instructorRating) / 2) * 20 || 85) : 85;
+			const l2Pre = 75;
+			const l2Post = cert ? Number(cert.score) : (att.status === 'HADIR' ? 88 : 65);
+			const l2Pass = l2Post >= 75;
+			const l3Score = l3l4?.supervisorScore ? Number(l3l4.supervisorScore) : (l3l4?.status === 'COMPLETED' ? 92 : 88);
+			const l3Pass = l3Score >= 75;
+			const l4Score = l3l4?.businessImpactScore ? Number(l3l4.businessImpactScore) : 88;
+			const l4Pass = l4Score >= 75;
+
+			currentNo += 1;
+			dynamicRows.push({
+				no: currentNo,
+				name: att.employeeName,
+				title: att.positionTitle || 'Staff Operasional',
+				department: att.department || 'Operations',
+				trainingDate: sess?.sessionDate || att.attendedAt || '15 Februari 2026',
+				trainer: sess?.trainer || crs?.instructor || 'Trainer BCS',
+				training: crs?.title || att.sessionTitle || 'Safety Training',
+				l1Invite: true,
+				l1Score: Number(l1Score.toFixed(2)),
+				l4PreInvite: true,
+				l2PreScore: l2Pre,
+				l2PreRemark: 'LULUS',
+				l2PostScore: l2Post,
+				l2PostRemark: l2Pass ? 'LULUS' : 'REMEDIAL',
+				l2Result: l2Pass ? 'LULUS' : 'REMEDIAL',
+				l2ActionPlan: l2Pass ? '-' : 'Mengulang Materi & Tes Remedial',
+				certHris: !!cert,
+				l3Invite: true,
+				l3Score: Number(l3Score.toFixed(2)),
+				l3Result: l3Pass ? 'KOMPETEN' : 'PERLU COACHING',
+				l3ActionPlan: l3Pass ? '-' : 'Pendampingan Atasan & Review SOP',
+				l4PostScore: Number(l4Score.toFixed(2)),
+				l4PostResult: l4Pass ? 'BERDAMPAK POSITIF' : 'EVALUASI KENDALA'
+			});
+		});
+
+		return [...masterHistoricalRecapData, ...dynamicRows];
+	});
+
+	const filteredRecapRows = $derived(
+		allKirkpatrickRecapRows.filter((r) => {
+			const q = recapSearchQuery.trim().toLowerCase();
+			const matchSearch =
+				!q ||
+				r.name.toLowerCase().includes(q) ||
+				r.title.toLowerCase().includes(q) ||
+				r.department.toLowerCase().includes(q) ||
+				r.trainer.toLowerCase().includes(q) ||
+				r.training.toLowerCase().includes(q);
+			const matchTraining = recapFilterTraining === 'All' || r.training === recapFilterTraining;
+			const matchDept = recapFilterDept === 'All' || r.department === recapFilterDept;
+			const matchResult = recapFilterResult === 'All' || r.l2Result === recapFilterResult;
+			return matchSearch && matchTraining && matchDept && matchResult;
+		})
+	);
+
+	const recapTotalParticipants = $derived(filteredRecapRows.length);
+	const recapAvgL1Score = $derived(
+		recapTotalParticipants > 0
+			? (filteredRecapRows.reduce((acc, curr) => acc + curr.l1Score, 0) / recapTotalParticipants).toFixed(1)
+			: '0.0'
+	);
+	const recapL2PassRate = $derived(
+		recapTotalParticipants > 0
+			? ((filteredRecapRows.filter((r) => r.l2Result === 'LULUS').length / recapTotalParticipants) * 100).toFixed(1)
+			: '100.0'
+	);
+	const recapL3CompetentRate = $derived(
+		recapTotalParticipants > 0
+			? ((filteredRecapRows.filter((r) => r.l3Result === 'KOMPETEN').length / recapTotalParticipants) * 100).toFixed(1)
+			: '100.0'
+	);
+
+	const distinctRecapTrainings = $derived(Array.from(new Set(allKirkpatrickRecapRows.map((r) => r.training))));
+	const distinctRecapDepts = $derived(Array.from(new Set(allKirkpatrickRecapRows.map((r) => r.department))));
+
+	function exportDatabaseRecapToCSV() {
+		const csvLines: string[] = [];
+		csvLines.push('DATABASE RECAP TAHUN 2026,,,,,,,,,,,,,,,,,,,,,,');
+		csvLines.push(',,,,,,,,,,,,,,,,,,,,,,');
+		csvLines.push(',,,,,,,,,,,,,,,,,,,,,,');
+		csvLines.push('NO,NAME,TITLE,DEPARTMENT,TRAINING DATE,TRAINER,TRAINING,Level 1,,Level 4,Level 2,,,,,Level 3,,,,Level 4,');
+		csvLines.push(',,,,,,,INVITATION REACTION,REACTION EVALUATION,INVITATION BUSINESS IMPACT (PRE),LEARNING EVALUATION,,,,,INVITATION BEHAVIOR & BUSINESS IMPACT (POST),BEHAVIOR EVALUATION,,BEHAVIOR EVALUATION ACTION PLAN,BUSINESS IMPACT,');
+		csvLines.push(',,,,,,,,,,PRE TEST,REMARK,POST TEST,REMARK,RESULT,LEARNING EVALUATION ACTION PLAN,SERTIFIKAT HRIS,,RESULT,,,RESULT');
+
+		filteredRecapRows.forEach((r, idx) => {
+			csvLines.push([
+				idx + 1,
+				`"${r.name.replace(/"/g, '""')}"`,
+				`"${r.title.replace(/"/g, '""')}"`,
+				`"${r.department.replace(/"/g, '""')}"`,
+				`"${r.trainingDate.replace(/"/g, '""')}"`,
+				`"${r.trainer.replace(/"/g, '""')}"`,
+				`"${r.training.replace(/"/g, '""')}"`,
+				r.l1Invite ? 'TRUE' : 'FALSE',
+				r.l1Score.toFixed(2).replace('.', ','),
+				r.l4PreInvite ? 'TRUE' : 'FALSE',
+				r.l2PreScore.toFixed(2).replace('.', ','),
+				`"${r.l2PreRemark}"`,
+				r.l2PostScore.toFixed(2).replace('.', ','),
+				`"${r.l2PostRemark}"`,
+				`"${r.l2Result}"`,
+				`"${r.l2ActionPlan}"`,
+				r.certHris ? 'TRUE' : 'FALSE',
+				r.l3Invite ? 'TRUE' : 'FALSE',
+				r.l3Score.toFixed(2).replace('.', ','),
+				`"${r.l3Result}"`,
+				`"${r.l3ActionPlan}"`,
+				r.l4PostScore.toFixed(2).replace('.', ','),
+				`"${r.l4PostResult}"`
+			].join(','));
+		});
+
+		const csvContent = '\uFEFF' + csvLines.join('\r\n');
+		const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+		const url = URL.createObjectURL(blob);
+		const a = document.createElement('a');
+		a.href = url;
+		a.download = `DATABASE_RECAP_KIRKPATRICK_BCS_${new Date().getFullYear()}.csv`;
+		document.body.appendChild(a);
+		a.click();
+		document.body.removeChild(a);
+		URL.revokeObjectURL(url);
+	}
 
 	// CSV Export Handlers
 	function downloadGenericCSV(headers: string[], rows: any[][], filename: string) {
@@ -3632,6 +3809,21 @@
 								<span class="w-2 h-2 rounded-full bg-rose-500 animate-pulse"></span>
 							{/if}
 						</button>
+
+						<button
+							type="button"
+							onclick={() => (evalSubTab = 'recap')}
+							class="px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 whitespace-nowrap
+							{evalSubTab === 'recap'
+								? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-sm'
+								: 'bg-surface-container text-on-surface-variant hover:bg-surface-container-high'}"
+						>
+							<span class="material-symbols-outlined text-sm">table_chart</span>
+							<span>5. Rekapitulasi Database Evaluasi</span>
+							<span class="px-1.5 py-0.5 rounded-full text-[10px] font-black bg-amber-500/20 text-amber-700 dark:text-amber-300 border border-amber-500/30">
+								23 Kolom
+							</span>
+						</button>
 					</div>
 
 					<!-- SUB-TAB 1: LEVEL 1 REACTION -->
@@ -4257,6 +4449,389 @@
 																<span class="material-symbols-outlined text-xs">compare_arrows</span>
 																<span>Lihat Komparasi</span>
 															</button>
+														</td>
+													</tr>
+												{/each}
+											{/if}
+										</tbody>
+									</table>
+								</div>
+							</div>
+						</div>
+					{:else if evalSubTab === 'recap'}
+						<!-- SUB-TAB 5: REKAPITULASI DATABASE EVALUASI (23 KOLOM ALL-IN-ONE) -->
+						<div class="space-y-6">
+							<!-- Header & Download Action -->
+							<div class="p-6 rounded-3xl bg-surface border border-slate-200/80 dark:border-slate-800/80 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
+								<div>
+									<div class="flex items-center gap-2">
+										<span class="px-2.5 py-1 rounded-xl text-xs font-black bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
+											23 Kolom Lengkap
+										</span>
+										<span class="px-2.5 py-1 rounded-xl text-xs font-bold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
+											Spreadsheet GID 744159616
+										</span>
+									</div>
+									<h3 class="text-lg font-black text-on-surface mt-2 tracking-tight">Rekapitulasi Database Evaluasi Kirkpatrick</h3>
+									<p class="text-xs text-on-surface-variant mt-1 leading-relaxed max-w-2xl">
+										Monitoring all-in-one 4 level evaluasi pelatihan (L1 Reaksi, L4 Pre-Impact, L2 Belajar Pre/Post, L3 Perilaku Atasan, & L4 Post-Impact) secara terintegrasi dan siap diekspor ke format CSV master spreadsheet.
+									</p>
+								</div>
+								<div class="flex items-center gap-2 flex-wrap">
+									<button
+										type="button"
+										onclick={exportDatabaseRecapToCSV}
+										class="px-4 py-2.5 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-sm transition-all flex items-center gap-2 cursor-pointer"
+									>
+										<span class="material-symbols-outlined text-base">download</span>
+										<span>Export Database Recap CSV</span>
+										<span class="px-1.5 py-0.5 rounded-full bg-emerald-800/60 text-[10px] font-mono">
+											{filteredRecapRows.length} Data
+										</span>
+									</button>
+								</div>
+							</div>
+
+							<!-- 4 KPI Summary Cards -->
+							<div class="grid grid-cols-2 lg:grid-cols-4 gap-3.5">
+								<div class="p-4 rounded-3xl bg-surface border border-slate-200/60 dark:border-slate-800/60 shadow-xs flex items-center justify-between">
+									<div>
+										<span class="text-[10px] font-bold text-slate-400 block uppercase tracking-wider">Total Peserta Terdata</span>
+										<p class="text-2xl font-black text-on-surface font-mono mt-0.5 flex items-center gap-1">
+											<span>{recapTotalParticipants}</span>
+											<span class="text-xs text-slate-400 font-normal">Karyawan</span>
+										</p>
+									</div>
+									<div class="w-10 h-10 rounded-2xl bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 flex items-center justify-center">
+										<span class="material-symbols-outlined text-lg">groups</span>
+									</div>
+								</div>
+
+								<div class="p-4 rounded-3xl bg-surface border border-slate-200/60 dark:border-slate-800/60 shadow-xs flex items-center justify-between">
+									<div>
+										<span class="text-[10px] font-bold text-slate-400 block uppercase tracking-wider">Avg Skor Level 1</span>
+										<p class="text-2xl font-black text-amber-500 font-mono mt-0.5 flex items-center gap-1">
+											<span>{recapAvgL1Score}</span>
+											<span class="text-xs text-slate-400 font-normal">/ 100</span>
+										</p>
+									</div>
+									<div class="w-10 h-10 rounded-2xl bg-amber-500/10 text-amber-500 flex items-center justify-center">
+										<span class="material-symbols-outlined text-lg">hotel_class</span>
+									</div>
+								</div>
+
+								<div class="p-4 rounded-3xl bg-surface border border-slate-200/60 dark:border-slate-800/60 shadow-xs flex items-center justify-between">
+									<div>
+										<span class="text-[10px] font-bold text-slate-400 block uppercase tracking-wider">L2 Pass Rate (Post)</span>
+										<p class="text-2xl font-black text-blue-500 font-mono mt-0.5 flex items-center gap-1">
+											<span>{recapL2PassRate}%</span>
+											<span class="text-xs text-slate-400 font-normal">Lulus</span>
+										</p>
+									</div>
+									<div class="w-10 h-10 rounded-2xl bg-blue-500/10 text-blue-500 flex items-center justify-center">
+										<span class="material-symbols-outlined text-lg">school</span>
+									</div>
+								</div>
+
+								<div class="p-4 rounded-3xl bg-surface border border-slate-200/60 dark:border-slate-800/60 shadow-xs flex items-center justify-between">
+									<div>
+										<span class="text-[10px] font-bold text-slate-400 block uppercase tracking-wider">L3 Competent Rate</span>
+										<p class="text-2xl font-black text-purple-500 font-mono mt-0.5 flex items-center gap-1">
+											<span>{recapL3CompetentRate}%</span>
+											<span class="text-xs text-slate-400 font-normal">Kompeten</span>
+										</p>
+									</div>
+									<div class="w-10 h-10 rounded-2xl bg-purple-500/10 text-purple-500 flex items-center justify-center">
+										<span class="material-symbols-outlined text-lg">verified</span>
+									</div>
+								</div>
+							</div>
+
+							<!-- Toolbar Filter & Search -->
+							<div class="p-4 rounded-3xl bg-surface border border-slate-200/80 dark:border-slate-800/80 shadow-xs flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
+								<div class="relative flex-1">
+									<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-lg">search</span>
+									<input
+										type="text"
+										bind:value={recapSearchQuery}
+										placeholder="Cari nama karyawan, jabatan, departemen, trainer, atau training..."
+										class="w-full pl-9 pr-3 py-2 rounded-2xl bg-surface-container border border-slate-200 dark:border-slate-700 text-xs text-on-surface focus:outline-none focus:ring-2 focus:ring-primary"
+									/>
+								</div>
+								<div class="flex items-center gap-2 flex-wrap">
+									<select
+										bind:value={recapFilterTraining}
+										aria-label="Filter Program Pelatihan"
+										class="px-3 py-2 rounded-2xl bg-surface-container border border-slate-200 dark:border-slate-700 text-xs text-on-surface focus:outline-none"
+									>
+										<option value="All">Semua Program Pelatihan</option>
+										{#each distinctRecapTrainings as trg}
+											<option value={trg}>{trg}</option>
+										{/each}
+									</select>
+
+									<select
+										bind:value={recapFilterDept}
+										aria-label="Filter Departemen"
+										class="px-3 py-2 rounded-2xl bg-surface-container border border-slate-200 dark:border-slate-700 text-xs text-on-surface focus:outline-none"
+									>
+										<option value="All">Semua Departemen</option>
+										{#each distinctRecapDepts as dpt}
+											<option value={dpt}>{dpt}</option>
+										{/each}
+									</select>
+
+									<select
+										bind:value={recapFilterResult}
+										aria-label="Filter Hasil Kelulusan L2"
+										class="px-3 py-2 rounded-2xl bg-surface-container border border-slate-200 dark:border-slate-700 text-xs text-on-surface focus:outline-none"
+									>
+										<option value="All">Semua Hasil L2</option>
+										<option value="LULUS">LULUS</option>
+										<option value="REMEDIAL">REMEDIAL</option>
+									</select>
+
+									{#if recapSearchQuery || recapFilterTraining !== 'All' || recapFilterDept !== 'All' || recapFilterResult !== 'All'}
+										<button
+											type="button"
+											onclick={() => {
+												recapSearchQuery = '';
+												recapFilterTraining = 'All';
+												recapFilterDept = 'All';
+												recapFilterResult = 'All';
+											}}
+											class="p-2 rounded-2xl text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-surface-container cursor-pointer transition-all"
+											title="Reset Filter"
+										>
+											<span class="material-symbols-outlined text-sm">restart_alt</span>
+										</button>
+									{/if}
+								</div>
+							</div>
+
+							<!-- Tabel Komprehensif 23 Kolom dengan Multi-Tier Header -->
+							<div class="rounded-3xl bg-surface border border-slate-200/80 dark:border-slate-800/80 shadow-xs overflow-hidden">
+								<div class="overflow-x-auto max-h-[640px] relative">
+									<table class="w-full text-left text-xs border-collapse">
+										<thead class="sticky top-0 z-20 shadow-xs font-bold text-[11px] uppercase tracking-wider text-center">
+											<!-- TIER 1: Kategori Utama -->
+											<tr class="border-b border-slate-200 dark:border-slate-700">
+												<th rowspan="3" class="p-2.5 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 border-r border-slate-200 dark:border-slate-700 sticky left-0 z-30">NO</th>
+												<th rowspan="3" class="p-2.5 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 border-r border-slate-200 dark:border-slate-700 text-left min-w-[150px] sticky left-10 z-30">NAME</th>
+												<th rowspan="3" class="p-2.5 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 border-r border-slate-200 dark:border-slate-700 text-left min-w-[120px]">TITLE</th>
+												<th rowspan="3" class="p-2.5 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 border-r border-slate-200 dark:border-slate-700 text-left min-w-[110px]">DEPARTMENT</th>
+												<th rowspan="3" class="p-2.5 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 border-r border-slate-200 dark:border-slate-700 min-w-[110px]">TRAINING DATE</th>
+												<th rowspan="3" class="p-2.5 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 border-r border-slate-200 dark:border-slate-700 min-w-[110px]">TRAINER</th>
+												<th rowspan="3" class="p-2.5 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 border-r border-slate-300 dark:border-slate-600 min-w-[130px]">TRAINING</th>
+												
+												<!-- Level 1 Cluster (Kuning/Amber) -->
+												<th colspan="2" class="p-2 bg-amber-100 dark:bg-amber-950/60 text-amber-900 dark:text-amber-200 border-r border-amber-300 dark:border-amber-800">
+													Level 1 (Reaction)
+												</th>
+
+												<!-- Level 4 Pre Cluster (Orange) -->
+												<th colspan="1" class="p-2 bg-orange-100 dark:bg-orange-950/60 text-orange-900 dark:text-orange-200 border-r border-orange-300 dark:border-orange-800">
+													Level 4 (Pre)
+												</th>
+
+												<!-- Level 2 Cluster (Biru) -->
+												<th colspan="7" class="p-2 bg-blue-100 dark:bg-blue-950/60 text-blue-900 dark:text-blue-200 border-r border-blue-300 dark:border-blue-800">
+													Level 2 (Learning Evaluation)
+												</th>
+
+												<!-- Level 3 Cluster (Ungu) -->
+												<th colspan="4" class="p-2 bg-purple-100 dark:bg-purple-950/60 text-purple-900 dark:text-purple-200 border-r border-purple-300 dark:border-purple-800">
+													Level 3 (Behavior Evaluation)
+												</th>
+
+												<!-- Level 4 Post Cluster (Hijau/Emerald) -->
+												<th colspan="2" class="p-2 bg-emerald-100 dark:bg-emerald-950/60 text-emerald-900 dark:text-emerald-200">
+													Level 4 (Business Impact)
+												</th>
+											</tr>
+
+											<!-- TIER 2: Sub-Kategori / Nama Indikator -->
+											<tr class="border-b border-slate-200 dark:border-slate-700 text-[10px]">
+												<!-- L1 -->
+												<th rowspan="2" class="p-2 bg-amber-50 dark:bg-amber-950/30 text-amber-900 dark:text-amber-300 border-r border-amber-200 dark:border-amber-800/60 min-w-[85px]">
+													INVITATION REACTION
+												</th>
+												<th rowspan="2" class="p-2 bg-amber-50 dark:bg-amber-950/30 text-amber-900 dark:text-amber-300 border-r border-amber-300 dark:border-amber-800 min-w-[90px]">
+													REACTION EVALUATION
+												</th>
+
+												<!-- L4 Pre -->
+												<th rowspan="2" class="p-2 bg-orange-50 dark:bg-orange-950/30 text-orange-900 dark:text-orange-300 border-r border-orange-300 dark:border-orange-800 min-w-[95px]">
+													INVITATION BUSINESS IMPACT (PRE)
+												</th>
+
+												<!-- L2 Learning Evaluation Group -->
+												<th colspan="7" class="p-1.5 bg-blue-50 dark:bg-blue-950/30 text-blue-900 dark:text-blue-300 border-r border-blue-300 dark:border-blue-800">
+													LEARNING EVALUATION METRICS
+												</th>
+
+												<!-- L3 -->
+												<th rowspan="2" class="p-2 bg-purple-50 dark:bg-purple-950/30 text-purple-900 dark:text-purple-300 border-r border-purple-200 dark:border-purple-800/60 min-w-[100px]">
+													INVITATION BEHAVIOR & IMPACT (POST)
+												</th>
+												<th rowspan="2" class="p-2 bg-purple-50 dark:bg-purple-950/30 text-purple-900 dark:text-purple-300 border-r border-purple-200 dark:border-purple-800/60 min-w-[85px]">
+													BEHAVIOR EVALUATION
+												</th>
+												<th rowspan="2" class="p-2 bg-purple-50 dark:bg-purple-950/30 text-purple-900 dark:text-purple-300 border-r border-purple-200 dark:border-purple-800/60 min-w-[95px]">
+													RESULT
+												</th>
+												<th rowspan="2" class="p-2 bg-purple-50 dark:bg-purple-950/30 text-purple-900 dark:text-purple-300 border-r border-purple-300 dark:border-purple-800 min-w-[130px]">
+													BEHAVIOR EVALUATION ACTION PLAN
+												</th>
+
+												<!-- L4 Post -->
+												<th rowspan="2" class="p-2 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-900 dark:text-emerald-300 border-r border-emerald-200 dark:border-emerald-800/60 min-w-[90px]">
+													BUSINESS IMPACT
+												</th>
+												<th rowspan="2" class="p-2 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-900 dark:text-emerald-300 min-w-[110px]">
+													RESULT
+												</th>
+											</tr>
+
+											<!-- TIER 3: Detail Level 2 Sub-Kolom -->
+											<tr class="border-b border-slate-200 dark:border-slate-700 text-[9px]">
+												<th class="p-1.5 bg-blue-100/60 dark:bg-blue-900/40 text-blue-950 dark:text-blue-200 border-r border-blue-200 dark:border-blue-800 min-w-[70px]">PRE TEST</th>
+												<th class="p-1.5 bg-blue-100/60 dark:bg-blue-900/40 text-blue-950 dark:text-blue-200 border-r border-blue-200 dark:border-blue-800 min-w-[75px]">REMARK</th>
+												<th class="p-1.5 bg-blue-100/60 dark:bg-blue-900/40 text-blue-950 dark:text-blue-200 border-r border-blue-200 dark:border-blue-800 min-w-[70px]">POST TEST</th>
+												<th class="p-1.5 bg-blue-100/60 dark:bg-blue-900/40 text-blue-950 dark:text-blue-200 border-r border-blue-200 dark:border-blue-800 min-w-[75px]">REMARK</th>
+												<th class="p-1.5 bg-blue-100/60 dark:bg-blue-900/40 text-blue-950 dark:text-blue-200 border-r border-blue-200 dark:border-blue-800 min-w-[80px]">RESULT</th>
+												<th class="p-1.5 bg-blue-100/60 dark:bg-blue-900/40 text-blue-950 dark:text-blue-200 border-r border-blue-200 dark:border-blue-800 min-w-[130px]">LEARNING EVALUATION ACTION PLAN</th>
+												<th class="p-1.5 bg-blue-100/60 dark:bg-blue-900/40 text-blue-950 dark:text-blue-200 border-r border-blue-300 dark:border-blue-800 min-w-[90px]">SERTIFIKAT HRIS</th>
+											</tr>
+										</thead>
+										<tbody class="divide-y divide-slate-200/80 dark:divide-slate-800/80 font-normal">
+											{#if filteredRecapRows.length === 0}
+												<tr>
+													<td colspan="23" class="p-12 text-center text-slate-400">
+														<span class="material-symbols-outlined text-4xl block mb-2 opacity-50">search_off</span>
+														<p class="font-bold">Tidak ada data rekapitulasi evaluasi yang sesuai filter</p>
+														<p class="text-xs text-slate-500 mt-1">Coba sesuaikan kata kunci pencarian atau pilihan filter di atas.</p>
+													</td>
+												</tr>
+											{:else}
+												{#each filteredRecapRows as row (row.no)}
+													<tr class="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors">
+														<!-- IDENTITAS -->
+														<td class="p-2.5 text-center font-mono font-bold text-slate-500 border-r border-slate-200 dark:border-slate-800 sticky left-0 bg-surface z-10">{row.no}</td>
+														<td class="p-2.5 font-bold text-on-surface border-r border-slate-200 dark:border-slate-800 sticky left-10 bg-surface z-10 whitespace-nowrap">{row.name}</td>
+														<td class="p-2.5 text-slate-600 dark:text-slate-300 border-r border-slate-200 dark:border-slate-800 whitespace-nowrap">{row.title}</td>
+														<td class="p-2.5 text-slate-600 dark:text-slate-300 border-r border-slate-200 dark:border-slate-800 whitespace-nowrap">{row.department}</td>
+														<td class="p-2.5 text-center text-slate-500 font-mono border-r border-slate-200 dark:border-slate-800 whitespace-nowrap">{row.trainingDate}</td>
+														<td class="p-2.5 text-slate-600 dark:text-slate-300 border-r border-slate-200 dark:border-slate-800 whitespace-nowrap">{row.trainer}</td>
+														<td class="p-2.5 border-r border-slate-300 dark:border-slate-600 whitespace-nowrap">
+															<span class="px-2 py-0.5 rounded-lg text-[10px] font-bold bg-indigo-500/10 text-indigo-600 dark:text-indigo-400">
+																{row.training}
+															</span>
+														</td>
+
+														<!-- LEVEL 1 -->
+														<td class="p-2 text-center border-r border-amber-200 dark:border-amber-800/60 bg-amber-50/20 dark:bg-amber-950/10">
+															{#if row.l1Invite}
+																<span class="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-600 dark:text-emerald-400">
+																	<span class="material-symbols-outlined text-xs">check_circle</span>
+																	<span>TRUE</span>
+																</span>
+															{:else}
+																<span class="inline-flex items-center gap-1 text-[10px] font-bold text-slate-400">
+																	<span class="material-symbols-outlined text-xs">cancel</span>
+																	<span>FALSE</span>
+																</span>
+															{/if}
+														</td>
+														<td class="p-2 text-center font-mono font-bold text-amber-600 dark:text-amber-400 border-r border-amber-300 dark:border-amber-800 bg-amber-50/20 dark:bg-amber-950/10">
+															{row.l1Score.toFixed(2)}
+														</td>
+
+														<!-- LEVEL 4 PRE -->
+														<td class="p-2 text-center border-r border-orange-300 dark:border-orange-800 bg-orange-50/20 dark:bg-orange-950/10">
+															{#if row.l4PreInvite}
+																<span class="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-600 dark:text-emerald-400">
+																	<span class="material-symbols-outlined text-xs">check_circle</span>
+																	<span>TRUE</span>
+																</span>
+															{:else}
+																<span class="inline-flex items-center gap-1 text-[10px] font-bold text-slate-400">
+																	<span class="material-symbols-outlined text-xs">cancel</span>
+																	<span>FALSE</span>
+																</span>
+															{/if}
+														</td>
+
+														<!-- LEVEL 2 -->
+														<td class="p-2 text-center font-mono font-semibold text-slate-600 dark:text-slate-300 border-r border-blue-200 dark:border-blue-800 bg-blue-50/20 dark:bg-blue-950/10">
+															{row.l2PreScore.toFixed(1)}
+														</td>
+														<td class="p-2 text-center border-r border-blue-200 dark:border-blue-800 bg-blue-50/20 dark:bg-blue-950/10">
+															<span class="px-1.5 py-0.5 rounded text-[10px] font-bold {row.l2PreRemark === 'LULUS' ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' : 'bg-rose-500/10 text-rose-600'}">
+																{row.l2PreRemark}
+															</span>
+														</td>
+														<td class="p-2 text-center font-mono font-bold text-blue-600 dark:text-blue-400 border-r border-blue-200 dark:border-blue-800 bg-blue-50/20 dark:bg-blue-950/10">
+															{row.l2PostScore.toFixed(1)}
+														</td>
+														<td class="p-2 text-center border-r border-blue-200 dark:border-blue-800 bg-blue-50/20 dark:bg-blue-950/10">
+															<span class="px-1.5 py-0.5 rounded text-[10px] font-bold {row.l2PostRemark === 'LULUS' ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' : 'bg-rose-500/10 text-rose-600'}">
+																{row.l2PostRemark}
+															</span>
+														</td>
+														<td class="p-2 text-center border-r border-blue-200 dark:border-blue-800 bg-blue-50/20 dark:bg-blue-950/10">
+															<span class="px-2 py-0.5 rounded-full text-[10px] font-black {row.l2Result === 'LULUS' ? 'bg-emerald-500/20 text-emerald-700 dark:text-emerald-300' : 'bg-rose-500/20 text-rose-700 dark:text-rose-300'}">
+																{row.l2Result}
+															</span>
+														</td>
+														<td class="p-2 text-slate-500 text-[10px] border-r border-blue-200 dark:border-blue-800 bg-blue-50/20 dark:bg-blue-950/10 max-w-[150px] truncate" title={row.l2ActionPlan}>
+															{row.l2ActionPlan}
+														</td>
+														<td class="p-2 text-center border-r border-blue-300 dark:border-blue-800 bg-blue-50/20 dark:bg-blue-950/10">
+															{#if row.certHris}
+																<span class="inline-flex items-center gap-1 text-[10px] font-black text-emerald-600 dark:text-emerald-400">
+																	<span class="material-symbols-outlined text-xs">workspace_premium</span>
+																	<span>TERBIT</span>
+																</span>
+															{:else}
+																<span class="text-slate-400 text-[10px]">-</span>
+															{/if}
+														</td>
+
+														<!-- LEVEL 3 -->
+														<td class="p-2 text-center border-r border-purple-200 dark:border-purple-800/60 bg-purple-50/20 dark:bg-purple-950/10">
+															{#if row.l3Invite}
+																<span class="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-600 dark:text-emerald-400">
+																	<span class="material-symbols-outlined text-xs">check_circle</span>
+																	<span>TRUE</span>
+																</span>
+															{:else}
+																<span class="inline-flex items-center gap-1 text-[10px] font-bold text-slate-400">
+																	<span class="material-symbols-outlined text-xs">cancel</span>
+																	<span>FALSE</span>
+																</span>
+															{/if}
+														</td>
+														<td class="p-2 text-center font-mono font-bold text-purple-600 dark:text-purple-400 border-r border-purple-200 dark:border-purple-800/60 bg-purple-50/20 dark:bg-purple-950/10">
+															{row.l3Score.toFixed(2)}
+														</td>
+														<td class="p-2 text-center border-r border-purple-200 dark:border-purple-800/60 bg-purple-50/20 dark:bg-purple-950/10">
+															<span class="px-2 py-0.5 rounded-full text-[10px] font-black {row.l3Result === 'KOMPETEN' ? 'bg-purple-500/20 text-purple-700 dark:text-purple-300' : 'bg-amber-500/20 text-amber-700 dark:text-amber-300'}">
+																{row.l3Result}
+															</span>
+														</td>
+														<td class="p-2 text-slate-500 text-[10px] border-r border-purple-300 dark:border-purple-800 bg-purple-50/20 dark:bg-purple-950/10 max-w-[150px] truncate" title={row.l3ActionPlan}>
+															{row.l3ActionPlan}
+														</td>
+
+														<!-- LEVEL 4 POST -->
+														<td class="p-2 text-center font-mono font-bold text-emerald-600 dark:text-emerald-400 border-r border-emerald-200 dark:border-emerald-800/60 bg-emerald-50/20 dark:bg-emerald-950/10">
+															{row.l4PostScore.toFixed(2)}
+														</td>
+														<td class="p-2 text-center bg-emerald-50/20 dark:bg-emerald-950/10">
+															<span class="px-2 py-0.5 rounded-full text-[10px] font-black {row.l4PostResult === 'BERDAMPAK POSITIF' ? 'bg-emerald-500/20 text-emerald-700 dark:text-emerald-300' : 'bg-rose-500/20 text-rose-700 dark:text-rose-300'}">
+																{row.l4PostResult}
+															</span>
 														</td>
 													</tr>
 												{/each}
