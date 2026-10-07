@@ -94,7 +94,13 @@ export const load: PageServerLoad = async ({ locals }) => {
 			ORDER BY created_at DESC;
 		`;
 
-		// 8. Ambil Sertifikat Resmi
+		// 8. Ambil Sertifikat Resmi (Pastikan masa berlaku 1 tahun terhitung dari tanggal terbit)
+		await sql`
+			UPDATE hris.lms_certificates
+			SET valid_until = issued_at + INTERVAL '1 year'
+			WHERE valid_until IS NULL OR valid_until > (issued_at + INTERVAL '1 year 2 days');
+		`.catch(() => {});
+
 		const certificatesRows = await sql`
 			SELECT * FROM hris.lms_certificates
 			ORDER BY issued_at DESC;
@@ -411,7 +417,15 @@ export const load: PageServerLoad = async ({ locals }) => {
 				category: c.category,
 				score: Number(c.score),
 				issuedAt: c.issued_at ? c.issued_at.toISOString().split('T')[0] : '',
-				validUntil: c.valid_until ? c.valid_until.toISOString().split('T')[0] : '',
+				validUntil: (() => {
+					if (c.valid_until) return c.valid_until.toISOString().split('T')[0];
+					if (c.issued_at) {
+						const d = new Date(c.issued_at);
+						d.setFullYear(d.getFullYear() + 1);
+						return d.toISOString().split('T')[0];
+					}
+					return '';
+				})(),
 				qrVerifyUrl: c.qr_verify_url
 			})),
 			competencyLibrary: competencyLibraryRows.map((c) => ({
@@ -1019,7 +1033,7 @@ export const actions = {
 						category, score, issued_at, valid_until, qr_verify_url
 					) VALUES (
 						${certNumber}, ${payrollId}, ${employeeName}, ${courseId}, ${course?.title || 'Training Program'},
-						${course?.category || 'Operations'}, ${score}, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP + INTERVAL '2 years', ${qrUrl}
+						${course?.category || 'Operations'}, ${score}, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP + INTERVAL '1 year', ${qrUrl}
 					)
 					ON CONFLICT (certificate_number) DO NOTHING;
 				`;

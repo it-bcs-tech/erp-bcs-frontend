@@ -485,6 +485,44 @@
 		return `${monthName} - Minggu ke-${weekNum} (${slot.slotKey})`;
 	}
 
+	function formatIndonesianDate(dateStr?: string): string {
+		if (!dateStr || dateStr === '-') return '-';
+		try {
+			const d = new Date(dateStr);
+			if (isNaN(d.getTime())) return dateStr;
+			return d.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
+		} catch {
+			return dateStr;
+		}
+	}
+
+	function getCertificateValidity(cert: any): { validUntilFormatted: string; isExpired: boolean; daysRemaining: number } {
+		let validDate: Date;
+		if (cert?.validUntil) {
+			validDate = new Date(cert.validUntil);
+		} else if (cert?.issuedAt) {
+			validDate = new Date(cert.issuedAt);
+			validDate.setFullYear(validDate.getFullYear() + 1);
+		} else {
+			validDate = new Date();
+			validDate.setFullYear(validDate.getFullYear() + 1);
+		}
+
+		const today = new Date();
+		today.setHours(0, 0, 0, 0);
+		const isExpired = validDate.getTime() < today.getTime();
+		const diffTime = validDate.getTime() - today.getTime();
+		const daysRemaining = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+		const validUntilFormatted = validDate.toLocaleDateString('id-ID', {
+			day: 'numeric',
+			month: 'long',
+			year: 'numeric'
+		});
+
+		return { validUntilFormatted, isExpired, daysRemaining };
+	}
+
 	function getCoursePlanSlots(course: any, matchedSessions: any[]) {
 		const planSlots: Record<string, boolean> = {};
 		const titleLower = (course.title || '').toLowerCase();
@@ -6236,11 +6274,13 @@
 											<th class="p-3">Kategori</th>
 											<th class="p-3 text-center">Nilai Ujian</th>
 											<th class="p-3">Tanggal Terbit</th>
+											<th class="p-3">Masa Berlaku (1 Thn)</th>
 											<th class="p-3 text-right">Aksi Dokumen</th>
 										</tr>
 									</thead>
 									<tbody class="divide-y divide-slate-200 dark:divide-slate-800">
 										{#each certificates as cert}
+											{@const val = getCertificateValidity(cert)}
 											<tr class="hover:bg-surface-container/50">
 												<td class="p-3 font-mono font-bold text-primary">{cert.certificateNumber}</td>
 												<td class="p-3">
@@ -6251,6 +6291,15 @@
 												<td class="p-3 text-slate-500">{cert.category}</td>
 												<td class="p-3 text-center font-bold text-emerald-600 font-mono text-sm">{cert.score}</td>
 												<td class="p-3 font-mono text-slate-500">{cert.issuedAt}</td>
+												<td class="p-3">
+													<div class="space-y-0.5">
+														<p class="font-mono text-[11px] font-semibold text-on-surface">s/d {val.validUntilFormatted}</p>
+														<span class="px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider inline-flex items-center gap-1 {val.isExpired ? 'bg-rose-100 text-rose-800 dark:bg-rose-950/60 dark:text-rose-300' : 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300'}">
+															<span class="w-1.5 h-1.5 rounded-full {val.isExpired ? 'bg-rose-500' : 'bg-emerald-500'}"></span>
+															<span>{val.isExpired ? 'Kadaluarsa' : 'Aktif (1 Tahun)'}</span>
+														</span>
+													</div>
+												</td>
 												<td class="p-3 text-right">
 													<button
 														type="button"
@@ -7085,6 +7134,7 @@
 							<p class="text-slate-500">Nomor Sertifikat: <strong class="font-mono text-primary">{postTestResult?.certNumber || `CERT-BCS-2026-${(activeCourseForPlayer.id || '01').replace(/\D/g, '').padEnd(4, '0').slice(0, 4)}`}</strong></p>
 							<p class="text-slate-500">Metode Pelatihan: <strong class="font-semibold text-on-surface">{isOfflineAttendedCourse ? 'Tatap Muka (In-House Offline)' : 'E-Learning (Online)'}</strong></p>
 							<p class="text-slate-500">Nilai Akhir: <strong class="font-mono text-emerald-600">{postTestResult?.score || (isOfflineAttendedCourse ? 'Lulus Kelas Tatap Muka' : 95)}/100</strong></p>
+							<p class="text-slate-500">Masa Berlaku Sertifikat: <strong class="text-amber-600 font-bold">1 (satu) Tahun terhitung sejak diterbitkan</strong></p>
 							<p class="text-slate-500">Status Evaluasi Atasan: <span class="text-amber-600 font-bold">{isOfflineAttendedCourse ? 'Level 4 Pre-Test (SLA 10 Hari) & Level 3/4 Post-Test (3 Bulan) Aktif' : 'Dijadwalkan H+3 Bulan'}</span></p>
 						</div>
 
@@ -7101,6 +7151,9 @@
 								type="button"
 								onclick={() => {
 									const certNum = postTestResult?.certNumber || `CERT-BCS-2026-${(activeCourseForPlayer.id || '01').replace(/\D/g, '').padEnd(4, '0').slice(0, 4)}`;
+									const now = new Date();
+									const oneYearLater = new Date();
+									oneYearLater.setFullYear(oneYearLater.getFullYear() + 1);
 									isPlayerModalOpen = false;
 									openCertificate({
 										certificateNumber: certNum,
@@ -7109,7 +7162,8 @@
 										courseTitle: activeCourseForPlayer.title,
 										category: activeCourseForPlayer.category,
 										score: postTestResult?.score || 95,
-										issuedAt: new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }),
+										issuedAt: now.toISOString().split('T')[0],
+										validUntil: oneYearLater.toISOString().split('T')[0],
 										qrVerifyUrl: `https://academy.bcslabs.tech/verify/${certNum}`
 									});
 								}}
@@ -9131,10 +9185,19 @@
 						</div>
 					</div>
 
-					<!-- Date and City -->
-					<div class="text-center text-[11px] text-slate-600">
-						<p>Diterbitkan di Cilegon, Banten</p>
-						<p class="font-bold text-slate-900">{activeCertData.issuedAt}</p>
+					<!-- Date, City & Validity Note -->
+					<div class="text-center text-[11px] text-slate-600 space-y-1">
+						<p class="leading-tight text-slate-500">Diterbitkan di Cilegon, Banten</p>
+						<p class="font-bold text-slate-900 text-xs leading-tight">{formatIndonesianDate(activeCertData.issuedAt)}</p>
+						<div class="mt-1.5 inline-flex flex-col items-center justify-center px-3.5 py-1.5 rounded-xl bg-amber-50 border border-amber-300/80 shadow-2xs">
+							<span class="text-[10px] font-black uppercase tracking-wider text-amber-900 flex items-center gap-1">
+								<span class="material-symbols-outlined text-[12px] text-amber-700">verified</span>
+								<span>Masa Berlaku: 1 (Satu) Tahun</span>
+							</span>
+							<span class="text-[9px] text-amber-800/90 font-medium">
+								Terhitung sejak diterbitkan (s/d {getCertificateValidity(activeCertData).validUntilFormatted})
+							</span>
+						</div>
 					</div>
 
 					<!-- Signature -->
