@@ -5,25 +5,33 @@
 	const insp = $derived(data.inspection);
 
 	function getStatusBadge(status: string) {
-		const s = status.toUpperCase();
-		if (s === 'PASSED') {
-			return 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800';
+		const s = (status || '').toUpperCase();
+		if (s === 'PASSED' || s === 'LAYAK') {
+			return 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300 border-emerald-300 dark:border-emerald-800';
 		}
-		if (s.includes('DEFECT') || s.includes('FAIL')) {
-			return 'bg-rose-50 text-rose-700 dark:bg-rose-950/50 dark:text-rose-300 border-rose-200 dark:border-rose-800';
+		if (s.includes('CATATAN') || s.includes('NOTE')) {
+			return 'bg-amber-50 text-amber-800 dark:bg-amber-950/50 dark:text-amber-300 border-amber-300 dark:border-amber-800';
 		}
-		if (s.includes('RE_INSPECT') || s.includes('CLOSED')) {
-			return 'bg-purple-50 text-purple-700 dark:bg-purple-950/50 dark:text-purple-300 border-purple-200 dark:border-purple-800';
+		if (s.includes('DEFECT') || s.includes('FAIL') || s.includes('TIDAK')) {
+			return 'bg-rose-50 text-rose-700 dark:bg-rose-950/50 dark:text-rose-300 border-rose-300 dark:border-rose-800';
 		}
-		return 'bg-amber-50 text-amber-700 dark:bg-amber-950/50 dark:text-amber-300 border-amber-200 dark:border-amber-800';
+		return 'bg-slate-100 text-slate-700 border-slate-300';
+	}
+
+	function getStatusLabel(status: string) {
+		const s = (status || '').toUpperCase();
+		if (s === 'PASSED' || s === 'LAYAK') return 'LAYAK BEROPERASI';
+		if (s.includes('CATATAN') || s.includes('NOTE')) return 'LAYAK DENGAN CATATAN';
+		if (s.includes('DEFECT') || s.includes('FAIL') || s.includes('TIDAK')) return 'TIDAK LAYAK BEROPERASI';
+		return status;
 	}
 </script>
 
 <svelte:head>
-	<title>{insp.inspectionNo} - Detail Inspeksi | ERP BCS</title>
+	<title>{insp.inspectionNo} - Detail Inspeksi P2H | ERP BCS</title>
 </svelte:head>
 
-<div class="max-w-5xl mx-auto space-y-6">
+<div class="max-w-5xl mx-auto space-y-6 pb-16">
 	<!-- Header -->
 	<header class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
 		<div>
@@ -38,16 +46,19 @@
 				<h1 class="text-2xl font-black text-on-surface tracking-tight font-mono">
 					{insp.inspectionNo}
 				</h1>
-				<span class="px-2.5 py-0.5 rounded-full text-[11px] font-black border {getStatusBadge(insp.status)}">
-					{insp.status}
+				<span class="px-3 py-1 rounded-full text-xs font-black border {getStatusBadge(insp.status)}">
+					{getStatusLabel(insp.status)}
+				</span>
+				<span class="text-xs px-2.5 py-0.5 rounded-lg bg-surface-container font-mono font-bold text-on-surface-variant border border-slate-200 dark:border-slate-800">
+					{insp.unitType === 'DT' ? 'Dumptruck (DT)' : insp.unitType === 'BULK' ? 'Bulk (Tronton & Trailer Bulk)' : 'Trailer (TR)'}
 				</span>
 			</div>
 		</div>
 
 		<div class="flex items-center gap-2">
 			{#if insp.woStatus === 'READY_FOR_REINSPECTION'}
-				<a href="/maintenance/transactions/inspections/{encodeURIComponent(insp.inspectionNo)}/re-inspect" class="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-purple-600 text-white font-bold text-sm hover:bg-purple-700 shadow-sm transition-all">
-					<span class="material-symbols-outlined text-[18px]">verified</span>
+				<a href="/maintenance/transactions/inspections/{encodeURIComponent(insp.inspectionNo)}/re-inspect" class="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-purple-600 text-white font-bold text-xs hover:bg-purple-700 shadow-sm transition-all">
+					<span class="material-symbols-outlined text-[16px]">verified</span>
 					<span>Lakukan Re-Inspeksi</span>
 				</a>
 			{/if}
@@ -67,7 +78,7 @@
 				</div>
 				<div>
 					<div class="text-xs font-bold text-sky-800 dark:text-sky-200">
-						Terhubung ke Work Order (SPK): <span class="font-mono">{insp.woNo}</span>
+						Terhubung ke Tiket Work Order (SPK): <span class="font-mono">{insp.woNo}</span>
 					</div>
 					<div class="text-[11px] text-sky-700 dark:text-sky-300">
 						Status SPK: <b>{insp.woStatus || 'Open'}</b> • Mekanik: <b>{insp.mechanicName}</b>
@@ -80,74 +91,82 @@
 		</div>
 	{/if}
 
-	<!-- Overview Info Card -->
+	<!-- Overview Info Grid -->
 	<div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-		<!-- Unit & Driver -->
+		<!-- Unit & Operasional -->
 		<div class="p-5 rounded-2xl bg-surface-container-lowest border border-slate-200/70 dark:border-slate-800/70 space-y-3">
 			<div class="text-[11px] font-bold text-on-surface-variant uppercase tracking-wider">Unit & Operasional</div>
 			<div class="space-y-1.5 text-xs">
 				<div class="flex justify-between">
 					<span class="text-on-surface-variant">Nomor Unit:</span>
-					<span class="font-mono font-bold text-on-surface">{insp.unitId} ({insp.unitType})</span>
+					<span class="font-mono font-bold text-on-surface">{insp.unitId}</span>
+				</div>
+				<div class="flex justify-between">
+					<span class="text-on-surface-variant">No. Polisi:</span>
+					<span class="font-mono font-bold text-on-surface">{insp.policeNo}</span>
 				</div>
 				<div class="flex justify-between">
 					<span class="text-on-surface-variant">Odometer:</span>
 					<span class="font-mono font-bold text-on-surface">{insp.odometer} KM</span>
 				</div>
 				<div class="flex justify-between">
-					<span class="text-on-surface-variant">Pengemudi:</span>
-					<span class="font-bold text-on-surface">{insp.driverName}</span>
+					<span class="text-on-surface-variant">No. APAR:</span>
+					<span class="font-mono text-on-surface">{insp.noApar}</span>
 				</div>
 				<div class="flex justify-between">
-					<span class="text-on-surface-variant">Kenek:</span>
-					<span class="font-medium text-on-surface">{insp.kenekName}</span>
+					<span class="text-on-surface-variant">Tujuan Trip:</span>
+					<span class="font-semibold text-on-surface">{insp.destination}</span>
 				</div>
 			</div>
 		</div>
 
-		<!-- Waktu & Tim -->
+		<!-- Waktu & Petugas Inspeksi -->
 		<div class="p-5 rounded-2xl bg-surface-container-lowest border border-slate-200/70 dark:border-slate-800/70 space-y-3">
-			<div class="text-[11px] font-bold text-on-surface-variant uppercase tracking-wider">Waktu & Inspektor</div>
+			<div class="text-[11px] font-bold text-on-surface-variant uppercase tracking-wider">Waktu & Petugas Inspeksi</div>
 			<div class="space-y-1.5 text-xs">
 				<div class="flex justify-between">
-					<span class="text-on-surface-variant">Tanggal:</span>
-					<span class="font-semibold text-on-surface">{insp.date}</span>
+					<span class="text-on-surface-variant">Waktu Masuk:</span>
+					<span class="font-semibold font-mono text-on-surface">{insp.entryTime}</span>
 				</div>
 				<div class="flex justify-between">
-					<span class="text-on-surface-variant">Waktu:</span>
-					<span class="font-semibold text-on-surface">{insp.type}</span>
+					<span class="text-on-surface-variant">Waktu Keluar:</span>
+					<span class="font-semibold font-mono text-on-surface">{insp.exitTime}</span>
 				</div>
 				<div class="flex justify-between">
 					<span class="text-on-surface-variant">Inspektor:</span>
-					<span class="font-bold text-on-surface">{insp.inspectorName}</span>
+					<span class="font-bold text-on-surface">{insp.inspectorName} ({insp.inspectorId})</span>
 				</div>
 				<div class="flex justify-between">
-					<span class="text-on-surface-variant">Defect Ditemukan:</span>
+					<span class="text-on-surface-variant">Temuan Defect:</span>
 					<span class="font-bold {insp.defectCount > 0 ? 'text-rose-600' : 'text-emerald-600'}">{insp.defectCount} Item</span>
 				</div>
 			</div>
 		</div>
 
-		<!-- Kesehatan Driver -->
+		<!-- Kesehatan Driver & Pengemudi -->
 		<div class="p-5 rounded-2xl bg-surface-container-lowest border border-slate-200/70 dark:border-slate-800/70 space-y-3">
-			<div class="text-[11px] font-bold text-on-surface-variant uppercase tracking-wider">Kesehatan Driver (Tensi/Alkohol)</div>
+			<div class="text-[11px] font-bold text-on-surface-variant uppercase tracking-wider">Pengemudi & Tes Kesehatan</div>
 			<div class="space-y-1.5 text-xs">
 				<div class="flex justify-between">
-					<span class="text-on-surface-variant">Tekanan Darah:</span>
+					<span class="text-on-surface-variant">Nama Driver:</span>
+					<span class="font-bold text-on-surface">{insp.driverName}</span>
+				</div>
+				<div class="flex justify-between">
+					<span class="text-on-surface-variant">Kenek:</span>
+					<span class="text-on-surface">{insp.kenekName}</span>
+				</div>
+				<div class="flex justify-between">
+					<span class="text-on-surface-variant">Tensi (Sys/Dia):</span>
 					<span class="font-mono font-bold text-on-surface">
-						{insp.driverHealth?.systolic || '-'}/{insp.driverHealth?.diastolic || '-'} mmHg
+						{insp.driverHealth?.systolic || '-'}/{insp.driverHealth?.diastolic || '-'} mmHg ({insp.driverHealth?.pulse || '-'} bpm)
 					</span>
 				</div>
 				<div class="flex justify-between">
-					<span class="text-on-surface-variant">Pulse / Nadi:</span>
-					<span class="font-mono font-bold text-on-surface">{insp.driverHealth?.pulse || '-'} bpm</span>
-				</div>
-				<div class="flex justify-between">
-					<span class="text-on-surface-variant">Tes Alkohol (BAC):</span>
-					<span class="font-mono font-bold text-on-surface">{insp.driverHealth?.alcohol_test ?? '0.000'}%</span>
+					<span class="text-on-surface-variant">Tes Alkohol:</span>
+					<span class="font-mono font-bold text-on-surface">{insp.driverHealth?.alcohol_test ?? '0.00'} BAC</span>
 				</div>
 				<div class="flex justify-between items-center pt-1 border-t border-slate-100 dark:border-slate-800">
-					<span class="text-on-surface-variant">Kesimpulan:</span>
+					<span class="text-on-surface-variant">Kondisi Fisik:</span>
 					<span class="px-2 py-0.5 rounded text-[10px] font-bold {insp.driverHealth?.is_fit ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'}">
 						{insp.driverHealth?.is_fit ? '✓ Sehat' : '✗ Tidak Sehat'}
 					</span>
@@ -156,12 +175,65 @@
 		</div>
 	</div>
 
+	<!-- Section Pemeriksaan Ketebalan Ban (Tire Depth Table) -->
+	{#if insp.tireDepthData && ((insp.tireDepthData.head && insp.tireDepthData.head.length > 0) || (insp.tireDepthData.trailer && insp.tireDepthData.trailer.length > 0))}
+		<div class="p-6 rounded-2xl bg-surface-container-lowest border border-slate-200/70 dark:border-slate-800/70 space-y-4">
+			<div class="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3">
+				<h2 class="text-sm font-black text-on-surface uppercase tracking-wider flex items-center gap-2">
+					<span class="material-symbols-outlined text-primary text-[20px]">tire_repair</span>
+					Pemeriksaan Ketebalan Ban (Standar &ge; 1.0 mm)
+				</h2>
+				<span class="text-xs text-on-surface-variant">SK.523/AJ.402/DRJD/2015</span>
+			</div>
+
+			<!-- Head Tires Grid -->
+			{#if insp.tireDepthData.head && insp.tireDepthData.head.length > 0}
+				<div class="space-y-1.5">
+					<div class="text-xs font-bold text-on-surface uppercase tracking-wider">1. Ban Head:</div>
+					<div class="grid grid-cols-4 sm:grid-cols-6 lg:grid-cols-12 gap-2 text-center text-xs">
+						{#each insp.tireDepthData.head as d, idx}
+							<div class="p-2 rounded-xl border {d !== null && d < 1.0 ? 'bg-rose-50 text-rose-900 border-rose-400 font-bold' : 'bg-surface-container-low border-slate-200 dark:border-slate-800'}">
+								<span class="text-[10px] text-on-surface-variant block">#{idx + 1}</span>
+								<span class="font-mono">{d !== null ? `${d} mm` : '-'}</span>
+							</div>
+						{/each}
+					</div>
+				</div>
+			{/if}
+
+			<!-- Trailer Tires Grid -->
+			{#if insp.tireDepthData.trailer && insp.tireDepthData.trailer.length > 0}
+				<div class="space-y-1.5 pt-2 border-t border-slate-200 dark:border-slate-800">
+					<div class="text-xs font-bold text-on-surface uppercase tracking-wider">2. Ban Trailer:</div>
+					<div class="grid grid-cols-4 sm:grid-cols-6 lg:grid-cols-12 gap-2 text-center text-xs">
+						{#each insp.tireDepthData.trailer as d, idx}
+							<div class="p-2 rounded-xl border {d !== null && d < 1.0 ? 'bg-rose-50 text-rose-900 border-rose-400 font-bold' : 'bg-surface-container-low border-slate-200 dark:border-slate-800'}">
+								<span class="text-[10px] text-on-surface-variant block">Trl #{idx + 1}</span>
+								<span class="font-mono">{d !== null ? `${d} mm` : '-'}</span>
+							</div>
+						{/each}
+					</div>
+				</div>
+			{/if}
+
+			<!-- Spare Tire -->
+			{#if insp.tireDepthData.spare !== null && insp.tireDepthData.spare !== undefined}
+				<div class="pt-2 border-t border-slate-200 dark:border-slate-800 text-xs flex items-center gap-2">
+					<span class="font-bold text-on-surface">Ban Serep:</span>
+					<span class="px-2.5 py-1 rounded-lg font-mono font-bold {insp.tireDepthData.spare < 1.0 ? 'bg-rose-50 text-rose-800 border border-rose-300' : 'bg-surface-container text-on-surface'}">
+						{insp.tireDepthData.spare} mm
+					</span>
+				</div>
+			{/if}
+		</div>
+	{/if}
+
 	<!-- Checklist Results Table -->
 	<div class="p-6 rounded-2xl bg-surface-container-lowest border border-slate-200/70 dark:border-slate-800/70 space-y-4">
 		<div class="flex items-center justify-between border-b border-slate-200/70 dark:border-slate-800/70 pb-3">
 			<h2 class="text-sm font-black text-on-surface uppercase tracking-wider flex items-center gap-2">
 				<span class="material-symbols-outlined text-primary text-[20px]">fact_check</span>
-				Hasil Pemeriksaan Lembar Fisik ({insp.unitType === 'DT' ? 'Dumptruck' : 'Trailer'})
+				Hasil Pemeriksaan Lembar Fisik ({insp.unitType})
 			</h2>
 			<span class="text-xs text-on-surface-variant font-medium">Total: {insp.checklistData.length} Item Diperiksa</span>
 		</div>

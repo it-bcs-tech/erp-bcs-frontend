@@ -37,17 +37,29 @@
 	}
 
 	function getStatusBadge(status: string) {
-		const s = status.toUpperCase();
-		if (s === 'PASSED') {
-			return 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800';
+		const s = (status || '').toUpperCase();
+		if (s === 'PASSED' || s === 'LAYAK') {
+			return 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300 border-emerald-300 dark:border-emerald-800';
 		}
-		if (s.includes('DEFECT') || s.includes('FAIL')) {
-			return 'bg-rose-50 text-rose-700 dark:bg-rose-950/50 dark:text-rose-300 border-rose-200 dark:border-rose-800';
+		if (s.includes('CATATAN') || s.includes('NOTE')) {
+			return 'bg-amber-50 text-amber-800 dark:bg-amber-950/50 dark:text-amber-300 border-amber-300 dark:border-amber-800';
+		}
+		if (s.includes('DEFECT') || s.includes('FAIL') || s.includes('TIDAK')) {
+			return 'bg-rose-50 text-rose-700 dark:bg-rose-950/50 dark:text-rose-300 border-rose-300 dark:border-rose-800';
 		}
 		if (s.includes('RE_INSPECT') || s.includes('CLOSED')) {
 			return 'bg-purple-50 text-purple-700 dark:bg-purple-950/50 dark:text-purple-300 border-purple-200 dark:border-purple-800';
 		}
-		return 'bg-amber-50 text-amber-700 dark:bg-amber-950/50 dark:text-amber-300 border-amber-200 dark:border-amber-800';
+		return 'bg-slate-100 text-slate-700 border-slate-300';
+	}
+
+	function getStatusLabel(status: string) {
+		const s = (status || '').toUpperCase();
+		if (s === 'PASSED' || s === 'LAYAK') return 'Layak';
+		if (s.includes('CATATAN') || s.includes('NOTE')) return 'Catatan';
+		if (s.includes('DEFECT') || s.includes('FAIL') || s.includes('TIDAK')) return 'Defect (SPK)';
+		if (s.includes('CLOSED') || s.includes('RE_INSPECT')) return 'Selesai';
+		return status;
 	}
 </script>
 
@@ -77,21 +89,25 @@
 	</header>
 
 	<!-- Metric Quick Summary Pills -->
-	<div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+	<div class="grid grid-cols-2 sm:grid-cols-5 gap-3">
 		<button onclick={() => handleStatusChange('All')} class="p-4 rounded-xl text-left bg-surface-container-lowest border {statusFilter === 'All' ? 'border-primary ring-2 ring-primary/20' : 'border-slate-200/70 dark:border-slate-800/70'} transition-all">
 			<div class="text-[11px] font-bold text-on-surface-variant uppercase tracking-wider">Total Inspeksi</div>
 			<div class="text-2xl font-black text-on-surface mt-1">{metrics.total}</div>
 		</button>
 		<button onclick={() => handleStatusChange('PASSED')} class="p-4 rounded-xl text-left bg-surface-container-lowest border {statusFilter === 'PASSED' ? 'border-emerald-500 ring-2 ring-emerald-500/20' : 'border-slate-200/70 dark:border-slate-800/70'} transition-all">
-			<div class="text-[11px] font-bold text-emerald-600 uppercase tracking-wider">Lolos Layak (Pass)</div>
+			<div class="text-[11px] font-bold text-emerald-600 uppercase tracking-wider">Lolos Layak</div>
 			<div class="text-2xl font-black text-emerald-600 mt-1">{metrics.passed}</div>
+		</button>
+		<button onclick={() => handleStatusChange('LAYAK_DENGAN_CATATAN')} class="p-4 rounded-xl text-left bg-surface-container-lowest border {statusFilter === 'LAYAK_DENGAN_CATATAN' ? 'border-amber-500 ring-2 ring-amber-500/20' : 'border-slate-200/70 dark:border-slate-800/70'} transition-all">
+			<div class="text-[11px] font-bold text-amber-600 uppercase tracking-wider">Dgn Catatan</div>
+			<div class="text-2xl font-black text-amber-600 mt-1">{metrics.notes}</div>
 		</button>
 		<button onclick={() => handleStatusChange('FAILED_DEFECT')} class="p-4 rounded-xl text-left bg-surface-container-lowest border {statusFilter === 'FAILED_DEFECT' ? 'border-rose-500 ring-2 ring-rose-500/20' : 'border-slate-200/70 dark:border-slate-800/70'} transition-all">
 			<div class="text-[11px] font-bold text-rose-600 uppercase tracking-wider">Ada Defect (SPK)</div>
 			<div class="text-2xl font-black text-rose-600 mt-1">{metrics.defected}</div>
 		</button>
 		<button onclick={() => handleStatusChange('CLOSED')} class="p-4 rounded-xl text-left bg-surface-container-lowest border {statusFilter === 'CLOSED' ? 'border-purple-500 ring-2 ring-purple-500/20' : 'border-slate-200/70 dark:border-slate-800/70'} transition-all">
-			<div class="text-[11px] font-bold text-purple-600 uppercase tracking-wider">Re-Inspeksi / Selesai</div>
+			<div class="text-[11px] font-bold text-purple-600 uppercase tracking-wider">Re-Inspek / Selesai</div>
 			<div class="text-2xl font-black text-purple-600 mt-1">{metrics.closed}</div>
 		</button>
 	</div>
@@ -110,12 +126,18 @@
 		</div>
 
 		<div class="flex items-center gap-2 w-full sm:w-auto overflow-x-auto pb-1 sm:pb-0">
-			{#each ['All', 'PASSED', 'FAILED_DEFECT', 'CLOSED'] as status}
+			{#each [
+				{ id: 'All', label: 'Semua' },
+				{ id: 'PASSED', label: 'Layak' },
+				{ id: 'LAYAK_DENGAN_CATATAN', label: 'Dgn Catatan' },
+				{ id: 'FAILED_DEFECT', label: 'Defect (SPK)' },
+				{ id: 'CLOSED', label: 'Selesai' }
+			] as tab}
 				<button 
-					onclick={() => handleStatusChange(status)}
-					class="px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap {statusFilter === status ? 'bg-primary text-on-primary' : 'bg-surface-container hover:bg-surface-container-high text-on-surface'}"
+					onclick={() => handleStatusChange(tab.id)}
+					class="px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap {statusFilter === tab.id ? 'bg-primary text-on-primary' : 'bg-surface-container hover:bg-surface-container-high text-on-surface'}"
 				>
-					{status === 'All' ? 'Semua' : status === 'PASSED' ? 'Layak' : status === 'FAILED_DEFECT' ? 'Defect' : 'Selesai'}
+					{tab.label}
 				</button>
 			{/each}
 		</div>

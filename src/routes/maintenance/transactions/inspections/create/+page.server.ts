@@ -6,26 +6,42 @@ import { verifyUserData } from '$lib/server/auth';
 
 const sql = postgres(env.DATABASE_URL || 'postgres://bcs_admin:sangatrahasia@103.31.205.199:5433/mybcs_db');
 
-export const load: PageServerLoad = async () => {
+export const load: PageServerLoad = async ({ cookies }) => {
 	try {
-		// 1. Fetch active units
+		// 1. Fetch current logged-in inspector
+		let currentInspector = { id: '', name: 'Inspector Workshop' };
+		const userDataCookie = cookies.get('user_data');
+		if (userDataCookie) {
+			try {
+				const user = verifyUserData(userDataCookie);
+				currentInspector = { 
+					id: user.payroll_id || user.id || user.username || '', 
+					name: user.nama || user.username || 'Inspector Workshop' 
+				};
+			} catch (e) {}
+		}
+
+		// 2. Fetch active units with model & type info
 		const units = await sql`
 			SELECT 
 				u.id,
 				u.nomor_unit as no_unit,
-				u.tipe_kendaraan as type,
-				u.odometer,
+				u.tahun,
+				u.business_unit,
+				t.nama_tipe as type_name,
 				k.nama_karyawan as driver_name,
 				k.payroll_id as driver_id
 			FROM fleet.unit u
-			LEFT JOIN fleet.unit_driver_assignment a ON u.id = a.unit_id AND a.is_aktif = true AND a.posisi = 'SUPIR_UTAMA'
+			LEFT JOIN master.m_model_unit m ON u.model_unit_id::text = m.id::text
+			LEFT JOIN master.m_tipe_unit t ON m.tipe_unit_id::text = t.id::text
+			LEFT JOIN fleet.unit_driver_assignment a ON u.id::text = a.unit_id::text AND a.is_aktif = true AND a.posisi = 'SUPIR_UTAMA'
 			LEFT JOIN master.m_drivers d ON a.driver_id = d.id
 			LEFT JOIN master.m_karyawan k ON d.karyawan_id = k.id
 			WHERE u.is_active = true
 			ORDER BY u.nomor_unit ASC
 		`;
 
-		// 2. Fetch active drivers for selection
+		// 3. Fetch active drivers for selection
 		const drivers = await sql`
 			SELECT 
 				k.payroll_id as id, 
@@ -37,7 +53,7 @@ export const load: PageServerLoad = async () => {
 			ORDER BY k.nama_karyawan ASC
 		`;
 
-		// 3. Fetch active dispensations
+		// 4. Fetch active dispensations
 		const activeDispensations = await sql`
 			SELECT 
 				w.wo_no, 
@@ -50,15 +66,31 @@ export const load: PageServerLoad = async () => {
 			WHERE w.status = 'DISPENSATION_ACTIVE'
 		`;
 
-		return {
-			units: units.map(u => ({
+		const formattedUnits = units.map(u => {
+			const typeName = (u.type_name || '').toUpperCase();
+			const bu = (u.business_unit || '').toUpperCase();
+			let classifiedType: 'DT' | 'TR' | 'BULK' = 'TR';
+			if (bu === 'DUMP_TRUCK' || typeName.includes('DUMP')) {
+				classifiedType = 'DT';
+			} else if (typeName.includes('BULK') || typeName.includes('TRONTON')) {
+				classifiedType = 'BULK';
+			} else {
+				classifiedType = 'TR';
+			}
+
+			return {
 				id: u.id,
 				noUnit: u.no_unit,
-				type: u.type?.toLowerCase().includes('trailer') ? 'TR' : 'DT',
-				odometer: u.odometer || 0,
+				type: classifiedType,
+				year: u.tahun || null,
 				driverName: u.driver_name || '',
 				driverId: u.driver_id || ''
-			})),
+			};
+		});
+
+		return {
+			currentInspector,
+			units: formattedUnits,
 			drivers: drivers.map(d => ({
 				id: d.id,
 				name: d.name,
@@ -75,7 +107,12 @@ export const load: PageServerLoad = async () => {
 		};
 	} catch (error) {
 		console.error("Database error loading inspection form data:", error);
-		return { units: [], drivers: [], activeDispensations: [] };
+		return { 
+			currentInspector: { id: '', name: 'Inspector Workshop' }, 
+			units: [], 
+			drivers: [], 
+			activeDispensations: [] 
+		};
 	}
 };
 
@@ -84,15 +121,43 @@ export const actions: Actions = {
 		const data = await request.formData();
 
 		const unit_id = data.get('unit_id')?.toString();
-		const unit_type = (data.get('unit_type')?.toString() || 'DT').toUpperCase();
-		const inspection_type = data.get('inspection_type')?.toString() || 'MASUK';
+		const unit_type = (data.get('unit_type')?.toString() || 'DT').toUpperCase(); // 'DT' | 'TR' | 'BULK'
+		const police_no = data.get('police_no')?.toString() || unit_id || '';
 		const driver_id = data.get('driver_id')?.toString() || null;
+		const driver_id_no = data.get('driver_id_no')?.toString() || driver_id || '';
 		const kenek_name = data.get('kenek_name')?.toString() || null;
+		const no_apar = data.get('no_apar')?.toString() || '';
+		const destination = data.get('destination')?.toString() || '';
+		const driver_age = parseInt(data.get('driver_age')?.toString() || '0') || null;
 		const odometer = parseInt(data.get('odometer')?.toString() || '0') || null;
 		const notes = data.get('notes')?.toString() || '';
 
+		// Timestamps Masuk & Keluar
+		const entry_date = data.get('entry_date')?.toString() || new Date().toISOString().slice(0, 10);
+		const entry_time = data.get('entry_time')?.toString() || '08:00';
+		const exit_date = data.get('exit_date')?.toString() || new Date().toISOString().slice(0, 10);
+		const exit_time = data.get('exit_time')?.toString() || '08:30';
+
+		const entryTimestamp = new Date(`${entry_date}T${entry_time}:00`);
+		const exitTimestamp = new Date(`${exit_date}T${exit_time}:00`);
+
+		// Inspector Identity
+		let inspector_name = data.get('inspector_name')?.toString() || 'Inspector Workshop';
+		let inspector_id = data.get('inspector_id')?.toString() || '';
+		const userDataCookie = cookies.get('user_data');
+		if (userDataCookie && !inspector_id) {
+			try {
+				const user = verifyUserData(userDataCookie);
+				inspector_name = user.nama || user.username || inspector_name;
+				inspector_id = user.payroll_id || user.id || user.username || '';
+			} catch (e) {}
+		}
+
+		// Structured Data
 		const checklist_data_raw = data.get('checklist_data')?.toString() || '[]';
 		const driver_health_raw = data.get('driver_health')?.toString() || '{}';
+		const tire_depth_data_raw = data.get('tire_depth_data')?.toString() || '{}';
+		const user_recommendation = data.get('recommendation')?.toString(); // 'LAYAK' | 'LAYAK_DENGAN_CATATAN' | 'TIDAK_LAYAK'
 
 		let checklist_data: any[] = [];
 		try {
@@ -108,14 +173,11 @@ export const actions: Actions = {
 			driver_health = { is_fit: true };
 		}
 
-		// Inspector name from user session
-		let inspectorName = 'Inspector Workshop';
-		const userDataCookie = cookies.get('user_data');
-		if (userDataCookie) {
-			try {
-				const user = verifyUserData(userDataCookie);
-				inspectorName = user.nama || user.username || 'Inspector Workshop';
-			} catch (e) {}
+		let tire_depth_data: any = { head: [], trailer: [], spare: null };
+		try {
+			tire_depth_data = JSON.parse(tire_depth_data_raw);
+		} catch (e) {
+			tire_depth_data = { head: [], trailer: [], spare: null };
 		}
 
 		if (!unit_id) {
@@ -123,12 +185,58 @@ export const actions: Actions = {
 		}
 
 		try {
-			// 1. Calculate defect items
-			const defectItems = checklist_data.filter((item: any) => item.status === 'NOT_OK');
-			const defectCount = defectItems.length;
-			const inspectionStatus = defectCount > 0 ? 'FAILED_DEFECT' : 'PASSED';
+			// 1. Check for tire depth defects (< 1.0 mm)
+			let tireDefects: string[] = [];
+			const checkTireList = (list: any[], label: string) => {
+				if (Array.isArray(list)) {
+					list.forEach((val, idx) => {
+						const num = parseFloat(val);
+						if (!isNaN(num) && num > 0 && num < 1.0) {
+							tireDefects.push(`Ban ${label} #${idx + 1} (${num} mm < 1.0 mm)`);
+						}
+					});
+				}
+			};
+			checkTireList(tire_depth_data.head, 'Head');
+			checkTireList(tire_depth_data.trailer, 'Trailer');
+			if (tire_depth_data.spare !== null && !isNaN(parseFloat(tire_depth_data.spare))) {
+				const sNum = parseFloat(tire_depth_data.spare);
+				if (sNum > 0 && sNum < 1.0) {
+					tireDefects.push(`Ban Serep (${sNum} mm < 1.0 mm)`);
+				}
+			}
 
-			// 2. Generate Inspection Number: INSP/WSP/YYYYMM/XXXX
+			// 2. Identify checklist defects
+			const defectItems = checklist_data.filter((item: any) => item.status === 'NOT_OK');
+			
+			// Categorize whether defects are mechanical / critical or just minor administrative
+			const criticalCategories = [
+				'MESIN', 'REM', 'BAN', 'KOPLING & TRANSMISI', 'BAK & HYDROLIC', 'SPION', 'BAN & KAKI-KAKI',
+				'PENGECEKAN KEBOCORAN', 'PENGECEKAN KAKI-KAKI', 'PENGECEKAN LAMPU LAMPU',
+				'FUNCTION: CEK KEBOCORAN', 'FUNCTION: CHECK UNDER CARRIAGE', 'FUNCTION: CHECK UNDER THE HOOD',
+				'FUNCTION: BULK TANK TOOLS', 'SAFETY: CHECK WHEELS', 'SAFETY: OPERATION OF LAMP'
+			];
+
+			const hasMechanicalDefects = defectItems.some((d: any) => 
+				criticalCategories.some(cat => (d.category || '').toUpperCase().includes(cat))
+			) || tireDefects.length > 0;
+
+			// 3. Determine 3-Tier Status
+			let finalStatus: 'LAYAK' | 'LAYAK_DENGAN_CATATAN' | 'TIDAK_LAYAK' = 'LAYAK';
+			if (user_recommendation) {
+				finalStatus = user_recommendation as any;
+			} else if (hasMechanicalDefects || (driver_health.is_fit === false)) {
+				finalStatus = 'TIDAK_LAYAK';
+			} else if (defectItems.length > 0) {
+				finalStatus = 'LAYAK_DENGAN_CATATAN';
+			} else {
+				finalStatus = 'LAYAK';
+			}
+
+			// Total defect count
+			const defectCount = defectItems.length + tireDefects.length;
+
+			// 4. Generate Inspection Number: INSP/WSP/YYYYMM/XXXX
 			const now = new Date();
 			const yearMonth = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}`;
 			const inspPrefix = `INSP/WSP/${yearMonth}/`;
@@ -149,8 +257,8 @@ export const actions: Actions = {
 
 			let generatedWoNo: string | null = null;
 
-			// 3. If there are defects, automatically generate Work Order (SPK)
-			if (defectCount > 0) {
+			// 5. If status is TIDAK_LAYAK, generate Work Order (SPK Bengkel)
+			if (finalStatus === 'TIDAK_LAYAK') {
 				const month = String(now.getMonth() + 1).padStart(2, '0');
 				const year = now.getFullYear();
 				const woSuffix = `/WO/WSP/${month}/${year}`;
@@ -168,20 +276,31 @@ export const actions: Actions = {
 				}
 				generatedWoNo = `${String(woSeq).padStart(5, '0')}${woSuffix}`;
 
-				// Format repaired_items for per-item resolution
-				const repairedItemsList = defectItems.map((d: any) => ({
-					id: d.id,
-					category: d.category,
-					item: d.name || d.item,
-					remark: d.remark || 'Temuan P2H tidak layak',
-					status: 'PENDING', // PENDING -> IN_PROGRESS -> RESOLVED
-					mechanic_notes: '',
-					repaired_at: null
-				}));
+				// Combine checklist defects + tire defects into repaired_items
+				const repairedItemsList = [
+					...defectItems.map((d: any) => ({
+						id: d.id,
+						category: d.category,
+						item: d.name || d.item,
+						remark: d.remark || 'Temuan P2H tidak layak',
+						status: 'PENDING',
+						mechanic_notes: '',
+						repaired_at: null
+					})),
+					...tireDefects.map((td, idx) => ({
+						id: `tire_defect_${idx + 1}`,
+						category: 'BAN',
+						item: td,
+						remark: 'Kedalaman ban di bawah standar minimal 1.0 mm (SK.523)',
+						status: 'PENDING',
+						mechanic_notes: '',
+						repaired_at: null
+					}))
+				];
 
-				const checklistItemsForWo = defectItems.map((d: any) => ({
-					item: d.name || d.item,
-					remark: d.remark || 'P2H Defect',
+				const checklistItemsForWo = repairedItemsList.map((r: any) => ({
+					item: r.item,
+					remark: r.remark,
 					status: 'Not Yet'
 				}));
 
@@ -205,7 +324,7 @@ export const actions: Actions = {
 						${generatedWoNo},
 						${unit_id},
 						${driver_id},
-						${`Temuan Inspeksi P2H (${defectCount} item defect perlu perbaikan)`},
+						${`Temuan Inspeksi P2H ${unit_type} (${repairedItemsList.length} item perbaikan)`},
 						${'Corrective Repair (P2H)'},
 						${odometer},
 						${'Open'},
@@ -214,30 +333,28 @@ export const actions: Actions = {
 						${JSON.stringify(repairedItemsList)},
 						${inspection_no},
 						NOW(),
-						${inspectorName}
+						${inspector_name}
 					)
 				`;
 
-				// 4. Update fleet.unit status to MAINTENANCE (Locked from OCS dispatch)
+				// Lock unit to MAINTENANCE
 				await sql`
 					UPDATE fleet.unit 
 					SET current_state = 'MAINTENANCE',
-					    odometer = COALESCE(${odometer}, odometer),
 					    updated_at = NOW()
 					WHERE nomor_unit = ${unit_id}
 				`;
 			} else {
-				// If PASSED, ensure unit current_state is AVAILABLE / STANDBY
+				// If LAYAK or LAYAK_DENGAN_CATATAN, release unit to STANDBY if currently in MAINTENANCE
 				await sql`
 					UPDATE fleet.unit 
 					SET current_state = CASE WHEN current_state = 'MAINTENANCE' THEN 'STANDBY' ELSE current_state END,
-					    odometer = COALESCE(${odometer}, odometer),
 					    updated_at = NOW()
 					WHERE nomor_unit = ${unit_id}
 				`;
 			}
 
-			// 5. Insert record into fleet.vehicle_inspections
+			// 6. Insert record into fleet.vehicle_inspections
 			await sql`
 				INSERT INTO fleet.vehicle_inspections (
 					inspection_no,
@@ -254,13 +371,20 @@ export const actions: Actions = {
 					status,
 					wo_no,
 					inspector_name,
+					inspector_id,
+					police_no,
+					no_apar,
+					destination,
+					entry_time,
+					exit_time,
+					tire_depth_data,
 					notes,
 					created_at,
 					updated_at
 				) VALUES (
 					${inspection_no},
 					NOW(),
-					${inspection_type},
+					${'MASUK_KELUAR'},
 					${unit_id},
 					${unit_type},
 					${driver_id},
@@ -268,10 +392,22 @@ export const actions: Actions = {
 					${odometer},
 					${JSON.stringify(checklist_data)},
 					${defectCount},
-					${JSON.stringify(driver_health)},
-					${inspectionStatus},
+					${JSON.stringify({
+						...driver_health,
+						driver_age,
+						driver_id_no,
+						destination
+					})},
+					${finalStatus},
 					${generatedWoNo},
-					${inspectorName},
+					${inspector_name},
+					${inspector_id},
+					${police_no},
+					${no_apar},
+					${destination},
+					${entryTimestamp},
+					${exitTimestamp},
+					${JSON.stringify(tire_depth_data)},
 					${notes},
 					NOW(),
 					NOW()

@@ -14,7 +14,15 @@ export const load: PageServerLoad = async ({ url }) => {
 	try {
 		let statusCondition = sql``;
 		if (statusFilter !== 'All') {
-			statusCondition = sql`AND i.status = ${statusFilter}`;
+			if (statusFilter === 'PASSED') {
+				statusCondition = sql`AND (i.status = 'PASSED' OR i.status = 'LAYAK')`;
+			} else if (statusFilter === 'LAYAK_DENGAN_CATATAN') {
+				statusCondition = sql`AND i.status = 'LAYAK_DENGAN_CATATAN'`;
+			} else if (statusFilter === 'FAILED_DEFECT') {
+				statusCondition = sql`AND (i.status = 'FAILED_DEFECT' OR i.status = 'TIDAK_LAYAK')`;
+			} else {
+				statusCondition = sql`AND i.status = ${statusFilter}`;
+			}
 		}
 
 		let searchCondition = sql``;
@@ -22,6 +30,7 @@ export const load: PageServerLoad = async ({ url }) => {
 			searchCondition = sql`AND (
 				i.inspection_no ILIKE ${'%' + search + '%'} OR 
 				i.unit_id ILIKE ${'%' + search + '%'} OR 
+				i.police_no ILIKE ${'%' + search + '%'} OR
 				i.inspector_name ILIKE ${'%' + search + '%'} OR
 				i.wo_no ILIKE ${'%' + search + '%'}
 			)`;
@@ -36,6 +45,7 @@ export const load: PageServerLoad = async ({ url }) => {
 				i.inspection_type,
 				i.unit_id,
 				i.unit_type,
+				i.police_no,
 				i.driver_id,
 				k.nama_karyawan as driver_name,
 				i.odometer,
@@ -69,8 +79,9 @@ export const load: PageServerLoad = async ({ url }) => {
 		const metricsQuery = await sql`
 			SELECT 
 				COUNT(*) as total_count,
-				COUNT(*) FILTER (WHERE status = 'PASSED') as passed_count,
-				COUNT(*) FILTER (WHERE status = 'FAILED_DEFECT') as defect_count,
+				COUNT(*) FILTER (WHERE status = 'PASSED' OR status = 'LAYAK') as passed_count,
+				COUNT(*) FILTER (WHERE status = 'LAYAK_DENGAN_CATATAN') as notes_count,
+				COUNT(*) FILTER (WHERE status = 'FAILED_DEFECT' OR status = 'TIDAK_LAYAK') as defect_count,
 				COUNT(*) FILTER (WHERE status = 'RE_INSPECTED' OR status = 'CLOSED') as closed_count
 			FROM fleet.vehicle_inspections
 		`;
@@ -80,9 +91,10 @@ export const load: PageServerLoad = async ({ url }) => {
 				id: r.id,
 				inspectionNo: r.inspection_no,
 				date: r.inspection_date ? new Date(r.inspection_date).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '-',
-				type: r.inspection_type || 'MASUK',
+				type: r.inspection_type || 'MASUK_KELUAR',
 				unitId: r.unit_id,
 				unitType: r.unit_type || 'DT',
+				policeNo: r.police_no || r.unit_id,
 				driverName: r.driver_name || r.driver_id || 'Tanpa Driver',
 				odometer: r.odometer ? r.odometer.toLocaleString('id-ID') : '-',
 				defectCount: r.defect_count || 0,
@@ -101,16 +113,18 @@ export const load: PageServerLoad = async ({ url }) => {
 			metrics: {
 				total: parseInt(metricsQuery[0]?.total_count || '0'),
 				passed: parseInt(metricsQuery[0]?.passed_count || '0'),
+				notes: parseInt(metricsQuery[0]?.notes_count || '0'),
 				defected: parseInt(metricsQuery[0]?.defect_count || '0'),
 				closed: parseInt(metricsQuery[0]?.closed_count || '0')
 			}
 		};
+
 	} catch (error) {
 		console.error("Database error loading inspections:", error);
 		return {
 			records: [],
 			meta: { currentPage: 1, perPage: 10, total: 0, totalPages: 1 },
-			metrics: { total: 0, passed: 0, defected: 0, closed: 0 }
+			metrics: { total: 0, passed: 0, notes: 0, defected: 0, closed: 0 }
 		};
 	}
 };
