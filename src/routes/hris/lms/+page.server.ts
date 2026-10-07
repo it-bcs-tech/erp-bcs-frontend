@@ -401,11 +401,14 @@ export const load: PageServerLoad = async ({ locals }) => {
 				requestedBy: r.requested_by,
 				trainingTitle: r.training_title,
 				category: r.category,
-				urgency: r.urgency,
-				estimatedParticipants: r.estimated_participants,
+				urgency: r.urgency || 'NORMAL',
+				estimatedParticipants: Number(r.estimated_participants || 1),
 				targetCompletionDate: r.target_completion_date ? r.target_completion_date.toISOString().split('T')[0] : '',
-				justification: r.justification,
-				status: r.status,
+				justification: r.justification || '',
+				status: (r.status === 'APPROVED' ? 'APPROVED' : r.status === 'HOLD' ? 'HOLD' : 'PENDING'),
+				hrdNotes: r.hrd_notes || '',
+				reviewedBy: r.reviewed_by || '',
+				reviewedAt: r.reviewed_at ? r.reviewed_at.toISOString().split('T')[0] : '',
 				createdAt: r.created_at ? r.created_at.toISOString().split('T')[0] : ''
 			})),
 			certificates: certificatesRows.map((c) => ({
@@ -1218,15 +1221,51 @@ export const actions = {
 			await sql`
 				INSERT INTO hris.lms_training_requests (
 					id, dept_name, requested_by, training_title, category, urgency,
-					estimated_participants, target_completion_date, justification, status
+					estimated_participants, target_completion_date, justification, status, created_at
 				) VALUES (
 					${id}, ${deptName}, ${requestedBy}, ${trainingTitle}, ${category}, ${urgency},
-					${estimatedParticipants}, ${targetCompletionDate || null}, ${justification}, 'PENDING_HRD'
+					${estimatedParticipants}, ${targetCompletionDate || null}, ${justification}, 'PENDING', CURRENT_TIMESTAMP
 				);
 			`;
-			return { success: true, message: `Pengajuan training "${trainingTitle}" berhasil dikirimkan ke HRD.` };
+			return { success: true, message: `Pengajuan training "${trainingTitle}" (${id}) berhasil dikirimkan ke HRD dengan status PENDING.` };
 		} catch (e: any) {
 			return { success: false, message: 'Gagal menyimpan pengajuan training.' };
+		}
+	},
+
+	// Update Status Request Pelatihan oleh HRD (PENDING, APPROVED, HOLD)
+	updateTrainingRequestStatus: async ({ request }) => {
+		const formData = await request.formData();
+		const id = formData.get('id')?.toString().trim();
+		const status = formData.get('status')?.toString().trim() || 'PENDING';
+		const hrdNotes = formData.get('hrdNotes')?.toString().trim() || '';
+		const reviewedBy = formData.get('reviewedBy')?.toString().trim() || 'HRD Administrator';
+
+		if (!id) {
+			return { success: false, message: 'ID Usulan Pelatihan tidak ditemukan.' };
+		}
+
+		if (!['PENDING', 'APPROVED', 'HOLD'].includes(status)) {
+			return { success: false, message: 'Status tidak valid. Harus PENDING, APPROVED, atau HOLD.' };
+		}
+
+		try {
+			await sql`
+				UPDATE hris.lms_training_requests
+				SET
+					status = ${status},
+					hrd_notes = ${hrdNotes},
+					reviewed_by = ${reviewedBy},
+					reviewed_at = CURRENT_TIMESTAMP
+				WHERE id = ${id};
+			`;
+			return {
+				success: true,
+				message: `Status usulan pelatihan ${id} berhasil diperbarui menjadi ${status}.`
+			};
+		} catch (e: any) {
+			logError('UPDATE_TRAINING_REQUEST_STATUS_FAIL', e?.message);
+			return { success: false, message: 'Gagal memperbarui status usulan pelatihan.' };
 		}
 	},
 

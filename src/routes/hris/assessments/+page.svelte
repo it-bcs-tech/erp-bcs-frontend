@@ -209,11 +209,56 @@
 	let isRubricModalOpen = $state(false);
 	let selectedCompForRubric = $state<any>(null);
 
-	// Tab View State: 5 Tab Penilaian Atasan (Asesmen Tahunan di Nomor 4)
-	let activeViewTab = $state<'post_training_l4_pre' | 'post_training_l3' | 'post_training_l4_post' | 'annual' | 'history'>('post_training_l4_pre');
+	// Tab View State: 6 Tab Penilaian Atasan (Asesmen Tahunan di Nomor 4, Usulan Pelatihan di Nomor 5)
+	let activeViewTab = $state<'post_training_l4_pre' | 'post_training_l3' | 'post_training_l4_post' | 'annual' | 'history' | 'training_requests'>('post_training_l4_pre');
 
 	// Data Evaluasi Pasca-Training Kirkpatrick (Level 3 & Level 4)
 	const postTrainingEvals = $derived((data as any).postTrainingEvals || []);
+	const trainingRequests = $derived((data as any).trainingRequests || []);
+
+	// State Usulan Pelatihan Tim oleh Atasan
+	let requestSearchQuery = $state('');
+	let requestStatusFilter = $state<'All' | 'PENDING' | 'APPROVED' | 'HOLD'>('All');
+	let isTrainingRequestModalOpen = $state(false);
+	let requestFormDept = $state('');
+	let requestFormTitle = $state('');
+	let requestFormCategory = $state('Technical Competency');
+	let requestFormUrgency = $state<'NORMAL' | 'HIGH' | 'CRITICAL'>('NORMAL');
+	let requestFormEstimatedParticipants = $state(5);
+	let requestFormTargetDate = $state('');
+	let requestFormJustification = $state('');
+
+	function openCreateTrainingRequestModal(prefill?: { title?: string; dept?: string; justification?: string }) {
+		requestFormDept = prefill?.dept || currentAssessor?.department || 'Operations';
+		requestFormTitle = prefill?.title || '';
+		requestFormCategory = 'Technical Competency';
+		requestFormUrgency = 'NORMAL';
+		requestFormEstimatedParticipants = 5;
+		requestFormTargetDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+		requestFormJustification = prefill?.justification || '';
+		isTrainingRequestModalOpen = true;
+	}
+
+	const myTrainingRequests = $derived.by(() => {
+		return trainingRequests.filter((r: any) => {
+			const assessorName = currentAssessor?.name || '';
+			const currentUserName = currentUser?.nama_karyawan || currentUser?.name || '';
+			const matchAuthor = !assessorName || r.requestedBy === assessorName || r.requestedBy === currentUserName || r.deptName === currentAssessor?.department;
+			const q = requestSearchQuery.trim().toLowerCase();
+			const matchSearch = !q || r.trainingTitle.toLowerCase().includes(q) || r.id.toLowerCase().includes(q) || r.deptName.toLowerCase().includes(q);
+			const matchStatus = requestStatusFilter === 'All' || r.status === requestStatusFilter;
+			return matchAuthor && matchSearch && matchStatus;
+		});
+	});
+
+	const myPendingRequestsCount = $derived(
+		trainingRequests.filter((r: any) => {
+			const assessorName = currentAssessor?.name || '';
+			const currentUserName = currentUser?.nama_karyawan || currentUser?.name || '';
+			const matchAuthor = !assessorName || r.requestedBy === assessorName || r.requestedBy === currentUserName || r.deptName === currentAssessor?.department;
+			return matchAuthor && r.status === 'PENDING';
+		}).length
+	);
 
 	const assessorDirectSubordinateIds = $derived(
 		new Set(allDirectSubordinates.map((e: any) => e.payrollId))
@@ -587,6 +632,20 @@
 				<span class="material-symbols-outlined text-sm">history</span>
 				<span>Riwayat</span>
 			</button>
+			<button
+				type="button"
+				onclick={() => (activeViewTab = 'training_requests')}
+				class="px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 whitespace-nowrap
+				{activeViewTab === 'training_requests' ? 'bg-primary text-on-primary shadow-xs' : 'text-slate-400 hover:text-on-surface'}"
+			>
+				<span class="material-symbols-outlined text-sm">post_add</span>
+				<span>5. Usulan Pelatihan Tim</span>
+				{#if myPendingRequestsCount > 0}
+					<span class="px-1.5 py-0.2 rounded-full text-[9px] font-black bg-amber-500 text-slate-950">
+						{myPendingRequestsCount} PENDING
+					</span>
+				{/if}
+			</button>
 		</div>
 	</div>
 
@@ -823,8 +882,22 @@
 								</div>
 							</div>
 
-							<!-- Action Reset Pengisian -->
-							<div class="flex items-center gap-2 self-start sm:self-auto">
+							<!-- Action Buttons -->
+							<div class="flex items-center gap-2 self-start sm:self-auto flex-wrap">
+								<button
+									type="button"
+									onclick={() => openCreateTrainingRequestModal({
+										title: `Pelatihan Kompetensi ${selectedEmployee.positionTitle}`,
+										dept: selectedEmployee.department || currentAssessor?.department,
+										justification: `Diusulkan berdasarkan evaluasi performa kerja dan pemenuhan standar kompetensi untuk ${selectedEmployee.name} (${selectedEmployee.payrollId}) pada posisi ${selectedEmployee.positionTitle}.`
+									})}
+									class="px-3 py-1.5 rounded-xl bg-primary/10 hover:bg-primary/20 text-primary border border-primary/30 text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5"
+									title="Ajukan usulan pelatihan tim ke HRD berdasarkan karyawan ini"
+								>
+									<span class="material-symbols-outlined text-sm">post_add</span>
+									<span>Usulkan Training</span>
+								</button>
+
 								<button
 									type="button"
 									onclick={resetRatingsForSelected}
@@ -1932,6 +2005,208 @@
 				</div>
 			</div>
 		</div>
+	{:else if activeViewTab === 'training_requests'}
+		<!-- ═══════════════════════════════════════════════════════════════ -->
+		<!-- TAB USULAN & REQUEST PELATIHAN TIM (SUPERVISOR TO HRD)         -->
+		<!-- ═══════════════════════════════════════════════════════════════ -->
+		<div class="space-y-5">
+			<!-- Header Banner & Action Button -->
+			<div class="p-5 rounded-3xl bg-surface border border-slate-200/80 dark:border-slate-800/80 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
+				<div>
+					<div class="flex items-center gap-2">
+						<span class="px-2.5 py-1 rounded-xl text-xs font-black bg-primary/10 text-primary border border-primary/20">
+							Supervisor Request
+						</span>
+						<span class="px-2.5 py-1 rounded-xl text-xs font-bold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
+							{currentAssessor?.department || 'Operations'}
+						</span>
+					</div>
+					<h3 class="text-base font-black text-on-surface mt-2 tracking-tight">Usulan & Kebutuhan Pelatihan Tim ke HRD</h3>
+					<p class="text-xs text-on-surface-variant mt-0.5 leading-relaxed max-w-2xl">
+						Ajukan rekomendasi pelatihan tim bawahan langsung berdasarkan evaluasi performa kerja dan kebutuhan operasional. Permintaan akan diverifikasi oleh HRD (Pending, Approved, atau Hold).
+					</p>
+				</div>
+				<button
+					type="button"
+					onclick={() => openCreateTrainingRequestModal()}
+					class="px-4 py-2.5 rounded-2xl bg-primary hover:bg-primary/90 text-on-primary font-bold text-xs shadow-xs transition-all flex items-center gap-2 cursor-pointer self-start md:self-auto shrink-0"
+				>
+					<span class="material-symbols-outlined text-base">post_add</span>
+					<span>+ Ajukan Pelatihan Baru</span>
+				</button>
+			</div>
+
+			<!-- 4 KPI Summary Cards Status Usulan -->
+			<div class="grid grid-cols-2 lg:grid-cols-4 gap-3.5">
+				<div class="p-4 rounded-3xl bg-surface border border-slate-200/60 dark:border-slate-800/60 shadow-xs flex items-center justify-between">
+					<div>
+						<span class="text-[10px] font-bold text-slate-400 block uppercase tracking-wider">Total Usulan Diajukan</span>
+						<p class="text-2xl font-black text-on-surface font-mono mt-0.5">
+							{myTrainingRequests.length}
+						</p>
+					</div>
+					<div class="w-10 h-10 rounded-2xl bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 flex items-center justify-center">
+						<span class="material-symbols-outlined text-lg">list_alt</span>
+					</div>
+				</div>
+
+				<div class="p-4 rounded-3xl bg-surface border border-slate-200/60 dark:border-slate-800/60 shadow-xs flex items-center justify-between">
+					<div>
+						<span class="text-[10px] font-bold text-amber-500 block uppercase tracking-wider">Menunggu Review HRD</span>
+						<p class="text-2xl font-black text-amber-500 font-mono mt-0.5">
+							{myTrainingRequests.filter((r) => r.status === 'PENDING').length}
+						</p>
+					</div>
+					<div class="w-10 h-10 rounded-2xl bg-amber-500/10 text-amber-500 flex items-center justify-center">
+						<span class="material-symbols-outlined text-lg">pending</span>
+					</div>
+				</div>
+
+				<div class="p-4 rounded-3xl bg-surface border border-slate-200/60 dark:border-slate-800/60 shadow-xs flex items-center justify-between">
+					<div>
+						<span class="text-[10px] font-bold text-emerald-500 block uppercase tracking-wider">Disetujui HRD (Approved)</span>
+						<p class="text-2xl font-black text-emerald-500 font-mono mt-0.5">
+							{myTrainingRequests.filter((r) => r.status === 'APPROVED').length}
+						</p>
+					</div>
+					<div class="w-10 h-10 rounded-2xl bg-emerald-500/10 text-emerald-500 flex items-center justify-center">
+						<span class="material-symbols-outlined text-lg">check_circle</span>
+					</div>
+				</div>
+
+				<div class="p-4 rounded-3xl bg-surface border border-slate-200/60 dark:border-slate-800/60 shadow-xs flex items-center justify-between">
+					<div>
+						<span class="text-[10px] font-bold text-orange-500 block uppercase tracking-wider">Ditunda HRD (Hold)</span>
+						<p class="text-2xl font-black text-orange-500 font-mono mt-0.5">
+							{myTrainingRequests.filter((r) => r.status === 'HOLD').length}
+						</p>
+					</div>
+					<div class="w-10 h-10 rounded-2xl bg-orange-500/10 text-orange-500 flex items-center justify-center">
+						<span class="material-symbols-outlined text-lg">pause_circle</span>
+					</div>
+				</div>
+			</div>
+
+			<!-- Toolbar Search & Filter -->
+			<div class="p-4 rounded-3xl bg-surface border border-slate-200/60 dark:border-slate-800/60 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs shadow-xs">
+				<div class="relative flex-1 max-w-md">
+					<span class="material-symbols-outlined absolute left-3 top-2.5 text-slate-400 text-sm">search</span>
+					<input
+						type="text"
+						bind:value={requestSearchQuery}
+						placeholder="Cari nomor usulan, judul pelatihan, atau departemen..."
+						class="w-full pl-9 pr-3 py-2 rounded-2xl bg-surface-container border border-slate-200 dark:border-slate-700 text-xs text-on-surface outline-none focus:ring-2 focus:ring-primary"
+					/>
+				</div>
+
+				<div class="flex items-center gap-2">
+					<span class="text-slate-400 font-bold">Status:</span>
+					<select
+						bind:value={requestStatusFilter}
+						class="px-3 py-2 rounded-2xl bg-surface-container border border-slate-200 dark:border-slate-700 text-xs text-on-surface font-semibold outline-none"
+					>
+						<option value="All">Semua Status</option>
+						<option value="PENDING">PENDING (Menunggu Review)</option>
+						<option value="APPROVED">APPROVED (Disetujui)</option>
+						<option value="HOLD">HOLD (Ditunda)</option>
+					</select>
+				</div>
+			</div>
+
+			<!-- Tabel Tracking Request Atasan -->
+			<div class="rounded-3xl border border-slate-200/60 dark:border-slate-800/60 overflow-hidden shadow-xs bg-surface">
+				<div class="overflow-x-auto">
+					<table class="w-full text-xs text-left">
+						<thead class="bg-surface-container-high border-b border-slate-200/60 dark:border-slate-800/60 font-bold text-on-surface">
+							<tr>
+								<th class="p-3">No. Usulan</th>
+								<th class="p-3">Judul Pelatihan Diusulkan</th>
+								<th class="p-3">Departemen</th>
+								<th class="p-3">Kategori</th>
+								<th class="p-3 text-center">Urgensi</th>
+								<th class="p-3 text-center">Estimasi Peserta</th>
+								<th class="p-3 text-center">Target Selesai</th>
+								<th class="p-3 text-center">Status HRD</th>
+								<th class="p-3">Catatan / Alasan HRD</th>
+								<th class="p-3 text-right">Tanggal Usulan</th>
+							</tr>
+						</thead>
+						<tbody class="divide-y divide-slate-200/60 dark:divide-slate-800/60">
+							{#each myTrainingRequests as req}
+								<tr class="hover:bg-surface-container/40 transition-colors">
+									<td class="p-3 font-mono font-bold text-primary whitespace-nowrap">{req.id}</td>
+									<td class="p-3">
+										<p class="font-bold text-on-surface">{req.trainingTitle}</p>
+										{#if req.justification}
+											<p class="text-[11px] text-slate-500 mt-0.5 line-clamp-1" title={req.justification}>
+												{req.justification}
+											</p>
+										{/if}
+									</td>
+									<td class="p-3 text-slate-600 dark:text-slate-300 whitespace-nowrap">{req.deptName}</td>
+									<td class="p-3 text-slate-500 whitespace-nowrap">{req.category}</td>
+									<td class="p-3 text-center whitespace-nowrap">
+										<span class="px-2 py-0.5 rounded-lg text-[10px] font-black uppercase
+											{req.urgency === 'CRITICAL' ? 'bg-rose-500/10 text-rose-600 border border-rose-500/20' :
+											req.urgency === 'HIGH' ? 'bg-amber-500/10 text-amber-600 border border-amber-500/20' :
+											'bg-slate-500/10 text-slate-600 border border-slate-500/20'}">
+											{req.urgency}
+										</span>
+									</td>
+									<td class="p-3 text-center font-mono font-bold whitespace-nowrap">
+										{req.estimatedParticipants} Orang
+									</td>
+									<td class="p-3 text-center font-mono text-slate-500 whitespace-nowrap">
+										{req.targetCompletionDate || '-'}
+									</td>
+									<td class="p-3 text-center whitespace-nowrap">
+										{#if req.status === 'APPROVED'}
+											<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10.5px] font-black bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30">
+												<span class="material-symbols-outlined text-xs">check_circle</span>
+												<span>APPROVED</span>
+											</span>
+										{:else if req.status === 'HOLD'}
+											<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10.5px] font-black bg-orange-500/15 text-orange-700 dark:text-orange-300 border border-orange-500/30">
+												<span class="material-symbols-outlined text-xs">pause_circle</span>
+												<span>HOLD</span>
+											</span>
+										{:else}
+											<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10.5px] font-black bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/30">
+												<span class="material-symbols-outlined text-xs">pending</span>
+												<span>PENDING</span>
+											</span>
+										{/if}
+									</td>
+									<td class="p-3 max-w-[220px]">
+										{#if req.hrdNotes}
+											<div class="p-2 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-700 text-[11px] text-on-surface">
+												<p class="font-bold text-[10px] text-slate-400 mb-0.5">Catatan HRD:</p>
+												<p class="line-clamp-2" title={req.hrdNotes}>{req.hrdNotes}</p>
+											</div>
+										{:else}
+											<span class="text-slate-400 italic text-[11px]">- Menunggu feedback -</span>
+										{/if}
+									</td>
+									<td class="p-3 text-right font-mono text-slate-500 text-[11px] whitespace-nowrap">
+										{req.createdAt || '-'}
+									</td>
+								</tr>
+							{/each}
+
+							{#if myTrainingRequests.length === 0}
+								<tr>
+									<td colspan="10" class="p-10 text-center text-slate-400">
+										<span class="material-symbols-outlined text-4xl block mb-2 text-slate-300">playlist_remove</span>
+										<p class="font-bold text-sm">Belum ada usulan pelatihan yang diajukan.</p>
+										<p class="text-xs text-slate-500 mt-1">Gunakan tombol "+ Ajukan Pelatihan Baru" di atas untuk merekomendasikan program ke HRD.</p>
+									</td>
+								</tr>
+							{/if}
+						</tbody>
+					</table>
+				</div>
+			</div>
+		</div>
 	{/if}
 </div>
 
@@ -2502,6 +2777,170 @@
 					>
 						<span class="material-symbols-outlined text-sm">save</span>
 						<span>{isSubmitting ? 'Menyimpan Baseline...' : 'Simpan Evaluasi Level 4 Pre-Test'}</span>
+					</button>
+				</div>
+			</form>
+		</div>
+	</div>
+{/if}
+
+<!-- Modal Form Pengajuan Kebutuhan Pelatihan oleh Atasan -->
+{#if isTrainingRequestModalOpen}
+	<div class="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-4">
+		<div class="bg-surface rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xl w-full max-w-lg overflow-hidden p-6 space-y-4 animate-in zoom-in-95 duration-150">
+			<div class="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800">
+				<div>
+					<div class="flex items-center gap-2">
+						<span class="material-symbols-outlined text-primary text-xl">post_add</span>
+						<h3 class="font-black text-base text-on-surface">Form Pengajuan Pelatihan Tim ke HRD</h3>
+					</div>
+					<p class="text-xs text-on-surface-variant mt-0.5">
+						Usulkan materi pelatihan yang dibutuhkan bawahan langsung untuk ditinjau HRD
+					</p>
+				</div>
+				<button
+					type="button"
+					onclick={() => (isTrainingRequestModalOpen = false)}
+					class="w-8 h-8 rounded-full bg-surface-container flex items-center justify-center text-slate-400 hover:text-on-surface cursor-pointer"
+				>
+					<span class="material-symbols-outlined text-sm">close</span>
+				</button>
+			</div>
+
+			<form
+				method="POST"
+				action="?/submitTrainingRequest"
+				use:enhance={() => {
+					isSubmitting = true;
+					return async ({ result, update }) => {
+						isSubmitting = false;
+						if (result.type === 'success') {
+							notifySuccess((result.data as any)?.message || 'Usulan pelatihan berhasil dikirimkan ke HRD!');
+							isTrainingRequestModalOpen = false;
+							await update();
+						} else {
+							notifyError((result.data as any)?.message || 'Gagal mengirim usulan pelatihan.');
+						}
+					};
+				}}
+				class="space-y-4"
+			>
+				<input type="hidden" name="requestedBy" value={currentAssessor?.name || currentUser?.nama_karyawan || currentUser?.name || 'Supervisor'} />
+
+				<div class="grid grid-cols-2 gap-3">
+					<div>
+						<label class="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1">Pengusul</label>
+						<input
+							type="text"
+							value={currentAssessor?.name || currentUser?.nama_karyawan || currentUser?.name || 'Supervisor'}
+							disabled
+							class="w-full px-3 py-2 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-500 cursor-not-allowed"
+						/>
+					</div>
+					<div>
+						<label class="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1">Departemen *</label>
+						<input
+							type="text"
+							name="deptName"
+							bind:value={requestFormDept}
+							required
+							class="w-full px-3 py-2 rounded-xl bg-surface border border-slate-200 dark:border-slate-700 text-xs text-on-surface outline-none focus:ring-2 focus:ring-primary"
+						/>
+					</div>
+				</div>
+
+				<div>
+					<label class="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1">Judul Pelatihan yang Diusulkan *</label>
+					<input
+						type="text"
+						name="trainingTitle"
+						bind:value={requestFormTitle}
+						placeholder="Misal: Sertifikasi Operator Forklift / Defensive Driving Euro 4"
+						required
+						class="w-full px-3 py-2 rounded-xl bg-surface border border-slate-200 dark:border-slate-700 text-xs text-on-surface outline-none focus:ring-2 focus:ring-primary"
+					/>
+				</div>
+
+				<div class="grid grid-cols-2 gap-3">
+					<div>
+						<label class="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1">Kategori Pelatihan</label>
+						<select
+							name="category"
+							bind:value={requestFormCategory}
+							class="w-full px-3 py-2 rounded-xl bg-surface border border-slate-200 dark:border-slate-700 text-xs text-on-surface outline-none focus:ring-2 focus:ring-primary font-semibold"
+						>
+							<option value="Technical Competency">Technical Competency</option>
+							<option value="Safety & K3 Compliance">Safety & K3 Compliance</option>
+							<option value="Soft Skills & Service">Soft Skills & Service</option>
+							<option value="Leadership & SPV">Leadership & SPV</option>
+							<option value="Operasional Lapangan">Operasional Lapangan</option>
+						</select>
+					</div>
+					<div>
+						<label class="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1">Tingkat Urgensi</label>
+						<select
+							name="urgency"
+							bind:value={requestFormUrgency}
+							class="w-full px-3 py-2 rounded-xl bg-surface border border-slate-200 dark:border-slate-700 text-xs text-on-surface outline-none focus:ring-2 focus:ring-primary font-semibold"
+						>
+							<option value="NORMAL">NORMAL (Jadwal Reguler)</option>
+							<option value="HIGH">HIGH (Mendesak)</option>
+							<option value="CRITICAL">CRITICAL (Wajib Segera)</option>
+						</select>
+					</div>
+				</div>
+
+				<div class="grid grid-cols-2 gap-3">
+					<div>
+						<label class="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1">Estimasi Jumlah Peserta *</label>
+						<input
+							type="number"
+							name="estimatedParticipants"
+							bind:value={requestFormEstimatedParticipants}
+							min="1"
+							max="200"
+							required
+							class="w-full px-3 py-2 rounded-xl bg-surface border border-slate-200 dark:border-slate-700 text-xs text-on-surface outline-none focus:ring-2 focus:ring-primary font-mono font-bold"
+						/>
+					</div>
+					<div>
+						<label class="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1">Target Tanggal Selesai</label>
+						<input
+							type="date"
+							name="targetCompletionDate"
+							bind:value={requestFormTargetDate}
+							class="w-full px-3 py-2 rounded-xl bg-surface border border-slate-200 dark:border-slate-700 text-xs text-on-surface outline-none focus:ring-2 focus:ring-primary font-mono"
+						/>
+					</div>
+				</div>
+
+				<div>
+					<label class="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1">Justifikasi & Alasan Kebutuhan *</label>
+					<textarea
+						name="justification"
+						bind:value={requestFormJustification}
+						rows="3"
+						placeholder="Jelaskan kendala di lapangan, gap kompetensi bawahan, atau standar kepatuhan yang memerlukan pelatihan ini..."
+						required
+						class="w-full p-3 rounded-xl bg-surface border border-slate-200 dark:border-slate-700 text-xs text-on-surface outline-none focus:ring-2 focus:ring-primary"
+					></textarea>
+				</div>
+
+				<div class="flex justify-end gap-2.5 pt-3 border-t border-slate-200 dark:border-slate-800">
+					<button
+						type="button"
+						onclick={() => (isTrainingRequestModalOpen = false)}
+						class="px-4 py-2 rounded-xl bg-surface-container text-xs font-bold hover:bg-surface-container-high cursor-pointer"
+					>
+						Batal
+					</button>
+					<button
+						type="submit"
+						disabled={isSubmitting}
+						class="px-5 py-2 rounded-xl bg-primary hover:bg-primary/90 text-on-primary text-xs font-bold shadow-xs flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+					>
+						<span class="material-symbols-outlined text-sm">send</span>
+						<span>{isSubmitting ? 'Mengirim...' : 'Kirim Usulan ke HRD'}</span>
 					</button>
 				</div>
 			</form>

@@ -117,6 +117,12 @@ export const load: PageServerLoad = async ({ locals }) => {
 			ORDER BY e.id DESC;
 		`;
 
+		// 9. Ambil Seluruh Request Pelatihan dari Atasan (Status: PENDING, APPROVED, HOLD)
+		const trainingRequests = await sql`
+			SELECT * FROM hris.lms_training_requests
+			ORDER BY created_at DESC;
+		`;
+
 		return {
 			currentUser: locals.user || null,
 			activeAssessors: activeAssessors.map((a: any) => ({
@@ -221,6 +227,22 @@ export const load: PageServerLoad = async ({ locals }) => {
 				l4IncidentNotes: e.incident_reduction_notes || '',
 				l4Notes: e.l4_notes || e.supervisor_notes || '',
 				l4ReviewedAt: e.l4_reviewed_at ? new Date(e.l4_reviewed_at).toISOString().split('T')[0] : ''
+			})),
+			trainingRequests: trainingRequests.map((r: any) => ({
+				id: r.id,
+				deptName: r.dept_name,
+				requestedBy: r.requested_by,
+				trainingTitle: r.training_title,
+				category: r.category,
+				urgency: r.urgency || 'NORMAL',
+				estimatedParticipants: Number(r.estimated_participants || 1),
+				targetCompletionDate: r.target_completion_date ? new Date(r.target_completion_date).toISOString().split('T')[0] : '',
+				justification: r.justification || '',
+				status: (r.status === 'APPROVED' ? 'APPROVED' : r.status === 'HOLD' ? 'HOLD' : 'PENDING'),
+				hrdNotes: r.hrd_notes || '',
+				reviewedBy: r.reviewed_by || '',
+				reviewedAt: r.reviewed_at ? new Date(r.reviewed_at).toISOString().split('T')[0] : '',
+				createdAt: r.created_at ? new Date(r.created_at).toISOString().split('T')[0] : ''
 			})),
 			assessmentPeriods: [
 				String(new Date().getFullYear()),
@@ -464,6 +486,44 @@ export const actions = {
 		} catch (e: any) {
 			logError('DIRECT_EVAL_L4_PRE_FAIL', e?.message);
 			return { success: false, message: 'Gagal menyimpan evaluasi Level 4 Pre-Test.' };
+		}
+	},
+
+	// 5. Submit Request Pelatihan dari Atasan ke LMS (Status: PENDING)
+	submitTrainingRequest: async ({ request }) => {
+		const formData = await request.formData();
+		const deptName = formData.get('deptName')?.toString().trim();
+		const requestedBy = formData.get('requestedBy')?.toString().trim();
+		const trainingTitle = formData.get('trainingTitle')?.toString().trim();
+		const category = formData.get('category')?.toString().trim() || 'Technical Competency';
+		const urgency = formData.get('urgency')?.toString().trim() || 'NORMAL';
+		const estimatedParticipants = Number(formData.get('estimatedParticipants')) || 1;
+		const targetCompletionDate = formData.get('targetCompletionDate')?.toString().trim() || null;
+		const justification = formData.get('justification')?.toString().trim();
+
+		if (!deptName || !requestedBy || !trainingTitle || !justification) {
+			return { success: false, message: 'Harap lengkapi semua kolom wajib usulan pelatihan.' };
+		}
+
+		const id = `REQ-TRN-${Date.now().toString().slice(-4)}`;
+
+		try {
+			await sql`
+				INSERT INTO hris.lms_training_requests (
+					id, dept_name, requested_by, training_title, category, urgency,
+					estimated_participants, target_completion_date, justification, status, created_at
+				) VALUES (
+					${id}, ${deptName}, ${requestedBy}, ${trainingTitle}, ${category}, ${urgency},
+					${estimatedParticipants}, ${targetCompletionDate || null}, ${justification}, 'PENDING', CURRENT_TIMESTAMP
+				);
+			`;
+			return {
+				success: true,
+				message: `Usulan pelatihan "${trainingTitle}" (${id}) berhasil dikirimkan ke HRD dengan status PENDING.`
+			};
+		} catch (e: any) {
+			logError('SUBMIT_TRAINING_REQUEST_FAIL', e?.message);
+			return { success: false, message: `Gagal mengirim usulan pelatihan: ${e?.message || 'Database error'}` };
 		}
 	}
 } satisfies Actions;

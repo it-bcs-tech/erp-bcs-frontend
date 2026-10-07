@@ -59,11 +59,80 @@
 	let recapFilterResult = $state('All');
 
 	// TNA Sub-tabs
-	type TnaSubTab = 'assessments' | 'standards' | 'library' | 'safety';
+	type TnaSubTab = 'assessments' | 'standards' | 'library' | 'safety' | 'requests';
 	let tnaSubTab = $state<TnaSubTab>('assessments');
 	let tnaSearchQuery = $state('');
 	let tnaFilterDept = $state('All');
 	let tnaFilterStatus = $state('All');
+
+	// State Usulan Pelatihan Atasan (HRD Review)
+	let lmsRequestSearchQuery = $state('');
+	let lmsRequestStatusFilter = $state<'All' | 'PENDING' | 'APPROVED' | 'HOLD'>('All');
+	let isReviewRequestModalOpen = $state(false);
+	let selectedRequestForReview = $state<any>(null);
+	let reviewStatus = $state<'PENDING' | 'APPROVED' | 'HOLD'>('APPROVED');
+	let reviewHrdNotes = $state('');
+
+	function openReviewRequestModal(req: any) {
+		selectedRequestForReview = req;
+		reviewStatus = req.status || 'APPROVED';
+		reviewHrdNotes = req.hrdNotes || '';
+		isReviewRequestModalOpen = true;
+	}
+
+	function scheduleSessionFromApprovedRequest(req: any) {
+		sessionBatchSelectedEmployeeIds = [];
+		sessionBatchEmployeeSearch = '';
+		sessionBatchDivision = req.deptName || '';
+		sessionBatchStartDate = new Date().toISOString().split('T')[0];
+		sessionBatchEndDate = new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+		sessionBatchStartTime = '09:00';
+		sessionBatchEndTime = '12:00';
+		sessionBatchTitle = req.trainingTitle;
+		sessionBatchDepartment = req.deptName || 'Operations';
+		sessionBatchTrainer = masterTrainers[0]?.name || 'Trainer Internal';
+		sessionBatchTrainerType = 'Internal';
+		sessionBatchCostTrainer = 500000;
+		sessionBatchBased = 'Mandatory';
+		sessionBatchType = 'OFFLINE';
+		sessionBatchLocation = 'Ruang Training PT BCS Cilegon';
+		sessionBatchQuota = req.estimatedParticipants || 20;
+
+		const matchedCourse = courses.find((c: any) => c.title.toLowerCase() === req.trainingTitle.toLowerCase());
+		if (matchedCourse) {
+			selectedCourseForSession = matchedCourse.id;
+		} else if (courses.length > 0) {
+			selectedCourseForSession = courses[0].id;
+		}
+
+		activeTab = 'sessions';
+		isSessionModalOpen = true;
+		notifySuccess(`Formulir jadwal sesi otomatis terisi dari usulan "${req.trainingTitle}".`);
+	}
+
+	const filteredTrainingRequests = $derived.by(() => {
+		return trainingRequests.filter((r: any) => {
+			const q = lmsRequestSearchQuery.trim().toLowerCase();
+			const matchSearch =
+				!q ||
+				r.id.toLowerCase().includes(q) ||
+				r.trainingTitle.toLowerCase().includes(q) ||
+				r.requestedBy.toLowerCase().includes(q) ||
+				r.deptName.toLowerCase().includes(q);
+			const matchStatus = lmsRequestStatusFilter === 'All' || r.status === lmsRequestStatusFilter;
+			return matchSearch && matchStatus;
+		});
+	});
+
+	const pendingTrainingRequestsCount = $derived(
+		trainingRequests.filter((r: any) => r.status === 'PENDING').length
+	);
+	const approvedTrainingRequestsCount = $derived(
+		trainingRequests.filter((r: any) => r.status === 'APPROVED').length
+	);
+	const holdTrainingRequestsCount = $derived(
+		trainingRequests.filter((r: any) => r.status === 'HOLD').length
+	);
 
 	// Report Sub-tabs (Spreadsheet Master Specification: Sheet 306150899 - Unifikasi 5 Laporan Master)
 	type ReportType = 'training' | 'course' | 'attendance' | 'assessment' | 'competency_gap' | 'certificates';
@@ -4909,7 +4978,24 @@
 									: 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container'}"
 							>
 								<span class="material-symbols-outlined text-sm">health_and_safety</span>
-								<span>Safety Test & Request</span>
+								<span>Safety Test K3 Mandiri</span>
+							</button>
+
+							<button
+								type="button"
+								onclick={() => (tnaSubTab = 'requests')}
+								class="px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-2
+								{tnaSubTab === 'requests'
+									? 'bg-primary text-on-primary shadow-xs'
+									: 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container'}"
+							>
+								<span class="material-symbols-outlined text-sm">post_add</span>
+								<span>Usulan Pelatihan Atasan</span>
+								{#if pendingTrainingRequestsCount > 0}
+									<span class="px-1.5 py-0.2 rounded-full text-[10px] font-black bg-amber-500 text-slate-950 animate-pulse">
+										{pendingTrainingRequestsCount} PENDING
+									</span>
+								{/if}
 							</button>
 						</div>
 
@@ -5990,61 +6076,233 @@
 									<span>Mulai Ujian Safety Mandiri</span>
 								</button>
 							</div>
+						</div>
 
-							<!-- Panel 2: Training by Request -->
-							<div class="space-y-3 pt-2">
-								<div class="flex items-center justify-between">
-									<div>
-										<h4 class="font-black text-sm text-on-surface uppercase tracking-wider">Training by Request (Pengajuan Kebutuhan Pelatihan)</h4>
-										<p class="text-xs text-on-surface-variant">Formulir pengajuan usulan pelatihan tahunan oleh Head Department ke HRD</p>
+					<!-- ═══════════════════════════════════════════════════════════ -->
+					<!-- SUB-VIEW 5: USULAN & REQUEST PELATIHAN ATASAN (HRD REVIEW) -->
+					<!-- ═══════════════════════════════════════════════════════════ -->
+					{:else if tnaSubTab === 'requests'}
+						<div class="space-y-6">
+							<!-- Header Banner & Action Button -->
+							<div class="p-5 rounded-3xl bg-surface border border-slate-200/80 dark:border-slate-800/80 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
+								<div>
+									<div class="flex items-center gap-2">
+										<span class="px-2.5 py-1 rounded-xl text-xs font-black bg-primary/10 text-primary border border-primary/20">
+											HRD Verification Panel
+										</span>
+										{#if pendingTrainingRequestsCount > 0}
+											<span class="px-2.5 py-1 rounded-xl text-xs font-bold bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 animate-pulse">
+												{pendingTrainingRequestsCount} Usulan Menunggu Review
+											</span>
+										{/if}
 									</div>
+									<h3 class="text-base font-black text-on-surface mt-2 tracking-tight">Manajemen Usulan Pelatihan Tim dari Atasan Langsung</h3>
+									<p class="text-xs text-on-surface-variant mt-0.5 leading-relaxed max-w-2xl">
+										Verifikasi permintaan program pelatihan yang diajukan oleh Supervisor/Head Dept. Tentukan status (Pending, Approved, atau Hold) dan jadwalkan sesi pelatihan untuk usulan yang telah disetujui.
+									</p>
+								</div>
 
+								<div class="flex items-center gap-2 self-start md:self-auto flex-wrap shrink-0">
 									<button
 										type="button"
 										onclick={() => (isRequestModalOpen = true)}
-										class="px-3.5 py-2 rounded-xl border border-slate-300 dark:border-slate-700 hover:bg-surface-container text-xs font-bold text-on-surface flex items-center gap-1.5 transition-all cursor-pointer"
+										class="px-4 py-2.5 rounded-2xl bg-surface-container hover:bg-surface-container-high border border-slate-200 dark:border-slate-700 text-xs font-bold text-on-surface flex items-center gap-1.5 transition-all cursor-pointer shadow-xs"
 									>
-										<span class="material-symbols-outlined text-sm">post_add</span>
-										<span>+ Ajukan Kebutuhan Training</span>
+										<span class="material-symbols-outlined text-sm">add_circle</span>
+										<span>+ Buat Usulan Baru</span>
 									</button>
 								</div>
+							</div>
 
-								<div class="rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden">
+							<!-- 4 KPI Summary Cards Status Usulan HRD -->
+							<div class="grid grid-cols-2 lg:grid-cols-4 gap-3.5">
+								<div class="p-4 rounded-3xl bg-surface border border-slate-200/60 dark:border-slate-800/60 shadow-xs flex items-center justify-between">
+									<div>
+										<span class="text-[10px] font-bold text-slate-400 block uppercase tracking-wider">Total Usulan Masuk</span>
+										<p class="text-2xl font-black text-on-surface font-mono mt-0.5">
+											{trainingRequests.length}
+										</p>
+									</div>
+									<div class="w-10 h-10 rounded-2xl bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 flex items-center justify-center">
+										<span class="material-symbols-outlined text-lg">inbox</span>
+									</div>
+								</div>
+
+								<div class="p-4 rounded-3xl bg-surface border border-slate-200/60 dark:border-slate-800/60 shadow-xs flex items-center justify-between">
+									<div>
+										<span class="text-[10px] font-bold text-amber-500 block uppercase tracking-wider">Menunggu Review HRD</span>
+										<p class="text-2xl font-black text-amber-500 font-mono mt-0.5">
+											{pendingTrainingRequestsCount}
+										</p>
+									</div>
+									<div class="w-10 h-10 rounded-2xl bg-amber-500/10 text-amber-500 flex items-center justify-center">
+										<span class="material-symbols-outlined text-lg">pending</span>
+									</div>
+								</div>
+
+								<div class="p-4 rounded-3xl bg-surface border border-slate-200/60 dark:border-slate-800/60 shadow-xs flex items-center justify-between">
+									<div>
+										<span class="text-[10px] font-bold text-emerald-500 block uppercase tracking-wider">Disetujui HRD (Approved)</span>
+										<p class="text-2xl font-black text-emerald-500 font-mono mt-0.5">
+											{approvedTrainingRequestsCount}
+										</p>
+									</div>
+									<div class="w-10 h-10 rounded-2xl bg-emerald-500/10 text-emerald-500 flex items-center justify-center">
+										<span class="material-symbols-outlined text-lg">check_circle</span>
+									</div>
+								</div>
+
+								<div class="p-4 rounded-3xl bg-surface border border-slate-200/60 dark:border-slate-800/60 shadow-xs flex items-center justify-between">
+									<div>
+										<span class="text-[10px] font-bold text-orange-500 block uppercase tracking-wider">Ditunda HRD (Hold)</span>
+										<p class="text-2xl font-black text-orange-500 font-mono mt-0.5">
+											{holdTrainingRequestsCount}
+										</p>
+									</div>
+									<div class="w-10 h-10 rounded-2xl bg-orange-500/10 text-orange-500 flex items-center justify-center">
+										<span class="material-symbols-outlined text-lg">pause_circle</span>
+									</div>
+								</div>
+							</div>
+
+							<!-- Toolbar Search & Filter HRD -->
+							<div class="p-4 rounded-3xl bg-surface border border-slate-200/60 dark:border-slate-800/60 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs shadow-xs">
+								<div class="relative flex-1 max-w-md">
+									<span class="material-symbols-outlined absolute left-3 top-2.5 text-slate-400 text-sm">search</span>
+									<input
+										type="text"
+										bind:value={lmsRequestSearchQuery}
+										placeholder="Cari nomor ID, judul pelatihan, departemen, atau nama pengusul..."
+										class="w-full pl-9 pr-3 py-2 rounded-2xl bg-surface-container border border-slate-200 dark:border-slate-700 text-xs text-on-surface outline-none focus:ring-2 focus:ring-primary"
+									/>
+								</div>
+
+								<div class="flex items-center gap-2">
+									<span class="text-slate-400 font-bold">Status:</span>
+									<select
+										bind:value={lmsRequestStatusFilter}
+										class="px-3 py-2 rounded-2xl bg-surface-container border border-slate-200 dark:border-slate-700 text-xs text-on-surface font-semibold outline-none"
+									>
+										<option value="All">Semua Status</option>
+										<option value="PENDING">PENDING (Menunggu)</option>
+										<option value="APPROVED">APPROVED (Disetujui)</option>
+										<option value="HOLD">HOLD (Ditunda)</option>
+									</select>
+								</div>
+							</div>
+
+							<!-- Tabel Manajemen Review Usulan Pelatihan HRD -->
+							<div class="rounded-3xl border border-slate-200/60 dark:border-slate-800/60 overflow-hidden shadow-xs bg-surface">
+								<div class="overflow-x-auto">
 									<table class="w-full text-xs text-left">
-										<thead class="bg-surface-container-high font-bold text-on-surface border-b border-slate-200 dark:border-slate-800">
+										<thead class="bg-surface-container-high border-b border-slate-200/60 dark:border-slate-800/60 font-bold text-on-surface">
 											<tr>
-												<th class="p-3">No. Request</th>
+												<th class="p-3">No. Usulan</th>
 												<th class="p-3">Departemen</th>
 												<th class="p-3">Judul Pelatihan Diusulkan</th>
 												<th class="p-3">Pengusul</th>
 												<th class="p-3 text-center">Urgensi</th>
+												<th class="p-3 text-center">Estimasi Peserta</th>
 												<th class="p-3 text-center">Target Selesai</th>
 												<th class="p-3 text-center">Status HRD</th>
+												<th class="p-3">Catatan / Alasan HRD</th>
+												<th class="p-3 text-center">Aksi Verifikasi</th>
 											</tr>
 										</thead>
-										<tbody class="divide-y divide-slate-200 dark:divide-slate-800">
-											{#each trainingRequests as req}
-												<tr class="hover:bg-surface-container/50">
-													<td class="p-3 font-mono font-bold text-on-surface">{req.id}</td>
-													<td class="p-3 font-medium text-slate-500">{req.deptName}</td>
-													<td class="p-3 font-bold text-on-surface">{req.trainingTitle}</td>
-													<td class="p-3 text-slate-600 dark:text-slate-300">{req.requestedBy}</td>
-													<td class="p-3 text-center">
-														<span class="px-2 py-0.5 rounded-md text-[10px] font-black uppercase
-															{req.urgency === 'CRITICAL' ? 'bg-rose-100 text-rose-800 font-bold' :
-															req.urgency === 'HIGH' ? 'bg-amber-100 text-amber-800' : 'bg-slate-100 text-slate-800'}">
+										<tbody class="divide-y divide-slate-200/60 dark:divide-slate-800/60">
+											{#each filteredTrainingRequests as req}
+												<tr class="hover:bg-surface-container/40 transition-colors">
+													<td class="p-3 font-mono font-bold text-primary whitespace-nowrap">{req.id}</td>
+													<td class="p-3 font-medium text-slate-600 dark:text-slate-300 whitespace-nowrap">{req.deptName}</td>
+													<td class="p-3">
+														<p class="font-bold text-on-surface">{req.trainingTitle}</p>
+														{#if req.justification}
+															<p class="text-[11px] text-slate-500 mt-0.5 line-clamp-1" title={req.justification}>
+																{req.justification}
+															</p>
+														{/if}
+													</td>
+													<td class="p-3 text-slate-600 dark:text-slate-300 whitespace-nowrap">
+														<span class="font-semibold">{req.requestedBy}</span>
+													</td>
+													<td class="p-3 text-center whitespace-nowrap">
+														<span class="px-2 py-0.5 rounded-lg text-[10px] font-black uppercase
+															{req.urgency === 'CRITICAL' ? 'bg-rose-500/10 text-rose-600 border border-rose-500/20' :
+															req.urgency === 'HIGH' ? 'bg-amber-500/10 text-amber-600 border border-amber-500/20' :
+															'bg-slate-500/10 text-slate-600 border border-slate-500/20'}">
 															{req.urgency}
 														</span>
 													</td>
-													<td class="p-3 text-center font-mono text-slate-500">{req.targetCompletionDate || '-'}</td>
-													<td class="p-3 text-center">
-														<span class="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase
-															{req.status === 'APPROVED' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}">
-															{req.status}
-														</span>
+													<td class="p-3 text-center font-mono font-bold whitespace-nowrap">
+														{req.estimatedParticipants} Orang
+													</td>
+													<td class="p-3 text-center font-mono text-slate-500 whitespace-nowrap">
+														{req.targetCompletionDate || '-'}
+													</td>
+													<td class="p-3 text-center whitespace-nowrap">
+														{#if req.status === 'APPROVED'}
+															<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10.5px] font-black bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30">
+																<span class="material-symbols-outlined text-xs">check_circle</span>
+																<span>APPROVED</span>
+															</span>
+														{:else if req.status === 'HOLD'}
+															<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10.5px] font-black bg-orange-500/15 text-orange-700 dark:text-orange-300 border border-orange-500/30">
+																<span class="material-symbols-outlined text-xs">pause_circle</span>
+																<span>HOLD</span>
+															</span>
+														{:else}
+															<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10.5px] font-black bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/30">
+																<span class="material-symbols-outlined text-xs">pending</span>
+																<span>PENDING</span>
+															</span>
+														{/if}
+													</td>
+													<td class="p-3 max-w-[200px]">
+														{#if req.hrdNotes}
+															<div class="p-1.5 rounded-lg bg-surface-container border border-slate-200 dark:border-slate-700 text-[11px] text-on-surface">
+																<p class="line-clamp-2" title={req.hrdNotes}>{req.hrdNotes}</p>
+															</div>
+														{:else}
+															<span class="text-slate-400 italic text-[11px]">- Belum ada catatan -</span>
+														{/if}
+													</td>
+													<td class="p-3 text-center whitespace-nowrap">
+														<div class="flex items-center justify-center gap-1.5">
+															<button
+																type="button"
+																onclick={() => openReviewRequestModal(req)}
+																class="px-2.5 py-1.5 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-700 hover:bg-surface-container-high text-xs font-bold text-on-surface flex items-center gap-1 transition-all cursor-pointer"
+																title="Review dan ubah status usulan ini"
+															>
+																<span class="material-symbols-outlined text-sm">edit_note</span>
+																<span>Review</span>
+															</button>
+
+															{#if req.status === 'APPROVED'}
+																<button
+																	type="button"
+																	onclick={() => scheduleSessionFromApprovedRequest(req)}
+																	class="px-2.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold flex items-center gap-1 transition-all cursor-pointer shadow-xs"
+																	title="Buat sesi jadwal pelatihan langsung dari usulan yang disetujui ini"
+																>
+																	<span class="material-symbols-outlined text-sm">calendar_month</span>
+																	<span>Jadwalkan Sesi</span>
+																</button>
+															{/if}
+														</div>
 													</td>
 												</tr>
 											{/each}
+
+											{#if filteredTrainingRequests.length === 0}
+												<tr>
+													<td colspan="10" class="p-10 text-center text-slate-400">
+														<span class="material-symbols-outlined text-4xl block mb-2 text-slate-300">search_off</span>
+														<p class="font-bold text-sm">Tidak ada usulan pelatihan yang cocok dengan filter pencarian.</p>
+														<p class="text-xs text-slate-500 mt-1">Coba sesuaikan kata kunci pencarian atau ubah pilihan status di atas.</p>
+													</td>
+												</tr>
+											{/if}
 										</tbody>
 									</table>
 								</div>
@@ -9611,6 +9869,148 @@
 					<button type="submit" class="px-4 py-2 rounded-xl bg-primary text-on-primary text-xs font-bold hover:bg-primary/90 flex items-center gap-1">
 						<span class="material-symbols-outlined text-sm">send</span>
 						<span>Kirim Pengajuan ke HRD</span>
+					</button>
+				</div>
+			</form>
+		</div>
+	</div>
+{/if}
+
+<!-- ════════════════════════════════════════════════════════════════════════ -->
+<!-- MODAL 6B: REVIEW STATUS USULAN PELATIHAN OLEH HRD (PENDING, APPROVED, HOLD) -->
+<!-- ════════════════════════════════════════════════════════════════════════ -->
+{#if isReviewRequestModalOpen && selectedRequestForReview}
+	<div class="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-4">
+		<div class="bg-surface rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xl w-full max-w-lg overflow-hidden p-6 space-y-4 animate-in zoom-in-95 duration-150">
+			<div class="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800">
+				<div>
+					<div class="flex items-center gap-2">
+						<span class="material-symbols-outlined text-primary text-xl">fact_check</span>
+						<h3 class="font-black text-base text-on-surface">Review Status Usulan Pelatihan</h3>
+					</div>
+					<p class="text-xs text-on-surface-variant mt-0.5">
+						No: <strong>{selectedRequestForReview.id}</strong> • {selectedRequestForReview.deptName}
+					</p>
+				</div>
+				<button
+					type="button"
+					onclick={() => (isReviewRequestModalOpen = false)}
+					class="w-8 h-8 rounded-full bg-surface-container flex items-center justify-center text-slate-400 hover:text-on-surface cursor-pointer"
+				>
+					<span class="material-symbols-outlined text-sm">close</span>
+				</button>
+			</div>
+
+			<!-- Info Singkat Request -->
+			<div class="p-3.5 rounded-2xl bg-surface-container/60 border border-slate-200/60 dark:border-slate-800/60 space-y-1.5 text-xs">
+				<div class="flex items-center justify-between">
+					<span class="text-slate-400 font-bold uppercase text-[10px]">Judul Pelatihan:</span>
+					<span class="font-bold text-on-surface text-right">{selectedRequestForReview.trainingTitle}</span>
+				</div>
+				<div class="flex items-center justify-between">
+					<span class="text-slate-400 font-bold uppercase text-[10px]">Pengusul:</span>
+					<span class="text-slate-600 dark:text-slate-300 font-medium">{selectedRequestForReview.requestedBy}</span>
+				</div>
+				<div class="flex items-center justify-between">
+					<span class="text-slate-400 font-bold uppercase text-[10px]">Estimasi Peserta & Target:</span>
+					<span class="font-mono text-slate-500">{selectedRequestForReview.estimatedParticipants} Orang • Target: {selectedRequestForReview.targetCompletionDate || '-'}</span>
+				</div>
+				{#if selectedRequestForReview.justification}
+					<div class="pt-1 border-t border-slate-200/40 dark:border-slate-800/40">
+						<span class="text-slate-400 font-bold uppercase text-[10px] block mb-0.5">Alasan Kebutuhan:</span>
+						<p class="text-[11px] text-slate-600 dark:text-slate-300 italic">{selectedRequestForReview.justification}</p>
+					</div>
+				{/if}
+			</div>
+
+			<form
+				method="POST"
+				action="?/updateTrainingRequestStatus"
+				use:enhance={() => {
+					return async ({ result, update }) => {
+						if (result.type === 'success') {
+							notifySuccess((result.data as any)?.message || 'Status usulan pelatihan berhasil diperbarui!');
+							isReviewRequestModalOpen = false;
+							await update();
+						} else {
+							notifyError((result.data as any)?.message || 'Gagal memperbarui status usulan pelatihan.');
+						}
+					};
+				}}
+				class="space-y-4 text-xs"
+			>
+				<input type="hidden" name="id" value={selectedRequestForReview.id} />
+				<input type="hidden" name="reviewedBy" value="HRD Administrator" />
+
+				<!-- Pilihan Status 3 Opsi (PENDING, APPROVED, HOLD) -->
+				<div>
+					<label class="font-bold text-on-surface block mb-2 uppercase text-[10px] tracking-wider text-slate-400">
+						Tentukan Keputusan HRD *
+					</label>
+					<div class="grid grid-cols-3 gap-2">
+						<!-- PENDING -->
+						<label class="p-3 rounded-2xl border text-center cursor-pointer transition-all flex flex-col items-center gap-1
+							{reviewStatus === 'PENDING'
+								? 'bg-amber-500/15 border-amber-500 text-amber-700 dark:text-amber-300 ring-1 ring-amber-500/30'
+								: 'bg-surface-container border-slate-200 dark:border-slate-700 text-slate-500 hover:bg-surface-container-high'}">
+							<input type="radio" name="status" value="PENDING" bind:group={reviewStatus} class="sr-only" />
+							<span class="material-symbols-outlined text-base">pending</span>
+							<span class="font-black text-xs">PENDING</span>
+							<span class="text-[9px] opacity-75">Dalam Antrean</span>
+						</label>
+
+						<!-- APPROVED -->
+						<label class="p-3 rounded-2xl border text-center cursor-pointer transition-all flex flex-col items-center gap-1
+							{reviewStatus === 'APPROVED'
+								? 'bg-emerald-500/15 border-emerald-500 text-emerald-700 dark:text-emerald-300 ring-1 ring-emerald-500/30'
+								: 'bg-surface-container border-slate-200 dark:border-slate-700 text-slate-500 hover:bg-surface-container-high'}">
+							<input type="radio" name="status" value="APPROVED" bind:group={reviewStatus} class="sr-only" />
+							<span class="material-symbols-outlined text-base">check_circle</span>
+							<span class="font-black text-xs">APPROVED</span>
+							<span class="text-[9px] opacity-75">Disetujui</span>
+						</label>
+
+						<!-- HOLD -->
+						<label class="p-3 rounded-2xl border text-center cursor-pointer transition-all flex flex-col items-center gap-1
+							{reviewStatus === 'HOLD'
+								? 'bg-orange-500/15 border-orange-500 text-orange-700 dark:text-orange-300 ring-1 ring-orange-500/30'
+								: 'bg-surface-container border-slate-200 dark:border-slate-700 text-slate-500 hover:bg-surface-container-high'}">
+							<input type="radio" name="status" value="HOLD" bind:group={reviewStatus} class="sr-only" />
+							<span class="material-symbols-outlined text-base">pause_circle</span>
+							<span class="font-black text-xs">HOLD</span>
+							<span class="text-[9px] opacity-75">Ditunda / Anggaran</span>
+						</label>
+					</div>
+				</div>
+
+				<!-- Catatan / Feedback HRD -->
+				<div>
+					<label class="font-bold text-on-surface block mb-1 uppercase text-[10px] tracking-wider text-slate-400">
+						Catatan / Alasan Peninjauan HRD
+					</label>
+					<textarea
+						name="hrdNotes"
+						bind:value={reviewHrdNotes}
+						rows="3"
+						placeholder="Misal: Disetujui masuk agenda batch bulan depan, atau ditunda menunggu ketersediaan instruktur eksternal..."
+						class="w-full p-3 rounded-2xl bg-surface border border-slate-200 dark:border-slate-700 text-xs text-on-surface outline-none focus:ring-2 focus:ring-primary resize-none"
+					></textarea>
+				</div>
+
+				<div class="flex justify-end gap-2 pt-3 border-t border-slate-200 dark:border-slate-800">
+					<button
+						type="button"
+						onclick={() => (isReviewRequestModalOpen = false)}
+						class="px-4 py-2 rounded-xl bg-surface-container border text-xs font-bold hover:bg-surface-container-high cursor-pointer"
+					>
+						Batal
+					</button>
+					<button
+						type="submit"
+						class="px-5 py-2 rounded-xl bg-primary hover:bg-primary/90 text-on-primary text-xs font-bold shadow-xs flex items-center gap-1.5 cursor-pointer"
+					>
+						<span class="material-symbols-outlined text-sm">save</span>
+						<span>Simpan Keputusan Review</span>
 					</button>
 				</div>
 			</form>
