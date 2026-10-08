@@ -3,7 +3,7 @@
 	import { BLOOD_PRESSURE_REFERENCE } from '$lib/data/maintenance-checklists';
 
 	let { data }: { data: PageData } = $props();
-	const insp = $derived(data.inspection);
+	const insp = $derived(data.inspection || ({} as any));
 
 	function printDocument() {
 		window.print();

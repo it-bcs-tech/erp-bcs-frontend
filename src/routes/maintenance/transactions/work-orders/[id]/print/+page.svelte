@@ -2,7 +2,7 @@
 	import type { PageData } from './$types';
 
 	let { data }: { data: PageData } = $props();
-	const wo = $derived(data.wo);
+	const wo = $derived(data.wo || ({} as any));
 
 	function printDocument() {
 		window.print();
