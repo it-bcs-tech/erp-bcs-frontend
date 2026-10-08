@@ -285,7 +285,7 @@
 	<title>Formulir P2H Multi-Step | ERP BCS</title>
 </svelte:head>
 
-<div class="max-w-5xl mx-auto space-y-5 pb-16 px-3 sm:px-4">
+<div class="max-w-5xl mx-auto space-y-4 pb-16 px-0 sm:px-2">
 	<!-- Breadcrumb & Header -->
 	<header class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
 		<div>
