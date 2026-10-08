@@ -56,6 +56,12 @@
 		</div>
 
 		<div class="flex items-center gap-2">
+			{#if (insp.status === 'TIDAK_LAYAK' || insp.status.includes('TIDAK')) && !insp.woNo}
+				<a href="/maintenance/transactions/work-orders/create?from_inspection={encodeURIComponent(insp.inspectionNo)}" class="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs shadow-md transition-all">
+					<span class="material-symbols-outlined text-[16px]">note_add</span>
+					<span>Buat SPK Bengkel</span>
+				</a>
+			{/if}
 			{#if insp.woStatus === 'READY_FOR_REINSPECTION'}
 				<a href="/maintenance/transactions/inspections/{encodeURIComponent(insp.inspectionNo)}/re-inspect" class="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-purple-600 text-white font-bold text-xs hover:bg-purple-700 shadow-sm transition-all">
 					<span class="material-symbols-outlined text-[16px]">verified</span>
@@ -69,7 +75,33 @@
 		</div>
 	</header>
 
-	<!-- Closed-Loop Link to Work Order Banner -->
+	<!-- Banner Aksi: Terbitkan SPK Bengkel jika TIDAK LAYAK & Belum Ada SPK -->
+	{#if (insp.status === 'TIDAK_LAYAK' || insp.status.includes('TIDAK')) && !insp.woNo}
+		<div class="p-4 rounded-2xl bg-rose-50 dark:bg-rose-950/40 border-2 border-rose-400 dark:border-rose-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs">
+			<div class="flex items-center gap-3">
+				<div class="w-10 h-10 rounded-xl bg-rose-500/20 text-rose-600 dark:text-rose-400 flex items-center justify-center flex-shrink-0">
+					<span class="material-symbols-outlined text-[22px]">report_problem</span>
+				</div>
+				<div>
+					<div class="text-xs font-black text-rose-900 dark:text-rose-200 uppercase tracking-wide">
+						Armada Dinyatakan Tidak Layak Jalan ({insp.defectCount} Temuan)
+					</div>
+					<div class="text-[11px] text-rose-700 dark:text-rose-300 mt-0.5">
+						Terbitkan Surat Perintah Kerja (SPK) untuk mengirim daftar temuan perbaikan ini ke mekanik bengkel.
+					</div>
+				</div>
+			</div>
+			<a 
+				href="/maintenance/transactions/work-orders/create?from_inspection={encodeURIComponent(insp.inspectionNo)}" 
+				class="px-5 py-2.5 rounded-xl bg-rose-600 text-white font-black text-xs hover:bg-rose-700 shadow-md transition-all text-center flex items-center justify-center gap-1.5 shrink-0"
+			>
+				<span class="material-symbols-outlined text-[16px]">note_add</span>
+				<span>Buat SPK Bengkel Sekarang</span>
+			</a>
+		</div>
+	{/if}
+
+	<!-- Closed-Loop Link to Work Order Banner (Jika sudah ada SPK) -->
 	{#if insp.woNo}
 		<div class="p-4 rounded-2xl bg-sky-50 dark:bg-sky-950/40 border border-sky-200 dark:border-sky-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
 			<div class="flex items-center gap-3">
