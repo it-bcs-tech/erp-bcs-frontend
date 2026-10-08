@@ -11,19 +11,25 @@ export const load: PageServerLoad = async () => {
 		const schedules = await sql`
 			SELECT 
 				s.*,
-				u.odometer as current_odometer,
-				u.tipe_kendaraan as unit_type
+				COALESCE(s.last_service_km, s.target_km, 0) as current_odometer,
+				COALESCE(tu.nama_tipe, u.business_unit::text, 'Truck') as unit_type
 			FROM fleet.maintenance_schedules s
 			LEFT JOIN fleet.unit u ON s.unit_id = u.nomor_unit
+			LEFT JOIN master.m_model_unit mu ON u.model_unit_id::text = mu.id::text
+			LEFT JOIN master.m_tipe_unit tu ON mu.tipe_unit_id::text = tu.id::text
 			ORDER BY s.target_date ASC NULLS LAST, s.id DESC
 		`;
 
 		// 2. Fetch active units for dropdown
 		const units = await sql`
-			SELECT nomor_unit as no_unit, tipe_kendaraan, odometer
-			FROM fleet.unit
-			WHERE is_active = true
-			ORDER BY nomor_unit ASC
+			SELECT 
+				u.nomor_unit as no_unit, 
+				COALESCE(tu.nama_tipe, u.business_unit::text, 'Truck') as type
+			FROM fleet.unit u
+			LEFT JOIN master.m_model_unit mu ON u.model_unit_id::text = mu.id::text
+			LEFT JOIN master.m_tipe_unit tu ON mu.tipe_unit_id::text = tu.id::text
+			WHERE u.is_active = true
+			ORDER BY u.nomor_unit ASC
 		`;
 
 		// Format and compute live status
@@ -74,8 +80,8 @@ export const load: PageServerLoad = async () => {
 			schedules: formatted,
 			units: units.map(u => ({
 				noUnit: u.no_unit,
-				type: u.tipe_kendaraan,
-				odometer: u.odometer || 0
+				type: u.type,
+				odometer: 0
 			})),
 			metrics
 		};

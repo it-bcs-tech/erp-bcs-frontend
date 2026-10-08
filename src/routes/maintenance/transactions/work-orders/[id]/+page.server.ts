@@ -17,13 +17,15 @@ export const load: PageServerLoad = async ({ params }) => {
 				m.nama_karyawan as mechanic_name,
 				h.nama_karyawan as helper_mechanic_name,
 				d.nama_karyawan as driver_name,
-				u.odometer as current_unit_km,
-				u.tipe_kendaraan as unit_type
+				w.kilometer as current_unit_km,
+				COALESCE(tu.nama_tipe, u.business_unit::text, 'Truck') as unit_type
 			FROM fleet.work_orders w
 			LEFT JOIN master.m_karyawan m ON w.mechanic_id = m.payroll_id
 			LEFT JOIN master.m_karyawan h ON w.helper_mechanic_id = h.payroll_id
 			LEFT JOIN master.m_karyawan d ON w.driver_id = d.payroll_id
 			LEFT JOIN fleet.unit u ON w.unit_id = u.nomor_unit
+			LEFT JOIN master.m_model_unit mu ON u.model_unit_id::text = mu.id::text
+			LEFT JOIN master.m_tipe_unit tu ON mu.tipe_unit_id::text = tu.id::text
 			WHERE w.wo_no = ${idOrNo} OR w.id::text = ${idOrNo}
 			LIMIT 1
 		`;

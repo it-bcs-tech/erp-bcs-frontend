@@ -96,9 +96,8 @@ export const load: PageServerLoad = async () => {
 				s.target_km,
 				s.target_date,
 				s.status,
-				u.odometer as current_km
+				COALESCE(s.last_service_km, s.target_km, 0) as current_km
 			FROM fleet.maintenance_schedules s
-			LEFT JOIN fleet.unit u ON s.unit_id = u.nomor_unit
 			WHERE s.status IN ('DUE', 'OVERDUE')
 			ORDER BY s.target_date ASC NULLS LAST
 			LIMIT 5
