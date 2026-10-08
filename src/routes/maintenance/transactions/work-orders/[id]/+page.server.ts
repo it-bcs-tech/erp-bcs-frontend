@@ -40,15 +40,20 @@ export const load: PageServerLoad = async ({ params }) => {
 		const pmsParts = await sql`
 			SELECT 
 				d.id,
-				d.material_code,
-				d.item_name,
-				d.qty,
-				d.uom,
-				d.unit_price,
-				d.total,
-				d.keterangan
+				COALESCE(m.material_code, d.material_id) as material_code,
+				COALESCE(m.name, 'Item ' || d.material_id) as item_name,
+				COALESCE(d.qty_actual, d.qty_request, 0) as qty,
+				COALESCE(m.uom, 'PCS') as uom,
+				COALESCE(d.price, 0) as unit_price,
+				COALESCE(d.total, 0) as total,
+				COALESCE(d.location, '') as keterangan
 			FROM fleet.maintenance_dn_header h
 			JOIN fleet.maintenance_dn_detail d ON h.dn_no = d.dn_no
+			LEFT JOIN master.m_materials m ON 
+				CASE 
+					WHEN d.material_id ~ '^[0-9]+$' THEN m.id = d.material_id::integer 
+					ELSE m.material_code = d.material_id 
+				END
 			WHERE h.wo_no = ${wo.wo_no}
 			ORDER BY d.id ASC
 		`;
@@ -316,23 +321,25 @@ export const actions: Actions = {
 			await sql`
 				INSERT INTO fleet.maintenance_dn_detail (
 					dn_no,
-					material_code,
-					item_name,
-					qty,
-					uom,
-					unit_price,
+					material_id,
+					qty_request,
+					qty_supply,
+					qty_actual,
+					price,
 					total,
-					keterangan,
+					location,
+					created_by,
 					created_at
 				) VALUES (
 					${dn_no},
 					${material_code},
-					${material_name},
 					${qty},
-					${uom},
+					${qty},
+					${qty},
 					${price},
 					${qty * price},
 					${item_ref ? 'Item: ' + item_ref : 'Pemakaian perbaikan bengkel'},
+					${createdBy},
 					NOW()
 				)
 			`;

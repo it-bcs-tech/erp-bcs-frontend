@@ -38,15 +38,20 @@ export const load: PageServerLoad = async ({ url }) => {
 		// 3. Top expensive spareparts used
 		const topParts = await sql`
 			SELECT 
-				d.item_name,
-				d.material_code,
-				SUM(d.qty) as total_qty,
-				d.uom,
+				COALESCE(m.name, 'Item ' || d.material_id) as item_name,
+				COALESCE(m.material_code, d.material_id) as material_code,
+				SUM(COALESCE(d.qty_actual, d.qty_request, 0)) as total_qty,
+				COALESCE(m.uom, 'PCS') as uom,
 				SUM(d.total) as total_spend
 			FROM fleet.maintenance_dn_detail d
 			JOIN fleet.maintenance_dn_header h ON d.dn_no = h.dn_no
+			LEFT JOIN master.m_materials m ON 
+				CASE 
+					WHEN d.material_id ~ '^[0-9]+$' THEN m.id = d.material_id::integer 
+					ELSE m.material_code = d.material_id 
+				END
 			WHERE EXTRACT(YEAR FROM h.dn_date) = ${year}
-			GROUP BY d.item_name, d.material_code, d.uom
+			GROUP BY COALESCE(m.name, 'Item ' || d.material_id), COALESCE(m.material_code, d.material_id), COALESCE(m.uom, 'PCS')
 			ORDER BY total_spend DESC
 			LIMIT 8
 		`;
