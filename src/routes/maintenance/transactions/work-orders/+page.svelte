@@ -2,6 +2,7 @@
 	import type { PageData } from './$types';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/stores';
+	import SpkPrintDocument from '$lib/components/maintenance/SpkPrintDocument.svelte';
 
 	let { data }: { data: PageData } = $props();
 
@@ -11,6 +12,48 @@
 
 	let searchQuery = $state($page.url.searchParams.get('search') || '');
 	let statusFilter = $state($page.url.searchParams.get('status') || 'All');
+
+	let isPrintModalOpen = $state(false);
+	let isPrintLoading = $state(false);
+	let isExecutingPrint = $state(false);
+	let printWoData = $state<any>(null);
+
+	async function openPrintModal(woNo: string) {
+		isPrintModalOpen = true;
+		isPrintLoading = true;
+		printWoData = null;
+
+		try {
+			const res = await fetch(`/api/maintenance/work-orders/${encodeURIComponent(woNo)}`);
+			const json = await res.json();
+			if (json.success && json.wo) {
+				printWoData = json.wo;
+			} else {
+				alert(json.message || 'Gagal memuat data cetak Work Order.');
+				isPrintModalOpen = false;
+			}
+		} catch (e) {
+			console.error(e);
+			alert('Terjadi kesalahan saat memuat data cetak Work Order.');
+			isPrintModalOpen = false;
+		} finally {
+			isPrintLoading = false;
+		}
+	}
+
+	function executePrint() {
+		const iframe = document.getElementById('print-wo-iframe') as HTMLIFrameElement;
+		if (!iframe || !printWoData?.woNo) return;
+		isExecutingPrint = true;
+		iframe.src = `/maintenance/transactions/work-orders/${encodeURIComponent(printWoData.woNo)}/print`;
+		iframe.onload = () => {
+			setTimeout(() => {
+				isExecutingPrint = false;
+				iframe.contentWindow?.focus();
+				iframe.contentWindow?.print();
+			}, 300);
+		};
+	}
 
 	let searchTimer: ReturnType<typeof setTimeout>;
 
@@ -221,9 +264,14 @@
 								</td>
 								<td class="py-3.5 px-4 text-right">
 									<div class="inline-flex items-center gap-1">
-										<a href="/maintenance/transactions/work-orders/{encodeURIComponent(item.woNo)}/print" target="_blank" class="p-1.5 rounded-lg hover:bg-surface-container-high text-on-surface-variant transition-colors" title="Cetak SPK Fisik">
+										<button 
+											type="button" 
+											onclick={() => openPrintModal(item.woNo)}
+											class="p-1.5 rounded-lg hover:bg-surface-container-high text-on-surface-variant hover:text-primary transition-colors cursor-pointer" 
+											title="Pratinjau & Cetak SPK Fisik"
+										>
 											<span class="material-symbols-outlined text-[18px]">print</span>
-										</a>
+										</button>
 										<a href="/maintenance/transactions/work-orders/{encodeURIComponent(item.woNo)}" class="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-surface-container-high hover:bg-primary hover:text-on-primary text-xs font-bold transition-all">
 											<span>Kerjakan</span>
 											<span class="material-symbols-outlined text-[14px]">arrow_forward</span>
@@ -263,4 +311,60 @@
 			{/if}
 		{/if}
 	</div>
+
+	<!-- Modal Pratinjau Cetak SPK Fisik (In-Page Preview ala Modul Finance) -->
+	{#if isPrintModalOpen}
+		<div class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-xs p-3 sm:p-6">
+			<div class="relative w-full max-w-5xl bg-slate-900 rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[95vh] border border-slate-700">
+				<!-- Header Bar -->
+				<div class="px-6 py-4 border-b border-slate-800 flex flex-wrap items-center justify-between gap-4 bg-slate-950 text-white shrink-0">
+					<div class="flex items-center gap-3">
+						<span class="p-2 rounded-xl bg-primary/20 text-primary">
+							<span class="material-symbols-outlined text-xl">print</span>
+						</span>
+						<div>
+							<h3 class="text-base font-black text-white">Pratinjau Cetak Surat Perintah Kerja (SPK)</h3>
+							<p class="text-xs text-slate-400 font-mono">{printWoData?.woNo || 'Memuat data...'}</p>
+						</div>
+					</div>
+
+					<!-- Action Buttons -->
+					<div class="flex items-center gap-3">
+						<button 
+							type="button" 
+							onclick={executePrint}
+							disabled={isExecutingPrint || isPrintLoading || !printWoData}
+							class="px-5 py-2 bg-primary hover:opacity-90 disabled:opacity-50 text-white rounded-xl text-xs font-bold flex items-center gap-2 shadow-md transition-all active:scale-95 cursor-pointer"
+						>
+							<span class="material-symbols-outlined text-[16px]">{isExecutingPrint ? 'hourglass_top' : 'print'}</span>
+							<span>{isExecutingPrint ? 'Mencetak...' : 'Cetak Sekarang'}</span>
+						</button>
+						<button 
+							type="button" 
+							onclick={() => isPrintModalOpen = false} 
+							class="w-9 h-9 rounded-full bg-slate-800 hover:bg-slate-700 flex items-center justify-center text-slate-300 hover:text-white transition-colors cursor-pointer"
+							aria-label="Tutup Pratinjau"
+						>
+							<span class="material-symbols-outlined text-lg">close</span>
+						</button>
+					</div>
+				</div>
+
+				<!-- Body: Scrollable A4 Paper Container -->
+				<div class="flex-1 overflow-y-auto p-4 sm:p-8 bg-slate-950/70 flex justify-center">
+					{#if isPrintLoading}
+						<div class="p-16 flex flex-col items-center justify-center gap-3 text-slate-400">
+							<span class="material-symbols-outlined animate-spin text-4xl text-primary">sync</span>
+							<p class="font-bold text-sm">Menyiapkan Lembar Cetak SPK...</p>
+						</div>
+					{:else if printWoData}
+						<SpkPrintDocument wo={printWoData} />
+					{/if}
+				</div>
+			</div>
+		</div>
+	{/if}
+
+	<!-- Hidden iframe for seamless in-page printing without opening new tabs -->
+	<iframe id="print-wo-iframe" class="hidden" title="Print SPK frame"></iframe>
 </div>
