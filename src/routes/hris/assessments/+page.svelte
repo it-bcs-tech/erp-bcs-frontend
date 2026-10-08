@@ -1074,49 +1074,32 @@
 								</p>
 							</div>
 							<div class="p-2.5 rounded-2xl bg-surface border border-slate-200/60 dark:border-slate-800/60">
-								<p class="text-[10px] font-bold text-slate-400 uppercase">Kesenjangan (GAP)</p>
-								{#if selectedEmployeeAssessedCount === 0}
-									<p class="text-xs font-bold text-slate-400 mt-1 flex items-center gap-1">
-										<span class="material-symbols-outlined text-sm">schedule</span>
-										<span>Belum Dinilai</span>
-									</p>
-								{:else if selectedEmployeeGapsCount > 0}
-									<p class="text-base font-black text-rose-500 mt-0.5 font-mono flex items-center gap-1">
-										<span>{selectedEmployeeGapsCount} Unit GAP</span>
-									</p>
-									<p class="text-[10px] text-rose-400 font-semibold truncate">Perlu usulan training</p>
-								{:else}
-									<p class="text-base font-black text-emerald-500 mt-0.5 font-mono flex items-center gap-1">
-										<span>0 GAP</span>
-									</p>
-									<p class="text-[10px] text-emerald-500 font-semibold truncate">Memenuhi standar</p>
-								{/if}
+								<p class="text-[10px] font-bold text-slate-400 uppercase">Status Lembar Evaluasi</p>
+								<p class="text-xs font-bold mt-1.5 flex items-center gap-1 {selectedEmployeeIsComplete ? 'text-primary' : 'text-amber-500'}">
+									<span class="material-symbols-outlined text-sm">
+										{selectedEmployeeIsComplete ? 'check_circle' : 'pending'}
+									</span>
+									<span>{selectedEmployeeIsComplete ? 'Siap Disimpan' : 'Belum Lengkap'}</span>
+								</p>
 							</div>
 						</div>
 					</div>
 
-					<!-- Panduan Skala Kemahiran Ringkas -->
-					<div class="p-3 rounded-2xl bg-surface-container-low border border-slate-200/60 dark:border-slate-800/60 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
-						<div class="flex items-center gap-2 text-[11px] text-on-surface-variant flex-wrap">
+					<!-- Panduan Skala Kemahiran -->
+					<div class="p-3 rounded-2xl bg-surface-container-low border border-slate-200/60 dark:border-slate-800/60 flex flex-col sm:flex-row sm:items-center justify-between gap-1 text-xs text-slate-400">
+						<span class="font-bold text-on-surface flex items-center gap-1.5 text-[11px]">
 							<span class="material-symbols-outlined text-sm text-primary">info</span>
-							<span class="font-bold text-on-surface">Skala Penilaian:</span>
-							<span class="font-medium text-slate-400">1: Dasar • 2: Mandiri • 3: Kompeten • 4: Mahir • 5: Ahli</span>
-						</div>
-						<div class="text-[10px] text-slate-400 flex items-center gap-1.5">
-							<span class="inline-block w-2 h-2 rounded-full bg-amber-400"></span>
-							<span>Badge <strong>Standar</strong> menandai level minimal posisi jabatan</span>
-						</div>
+							<span>Leveling: 1 (SOP Dasar) • 2 (Mandiri) • 3 (Problem Solving) • 4 (Supervisi) • 5 (Inovator/Ahli)</span>
+						</span>
+						<span class="text-[10px] font-semibold text-primary">Klik baris deskripsi level untuk langsung menilai</span>
 					</div>
 
-					<!-- Snippet Kartu Evaluasi Kompetensi Objektif (Horizontal Step Selector Pills 1-5) -->
+					<!-- Snippet Kartu Evaluasi Kompetensi Objektif (Blind Assessment: 5 Baris Teks Deskripsi Perilaku) -->
 					{#snippet competencyCard(comp: any, aspectTitle: string, aspectColor: string)}
 						{@const currentVal = getRating(selectedEmployee.payrollId, comp.competencyCode)}
-						{@const reqLevel = Number(comp.requiredLevel) || 3}
-						{@const gap = currentVal > 0 ? currentVal - reqLevel : null}
-						{@const activeLevelDesc = currentVal > 0 ? getLevelDescription(comp.competencyCode, currentVal) : getLevelDescription(comp.competencyCode, reqLevel)}
 
-						<div class="p-4 sm:p-5 rounded-3xl border bg-surface border-slate-200/80 dark:border-slate-800/80 shadow-xs space-y-3.5 transition-all">
-							<!-- Header Kompetensi: Kode, Nama, Target Standar, & Badge Status Nilai -->
+						<div class="p-4 sm:p-5 rounded-3xl border bg-surface border-slate-200/80 dark:border-slate-800/80 shadow-xs space-y-3.5">
+							<!-- Header Kompetensi: Kode, Nama, & Nilai Terpilih (Blind: Standar Dirahasiakan) -->
 							<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-200/50 dark:border-slate-800/50">
 								<div class="space-y-1">
 									<div class="flex items-center gap-2 flex-wrap">
@@ -1125,44 +1108,15 @@
 										</span>
 										<span class="font-bold text-sm text-on-surface">{comp.competencyName}</span>
 									</div>
-									<div class="flex items-center gap-2 text-xs text-on-surface-variant flex-wrap">
-										<span class="inline-flex items-center gap-1 font-semibold text-[11px]">
-											<span class="material-symbols-outlined text-xs text-amber-500">flag</span>
-											<span>Standar Wajib: <strong>Level {reqLevel}</strong> ({getLevelLabel(reqLevel)})</span>
-										</span>
-										{#if comp.defaultCourseTitle && comp.defaultCourseTitle !== '-'}
-											<span class="text-slate-400">•</span>
-											<span class="text-[11px] text-slate-400 truncate max-w-xs" title="Modul Training Terkait">
-												📚 {comp.defaultCourseTitle}
-											</span>
-										{/if}
-									</div>
 								</div>
 
-								<!-- Status Nilai & Tombol Bantuan Rubrik -->
+								<!-- Status Nilai Terpilih -->
 								<div class="flex items-center gap-2 flex-wrap">
-									<button
-										type="button"
-										onclick={() => openRubricModal(comp, aspectTitle)}
-										class="px-2.5 py-1 rounded-xl text-[11px] font-semibold bg-surface-container-high hover:bg-surface-container-highest text-slate-400 hover:text-on-surface transition-all cursor-pointer flex items-center gap-1"
-										title="Buka panduan rubrik indikator level 1-5"
-									>
-										<span class="material-symbols-outlined text-xs">help</span>
-										<span>Panduan Rubrik</span>
-									</button>
-
 									{#if currentVal > 0}
-										{#if gap !== null && gap < 0}
-											<span class="px-2.5 py-1 rounded-xl text-[11px] font-black bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/30 flex items-center gap-1">
-												<span class="material-symbols-outlined text-xs">warning</span>
-												<span>GAP {gap} (Lvl {currentVal})</span>
-											</span>
-										{:else}
-											<span class="px-2.5 py-1 rounded-xl text-[11px] font-black bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 flex items-center gap-1">
-												<span class="material-symbols-outlined text-xs">verified</span>
-												<span>{gap === 0 ? 'MEMENUHI' : `UNGGUL (+${gap})`} (Lvl {currentVal})</span>
-											</span>
-										{/if}
+										<span class="px-2.5 py-1 rounded-xl text-[11px] font-bold bg-primary/10 text-primary border border-primary/20 flex items-center gap-1.5">
+											<span class="material-symbols-outlined text-sm">check_circle</span>
+											<span>Level {currentVal} Terpilih</span>
+										</span>
 									{:else}
 										<span class="px-2.5 py-1 rounded-xl text-[11px] font-semibold bg-surface-container border border-slate-200 dark:border-slate-700 text-slate-400">
 											Belum Dinilai
@@ -1171,104 +1125,64 @@
 								</div>
 							</div>
 
-							<!-- Horizontal Step Selector (Pills 1-5) -->
+							<!-- 5 Baris Leveling Interaktif (Klik Baris untuk Memilih Nilai Langsung) -->
 							<div class="space-y-2">
 								<div class="flex items-center justify-between">
 									<span class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
-										Pilih Level Observasi Perilaku:
+										Pilih Level Perilaku Karyawan:
 									</span>
-									<span class="text-[10px] text-slate-400 font-medium">Klik salah satu pill untuk memilih skor</span>
+									<span class="text-[10px] text-slate-400 font-medium">Klik pada baris level untuk memberi nilai</span>
 								</div>
-
-								<div class="grid grid-cols-5 gap-1.5 sm:gap-2">
-									{#each [
-										{ lvl: 1, label: 'Dasar' },
-										{ lvl: 2, label: 'Mandiri' },
-										{ lvl: 3, label: 'Kompeten' },
-										{ lvl: 4, label: 'Mahir' },
-										{ lvl: 5, label: 'Ahli' }
-									] as item}
-										{@const isSelected = currentVal === item.lvl}
-										{@const isRequired = reqLevel === item.lvl}
+								
+								<div class="grid grid-cols-1 gap-1.5">
+									{#each [1, 2, 3, 4, 5] as lvl}
+										{@const isSelected = currentVal === lvl}
+										{@const desc = getLevelDescription(comp.competencyCode, lvl)}
 
 										<button
 											type="button"
-											onclick={() => setRating(selectedEmployee.payrollId, comp.competencyCode, item.lvl)}
-											class="flex flex-col items-center justify-center p-2 sm:p-2.5 rounded-2xl border transition-all cursor-pointer relative group text-center
+											onclick={() => setRating(selectedEmployee.payrollId, comp.competencyCode, lvl)}
+											class="w-full text-left p-2.5 sm:p-3 rounded-2xl border transition-all cursor-pointer flex items-start gap-3 group
 											{isSelected
-												? 'bg-primary text-on-primary border-primary shadow-sm scale-[1.02] ring-2 ring-primary/40'
-												: 'bg-surface-container-low hover:bg-surface-container border-slate-200/70 dark:border-slate-800/70 text-on-surface'}"
+												? 'bg-primary/10 border-primary ring-1 ring-primary/30 shadow-xs'
+												: 'bg-surface-container-low hover:bg-surface-container-high border-slate-200/60 dark:border-slate-800/60'}"
 										>
-											{#if isRequired}
-												<span
-													class="absolute -top-1.5 px-1.5 py-0.2 rounded-full font-mono text-[8px] font-black uppercase tracking-wider border
-													{isSelected ? 'bg-amber-400 text-slate-900 border-amber-300' : 'bg-surface-container-highest text-amber-500 border-amber-500/40'}"
-													title="Standar minimal posisi ini"
-												>
-													Standar
-												</span>
-											{/if}
-
-											<div class="w-6 h-6 rounded-lg font-mono text-xs font-black flex items-center justify-center mb-0.5
-												{isSelected ? 'bg-on-primary/20 text-on-primary' : 'bg-surface-container text-primary group-hover:bg-surface-container-high'}">
-												{item.lvl}
+											<!-- Level Badge Number -->
+											<div class="shrink-0 flex items-center justify-center w-7 h-7 rounded-xl font-mono text-xs font-black transition-all
+												{isSelected
+													? 'bg-primary text-on-primary shadow-xs scale-105'
+													: 'bg-surface-container-high text-slate-400 group-hover:text-on-surface'}">
+												{lvl}
 											</div>
 
-											<span class="font-bold text-[11px] leading-tight {isSelected ? 'text-on-primary' : 'text-on-surface'}">
-												{item.label}
-											</span>
+											<!-- Konten Level -->
+											<div class="flex-1 min-w-0">
+												<div class="flex items-center gap-2 flex-wrap mb-0.5">
+													<span class="font-bold text-xs {isSelected ? 'text-primary' : 'text-on-surface'}">
+														Level {lvl}
+													</span>
+													{#if isSelected}
+														<span class="ml-auto inline-flex items-center gap-1 text-[10px] font-bold text-primary">
+															<span class="material-symbols-outlined text-xs">check_circle</span>
+															<span>Level Terpilih</span>
+														</span>
+													{/if}
+												</div>
+												<p class="text-xs {isSelected ? 'text-on-surface font-medium' : 'text-slate-400 group-hover:text-slate-300'} leading-relaxed">
+													{desc}
+												</p>
+											</div>
 										</button>
 									{/each}
 								</div>
 							</div>
 
-							<!-- Dynamic Rubric Box: Deskripsi Perilaku Aktif Sesuai Pilihan -->
-							<div class="p-3 sm:p-3.5 rounded-2xl border transition-all text-xs
-								{currentVal > 0
-									? (gap !== null && gap < 0
-										? 'bg-rose-500/5 border-rose-500/20 text-on-surface'
-										: 'bg-primary/5 border-primary/20 text-on-surface')
-									: 'bg-surface-container-low border-slate-200/50 dark:border-slate-800/50 text-slate-400'}">
-								<div class="flex items-start gap-2.5">
-									<span class="material-symbols-outlined text-base shrink-0 mt-0.5
-										{currentVal > 0 ? (gap !== null && gap < 0 ? 'text-rose-500' : 'text-primary') : 'text-slate-400'}">
-										{currentVal > 0 ? (gap !== null && gap < 0 ? 'report' : 'verified_user') : 'info'}
-									</span>
-									<div class="space-y-1 flex-1 min-w-0">
-										<div class="flex items-center justify-between gap-2 flex-wrap">
-											<span class="font-bold text-xs {currentVal > 0 ? 'text-on-surface' : 'text-slate-400'}">
-												{#if currentVal > 0}
-													Indikator Level {currentVal} ({getLevelLabel(currentVal)}):
-													{#if gap !== null && gap < 0}
-														<span class="text-rose-500 font-bold ml-1 text-[11px]">⚠️ Di bawah standar jabatan ({gap})</span>
-													{:else}
-														<span class="text-emerald-500 font-bold ml-1 text-[11px]">✓ Memenuhi standar jabatan</span>
-													{/if}
-												{:else}
-													Standar Minimal Jabatan: Level {reqLevel} ({getLevelLabel(reqLevel)})
-												{/if}
-											</span>
-											{#if currentVal === 0}
-												<span class="text-[10px] text-amber-500 font-semibold">Pilih salah satu tombol di atas untuk menilai</span>
-											{/if}
-										</div>
-										<p class="leading-relaxed {currentVal > 0 ? 'text-on-surface' : 'text-slate-400'}">
-											{activeLevelDesc}
-										</p>
-									</div>
-								</div>
-							</div>
-
-							<!-- Catatan Observasi Per Butir (Ringkas) -->
-							<div class="pt-0.5">
-								<div class="flex items-center justify-between mb-1">
-									<label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-										Catatan Observasi Bukti Perilaku (Opsional):
-									</label>
-								</div>
+							<!-- Catatan Observasi Per Butir -->
+							<div class="pt-1">
+								<label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Catatan Observasi Khusus (Opsional):</label>
 								<input
 									type="text"
-									placeholder="Tuliskan contoh kejadian nyata atau bukti perilaku karyawan untuk kompetensi ini..."
+									placeholder="Tuliskan catatan observasi atau bukti perilaku nyata untuk kompetensi ini..."
 									value={getNote(selectedEmployee.payrollId, comp.competencyCode)}
 									oninput={(e) => setNote(selectedEmployee.payrollId, comp.competencyCode, (e.target as HTMLInputElement).value)}
 									class="w-full px-3.5 py-2 rounded-xl bg-surface-container border border-slate-200/80 dark:border-slate-800 text-xs text-on-surface placeholder:text-slate-400 outline-none focus:border-primary transition-all"
