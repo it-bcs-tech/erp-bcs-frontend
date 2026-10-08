@@ -11,6 +11,7 @@
 	let isAssignModalOpen = $state(false);
 	let isSparepartModalOpen = $state(false);
 	let isDispensationModalOpen = $state(false);
+	let updatingItemId = $state<string | null>(null);
 
 	let dispensationRec = $state(wo.dispensationData?.recommendation || '');
 	let dispensationReason = $state(wo.dispensationData?.operational_reason || '');
@@ -536,15 +537,31 @@
 									<span class="material-symbols-outlined text-[15px]">check_circle</span>
 									Selesai (Resolved)
 								</span>
-								<form method="POST" action="?/updateItemStatus" use:enhance>
+								<form method="POST" action="?/updateItemStatus" use:enhance={() => {
+									updatingItemId = item.id;
+									return async ({ update }) => {
+										await update();
+										updatingItemId = null;
+									};
+								}}>
 									<input type="hidden" name="item_id" value={item.id} />
 									<input type="hidden" name="item_status" value="PENDING" />
-									<button type="submit" class="text-[10px] text-on-surface-variant hover:text-rose-600 underline">
-										Buka Kembali
+									<button 
+										type="submit" 
+										disabled={updatingItemId === item.id}
+										class="text-[10px] text-on-surface-variant hover:text-rose-600 underline disabled:opacity-50 cursor-pointer"
+									>
+										{updatingItemId === item.id ? 'Membuka...' : 'Buka Kembali'}
 									</button>
 								</form>
 							{:else}
-								<form method="POST" action="?/updateItemStatus" use:enhance class="flex items-center gap-2">
+								<form method="POST" action="?/updateItemStatus" use:enhance={() => {
+									updatingItemId = item.id;
+									return async ({ update }) => {
+										await update();
+										updatingItemId = null;
+									};
+								}} class="flex items-center gap-2">
 									<input type="hidden" name="item_id" value={item.id} />
 									<input type="hidden" name="item_status" value="RESOLVED" />
 									<input 
@@ -555,10 +572,16 @@
 									/>
 									<button 
 										type="submit" 
-										class="px-3.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-2xs transition-all flex items-center gap-1"
+										disabled={updatingItemId === item.id}
+										class="px-3.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-2xs transition-all flex items-center gap-1 disabled:opacity-50 cursor-pointer"
 									>
-										<span class="material-symbols-outlined text-[15px]">done</span>
-										<span>Tutup Item</span>
+										{#if updatingItemId === item.id}
+											<span class="material-symbols-outlined text-[15px] animate-spin">progress_activity</span>
+											<span>Menyimpan...</span>
+										{:else}
+											<span class="material-symbols-outlined text-[15px]">done</span>
+											<span>Tutup Item</span>
+										{/if}
 									</button>
 								</form>
 							{/if}
@@ -732,7 +755,8 @@
 					<span class="material-symbols-outlined text-[16px]">lock</span>
 					<span>SPK Telah Ditutup (Selesai & Armada Siap Jalan)</span>
 				</div>
-				{#if !allItemsResolved && wo.status !== 'Closed' && wo.status !== 'READY_FOR_REINSPECTION' && !wo.dispensationData?.is_requested}
+			{:else}
+				{#if !allItemsResolved && !wo.dispensationData?.is_requested}
 					<button 
 						type="button" 
 						onclick={() => isDispensationModalOpen = true}
@@ -746,7 +770,7 @@
 					<button 
 						type="submit" 
 						disabled={!allItemsResolved}
-						class="px-6 py-2.5 rounded-xl bg-primary hover:opacity-95 text-on-primary font-bold text-xs shadow-md transition-all flex items-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed"
+						class="px-6 py-2.5 rounded-xl bg-primary hover:opacity-95 text-on-primary font-bold text-xs shadow-md transition-all flex items-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
 					>
 						<span class="material-symbols-outlined text-[16px]">send</span>
 						<span>Kirim ke Re-Inspeksi (Semua Item Selesai)</span>

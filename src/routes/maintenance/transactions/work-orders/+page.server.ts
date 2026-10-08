@@ -4,6 +4,19 @@ import { env } from '$env/dynamic/private';
 
 const sql = postgres(env.DATABASE_URL || 'postgres://bcs_admin:sangatrahasia@103.31.205.199:5433/mybcs_db');
 
+function parseJsonSafe<T>(val: any, fallback: T): T {
+	if (!val) return fallback;
+	let curr = val;
+	while (typeof curr === 'string') {
+		try {
+			curr = JSON.parse(curr);
+		} catch {
+			break;
+		}
+	}
+	return (curr ?? fallback) as T;
+}
+
 export const load: PageServerLoad = async ({ url }) => {
 	const search = url.searchParams.get('search')?.toLowerCase() || '';
 	const statusFilter = url.searchParams.get('status') || 'All';
@@ -49,6 +62,7 @@ export const load: PageServerLoad = async ({ url }) => {
 				COALESCE(u.nama_karyawan, w.mechanic_id) as mechanic_name,
 				w.inspection_no,
 				w.repaired_items,
+				w.checklist_items,
 				COALESCE((
 					SELECT SUM(d.total)
 					FROM fleet.maintenance_dn_header h
@@ -88,9 +102,14 @@ export const load: PageServerLoad = async ({ url }) => {
 		`;
 
 		const formattedRecords = records.map(r => {
-			const items = Array.isArray(r.repaired_items) ? r.repaired_items : [];
+			const rawRepaired = parseJsonSafe(r.repaired_items, []);
+			const rawChecklist = parseJsonSafe(r.checklist_items, []);
+			let items: any[] = Array.isArray(rawRepaired) && rawRepaired.length > 0
+				? rawRepaired
+				: (Array.isArray(rawChecklist) ? rawChecklist : []);
+
 			const totalItems = items.length;
-			const resolvedItems = items.filter((i: any) => i.status === 'RESOLVED').length;
+			const resolvedItems = items.filter((i: any) => i.status === 'RESOLVED' || i.status === 'OK').length;
 
 			return {
 				id: r.id,

@@ -103,13 +103,13 @@ export const load: PageServerLoad = async ({ params }) => {
 		if (repairedItems.length === 0 && Array.isArray(rawChecklist)) {
 			// Fallback: if repaired_items is empty, migrate checklist_items
 			repairedItems = rawChecklist.map((c: any, idx: number) => ({
-				id: `item_${idx + 1}`,
-				category: wo.maint_category || 'General',
+				id: c.id || `wo_item_${idx + 1}`,
+				category: c.category || wo.maint_category || 'General',
 				item: c.item,
 				remark: c.remark || '',
-				status: c.status === 'OK' ? 'RESOLVED' : 'PENDING',
-				mechanic_notes: '',
-				repaired_at: null
+				status: c.status === 'OK' || c.status === 'RESOLVED' ? 'RESOLVED' : 'PENDING',
+				mechanic_notes: c.mechanic_notes || '',
+				repaired_at: c.repaired_at || null
 			}));
 		}
 
@@ -220,27 +220,76 @@ export const actions: Actions = {
 		const mechanic_notes = data.get('mechanic_notes')?.toString() || '';
 
 		try {
-			const woRes = await sql`SELECT repaired_items FROM fleet.work_orders WHERE wo_no = ${idOrNo} OR id::text = ${idOrNo}`;
+			const woRes = await sql`
+				SELECT wo_no, status, maint_category, repaired_items, checklist_items 
+				FROM fleet.work_orders 
+				WHERE wo_no = ${idOrNo} OR id::text = ${idOrNo}
+			`;
 			if (woRes.length === 0) return fail(404, { message: 'WO tidak ditemukan.' });
 
-			let items: any[] = Array.isArray(woRes[0].repaired_items) ? woRes[0].repaired_items : [];
-			items = items.map(item => {
-				if (item.id === item_id) {
+			const wo = woRes[0];
+			let items: any[] = parseJsonSafe(wo.repaired_items, []);
+
+			// If repaired_items is empty (e.g. legacy or uninitialized), fallback to checklist_items
+			if (!Array.isArray(items) || items.length === 0) {
+				const checklist = parseJsonSafe(wo.checklist_items, []);
+				if (Array.isArray(checklist) && checklist.length > 0) {
+					items = checklist.map((c: any, idx: number) => ({
+						id: c.id || `wo_item_${idx + 1}`,
+						category: c.category || wo.maint_category || 'General',
+						item: c.item,
+						remark: c.remark || '',
+						status: c.status === 'OK' || c.status === 'RESOLVED' ? 'RESOLVED' : 'PENDING',
+						mechanic_notes: c.mechanic_notes || '',
+						repaired_at: c.repaired_at || null
+					}));
+				} else {
+					items = [];
+				}
+			}
+
+			let found = false;
+			items = items.map((item, idx) => {
+				const isTarget = item.id === item_id || 
+					`wo_item_${idx + 1}` === item_id || 
+					`item_${idx + 1}` === item_id;
+
+				if (isTarget) {
+					found = true;
 					return {
 						...item,
+						id: item.id || item_id || `wo_item_${idx + 1}`,
 						status: item_status,
 						mechanic_notes: mechanic_notes || item.mechanic_notes,
-						repaired_at: item_status === 'RESOLVED' ? new Date().toISOString() : item.repaired_at
+						repaired_at: item_status === 'RESOLVED' ? (item.repaired_at || new Date().toISOString()) : null
 					};
 				}
 				return item;
 			});
 
+			if (!found && item_id) {
+				const numMatch = item_id.match(/\d+$/);
+				if (numMatch) {
+					const idx = parseInt(numMatch[0], 10) - 1;
+					if (items[idx]) {
+						items[idx] = {
+							...items[idx],
+							id: item_id,
+							status: item_status,
+							mechanic_notes: mechanic_notes || items[idx].mechanic_notes,
+							repaired_at: item_status === 'RESOLVED' ? (items[idx].repaired_at || new Date().toISOString()) : null
+						};
+						found = true;
+					}
+				}
+			}
+
 			await sql`
 				UPDATE fleet.work_orders
-				SET repaired_items = ${JSON.stringify(items)},
+				SET repaired_items = ${sql.json(items)},
+				    status = CASE WHEN status = 'Open' OR status = 'PENDING_ASSIGNMENT' THEN 'Proses' ELSE status END,
 				    updated_at = NOW()
-				WHERE wo_no = ${idOrNo} OR id::text = ${idOrNo}
+				WHERE wo_no = ${wo.wo_no}
 			`;
 
 			return { success: true };
@@ -276,7 +325,7 @@ export const actions: Actions = {
 
 			const targetWoNo = woRes[0].wo_no;
 			const targetUnit = woRes[0].unit_id;
-			let parts: any[] = Array.isArray(woRes[0].spareparts_used) ? woRes[0].spareparts_used : [];
+			let parts: any[] = parseJsonSafe(woRes[0].spareparts_used, []);
 
 			const newPart = {
 				id: `sp_${Date.now()}`,
@@ -294,7 +343,7 @@ export const actions: Actions = {
 			// Update WO
 			await sql`
 				UPDATE fleet.work_orders
-				SET spareparts_used = ${JSON.stringify(parts)},
+				SET spareparts_used = ${sql.json(parts)},
 				    updated_at = NOW()
 				WHERE wo_no = ${targetWoNo}
 			`;
@@ -377,7 +426,7 @@ export const actions: Actions = {
 			if (woRes.length === 0) return fail(404, { message: 'WO tidak ditemukan.' });
 
 			const wo = woRes[0];
-			const items: any[] = Array.isArray(wo.repaired_items) ? wo.repaired_items : [];
+			const items: any[] = parseJsonSafe(wo.repaired_items, []);
 
 			const hasPending = items.some(i => i.status !== 'RESOLVED');
 			if (hasPending) {
@@ -425,7 +474,7 @@ export const actions: Actions = {
 			if (woRes.length === 0) return fail(404, { message: 'WO tidak ditemukan.' });
 
 			const wo = woRes[0];
-			const items: any[] = Array.isArray(wo.repaired_items) ? wo.repaired_items : [];
+			const items: any[] = parseJsonSafe(wo.repaired_items, []);
 			const deferredItems = items.filter(i => i.status !== 'RESOLVED');
 
 			const dispensationData = {
@@ -446,7 +495,7 @@ export const actions: Actions = {
 				SET recommendation = ${recommendation},
 				    operational_reason = ${operational_reason},
 				    commitment_date = ${commitment_date},
-				    dispensation_data = ${JSON.stringify(dispensationData)},
+				    dispensation_data = ${sql.json(dispensationData)},
 				    updated_at = NOW()
 				WHERE wo_no = ${wo.wo_no}
 			`;
@@ -483,7 +532,7 @@ export const actions: Actions = {
 			if (woRes.length === 0) return fail(404, { message: 'WO tidak ditemukan.' });
 
 			const wo = woRes[0];
-			let disp = wo.dispensation_data || {};
+			let disp = parseJsonSafe(wo.dispensation_data, {});
 
 			const approvalKey = `approval_${role_type}`;
 			disp[approvalKey] = {
@@ -504,7 +553,7 @@ export const actions: Actions = {
 				await sql`
 					UPDATE fleet.work_orders
 					SET status = 'DISPENSATION_ACTIVE',
-					    dispensation_data = ${JSON.stringify(disp)},
+					    dispensation_data = ${sql.json(disp)},
 					    updated_at = NOW()
 					WHERE wo_no = ${wo.wo_no}
 				`;
@@ -524,7 +573,7 @@ export const actions: Actions = {
 				// Save partial approval
 				await sql`
 					UPDATE fleet.work_orders
-					SET dispensation_data = ${JSON.stringify(disp)},
+					SET dispensation_data = ${sql.json(disp)},
 					    updated_at = NOW()
 					WHERE wo_no = ${wo.wo_no}
 				`;
