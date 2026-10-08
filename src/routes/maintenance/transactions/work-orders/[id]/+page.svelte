@@ -26,19 +26,48 @@
 	let partQty = $state(1);
 	let partItemRef = $state('');
 
-	let filteredMaterials = $derived(
-		materials.filter(m => 
-			m.name.toLowerCase().includes(searchMaterial.toLowerCase()) ||
-			m.code.toLowerCase().includes(searchMaterial.toLowerCase()) ||
-			m.partNo.toLowerCase().includes(searchMaterial.toLowerCase())
-		).slice(0, 8)
-	);
+	let searchResults = $state<typeof materials>(materials);
+	let isSearchingMaterials = $state(false);
+	let searchDebounceTimer: any = null;
 
-	function selectMaterial(mat: typeof materials[0]) {
-		selectedMaterialCode = mat.code;
-		selectedMaterialName = mat.name;
-		selectedMaterialUom = mat.uom;
-		selectedMaterialPrice = mat.price;
+	$effect(() => {
+		if (!searchMaterial && materials) {
+			searchResults = materials;
+		}
+	});
+
+	function handleSearchMaterial(e: Event) {
+		const val = (e.target as HTMLInputElement).value;
+		searchMaterial = val;
+		if (searchDebounceTimer) clearTimeout(searchDebounceTimer);
+
+		if (!val.trim()) {
+			searchResults = materials;
+			isSearchingMaterials = false;
+			return;
+		}
+
+		searchDebounceTimer = setTimeout(async () => {
+			isSearchingMaterials = true;
+			try {
+				const res = await fetch(`/api/pms/materials/search?q=${encodeURIComponent(val.trim())}`);
+				const json = await res.json();
+				if (json.success && Array.isArray(json.data)) {
+					searchResults = json.data;
+				}
+			} catch (err) {
+				console.error("Failed to search PMS materials:", err);
+			} finally {
+				isSearchingMaterials = false;
+			}
+		}, 250);
+	}
+
+	function selectMaterial(mat: any) {
+		selectedMaterialCode = mat.code || '';
+		selectedMaterialName = mat.name || '';
+		selectedMaterialUom = mat.uom || 'PCS';
+		selectedMaterialPrice = mat.price || 0;
 	}
 
 	let totalItems = $derived(wo.repairedItems.length);
@@ -624,33 +653,63 @@
 				</div>
 
 				<div class="space-y-3">
-					<div>
+					<div class="relative">
 						<input 
 							type="text" 
-							bind:value={searchMaterial} 
-							placeholder="Cari nama barang / kode / part no..." 
-							class="w-full px-3.5 py-2 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800 text-xs text-on-surface outline-none"
+							value={searchMaterial}
+							oninput={handleSearchMaterial}
+							placeholder="Cari nama barang / kode / part no / brand (seluruh 13.000+ data PMS)..." 
+							class="w-full pl-9 pr-9 py-2 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800 text-xs text-on-surface outline-none"
 						/>
+						<span class="material-symbols-outlined absolute left-2.5 top-2.5 text-on-surface-variant text-[16px]">search</span>
+						{#if isSearchingMaterials}
+							<span class="material-symbols-outlined absolute right-2.5 top-2.5 text-primary text-[16px] animate-spin">progress_activity</span>
+						{:else if searchMaterial}
+							<button 
+								type="button" 
+								onclick={() => { searchMaterial = ''; searchResults = materials; }}
+								class="material-symbols-outlined absolute right-2.5 top-2.5 text-on-surface-variant hover:text-on-surface text-[16px]"
+							>
+								close
+							</button>
+						{/if}
 					</div>
 
 					<!-- List filter results -->
-					{#if searchMaterial && filteredMaterials.length > 0}
-						<div class="max-h-40 overflow-y-auto divide-y divide-slate-200/50 dark:divide-slate-800/50 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800">
-							{#each filteredMaterials as mat}
-								<button 
-									type="button" 
-									onclick={() => selectMaterial(mat)}
-									class="w-full p-2.5 text-left text-xs hover:bg-surface-container-high transition-colors flex items-center justify-between"
-								>
-									<div>
-										<div class="font-bold text-on-surface">{mat.name}</div>
-										<div class="text-[10px] text-on-surface-variant font-mono">{mat.code} • Stok: {mat.stock} {mat.uom}</div>
-									</div>
-									<div class="font-mono font-bold text-primary">
-										Rp {mat.price.toLocaleString('id-ID')}
-									</div>
-								</button>
-							{/each}
+					{#if searchResults.length > 0}
+						<div class="space-y-1">
+							<div class="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider px-1 flex justify-between items-center">
+								<span>{searchMaterial ? `Hasil Pencarian (${searchResults.length} item)` : 'Rekomendasi Suku Cadang'}</span>
+								<span class="text-[9px] font-normal lowercase text-on-surface-variant/80">klik item untuk memilih</span>
+							</div>
+							<div class="max-h-48 overflow-y-auto divide-y divide-slate-200/50 dark:divide-slate-800/50 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800">
+								{#each searchResults as mat}
+									<button 
+										type="button" 
+										onclick={() => selectMaterial(mat)}
+										class="w-full p-2.5 text-left text-xs hover:bg-surface-container-high transition-colors flex items-center justify-between group cursor-pointer"
+									>
+										<div class="space-y-0.5">
+											<div class="font-bold text-on-surface group-hover:text-primary transition-colors">{mat.name}</div>
+											<div class="text-[10px] text-on-surface-variant font-mono flex items-center gap-1.5 flex-wrap">
+												<span class="px-1.5 py-0.2 rounded bg-surface-container-high font-semibold">{mat.code}</span>
+												{#if mat.brand}
+													<span>• Brand: {mat.brand}</span>
+												{/if}
+												{#if mat.partNo}
+													<span>• Part No: {mat.partNo}</span>
+												{/if}
+												<span>• Satuan: {mat.uom}</span>
+											</div>
+										</div>
+										<span class="material-symbols-outlined text-on-surface-variant group-hover:text-primary text-[18px]">add_circle</span>
+									</button>
+								{/each}
+							</div>
+						</div>
+					{:else if searchMaterial && !isSearchingMaterials}
+						<div class="p-3 text-center text-xs text-on-surface-variant bg-surface-container rounded-xl">
+							Tidak ditemukan barang dengan kata kunci "{searchMaterial}". Anda tetap dapat mengisi nama barang manual pada formulir di bawah.
 						</div>
 					{/if}
 
@@ -660,13 +719,16 @@
 							isSparepartModalOpen = false;
 							selectedMaterialName = '';
 							selectedMaterialCode = '';
+							selectedMaterialPrice = 0;
+							partQty = 1;
 							await update();
 						};
-					}} class="grid grid-cols-1 sm:grid-cols-4 gap-3 pt-2">
+					}} class="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2">
 						<div class="sm:col-span-2">
 							<label for="sparepart_name" class="block text-[10px] font-bold text-on-surface-variant uppercase mb-1">Nama Barang *</label>
 							<input id="sparepart_name" type="text" name="material_name" bind:value={selectedMaterialName} required placeholder="Pilih barang di atas atau ketik manual..." class="w-full px-3 py-2 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800 text-xs text-on-surface" />
 							<input type="hidden" name="material_code" value={selectedMaterialCode} />
+							<input type="hidden" name="price" value={selectedMaterialPrice} />
 						</div>
 
 						<div>
@@ -677,13 +739,8 @@
 							</div>
 						</div>
 
-						<div>
-							<label for="sparepart_price" class="block text-[10px] font-bold text-on-surface-variant uppercase mb-1">Harga Satuan (Rp)</label>
-							<input id="sparepart_price" type="number" name="price" bind:value={selectedMaterialPrice} class="w-full px-3 py-2 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800 text-xs font-mono text-on-surface" />
-						</div>
-
-						<div class="sm:col-span-4 flex justify-end gap-2 pt-1">
-							<button type="submit" disabled={!selectedMaterialName} class="px-4 py-2 rounded-xl bg-primary text-on-primary font-bold text-xs disabled:opacity-50">
+						<div class="sm:col-span-3 flex justify-end gap-2 pt-1">
+							<button type="submit" disabled={!selectedMaterialName} class="px-4 py-2 rounded-xl bg-primary text-on-primary font-bold text-xs disabled:opacity-50 cursor-pointer">
 								Simpan Pemakaian
 							</button>
 						</div>

@@ -71,7 +71,7 @@ export const load: PageServerLoad = async ({ params }) => {
 			ORDER BY d.id ASC
 		`;
 
-		// 3. Materials catalog from PMS master.m_materials (Limit 100 active items)
+		// 3. Initial materials catalog recommendations (15 active items with stock)
 		const materials = await sql`
 			SELECT 
 				id,
@@ -84,8 +84,8 @@ export const load: PageServerLoad = async ({ params }) => {
 				COALESCE(stock, 0) as stock
 			FROM master.m_materials
 			WHERE is_active = true
-			ORDER BY name ASC
-			LIMIT 150
+			ORDER BY stock DESC, name ASC
+			LIMIT 15
 		`;
 
 		// 4. Mechanics list
