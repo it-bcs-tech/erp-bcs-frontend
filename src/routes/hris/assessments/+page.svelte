@@ -19,12 +19,33 @@
 	const assessmentPeriods = $derived((data as any).assessmentPeriods || [String(currentYear), String(currentYear - 1), String(currentYear - 2)]);
 	const currentUser = $derived((data as any).currentUser);
 
+	// Deteksi Hak Akses Admin HR / Superadmin
+	const isAdmin = $derived(
+		currentUser && (
+			['superadmin', 'administrator', 'superhyperadmin', 'super_admin'].includes(currentUser.role?.toLowerCase()) ||
+			currentUser.role?.toLowerCase()?.includes('admin') ||
+			currentUser.email === 'superhyperadmin@bcs-logistics.co.id'
+		)
+	);
+
+	// Periksa apakah user login terdaftar sebagai atasan
+	const userAssessorMatch = $derived(
+		activeAssessors.find((a: any) => a.payrollId === currentUser?.payrollId)
+	);
+
 	// State Asesor Terpilih (Default ke user login jika terdaftar sebagai atasan)
 	let selectedAssessorPayrollId = $state(
 		activeAssessors.find((a: any) => a.payrollId === currentUser?.payrollId)?.payrollId ||
 		activeAssessors.find((a: any) => a.positionTitle?.toUpperCase().includes('STORAGE') || a.positionTitle?.toUpperCase().includes('SPV'))?.payrollId ||
 		(activeAssessors[0]?.payrollId || '')
 	);
+
+	// Kunci otomatis ke user login jika pengguna adalah atasan/supervisor biasa (non-admin)
+	$effect(() => {
+		if (!isAdmin && userAssessorMatch && selectedAssessorPayrollId !== userAssessorMatch.payrollId) {
+			selectedAssessorPayrollId = userAssessorMatch.payrollId;
+		}
+	});
 
 	const currentAssessor = $derived.by(() => {
 		return activeAssessors.find((a: any) => a.payrollId === selectedAssessorPayrollId) || activeAssessors[0] || null;
@@ -612,16 +633,47 @@
 			</div>
 		</div>
 
-		<!-- Badge Profil Asesor Aktif (Kanan) -->
+		<!-- Kartu Profil Asesor Aktif & Selector Terpadu (Kanan) -->
 		{#if currentAssessor}
-			<div class="flex items-center gap-3 p-2.5 pr-4 rounded-2xl bg-surface-container/70 border border-slate-200/60 dark:border-slate-800/60 self-start md:self-auto shrink-0">
-				<div class="w-9 h-9 rounded-xl bg-gradient-to-tr from-primary to-indigo-600 text-on-primary font-black text-xs flex items-center justify-center shadow-xs">
+			<div class="flex items-center gap-3 p-3 rounded-2xl bg-surface-container/80 border border-slate-200/80 dark:border-slate-800/80 self-stretch sm:self-auto shrink-0 shadow-xs">
+				<div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-primary to-indigo-600 text-on-primary font-black text-sm flex items-center justify-center shrink-0 shadow-xs">
 					{currentAssessor.name.charAt(0)}
 				</div>
-				<div class="min-w-0">
-					<span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Atasan Penilai</span>
-					<p class="text-xs font-black text-on-surface truncate leading-tight">{currentAssessor.name}</p>
-					<p class="text-[10px] text-slate-500 font-medium truncate">{currentAssessor.positionTitle} • {currentAssessor.department}</p>
+				<div class="min-w-0 flex-1 sm:min-w-[240px]">
+					<div class="flex items-center justify-between gap-2 mb-0.5">
+						<span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
+							<span class="material-symbols-outlined text-xs text-primary">supervisor_account</span>
+							<span>Atasan Penilai</span>
+						</span>
+						{#if isAdmin}
+							<span class="text-[9px] font-black uppercase px-1.5 py-0.5 rounded-md bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
+								Mode HR
+							</span>
+						{:else}
+							<span class="text-[9px] font-black uppercase px-1.5 py-0.5 rounded-md bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+								Sesi Aktif
+							</span>
+						{/if}
+					</div>
+
+					{#if isAdmin}
+						<!-- Dropdown Interaktif untuk Admin/HR -->
+						<select
+							bind:value={selectedAssessorPayrollId}
+							class="w-full mt-0.5 px-2.5 py-1.5 rounded-xl bg-surface border border-slate-300 dark:border-slate-700 text-xs font-bold text-on-surface focus:ring-2 focus:ring-primary focus:outline-hidden transition-all shadow-xs"
+							title="Pilih Atasan Penilai yang ingin ditinjau"
+						>
+							{#each activeAssessors as a}
+								<option value={a.payrollId}>
+									{a.name} — {a.positionTitle} ({a.department})
+								</option>
+							{/each}
+						</select>
+					{:else}
+						<!-- Read-only untuk Atasan/Supervisor biasa (Terkunci ke sesi login) -->
+						<p class="text-xs font-black text-on-surface truncate leading-tight mt-0.5">{currentAssessor.name}</p>
+						<p class="text-[10px] text-slate-500 font-medium truncate">{currentAssessor.positionTitle} • {currentAssessor.department}</p>
+					{/if}
 				</div>
 			</div>
 		{/if}
@@ -736,30 +788,13 @@
 	</div>
 
 	{#if activeViewTab === 'annual'}
-		<!-- Top Assessor & Period Toolbar -->
+		<!-- Top Period & Summary Toolbar -->
 		<div class="p-4 rounded-3xl bg-surface-container border border-slate-200/60 dark:border-slate-800/60 flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-xs">
-			<div class="flex flex-col sm:flex-row sm:items-center gap-3 flex-1">
-				<!-- Pilihan Asesor (Atasan) -->
-				<div class="space-y-1 min-w-[280px]">
-					<label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
-						Atasan Penilai (Asesor) *
-					</label>
-					<select
-						bind:value={selectedAssessorPayrollId}
-						class="w-full px-3 py-2 rounded-xl bg-surface border border-slate-300 dark:border-slate-700 text-xs font-bold text-on-surface focus:ring-2 focus:ring-primary focus:outline-hidden"
-					>
-						{#each activeAssessors as a}
-							<option value={a.payrollId}>
-								{a.name} — {a.positionTitle} ({a.department})
-							</option>
-						{/each}
-					</select>
-				</div>
-
+			<div class="flex flex-col sm:flex-row sm:items-center gap-3">
 				<!-- Periode Penilaian -->
-				<div class="space-y-1 w-36">
+				<div class="space-y-1 w-40">
 					<label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
-						Periode *
+						Periode Evaluasi *
 					</label>
 					<select
 						bind:value={selectedPeriod}
@@ -772,12 +807,13 @@
 				</div>
 
 				<!-- Departemen Kerja -->
-				<div class="space-y-1 w-48">
+				<div class="space-y-1 w-52">
 					<label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
-						Departemen
+						Departemen Tim
 					</label>
-					<div class="px-3 py-2 rounded-xl bg-surface-container-high border border-slate-200 dark:border-slate-800 text-xs font-semibold text-slate-400 truncate">
-						{currentAssessor?.department || 'General'}
+					<div class="px-3 py-2 rounded-xl bg-surface-container-high border border-slate-200 dark:border-slate-800 text-xs font-bold text-on-surface truncate flex items-center gap-1.5">
+						<span class="material-symbols-outlined text-sm text-primary">domain</span>
+						<span>{currentAssessor?.department || 'General'}</span>
 					</div>
 				</div>
 			</div>
