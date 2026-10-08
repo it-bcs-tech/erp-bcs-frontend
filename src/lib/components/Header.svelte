@@ -54,12 +54,22 @@
 		}
 	}
 
-	// Reactive derived values dari store
 	const user = $derived($authUser);
 	const initials = $derived($userInitials);
 	const name = $derived($displayName);
 	const admin = $derived($isAdmin);
 	const currentPath = $derived($page.url.pathname);
+
+	const isSupervisorOrAdmin = $derived(
+		admin || (
+			user && (
+				(user.levelSequence !== undefined && user.levelSequence >= 4) ||
+				['spv', 'mgr', 'gm', 'supervisor', 'manager', 'head', 'lead'].some((k) =>
+					user.level?.toLowerCase().includes(k) || user.role?.toLowerCase().includes(k)
+				)
+			)
+		)
+	);
 </script>
 
 <header class="bg-slate-50/70 dark:bg-slate-900/70 backdrop-blur-xl docked full-width top-0 sticky z-50 flex justify-between items-center w-full px-6 py-3 border-b border-slate-200/50 dark:border-slate-800/50">
@@ -233,6 +243,25 @@
 
 					<!-- Actions -->
 					<div class="p-2">
+						{#if isSupervisorOrAdmin}
+							<button 
+								onclick={() => { goto('/assessments'); isProfileOpen = false; }}
+								class="w-full flex items-center justify-between px-3.5 py-2.5 text-on-surface hover:bg-primary/10 hover:text-primary rounded-xl transition-all text-xs font-bold mb-1.5 border border-primary/20 bg-primary/5 cursor-pointer group"
+								title="Buka lembar penilaian kompetensi bawahan langsung"
+							>
+								<div class="flex items-center gap-2.5">
+									<div class="w-7 h-7 rounded-lg bg-primary/15 text-primary flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+										<span class="material-symbols-outlined text-[17px]">assignment_ind</span>
+									</div>
+									<div class="text-left">
+										<p class="leading-tight font-extrabold text-on-surface group-hover:text-primary">Penilaian Tim</p>
+										<p class="text-[9px] text-slate-400 font-medium">Supervisor Portal</p>
+									</div>
+								</div>
+								<span class="material-symbols-outlined text-xs text-primary/60 group-hover:translate-x-0.5 transition-transform">arrow_forward</span>
+							</button>
+						{/if}
+
 						{#if admin}
 							<button 
 								onclick={() => { goto('/admin/active-users'); isProfileOpen = false; }}
