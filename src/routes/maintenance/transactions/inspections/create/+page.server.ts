@@ -303,9 +303,9 @@ export const actions: Actions = {
 					${driver_id},
 					${kenek_name},
 					${odometer},
-					${JSON.stringify(checklist_data)},
+					${sql.json(checklist_data)},
 					${defectCount},
-					${JSON.stringify({
+					${sql.json({
 						...driver_health,
 						driver_age,
 						driver_id_no,
@@ -320,7 +320,7 @@ export const actions: Actions = {
 					${destination},
 					${entryTimestamp},
 					${exitTimestamp},
-					${JSON.stringify(tire_depth_data)},
+					${sql.json(tire_depth_data)},
 					${notes},
 					NOW(),
 					NOW()

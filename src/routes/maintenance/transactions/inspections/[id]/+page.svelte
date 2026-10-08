@@ -25,6 +25,18 @@
 		if (s.includes('DEFECT') || s.includes('FAIL') || s.includes('TIDAK')) return 'TIDAK LAYAK BEROPERASI';
 		return status;
 	}
+
+	let activeFilter = $state<'ALL' | 'NOT_OK' | 'OK'>('ALL');
+
+	const checklistData = $derived(Array.isArray(insp.checklistData) ? insp.checklistData : []);
+	const notOkCount = $derived(checklistData.filter(i => i.status === 'NOT_OK').length);
+	const okCount = $derived(checklistData.filter(i => i.status === 'OK').length);
+
+	const filteredChecklist = $derived.by(() => {
+		if (activeFilter === 'NOT_OK') return checklistData.filter(i => i.status === 'NOT_OK');
+		if (activeFilter === 'OK') return checklistData.filter(i => i.status === 'OK');
+		return checklistData;
+	});
 </script>
 
 <svelte:head>
@@ -262,12 +274,39 @@
 
 	<!-- Checklist Results Table -->
 	<div class="p-6 rounded-2xl bg-surface-container-lowest border border-slate-200/70 dark:border-slate-800/70 space-y-4">
-		<div class="flex items-center justify-between border-b border-slate-200/70 dark:border-slate-800/70 pb-3">
-			<h2 class="text-sm font-black text-on-surface uppercase tracking-wider flex items-center gap-2">
-				<span class="material-symbols-outlined text-primary text-[20px]">fact_check</span>
-				Hasil Pemeriksaan Lembar Fisik ({insp.unitType})
-			</h2>
-			<span class="text-xs text-on-surface-variant font-medium">Total: {insp.checklistData.length} Item Diperiksa</span>
+		<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200/70 dark:border-slate-800/70 pb-3">
+			<div>
+				<h2 class="text-sm font-black text-on-surface uppercase tracking-wider flex items-center gap-2">
+					<span class="material-symbols-outlined text-primary text-[20px]">fact_check</span>
+					Hasil Pemeriksaan Lembar Fisik ({insp.unitType})
+				</h2>
+				<span class="text-xs text-on-surface-variant font-medium">Total: {checklistData.length} Item Diperiksa</span>
+			</div>
+
+			<!-- Filter Tabs -->
+			<div class="inline-flex p-1 rounded-xl bg-surface-container text-xs font-bold self-start sm:self-auto">
+				<button 
+					type="button"
+					onclick={() => activeFilter = 'ALL'}
+					class="px-3 py-1.5 rounded-lg transition-all {activeFilter === 'ALL' ? 'bg-surface-container-lowest text-on-surface shadow-xs' : 'text-on-surface-variant hover:text-on-surface'}"
+				>
+					Semua ({checklistData.length})
+				</button>
+				<button 
+					type="button"
+					onclick={() => activeFilter = 'NOT_OK'}
+					class="px-3 py-1.5 rounded-lg transition-all flex items-center gap-1 {activeFilter === 'NOT_OK' ? 'bg-rose-500 text-white shadow-xs' : notOkCount > 0 ? 'text-rose-600 font-black' : 'text-on-surface-variant hover:text-on-surface'}"
+				>
+					<span>Tidak OK ({notOkCount})</span>
+				</button>
+				<button 
+					type="button"
+					onclick={() => activeFilter = 'OK'}
+					class="px-3 py-1.5 rounded-lg transition-all {activeFilter === 'OK' ? 'bg-emerald-600 text-white shadow-xs' : 'text-on-surface-variant hover:text-on-surface'}"
+				>
+					OK ({okCount})
+				</button>
+			</div>
 		</div>
 
 		<div class="overflow-x-auto">
@@ -282,7 +321,7 @@
 					</tr>
 				</thead>
 				<tbody class="divide-y divide-slate-200/60 dark:divide-slate-800/60">
-					{#each insp.checklistData as item}
+					{#each filteredChecklist as item}
 						<tr class="hover:bg-surface-container-low/40 transition-colors {item.status === 'NOT_OK' ? 'bg-rose-50/30 dark:bg-rose-950/20' : ''}">
 							<td class="py-2.5 px-3 font-mono text-xs text-on-surface-variant">{item.code || '-'}</td>
 							<td class="py-2.5 px-3 text-xs font-semibold text-on-surface-variant">{item.category}</td>
@@ -300,6 +339,12 @@
 							</td>
 							<td class="py-2.5 px-3 text-xs font-medium text-rose-600 dark:text-rose-400">
 								{item.remark || '-'}
+							</td>
+						</tr>
+					{:else}
+						<tr>
+							<td colspan="5" class="py-8 text-center text-xs text-on-surface-variant">
+								Tidak ada item untuk filter ini.
 							</td>
 						</tr>
 					{/each}

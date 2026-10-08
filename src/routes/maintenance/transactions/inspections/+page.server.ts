@@ -102,7 +102,9 @@ export const load: PageServerLoad = async ({ url }) => {
 				woNo: r.wo_no,
 				woStatus: r.wo_status,
 				inspector: r.inspector_name,
-				driverFit: r.driver_health?.is_fit ?? true
+				driverFit: typeof r.driver_health === 'string'
+					? (() => { try { return JSON.parse(r.driver_health)?.is_fit ?? true; } catch { return true; } })()
+					: (r.driver_health?.is_fit ?? true)
 			})),
 			meta: {
 				currentPage: page,

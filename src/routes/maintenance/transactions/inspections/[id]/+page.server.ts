@@ -5,6 +5,19 @@ import { env } from '$env/dynamic/private';
 
 const sql = postgres(env.DATABASE_URL || 'postgres://bcs_admin:sangatrahasia@103.31.205.199:5433/mybcs_db');
 
+function parseJsonSafe<T>(val: any, fallback: T): T {
+	if (!val) return fallback;
+	let curr = val;
+	while (typeof curr === 'string') {
+		try {
+			curr = JSON.parse(curr);
+		} catch {
+			break;
+		}
+	}
+	return (curr ?? fallback) as T;
+}
+
 export const load: PageServerLoad = async ({ params }) => {
 	const idOrNo = decodeURIComponent(params.id);
 
@@ -49,15 +62,15 @@ export const load: PageServerLoad = async ({ params }) => {
 				driverName: insp.driver_name || insp.driver_id || 'Tanpa Driver',
 				kenekName: insp.kenek_name || '-',
 				odometer: insp.odometer ? insp.odometer.toLocaleString('id-ID') : '-',
-				checklistData: insp.checklist_data || [],
+				checklistData: parseJsonSafe(insp.checklist_data, []),
 				defectCount: insp.defect_count || 0,
-				driverHealth: insp.driver_health || {},
-				tireDepthData: insp.tire_depth_data || { head: [], trailer: [], spare: null },
+				driverHealth: parseJsonSafe(insp.driver_health, {}),
+				tireDepthData: parseJsonSafe(insp.tire_depth_data, { head: [], trailer: [], spare: null }),
 				status: insp.status,
 				woNo: insp.wo_no,
 				woStatus: insp.wo_status,
 				mechanicName: insp.mechanic_name || 'Belum Ditugaskan',
-				repairedItems: insp.repaired_items || [],
+				repairedItems: parseJsonSafe(insp.repaired_items, []),
 				inspectorName: insp.inspector_name || 'Inspector Workshop',
 				inspectorId: insp.inspector_id || '-',
 				notes: insp.notes || ''
