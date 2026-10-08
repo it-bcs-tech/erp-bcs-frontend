@@ -5,14 +5,11 @@
 	let { data, form }: { data: PageData; form: any } = $props();
 
 	const units = $derived(data.units || []);
-	const mechanics = $derived(data.mechanics || []);
 	const drivers = $derived(data.drivers || []);
 
 	let selectedUnitId = $state(data.initialUnit || '');
 	let maintCategory = $state(data.initialCategory || 'Regular Repair');
 	let driverId = $state(data.initialDriver || '');
-	let mechanicId = $state('');
-	let helperMechanicId = $state('');
 	let complaint = $state(data.initialComplaint || '');
 	let kilometer = $state<number | null>(data.initialOdometer || null);
 	let hourmeter = $state<number | null>(null);
@@ -34,17 +31,27 @@
 				remark: t.remark,
 				isFromInspection: true
 			}))
-			: [{ item: '', category: 'Perbaikan Umum', remark: '', isFromInspection: false }]
+			: [{ item: '', category: data.initialCategory || 'Regular Repair', remark: '', isFromInspection: false }]
 	);
 
 	let isSubmitting = $state(false);
+
+	// Sinkronkan kategori default untuk item pengerjaan manual saat kategori perawatan diubah
+	function handleCategoryChange() {
+		repairTasks = repairTasks.map(t => {
+			if (!t.isFromInspection) {
+				return { ...t, category: maintCategory };
+			}
+			return t;
+		});
+	}
 
 	function addTask() {
 		repairTasks = [
 			...repairTasks, 
 			{ 
 				item: '', 
-				category: maintCategory || 'Pekerjaan Tambahan', 
+				category: maintCategory || 'Regular Repair', 
 				remark: '', 
 				isFromInspection: false 
 			}
@@ -172,6 +179,7 @@
 						id="maint_category"
 						name="maint_category" 
 						bind:value={maintCategory}
+						onchange={handleCategoryChange}
 						class="w-full px-3 py-2 rounded-xl bg-surface-container-low border border-slate-200 dark:border-slate-800 text-xs sm:text-sm font-medium text-on-surface outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
 					>
 						<option value="Corrective Repair (P2H)">Corrective Repair (Temuan P2H)</option>
@@ -229,43 +237,16 @@
 			</div>
 		</div>
 
-		<!-- Card 2: Penugasan Mekanik & Tim Bengkel -->
-		<div class="p-4 sm:p-6 rounded-2xl bg-surface-container-lowest border border-slate-200/70 dark:border-slate-800/70 space-y-4">
-			<h2 class="text-xs sm:text-sm font-black text-on-surface uppercase tracking-wider flex items-center gap-2 border-b border-slate-200 dark:border-slate-800 pb-2.5">
-				<span class="material-symbols-outlined text-primary text-[18px]">engineering</span>
-				Penugasan Mekanik Bengkel
-			</h2>
-
-			<div class="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-				<div>
-					<label for="mechanic_id" class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-1">Mekanik Utama</label>
-					<select 
-						id="mechanic_id"
-						name="mechanic_id" 
-						bind:value={mechanicId}
-						class="w-full px-3 py-2 rounded-xl bg-surface-container-low border border-slate-200 dark:border-slate-800 text-xs sm:text-sm font-medium text-on-surface outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
-					>
-						<option value="">-- Tugaskan Nanti (Status: Antre / Open) --</option>
-						{#each mechanics as m}
-							<option value={m.id}>{m.name} ({m.id})</option>
-						{/each}
-					</select>
-				</div>
-
-				<div>
-					<label for="helper_mechanic_id" class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-1">Helper / Asisten Mekanik (Opsional)</label>
-					<select 
-						id="helper_mechanic_id"
-						name="helper_mechanic_id" 
-						bind:value={helperMechanicId}
-						class="w-full px-3 py-2 rounded-xl bg-surface-container-low border border-slate-200 dark:border-slate-800 text-xs sm:text-sm font-medium text-on-surface outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
-					>
-						<option value="">-- Tanpa Helper --</option>
-						{#each mechanics as m}
-							<option value={m.id}>{m.name} ({m.id})</option>
-						{/each}
-					</select>
-				</div>
+		<!-- Card 2: Alur Penugasan Mekanik (Info Banner) -->
+		<div class="p-4 rounded-2xl bg-surface-container-lowest border border-slate-200/70 dark:border-slate-800/70 flex items-start gap-3">
+			<div class="p-2 rounded-xl bg-primary/10 text-primary shrink-0 mt-0.5">
+				<span class="material-symbols-outlined text-[20px]">engineering</span>
+			</div>
+			<div class="space-y-1">
+				<h3 class="text-xs sm:text-sm font-bold text-on-surface">Penugasan Mekanik & Helper Bengkel</h3>
+				<p class="text-xs text-on-surface-variant">
+					SPK akan diterbitkan dalam status <span class="font-bold text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/40 px-1.5 py-0.5 rounded border border-amber-200 dark:border-amber-800">Open (Menunggu Mekanik)</span>. Penugasan Mekanik Utama dan Helper akan dilakukan oleh Kepala Bengkel / Supervisor Maintenance di halaman <b>Detail Work Order</b> setelah SPK ini terbit.
+				</p>
 			</div>
 		</div>
 
@@ -324,9 +305,13 @@
 							<div class="flex items-start justify-between gap-2">
 								<div class="flex items-center gap-2 flex-1 flex-wrap">
 									<span class="font-mono text-xs font-black text-on-surface-variant w-5">#{idx + 1}</span>
-									<span class="px-2 py-0.5 rounded-md bg-surface-container font-mono text-[10px] font-bold text-on-surface uppercase border border-slate-200 dark:border-slate-700">
-										{task.category || 'PERBAIKAN'}
-									</span>
+									<input 
+										type="text" 
+										bind:value={repairTasks[idx].category}
+										list="task-category-options"
+										placeholder="Kategori..."
+										class="px-2 py-0.5 rounded-md bg-surface-container font-mono text-[10px] font-bold text-on-surface uppercase border border-slate-200 dark:border-slate-700 outline-none focus:ring-1 focus:ring-primary max-w-[170px]"
+									/>
 									{#if task.isFromInspection}
 										<span class="px-1.5 py-0.5 rounded text-[9px] font-bold bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-200">
 											Temuan P2H
@@ -372,6 +357,20 @@
 					{/each}
 				</div>
 
+				<datalist id="task-category-options">
+					<option value="Corrective Repair (P2H)"></option>
+					<option value="Regular Repair"></option>
+					<option value="MESIN"></option>
+					<option value="REM"></option>
+					<option value="BAN & KAKI-KAKI"></option>
+					<option value="KOPLING & TRANSMISI"></option>
+					<option value="LAMPU & ELECTRICAL"></option>
+					<option value="BAK & HYDROLIC"></option>
+					<option value="KABIN"></option>
+					<option value="Preventive Maintenance"></option>
+					<option value="Overhaul Engine"></option>
+				</datalist>
+
 				<button 
 					type="button" 
 					onclick={addTask}
@@ -384,26 +383,47 @@
 		</div>
 
 		<!-- Action Footer -->
-		<div class="p-4 sm:p-5 rounded-2xl bg-surface-container-lowest border border-slate-200/70 dark:border-slate-800/70 flex items-center justify-between gap-3">
-			<a 
-				href={data.inspectionRef ? `/maintenance/transactions/inspections/${encodeURIComponent(data.inspectionRef.inspectionNo)}` : '/maintenance/transactions/work-orders'} 
-				class="px-4 py-2 sm:py-2.5 rounded-xl bg-surface-container text-on-surface hover:bg-surface-container-high font-bold text-xs transition-all"
-			>
-				Batal
-			</a>
-			<button 
-				type="submit" 
-				disabled={isSubmitting || !selectedUnitId || !complaint}
-				class="px-5 sm:px-6 py-2 sm:py-2.5 rounded-xl bg-primary hover:opacity-95 text-on-primary font-bold text-xs sm:text-sm shadow-md transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-			>
-				{#if isSubmitting}
-					<span class="material-symbols-outlined text-[18px] animate-spin">progress_activity</span>
-					<span>Menerbitkan SPK...</span>
-				{:else}
-					<span class="material-symbols-outlined text-[18px]">send</span>
-					<span>Terbitkan Surat Perintah Kerja (SPK)</span>
-				{/if}
-			</button>
+		<div class="p-4 sm:p-5 rounded-2xl bg-surface-container-lowest border border-slate-200/70 dark:border-slate-800/70 space-y-3">
+			<!-- Peringatan Visual jika syarat belum terpenuhi -->
+			{#if !selectedUnitId || !complaint.trim()}
+				<div class="p-3 rounded-xl bg-amber-50 dark:bg-amber-950/30 border border-amber-300 dark:border-amber-800/80 flex items-start gap-2.5 text-xs text-amber-900 dark:text-amber-200">
+					<span class="material-symbols-outlined text-amber-600 text-[18px] shrink-0 mt-0.5">warning</span>
+					<div>
+						<span class="font-bold">Lengkapi data berikut untuk mengaktifkan tombol terbitkan:</span>
+						<ul class="list-disc list-inside mt-0.5 space-y-0.5 text-amber-800 dark:text-amber-300">
+							{#if !selectedUnitId}
+								<li><b>Nomor Unit Armada</b> belum dipilih.</li>
+							{/if}
+							{#if !complaint.trim()}
+								<li><b>Ringkasan Keluhan / Instruksi Perbaikan</b> belum diisi.</li>
+							{/if}
+						</ul>
+					</div>
+				</div>
+			{/if}
+
+			<div class="flex items-center justify-between gap-3 pt-1">
+				<a 
+					href={data.inspectionRef ? `/maintenance/transactions/inspections/${encodeURIComponent(data.inspectionRef.inspectionNo)}` : '/maintenance/transactions/work-orders'} 
+					class="px-4 py-2 sm:py-2.5 rounded-xl bg-surface-container text-on-surface hover:bg-surface-container-high font-bold text-xs transition-all"
+				>
+					Batal
+				</a>
+				<button 
+					type="submit" 
+					disabled={isSubmitting || !selectedUnitId || !complaint.trim()}
+					class="px-5 sm:px-6 py-2 sm:py-2.5 rounded-xl bg-primary hover:opacity-95 text-on-primary font-bold text-xs sm:text-sm shadow-md transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+					title={!selectedUnitId || !complaint.trim() ? 'Lengkapi Nomor Unit dan Ringkasan Keluhan untuk mengaktifkan tombol' : 'Terbitkan SPK'}
+				>
+					{#if isSubmitting}
+						<span class="material-symbols-outlined text-[18px] animate-spin">progress_activity</span>
+						<span>Menerbitkan SPK...</span>
+					{:else}
+						<span class="material-symbols-outlined text-[18px]">send</span>
+						<span>Terbitkan Surat Perintah Kerja (SPK)</span>
+					{/if}
+				</button>
+			</div>
 		</div>
 
 	</form>

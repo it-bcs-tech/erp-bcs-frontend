@@ -6,6 +6,19 @@ import { verifyUserData } from '$lib/server/auth';
 
 const sql = postgres(env.DATABASE_URL || 'postgres://bcs_admin:sangatrahasia@103.31.205.199:5433/mybcs_db');
 
+function parseJsonSafe<T>(val: any, fallback: T): T {
+	if (!val) return fallback;
+	let curr = val;
+	while (typeof curr === 'string') {
+		try {
+			curr = JSON.parse(curr);
+		} catch {
+			break;
+		}
+	}
+	return (curr ?? fallback) as T;
+}
+
 export const load: PageServerLoad = async ({ params }) => {
 	const idOrNo = decodeURIComponent(params.id);
 
@@ -84,10 +97,12 @@ export const load: PageServerLoad = async ({ params }) => {
 		`;
 
 		// Format repaired_items
-		let repairedItems = Array.isArray(wo.repaired_items) ? wo.repaired_items : [];
-		if (repairedItems.length === 0 && Array.isArray(wo.checklist_items)) {
+		const rawRepaired = parseJsonSafe(wo.repaired_items, []);
+		const rawChecklist = parseJsonSafe(wo.checklist_items, []);
+		let repairedItems = Array.isArray(rawRepaired) ? rawRepaired : [];
+		if (repairedItems.length === 0 && Array.isArray(rawChecklist)) {
 			// Fallback: if repaired_items is empty, migrate checklist_items
-			repairedItems = wo.checklist_items.map((c: any, idx: number) => ({
+			repairedItems = rawChecklist.map((c: any, idx: number) => ({
 				id: `item_${idx + 1}`,
 				category: wo.maint_category || 'General',
 				item: c.item,
@@ -97,6 +112,8 @@ export const load: PageServerLoad = async ({ params }) => {
 				repaired_at: null
 			}));
 		}
+
+		const parsedDispensation = parseJsonSafe(wo.dispensation_data, null);
 
 		return {
 			wo: {
@@ -135,7 +152,7 @@ export const load: PageServerLoad = async ({ params }) => {
 				recommendation: wo.recommendation || '',
 				operationalReason: wo.operational_reason || '',
 				commitmentDate: wo.commitment_date ? new Date(wo.commitment_date).toISOString().slice(0, 10) : null,
-				dispensationData: wo.dispensation_data || {
+				dispensationData: parsedDispensation || {
 					is_requested: false,
 					recommendation: wo.recommendation || '',
 					operational_reason: wo.operational_reason || '',

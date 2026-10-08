@@ -104,8 +104,12 @@ export const load: PageServerLoad = async ({ url }) => {
 
 		// 2. Units
 		const units = await sql`
-			SELECT u.nomor_unit as no_unit, u.tipe_kendaraan, u.odometer
+			SELECT 
+				u.nomor_unit as no_unit, 
+				COALESCE(tu.nama_tipe, u.business_unit::text, 'Truck') as type
 			FROM fleet.unit u
+			LEFT JOIN master.m_model_unit mu ON u.model_unit_id::text = mu.id::text
+			LEFT JOIN master.m_tipe_unit tu ON mu.tipe_unit_id::text = tu.id::text
 			WHERE u.is_active = true
 			ORDER BY u.nomor_unit ASC
 		`;
@@ -130,8 +134,8 @@ export const load: PageServerLoad = async ({ url }) => {
 		return {
 			units: units.map(u => ({
 				noUnit: u.no_unit,
-				type: u.tipe_kendaraan,
-				odometer: u.odometer || 0
+				type: u.type,
+				odometer: 0
 			})),
 			mechanics,
 			drivers,
@@ -251,7 +255,7 @@ export const actions: Actions = {
 					repaired_at: null
 				}];
 
-			const initialStatus = mechanic_id ? 'Proses' : 'Open';
+			const initialStatus = 'Open';
 
 			// Insert into fleet.work_orders
 			await sql`
@@ -286,8 +290,8 @@ export const actions: Actions = {
 					${job_location},
 					${initialStatus},
 					NOW(),
-					${JSON.stringify(repairedItems.map(r => ({ item: r.item, status: 'Not Yet' })))},
-					${JSON.stringify(repairedItems)},
+					${sql.json(repairedItems.map(r => ({ item: r.item, status: 'Not Yet' })))},
+					${sql.json(repairedItems)},
 					${inspection_no},
 					NOW(),
 					${createdBy}
@@ -298,7 +302,6 @@ export const actions: Actions = {
 			await sql`
 				UPDATE fleet.unit
 				SET current_state = 'MAINTENANCE',
-				    odometer = COALESCE(${kilometer}, odometer),
 				    updated_at = NOW()
 				WHERE nomor_unit = ${unit_id}
 			`;
