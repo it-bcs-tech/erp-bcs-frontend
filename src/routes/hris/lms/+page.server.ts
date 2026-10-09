@@ -908,16 +908,23 @@ export const actions = {
 			const completedDate = session.end_date || session.session_date || new Date().toISOString().split('T')[0];
 
 			for (const att of targetAttendees) {
-				// Cari atasan langsung
-				const supRows = await sql`
-					SELECT ka.nama_karyawan as supervisor_name
-					FROM master.m_karyawan kb
-					JOIN master.m_hierarchy h ON h.title_bawahan = kb.title
-					JOIN master.m_karyawan ka ON ka.title = h.title_atasan AND ka.aktif = 'Y'
-					WHERE kb.payroll_id = ${att.payroll_id}
-					LIMIT 1;
-				`;
-				const supervisorName = supRows[0]?.supervisor_name || 'Supervisor Operasional';
+				// Cari atasan langsung via master.m_atasan
+				let supervisorName = 'Supervisor Operasional';
+				try {
+					const supRows = await sql`
+						SELECT ka.nama_karyawan as supervisor_name
+						FROM master.m_karyawan kb
+						JOIN master.m_atasan h ON h.title_bawahan = kb.title
+						JOIN master.m_karyawan ka ON ka.title = h.title_atasan AND ka.aktif = 'Y'
+						WHERE kb.payroll_id = ${att.payroll_id}
+						LIMIT 1;
+					`;
+					if (supRows[0]?.supervisor_name) {
+						supervisorName = supRows[0].supervisor_name;
+					}
+				} catch (supErr) {
+					console.warn('Gagal resolve supervisor dari master.m_atasan:', supErr);
+				}
 
 				// Buat / Update antrean evaluasi L3 & L4
 				const existing = await sql`
@@ -1119,16 +1126,23 @@ export const actions = {
 				WHERE course_id = ${courseId} AND UPPER(payroll_id) = ${payrollId.toUpperCase()};
 			`;
 
-			// Cari direct supervisor dari karyawan
-			const supRows = await sql`
-				SELECT ka.nama_karyawan as supervisor_name
-				FROM master.m_karyawan kb
-				JOIN master.m_hierarchy h ON h.title_bawahan = kb.title
-				JOIN master.m_karyawan ka ON ka.title = h.title_atasan AND ka.aktif = 'Y'
-				WHERE kb.payroll_id = ${payrollId}
-				LIMIT 1;
-			`;
-			const supervisorName = supRows[0]?.supervisor_name || 'Supervisor Operasional';
+			// Cari direct supervisor dari karyawan via master.m_atasan
+			let supervisorName = 'Supervisor Operasional';
+			try {
+				const supRows = await sql`
+					SELECT ka.nama_karyawan as supervisor_name
+					FROM master.m_karyawan kb
+					JOIN master.m_atasan h ON h.title_bawahan = kb.title
+					JOIN master.m_karyawan ka ON ka.title = h.title_atasan AND ka.aktif = 'Y'
+					WHERE kb.payroll_id = ${payrollId}
+					LIMIT 1;
+				`;
+				if (supRows[0]?.supervisor_name) {
+					supervisorName = supRows[0].supervisor_name;
+				}
+			} catch (supErr) {
+				console.warn('Gagal resolve supervisor dari master.m_atasan:', supErr);
+			}
 
 			// Jadwalkan / aktifkan antrean Evaluasi Pasca-Training Segera (L4 Pre-Test 10 Hari, L3 Behavior 3 Bulan, L4 Post-Test 3 Bulan)
 			const existingL3L4 = await sql`
