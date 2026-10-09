@@ -17,6 +17,11 @@ export const load: PageServerLoad = async ({ locals }) => {
 			SELECT 
 				c.*,
 				COALESCE(
+					(SELECT COUNT(DISTINCT payroll_id)::int FROM hris.lms_enrollments e WHERE e.course_id = c.id),
+					c.enrolled_count,
+					0
+				) as dynamic_enrolled_count,
+				COALESCE(
 					json_agg(
 						json_build_object(
 							'id', m.id,
@@ -275,7 +280,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 				status: c.status,
 				durationHours: Number(c.duration_hours),
 				modulesCount: c.modules_count || (c.modules ? c.modules.length : 0),
-				enrolledCount: c.enrolled_count,
+				enrolledCount: Number(c.dynamic_enrolled_count ?? c.enrolled_count ?? 0),
 				completionRate: Number(c.completion_rate),
 				rating: Number(c.rating),
 				instructor: c.instructor,
@@ -841,9 +846,14 @@ export const actions = {
 		}
 
 		try {
+			const sessionInfo = await sql`
+				SELECT course_id FROM hris.lms_sessions WHERE id = ${sessionId} LIMIT 1;
+			`;
+			const courseId = sessionInfo.length > 0 ? sessionInfo[0].course_id : null;
+
 			const existing = await sql`
 				SELECT id FROM hris.lms_session_attendances
-				WHERE session_id = ${sessionId} AND payroll_id = ${payrollId}
+				WHERE session_id = ${sessionId} AND UPPER(payroll_id) = ${payrollId.toUpperCase()}
 				LIMIT 1;
 			`;
 			if (existing.length > 0) {
@@ -861,6 +871,34 @@ export const actions = {
 					);
 				`;
 			}
+
+			// Sinkronkan ke lms_enrollments agar peserta juga terdaftar di portal LMS
+			if (courseId) {
+				await sql`
+					INSERT INTO hris.lms_enrollments (
+						course_id, payroll_id, employee_name, status, progress_percent,
+						completed_modules_count, total_modules_count, is_tna_gap
+					) VALUES (
+						${courseId}, ${payrollId}, ${employeeName}, 'ENROLLED', 0, 0, 3, false
+					) ON CONFLICT (course_id, payroll_id) DO NOTHING;
+				`;
+				await sql`
+					UPDATE hris.lms_courses
+					SET enrolled_count = (
+						SELECT COUNT(DISTINCT payroll_id) FROM hris.lms_enrollments WHERE course_id = ${courseId}
+					)
+					WHERE id = ${courseId};
+				`;
+			}
+
+			await sql`
+				UPDATE hris.lms_sessions
+				SET enrolled_count = (
+					SELECT COUNT(DISTINCT payroll_id) FROM hris.lms_session_attendances WHERE session_id = ${sessionId}
+				)
+				WHERE id = ${sessionId};
+			`;
+
 			return { success: true, message: `Kehadiran ${employeeName} (${status}) berhasil dicatat.` };
 		} catch (e: any) {
 			return { success: false, message: 'Gagal mencatat absensi.' };
@@ -891,6 +929,11 @@ export const actions = {
 		}
 
 		try {
+			const sessionInfo = await sql`
+				SELECT course_id FROM hris.lms_sessions WHERE id = ${sessionId} LIMIT 1;
+			`;
+			const courseId = sessionInfo.length > 0 ? sessionInfo[0].course_id : null;
+
 			let insertedCount = 0;
 			for (const emp of employeesList) {
 				const payrollId = emp.payrollId?.toString().trim();
@@ -920,7 +963,38 @@ export const actions = {
 						);
 					`;
 				}
+
+				// Daftarkan ke lms_enrollments kursus
+				if (courseId) {
+					await sql`
+						INSERT INTO hris.lms_enrollments (
+							course_id, payroll_id, employee_name, status, progress_percent,
+							completed_modules_count, total_modules_count, is_tna_gap
+						) VALUES (
+							${courseId}, ${payrollId}, ${employeeName}, 'ENROLLED', 0, 0, 3, false
+						) ON CONFLICT (course_id, payroll_id) DO NOTHING;
+					`;
+				}
 				insertedCount++;
+			}
+
+			// Sinkronisasi enrolled_count pada session dan course
+			await sql`
+				UPDATE hris.lms_sessions
+				SET enrolled_count = (
+					SELECT COUNT(DISTINCT payroll_id) FROM hris.lms_session_attendances WHERE session_id = ${sessionId}
+				)
+				WHERE id = ${sessionId};
+			`;
+
+			if (courseId) {
+				await sql`
+					UPDATE hris.lms_courses
+					SET enrolled_count = (
+						SELECT COUNT(DISTINCT payroll_id) FROM hris.lms_enrollments WHERE course_id = ${courseId}
+					)
+					WHERE id = ${courseId};
+				`;
 			}
 
 			return { 
