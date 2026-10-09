@@ -1185,6 +1185,71 @@
 	let isPlayerModalOpen = $state(false);
 	let isSessionModalOpen = $state(false);
 	let isAttendanceModalOpen = $state(false);
+	// State Tambah Peserta Presensi Kehadiran (Multi-Select)
+	let attendanceSelectedEmployeeIds = $state<string[]>([]);
+	let attendanceSearchQuery = $state<string>('');
+	let attendanceDivisionFilter = $state<string>('');
+
+	let availableAttendanceEmployees = $derived.by(() => {
+		if (!activeSessionForAttendance) return [];
+		const currentSessionAtts = attendances.filter((a: any) => a.sessionId === activeSessionForAttendance.id);
+		const enrolledPayrollIds = new Set(
+			currentSessionAtts.map((a: any) => (a.payrollId || '').toString().toUpperCase().trim())
+		);
+
+		return activeEmployees.filter((emp: any) => {
+			const empPayrollId = (emp.payrollId || '').toString().toUpperCase().trim();
+			// Saring keluar karyawan yang sudah terdaftar di sesi ini
+			if (enrolledPayrollIds.has(empPayrollId)) return false;
+
+			// Saring berdasarkan divisi sasaran jika filter divisi dipilih
+			if (attendanceDivisionFilter) {
+				const matchesDiv =
+					emp.divisionCode === attendanceDivisionFilter ||
+					emp.divisionName === attendanceDivisionFilter ||
+					divisions.find((d: any) => d.code === attendanceDivisionFilter)?.name === emp.divisionName;
+				if (!matchesDiv) return false;
+			}
+
+			// Saring berdasarkan teks pencarian (nama, NIK, jabatan, divisi)
+			if (attendanceSearchQuery.trim()) {
+				const q = attendanceSearchQuery.toLowerCase().trim();
+				const matchName = emp.name && emp.name.toLowerCase().includes(q);
+				const matchId = emp.payrollId && emp.payrollId.toLowerCase().includes(q);
+				const matchTitle = emp.positionTitle && emp.positionTitle.toLowerCase().includes(q);
+				const matchDiv = emp.divisionName && emp.divisionName.toLowerCase().includes(q);
+				return matchName || matchId || matchTitle || matchDiv;
+			}
+
+			return true;
+		});
+	});
+
+	let attendanceSelectedEmployees = $derived(
+		activeEmployees.filter((e: any) => attendanceSelectedEmployeeIds.includes(e.payrollId))
+	);
+
+	function toggleAttendanceEmployee(payrollId: string) {
+		if (attendanceSelectedEmployeeIds.includes(payrollId)) {
+			attendanceSelectedEmployeeIds = attendanceSelectedEmployeeIds.filter((id) => id !== payrollId);
+		} else {
+			attendanceSelectedEmployeeIds = [...attendanceSelectedEmployeeIds, payrollId];
+		}
+	}
+
+	function removeAttendanceEmployee(payrollId: string) {
+		attendanceSelectedEmployeeIds = attendanceSelectedEmployeeIds.filter((id) => id !== payrollId);
+	}
+
+	function clearAllAttendanceEmployees() {
+		attendanceSelectedEmployeeIds = [];
+		attendanceSearchQuery = '';
+	}
+
+	function selectAllAvailableAttendanceEmployees() {
+		const newIds = availableAttendanceEmployees.map((e: any) => e.payrollId);
+		attendanceSelectedEmployeeIds = Array.from(new Set([...attendanceSelectedEmployeeIds, ...newIds]));
+	}
 	let isEvalSupervisorModalOpen = $state(false);
 	let isRequestModalOpen = $state(false);
 	let isSafetyTestModalOpen = $state(false);
@@ -2447,6 +2512,8 @@
 
 	function openAttendanceModal(session: any) {
 		activeSessionForAttendance = session;
+		clearAllAttendanceEmployees();
+		attendanceDivisionFilter = '';
 		isAttendanceModalOpen = true;
 	}
 
@@ -9444,53 +9511,186 @@
 					{/if}
 				</div>
 
-				<!-- Form Tambah Peserta Baru / Manual -->
+				<!-- Form Tambah Peserta Baru (Multi-Select Checklist) -->
 				<div class="p-3.5 rounded-2xl bg-surface-container-low border border-slate-200 dark:border-slate-800 space-y-3">
-					<h4 class="font-bold text-xs text-on-surface flex items-center gap-1">
-						<span class="material-symbols-outlined text-sm text-primary">person_add</span>
-						<span>Tambah Peserta Tambahan ke Sesi ini</span>
-					</h4>
+					<div class="flex items-center justify-between pb-1.5 border-b border-slate-200/60 dark:border-slate-800/60">
+						<div class="flex items-center gap-1.5">
+							<span class="material-symbols-outlined text-sm text-primary">group_add</span>
+							<h4 class="font-bold text-xs text-on-surface">
+								Tambah Peserta ke Sesi Ini ({attendanceSelectedEmployeeIds.length} Karyawan Dipilih)
+							</h4>
+						</div>
+						<div class="flex items-center gap-2">
+							{#if availableAttendanceEmployees.length > 0}
+								<button 
+									type="button" 
+									onclick={selectAllAvailableAttendanceEmployees}
+									class="text-[10px] font-bold text-primary hover:underline cursor-pointer"
+								>
+									Pilih Semua ({availableAttendanceEmployees.length})
+								</button>
+							{/if}
+							{#if attendanceSelectedEmployeeIds.length > 0}
+								<button 
+									type="button" 
+									onclick={clearAllAttendanceEmployees}
+									class="text-[10px] font-bold text-rose-500 hover:underline cursor-pointer"
+								>
+									Reset
+								</button>
+							{/if}
+						</div>
+					</div>
 
-					<form method="POST" action="?/markAttendance" use:enhance class="space-y-3 text-xs">
+					<form 
+						method="POST" 
+						action="?/addBatchAttendance" 
+						use:enhance={() => {
+							return async ({ update }) => {
+								await update();
+								clearAllAttendanceEmployees();
+							};
+						}} 
+						class="space-y-3 text-xs"
+					>
 						<input type="hidden" name="sessionId" value={activeSessionForAttendance.id} />
+						<input 
+							type="hidden" 
+							name="employeesJson" 
+							value={JSON.stringify(
+								attendanceSelectedEmployees.map((e: any) => ({
+									payrollId: e.payrollId,
+									name: e.name,
+									department: e.divisionName || e.department || activeSessionForAttendance.department || 'Operations'
+								}))
+							)} 
+						/>
 
+						<!-- Filter Divisi & Kolom Pencarian -->
 						<div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
 							<div>
-								<label class="font-bold text-on-surface block mb-1">Payroll ID / NIK *</label>
-								<input type="text" name="payrollId" required placeholder="Contoh: EMP-0042" class="w-full px-3 py-2 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800 font-mono text-xs" />
+								<label class="font-bold text-on-surface block mb-1 text-[11px]">Filter Divisi Sasaran</label>
+								<select
+									bind:value={attendanceDivisionFilter}
+									class="w-full px-2.5 py-1.5 rounded-xl bg-surface border border-slate-200 dark:border-slate-700 text-xs text-on-surface outline-none"
+								>
+									<option value="">Semua Divisi ({activeEmployees.length} Karyawan)</option>
+									{#each divisions as div}
+										<option value={div.code}>{div.name} ({div.code})</option>
+									{/each}
+								</select>
 							</div>
 
 							<div>
-								<label class="font-bold text-on-surface block mb-1">Departemen</label>
-								<input type="text" name="department" value={activeSessionForAttendance.department || 'Operations'} class="w-full px-3 py-2 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800 text-xs" />
+								<label class="font-bold text-on-surface block mb-1 text-[11px]">Cari Karyawan</label>
+								<div class="relative">
+									<span class="material-symbols-outlined absolute left-2.5 top-2 text-slate-400 text-xs">search</span>
+									<input
+										type="text"
+										bind:value={attendanceSearchQuery}
+										placeholder="Ketik nama atau NIK..."
+										class="w-full pl-7 pr-7 py-1.5 rounded-xl bg-surface border border-slate-200 dark:border-slate-700 text-xs text-on-surface outline-none focus:border-primary focus:ring-1 focus:ring-primary/20"
+									/>
+									{#if attendanceSearchQuery}
+										<button
+											type="button"
+											onclick={() => (attendanceSearchQuery = '')}
+											class="absolute right-2 top-2 text-slate-400 hover:text-slate-600 cursor-pointer"
+											title="Hapus filter"
+										>
+											<span class="material-symbols-outlined text-xs">close</span>
+										</button>
+									{/if}
+								</div>
 							</div>
 						</div>
 
-						<div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-							<div>
-								<label class="font-bold text-on-surface block mb-1">Nama Lengkap Peserta *</label>
-								<input type="text" name="employeeName" required placeholder="Nama karyawan..." class="w-full px-3 py-2 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800 text-xs" />
+						<!-- Daftar Karyawan Checkbox Grid (Scrollable Box) -->
+						{#if availableAttendanceEmployees.length > 0}
+							<div class="max-h-40 overflow-y-auto space-y-1 p-2 rounded-xl bg-surface border border-slate-200/80 dark:border-slate-700/80 divide-y divide-slate-100 dark:divide-slate-800/60">
+								{#each availableAttendanceEmployees as emp}
+									{@const isSelected = attendanceSelectedEmployeeIds.includes(emp.payrollId)}
+									<button
+										type="button"
+										onclick={() => toggleAttendanceEmployee(emp.payrollId)}
+										class="w-full text-left p-1.5 rounded-lg flex items-center justify-between transition-all cursor-pointer {isSelected ? 'bg-primary/10 text-primary font-bold' : 'hover:bg-surface-container text-on-surface'}"
+									>
+										<div class="flex items-center gap-2 truncate">
+											<div class="w-3.5 h-3.5 rounded flex items-center justify-center border {isSelected ? 'bg-primary border-primary text-on-primary' : 'border-slate-300 dark:border-slate-600 bg-surface'}">
+												{#if isSelected}
+													<span class="material-symbols-outlined text-[10px]">check</span>
+												{/if}
+											</div>
+											<span class="truncate text-xs">{emp.name} ({emp.payrollId})</span>
+										</div>
+										<span class="text-[10px] text-slate-400 font-mono truncate">{emp.positionTitle || emp.divisionName || 'Staf'}</span>
+									</button>
+								{/each}
 							</div>
+						{:else}
+							<div class="p-3 text-center rounded-xl bg-surface border border-dashed border-slate-300 dark:border-slate-700 text-slate-400 text-[11px]">
+								{attendanceSearchQuery || attendanceDivisionFilter ? 'Tidak ada karyawan yang cocok dengan pencarian / filter ini.' : 'Semua karyawan sudah terdaftar dalam sesi pelatihan ini.'}
+							</div>
+						{/if}
 
+						<!-- Selected Chips Preview -->
+						{#if attendanceSelectedEmployees.length > 0}
+							<div class="space-y-1.5 pt-1">
+								<p class="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+									Peserta Baru Terpilih ({attendanceSelectedEmployees.length}):
+								</p>
+								<div class="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto pr-1">
+									{#each attendanceSelectedEmployees as emp}
+										<div class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-lg bg-surface border border-primary/30 text-primary text-[11px] font-medium">
+											<span>{emp.name} ({emp.payrollId})</span>
+											<button
+												type="button"
+												onclick={() => removeAttendanceEmployee(emp.payrollId)}
+												class="hover:text-rose-500 cursor-pointer"
+												title="Hapus"
+											>
+												<span class="material-symbols-outlined text-[12px]">close</span>
+											</button>
+										</div>
+									{/each}
+								</div>
+							</div>
+						{/if}
+
+						<!-- Pengaturan Status Kehadiran & Catatan Presensi -->
+						<div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
 							<div>
-								<label class="font-bold text-on-surface block mb-1">Status Kehadiran</label>
-								<select name="status" class="w-full px-3 py-2 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800 font-bold text-xs">
+								<label class="font-bold text-on-surface block mb-1">Status Kehadiran Bersama *</label>
+								<select name="status" class="w-full px-2.5 py-1.5 rounded-xl bg-surface border border-slate-200 dark:border-slate-800 font-bold text-xs">
 									<option value="HADIR">HADIR</option>
 									<option value="IZIN">IZIN</option>
 									<option value="ALPA">ALPA</option>
 								</select>
 							</div>
-						</div>
 
-						<div>
-							<label class="font-bold text-on-surface block mb-1">Catatan Presensi (Opsional)</label>
-							<input type="text" name="notes" placeholder="Catatan kehadiran / konfirmasi izin..." class="w-full px-3 py-2 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800 text-xs" />
+							<div>
+								<label class="font-bold text-on-surface block mb-1">Catatan Presensi (Opsional)</label>
+								<input 
+									type="text" 
+									name="notes" 
+									placeholder="Catatan kehadiran / konfirmasi..." 
+									class="w-full px-2.5 py-1.5 rounded-xl bg-surface border border-slate-200 dark:border-slate-800 text-xs" 
+								/>
+							</div>
 						</div>
 
 						<div class="flex justify-end pt-1">
-							<button type="submit" class="px-3.5 py-1.5 rounded-xl bg-primary text-on-primary text-xs font-bold hover:bg-primary/90 flex items-center gap-1 shadow-xs cursor-pointer">
-								<span class="material-symbols-outlined text-sm">add</span>
-								<span>+ Daftarkan Kehadiran</span>
+							<button 
+								type="submit" 
+								disabled={attendanceSelectedEmployeeIds.length === 0}
+								class="px-4 py-2 rounded-xl bg-primary text-on-primary text-xs font-bold hover:bg-primary/90 disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1.5 shadow-xs cursor-pointer transition-all"
+							>
+								<span class="material-symbols-outlined text-sm">group_add</span>
+								<span>
+									{attendanceSelectedEmployeeIds.length > 0 
+										? `+ Daftarkan ${attendanceSelectedEmployeeIds.length} Peserta Terpilih` 
+										: '+ Daftarkan Peserta'}
+								</span>
 							</button>
 						</div>
 					</form>

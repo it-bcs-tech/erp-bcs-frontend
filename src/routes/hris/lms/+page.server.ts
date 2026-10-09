@@ -867,6 +867,72 @@ export const actions = {
 		}
 	},
 
+	// Tambahkan Banyak Peserta Sekaligus (Batch/Multi-Select) ke Sesi Pelatihan
+	addBatchAttendance: async ({ request }) => {
+		const formData = await request.formData();
+		const sessionId = formData.get('sessionId')?.toString();
+		const employeesJson = formData.get('employeesJson')?.toString();
+		const status = formData.get('status')?.toString() || 'HADIR';
+		const notes = formData.get('notes')?.toString().trim() || '';
+
+		if (!sessionId || !employeesJson) {
+			return { success: false, message: 'Data sesi atau peserta tidak lengkap.' };
+		}
+
+		let employeesList: Array<{ payrollId: string; name: string; department?: string }> = [];
+		try {
+			employeesList = JSON.parse(employeesJson);
+		} catch (e) {
+			return { success: false, message: 'Format data peserta tidak valid.' };
+		}
+
+		if (!Array.isArray(employeesList) || employeesList.length === 0) {
+			return { success: false, message: 'Pilih minimal satu karyawan.' };
+		}
+
+		try {
+			let insertedCount = 0;
+			for (const emp of employeesList) {
+				const payrollId = emp.payrollId?.toString().trim();
+				const employeeName = emp.name?.toString().trim();
+				const department = emp.department?.toString().trim() || 'Operations';
+
+				if (!payrollId || !employeeName) continue;
+
+				const existing = await sql`
+					SELECT id FROM hris.lms_session_attendances
+					WHERE session_id = ${sessionId} AND UPPER(payroll_id) = ${payrollId.toUpperCase()}
+					LIMIT 1;
+				`;
+
+				if (existing.length > 0) {
+					await sql`
+						UPDATE hris.lms_session_attendances
+						SET status = ${status}, notes = ${notes}, attended_at = CURRENT_TIMESTAMP
+						WHERE id = ${existing[0].id};
+					`;
+				} else {
+					await sql`
+						INSERT INTO hris.lms_session_attendances (
+							session_id, payroll_id, employee_name, department, status, notes
+						) VALUES (
+							${sessionId}, ${payrollId}, ${employeeName}, ${department}, ${status}, ${notes}
+						);
+					`;
+				}
+				insertedCount++;
+			}
+
+			return { 
+				success: true, 
+				message: `${insertedCount} peserta berhasil didaftarkan ke sesi ini (${status}).` 
+			};
+		} catch (e: any) {
+			console.error('Error adding batch attendance:', e);
+			return { success: false, message: 'Gagal menambahkan peserta ke sesi presensi.' };
+		}
+	},
+
 	// Selesaikan Sesi Pelatihan & Aktifkan Tiket Evaluasi Pasca-Training Atasan (L4 Pre-Test 10 Hari & L3/L4 Post-Test 3 Bulan)
 	completeSessionAndGenerateEvaluations: async ({ request }) => {
 		const formData = await request.formData();
