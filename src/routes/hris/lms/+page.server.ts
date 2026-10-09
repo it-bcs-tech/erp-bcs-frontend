@@ -625,12 +625,14 @@ export const actions = {
 
 		if (modulesToInsert.length === 0) {
 			const formattedMaterialUrl = materialUrl ? formatEmbedUrl(materialUrl) : null;
+			const singleType = formData.get('singleMaterialType')?.toString().trim() ||
+				(formattedMaterialUrl && (formattedMaterialUrl.includes('.pdf') || formattedMaterialUrl.includes('drive.google.com') || formattedMaterialUrl.includes('docs.google.com')) ? 'DOCUMENT' : 'VIDEO');
 			modulesToInsert = [
 				{
 					title: 'Materi Utama Pelatihan',
-					type: 'VIDEO',
+					type: singleType,
 					contentUrl: formattedMaterialUrl,
-					durationText: `${Math.round(durationHours * 60)} Menit`,
+					durationText: singleType === 'DOCUMENT' ? '' : `${Math.round(durationHours * 60)} Menit`,
 					contentBody: description || 'Silakan pelajari materi pelatihan yang disematkan berikut ini.'
 				}
 			];

@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { onMount } from 'svelte';
 	import { enhance } from '$app/forms';
 	import { spawnToast, notifySuccess, notifyError } from '$lib/stores/notifications';
 	import { formatEmbedUrl, detectEmbedPlatform } from '$lib/utils/embed';
@@ -901,6 +902,48 @@
 			createModulesList = createModulesList.filter((_, idx) => idx !== index);
 		}
 	}
+
+	let createCourseSingleMaterialType = $state<'VIDEO' | 'DOCUMENT'>('DOCUMENT');
+	let playerViewerRef = $state<HTMLElement | null>(null);
+	let isPlayerFullscreen = $state(false);
+
+	function togglePlayerFullscreen() {
+		if (!playerViewerRef) return;
+		if (!document.fullscreenElement) {
+			playerViewerRef.requestFullscreen().catch((err) => {
+				console.error('Fullscreen request error:', err);
+			});
+		} else {
+			document.exitFullscreen().catch((err) => {
+				console.error('Fullscreen exit error:', err);
+			});
+		}
+	}
+
+	function isModulePdf(mod: any) {
+		if (!mod) return false;
+		return (
+			mod.type === 'DOCUMENT' ||
+			mod.type === 'PDF' ||
+			Boolean(
+				mod.contentUrl &&
+				(mod.contentUrl.includes('.pdf') ||
+				 mod.contentUrl.includes('drive.google.com') ||
+				 mod.contentUrl.includes('docs.google.com')) &&
+				mod.type !== 'VIDEO'
+			)
+		);
+	}
+
+	onMount(() => {
+		const handleFsChange = () => {
+			isPlayerFullscreen = Boolean(document.fullscreenElement);
+		};
+		document.addEventListener('fullscreenchange', handleFsChange);
+		return () => {
+			document.removeEventListener('fullscreenchange', handleFsChange);
+		};
+	});
 
 	let divisionEmployees = $derived(
 		createCourseDivision
@@ -7399,9 +7442,10 @@
 				<!-- STEP 2: MATERI MODUL -->
 				{:else if playerStep === 2}
 					{@const currentModule = activeCourseForPlayer.modules?.[activeModuleIndex] || { title: 'Materi Modul', type: 'VIDEO', contentBody: 'Materi pembelajaran.' }}
-					<div class="grid grid-cols-1 md:grid-cols-4 gap-6 h-full">
+					{@const isPdf = isModulePdf(currentModule)}
+					<div bind:this={playerViewerRef} class="grid grid-cols-1 md:grid-cols-4 gap-6 h-full {isPlayerFullscreen ? 'fixed inset-0 z-50 bg-slate-950 p-6 flex flex-col overflow-y-auto text-white' : ''}">
 						<!-- Sidebar Daftar Modul -->
-						<div class="space-y-2 border-r border-slate-200 dark:border-slate-800 pr-4">
+						<div class="space-y-2 border-r border-slate-200 dark:border-slate-800 pr-4 {isPlayerFullscreen ? 'hidden' : ''}">
 							<p class="text-xs font-black uppercase tracking-wider text-slate-500">Daftar Modul Kursus</p>
 							{#each activeCourseForPlayer.modules || [] as mod, idx}
 								<button
@@ -7421,39 +7465,54 @@
 						</div>
 
 						<!-- Main Media Viewer -->
-						<div class="md:col-span-3 flex flex-col justify-between space-y-4">
+						<div class="{isPlayerFullscreen ? 'w-full flex-1 flex flex-col justify-between' : 'md:col-span-3 flex flex-col justify-between space-y-4'}">
 							<div class="space-y-4">
 								<div class="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-2">
-									<div>
-										<span class="px-2 py-0.5 rounded-md text-[9px] font-black uppercase bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300">
-											{currentModule.type}
-										</span>
+									<div class="flex items-center gap-2">
+										{#if isPdf}
+											<span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md text-[9px] font-black uppercase bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300">
+												<span class="material-symbols-outlined text-xs">picture_as_pdf</span>
+												<span>PDF</span>
+											</span>
+										{:else}
+											<span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md text-[9px] font-black uppercase bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300">
+												<span class="material-symbols-outlined text-xs">smart_display</span>
+												<span>VIDEO</span>
+											</span>
+										{/if}
 										<h4 class="font-black text-base text-on-surface mt-1">{currentModule.title}</h4>
 									</div>
-									<span class="text-xs text-slate-500">{currentModule.durationText}</span>
+
+									<div class="flex items-center gap-3">
+										{#if !isPdf && currentModule.durationText}
+											<span class="text-xs text-slate-500">{currentModule.durationText}</span>
+										{/if}
+
+										<!-- Tombol Layar Penuh (Fullscreen) -->
+										<button
+											type="button"
+											onclick={togglePlayerFullscreen}
+											class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-surface-container hover:bg-surface-container-high border border-slate-200 dark:border-slate-700 text-xs font-bold text-on-surface transition-all cursor-pointer shadow-xs"
+											title={isPlayerFullscreen ? 'Keluar Layar Penuh (Esc)' : 'Tampilkan Layar Penuh'}
+										>
+											<span class="material-symbols-outlined text-sm">{isPlayerFullscreen ? 'fullscreen_exit' : 'fullscreen'}</span>
+											<span>{isPlayerFullscreen ? 'Keluar Fullscreen' : 'Layar Penuh'}</span>
+										</button>
+									</div>
 								</div>
 
 								<!-- Player Window / Embedded Iframe Viewer -->
 								{#if currentModule.contentUrl}
 									{@const embedSrc = formatEmbedUrl(currentModule.contentUrl)}
 									{@const platform = detectEmbedPlatform(currentModule.contentUrl)}
-									<div class="space-y-3">
+									<div class="space-y-3 {isPlayerFullscreen ? 'flex-1 flex flex-col' : ''}">
 										<div class="flex items-center justify-between text-xs px-1">
 											<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-primary/10 text-primary font-bold">
 												<span class="material-symbols-outlined text-sm">{platform.icon}</span>
 												<span>{platform.name}</span>
 											</span>
-											<a
-												href={currentModule.contentUrl}
-												target="_blank"
-												rel="noreferrer"
-												class="text-primary hover:underline font-semibold flex items-center gap-1 text-[11px]"
-											>
-												<span>Buka di Tab Baru</span>
-												<span class="material-symbols-outlined text-xs">open_in_new</span>
-											</a>
 										</div>
-										<div class="w-full h-80 md:h-[420px] rounded-2xl overflow-hidden bg-black/5 dark:bg-black/30 border border-slate-200 dark:border-slate-800 shadow-inner">
+										<div class="w-full {isPlayerFullscreen ? 'flex-1 min-h-[75vh]' : 'h-80 md:h-[420px]'} rounded-2xl overflow-hidden bg-black/5 dark:bg-black/30 border border-slate-200 dark:border-slate-800 shadow-inner">
 											<iframe
 												src={embedSrc}
 												title={currentModule.title}
@@ -8743,10 +8802,38 @@
 							<!-- Hidden Inputs untuk Payload Form -->
 							<input type="hidden" name="materialMode" value={createMaterialMode} />
 							<input type="hidden" name="modulesJson" value={JSON.stringify(createModulesList)} />
+							<input type="hidden" name="singleMaterialType" value={createCourseSingleMaterialType} />
 
 							<!-- KONTEN MODE 1: MATERI TUNGGAL -->
 							{#if createMaterialMode === 'SINGLE'}
 								<div class="p-3.5 rounded-2xl bg-surface border border-slate-200 dark:border-slate-700 space-y-3">
+									<!-- Pilihan Tipe Format Materi -->
+									<div>
+										<label class="font-bold text-on-surface block text-xs mb-1.5">Tipe Format Materi</label>
+										<div class="grid grid-cols-2 gap-2">
+											<button
+												type="button"
+												onclick={() => (createCourseSingleMaterialType = 'DOCUMENT')}
+												class="p-2 rounded-xl border text-xs font-bold flex items-center justify-center gap-2 cursor-pointer transition-all {createCourseSingleMaterialType === 'DOCUMENT'
+													? 'bg-rose-50 border-rose-300 text-rose-700 dark:bg-rose-950/40 dark:border-rose-800 dark:text-rose-300 ring-2 ring-rose-500/20'
+													: 'bg-surface-container-low border-slate-200 dark:border-slate-800 text-on-surface-variant hover:text-on-surface'}"
+											>
+												<span class="material-symbols-outlined text-sm text-rose-600">picture_as_pdf</span>
+												<span>Dokumen / PDF (Tanpa Durasi)</span>
+											</button>
+											<button
+												type="button"
+												onclick={() => (createCourseSingleMaterialType = 'VIDEO')}
+												class="p-2 rounded-xl border text-xs font-bold flex items-center justify-center gap-2 cursor-pointer transition-all {createCourseSingleMaterialType === 'VIDEO'
+													? 'bg-blue-50 border-blue-300 text-blue-700 dark:bg-blue-950/40 dark:border-blue-800 dark:text-blue-300 ring-2 ring-blue-500/20'
+													: 'bg-surface-container-low border-slate-200 dark:border-slate-800 text-on-surface-variant hover:text-on-surface'}"
+											>
+												<span class="material-symbols-outlined text-sm text-blue-600">smart_display</span>
+												<span>Video (Dengan Durasi)</span>
+											</button>
+										</div>
+									</div>
+
 									<div>
 										<div class="flex items-center justify-between mb-1">
 											<label class="font-bold text-on-surface flex items-center gap-1.5 text-xs">
@@ -8761,6 +8848,13 @@
 												type="url"
 												name="materialUrl"
 												bind:value={createCourseMaterialUrl}
+												oninput={() => {
+													if (createCourseMaterialUrl.includes('youtube.com') || createCourseMaterialUrl.includes('youtu.be')) {
+														createCourseSingleMaterialType = 'VIDEO';
+													} else if (createCourseMaterialUrl.includes('drive.google.com') || createCourseMaterialUrl.includes('docs.google.com') || createCourseMaterialUrl.endsWith('.pdf')) {
+														createCourseSingleMaterialType = 'DOCUMENT';
+													}
+												}}
 												placeholder="https://www.youtube.com/watch?v=... atau Google Drive share link"
 												class="w-full px-3 py-2 rounded-xl bg-surface-container-low border border-slate-200 dark:border-slate-700 text-xs text-on-surface font-mono"
 											/>
@@ -8781,21 +8875,30 @@
 											<span class="text-[10px] text-slate-400">Contoh format:</span>
 											<button
 												type="button"
-												onclick={() => (createCourseMaterialUrl = 'https://www.youtube.com/watch?v=dQw4w9WgXcQ')}
+												onclick={() => {
+													createCourseMaterialUrl = 'https://www.youtube.com/watch?v=dQw4w9WgXcQ';
+													createCourseSingleMaterialType = 'VIDEO';
+												}}
 												class="px-2 py-0.5 rounded text-[10px] bg-red-100 dark:bg-red-950/60 text-red-600 dark:text-red-400 font-medium hover:underline cursor-pointer"
 											>
 												YouTube Video
 											</button>
 											<button
 												type="button"
-												onclick={() => (createCourseMaterialUrl = 'https://docs.google.com/presentation/d/e/sample/pub?start=false')}
+												onclick={() => {
+													createCourseMaterialUrl = 'https://docs.google.com/presentation/d/e/sample/pub?start=false';
+													createCourseSingleMaterialType = 'DOCUMENT';
+												}}
 												class="px-2 py-0.5 rounded text-[10px] bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-400 font-medium hover:underline cursor-pointer"
 											>
 												Google Slides
 											</button>
 											<button
 												type="button"
-												onclick={() => (createCourseMaterialUrl = 'https://drive.google.com/file/d/sample/preview')}
+												onclick={() => {
+													createCourseMaterialUrl = 'https://drive.google.com/file/d/sample/preview';
+													createCourseSingleMaterialType = 'DOCUMENT';
+												}}
 												class="px-2 py-0.5 rounded text-[10px] bg-blue-100 dark:bg-blue-950/60 text-blue-700 dark:text-blue-400 font-medium hover:underline cursor-pointer"
 											>
 												Drive PDF
