@@ -140,6 +140,23 @@ services:
   #   networks:
   #     - erp_network
 
+  # 9. BCS Academy Employee Portal (SvelteKit)
+  academy_frontend:
+    image: ghcr.io/it-bcs-tech/bcs-academy-frontend:latest
+    container_name: academy_frontend
+    ports:
+      - "3005:3000"
+    restart: always
+    environment:
+      - NODE_ENV=production
+      - TZ=Asia/Jakarta
+      - ORIGIN=http://academy.bcslabs.tech
+      - DATABASE_URL=postgresql://bcs_admin:sangatrahasia@database:5432/mybcs_db
+    networks:
+      - erp_network
+    depends_on:
+      - database
+
 # Definisi Jaringan Internal (Agar antar container bisa saling memanggil nama)
 networks:
   erp_network:

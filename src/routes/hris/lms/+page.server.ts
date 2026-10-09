@@ -1113,8 +1113,10 @@ export const actions = {
 			// Update status kelulusan enrollment peserta
 			await sql`
 				UPDATE hris.lms_enrollments
-				SET status = 'COMPLETED', progress = 100, updated_at = CURRENT_TIMESTAMP
-				WHERE course_id = ${courseId} AND payroll_id = ${payrollId};
+				SET status = 'COMPLETED',
+				    progress_percent = 100,
+				    completed_at = CURRENT_TIMESTAMP
+				WHERE course_id = ${courseId} AND UPPER(payroll_id) = ${payrollId.toUpperCase()};
 			`;
 
 			// Cari direct supervisor dari karyawan
