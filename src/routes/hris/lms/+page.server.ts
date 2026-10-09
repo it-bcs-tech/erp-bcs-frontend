@@ -536,7 +536,9 @@ export const actions = {
 		const costTrainer = Number(formData.get('costTrainer')) || (trainerType === 'Internal' ? 500000 : 2500000);
 		const costTrainee = Number(formData.get('costTrainee')) || 0;
 		const division = formData.get('division')?.toString().trim() || formData.get('department')?.toString().trim() || 'All Dept';
+		const materialMode = formData.get('materialMode')?.toString().trim() || 'SINGLE';
 		const materialUrl = formData.get('materialUrl')?.toString().trim() || '';
+		const modulesJsonRaw = formData.get('modulesJson')?.toString().trim() || '[]';
 		const repEmployeesRaw = formData.get('representativeEmployees')?.toString().trim() || '[]';
 		const preTestRaw = formData.get('preTestQuestions')?.toString().trim() || '[]';
 		const postTestRaw = formData.get('postTestQuestions')?.toString().trim() || '[]';
@@ -590,27 +592,75 @@ export const actions = {
 		}
 
 		const id = `CRS-${category.substring(0, 3).toUpperCase()}-${Date.now().toString().slice(-4)}`;
-		const formattedMaterialUrl = materialUrl ? formatEmbedUrl(materialUrl) : null;
+
+		// Proses modul materi berdasarkan materialMode (SINGLE vs MULTI)
+		interface ModuleItemToInsert {
+			title: string;
+			type: string;
+			contentUrl: string | null;
+			durationText: string;
+			contentBody: string | null;
+		}
+
+		let modulesToInsert: ModuleItemToInsert[] = [];
+
+		if (materialMode === 'MULTI') {
+			try {
+				const parsed = JSON.parse(modulesJsonRaw);
+				if (Array.isArray(parsed) && parsed.length > 0) {
+					modulesToInsert = parsed
+						.filter((m: any) => m && m.title?.trim())
+						.map((m: any) => ({
+							title: m.title.trim(),
+							type: m.type || 'VIDEO',
+							contentUrl: m.contentUrl?.trim() ? formatEmbedUrl(m.contentUrl.trim()) : null,
+							durationText: m.durationMinutes ? `${m.durationMinutes} Menit` : '15 Menit',
+							contentBody: m.contentBody?.trim() || null
+						}));
+				}
+			} catch (e) {
+				console.error('Error parsing modulesJson in createCourse:', e);
+			}
+		}
+
+		if (modulesToInsert.length === 0) {
+			const formattedMaterialUrl = materialUrl ? formatEmbedUrl(materialUrl) : null;
+			modulesToInsert = [
+				{
+					title: 'Materi Utama Pelatihan',
+					type: 'VIDEO',
+					contentUrl: formattedMaterialUrl,
+					durationText: `${Math.round(durationHours * 60)} Menit`,
+					contentBody: description || 'Silakan pelajari materi pelatihan yang disematkan berikut ini.'
+				}
+			];
+		}
+
+		const realModulesCount = modulesToInsert.length;
 
 		try {
 			await sql`
 				INSERT INTO hris.lms_courses (
-					id, title, category, based, level, status, duration_hours, instructor,
+					id, title, category, based, level, status, duration_hours, modules_count, instructor,
 					trainer_type, cost_trainer, cost_trainee, department, description, tags, passing_grade
 				) VALUES (
-					${id}, ${title}, ${category}, ${based}, ${level}, 'Published', ${durationHours}, ${instructor},
+					${id}, ${title}, ${category}, ${based}, ${level}, 'Published', ${durationHours}, ${realModulesCount}, ${instructor},
 					${trainerType}, ${costTrainer}, ${costTrainee}, ${division}, ${description}, ${tags}, ${passingGrade}
 				);
 			`;
 
-			// Tambah modul default agar kursus langsung dapat diakses
-			await sql`
-				INSERT INTO hris.lms_modules (id, course_id, sequence, title, type, duration_text, content_url, content_body)
-				VALUES
-					(${`${id}-M1`}, ${id}, 1, 'Materi Utama Pelatihan', 'VIDEO', '30 Menit', ${formattedMaterialUrl}, ${description || 'Silakan pelajari materi pelatihan yang disematkan berikut ini.'}),
-					(${`${id}-M2`}, ${id}, 2, 'SOP & Prosedur Keselamatan Kerja', 'DOCUMENT', '30 Menit', null, 'Dokumen standar operasional prosedur terkait materi ini.'),
-					(${`${id}-M3`}, ${id}, 3, 'Evaluasi Akhir & Post-Test Kelulusan', 'QUIZ', '20 Menit', null, 'Kuis kelulusan materi.');
-			`;
+			// Simpan modul riil ke hris.lms_modules (tanpa modul dummy kosong)
+			for (let i = 0; i < modulesToInsert.length; i++) {
+				const mod = modulesToInsert[i];
+				const moduleId = `${id}-M${i + 1}`;
+				await sql`
+					INSERT INTO hris.lms_modules (id, course_id, sequence, title, type, duration_text, content_url, content_body)
+					VALUES (
+						${moduleId}, ${id}, ${i + 1}, ${mod.title}, ${mod.type},
+						${mod.durationText}, ${mod.contentUrl}, ${mod.contentBody}
+					);
+				`;
+			}
 
 			// Simpan butir soal Pre-Test dinamis (MCQ / ESSAY)
 			for (const q of validPreTest) {
@@ -632,7 +682,7 @@ export const actions = {
 				await sql`
 					INSERT INTO hris.lms_quiz_questions (course_id, module_id, quiz_type, question_type, question_text, options, correct_key, explanation)
 					VALUES (
-						${id}, ${`${id}-M3`}, 'POST_TEST', ${isEssay ? 'ESSAY' : 'MCQ'}, ${q.questionText.trim()},
+						${id}, ${`${id}-M${realModulesCount}`}, 'POST_TEST', ${isEssay ? 'ESSAY' : 'MCQ'}, ${q.questionText.trim()},
 						${JSON.stringify(cleanOptions)}::jsonb, ${isEssay ? 'ESSAY' : (q.correctKey || 'A')}, ${q.explanation?.trim() || (isEssay ? 'Jawaban uraian / manual review.' : 'Evaluasi post-test kelulusan materi.')}
 					);
 				`;
@@ -655,7 +705,7 @@ export const actions = {
 								completed_modules_count, total_modules_count, is_tna_gap
 							) VALUES (
 								${id}, ${emp.payrollId}, ${emp.name || emp.payrollId}, 'ENROLLED', 0,
-								0, 3, false
+								0, ${realModulesCount}, false
 							) ON CONFLICT (course_id, payroll_id) DO NOTHING;
 						`;
 					}

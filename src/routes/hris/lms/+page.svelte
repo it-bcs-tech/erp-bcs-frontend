@@ -861,6 +861,47 @@
 	let createCourseMaterialUrl = $state('');
 	let showMaterialPreview = $state(true);
 
+	// 2 Mode Materi Modul Pelatihan (SINGLE: 1 Link vs MULTI: Pecahan Bab Dinamis)
+	let createMaterialMode = $state<'SINGLE' | 'MULTI'>('SINGLE');
+	interface CourseModuleInput {
+		id: string;
+		title: string;
+		type: 'VIDEO' | 'DOCUMENT' | 'INTERACTIVE';
+		contentUrl: string;
+		durationMinutes: number;
+		contentBody: string;
+	}
+	let createModulesList = $state<CourseModuleInput[]>([
+		{
+			id: 'mod-1',
+			title: 'Materi Utama Pelatihan',
+			type: 'VIDEO',
+			contentUrl: '',
+			durationMinutes: 30,
+			contentBody: ''
+		}
+	]);
+
+	function addModuleInput() {
+		createModulesList = [
+			...createModulesList,
+			{
+				id: `mod-${Date.now()}`,
+				title: `Bab ${createModulesList.length + 1}: `,
+				type: 'VIDEO',
+				contentUrl: '',
+				durationMinutes: 15,
+				contentBody: ''
+			}
+		];
+	}
+
+	function removeModuleInput(index: number) {
+		if (createModulesList.length > 1) {
+			createModulesList = createModulesList.filter((_, idx) => idx !== index);
+		}
+	}
+
 	let divisionEmployees = $derived(
 		createCourseDivision
 			? activeEmployees.filter(
@@ -1150,6 +1191,17 @@
 		createCourseQuota = 30;
 		createCourseMaterialUrl = '';
 		showMaterialPreview = true;
+		createMaterialMode = 'SINGLE';
+		createModulesList = [
+			{
+				id: 'mod-1',
+				title: 'Materi Utama Pelatihan',
+				type: 'VIDEO',
+				contentUrl: '',
+				durationMinutes: 30,
+				contentBody: ''
+			}
+		];
 		preTestQuestionsList = [
 			{
 				id: 'pre-1',
@@ -8642,8 +8694,8 @@
 					<!-- ══════════════════════════════════════════════════════════════ -->
 					<!-- LANGKAH 4: MATERI PELATIHAN & DURASI                         -->
 					<!-- ══════════════════════════════════════════════════════════════ -->
-					<div class={createModalStep === 4 ? 'space-y-3.5' : 'hidden'}>
-						<div class="p-3.5 rounded-2xl bg-surface-container-low border border-slate-200 dark:border-slate-800 space-y-3">
+					<div class={createModalStep === 4 ? 'space-y-4' : 'hidden'}>
+						<div class="p-3.5 rounded-2xl bg-surface-container-low border border-slate-200 dark:border-slate-800 space-y-3.5">
 							<div class="grid grid-cols-2 gap-3">
 								<div>
 									<label class="font-bold text-on-surface block mb-1">Durasi Total (Jam)</label>
@@ -8656,98 +8708,240 @@
 								</div>
 							</div>
 
-							<div>
-								<div class="flex items-center justify-between mb-1">
-									<label class="font-bold text-on-surface flex items-center gap-1.5">
-										<span class="material-symbols-outlined text-sm text-primary">link</span>
-										<span>Link Materi Pembelajaran (Embed Iframe)</span>
-									</label>
-									<span class="text-[10px] text-slate-400">YouTube, Google Drive/Docs, Loom, Canva, PDF</span>
+							<!-- PILIHAN 2 MODE STRUKTUR MATERI -->
+							<div class="space-y-1.5">
+								<label class="font-bold text-on-surface block text-xs">Pilih Format Struktur Materi</label>
+								<div class="grid grid-cols-2 gap-2 p-1 rounded-2xl bg-surface-container border border-slate-200 dark:border-slate-800">
+									<button
+										type="button"
+										onclick={() => (createMaterialMode = 'SINGLE')}
+										class="py-2.5 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer {createMaterialMode === 'SINGLE'
+											? 'bg-primary text-on-primary shadow-xs font-black'
+											: 'text-on-surface-variant hover:text-on-surface'}"
+									>
+										<span class="material-symbols-outlined text-base">link</span>
+										<span>Materi Tunggal (1 Link)</span>
+									</button>
+									<button
+										type="button"
+										onclick={() => (createMaterialMode = 'MULTI')}
+										class="py-2.5 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer {createMaterialMode === 'MULTI'
+											? 'bg-primary text-on-primary shadow-xs font-black'
+											: 'text-on-surface-variant hover:text-on-surface'}"
+									>
+										<span class="material-symbols-outlined text-base">format_list_bulleted</span>
+										<span>Multi-Modul (Pecahan Bab)</span>
+									</button>
 								</div>
+								<p class="text-[11px] text-slate-400">
+									{createMaterialMode === 'SINGLE'
+										? 'Praktis: Cukup 1 link utama (YouTube, Drive, Docs, atau PDF). Sistem hanya menyimpan 1 modul riil tanpa bab dummy kosong.'
+										: 'Fleksibel: Pecah materi menjadi beberapa bab terpisah (video materi, dokumen SOP, panduan teknis) dengan judul & durasi masing-masing.'}
+								</p>
+							</div>
 
-								<div class="flex items-center gap-2">
-									<input
-										type="url"
-										name="materialUrl"
-										bind:value={createCourseMaterialUrl}
-										placeholder="https://www.youtube.com/watch?v=... atau Google Drive share link"
-										class="w-full px-3 py-2 rounded-xl bg-surface border border-slate-200 dark:border-slate-700 text-xs text-on-surface font-mono"
-									/>
-									{#if createCourseMaterialUrl}
-										<button
-											type="button"
-											onclick={() => (showMaterialPreview = !showMaterialPreview)}
-											class="px-3 py-2 rounded-xl bg-surface-container hover:bg-surface-container-high text-xs font-bold text-primary shrink-0 flex items-center gap-1 cursor-pointer"
-										>
-											<span class="material-symbols-outlined text-xs">{showMaterialPreview ? 'visibility_off' : 'visibility'}</span>
-											<span>{showMaterialPreview ? 'Tutup Preview' : 'Lihat'}</span>
-										</button>
+							<!-- Hidden Inputs untuk Payload Form -->
+							<input type="hidden" name="materialMode" value={createMaterialMode} />
+							<input type="hidden" name="modulesJson" value={JSON.stringify(createModulesList)} />
+
+							<!-- KONTEN MODE 1: MATERI TUNGGAL -->
+							{#if createMaterialMode === 'SINGLE'}
+								<div class="p-3.5 rounded-2xl bg-surface border border-slate-200 dark:border-slate-700 space-y-3">
+									<div>
+										<div class="flex items-center justify-between mb-1">
+											<label class="font-bold text-on-surface flex items-center gap-1.5 text-xs">
+												<span class="material-symbols-outlined text-sm text-primary">smart_display</span>
+												<span>Link Materi Pembelajaran (Embed Iframe)</span>
+											</label>
+											<span class="text-[10px] text-slate-400">YouTube, Google Drive/Docs, Loom, Canva, PDF</span>
+										</div>
+
+										<div class="flex items-center gap-2">
+											<input
+												type="url"
+												name="materialUrl"
+												bind:value={createCourseMaterialUrl}
+												placeholder="https://www.youtube.com/watch?v=... atau Google Drive share link"
+												class="w-full px-3 py-2 rounded-xl bg-surface-container-low border border-slate-200 dark:border-slate-700 text-xs text-on-surface font-mono"
+											/>
+											{#if createCourseMaterialUrl}
+												<button
+													type="button"
+													onclick={() => (showMaterialPreview = !showMaterialPreview)}
+													class="px-3 py-2 rounded-xl bg-surface-container hover:bg-surface-container-high text-xs font-bold text-primary shrink-0 flex items-center gap-1 cursor-pointer"
+												>
+													<span class="material-symbols-outlined text-xs">{showMaterialPreview ? 'visibility_off' : 'visibility'}</span>
+													<span>{showMaterialPreview ? 'Tutup Preview' : 'Lihat'}</span>
+												</button>
+											{/if}
+										</div>
+
+										<!-- Quick Link Templates -->
+										<div class="flex flex-wrap items-center gap-1.5 mt-2">
+											<span class="text-[10px] text-slate-400">Contoh format:</span>
+											<button
+												type="button"
+												onclick={() => (createCourseMaterialUrl = 'https://www.youtube.com/watch?v=dQw4w9WgXcQ')}
+												class="px-2 py-0.5 rounded text-[10px] bg-red-100 dark:bg-red-950/60 text-red-600 dark:text-red-400 font-medium hover:underline cursor-pointer"
+											>
+												YouTube Video
+											</button>
+											<button
+												type="button"
+												onclick={() => (createCourseMaterialUrl = 'https://docs.google.com/presentation/d/e/sample/pub?start=false')}
+												class="px-2 py-0.5 rounded text-[10px] bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-400 font-medium hover:underline cursor-pointer"
+											>
+												Google Slides
+											</button>
+											<button
+												type="button"
+												onclick={() => (createCourseMaterialUrl = 'https://drive.google.com/file/d/sample/preview')}
+												class="px-2 py-0.5 rounded text-[10px] bg-blue-100 dark:bg-blue-950/60 text-blue-700 dark:text-blue-400 font-medium hover:underline cursor-pointer"
+											>
+												Drive PDF
+											</button>
+										</div>
+									</div>
+
+									<!-- Live Preview Player jika URL diisi -->
+									{#if createCourseMaterialUrl && showMaterialPreview}
+										{@const embedSrc = formatEmbedUrl(createCourseMaterialUrl)}
+										{@const platform = detectEmbedPlatform(createCourseMaterialUrl)}
+										<div class="mt-2 rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-800 bg-black/5 dark:bg-black/40">
+											<div class="p-2.5 bg-surface-container flex items-center justify-between text-xs">
+												<div class="flex items-center gap-2">
+													<span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+													<span class="font-bold text-on-surface">Pratinjau Materi ({platform.name})</span>
+												</div>
+												<a
+													href={createCourseMaterialUrl}
+													target="_blank"
+													rel="noopener noreferrer"
+													class="text-primary hover:underline text-[11px] flex items-center gap-1"
+												>
+													<span>Buka Link Asli</span>
+													<span class="material-symbols-outlined text-xs">open_in_new</span>
+												</a>
+											</div>
+											<div class="relative w-full aspect-video bg-black/90">
+												{#if embedSrc}
+													<iframe
+														src={embedSrc}
+														title="Preview Materi Pembelajaran"
+														class="w-full h-full border-0"
+														allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+														allowfullscreen
+													></iframe>
+												{:else}
+													<div class="w-full h-full flex flex-col items-center justify-center text-slate-400 p-6 text-center">
+														<span class="material-symbols-outlined text-3xl mb-2">broken_image</span>
+														<p class="text-xs">Format URL tidak dapat di-embed langsung sebagai iframe.</p>
+														<p class="text-[11px] text-slate-500 mt-1">Gunakan link YouTube, Google Drive/Slides, Vimeo, atau file PDF publik.</p>
+													</div>
+												{/if}
+											</div>
+										</div>
 									{/if}
 								</div>
 
-								<!-- Quick Link Templates -->
-								<div class="flex flex-wrap items-center gap-1.5 mt-2">
-									<span class="text-[10px] text-slate-400">Contoh format:</span>
-									<button
-										type="button"
-										onclick={() => (createCourseMaterialUrl = 'https://www.youtube.com/watch?v=dQw4w9WgXcQ')}
-										class="px-2 py-0.5 rounded text-[10px] bg-red-100 dark:bg-red-950/60 text-red-600 dark:text-red-400 font-medium hover:underline"
-									>
-										YouTube Video
-									</button>
-									<button
-										type="button"
-										onclick={() => (createCourseMaterialUrl = 'https://docs.google.com/presentation/d/e/sample/pub?start=false')}
-										class="px-2 py-0.5 rounded text-[10px] bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-400 font-medium hover:underline"
-									>
-										Google Slides
-									</button>
-									<button
-										type="button"
-										onclick={() => (createCourseMaterialUrl = 'https://drive.google.com/file/d/sample/preview')}
-										class="px-2 py-0.5 rounded text-[10px] bg-blue-100 dark:bg-blue-950/60 text-blue-700 dark:text-blue-400 font-medium hover:underline"
-									>
-										Drive PDF
-									</button>
-								</div>
-							</div>
-
-							<!-- Live Preview Player jika URL diisi -->
-							{#if createCourseMaterialUrl && showMaterialPreview}
-								{@const embedSrc = formatEmbedUrl(createCourseMaterialUrl)}
-								{@const platform = detectEmbedPlatform(createCourseMaterialUrl)}
-								<div class="mt-2 rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-800 bg-black/5 dark:bg-black/40">
-									<div class="p-2.5 bg-surface-container flex items-center justify-between text-xs">
-										<div class="flex items-center gap-2">
-											<span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-											<span class="font-bold text-on-surface">Pratinjau Materi ({platform})</span>
-										</div>
-										<a
-											href={createCourseMaterialUrl}
-											target="_blank"
-											rel="noopener noreferrer"
-											class="text-primary hover:underline text-[11px] flex items-center gap-1"
+							<!-- KONTEN MODE 2: MULTI-MODUL (PECAHAN BAB DINAMIS) -->
+							{:else}
+								<div class="space-y-3">
+									<div class="flex items-center justify-between">
+										<p class="text-xs font-bold text-on-surface">Daftar Bab & Modul Pembelajaran ({createModulesList.length} Bab)</p>
+										<button
+											type="button"
+											onclick={addModuleInput}
+											class="px-3 py-1.5 rounded-xl bg-primary/10 hover:bg-primary/20 text-primary text-xs font-bold flex items-center gap-1 cursor-pointer transition-all"
 										>
-											<span>Buka Link Asli</span>
-											<span class="material-symbols-outlined text-xs">open_in_new</span>
-										</a>
+											<span class="material-symbols-outlined text-xs">add_circle</span>
+											<span>Tambah Bab Baru</span>
+										</button>
 									</div>
-									<div class="relative w-full aspect-video bg-black/90">
-										{#if embedSrc}
-											<iframe
-												src={embedSrc}
-												title="Preview Materi Pembelajaran"
-												class="w-full h-full border-0"
-												allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-												allowfullscreen
-											></iframe>
-										{:else}
-											<div class="w-full h-full flex flex-col items-center justify-center text-slate-400 p-6 text-center">
-												<span class="material-symbols-outlined text-3xl mb-2">broken_image</span>
-												<p class="text-xs">Format URL tidak dapat di-embed langsung sebagai iframe.</p>
-												<p class="text-[11px] text-slate-500 mt-1">Gunakan link YouTube, Google Drive/Slides, Vimeo, atau file PDF publik.</p>
+
+									<div class="space-y-3">
+										{#each createModulesList as mod, idx (mod.id || idx)}
+											<div class="p-3.5 rounded-2xl bg-surface border border-slate-200 dark:border-slate-700 space-y-3 shadow-xs">
+												<div class="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-2">
+													<div class="flex items-center gap-2">
+														<span class="w-6 h-6 rounded-lg bg-primary/10 text-primary font-black text-xs flex items-center justify-center">
+															{idx + 1}
+														</span>
+														<span class="text-xs font-black text-on-surface">Bab {idx + 1}</span>
+													</div>
+
+													<div class="flex items-center gap-2">
+														{#if createModulesList.length > 1}
+															<button
+																type="button"
+																onclick={() => removeModuleInput(idx)}
+																class="text-rose-500 hover:text-rose-700 p-1 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-all cursor-pointer"
+																title="Hapus Bab Ini"
+															>
+																<span class="material-symbols-outlined text-base">delete</span>
+															</button>
+														{/if}
+													</div>
+												</div>
+
+												<div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+													<div class="sm:col-span-2">
+														<label class="text-[11px] font-bold text-on-surface block mb-1">Judul Bab / Topik</label>
+														<input
+															type="text"
+															bind:value={mod.title}
+															placeholder="Contoh: Bab 1: Pengenalan Safety & Regulasi"
+															class="w-full px-3 py-2 rounded-xl bg-surface-container-low border border-slate-200 dark:border-slate-700 text-xs text-on-surface"
+														/>
+													</div>
+
+													<div>
+														<label class="text-[11px] font-bold text-on-surface block mb-1">Tipe Materi</label>
+														<select
+															bind:value={mod.type}
+															class="w-full px-3 py-2 rounded-xl bg-surface-container-low border border-slate-200 dark:border-slate-700 text-xs text-on-surface"
+														>
+															<option value="VIDEO">Video (Drive / YouTube)</option>
+															<option value="DOCUMENT">Dokumen SOP / PDF</option>
+															<option value="INTERACTIVE">Interaktif / Praktik</option>
+														</select>
+													</div>
+												</div>
+
+												<div class="grid grid-cols-1 sm:grid-cols-4 gap-2.5">
+													<div class="sm:col-span-3">
+														<label class="text-[11px] font-bold text-on-surface block mb-1">Link URL Media / Iframe (Opsional)</label>
+														<input
+															type="url"
+															bind:value={mod.contentUrl}
+															placeholder="Link Google Drive, YouTube, Docs, atau PDF"
+															class="w-full px-3 py-2 rounded-xl bg-surface-container-low border border-slate-200 dark:border-slate-700 text-xs font-mono text-on-surface"
+														/>
+													</div>
+
+													<div>
+														<label class="text-[11px] font-bold text-on-surface block mb-1">Durasi (Menit)</label>
+														<input
+															type="number"
+															bind:value={mod.durationMinutes}
+															min="5"
+															step="5"
+															class="w-full px-3 py-2 rounded-xl bg-surface-container-low border border-slate-200 dark:border-slate-700 text-xs font-mono text-on-surface"
+														/>
+													</div>
+												</div>
+
+												<div>
+													<label class="text-[11px] font-bold text-on-surface block mb-1">Teks Catatan / SOP Tertulis (Opsional)</label>
+													<textarea
+														bind:value={mod.contentBody}
+														rows="2"
+														placeholder="Tuliskan poin panduan, SOP, instruksi kerja, atau ringkasan bab ini..."
+														class="w-full px-3 py-2 rounded-xl bg-surface-container-low border border-slate-200 dark:border-slate-700 text-xs text-on-surface"
+													></textarea>
+												</div>
 											</div>
-										{/if}
+										{/each}
 									</div>
 								</div>
 							{/if}
