@@ -1510,6 +1510,44 @@
 		selectedCompStandards = initial;
 	}
 
+	let showAllJobStandardDivisions = $state(false);
+
+	// Divisi terkait untuk jabatan yang sedang dipilih di form (Hanya divisi yang mempekerjakan jabatan ini)
+	const relatedDivisionsForPosition = $derived.by(() => {
+		if (!jobStandardForm.positionTitle) return divisions;
+		if (showAllJobStandardDivisions) return divisions;
+
+		const targetTitle = jobStandardForm.positionTitle.trim().toLowerCase();
+
+		// Ambil divisi dari data master/karyawan aktif yang memiliki jabatan ini
+		const fromEmployees = activeEmployees
+			.filter((e: any) => (e.positionTitle || '').toLowerCase() === targetTitle && (e.divisionName || e.department))
+			.map((e: any) => e.divisionName || e.department);
+
+		// Ambil divisi dari standar jabatan yang sudah tercatat
+		const fromStandards = jobStandards
+			.filter((j: any) => (j.positionTitle || '').toLowerCase() === targetTitle && (j.division || j.department))
+			.map((j: any) => j.division || j.department);
+
+		const uniqueNames = Array.from(new Set([...fromEmployees, ...fromStandards].filter(Boolean)));
+
+		if (uniqueNames.length === 0) {
+			return divisions;
+		}
+
+		const matched = divisions.filter((d: any) =>
+			uniqueNames.some((u) => u.toLowerCase() === d.name.toLowerCase())
+		);
+
+		uniqueNames.forEach((uName) => {
+			if (!matched.some((d: any) => d.name.toLowerCase() === uName.toLowerCase())) {
+				matched.push({ code: '', name: uName });
+			}
+		});
+
+		return matched;
+	});
+
 	// Divisi lain yang sudah memiliki standar untuk jabatan yang sedang dipilih di form
 	const availableTemplateDivisions = $derived.by(() => {
 		if (!jobStandardForm.positionTitle) return [];
@@ -1546,7 +1584,17 @@
 
 	function openJobStandardModal(positionTitle?: string, divisionName?: string) {
 		jobStandardForm.positionTitle = positionTitle || '';
-		jobStandardForm.division = divisionName || (divisions[0]?.name || 'OPERATION');
+		showAllJobStandardDivisions = false;
+
+		let initialDivision = divisionName;
+		if (!initialDivision && positionTitle) {
+			const targetTitle = positionTitle.trim().toLowerCase();
+			const empDiv = activeEmployees.find((e: any) => (e.positionTitle || '').toLowerCase() === targetTitle)?.divisionName;
+			const stdDiv = jobStandards.find((j: any) => (j.positionTitle || '').toLowerCase() === targetTitle)?.division;
+			initialDivision = empDiv || stdDiv;
+		}
+
+		jobStandardForm.division = initialDivision || (divisions[0]?.name || 'OPERATION');
 		selectedCompStandards = {};
 		compModalSearchQuery = '';
 		compModalSelectedAspect = 'All';
@@ -11124,10 +11172,17 @@
 							bind:value={jobStandardForm.positionTitle}
 							required
 							class="w-full px-3 py-2 rounded-xl bg-surface border border-slate-200 dark:border-slate-800 text-xs font-bold text-on-surface focus:ring-2 focus:ring-primary focus:outline-hidden"
-							placeholder="Pilih atau ketik jabatan, misal: STORAGE KEEPER"
+							placeholder="Pilih atau ketik posisi / jabatan..."
 							onchange={(e) => {
 								const val = (e.target as HTMLInputElement).value;
 								jobStandardForm.positionTitle = val;
+								showAllJobStandardDivisions = false;
+
+								const available = relatedDivisionsForPosition;
+								if (available.length > 0 && !available.some((d: any) => d.name.toLowerCase() === jobStandardForm.division.toLowerCase())) {
+									jobStandardForm.division = available[0].name;
+								}
+
 								loadStandardsForPositionAndDivision(jobStandardForm.positionTitle, jobStandardForm.division);
 							}}
 						/>
@@ -11139,7 +11194,18 @@
 					</div>
 
 					<div class="space-y-1">
-						<label class="font-bold text-slate-500 uppercase tracking-wider text-[10px]">Divisi Perusahaan *</label>
+						<div class="flex items-center justify-between">
+							<label class="font-bold text-slate-500 uppercase tracking-wider text-[10px]">Divisi Terkait Jabatan *</label>
+							{#if jobStandardForm.positionTitle && relatedDivisionsForPosition.length < divisions.length}
+								<button
+									type="button"
+									onclick={() => (showAllJobStandardDivisions = !showAllJobStandardDivisions)}
+									class="text-[10px] text-primary hover:underline cursor-pointer font-bold"
+								>
+									{showAllJobStandardDivisions ? 'Tampilkan Divisi Terkait Saja' : 'Lihat Semua Divisi'}
+								</button>
+							{/if}
+						</div>
 						<select
 							name="division"
 							bind:value={jobStandardForm.division}
@@ -11150,17 +11216,15 @@
 							}}
 							class="w-full px-3 py-2 rounded-xl bg-surface border border-slate-200 dark:border-slate-800 text-xs font-bold text-on-surface focus:ring-2 focus:ring-primary focus:outline-hidden"
 						>
-							{#each divisions as div}
-								<option value={div.name}>{div.name} ({div.code})</option>
+							{#each relatedDivisionsForPosition as div}
+								<option value={div.name}>{div.name} {div.code ? `(${div.code})` : ''}</option>
 							{/each}
-							{#if divisions.length === 0}
-								<option value="OPERATION">OPERATION (DV_41)</option>
-								<option value="HUMAN CAPITAL & DEVELOPMENT">HUMAN CAPITAL & DEVELOPMENT (DV_37)</option>
-								<option value="FINANCE">FINANCE (DV_36)</option>
-								<option value="QHSE">QHSE (DV_38)</option>
-								<option value="MAINTENANCE & ASSET">MAINTENANCE & ASSET (DV_18)</option>
-							{/if}
 						</select>
+						{#if jobStandardForm.positionTitle && !showAllJobStandardDivisions && relatedDivisionsForPosition.length > 0 && relatedDivisionsForPosition.length < divisions.length}
+							<p class="text-[10px] text-slate-400">
+								Menampilkan {relatedDivisionsForPosition.length} divisi yang terkait dengan posisi ini.
+							</p>
+						{/if}
 					</div>
 				</div>
 
