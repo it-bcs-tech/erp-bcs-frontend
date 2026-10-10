@@ -1490,6 +1490,60 @@
 		selectedCompStandards = {};
 	}
 
+	function loadStandardsForPositionAndDivision(title: string, div: string) {
+		const targetTitle = (title || '').trim().toLowerCase();
+		const targetDiv = (div || '').trim().toLowerCase();
+		if (!targetTitle) {
+			selectedCompStandards = {};
+			return;
+		}
+
+		const existing = jobStandards.filter((j: any) => 
+			j.positionTitle.toLowerCase() === targetTitle &&
+			(j.division || j.department || 'General').toLowerCase() === targetDiv
+		);
+
+		const initial: Record<string, { selected: boolean; requiredLevel: number }> = {};
+		existing.forEach((e: any) => {
+			initial[e.competencyCode] = { selected: true, requiredLevel: e.requiredLevel };
+		});
+		selectedCompStandards = initial;
+	}
+
+	// Divisi lain yang sudah memiliki standar untuk jabatan yang sedang dipilih di form
+	const availableTemplateDivisions = $derived.by(() => {
+		if (!jobStandardForm.positionTitle) return [];
+		const currentTitle = jobStandardForm.positionTitle.trim().toLowerCase();
+		const currentDiv = jobStandardForm.division.trim().toLowerCase();
+
+		return groupedJobStandards.filter((g) => 
+			g.positionTitle.toLowerCase() === currentTitle &&
+			g.division.toLowerCase() !== currentDiv &&
+			g.totalCompetencies > 0
+		);
+	});
+
+	function copyStandardsFromDivision(sourceDivision: string) {
+		const targetTitle = jobStandardForm.positionTitle.trim().toLowerCase();
+		const sourceDiv = sourceDivision.trim().toLowerCase();
+		const sourceComps = jobStandards.filter((j: any) => 
+			j.positionTitle.toLowerCase() === targetTitle &&
+			(j.division || j.department || 'General').toLowerCase() === sourceDiv
+		);
+
+		if (sourceComps.length === 0) {
+			notifyError('Salin Standar Gagal', `Tidak ditemukan butir kompetensi pada divisi ${sourceDivision}`);
+			return;
+		}
+
+		const copied: Record<string, { selected: boolean; requiredLevel: number }> = {};
+		sourceComps.forEach((e: any) => {
+			copied[e.competencyCode] = { selected: true, requiredLevel: e.requiredLevel };
+		});
+		selectedCompStandards = copied;
+		notifySuccess('Standar Disalin', `Berhasil menyalin ${sourceComps.length} kompetensi dari divisi ${sourceDivision}. Silakan sesuaikan target level atau butir kompetensi jika diperlukan.`);
+	}
+
 	function openJobStandardModal(positionTitle?: string, divisionName?: string) {
 		jobStandardForm.positionTitle = positionTitle || '';
 		jobStandardForm.division = divisionName || (divisions[0]?.name || 'OPERATION');
@@ -1498,10 +1552,7 @@
 		compModalSelectedAspect = 'All';
 
 		if (positionTitle) {
-			const existing = jobStandards.filter((j: any) => j.positionTitle.toLowerCase() === positionTitle.toLowerCase());
-			existing.forEach((e: any) => {
-				selectedCompStandards[e.competencyCode] = { selected: true, requiredLevel: e.requiredLevel };
-			});
+			loadStandardsForPositionAndDivision(jobStandardForm.positionTitle, jobStandardForm.division);
 		}
 
 		isJobStandardModalOpen = true;
@@ -11076,14 +11127,8 @@
 							placeholder="Pilih atau ketik jabatan, misal: STORAGE KEEPER"
 							onchange={(e) => {
 								const val = (e.target as HTMLInputElement).value;
-								if (val) {
-									const existing = jobStandards.filter((j: any) => j.positionTitle.toLowerCase() === val.toLowerCase());
-									if (existing.length > 0) {
-										existing.forEach((item: any) => {
-											selectedCompStandards[item.competencyCode] = { selected: true, requiredLevel: item.requiredLevel };
-										});
-									}
-								}
+								jobStandardForm.positionTitle = val;
+								loadStandardsForPositionAndDivision(jobStandardForm.positionTitle, jobStandardForm.division);
 							}}
 						/>
 						<datalist id="masterTitlesList">
@@ -11098,6 +11143,11 @@
 						<select
 							name="division"
 							bind:value={jobStandardForm.division}
+							onchange={(e) => {
+								const val = (e.target as HTMLSelectElement).value;
+								jobStandardForm.division = val;
+								loadStandardsForPositionAndDivision(jobStandardForm.positionTitle, jobStandardForm.division);
+							}}
 							class="w-full px-3 py-2 rounded-xl bg-surface border border-slate-200 dark:border-slate-800 text-xs font-bold text-on-surface focus:ring-2 focus:ring-primary focus:outline-hidden"
 						>
 							{#each divisions as div}
@@ -11113,6 +11163,40 @@
 						</select>
 					</div>
 				</div>
+
+				<!-- Banner Cerdas: Salin Standar dari Divisi Lain (Clone Template) -->
+				{#if availableTemplateDivisions.length > 0}
+					<div class="px-5 py-3 bg-gradient-to-r from-indigo-500/10 via-purple-500/10 to-primary/10 border-b border-indigo-500/20 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+						<div class="flex items-center gap-2 min-w-0">
+							<span class="material-symbols-outlined text-indigo-500 text-lg shrink-0">content_copy</span>
+							<div>
+								<p class="font-bold text-on-surface flex items-center gap-1.5">
+									<span>Template Standar Tersedia di Divisi Lain</span>
+									<span class="px-1.5 py-0.2 rounded-full text-[9px] font-black uppercase bg-indigo-100 text-indigo-800 dark:bg-indigo-950 dark:text-indigo-300">
+										{availableTemplateDivisions.length} Divisi
+									</span>
+								</p>
+								<p class="text-[11px] text-on-surface-variant">
+									Jabatan <strong class="text-indigo-600 dark:text-indigo-400">"{jobStandardForm.positionTitle}"</strong> sudah memiliki standar di divisi lain. Salin butir kompetensi sebagai draft untuk divisi <strong>{jobStandardForm.division}</strong>:
+								</p>
+							</div>
+						</div>
+
+						<div class="flex items-center gap-2 shrink-0 flex-wrap">
+							{#each availableTemplateDivisions as tmpl}
+								<button
+									type="button"
+									onclick={() => copyStandardsFromDivision(tmpl.division)}
+									class="px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-[11px] flex items-center gap-1.5 shadow-xs transition-all cursor-pointer"
+									title="Salin {tmpl.totalCompetencies} kompetensi dari divisi {tmpl.division}"
+								>
+									<span class="material-symbols-outlined text-xs">library_add</span>
+									<span>Salin dari {tmpl.division} ({tmpl.totalCompetencies} Komp)</span>
+								</button>
+							{/each}
+						</div>
+					</div>
+				{/if}
 
 				<!-- Area Tengah: Filter & Multi-Select Picker Kompetensi -->
 				<div class="p-5 flex flex-col flex-1 overflow-hidden space-y-3">

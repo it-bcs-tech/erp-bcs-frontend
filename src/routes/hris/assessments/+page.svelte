@@ -78,8 +78,20 @@
 	let subordinateStatusFilter = $state<'All' | 'Unassessed' | 'Assessed'>('All');
 
 	// Helper Status Asesmen Karyawan
-	function getEmployeeAssessmentStatus(payrollId: string, positionTitle: string) {
-		const requiredComps = jobStandards.filter((s: any) => s.positionTitle.toLowerCase() === positionTitle.toLowerCase());
+	function getEmployeeAssessmentStatus(payrollId: string, positionTitle: string, divisionName?: string) {
+		const posLower = positionTitle.toLowerCase();
+		const divLower = (divisionName || '').toLowerCase();
+
+		let requiredComps = jobStandards.filter((s: any) => {
+			if (s.positionTitle.toLowerCase() !== posLower) return false;
+			return divLower ? (s.division || s.department || '').toLowerCase() === divLower : true;
+		});
+
+		// Fallback jika divisi bersangkutan belum memiliki standar tersendiri
+		if (requiredComps.length === 0) {
+			requiredComps = jobStandards.filter((s: any) => s.positionTitle.toLowerCase() === posLower);
+		}
+
 		const assessedComps = existingAssessments.filter((a: any) => a.payrollId === payrollId && a.period === selectedPeriod);
 
 		const isAssessed = assessedComps.length > 0;
@@ -115,7 +127,7 @@
 
 			const matchPosition = subordinatePositionFilter === 'All' || emp.positionTitle === subordinatePositionFilter;
 
-			const status = getEmployeeAssessmentStatus(emp.payrollId, emp.positionTitle);
+			const status = getEmployeeAssessmentStatus(emp.payrollId, emp.positionTitle, emp.division);
 			let matchStatus = true;
 			if (subordinateStatusFilter === 'Unassessed') {
 				matchStatus = !status.isAssessed;
@@ -144,12 +156,23 @@
 		return allDirectSubordinates.find((e: any) => e.payrollId === selectedEmployeePayrollId) || null;
 	});
 
-	// Daftar Standar Kompetensi untuk Karyawan Terpilih
+	// Daftar Standar Kompetensi untuk Karyawan Terpilih (Mencocokkan Jabatan & Divisi dengan Fallback)
 	const selectedEmployeeCompetencies = $derived.by(() => {
 		if (!selectedEmployee) return [];
-		return jobStandards.filter((s: any) =>
-			s.positionTitle.toLowerCase() === selectedEmployee.positionTitle.toLowerCase()
-		);
+		const posLower = selectedEmployee.positionTitle.toLowerCase();
+		const divLower = (selectedEmployee.division || selectedEmployee.department || '').toLowerCase();
+
+		let matched = jobStandards.filter((s: any) => {
+			if (s.positionTitle.toLowerCase() !== posLower) return false;
+			return divLower ? (s.division || s.department || '').toLowerCase() === divLower : true;
+		});
+
+		// Fallback ke standar jabatan umum jika belum ada standar spesifik divisi
+		if (matched.length === 0) {
+			matched = jobStandards.filter((s: any) => s.positionTitle.toLowerCase() === posLower);
+		}
+
+		return matched;
 	});
 
 	// Kelompokkan Kompetensi Berdasarkan Aspek

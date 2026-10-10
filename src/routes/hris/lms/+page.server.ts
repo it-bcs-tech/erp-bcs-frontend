@@ -1552,6 +1552,19 @@ export const actions = {
 				return { success: false, message: 'Pilih minimal satu butir kompetensi wajib.' };
 			}
 
+			const submittedCodes = standards.map((s) => s.competencyCode.toUpperCase());
+
+			// 1. Bersihkan standar lama untuk (posisi, divisi) yang tidak ada dalam daftar terpilih
+			if (submittedCodes.length > 0) {
+				await sql`
+					DELETE FROM hris.lms_job_competencies
+					WHERE position_title = ${positionTitle}
+					  AND COALESCE(division, department) = ${division}
+					  AND competency_code NOT IN ${sql(submittedCodes)};
+				`;
+			}
+
+			// 2. Simpan atau perbarui standar kompetensi komposit (posisi + divisi)
 			for (const item of standards) {
 				const reqLevel = Math.min(5, Math.max(1, Number(item.requiredLevel) || 3));
 				await sql`
@@ -1560,9 +1573,8 @@ export const actions = {
 					) VALUES (
 						${positionTitle}, ${division}, ${division}, ${item.competencyCode.toUpperCase()}, ${reqLevel}
 					)
-					ON CONFLICT (position_title, competency_code) DO UPDATE SET
+					ON CONFLICT (position_title, division, competency_code) DO UPDATE SET
 						department = EXCLUDED.department,
-						division = EXCLUDED.division,
 						required_level = EXCLUDED.required_level;
 				`;
 			}
@@ -1595,12 +1607,11 @@ export const actions = {
 				) VALUES (
 					${positionTitle}, ${division}, ${division}, ${competencyCode}, ${requiredLevel}
 				)
-				ON CONFLICT (position_title, competency_code) DO UPDATE SET
+				ON CONFLICT (position_title, division, competency_code) DO UPDATE SET
 					department = EXCLUDED.department,
-					division = EXCLUDED.division,
 					required_level = EXCLUDED.required_level;
 			`;
-			return { success: true, message: `Standar jabatan ${positionTitle} untuk kompetensi [${competencyCode}] (Target Level: ${requiredLevel}) berhasil diperbarui.` };
+			return { success: true, message: `Standar jabatan ${positionTitle} (${division}) untuk kompetensi [${competencyCode}] (Target Level: ${requiredLevel}) berhasil diperbarui.` };
 		} catch (e: any) {
 			return { success: false, message: `Gagal menyimpan standar jabatan: ${e?.message || 'Error database'}` };
 		}
@@ -1912,6 +1923,7 @@ export const actions = {
 		const formData = await request.formData();
 		const positionTitle = formData.get('positionTitle')?.toString().trim();
 		const department = formData.get('department')?.toString().trim() || 'General';
+		const division = formData.get('division')?.toString().trim() || department;
 		const competenciesRaw = formData.get('competencies')?.toString();
 
 		if (!positionTitle || !competenciesRaw) {
@@ -1921,25 +1933,26 @@ export const actions = {
 		try {
 			const competencies: Array<{ code: string; requiredLevel: number }> = JSON.parse(competenciesRaw);
 
-			// Hapus standar lama untuk jabatan ini
+			// Hapus standar lama untuk kombinasi jabatan & divisi ini
 			await sql`
 				DELETE FROM hris.lms_job_competencies 
-				WHERE position_title = ${positionTitle};
+				WHERE position_title = ${positionTitle}
+				  AND COALESCE(division, department) = ${division};
 			`;
 
 			// Insert standar baru
 			for (const c of competencies) {
 				if (c.code && c.requiredLevel >= 1 && c.requiredLevel <= 5) {
 					await sql`
-						INSERT INTO hris.lms_job_competencies (position_title, department, competency_code, required_level)
-						VALUES (${positionTitle}, ${department}, ${c.code}, ${c.requiredLevel});
+						INSERT INTO hris.lms_job_competencies (position_title, department, division, competency_code, required_level)
+						VALUES (${positionTitle}, ${department}, ${division}, ${c.code}, ${c.requiredLevel});
 					`;
 				}
 			}
 
 			return {
 				success: true,
-				message: `Standar kompetensi untuk jabatan "${positionTitle}" berhasil diperbarui (${competencies.length} kompetensi tersimpan).`
+				message: `Standar kompetensi untuk jabatan "${positionTitle}" (Divisi: ${division}) berhasil diperbarui (${competencies.length} kompetensi tersimpan).`
 			};
 		} catch (e: any) {
 			logError('LMS_SAVE_JOB_COMPETENCIES_FAIL', e?.message);

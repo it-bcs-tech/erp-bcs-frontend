@@ -68,9 +68,11 @@ export const load: PageServerLoad = async ({ locals }) => {
 				k.nama_karyawan, 
 				k.title as title_code, 
 				t.title as position_title,
+				COALESCE(md.div_name, d.dept_name, 'General') as division_name,
 				COALESCE(d.dept_name, 'General') as department
 			FROM master.m_karyawan k
 			JOIN master.m_title t ON t.title_code = k.title
+			LEFT JOIN master.m_division md ON md.div_code = k.div_id
 			LEFT JOIN master.m_dept d ON d.dept_code = k.dept_id
 			WHERE k.aktif = 'Y'
 			ORDER BY k.nama_karyawan ASC;
@@ -78,11 +80,11 @@ export const load: PageServerLoad = async ({ locals }) => {
 
 		// 5. Ambil Standar Kompetensi Jabatan (hris.lms_job_competencies)
 		const jobStandards = await sql`
-			SELECT j.*, c.name as competency_name, c.aspect as competency_aspect, cr.title as default_course_title
+			SELECT j.*, COALESCE(j.division, j.department, 'General') as division_name, c.name as competency_name, c.aspect as competency_aspect, cr.title as default_course_title
 			FROM hris.lms_job_competencies j
 			JOIN hris.lms_competency_library c ON c.code = j.competency_code
 			LEFT JOIN hris.lms_courses cr ON cr.id = c.default_course_id
-			ORDER BY j.department, j.position_title, j.competency_code ASC;
+			ORDER BY COALESCE(j.division, j.department), j.position_title, j.competency_code ASC;
 		`;
 
 		// 6. Ambil Kamus Kompetensi Lengkap (171 items) untuk Rubrik Indikator Level 1-5
@@ -143,11 +145,13 @@ export const load: PageServerLoad = async ({ locals }) => {
 				name: e.nama_karyawan,
 				titleCode: e.title_code,
 				positionTitle: e.position_title,
+				division: e.division_name || e.department || 'General',
 				department: e.department
 			})),
 			jobStandards: jobStandards.map((j: any) => ({
 				id: j.id,
 				positionTitle: j.position_title,
+				division: j.division_name || j.division || j.department || 'General',
 				department: j.department,
 				competencyCode: j.competency_code,
 				competencyName: j.competency_name,
