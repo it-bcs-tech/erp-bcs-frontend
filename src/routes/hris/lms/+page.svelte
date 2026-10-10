@@ -1453,29 +1453,37 @@
 	});
 
 	function toggleModalCompSelection(code: string) {
-		if (!selectedCompStandards[code]) {
-			selectedCompStandards[code] = { selected: true, requiredLevel: 3 };
-		} else {
-			selectedCompStandards[code].selected = !selectedCompStandards[code].selected;
-		}
+		const current = selectedCompStandards[code];
+		const nextSelected = !current?.selected;
+		selectedCompStandards = {
+			...selectedCompStandards,
+			[code]: {
+				selected: nextSelected,
+				requiredLevel: current?.requiredLevel || 3
+			}
+		};
 	}
 
 	function setModalCompLevel(code: string, level: number) {
-		if (!selectedCompStandards[code]) {
-			selectedCompStandards[code] = { selected: true, requiredLevel: level };
-		} else {
-			selectedCompStandards[code].requiredLevel = level;
-		}
+		const current = selectedCompStandards[code];
+		selectedCompStandards = {
+			...selectedCompStandards,
+			[code]: {
+				selected: current?.selected ?? true,
+				requiredLevel: level
+			}
+		};
 	}
 
 	function selectAllFilteredModalComps() {
+		const updated = { ...selectedCompStandards };
 		filteredModalCompetencies.forEach((c: any) => {
-			if (!selectedCompStandards[c.code]) {
-				selectedCompStandards[c.code] = { selected: true, requiredLevel: 3 };
-			} else {
-				selectedCompStandards[c.code].selected = true;
-			}
+			updated[c.code] = {
+				selected: true,
+				requiredLevel: updated[c.code]?.requiredLevel || 3
+			};
 		});
+		selectedCompStandards = updated;
 	}
 
 	function clearAllModalComps() {
@@ -11164,18 +11172,29 @@
 
 					<!-- List Checklist Multi-Select: Satu Daftar Tunggal dengan Item Tercentang Otomatis Naik ke Atas -->
 					<div class="flex-1 overflow-y-auto divide-y divide-slate-200/60 dark:divide-slate-800/60 rounded-2xl border border-slate-200/60 dark:border-slate-800/60 bg-surface">
-						{#each filteredModalCompetencies as comp}
-							{@const isChecked = selectedCompStandards[comp.code]?.selected || false}
+						{#each filteredModalCompetencies as comp (comp.code)}
+							{@const isChecked = Boolean(selectedCompStandards[comp.code]?.selected)}
 							{@const currentLevel = selectedCompStandards[comp.code]?.requiredLevel || 3}
 							<div class="p-3 flex items-center justify-between gap-3 hover:bg-surface-container/40 transition-colors {isChecked ? 'bg-primary/5 dark:bg-primary/10 border-l-4 border-l-primary' : ''}">
-								<label class="flex items-center gap-3 cursor-pointer flex-1 min-w-0">
+								<div class="flex items-center gap-3 flex-1 min-w-0">
 									<input
 										type="checkbox"
+										id="chk-comp-{comp.code}"
 										checked={isChecked}
-										onchange={() => toggleModalCompSelection(comp.code)}
-										class="w-4 h-4 rounded-md border-slate-400 text-primary focus:ring-primary cursor-pointer"
+										onchange={(e) => {
+											e.stopPropagation();
+											toggleModalCompSelection(comp.code);
+										}}
+										class="w-4 h-4 rounded-md border-slate-400 text-primary focus:ring-primary cursor-pointer shrink-0"
 									/>
-									<div class="min-w-0">
+									<button
+										type="button"
+										onclick={(e) => {
+											e.stopPropagation();
+											toggleModalCompSelection(comp.code);
+										}}
+										class="text-left flex-1 min-w-0 cursor-pointer group"
+									>
 										<div class="flex items-center gap-2 flex-wrap">
 											<span class="px-1.5 py-0.5 rounded-md font-mono text-[10px] font-black shrink-0 {isChecked ? 'bg-primary text-on-primary' : 'bg-surface-container-high border border-slate-700 text-primary'}">
 												{comp.code}
@@ -11187,9 +11206,9 @@
 												</span>
 											{/if}
 										</div>
-										<p class="text-xs font-bold text-on-surface truncate">{comp.name}</p>
-									</div>
-								</label>
+										<p class="text-xs font-bold text-on-surface truncate group-hover:text-primary transition-colors mt-0.5">{comp.name}</p>
+									</button>
+								</div>
 
 								<!-- Dropdown Target Level untuk kompetensi ini -->
 								<div class="flex items-center gap-1.5 shrink-0">
@@ -11197,8 +11216,11 @@
 									<select
 										disabled={!isChecked}
 										value={currentLevel}
-										onchange={(e) => setModalCompLevel(comp.code, Number((e.target as HTMLSelectElement).value))}
-										class="px-2 py-1 rounded-lg text-xs font-mono font-bold border border-slate-200 dark:border-slate-700 bg-surface-container text-on-surface disabled:opacity-40 disabled:cursor-not-allowed"
+										onchange={(e) => {
+											e.stopPropagation();
+											setModalCompLevel(comp.code, Number((e.target as HTMLSelectElement).value));
+										}}
+										class="px-2 py-1 rounded-lg text-xs font-mono font-bold border border-slate-200 dark:border-slate-700 bg-surface-container text-on-surface disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
 									>
 										<option value={1}>L1 (SOP Dasar)</option>
 										<option value={2}>L2 (Mandiri)</option>
