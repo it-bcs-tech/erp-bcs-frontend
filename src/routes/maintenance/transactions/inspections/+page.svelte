@@ -82,10 +82,16 @@
 			</h1>
 		</div>
 
-		<a href="/maintenance/transactions/inspections/create" class="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-primary text-on-primary font-bold text-sm shadow-sm hover:opacity-95 transition-all">
-			<span class="material-symbols-outlined text-[18px]">add_task</span>
-			<span>Inspeksi Baru</span>
-		</a>
+		<div class="flex items-center gap-2.5">
+			<a href="/p2h" class="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-on-surface font-bold text-sm border border-slate-200 dark:border-slate-700 transition-all">
+				<span class="material-symbols-outlined text-primary text-[20px]">smartphone</span>
+				<span>Portal Mobile P2H</span>
+			</a>
+			<a href="/maintenance/transactions/inspections/create" class="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-primary text-on-primary font-bold text-sm shadow-sm hover:opacity-95 transition-all">
+				<span class="material-symbols-outlined text-[18px]">add_task</span>
+				<span>Inspeksi Baru</span>
+			</a>
+		</div>
 	</header>
 
 	<!-- Metric Quick Summary Pills -->

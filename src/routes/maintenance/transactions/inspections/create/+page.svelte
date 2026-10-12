@@ -338,6 +338,32 @@
 		</div>
 	</header>
 
+	<!-- Mobile Ergonomics Switcher Banner -->
+	<div class="p-3.5 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+		<div class="flex items-center gap-2.5">
+			<div class="w-9 h-9 rounded-xl bg-white/20 flex items-center justify-center shrink-0">
+				<span class="material-symbols-outlined text-xl">smartphone</span>
+			</div>
+			<div>
+				<div class="text-xs font-black uppercase tracking-wider flex items-center gap-1.5">
+					<span>Buka di Layar HP?</span>
+					<span class="px-1.5 py-0.2 rounded text-[9px] bg-white/20">Lebih Rapi & Cepat</span>
+				</div>
+				<p class="text-[11px] text-white/90 mt-0.5">
+					Gunakan antarmuka P2H Mobile khusus dengan tombol bulk "Semua OK" dan navigasi wizard satu tangan.
+				</p>
+			</div>
+		</div>
+
+		<a 
+			href="/p2h/create" 
+			class="px-4 py-2 rounded-xl bg-white text-blue-700 hover:bg-slate-100 font-black text-xs shadow-sm transition-all flex items-center justify-center gap-1.5 shrink-0 active:scale-95"
+		>
+			<span class="material-symbols-outlined text-[16px]">touch_app</span>
+			<span>Beralih ke Mode Mobile P2H</span>
+		</a>
+	</div>
+
 	<!-- Stepper Ringkas + Progress Bar (Mobile & Tablet Friendly) -->
 	<div class="bg-surface-container-lowest rounded-2xl border border-slate-200/80 dark:border-slate-800/80 p-3.5 sm:p-4 shadow-xs space-y-3">
 		<!-- Step Indicators (Connected with Progress Line) -->

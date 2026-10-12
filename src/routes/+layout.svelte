@@ -19,21 +19,21 @@
 		}
 	});
 
-	const isPrintRoute = $derived(
-		$page.url.pathname.endsWith('/print') || 
-		$page.url.pathname.includes('/print/') || 
-		$page.url.searchParams.has('embedded')
+	const isStandaloneRoute = $derived(
+		$page.url.pathname.startsWith('/login') || 
+		isPrintRoute || 
+		$page.url.pathname.startsWith('/p2h')
 	);
 </script>
 
-{#if !$page.url.pathname.startsWith('/login') && !isPrintRoute}
+{#if !isStandaloneRoute}
 	<Header />
 	<PresenceTracker />
 {/if}
 
 {@render children()}
 
-{#if !$page.url.pathname.startsWith('/login') && !isPrintRoute}
+{#if !isStandaloneRoute}
 	<Footer />
 {/if}
 
