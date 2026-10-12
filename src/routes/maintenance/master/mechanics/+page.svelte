@@ -51,6 +51,26 @@
 		</div>
 	</header>
 
+	<!-- Quick Metrics -->
+	<div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+		<div class="p-4 rounded-xl bg-surface-container-lowest border border-slate-200/70 dark:border-slate-800/70">
+			<div class="text-[11px] font-bold text-on-surface-variant uppercase tracking-wider">Total Teknisi</div>
+			<div class="text-2xl font-black text-on-surface mt-1 font-mono">{mechanics.length}</div>
+		</div>
+		<div class="p-4 rounded-xl bg-surface-container-lowest border border-slate-200/70 dark:border-slate-800/70">
+			<div class="text-[11px] font-bold text-sky-600 uppercase tracking-wider">Aktif Menangani SPK</div>
+			<div class="text-2xl font-black text-sky-600 mt-1 font-mono">{mechanics.filter(m => m.activeWo > 0).length}</div>
+		</div>
+		<div class="p-4 rounded-xl bg-surface-container-lowest border border-slate-200/70 dark:border-slate-800/70">
+			<div class="text-[11px] font-bold text-emerald-600 uppercase tracking-wider">Siap Ditugaskan</div>
+			<div class="text-2xl font-black text-emerald-600 mt-1 font-mono">{mechanics.filter(m => m.activeWo === 0).length}</div>
+		</div>
+		<div class="p-4 rounded-xl bg-surface-container-lowest border border-slate-200/70 dark:border-slate-800/70">
+			<div class="text-[11px] font-bold text-on-surface-variant uppercase tracking-wider">Total Penanganan SPK</div>
+			<div class="text-2xl font-black text-on-surface mt-1 font-mono">{mechanics.reduce((acc, m) => acc + m.totalWo, 0)}</div>
+		</div>
+	</div>
+
 	<!-- Table -->
 	<div class="bg-surface-container-lowest rounded-2xl border border-slate-200/70 dark:border-slate-800/70 overflow-hidden">
 		<div class="overflow-x-auto">
@@ -66,36 +86,48 @@
 					</tr>
 				</thead>
 				<tbody class="divide-y divide-slate-200/60 dark:divide-slate-800/60">
-					{#each mechanics as m}
-						<tr class="hover:bg-surface-container-low/50 transition-colors">
-							<td class="py-3.5 px-4">
-								<div class="flex items-center gap-2.5">
-									<div class="w-8 h-8 rounded-full bg-primary/10 text-primary font-bold flex items-center justify-center text-xs">
-										{m.name.charAt(0)}
-									</div>
-									<div class="font-bold text-xs text-on-surface">{m.name}</div>
-								</div>
-							</td>
-							<td class="py-3.5 px-4 font-mono text-xs text-on-surface-variant">{m.payrollId}</td>
-							<td class="py-3.5 px-4">
-								<div class="text-xs font-medium text-on-surface">{m.position}</div>
-								<div class="text-[10px] text-on-surface-variant">{m.location}</div>
-							</td>
-							<td class="py-3.5 px-4 text-center">
-								<span class="font-bold text-xs {m.activeWo > 0 ? 'text-sky-600 font-mono' : 'text-on-surface-variant'}">
-									{m.activeWo}
-								</span>
-							</td>
-							<td class="py-3.5 px-4 text-center font-mono text-xs font-semibold text-on-surface">
-								{m.totalWo}
-							</td>
-							<td class="py-3.5 px-4 text-right">
-								<span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
-									{m.status}
-								</span>
+					{#if mechanics.length === 0}
+						<tr>
+							<td colspan="6" class="py-12 text-center text-xs text-on-surface-variant">
+								<span class="material-symbols-outlined text-3xl mb-1 text-slate-400 block">engineering</span>
+								Belum ada data mekanik yang ditemukan.
 							</td>
 						</tr>
-					{/each}
+					{:else}
+						{#each mechanics as m}
+							<tr class="hover:bg-surface-container-low/50 transition-colors">
+								<td class="py-3.5 px-4">
+									<div class="flex items-center gap-2.5">
+										<div class="w-8 h-8 rounded-full bg-primary/10 text-primary font-bold flex items-center justify-center text-xs">
+											{m.name.charAt(0)}
+										</div>
+										<div class="font-bold text-xs text-on-surface">{m.name}</div>
+									</div>
+								</td>
+								<td class="py-3.5 px-4 font-mono text-xs text-on-surface-variant">{m.payrollId}</td>
+								<td class="py-3.5 px-4">
+									<div class="text-xs font-bold text-on-surface">{m.position}</div>
+									<div class="text-[11px] text-on-surface-variant mt-0.5 flex items-center gap-1">
+										<span class="material-symbols-outlined text-[13px]">location_on</span>
+										<span>{m.location}</span>
+									</div>
+								</td>
+								<td class="py-3.5 px-4 text-center">
+									<span class="font-bold text-xs {m.activeWo > 0 ? 'text-sky-600 font-mono' : 'text-on-surface-variant'}">
+										{m.activeWo}
+									</span>
+								</td>
+								<td class="py-3.5 px-4 text-center font-mono text-xs font-semibold text-on-surface">
+									{m.totalWo}
+								</td>
+								<td class="py-3.5 px-4 text-right">
+									<span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
+										{m.status}
+									</span>
+								</td>
+							</tr>
+						{/each}
+					{/if}
 				</tbody>
 			</table>
 		</div>
