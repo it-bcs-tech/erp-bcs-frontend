@@ -81,8 +81,12 @@
 				<p class="font-bold text-on-surface mt-0.5">{insp.inspectorName}</p>
 			</div>
 			<div>
-				<span class="text-[10px] text-on-surface-variant uppercase font-medium">Waktu Pemeriksaan:</span>
-				<p class="text-on-surface font-medium mt-0.5">{insp.date}</p>
+				<span class="text-[10px] text-on-surface-variant uppercase font-medium">Jam Masuk & Keluar:</span>
+				<p class="font-mono text-on-surface font-medium mt-0.5">{insp.entryTime} s/d {insp.exitTime}</p>
+			</div>
+			<div>
+				<span class="text-[10px] text-on-surface-variant uppercase font-medium">Tujuan / Rute:</span>
+				<p class="text-on-surface font-medium mt-0.5">{insp.destination || '-'}</p>
 			</div>
 		</div>
 	</div>

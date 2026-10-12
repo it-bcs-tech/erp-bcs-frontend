@@ -61,7 +61,11 @@ export const load: PageServerLoad = async ({ params }) => {
 				inspectorName: insp.inspector_name || 'Inspector Workshop',
 				notes: insp.notes || '',
 				noApar: insp.no_apar || 'APAR OK',
-				destination: insp.destination || '-'
+				destination: insp.destination || '-',
+				entryTime: insp.entry_time ? new Date(insp.entry_time).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) : '-',
+				exitTime: insp.exit_time ? new Date(insp.exit_time).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) : '-',
+				entryDate: insp.entry_time ? new Date(insp.entry_time).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' }) : '-',
+				exitDate: insp.exit_time ? new Date(insp.exit_time).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' }) : '-'
 			}
 		};
 	} catch (err: any) {

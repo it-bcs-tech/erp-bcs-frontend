@@ -14,7 +14,23 @@
 	let selectedDriverId = $state('');
 	let kenekName = $state('');
 	let odometer = $state('');
-	let inspectionType = $state('KEBERANGKATAN');
+	
+	const todayStr = new Date().toISOString().slice(0, 10);
+	const now = new Date();
+	const nowH = String(now.getHours()).padStart(2, '0');
+	const nowM = String(now.getMinutes()).padStart(2, '0');
+	const defaultEntryTime = `${nowH}:${nowM}`;
+
+	const exitDateObj = new Date(now.getTime() + 30 * 60 * 1000);
+	const exitH = String(exitDateObj.getHours()).padStart(2, '0');
+	const exitM = String(exitDateObj.getMinutes()).padStart(2, '0');
+	const defaultExitTime = `${exitH}:${exitM}`;
+	const exitDateStr = exitDateObj.toISOString().slice(0, 10);
+
+	let entryDate = $state(todayStr);
+	let entryTime = $state(defaultEntryTime);
+	let exitDate = $state(exitDateStr);
+	let exitTime = $state(defaultExitTime);
 	let noApar = $state('ADA_OK');
 	let destination = $state('');
 
@@ -179,7 +195,10 @@
 		<input type="hidden" name="driver_id" value={selectedDriverId} />
 		<input type="hidden" name="kenek_name" value={kenekName} />
 		<input type="hidden" name="odometer" value={odometer} />
-		<input type="hidden" name="inspection_type" value={inspectionType} />
+		<input type="hidden" name="entry_date" value={entryDate} />
+		<input type="hidden" name="entry_time" value={entryTime} />
+		<input type="hidden" name="exit_date" value={exitDate} />
+		<input type="hidden" name="exit_time" value={exitTime} />
 		<input type="hidden" name="no_apar" value={noApar} />
 		<input type="hidden" name="destination" value={destination} />
 		<input type="hidden" name="notes" value={generalNotes} />
@@ -295,19 +314,51 @@
 					</div>
 				</div>
 
-				<!-- Inspection Type Radio Pills -->
-				<div class="space-y-1.5">
-					<span class="block text-xs font-bold text-on-surface-variant uppercase">Jenis Pemeriksaan</span>
-					<div class="grid grid-cols-3 gap-2">
-						{#each ['KEBERANGKATAN', 'KEPULANGAN', 'P2H_RUTIN'] as type}
-							<button 
-								type="button" 
-								onclick={() => inspectionType = type}
-								class="py-2 px-1 text-center rounded-xl text-[11px] font-bold border transition-all {inspectionType === type ? 'bg-primary text-on-primary border-primary shadow-xs' : 'bg-surface-container text-on-surface-variant border-transparent'}"
-							>
-								{type === 'KEBERANGKATAN' ? 'Berangkat' : type === 'KEPULANGAN' ? 'Pulang' : 'Rutin'}
-							</button>
-						{/each}
+				<!-- Tanggal & Jam Masuk serta Keluar -->
+				<div class="space-y-3 pt-1">
+					<div class="space-y-1.5">
+						<label for="p2h_entry_date" class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider">Tanggal & Jam Masuk</label>
+						<div class="flex items-center gap-2">
+							<input 
+								id="p2h_entry_date"
+								type="date" 
+								bind:value={entryDate}
+								class="flex-1 px-3 py-2.5 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800 text-xs font-mono text-on-surface outline-none"
+							/>
+							<input 
+								type="time" 
+								bind:value={entryTime}
+								class="w-28 px-2 py-2.5 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800 text-xs font-mono text-center text-on-surface outline-none"
+							/>
+						</div>
+					</div>
+
+					<div class="space-y-1.5">
+						<label for="p2h_exit_date" class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider">Tanggal & Jam Keluar</label>
+						<div class="flex items-center gap-2">
+							<input 
+								id="p2h_exit_date"
+								type="date" 
+								bind:value={exitDate}
+								class="flex-1 px-3 py-2.5 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800 text-xs font-mono text-on-surface outline-none"
+							/>
+							<input 
+								type="time" 
+								bind:value={exitTime}
+								class="w-28 px-2 py-2.5 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800 text-xs font-mono text-center text-on-surface outline-none"
+							/>
+						</div>
+					</div>
+
+					<div class="space-y-1.5">
+						<label for="p2h_destination" class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider">Tujuan / Rute Trip (Opsional)</label>
+						<input 
+							id="p2h_destination"
+							type="text" 
+							bind:value={destination}
+							placeholder="Contoh: Merak / Cirebon / Narogong..." 
+							class="w-full px-3 py-2.5 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800 text-xs text-on-surface outline-none"
+						/>
 					</div>
 				</div>
 
@@ -595,6 +646,14 @@
 					<div>
 						<span class="text-[10px] text-on-surface-variant uppercase font-medium">Inspektor:</span>
 						<p class="font-bold text-on-surface">{data.currentInspector.name}</p>
+					</div>
+					<div>
+						<span class="text-[10px] text-on-surface-variant uppercase font-medium">Waktu Masuk & Keluar:</span>
+						<p class="font-mono text-on-surface">{entryTime} s/d {exitTime}</p>
+					</div>
+					<div>
+						<span class="text-[10px] text-on-surface-variant uppercase font-medium">Tujuan / Rute:</span>
+						<p class="text-on-surface font-medium">{destination || '-'}</p>
 					</div>
 				</div>
 

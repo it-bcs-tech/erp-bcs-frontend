@@ -102,13 +102,28 @@ export const actions: Actions = {
 		const kenek_name = data.get('kenek_name')?.toString() || '';
 		const odometer = data.get('odometer') ? parseFloat(data.get('odometer')!.toString()) : null;
 		const destination = data.get('destination')?.toString() || 'Area Operasional BCS';
-		const inspection_type = data.get('inspection_type')?.toString() || 'P2H_RUTIN';
 		const no_apar = data.get('no_apar')?.toString() || 'APAR OK';
 		const police_no = data.get('police_no')?.toString() || unit_id || '';
 		const driver_health = data.get('driver_health')?.toString() || 'SEHAT';
 		const notes = data.get('notes')?.toString() || '';
 		const checklist_data_raw = data.get('checklist_data')?.toString() || '[]';
 		const tire_depth_data_raw = data.get('tire_depth_data')?.toString() || '{}';
+
+		const entry_date = data.get('entry_date')?.toString() || '';
+		const entry_time_str = data.get('entry_time')?.toString() || '';
+		const exit_date = data.get('exit_date')?.toString() || '';
+		const exit_time_str = data.get('exit_time')?.toString() || '';
+
+		let entry_time: Date = new Date();
+		let exit_time: Date = new Date();
+		if (entry_date && entry_time_str) {
+			const d = new Date(`${entry_date}T${entry_time_str}:00`);
+			if (!isNaN(d.getTime())) entry_time = d;
+		}
+		if (exit_date && exit_time_str) {
+			const d = new Date(`${exit_date}T${exit_time_str}:00`);
+			if (!isNaN(d.getTime())) exit_time = d;
+		}
 
 		let inspector_name = 'Inspector Workshop';
 		let inspector_id = null;
@@ -215,13 +230,15 @@ export const actions: Actions = {
 					notes,
 					no_apar,
 					destination,
+					entry_time,
+					exit_time,
 					tire_depth_data,
 					created_at,
 					updated_at
 				) VALUES (
 					${inspection_no},
 					NOW(),
-					${inspection_type},
+					${'MASUK_KELUAR'},
 					${unit_id},
 					'Truck',
 					${police_no},
@@ -237,6 +254,8 @@ export const actions: Actions = {
 					${notes},
 					${no_apar},
 					${destination},
+					${entry_time},
+					${exit_time},
 					${sql.json(tire_depth_data)},
 					NOW(),
 					NOW()
