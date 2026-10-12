@@ -137,22 +137,27 @@ export const actions: Actions = {
 
 			if (!allPassed) {
 				// If not all passed, send back to workshop with revision notes
-				await sql`
-					UPDATE fleet.work_orders
-					SET status = 'Proses',
-					    recommendation = ${'Revisi Re-inspeksi: ' + reinspect_notes},
-					    updated_at = NOW()
-					WHERE wo_no = ${wo_no}
-				`;
+				await sql.begin(async sqlTx => {
+					await sqlTx`
+						UPDATE fleet.work_orders
+						SET status = 'Proses',
+						    recommendation = ${'Revisi Re-inspeksi: ' + reinspect_notes},
+						    updated_at = NOW()
+						WHERE wo_no = ${wo_no}
+					`;
+
+					if (inspection_no) {
+						await sqlTx`
+							UPDATE fleet.vehicle_inspections
+							SET notes = COALESCE(notes, '') || ${`\n[${new Date().toISOString()}] Re-Inspeksi REVISI oleh ${inspectorName}: ${reinspect_notes}`},
+							    updated_at = NOW()
+							WHERE inspection_no = ${inspection_no}
+						`;
+					}
+				});
 
 				const inspExists = inspection_no ? await sql`SELECT id FROM fleet.vehicle_inspections WHERE inspection_no = ${inspection_no} LIMIT 1` : [];
 				if (inspExists.length > 0) {
-					await sql`
-						UPDATE fleet.vehicle_inspections
-						SET notes = COALESCE(notes, '') || ${`\n[${new Date().toISOString()}] Re-Inspeksi REVISI oleh ${inspectorName}: ${reinspect_notes}`},
-						    updated_at = NOW()
-						WHERE inspection_no = ${inspection_no}
-					`;
 					throw redirect(303, `/maintenance/transactions/inspections/${encodeURIComponent(inspection_no)}`);
 				} else {
 					throw redirect(303, `/maintenance/transactions/work-orders/${encodeURIComponent(wo_no)}`);
@@ -160,37 +165,38 @@ export const actions: Actions = {
 			}
 
 			// ALL PASSED!
-			// 1. Close Work Order
-			await sql`
-				UPDATE fleet.work_orders
-				SET status = 'Closed',
-				    closed_at = NOW(),
-				    conclusion = ${'Lolos Uji Re-Inspeksi & QC oleh ' + inspectorName + '. ' + reinspect_notes},
-				    updated_at = NOW()
-				WHERE wo_no = ${wo_no}
-			`;
-
-			// 2. Update Inspection to CLOSED if exists
-			const inspCheck = inspection_no ? await sql`SELECT id FROM fleet.vehicle_inspections WHERE inspection_no = ${inspection_no} LIMIT 1` : [];
-			if (inspCheck.length > 0) {
-				await sql`
-					UPDATE fleet.vehicle_inspections
-					SET status = 'CLOSED',
-					    notes = COALESCE(notes, '') || ${`\n[${new Date().toISOString()}] Re-Inspeksi LOLOS oleh ${inspectorName}. Unit siap beroperasi.`},
+			await sql.begin(async sqlTx => {
+				// 1. Close Work Order
+				await sqlTx`
+					UPDATE fleet.work_orders
+					SET status = 'Closed',
+					    closed_at = NOW(),
+					    conclusion = ${'Lolos Uji Re-Inspeksi & QC oleh ' + inspectorName + '. ' + reinspect_notes},
 					    updated_at = NOW()
-					WHERE inspection_no = ${inspection_no}
+					WHERE wo_no = ${wo_no}
 				`;
-			}
 
-			// 3. Unlock vehicle in fleet.unit (Set current_state to AT_POOL)
-			if (unit_id) {
-				await sql`
-					UPDATE fleet.unit
-					SET current_state = 'AT_POOL',
-					    updated_at = NOW()
-					WHERE nomor_unit = ${unit_id}
-				`;
-			}
+				// 2. Update Inspection to CLOSED if exists
+				if (inspection_no) {
+					await sqlTx`
+						UPDATE fleet.vehicle_inspections
+						SET status = 'CLOSED',
+						    notes = COALESCE(notes, '') || ${`\n[${new Date().toISOString()}] Re-Inspeksi LOLOS oleh ${inspectorName}. Unit siap beroperasi.`},
+						    updated_at = NOW()
+						WHERE inspection_no = ${inspection_no}
+					`;
+				}
+
+				// 3. Unlock vehicle in fleet.unit (Set current_state to AT_POOL)
+				if (unit_id) {
+					await sqlTx`
+						UPDATE fleet.unit
+						SET current_state = 'AT_POOL',
+						    updated_at = NOW()
+						WHERE nomor_unit = ${unit_id}
+					`;
+				}
+			});
 
 			throw redirect(303, '/maintenance/transactions/inspections');
 
