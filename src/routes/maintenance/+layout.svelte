@@ -62,7 +62,7 @@
 		{/if}
 		
 		<!-- Section Divider: Transactions -->
-		{#if isAdmin || hasMenuAccess(user, 'maintenance', 'maintenance.inspections') || hasMenuAccess(user, 'maintenance', 'maintenance.work-orders') || hasMenuAccess(user, 'maintenance', 'maintenance.schedules')}
+		{#if isAdmin || hasMenuAccess(user, 'maintenance', 'maintenance.inspections') || hasMenuAccess(user, 'maintenance', 'maintenance.work-orders') || hasMenuAccess(user, 'maintenance', 'maintenance.schedules') || hasMenuAccess(user, 'maintenance', 'maintenance.tires')}
 			<div class="pt-3 pb-1 px-3">
 				<p class="text-[9px] font-black text-on-surface-variant/50 uppercase tracking-[0.2em]">Workshop Operations</p>
 			</div>
@@ -98,6 +98,17 @@
 			>
 				<span class="material-symbols-outlined text-[20px]">event_repeat</span>
 				<span class="text-sm">Jadwal Servis (PM)</span>
+			</a>
+		{/if}
+
+		{#if isAdmin || hasMenuAccess(user, 'maintenance', 'maintenance.tires')}
+			<a 
+				onclick={() => { if (isMobile) isMobileDrawerOpen = false; }}
+				class="flex items-center gap-3 px-3.5 py-2.5 rounded-xl transition-all duration-200 {isActive('/maintenance/tires') ? 'bg-surface-container-highest text-primary font-bold' : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container font-medium text-sm'}" 
+				href="/maintenance/tires"
+			>
+				<span class="material-symbols-outlined text-[20px]">tire_repair</span>
+				<span class="text-sm">Manajemen Ban (Tire)</span>
 			</a>
 		{/if}
 

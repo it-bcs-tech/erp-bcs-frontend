@@ -139,6 +139,7 @@ export const MODULE_MENUS: Record<string, { id: string; name: string }[]> = {
 		{ id: 'maintenance.inspections', name: 'Inspeksi Kelayakan (P2H)' },
 		{ id: 'maintenance.work-orders', name: 'Work Orders (SPK Bengkel)' },
 		{ id: 'maintenance.schedules', name: 'Jadwal Servis Berkala (PM)' },
+		{ id: 'maintenance.tires', name: 'Manajemen Ban (Tires)' },
 		{ id: 'maintenance.master-mechanics', name: 'Master Mekanik' },
 		{ id: 'maintenance.master-categories', name: 'Master Kategori Servis' },
 		{ id: 'maintenance.reports-history', name: 'Laporan Riwayat Servis' },

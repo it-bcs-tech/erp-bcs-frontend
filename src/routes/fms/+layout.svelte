@@ -57,7 +57,7 @@
 			{/if}
 
 			<!-- Section: Main & Fleet Units -->
-			{#if hasMenuAccess(user, 'fms', 'fms.vehicles') || hasMenuAccess(user, 'fms', 'fms.drivers') || hasMenuAccess(user, 'fms', 'fms.trips') || hasMenuAccess(user, 'fms', 'fms.maintenance') || hasMenuAccess(user, 'fms', 'fms.tires')}
+			{#if hasMenuAccess(user, 'fms', 'fms.vehicles') || hasMenuAccess(user, 'fms', 'fms.drivers') || hasMenuAccess(user, 'fms', 'fms.trips') || hasMenuAccess(user, 'fms', 'fms.maintenance')}
 			<div class="pt-3 pb-1 px-4">
 				<p class="text-[9px] font-black text-on-surface-variant/50 uppercase tracking-[0.2em]">Fleet & Units</p>
 			</div>
@@ -111,17 +111,7 @@
 			</a>
 			{/if}
 
-			{#if hasMenuAccess(user, 'fms', 'fms.tires')}
-			<a
-				class="flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200 hover:translate-x-1 {isActive('/fms/tires')
-					? 'bg-surface-container-highest text-blue-600 dark:text-blue-400 font-bold'
-					: 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container font-medium text-sm'}"
-				href="/fms/tires"
-			>
-				<span class="material-symbols-outlined text-[20px]">tire_repair</span>
-				<span class="text-sm">Tire Management</span>
-			</a>
-			{/if}
+
 
 			<!-- Section: Operations & Assets -->
 			{#if hasMenuAccess(user, 'fms', 'fms.fuel') || hasMenuAccess(user, 'fms', 'fms.documents') || hasMenuAccess(user, 'fms', 'fms.incidents') || hasMenuAccess(user, 'fms', 'fms.reports')}

@@ -726,7 +726,7 @@
 								<span class="material-symbols-outlined text-blue-600 text-lg">tire_repair</span>
 								<h3 class="text-xs font-black text-on-surface uppercase tracking-wider">Status Ban Terpasang (TMS)</h3>
 							</div>
-							<a href="/fms/tires?unit={selectedVehicle.nomor_unit || selectedVehicle.id}" class="text-[11px] font-bold text-blue-600 hover:underline">Kelola & Rotasi</a>
+							<a href="/maintenance/tires?unit={selectedVehicle.nomor_unit || selectedVehicle.id}" class="text-[11px] font-bold text-primary hover:underline">Kelola & Rotasi</a>
 						</div>
 
 						{#if tiresDetail && tiresDetail.length > 0}
