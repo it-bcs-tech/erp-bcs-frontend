@@ -62,20 +62,20 @@
 
 	<!-- Summary (Bento) -->
 	<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-		<div class="p-5 rounded-2xl bg-surface-container-low border border-slate-200/60 dark:border-slate-800/60 shadow-xs">
+		<div class="p-5 rounded-2xl bg-surface-container-lowest border border-slate-200/70 dark:border-slate-800/70 transition-all hover:border-sky-500/30 shadow-2xs">
 			<div class="flex items-center justify-between">
 				<div>
 					<p class="text-xs font-bold text-on-surface-variant uppercase tracking-wider">Total UJO</p>
-					<h3 class="text-xl font-black text-blue-600 mt-1">{formatCurrency(summary.totalUJO)}</h3>
+					<h3 class="text-xl font-black text-sky-600 dark:text-sky-400 mt-1">{formatCurrency(summary.totalUJO)}</h3>
 				</div>
-				<div class="w-12 h-12 rounded-xl bg-blue-500/10 text-blue-600 flex items-center justify-center">
+				<div class="w-12 h-12 rounded-xl bg-sky-500/10 text-sky-600 dark:text-sky-400 flex items-center justify-center">
 					<span class="material-symbols-outlined text-2xl">account_balance_wallet</span>
 				</div>
 			</div>
-			<p class="text-xs text-blue-600 font-medium mt-2">Semua pengajuan UJO</p>
+			<p class="text-xs text-sky-600 dark:text-sky-400 font-medium mt-2">Semua pengajuan UJO</p>
 		</div>
 
-		<div class="p-5 rounded-2xl bg-surface-container-low border border-slate-200/60 dark:border-slate-800/60 shadow-xs">
+		<div class="p-5 rounded-2xl bg-surface-container-lowest border border-slate-200/70 dark:border-slate-800/70 transition-all hover:border-emerald-500/30 shadow-2xs">
 			<div class="flex items-center justify-between">
 				<div>
 					<p class="text-xs font-bold text-on-surface-variant uppercase tracking-wider">Sudah Dibayar</p>
@@ -88,7 +88,7 @@
 			<p class="text-xs text-emerald-600 font-medium mt-2">Telah dicairkan kasir</p>
 		</div>
 
-		<div class="p-5 rounded-2xl bg-surface-container-low border border-slate-200/60 dark:border-slate-800/60 shadow-xs">
+		<div class="p-5 rounded-2xl bg-surface-container-lowest border border-slate-200/70 dark:border-slate-800/70 transition-all hover:border-amber-500/30 shadow-2xs">
 			<div class="flex items-center justify-between">
 				<div>
 					<p class="text-xs font-bold text-on-surface-variant uppercase tracking-wider">Belum Dibayar</p>
@@ -101,7 +101,7 @@
 			<p class="text-xs text-amber-600 font-medium mt-2">Menunggu pencairan kasir</p>
 		</div>
 
-		<div class="p-5 rounded-2xl bg-surface-container-low border border-slate-200/60 dark:border-slate-800/60 shadow-xs">
+		<div class="p-5 rounded-2xl bg-surface-container-lowest border border-slate-200/70 dark:border-slate-800/70 transition-all hover:border-orange-500/30 shadow-2xs">
 			<div class="flex items-center justify-between">
 				<div>
 					<p class="text-xs font-bold text-on-surface-variant uppercase tracking-wider">Total BBM</p>

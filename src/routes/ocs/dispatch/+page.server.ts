@@ -218,6 +218,28 @@ export const load: PageServerLoad = async () => {
 		// Fetch Customers list
 		const customers = await sql`SELECT id, nama_kustomer FROM master.m_customer WHERE is_active = true ORDER BY nama_kustomer ASC`;
 
+		// Fetch Master Rute UJO for OCS route selection during dispatch
+		const masterRutesResult = await sql`
+			SELECT 
+				r.id,
+				r.origin_id,
+				r.destination_id,
+				r.tipe_unit_id,
+				ori.nama_kustomer as origin_name,
+				dest.nama_kustomer as destination_name,
+				tu.nama_tipe as tipe_unit_name,
+				r.jarak_km,
+				r.biaya_solar,
+				r.biaya_tol,
+				r.uang_makan,
+				r.total_ujo
+			FROM master.m_rute_ujo r
+			JOIN master.m_customer ori ON ori.id = r.origin_id
+			JOIN master.m_customer dest ON dest.id = r.destination_id
+			JOIN master.m_tipe_unit tu ON tu.id = r.tipe_unit_id
+			ORDER BY ori.nama_kustomer ASC, dest.nama_kustomer ASC
+		`;
+
 		// Fetch Ngepok Multi-Rit Batches
 		const ngepokTrips = await sql`
 			SELECT 
@@ -333,11 +355,22 @@ export const load: PageServerLoad = async () => {
 			products: products as any[],
 			customers: customers as any[],
 			ngepokBatches,
-			dedicatedDispatches: dedicatedList
+			dedicatedDispatches: dedicatedList,
+			masterRutes: masterRutesResult as any[]
 		};
 	} catch (error) {
 		console.error("Error loading dispatch data:", error);
-		return { orders: [], availableUnits: [] };
+		return {
+			orders: [],
+			availableUnits: [],
+			contractOrders: [],
+			pools: [],
+			products: [],
+			customers: [],
+			ngepokBatches: [],
+			dedicatedDispatches: [],
+			masterRutes: []
+		};
 	}
 };
 
@@ -409,6 +442,42 @@ export const actions: Actions = {
 				`;
 				if (contractData.length === 0) throw new Error('Kontrak tidak ditemukan.');
 				const contract = contractData[0];
+
+				const ruteUjoId = parseId(data.get('ruteUjoId'));
+				if (ruteUjoId) {
+					const rRows = await sql`
+						SELECT id, origin_id, destination_id, total_ujo, biaya_tol, uang_makan, biaya_solar 
+						FROM master.m_rute_ujo 
+						WHERE id = ${ruteUjoId}
+					`;
+					if (rRows.length > 0) {
+						const chosenRute = rRows[0];
+						contract.final_origin_id = chosenRute.origin_id || contract.final_origin_id;
+						contract.final_dest_id = chosenRute.destination_id || contract.final_dest_id;
+						contract.fixed_ujo = parseFloat(chosenRute.total_ujo || '0');
+						contract.ujo_tol = parseFloat(chosenRute.biaya_tol || '0');
+						contract.ujo_makan = parseFloat(chosenRute.uang_makan || '0');
+
+						await sql`
+							UPDATE marketing.contract 
+							SET master_rute_id = ${chosenRute.id} 
+							WHERE id = ${contractId} AND master_rute_id IS NULL
+						`;
+					}
+				}
+
+				const customTotalUjo = data.get('customTotalUjo');
+				const customUjoTol = data.get('customUjoTol');
+				const customUjoMakan = data.get('customUjoMakan');
+				if (customTotalUjo && !isNaN(parseFloat(customTotalUjo as string))) {
+					contract.fixed_ujo = parseFloat(customTotalUjo as string);
+				}
+				if (customUjoTol && !isNaN(parseFloat(customUjoTol as string))) {
+					contract.ujo_tol = parseFloat(customUjoTol as string);
+				}
+				if (customUjoMakan && !isNaN(parseFloat(customUjoMakan as string))) {
+					contract.ujo_makan = parseFloat(customUjoMakan as string);
+				}
 
 				// We need to know if we used MRU.
 				const mruCheck = await sql`SELECT master_rute_id FROM marketing.contract WHERE id = ${contractId}`;

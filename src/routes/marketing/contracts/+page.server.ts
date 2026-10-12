@@ -102,7 +102,7 @@ export const load: PageServerLoad = async () => {
         `;
 
         // Formatting dates and converting numerics
-        const formattedContracts = contractsData.map(c => {
+        const formattedContracts = (contractsData as any[]).map((c: any) => {
             const target = Number(c.targetTonnage) || 0;
             const delivered = Number(c.deliveredTonnage) || 0;
             const loading = Number(c.loadingTonnage) || 0;
@@ -148,19 +148,11 @@ export const actions: Actions = {
         const customerId = data.get('customerId') as string;
         const projectId = data.get('projectId') as string;
         
-        const tipeRute = data.get('tipe_rute') as string || 'kustom';
-        let masterRuteId = null;
-        let originId = null;
-        let destinationId = null;
+        const originId = data.get('originId') as string || null;
+        const destinationId = data.get('destinationId') as string || null;
+        const masterRuteId = data.get('master_rute_id') as string || null;
 
-        if (tipeRute === 'master') {
-            masterRuteId = data.get('master_rute_id') as string || null;
-            if (!masterRuteId) return fail(400, { message: 'Master Rute wajib dipilih' });
-        } else {
-            originId = data.get('originId') as string || null;
-            destinationId = data.get('destinationId') as string || null;
-            if (!originId || !destinationId) return fail(400, { message: 'Origin dan Destination wajib dipilih' });
-        }
+        if (!originId || !destinationId) return fail(400, { message: 'Origin (Titik Muat) dan Destination (Tujuan) wajib dipilih' });
 
         const startDate = data.get('startDate') as string;
         const endDate = data.get('endDate') as string;
@@ -206,19 +198,11 @@ export const actions: Actions = {
         const customerId = data.get('customerId') as string;
         const projectId = data.get('projectId') as string;
 
-        const tipeRute = data.get('tipe_rute') as string || 'kustom';
-        let masterRuteId = null;
-        let originId = null;
-        let destinationId = null;
+        const originId = data.get('originId') as string || null;
+        const destinationId = data.get('destinationId') as string || null;
+        const masterRuteId = data.get('master_rute_id') as string || null;
 
-        if (tipeRute === 'master') {
-            masterRuteId = data.get('master_rute_id') as string || null;
-            if (!masterRuteId) return fail(400, { message: 'Master Rute wajib dipilih' });
-        } else {
-            originId = data.get('originId') as string || null;
-            destinationId = data.get('destinationId') as string || null;
-            if (!originId || !destinationId) return fail(400, { message: 'Origin dan Destination wajib dipilih' });
-        }
+        if (!originId || !destinationId) return fail(400, { message: 'Origin (Titik Muat) dan Destination (Tujuan) wajib dipilih' });
 
         const startDate = data.get('startDate') as string;
         const endDate = data.get('endDate') as string;

@@ -45,7 +45,7 @@
 
 	<!-- Summary Cards (Bento) -->
 	<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-		<div class="p-5 rounded-2xl bg-surface-container-low border border-slate-200/60 dark:border-slate-800/60 shadow-xs">
+		<div class="p-5 rounded-2xl bg-surface-container-lowest border border-slate-200/70 dark:border-slate-800/70 transition-all hover:border-amber-500/30 shadow-2xs">
 			<div class="flex items-center justify-between">
 				<div>
 					<p class="text-xs font-bold text-on-surface-variant uppercase tracking-wider">Pending Dispatch</p>
@@ -60,20 +60,20 @@
 			</a>
 		</div>
 
-		<div class="p-5 rounded-2xl bg-surface-container-low border border-slate-200/60 dark:border-slate-800/60 shadow-xs">
+		<div class="p-5 rounded-2xl bg-surface-container-lowest border border-slate-200/70 dark:border-slate-800/70 transition-all hover:border-sky-500/30 shadow-2xs">
 			<div class="flex items-center justify-between">
 				<div>
 					<p class="text-xs font-bold text-on-surface-variant uppercase tracking-wider">Active Journeys</p>
-					<h3 class="text-2xl font-black text-blue-600 mt-1">{summary.activeJourneys}</h3>
+					<h3 class="text-2xl font-black text-sky-600 dark:text-sky-400 mt-1">{summary.activeJourneys}</h3>
 				</div>
-				<div class="w-12 h-12 rounded-xl bg-blue-500/10 text-blue-600 flex items-center justify-center">
+				<div class="w-12 h-12 rounded-xl bg-sky-500/10 text-sky-600 dark:text-sky-400 flex items-center justify-center">
 					<span class="material-symbols-outlined text-2xl">local_shipping</span>
 				</div>
 			</div>
-			<p class="text-xs text-blue-600 font-medium mt-2">Armada sedang dalam rute</p>
+			<p class="text-xs text-sky-600 dark:text-sky-400 font-medium mt-2">Armada sedang dalam rute</p>
 		</div>
 
-		<div class="p-5 rounded-2xl bg-surface-container-low border border-slate-200/60 dark:border-slate-800/60 shadow-xs">
+		<div class="p-5 rounded-2xl bg-surface-container-lowest border border-slate-200/70 dark:border-slate-800/70 transition-all hover:border-emerald-500/30 shadow-2xs">
 			<div class="flex items-center justify-between">
 				<div>
 					<p class="text-xs font-bold text-on-surface-variant uppercase tracking-wider">Selesai Hari Ini</p>
@@ -86,7 +86,7 @@
 			<p class="text-xs text-emerald-600 font-medium mt-2">Trip berhasil terkirim</p>
 		</div>
 
-		<div class="p-5 rounded-2xl bg-surface-container-low border border-slate-200/60 dark:border-slate-800/60 shadow-xs">
+		<div class="p-5 rounded-2xl bg-surface-container-lowest border border-slate-200/70 dark:border-slate-800/70 transition-all hover:border-violet-500/30 shadow-2xs">
 			<div class="flex items-center justify-between">
 				<div>
 					<p class="text-xs font-bold text-on-surface-variant uppercase tracking-wider">Total UJO Hari Ini</p>
@@ -200,7 +200,10 @@
 					<span class="w-2 h-2 rounded-full bg-blue-500 animate-pulse"></span>
 					<span>Perjalanan Aktif</span>
 				</h2>
-				<a href="/ocs/fleet-status" class="text-xs font-bold text-blue-600 hover:underline">Lihat Status Armada</a>
+				<a href="/fms/live-map" class="text-xs font-bold text-sky-600 dark:text-sky-400 hover:underline flex items-center gap-1">
+					<span>Live Map Armada</span>
+					<span class="material-symbols-outlined text-xs">arrow_forward</span>
+				</a>
 			</div>
 			<div class="overflow-x-auto flex-1">
 				<table class="w-full text-left text-sm min-w-[520px]">

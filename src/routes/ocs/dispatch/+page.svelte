@@ -10,6 +10,7 @@
 	let availableUnits = $derived(data.availableUnits || []);
 	let orders = $derived(data.orders || []);
 	let products = $derived(data.products || []);
+	let masterRutes = $derived(data.masterRutes || []);
 
 	let statusFilter = $state($page.url.searchParams.get('status') || 'All');
 
@@ -122,6 +123,10 @@
 	let manualDispatchCargoName = $state('');
 	let manualDispatchLoadingDate = $state('');
 	let manualDispatchUnloadingDate = $state('');
+	let manualDispatchRuteUjoId = $state('');
+	let manualDispatchCustomUjo = $state('');
+	let manualDispatchCustomTol = $state('');
+	let manualDispatchCustomMakan = $state('');
 
 	// Dropdown Options
 	let unitOpts = $derived(availableUnits.map(u => {
@@ -345,6 +350,16 @@
 		logsheetTripId = null;
 	}
 
+	function handleRuteUjoChange(ruteId: string) {
+		manualDispatchRuteUjoId = ruteId;
+		const r = masterRutes.find((mr: any) => String(mr.id) === String(ruteId));
+		if (r) {
+			manualDispatchCustomUjo = String(r.total_ujo || 0);
+			manualDispatchCustomTol = String(r.biaya_tol || 0);
+			manualDispatchCustomMakan = String(r.uang_makan || 0);
+		}
+	}
+
 	function openManualDispatchModal(order: any) {
 		manualDispatchOrder = order;
 		const uId = (order.ai_recommended_unit_id && order.ai_recommended_unit_id !== 'null' && order.ai_recommended_unit_id !== 'undefined') ? order.ai_recommended_unit_id : '';
@@ -353,12 +368,34 @@
 		manualDispatchCargoName = '';
 		manualDispatchLoadingDate = '';
 		manualDispatchUnloadingDate = '';
+
+		// Auto-match route from masterRutes based on origin & destination
+		const matchedRute = masterRutes.find((r: any) => 
+			(order.origin_id && order.destination_id && String(r.origin_id) === String(order.origin_id) && String(r.destination_id) === String(order.destination_id)) ||
+			(r.origin_name?.toLowerCase() === order.origin?.toLowerCase() && r.destination_name?.toLowerCase() === order.destination?.toLowerCase())
+		);
+		if (matchedRute) {
+			manualDispatchRuteUjoId = String(matchedRute.id);
+			manualDispatchCustomUjo = String(matchedRute.total_ujo || 0);
+			manualDispatchCustomTol = String(matchedRute.biaya_tol || 0);
+			manualDispatchCustomMakan = String(matchedRute.uang_makan || 0);
+		} else {
+			manualDispatchRuteUjoId = '';
+			manualDispatchCustomUjo = String(order.fixedUjo || 0);
+			manualDispatchCustomTol = '0';
+			manualDispatchCustomMakan = '0';
+		}
+
 		showManualDispatchModal = true;
 	}
 
 	function closeManualDispatchModal() {
 		showManualDispatchModal = false;
 		manualDispatchOrder = null;
+		manualDispatchRuteUjoId = '';
+		manualDispatchCustomUjo = '';
+		manualDispatchCustomTol = '';
+		manualDispatchCustomMakan = '';
 	}
 
 	function openUjoModal(order: any) {
@@ -1601,6 +1638,69 @@
 							<div>
 								<label class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-2">Waktu Bongkar (Unloading)</label>
 								<input type="datetime-local" name="unloadingDate" bind:value={manualDispatchUnloadingDate} class="w-full bg-surface-container rounded-xl px-4 py-2.5 text-sm font-medium border-none focus:ring-2 focus:ring-blue-500 outline-none" />
+							</div>
+						</div>
+
+						<!-- Pemilihan Rute UJO OCS (Full PP) -->
+						<div class="p-4 rounded-2xl bg-surface-container-low border border-slate-200/70 dark:border-slate-800/70 space-y-3">
+							<div class="flex items-center justify-between">
+								<span class="text-xs font-bold text-on-surface-variant uppercase tracking-wider flex items-center gap-1.5">
+									<span class="material-symbols-outlined text-sky-600 text-sm">route</span>
+									<span>Pilih Rute UJO OCS (Full PP)</span>
+								</span>
+								<span class="text-[10px] font-bold px-2 py-0.5 rounded-md bg-sky-50 text-sky-700 dark:bg-sky-950/50 dark:text-sky-300 border border-sky-200 dark:border-sky-800">
+									Penentuan OCS
+								</span>
+							</div>
+
+							<div>
+								<select
+									name="ruteUjoId"
+									value={manualDispatchRuteUjoId}
+									onchange={(e) => handleRuteUjoChange((e.target as HTMLSelectElement).value)}
+									class="w-full bg-surface-container rounded-xl px-4 py-2.5 text-sm font-medium border-none focus:ring-2 focus:ring-sky-500 outline-none text-on-surface"
+								>
+									<option value="">-- Gunakan Estimasi Kontrak / Rute Kustom --</option>
+									{#each masterRutes as r}
+										<option value={r.id}>
+											{r.origin_name} &rarr; {r.destination_name} ({r.tipe_unit_name}) — {formatCurrency(Number(r.total_ujo))}
+										</option>
+									{/each}
+								</select>
+							</div>
+
+							<!-- Rincian Komponen UJO -->
+							<div class="grid grid-cols-3 gap-2 pt-1 text-xs">
+								<div class="p-2.5 rounded-xl bg-surface-container-lowest border border-slate-200/60 dark:border-slate-800/60">
+									<p class="text-[10px] text-on-surface-variant font-bold uppercase">Uang Tol</p>
+									<input 
+										type="number" 
+										name="customUjoTol" 
+										bind:value={manualDispatchCustomTol} 
+										placeholder="0"
+										class="w-full mt-1 font-bold text-on-surface bg-transparent outline-none text-xs" 
+									/>
+								</div>
+								<div class="p-2.5 rounded-xl bg-surface-container-lowest border border-slate-200/60 dark:border-slate-800/60">
+									<p class="text-[10px] text-on-surface-variant font-bold uppercase">Uang Makan</p>
+									<input 
+										type="number" 
+										name="customUjoMakan" 
+										bind:value={manualDispatchCustomMakan} 
+										placeholder="0"
+										class="w-full mt-1 font-bold text-on-surface bg-transparent outline-none text-xs" 
+									/>
+								</div>
+								<div class="p-2.5 rounded-xl bg-surface-container-lowest border border-slate-200/60 dark:border-slate-800/60">
+									<p class="text-[10px] text-sky-600 dark:text-sky-400 font-bold uppercase">Total UJO</p>
+									<input 
+										type="number" 
+										name="customTotalUjo" 
+										bind:value={manualDispatchCustomUjo} 
+										placeholder="0"
+										class="w-full mt-1 font-black text-sky-600 dark:text-sky-400 bg-transparent outline-none text-xs" 
+									/>
+								</div>
 							</div>
 						</div>
 						

@@ -1,6 +1,21 @@
 import type { PageServerLoad } from './$types';
 import sql from '$lib/server/db';
 
+export interface UjoRow {
+	id: string;
+	driver: string;
+	unit: string;
+	amount: number;
+	makan: number;
+	tol: number;
+	bbm: number;
+	route: string;
+	status: string;
+	paidAt: string;
+	do: string;
+	tripDate: string;
+}
+
 export const load: PageServerLoad = async ({ url }) => {
 	try {
 		const result = await sql`
@@ -26,11 +41,19 @@ export const load: PageServerLoad = async ({ url }) => {
 			ORDER BY ca.created_at DESC
 		`;
 
-		const allUJO = result.map(o => ({
-			...o,
+		const allUJO: UjoRow[] = (result as any[]).map((o: any) => ({
+			id: String(o.id || ''),
+			driver: String(o.driver || 'No Driver'),
+			unit: String(o.unit || '-'),
+			amount: parseFloat(o.amount || '0'),
+			makan: parseFloat(o.makan || '0'),
+			tol: parseFloat(o.tol || '0'),
+			bbm: parseFloat(o.bbm || '0'),
+			route: String(o.route || '-'),
 			status: o.status === 'PAID' ? 'Paid' : 'Pending',
 			paidAt: o.status === 'PAID' ? 'Sudah dicairkan Kasir' : '-',
-			do: o.id
+			do: String(o.id || ''),
+			tripDate: o.tripDate ? String(o.tripDate) : '-'
 		}));
 
 		const statusFilter = url.searchParams.get('status') || 'All';
@@ -41,10 +64,10 @@ export const load: PageServerLoad = async ({ url }) => {
 		if (statusFilter !== 'All') filtered = filtered.filter(u => u.status === statusFilter);
 
 		const summary = {
-			totalUJO: allUJO.reduce((s, u) => s + parseFloat(u.amount||'0'), 0),
+			totalUJO: allUJO.reduce((s, u) => s + (u.amount || 0), 0),
 			paid: allUJO.filter(u => u.status === 'Paid').length,
 			pending: allUJO.filter(u => u.status === 'Pending').length,
-			totalBBM: allUJO.reduce((s, u) => s + parseFloat(u.bbm||'0'), 0),
+			totalBBM: allUJO.reduce((s, u) => s + (u.bbm || 0), 0),
 		};
 
 		const perPage = 5;
@@ -55,6 +78,6 @@ export const load: PageServerLoad = async ({ url }) => {
 		return { ujoList: paginated, summary, meta: { current_page: page, per_page: perPage, total } };
 	} catch (error) {
 		console.error("Error loading OCS UJO:", error);
-		return { ujoList: [], summary: {totalUJO:0, paid:0, pending:0, totalBBM:0}, meta: { current_page: 1, per_page: 5, total: 0 } };
+		return { ujoList: [] as UjoRow[], summary: {totalUJO:0, paid:0, pending:0, totalBBM:0}, meta: { current_page: 1, per_page: 5, total: 0 } };
 	}
 };

@@ -6,7 +6,7 @@
 	let { data, form }: { data: PageData, form: ActionData } = $props();
 	
 	let contracts = $derived(data.contracts || []);
-	let customersList = $state(data.customers || []);
+	let customersList = $state<any[]>(data.customers || []);
 	let projects = $derived(data.projects || []);
 	let masterRutes = $derived(data.masterRutes || []);
 	let products = $derived(data.products || []);
@@ -105,7 +105,7 @@
 		editingContractId = null;
 		selectedProjectId = '';
 		selectedCustomer = '';
-		tipeRute = 'master';
+		tipeRute = 'kustom';
 		selectedMasterRuteId = '';
 		selectedOrigin = '';
 		selectedDestination = '';
@@ -120,6 +120,17 @@
 		originSearch = '';
 		destSearch = '';
 		showModal = true;
+	}
+
+	function applyMasterRute(rId: string) {
+		selectedMasterRuteId = rId;
+		const r = masterRutes.find((mr: any) => String(mr.id) === String(rId));
+		if (r) {
+			selectedOrigin = r.origin_id;
+			originSearch = r.origin_name;
+			selectedDestination = r.destination_id;
+			destSearch = r.destination_name;
+		}
 	}
 
 	function openEditModal(contract: any) {
@@ -441,103 +452,80 @@
 					</div>
 
 					{#if isTransportation}
+						<!-- Quick Template Selection (Optional) -->
 						<div class="col-span-1 md:col-span-2">
-							<label class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-3">Metode Rute</label>
-							<div class="flex gap-4">
-								<label class="flex items-center gap-2 cursor-pointer">
-									<input type="radio" name="tipe_rute" value="master" bind:group={tipeRute} class="w-4 h-4 text-rose-600 focus:ring-rose-500" />
-									<span class="text-sm font-medium text-on-surface">Gunakan Master Rute (OCS)</span>
+							<div class="flex items-center justify-between mb-2">
+								<label class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider">
+									Isi Cepat dari Templat Rute OCS (Opsional)
 								</label>
-								<label class="flex items-center gap-2 cursor-pointer">
-									<input type="radio" name="tipe_rute" value="kustom" bind:group={tipeRute} class="w-4 h-4 text-rose-600 focus:ring-rose-500" />
-									<span class="text-sm font-medium text-on-surface">Buat Rute Kustom Baru</span>
-								</label>
+								<span class="text-[11px] text-on-surface-variant/70">Pilih untuk mengisi Origin & Destination otomatis</span>
 							</div>
+							<select 
+								value={selectedMasterRuteId} 
+								onchange={(e) => applyMasterRute((e.target as HTMLSelectElement).value)}
+								class="w-full bg-surface-container-low border border-surface-container rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-rose-500 transition-all text-on-surface"
+							>
+								<option value="">-- Pilih Templat Master Rute (Jika Ada) --</option>
+								{#each masterRutes as r}
+									<option value={r.id}>{r.origin_name} &rarr; {r.destination_name} (Unit: {r.tipe_unit})</option>
+								{/each}
+							</select>
+							<input type="hidden" name="master_rute_id" value={selectedMasterRuteId || ''} />
 						</div>
 
-						{#if tipeRute === 'master'}
-							<div class="col-span-1 md:col-span-2 relative">
-								<label class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-2">Pilih Master Rute OCS</label>
-								<select name="master_rute_id" bind:value={selectedMasterRuteId} required class="w-full bg-surface-container-low border border-surface-container rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-rose-500 transition-all">
-									<option value="" disabled>Pilih Rute...</option>
-									{#each masterRutes as r}
-										<option value={r.id}>{r.origin_name} &rarr; {r.destination_name} (Unit: {r.tipe_unit})</option>
-									{/each}
-								</select>
-								{#if selectedMasterRuteId}
-									{#each masterRutes as r}
-										{#if r.id === selectedMasterRuteId}
-											<div class="mt-3 bg-indigo-50 dark:bg-indigo-900/10 p-3 rounded-lg border border-indigo-100 dark:border-indigo-900/30 flex justify-between items-center">
-												<div>
-													<p class="text-[10px] font-bold text-indigo-600 dark:text-indigo-400 uppercase">Tarif Standar (Dari OCS)</p>
-													<p class="text-sm font-black text-indigo-700 dark:text-indigo-300">
-														{r.tarif_customer && Number(r.tarif_customer) > 0 ? formatCurrency(Number(r.tarif_customer)) : 'Tidak Diset OCS'}
-													</p>
-												</div>
-												<div class="text-right">
-													<p class="text-[10px] font-bold text-rose-600 dark:text-rose-400 uppercase">Estimasi Cost UJO</p>
-													<p class="text-sm font-black text-rose-700 dark:text-rose-300">
-														{formatCurrency(Number(r.total_ujo))}
-													</p>
-												</div>
-											</div>
-										{/if}
-									{/each}
-								{/if}
-							</div>
-						{:else}
-							<div class="relative">
-								<label class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-2">Origin</label>
-								<input type="hidden" name="originId" value={selectedOrigin} required />
-								<input type="text" bind:value={originSearch} onfocus={() => showOriginDropdown = true} onblur={() => setTimeout(() => showOriginDropdown = false, 200)} placeholder="Search Origin..." class="w-full bg-surface-container-low border border-surface-container rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-rose-500 transition-all" autocomplete="off" />
-								{#if showOriginDropdown}
-									<ul class="absolute z-10 w-full mt-1 bg-surface-container-lowest border border-surface-container rounded-xl shadow-lg max-h-48 overflow-y-auto hide-scrollbar">
-										{#if filteredOrigins.length > 0}
-											{#each filteredOrigins as c}
-												<!-- svelte-ignore a11y_click_events_have_key_events -->
-												<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
-												<li class="px-4 py-2 text-sm text-on-surface cursor-pointer hover:bg-surface-container-low transition-colors border-b border-surface-container last:border-0" onclick={() => { selectedOrigin = c.id; originSearch = c.name; showOriginDropdown = false; }}>
-													{c.name}
-												</li>
-											{/each}
-										{:else if originSearch.trim().length > 0}
-											<li class="px-4 py-3 text-center">
-												<p class="text-xs text-on-surface-variant mb-2">"{originSearch}" not found</p>
-												<button type="button" class="px-3 py-1.5 bg-rose-100 text-rose-700 hover:bg-rose-200 transition-colors rounded-lg text-xs font-bold w-full" onclick={() => quickCreateCustomer(originSearch, 'origin')}>
-													+ Tambah "{originSearch}"
-												</button>
+						<!-- Origin (Titik Muat) -->
+						<div class="relative">
+							<label class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-2">Origin (Titik Muat) <span class="text-rose-500">*</span></label>
+							<input type="hidden" name="originId" value={selectedOrigin} required />
+							<input type="text" bind:value={originSearch} onfocus={() => showOriginDropdown = true} onblur={() => setTimeout(() => showOriginDropdown = false, 200)} placeholder="Search Origin..." class="w-full bg-surface-container-low border border-surface-container rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-rose-500 transition-all text-on-surface" autocomplete="off" />
+							{#if showOriginDropdown}
+								<ul class="absolute z-10 w-full mt-1 bg-surface-container-lowest border border-surface-container rounded-xl shadow-lg max-h-48 overflow-y-auto hide-scrollbar">
+									{#if filteredOrigins.length > 0}
+										{#each filteredOrigins as c}
+											<!-- svelte-ignore a11y_click_events_have_key_events -->
+											<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+											<li class="px-4 py-2 text-sm text-on-surface cursor-pointer hover:bg-surface-container-low transition-colors border-b border-surface-container last:border-0" onclick={() => { selectedOrigin = c.id; originSearch = c.name; showOriginDropdown = false; }}>
+												{c.name}
 											</li>
-										{/if}
-									</ul>
-								{/if}
-							</div>
-							
-							<div class="relative">
-								<label class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-2">Destination</label>
-								<input type="hidden" name="destinationId" value={selectedDestination} required />
-								<input type="text" bind:value={destSearch} onfocus={() => showDestDropdown = true} onblur={() => setTimeout(() => showDestDropdown = false, 200)} placeholder="Search Destination..." class="w-full bg-surface-container-low border border-surface-container rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-rose-500 transition-all" autocomplete="off" />
-								{#if showDestDropdown}
-									<ul class="absolute z-10 w-full mt-1 bg-surface-container-lowest border border-surface-container rounded-xl shadow-lg max-h-48 overflow-y-auto hide-scrollbar">
-										{#if filteredDests.length > 0}
-											{#each filteredDests as c}
-												<!-- svelte-ignore a11y_click_events_have_key_events -->
-												<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
-												<li class="px-4 py-2 text-sm text-on-surface cursor-pointer hover:bg-surface-container-low transition-colors border-b border-surface-container last:border-0" onclick={() => { selectedDestination = c.id; destSearch = c.name; showDestDropdown = false; }}>
-													{c.name}
-												</li>
-											{/each}
-										{:else if destSearch.trim().length > 0}
-											<li class="px-4 py-3 text-center">
-												<p class="text-xs text-on-surface-variant mb-2">"{destSearch}" not found</p>
-												<button type="button" class="px-3 py-1.5 bg-rose-100 text-rose-700 hover:bg-rose-200 transition-colors rounded-lg text-xs font-bold w-full" onclick={() => quickCreateCustomer(destSearch, 'dest')}>
-													+ Tambah "{destSearch}"
-												</button>
+										{/each}
+									{:else if originSearch.trim().length > 0}
+										<li class="px-4 py-3 text-center">
+											<p class="text-xs text-on-surface-variant mb-2">"{originSearch}" not found</p>
+											<button type="button" class="px-3 py-1.5 bg-rose-100 text-rose-700 hover:bg-rose-200 transition-colors rounded-lg text-xs font-bold w-full" onclick={() => quickCreateCustomer(originSearch, 'origin')}>
+												+ Tambah "{originSearch}"
+											</button>
+										</li>
+									{/if}
+								</ul>
+							{/if}
+						</div>
+						
+						<!-- Destination (Titik Bongkar) -->
+						<div class="relative">
+							<label class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-2">Destination (Titik Bongkar) <span class="text-rose-500">*</span></label>
+							<input type="hidden" name="destinationId" value={selectedDestination} required />
+							<input type="text" bind:value={destSearch} onfocus={() => showDestDropdown = true} onblur={() => setTimeout(() => showDestDropdown = false, 200)} placeholder="Search Destination..." class="w-full bg-surface-container-low border border-surface-container rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-rose-500 transition-all text-on-surface" autocomplete="off" />
+							{#if showDestDropdown}
+								<ul class="absolute z-10 w-full mt-1 bg-surface-container-lowest border border-surface-container rounded-xl shadow-lg max-h-48 overflow-y-auto hide-scrollbar">
+									{#if filteredDests.length > 0}
+										{#each filteredDests as c}
+											<!-- svelte-ignore a11y_click_events_have_key_events -->
+											<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+											<li class="px-4 py-2 text-sm text-on-surface cursor-pointer hover:bg-surface-container-low transition-colors border-b border-surface-container last:border-0" onclick={() => { selectedDestination = c.id; destSearch = c.name; showDestDropdown = false; }}>
+												{c.name}
 											</li>
-										{/if}
-									</ul>
-								{/if}
-							</div>
-						{/if}
+										{/each}
+									{:else if destSearch.trim().length > 0}
+										<li class="px-4 py-3 text-center">
+											<p class="text-xs text-on-surface-variant mb-2">"{destSearch}" not found</p>
+											<button type="button" class="px-3 py-1.5 bg-rose-100 text-rose-700 hover:bg-rose-200 transition-colors rounded-lg text-xs font-bold w-full" onclick={() => quickCreateCustomer(destSearch, 'dest')}>
+												+ Tambah "{destSearch}"
+											</button>
+										</li>
+									{/if}
+								</ul>
+							{/if}
+						</div>
 					{/if}
 
 					<div class="col-span-1 md:col-span-2">
@@ -605,7 +593,7 @@
 <!-- Simulator Modal -->
 <ContractSimulator 
 	bind:isOpen={showSimulatorModal} 
-	availableUnits={data.availableUnits} 
+	availableUnits={data.availableUnits || 0} 
 	onApply={(simData) => {
 		targetTonnage = simData.tonnage;
 		contractValue = simData.value;

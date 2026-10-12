@@ -65,7 +65,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 				solar_price_per_liter,
 				solar_ratio_by_unit_type
 			},
-			tipeUnits: tipeUnits as Array<{ id: string | number; nama_tipe: string; golongan_tol: string }>
+			tipeUnits: (tipeUnits as unknown as Array<{ id: string | number; nama_tipe: string; golongan_tol: string }>)
 		};
 	} catch (err: any) {
 		console.error('Error loading OCS settings:', err);
