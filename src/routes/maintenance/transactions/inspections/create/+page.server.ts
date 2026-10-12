@@ -257,11 +257,11 @@ export const actions: Actions = {
 
 			let generatedWoNo: string | null = null;
 
-			// Jika status LAYAK atau LAYAK_DENGAN_CATATAN dan unit sebelumnya MAINTENANCE, kembalikan ke STANDBY
+			// Jika status LAYAK atau LAYAK_DENGAN_CATATAN dan unit sebelumnya MAINTENANCE, kembalikan ke AT_POOL
 			if (finalStatus === 'LAYAK' || finalStatus === 'LAYAK_DENGAN_CATATAN') {
 				await sql`
 					UPDATE fleet.unit 
-					SET current_state = CASE WHEN current_state = 'MAINTENANCE' THEN 'STANDBY' ELSE current_state END,
+					SET current_state = CASE WHEN current_state = 'MAINTENANCE' THEN 'AT_POOL' ELSE current_state END,
 					    updated_at = NOW()
 					WHERE nomor_unit = ${unit_id}
 				`;

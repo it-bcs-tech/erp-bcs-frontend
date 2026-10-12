@@ -173,7 +173,7 @@
 						Semua item terverifikasi lolos uji kelayakan.
 					</div>
 					<div class="text-on-surface-variant mt-0.5">
-						SPK bengkel akan ditutup (Closed) dan armada otomatis kembali ke status <b>STANDBY</b> di OCS.
+						SPK bengkel akan ditutup (Closed) dan armada otomatis kembali ke status <b>Siap Operasi (AT_POOL)</b> di OCS.
 					</div>
 				{:else}
 					<div class="font-bold text-amber-600 flex items-center gap-1">

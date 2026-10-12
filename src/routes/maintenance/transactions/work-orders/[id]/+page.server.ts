@@ -568,17 +568,17 @@ export const actions: Actions = {
 					WHERE wo_no = ${wo.wo_no}
 				`;
 
-				// 2. Unlock vehicle in fleet.unit (Set to STANDBY so OCS Dispatcher can assign trip)
+				// 2. Unlock vehicle in fleet.unit (Set to AT_POOL so OCS Dispatcher can assign trip)
 				if (wo.unit_id) {
 					await sql`
 						UPDATE fleet.unit
-						SET current_state = 'STANDBY',
+						SET current_state = 'AT_POOL',
 						    updated_at = NOW()
 						WHERE nomor_unit = ${wo.unit_id}
 					`;
 				}
 
-				return { success: true, message: 'Dispensasi jalan telah disetujui lengkap oleh 3 pihak! Unit kini siap operasi (STANDBY).' };
+				return { success: true, message: 'Dispensasi jalan telah disetujui lengkap oleh 3 pihak! Unit kini siap operasi (AT_POOL).' };
 			} else {
 				// Save partial approval
 				await sql`

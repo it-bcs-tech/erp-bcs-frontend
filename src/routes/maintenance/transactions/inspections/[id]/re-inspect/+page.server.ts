@@ -182,21 +182,17 @@ export const actions: Actions = {
 				`;
 			}
 
-			// 3. Unlock vehicle in fleet.unit (Set current_state to STANDBY)
+			// 3. Unlock vehicle in fleet.unit (Set current_state to AT_POOL)
 			if (unit_id) {
 				await sql`
 					UPDATE fleet.unit
-					SET current_state = 'STANDBY',
+					SET current_state = 'AT_POOL',
 					    updated_at = NOW()
 					WHERE nomor_unit = ${unit_id}
 				`;
 			}
 
-			if (inspCheck.length > 0) {
-				throw redirect(303, `/maintenance/transactions/inspections/${encodeURIComponent(inspection_no)}`);
-			} else {
-				throw redirect(303, `/maintenance/transactions/work-orders/${encodeURIComponent(wo_no)}`);
-			}
+			throw redirect(303, '/maintenance/transactions/inspections');
 
 		} catch (error: any) {
 			if (error?.status === 303) throw error;
