@@ -15,6 +15,7 @@
 	let isPrintModalOpen = $state(false);
 	let isExecutingPrint = $state(false);
 	let updatingItemId = $state<string | null>(null);
+	let isSubmittingReinspection = $state(false);
 
 	function executePrint() {
 		const iframe = document.getElementById('print-wo-iframe') as HTMLIFrameElement;
@@ -814,7 +815,9 @@
 		<div class="space-y-1">
 			<div class="text-sm font-black text-on-surface">Penyelesaian Tiket SPK & Uji Kelayakan Re-Inspeksi</div>
 			<div class="text-xs text-on-surface-variant">
-				{#if allItemsResolved}
+				{#if wo.status === 'READY_FOR_REINSPECTION'}
+					<span class="text-purple-600 font-bold">✓ Tiket SPK telah dikirim ke antrean Re-Inspeksi.</span> Menunggu verifikasi kelayakan jalan oleh Petugas QC Inspeksi.
+				{:else if allItemsResolved}
 					<span class="text-emerald-600 font-bold">✓ Seluruh item ({totalItems}) telah diselesaikan mekanik.</span> Tiket siap dikirim kembali ke Tim Inspeksi untuk uji QC.
 				{:else}
 					<span>Masih ada <b>{totalItems - resolvedItemsCount}</b> item perbaikan yang belum berstatus 'Resolved'. Selesaikan seluruh item untuk mengirim ke Re-Inspeksi.</span>
@@ -844,14 +847,25 @@
 						<span>Ajukan Dispensasi Jalan</span>
 					</button>
 				{/if}
-				<form method="POST" action="?/sendToReinspection" use:enhance>
+				<form method="POST" action="?/sendToReinspection" use:enhance={() => {
+					isSubmittingReinspection = true;
+					return async ({ update }) => {
+						isSubmittingReinspection = false;
+						await update();
+					};
+				}}>
 					<button 
 						type="submit" 
-						disabled={!allItemsResolved}
+						disabled={!allItemsResolved || isSubmittingReinspection}
 						class="px-6 py-2.5 rounded-xl bg-primary hover:opacity-95 text-on-primary font-bold text-xs shadow-md transition-all flex items-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
 					>
-						<span class="material-symbols-outlined text-[16px]">send</span>
-						<span>Kirim ke Re-Inspeksi (Semua Item Selesai)</span>
+						{#if isSubmittingReinspection}
+							<span class="material-symbols-outlined text-[16px] animate-spin">progress_activity</span>
+							<span>Mengirim ke Re-Inspeksi...</span>
+						{:else}
+							<span class="material-symbols-outlined text-[16px]">send</span>
+							<span>Kirim ke Re-Inspeksi (Semua Item Selesai)</span>
+						{/if}
 					</button>
 				</form>
 			{/if}

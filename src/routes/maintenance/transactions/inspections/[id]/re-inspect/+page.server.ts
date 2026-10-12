@@ -6,6 +6,17 @@ import { verifyUserData } from '$lib/server/auth';
 
 const sql = postgres(env.DATABASE_URL || 'postgres://bcs_admin:sangatrahasia@103.31.205.199:5433/mybcs_db');
 
+function parseJsonSafe(val: any, fallback: any = []) {
+	if (!val) return fallback;
+	if (typeof val === 'object') return val;
+	try {
+		const parsed = JSON.parse(val);
+		return typeof parsed === 'string' ? parseJsonSafe(parsed, fallback) : parsed;
+	} catch (e) {
+		return fallback;
+	}
+}
+
 export const load: PageServerLoad = async ({ params }) => {
 	const idOrNo = decodeURIComponent(params.id);
 
@@ -22,30 +33,67 @@ export const load: PageServerLoad = async ({ params }) => {
 			LEFT JOIN master.m_karyawan k ON i.driver_id = k.payroll_id
 			LEFT JOIN fleet.work_orders w ON i.wo_no = w.wo_no
 			LEFT JOIN master.m_karyawan u ON w.mechanic_id = u.payroll_id
-			WHERE i.inspection_no = ${idOrNo} OR i.id::text = ${idOrNo}
+			WHERE i.inspection_no = ${idOrNo} OR i.id::text = ${idOrNo} OR i.wo_no = ${idOrNo}
 			LIMIT 1
 		`;
 
-		if (inspections.length === 0) {
-			throw error(404, 'Data inspeksi tidak ditemukan.');
+		let insp: any = null;
+
+		if (inspections.length > 0) {
+			const row = inspections[0];
+			insp = {
+				id: row.id,
+				inspectionNo: row.inspection_no,
+				unitId: row.unit_id,
+				unitType: row.unit_type || 'DT',
+				driverName: row.driver_name || row.driver_id || 'Tanpa Driver',
+				odometer: row.odometer,
+				status: row.status,
+				woNo: row.wo_no,
+				woStatus: row.wo_status,
+				mechanicName: row.mechanic_name,
+				repairedItems: parseJsonSafe(row.repaired_items, [])
+			};
+		} else {
+			// Fallback: check if idOrNo is a work order directly (manual WO)
+			const wos = await sql`
+				SELECT 
+					w.*,
+					k.nama_karyawan as driver_name,
+					COALESCE(u.nama_karyawan, w.mechanic_id) as mechanic_name,
+					COALESCE(tu.nama_tipe, un.business_unit::text, 'Truck') as unit_type
+				FROM fleet.work_orders w
+				LEFT JOIN master.m_karyawan k ON w.driver_id = k.payroll_id
+				LEFT JOIN master.m_karyawan u ON w.mechanic_id = u.payroll_id
+				LEFT JOIN fleet.unit un ON w.unit_id = un.nomor_unit
+				LEFT JOIN master.m_model_unit mu ON un.model_id = mu.id
+				LEFT JOIN master.m_tipe_unit tu ON mu.tipe_id = tu.id
+				WHERE w.wo_no = ${idOrNo} OR w.id::text = ${idOrNo}
+				LIMIT 1
+			`;
+
+			if (wos.length === 0) {
+				throw error(404, 'Data inspeksi atau Work Order tidak ditemukan.');
+			}
+
+			const wo = wos[0];
+			insp = {
+				id: `wo_${wo.id}`,
+				inspectionNo: wo.inspection_no || wo.wo_no,
+				unitId: wo.unit_id,
+				unitType: wo.unit_type || 'Truck',
+				driverName: wo.driver_name || wo.driver_id || 'Tanpa Driver',
+				odometer: wo.kilometer,
+				status: wo.status,
+				woNo: wo.wo_no,
+				woStatus: wo.status,
+				mechanicName: wo.mechanic_name,
+				repairedItems: parseJsonSafe(wo.repaired_items, [])
+			};
 		}
 
-		const insp = inspections[0];
-
 		return {
-			inspection: {
-				id: insp.id,
-				inspectionNo: insp.inspection_no,
-				unitId: insp.unit_id,
-				unitType: insp.unit_type || 'DT',
-				driverName: insp.driver_name || insp.driver_id || 'Tanpa Driver',
-				odometer: insp.odometer,
-				status: insp.status,
-				woNo: insp.wo_no,
-				woStatus: insp.wo_status,
-				mechanicName: insp.mechanic_name,
-				repairedItems: insp.repaired_items || []
-			}
+			inspection: insp
 		};
 	} catch (err: any) {
 		if (err?.status === 404) throw err;
@@ -79,8 +127,8 @@ export const actions: Actions = {
 			} catch (e) {}
 		}
 
-		if (!inspection_no || !wo_no) {
-			return fail(400, { missing: true, message: 'Nomor Inspeksi dan WO tidak valid.' });
+		if (!wo_no) {
+			return fail(400, { missing: true, message: 'Nomor Work Order tidak valid.' });
 		}
 
 		try {
@@ -97,14 +145,18 @@ export const actions: Actions = {
 					WHERE wo_no = ${wo_no}
 				`;
 
-				await sql`
-					UPDATE fleet.vehicle_inspections
-					SET notes = COALESCE(notes, '') || ${`\n[${new Date().toISOString()}] Re-Inspeksi REVISI oleh ${inspectorName}: ${reinspect_notes}`},
-					    updated_at = NOW()
-					WHERE inspection_no = ${inspection_no}
-				`;
-
-				throw redirect(303, `/maintenance/transactions/inspections/${encodeURIComponent(inspection_no)}`);
+				const inspExists = inspection_no ? await sql`SELECT id FROM fleet.vehicle_inspections WHERE inspection_no = ${inspection_no} LIMIT 1` : [];
+				if (inspExists.length > 0) {
+					await sql`
+						UPDATE fleet.vehicle_inspections
+						SET notes = COALESCE(notes, '') || ${`\n[${new Date().toISOString()}] Re-Inspeksi REVISI oleh ${inspectorName}: ${reinspect_notes}`},
+						    updated_at = NOW()
+						WHERE inspection_no = ${inspection_no}
+					`;
+					throw redirect(303, `/maintenance/transactions/inspections/${encodeURIComponent(inspection_no)}`);
+				} else {
+					throw redirect(303, `/maintenance/transactions/work-orders/${encodeURIComponent(wo_no)}`);
+				}
 			}
 
 			// ALL PASSED!
@@ -118,14 +170,17 @@ export const actions: Actions = {
 				WHERE wo_no = ${wo_no}
 			`;
 
-			// 2. Update Inspection to CLOSED / RE_INSPECTED
-			await sql`
-				UPDATE fleet.vehicle_inspections
-				SET status = 'CLOSED',
-				    notes = COALESCE(notes, '') || ${`\n[${new Date().toISOString()}] Re-Inspeksi LOLOS oleh ${inspectorName}. Unit siap beroperasi.`},
-				    updated_at = NOW()
-				WHERE inspection_no = ${inspection_no}
-			`;
+			// 2. Update Inspection to CLOSED if exists
+			const inspCheck = inspection_no ? await sql`SELECT id FROM fleet.vehicle_inspections WHERE inspection_no = ${inspection_no} LIMIT 1` : [];
+			if (inspCheck.length > 0) {
+				await sql`
+					UPDATE fleet.vehicle_inspections
+					SET status = 'CLOSED',
+					    notes = COALESCE(notes, '') || ${`\n[${new Date().toISOString()}] Re-Inspeksi LOLOS oleh ${inspectorName}. Unit siap beroperasi.`},
+					    updated_at = NOW()
+					WHERE inspection_no = ${inspection_no}
+				`;
+			}
 
 			// 3. Unlock vehicle in fleet.unit (Set current_state to STANDBY)
 			if (unit_id) {
@@ -137,7 +192,11 @@ export const actions: Actions = {
 				`;
 			}
 
-			throw redirect(303, `/maintenance/transactions/inspections/${encodeURIComponent(inspection_no)}`);
+			if (inspCheck.length > 0) {
+				throw redirect(303, `/maintenance/transactions/inspections/${encodeURIComponent(inspection_no)}`);
+			} else {
+				throw redirect(303, `/maintenance/transactions/work-orders/${encodeURIComponent(wo_no)}`);
+			}
 
 		} catch (error: any) {
 			if (error?.status === 303) throw error;

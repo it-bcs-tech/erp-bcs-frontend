@@ -441,6 +441,16 @@ export const actions: Actions = {
 				WHERE wo_no = ${wo.wo_no}
 			`;
 
+			// Log to linked inspection if available
+			if (wo.inspection_no) {
+				await sql`
+					UPDATE fleet.vehicle_inspections
+					SET notes = COALESCE(notes, '') || ${`\n[${new Date().toISOString()}] Perbaikan selesai oleh mekanik (SPK: ${wo.wo_no}). Siap diuji Re-Inspeksi.`},
+					    updated_at = NOW()
+					WHERE inspection_no = ${wo.inspection_no}
+				`;
+			}
+
 			return { success: true, message: 'Perbaikan telah selesai dan tiket berhasil dikirim ke antrean Re-Inspeksi!' };
 		} catch (e) {
 			console.error("Error sending to reinspection:", e);
