@@ -19,6 +19,12 @@
 		}
 	});
 
+	const isPrintRoute = $derived(
+		$page.url.pathname.endsWith('/print') || 
+		$page.url.pathname.includes('/print/') || 
+		$page.url.searchParams.has('embedded')
+	);
+
 	const isStandaloneRoute = $derived(
 		$page.url.pathname.startsWith('/login') || 
 		isPrintRoute || 
