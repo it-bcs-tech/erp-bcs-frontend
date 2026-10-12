@@ -1,7 +1,34 @@
 <script lang="ts">
 	import type { PageData } from './$types';
+	import { page } from '$app/stores';
+	import { authUser } from '$lib/stores/auth';
 
 	let { data }: { data: PageData } = $props();
+
+	let currentUser = $derived($page.data?.user || $authUser);
+
+	let isMaintenance = $derived.by(() => {
+		if (!currentUser) return false;
+		const r = (currentUser.role || '').toLowerCase();
+		const t = (currentUser.titleName || '').toLowerCase();
+		const d = (currentUser.division || '').toLowerCase();
+		return (
+			['superadmin', 'administrator', 'superhyperadmin', 'super_admin', 'kepala_mekanik', 'admin_maintenance', 'manager_maintenance'].includes(r) ||
+			r.includes('maintenance') ||
+			r.includes('mekanik') ||
+			t.includes('mekanik') ||
+			t.includes('maintenance') ||
+			d.includes('maintenance')
+		);
+	});
+
+	let isInspector = $derived.by(() => {
+		if (!currentUser) return false;
+		const r = (currentUser.role || '').toLowerCase();
+		const t = (currentUser.titleName || '').toLowerCase();
+		const d = (currentUser.division || '').toLowerCase();
+		return r === 'inspector' || r.includes('inspect') || t.includes('inspector') || t.includes('inspeksi') || d.includes('inspeksi');
+	});
 
 	let metrics = $derived(data.metrics);
 	let activeWorkOrders = $derived(data.activeWorkOrders);
@@ -209,10 +236,30 @@
 									</span>
 								</td>
 								<td class="py-3 px-4 text-right">
-									<a href="/maintenance/transactions/work-orders/{encodeURIComponent(wo.woNo)}" class="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-surface-container-high hover:bg-primary hover:text-on-primary text-xs font-bold transition-all">
-										<span>Kerjakan</span>
-										<span class="material-symbols-outlined text-[14px]">arrow_forward</span>
-									</a>
+									{#if isInspector && (wo.status === 'READY_FOR_REINSPECTION' || (wo.status || '').toUpperCase().includes('REINSPECT'))}
+										<a 
+											href="/maintenance/transactions/inspections/{encodeURIComponent(wo.inspectionNo || wo.woNo)}/re-inspect" 
+											class="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold shadow-xs transition-all"
+											title="Buka Lembar Uji Re-Inspeksi & Tutup WO"
+										>
+											<span class="material-symbols-outlined text-[15px]">verified</span>
+											<span>Uji Re-Inspeksi</span>
+										</a>
+									{:else if isMaintenance && wo.status !== 'Closed' && !wo.status.toUpperCase().includes('CLOSE')}
+										<a href="/maintenance/transactions/work-orders/{encodeURIComponent(wo.woNo)}" class="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-surface-container-high hover:bg-primary hover:text-on-primary text-xs font-bold transition-all">
+											<span>Kerjakan</span>
+											<span class="material-symbols-outlined text-[14px]">arrow_forward</span>
+										</a>
+									{:else}
+										<a 
+											href="/maintenance/transactions/work-orders/{encodeURIComponent(wo.woNo)}" 
+											class="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-surface-container-high hover:bg-surface-container-highest text-on-surface text-xs font-bold transition-all"
+											title="Lihat Detail SPK (Read-Only)"
+										>
+											<span class="material-symbols-outlined text-[14px]">visibility</span>
+											<span>Lihat Detail</span>
+										</a>
+									{/if}
 								</td>
 							</tr>
 						{/each}

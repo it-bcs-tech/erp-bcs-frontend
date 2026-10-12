@@ -1,9 +1,50 @@
 <script lang="ts">
 	import type { PageData } from './$types';
 	import { enhance } from '$app/forms';
+	import { page } from '$app/stores';
+	import { authUser } from '$lib/stores/auth';
 	import SpkPrintDocument from '$lib/components/maintenance/SpkPrintDocument.svelte';
 
 	let { data, form }: { data: PageData; form: any } = $props();
+
+	let currentUser = $derived($page.data?.user || $authUser);
+
+	let isMaintenance = $derived.by(() => {
+		if (!currentUser) return false;
+		const r = (currentUser.role || '').toLowerCase();
+		const t = (currentUser.titleName || '').toLowerCase();
+		const d = (currentUser.division || '').toLowerCase();
+		return (
+			['superadmin', 'administrator', 'superhyperadmin', 'super_admin', 'kepala_mekanik', 'admin_maintenance', 'manager_maintenance'].includes(r) ||
+			r.includes('maintenance') ||
+			r.includes('mekanik') ||
+			t.includes('mekanik') ||
+			t.includes('maintenance') ||
+			d.includes('maintenance')
+		);
+	});
+
+	let isInspector = $derived.by(() => {
+		if (!currentUser) return false;
+		const r = (currentUser.role || '').toLowerCase();
+		const t = (currentUser.titleName || '').toLowerCase();
+		const d = (currentUser.division || '').toLowerCase();
+		return r === 'inspector' || r.includes('inspect') || t.includes('inspector') || t.includes('inspeksi') || d.includes('inspeksi');
+	});
+
+	let isSuperadmin = $derived.by(() => {
+		if (!currentUser) return false;
+		const r = (currentUser.role || '').toLowerCase();
+		return ['superadmin', 'administrator', 'superhyperadmin', 'super_admin'].includes(r);
+	});
+
+	let isOperational = $derived.by(() => {
+		if (!currentUser) return false;
+		const r = (currentUser.role || '').toLowerCase();
+		const t = (currentUser.titleName || '').toLowerCase();
+		const d = (currentUser.division || '').toLowerCase();
+		return r.includes('operasional') || r.includes('operational') || r.includes('dispatcher') || t.includes('operasional') || d.includes('operasional');
+	});
 
 	let wo = $derived(data.wo);
 	let mechanics = $derived(data.mechanics || []);
@@ -139,11 +180,11 @@
 		</div>
 
 		<div class="flex items-center gap-2">
-			{#if !allItemsResolved && wo.status !== 'Closed' && wo.status !== 'READY_FOR_REINSPECTION' && !wo.dispensationData?.is_requested}
+			{#if isMaintenance && !allItemsResolved && wo.status !== 'Closed' && wo.status !== 'READY_FOR_REINSPECTION' && !wo.dispensationData?.is_requested}
 				<button 
 					type="button" 
 					onclick={() => isDispensationModalOpen = true}
-					class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs shadow-sm transition-all"
+					class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs shadow-sm transition-all cursor-pointer"
 				>
 					<span class="material-symbols-outlined text-[16px]">release_alert</span>
 					<span>Ajukan Dispensasi Jalan</span>
@@ -165,6 +206,24 @@
 			</button>
 		</div>
 	</header>
+
+	<!-- Banner: Mode Peninjauan (Read-Only) untuk Non-Maintenance / Tim Inspeksi -->
+	{#if !isMaintenance}
+		<div class="p-4 rounded-2xl bg-sky-500/10 border border-sky-500/30 flex items-start sm:items-center justify-between gap-3 text-xs">
+			<div class="flex items-center gap-2.5">
+				<span class="material-symbols-outlined text-sky-600 dark:text-sky-400 text-[22px]">visibility</span>
+				<div>
+					<div class="font-bold text-sky-950 dark:text-sky-200">Mode Peninjauan (Read-Only)</div>
+					<div class="text-on-surface-variant">
+						Anda sedang meninjau SPK ini {isInspector ? 'sebagai Petugas Inspeksi (QC)' : 'dalam mode baca'}. Pengerjaan teknis, penugasan mekanik, dan penutupan item perbaikan dilakukan secara eksklusif oleh tim Bengkel / Maintenance.
+					</div>
+				</div>
+			</div>
+			<span class="px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider bg-sky-100 text-sky-800 dark:bg-sky-950 dark:text-sky-300 border border-sky-300 shrink-0">
+				Read-Only
+			</span>
+		</div>
+	{/if}
 
 	{#if form?.message}
 		<div class="p-4 rounded-xl {form.success ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' : 'bg-rose-50 text-rose-800 border border-rose-200'} text-xs font-bold flex items-center gap-2">
@@ -192,15 +251,22 @@
 					</div>
 				</div>
 
-				<form method="POST" action="?/returnToWorkshop" use:enhance>
-					<button 
-						type="submit" 
-						class="px-4 py-2.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs shadow-sm flex items-center gap-1.5 transition-all"
-					>
-						<span class="material-symbols-outlined text-[16px]">build_circle</span>
-						<span>Tandai Unit Kembali ke Bengkel</span>
-					</button>
-				</form>
+				{#if isMaintenance}
+					<form method="POST" action="?/returnToWorkshop" use:enhance>
+						<button 
+							type="submit" 
+							class="px-4 py-2.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs shadow-sm flex items-center gap-1.5 transition-all cursor-pointer"
+						>
+							<span class="material-symbols-outlined text-[16px]">build_circle</span>
+							<span>Tandai Unit Kembali ke Bengkel</span>
+						</button>
+					</form>
+				{:else}
+					<div class="px-3.5 py-2 rounded-xl bg-amber-500/20 text-amber-900 dark:text-amber-200 text-xs font-semibold flex items-center gap-1.5">
+						<span class="material-symbols-outlined text-[16px]">schedule</span>
+						<span>Menunggu Unit Kembali ke Bengkel</span>
+					</div>
+				{/if}
 			</div>
 
 			<!-- Dispensation details -->
@@ -307,7 +373,7 @@
 								<div class="text-[10px] text-on-surface-variant italic">"{wo.dispensationData.approval_maintenance.notes}"</div>
 							{/if}
 						</div>
-					{:else}
+					{:else if isMaintenance}
 						<form method="POST" action="?/approveDispensation" use:enhance class="space-y-2 pt-1">
 							<input type="hidden" name="role_type" value="maintenance" />
 							<input 
@@ -318,12 +384,16 @@
 							/>
 							<button 
 								type="submit" 
-								class="w-full py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-2xs transition-all flex items-center justify-center gap-1"
+								class="w-full py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-2xs transition-all flex items-center justify-center gap-1 cursor-pointer"
 							>
 								<span class="material-symbols-outlined text-[15px]">check_circle</span>
 								<span>Setujui (Ka. Bengkel)</span>
 							</button>
 						</form>
+					{:else}
+						<div class="text-[11px] text-on-surface-variant italic pt-1">
+							Menunggu persetujuan tim Maintenance / Ka. Bengkel.
+						</div>
 					{/if}
 				</div>
 
@@ -347,7 +417,7 @@
 								<div class="text-[10px] text-on-surface-variant italic">"{wo.dispensationData.approval_inspek.notes}"</div>
 							{/if}
 						</div>
-					{:else}
+					{:else if isInspector || isSuperadmin}
 						<form method="POST" action="?/approveDispensation" use:enhance class="space-y-2 pt-1">
 							<input type="hidden" name="role_type" value="inspek" />
 							<input 
@@ -358,12 +428,16 @@
 							/>
 							<button 
 								type="submit" 
-								class="w-full py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-2xs transition-all flex items-center justify-center gap-1"
+								class="w-full py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-2xs transition-all flex items-center justify-center gap-1 cursor-pointer"
 							>
 								<span class="material-symbols-outlined text-[15px]">check_circle</span>
 								<span>Setujui (Tim Inspeksi)</span>
 							</button>
 						</form>
+					{:else}
+						<div class="text-[11px] text-on-surface-variant italic pt-1">
+							Menunggu persetujuan tim Inspeksi QC.
+						</div>
 					{/if}
 				</div>
 
@@ -387,7 +461,7 @@
 								<div class="text-[10px] text-on-surface-variant italic">"{wo.dispensationData.approval_operational.notes}"</div>
 							{/if}
 						</div>
-					{:else}
+					{:else if isOperational || isSuperadmin}
 						<form method="POST" action="?/approveDispensation" use:enhance class="space-y-2 pt-1">
 							<input type="hidden" name="role_type" value="operational" />
 							<input 
@@ -398,12 +472,16 @@
 							/>
 							<button 
 								type="submit" 
-								class="w-full py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-2xs transition-all flex items-center justify-center gap-1"
+								class="w-full py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-2xs transition-all flex items-center justify-center gap-1 cursor-pointer"
 							>
 								<span class="material-symbols-outlined text-[15px]">check_circle</span>
 								<span>Setujui (Ka. Operasional)</span>
 							</button>
 						</form>
+					{:else}
+						<div class="text-[11px] text-on-surface-variant italic pt-1">
+							Menunggu persetujuan tim Operasional.
+						</div>
 					{/if}
 				</div>
 			</div>
@@ -448,12 +526,14 @@
 			<div>
 				<div class="flex items-center justify-between mb-2">
 					<span class="text-[11px] font-bold text-on-surface-variant uppercase tracking-wider">Penugasan Mekanik</span>
-					<button 
-						onclick={() => isAssignModalOpen = !isAssignModalOpen}
-						class="text-[11px] font-bold text-primary hover:underline"
-					>
-						Ubah
-					</button>
+					{#if isMaintenance}
+						<button 
+							onclick={() => isAssignModalOpen = !isAssignModalOpen}
+							class="text-[11px] font-bold text-primary hover:underline cursor-pointer"
+						>
+							Ubah
+						</button>
+					{/if}
 				</div>
 				<div class="space-y-2 text-xs">
 					<div>
@@ -502,7 +582,7 @@
 	</div>
 
 	<!-- Modal Penugasan Mekanik -->
-	{#if isAssignModalOpen}
+	{#if isAssignModalOpen && isMaintenance}
 		<div class="p-5 rounded-2xl bg-surface-container-low border border-primary/30 space-y-4">
 			<div class="flex items-center justify-between">
 				<h3 class="text-xs font-black text-on-surface uppercase tracking-wider">Tugaskan Mekanik Bengkel</h3>
@@ -588,53 +668,62 @@
 									<span class="material-symbols-outlined text-[15px]">check_circle</span>
 									Selesai (Resolved)
 								</span>
-								<form method="POST" action="?/updateItemStatus" use:enhance={() => {
-									updatingItemId = item.id;
-									return async ({ update }) => {
-										await update();
-										updatingItemId = null;
-									};
-								}}>
-									<input type="hidden" name="item_id" value={item.id} />
-									<input type="hidden" name="item_status" value="PENDING" />
-									<button 
-										type="submit" 
-										disabled={updatingItemId === item.id}
-										class="text-[10px] text-on-surface-variant hover:text-rose-600 underline disabled:opacity-50 cursor-pointer"
-									>
-										{updatingItemId === item.id ? 'Membuka...' : 'Buka Kembali'}
-									</button>
-								</form>
+								{#if isMaintenance}
+									<form method="POST" action="?/updateItemStatus" use:enhance={() => {
+										updatingItemId = item.id;
+										return async ({ update }) => {
+											await update();
+											updatingItemId = null;
+										};
+									}}>
+										<input type="hidden" name="item_id" value={item.id} />
+										<input type="hidden" name="item_status" value="PENDING" />
+										<button 
+											type="submit" 
+											disabled={updatingItemId === item.id}
+											class="text-[10px] text-on-surface-variant hover:text-rose-600 underline disabled:opacity-50 cursor-pointer"
+										>
+											{updatingItemId === item.id ? 'Membuka...' : 'Buka Kembali'}
+										</button>
+									</form>
+								{/if}
 							{:else}
-								<form method="POST" action="?/updateItemStatus" use:enhance={() => {
-									updatingItemId = item.id;
-									return async ({ update }) => {
-										await update();
-										updatingItemId = null;
-									};
-								}} class="flex items-center gap-2">
-									<input type="hidden" name="item_id" value={item.id} />
-									<input type="hidden" name="item_status" value="RESOLVED" />
-									<input 
-										type="text" 
-										name="mechanic_notes" 
-										placeholder="Catatan perbaikan..." 
-										class="text-xs px-2.5 py-1.5 rounded-lg bg-surface-container border border-slate-200 dark:border-slate-800 text-on-surface outline-none w-48"
-									/>
-									<button 
-										type="submit" 
-										disabled={updatingItemId === item.id}
-										class="px-3.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-2xs transition-all flex items-center gap-1 disabled:opacity-50 cursor-pointer"
-									>
-										{#if updatingItemId === item.id}
-											<span class="material-symbols-outlined text-[15px] animate-spin">progress_activity</span>
-											<span>Menyimpan...</span>
-										{:else}
-											<span class="material-symbols-outlined text-[15px]">done</span>
-											<span>Tutup Item</span>
-										{/if}
-									</button>
-								</form>
+								{#if isMaintenance}
+									<form method="POST" action="?/updateItemStatus" use:enhance={() => {
+										updatingItemId = item.id;
+										return async ({ update }) => {
+											await update();
+											updatingItemId = null;
+										};
+									}} class="flex items-center gap-2">
+										<input type="hidden" name="item_id" value={item.id} />
+										<input type="hidden" name="item_status" value="RESOLVED" />
+										<input 
+											type="text" 
+											name="mechanic_notes" 
+											placeholder="Catatan perbaikan..." 
+											class="text-xs px-2.5 py-1.5 rounded-lg bg-surface-container border border-slate-200 dark:border-slate-800 text-on-surface outline-none w-48"
+										/>
+										<button 
+											type="submit" 
+											disabled={updatingItemId === item.id}
+											class="px-3.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-2xs transition-all flex items-center gap-1 disabled:opacity-50 cursor-pointer"
+										>
+											{#if updatingItemId === item.id}
+												<span class="material-symbols-outlined text-[15px] animate-spin">progress_activity</span>
+												<span>Menyimpan...</span>
+											{:else}
+												<span class="material-symbols-outlined text-[15px]">done</span>
+												<span>Tutup Item</span>
+											{/if}
+										</button>
+									</form>
+								{:else}
+									<span class="inline-flex items-center gap-1 px-3 py-1 rounded-lg text-xs font-semibold bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-200">
+										<span class="material-symbols-outlined text-[15px]">schedule</span>
+										Menunggu Pengerjaan Bengkel
+									</span>
+								{/if}
 							{/if}
 						</div>
 					</div>
@@ -656,18 +745,20 @@
 				</p>
 			</div>
 
-			<button 
-				type="button" 
-				onclick={() => isSparepartModalOpen = !isSparepartModalOpen}
-				class="px-3.5 py-1.5 rounded-lg text-xs font-bold bg-primary text-on-primary hover:opacity-90 transition-all flex items-center gap-1"
-			>
-				<span class="material-symbols-outlined text-[16px]">add</span>
-				<span>Tambah Sparepart</span>
-			</button>
+			{#if isMaintenance}
+				<button 
+					type="button" 
+					onclick={() => isSparepartModalOpen = !isSparepartModalOpen}
+					class="px-3.5 py-1.5 rounded-lg text-xs font-bold bg-primary text-on-primary hover:opacity-90 transition-all flex items-center gap-1 cursor-pointer"
+				>
+					<span class="material-symbols-outlined text-[16px]">add</span>
+					<span>Tambah Sparepart</span>
+				</button>
+			{/if}
 		</div>
 
 		<!-- Sparepart Picker Drawer/Modal -->
-		{#if isSparepartModalOpen}
+		{#if isSparepartModalOpen && isMaintenance}
 			<div class="p-5 rounded-xl bg-surface-container-low border border-primary/30 space-y-4">
 				<div class="flex items-center justify-between">
 					<h3 class="text-xs font-black text-on-surface uppercase tracking-wider">Katalog Suku Cadang PMS</h3>
@@ -837,43 +928,50 @@
 					<span>SPK Telah Ditutup (Selesai & Armada Siap Jalan)</span>
 				</div>
 			{:else}
-				{#if !allItemsResolved && !wo.dispensationData?.is_requested}
+				{#if isMaintenance && !allItemsResolved && !wo.dispensationData?.is_requested}
 					<button 
 						type="button" 
 						onclick={() => isDispensationModalOpen = true}
-						class="px-4 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs shadow-sm transition-all flex items-center gap-1.5"
+						class="px-4 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs shadow-sm transition-all flex items-center gap-1.5 cursor-pointer"
 					>
 						<span class="material-symbols-outlined text-[16px]">release_alert</span>
 						<span>Ajukan Dispensasi Jalan</span>
 					</button>
 				{/if}
-				<form method="POST" action="?/sendToReinspection" use:enhance={() => {
-					isSubmittingReinspection = true;
-					return async ({ update }) => {
-						isSubmittingReinspection = false;
-						await update();
-					};
-				}}>
-					<button 
-						type="submit" 
-						disabled={!allItemsResolved || isSubmittingReinspection}
-						class="px-6 py-2.5 rounded-xl bg-primary hover:opacity-95 text-on-primary font-bold text-xs shadow-md transition-all flex items-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
-					>
-						{#if isSubmittingReinspection}
-							<span class="material-symbols-outlined text-[16px] animate-spin">progress_activity</span>
-							<span>Mengirim ke Re-Inspeksi...</span>
-						{:else}
-							<span class="material-symbols-outlined text-[16px]">send</span>
-							<span>Kirim ke Re-Inspeksi (Semua Item Selesai)</span>
-						{/if}
-					</button>
-				</form>
+				{#if isMaintenance}
+					<form method="POST" action="?/sendToReinspection" use:enhance={() => {
+						isSubmittingReinspection = true;
+						return async ({ update }) => {
+							isSubmittingReinspection = false;
+							await update();
+						};
+					}}>
+						<button 
+							type="submit" 
+							disabled={!allItemsResolved || isSubmittingReinspection}
+							class="px-6 py-2.5 rounded-xl bg-primary hover:opacity-95 text-on-primary font-bold text-xs shadow-md transition-all flex items-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+						>
+							{#if isSubmittingReinspection}
+								<span class="material-symbols-outlined text-[16px] animate-spin">progress_activity</span>
+								<span>Mengirim ke Re-Inspeksi...</span>
+							{:else}
+								<span class="material-symbols-outlined text-[16px]">send</span>
+								<span>Kirim ke Re-Inspeksi (Semua Item Selesai)</span>
+							{/if}
+						</button>
+					</form>
+				{:else}
+					<div class="px-4 py-2 rounded-xl bg-surface-container text-on-surface-variant text-xs font-semibold flex items-center gap-1.5">
+						<span class="material-symbols-outlined text-[16px]">pending</span>
+						<span>Dalam Penanganan Tim Bengkel</span>
+					</div>
+				{/if}
 			{/if}
 		</div>
 	</div>
 
 	<!-- Modal Ajukan Dispensasi Jalan (Rilis Bersyarat) -->
-	{#if isDispensationModalOpen}
+	{#if isDispensationModalOpen && isMaintenance}
 		<div class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4">
 			<div class="w-full max-w-xl rounded-2xl bg-surface-container-lowest border border-slate-200 dark:border-slate-800 p-6 shadow-2xl space-y-4">
 				<div class="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3">

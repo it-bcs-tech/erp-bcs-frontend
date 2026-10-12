@@ -183,9 +183,61 @@ export const load: PageServerLoad = async ({ params }) => {
 	}
 };
 
+function getActionUser(cookies: any): any | null {
+	const userDataCookie = cookies.get('user_data');
+	if (!userDataCookie) return null;
+	try {
+		return verifyUserData(userDataCookie);
+	} catch {
+		return null;
+	}
+}
+
+function checkIsMaintenance(user: any): boolean {
+	if (!user) return false;
+	const r = (user.role || '').toLowerCase();
+	const t = (user.titleName || '').toLowerCase();
+	const d = (user.division || '').toLowerCase();
+	return (
+		['superadmin', 'administrator', 'superhyperadmin', 'super_admin', 'kepala_mekanik', 'admin_maintenance', 'manager_maintenance'].includes(r) ||
+		r.includes('maintenance') ||
+		r.includes('mekanik') ||
+		t.includes('mekanik') ||
+		t.includes('maintenance') ||
+		d.includes('maintenance')
+	);
+}
+
+function checkIsInspector(user: any): boolean {
+	if (!user) return false;
+	const r = (user.role || '').toLowerCase();
+	const t = (user.titleName || '').toLowerCase();
+	const d = (user.division || '').toLowerCase();
+	return r === 'inspector' || r.includes('inspect') || t.includes('inspector') || t.includes('inspeksi') || d.includes('inspeksi');
+}
+
+function checkIsAdmin(user: any): boolean {
+	if (!user) return false;
+	const r = (user.role || '').toLowerCase();
+	return ['superadmin', 'administrator', 'superhyperadmin', 'super_admin'].includes(r);
+}
+
+function checkIsOperational(user: any): boolean {
+	if (!user) return false;
+	const r = (user.role || '').toLowerCase();
+	const t = (user.titleName || '').toLowerCase();
+	const d = (user.division || '').toLowerCase();
+	return r.includes('operasional') || r.includes('operational') || r.includes('dispatcher') || t.includes('operasional') || d.includes('operasional');
+}
+
 export const actions: Actions = {
 	// 1. Assign Mechanic
-	assignMechanic: async ({ request, params }) => {
+	assignMechanic: async ({ request, params, cookies }) => {
+		const user = getActionUser(cookies);
+		if (!checkIsMaintenance(user)) {
+			return fail(403, { forbidden: true, message: 'Hanya tim Maintenance/Bengkel yang berwenang menugaskan mekanik.' });
+		}
+
 		const idOrNo = decodeURIComponent(params.id);
 		const data = await request.formData();
 		const mechanic_id = data.get('mechanic_id')?.toString();
@@ -212,7 +264,12 @@ export const actions: Actions = {
 	},
 
 	// 2. Update Resolution Status for a single Item
-	updateItemStatus: async ({ request, params }) => {
+	updateItemStatus: async ({ request, params, cookies }) => {
+		const user = getActionUser(cookies);
+		if (!checkIsMaintenance(user)) {
+			return fail(403, { forbidden: true, message: 'Hanya tim Maintenance/Bengkel yang berwenang mengubah status item.' });
+		}
+
 		const idOrNo = decodeURIComponent(params.id);
 		const data = await request.formData();
 		const item_id = data.get('item_id')?.toString();
@@ -301,6 +358,11 @@ export const actions: Actions = {
 
 	// 3. Add Sparepart (Integrate into spareparts_used & fleet.maintenance_dn_detail)
 	addSparepart: async ({ request, params, cookies }) => {
+		const user = getActionUser(cookies);
+		if (!checkIsMaintenance(user)) {
+			return fail(403, { forbidden: true, message: 'Hanya tim Maintenance/Bengkel yang berwenang mencatat pemakaian suku cadang.' });
+		}
+
 		const idOrNo = decodeURIComponent(params.id);
 		const data = await request.formData();
 		const material_code = data.get('material_code')?.toString();
@@ -310,14 +372,7 @@ export const actions: Actions = {
 		const price = parseFloat(data.get('price')?.toString() || '0') || 0;
 		const item_ref = data.get('item_ref')?.toString() || '';
 
-		let createdBy = 'mechanic';
-		const userDataCookie = cookies.get('user_data');
-		if (userDataCookie) {
-			try {
-				const user = verifyUserData(userDataCookie);
-				createdBy = user.nama || user.username || 'mechanic';
-			} catch (e) {}
-		}
+		const createdBy = user?.nama || user?.username || 'mechanic';
 
 		try {
 			const woRes = await sql`SELECT wo_no, unit_id, spareparts_used FROM fleet.work_orders WHERE wo_no = ${idOrNo} OR id::text = ${idOrNo}`;
@@ -418,7 +473,12 @@ export const actions: Actions = {
 	},
 
 	// 4. Send to Re-Inspection
-	sendToReinspection: async ({ params }) => {
+	sendToReinspection: async ({ params, cookies }) => {
+		const user = getActionUser(cookies);
+		if (!checkIsMaintenance(user)) {
+			return fail(403, { forbidden: true, message: 'Hanya tim Maintenance/Bengkel yang berwenang mengirim SPK ke Re-Inspeksi.' });
+		}
+
 		const idOrNo = decodeURIComponent(params.id);
 
 		try {
@@ -460,20 +520,18 @@ export const actions: Actions = {
 
 	// 5. Request Dispensation (Mekanik mengajukan izin jalan sementara sebelum perbaikan tuntas)
 	requestDispensation: async ({ request, params, cookies }) => {
+		const user = getActionUser(cookies);
+		if (!checkIsMaintenance(user)) {
+			return fail(403, { forbidden: true, message: 'Hanya tim Maintenance/Bengkel yang berwenang mengajukan dispensasi jalan.' });
+		}
+
 		const idOrNo = decodeURIComponent(params.id);
 		const data = await request.formData();
 		const recommendation = data.get('recommendation')?.toString() || '';
 		const operational_reason = data.get('operational_reason')?.toString() || '';
 		const commitment_date = data.get('commitment_date')?.toString() || null;
 
-		let applicantName = 'Mekanik / Workshop';
-		const userDataCookie = cookies.get('user_data');
-		if (userDataCookie) {
-			try {
-				const user = verifyUserData(userDataCookie);
-				applicantName = user.nama || user.username || 'Mekanik / Workshop';
-			} catch (e) {}
-		}
+		const applicantName = user?.nama || user?.username || 'Mekanik / Workshop';
 
 		if (!recommendation || !operational_reason) {
 			return fail(400, { missing: true, message: 'Rekomendasi teknis dan alasan operasional wajib diisi.' });
@@ -524,18 +582,22 @@ export const actions: Actions = {
 		const role_type = data.get('role_type')?.toString(); // 'maintenance' | 'inspek' | 'operational'
 		const notes = data.get('notes')?.toString() || '';
 
-		let approverName = 'Approver';
-		const userDataCookie = cookies.get('user_data');
-		if (userDataCookie) {
-			try {
-				const user = verifyUserData(userDataCookie);
-				approverName = user.nama || user.username || 'Approver';
-			} catch (e) {}
-		}
-
 		if (!role_type || !['maintenance', 'inspek', 'operational'].includes(role_type)) {
 			return fail(400, { message: 'Pihak approval tidak valid.' });
 		}
+
+		const user = getActionUser(cookies);
+		if (role_type === 'maintenance' && !checkIsMaintenance(user)) {
+			return fail(403, { forbidden: true, message: 'Persetujuan tahap 1 hanya berhak diberikan oleh pihak Maintenance/Bengkel.' });
+		}
+		if (role_type === 'inspek' && !checkIsInspector(user) && !checkIsAdmin(user)) {
+			return fail(403, { forbidden: true, message: 'Persetujuan tahap 2 hanya berhak diberikan oleh pihak Inspeksi QC.' });
+		}
+		if (role_type === 'operational' && !checkIsOperational(user) && !checkIsAdmin(user)) {
+			return fail(403, { forbidden: true, message: 'Persetujuan tahap 3 hanya berhak diberikan oleh pihak Operasional.' });
+		}
+
+		const approverName = user?.nama || user?.username || 'Approver';
 
 		try {
 			const woRes = await sql`SELECT wo_no, unit_id, dispensation_data FROM fleet.work_orders WHERE wo_no = ${idOrNo} OR id::text = ${idOrNo}`;
@@ -598,7 +660,12 @@ export const actions: Actions = {
 	},
 
 	// 7. Return to Workshop (Unit kembali dari trip dispensasi ke pool bengkel)
-	returnToWorkshop: async ({ params }) => {
+	returnToWorkshop: async ({ params, cookies }) => {
+		const user = getActionUser(cookies);
+		if (!checkIsMaintenance(user)) {
+			return fail(403, { forbidden: true, message: 'Hanya tim Maintenance/Bengkel yang berwenang menandai unit kembali ke bengkel.' });
+		}
+
 		const idOrNo = decodeURIComponent(params.id);
 
 		try {

@@ -2,9 +2,35 @@
 	import type { PageData } from './$types';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/stores';
+	import { authUser } from '$lib/stores/auth';
 	import SpkPrintDocument from '$lib/components/maintenance/SpkPrintDocument.svelte';
 
 	let { data }: { data: PageData } = $props();
+
+	let currentUser = $derived($page.data?.user || $authUser);
+
+	let isMaintenance = $derived.by(() => {
+		if (!currentUser) return false;
+		const r = (currentUser.role || '').toLowerCase();
+		const t = (currentUser.titleName || '').toLowerCase();
+		const d = (currentUser.division || '').toLowerCase();
+		return (
+			['superadmin', 'administrator', 'superhyperadmin', 'super_admin', 'kepala_mekanik', 'admin_maintenance', 'manager_maintenance'].includes(r) ||
+			r.includes('maintenance') ||
+			r.includes('mekanik') ||
+			t.includes('mekanik') ||
+			t.includes('maintenance') ||
+			d.includes('maintenance')
+		);
+	});
+
+	let isInspector = $derived.by(() => {
+		if (!currentUser) return false;
+		const r = (currentUser.role || '').toLowerCase();
+		const t = (currentUser.titleName || '').toLowerCase();
+		const d = (currentUser.division || '').toLowerCase();
+		return r === 'inspector' || r.includes('inspect') || t.includes('inspector') || t.includes('inspeksi') || d.includes('inspeksi');
+	});
 
 	let records = $derived(data.records);
 	let meta = $derived(data.meta);
@@ -272,10 +298,34 @@
 										>
 											<span class="material-symbols-outlined text-[18px]">print</span>
 										</button>
-										<a href="/maintenance/transactions/work-orders/{encodeURIComponent(item.woNo)}" class="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-surface-container-high hover:bg-primary hover:text-on-primary text-xs font-bold transition-all">
-											<span>Kerjakan</span>
-											<span class="material-symbols-outlined text-[14px]">arrow_forward</span>
-										</a>
+
+										{#if isInspector && (item.status === 'READY_FOR_REINSPECTION' || (item.status || '').toUpperCase().includes('REINSPECT'))}
+											<a 
+												href="/maintenance/transactions/inspections/{encodeURIComponent(item.inspectionNo || item.woNo)}/re-inspect" 
+												class="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold shadow-xs transition-all"
+												title="Buka Lembar Uji Re-Inspeksi & Tutup WO"
+											>
+												<span class="material-symbols-outlined text-[15px]">verified</span>
+												<span>Uji Re-Inspeksi</span>
+											</a>
+										{:else if isMaintenance && item.status !== 'Closed' && !item.status.toUpperCase().includes('CLOSE')}
+											<a 
+												href="/maintenance/transactions/work-orders/{encodeURIComponent(item.woNo)}" 
+												class="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-surface-container-high hover:bg-primary hover:text-on-primary text-xs font-bold transition-all"
+											>
+												<span>Kerjakan</span>
+												<span class="material-symbols-outlined text-[14px]">arrow_forward</span>
+											</a>
+										{:else}
+											<a 
+												href="/maintenance/transactions/work-orders/{encodeURIComponent(item.woNo)}" 
+												class="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-surface-container-high hover:bg-surface-container-highest text-on-surface text-xs font-bold transition-all"
+												title="Lihat Detail SPK (Read-Only)"
+											>
+												<span class="material-symbols-outlined text-[14px]">visibility</span>
+												<span>Lihat Detail</span>
+											</a>
+										{/if}
 									</div>
 								</td>
 							</tr>

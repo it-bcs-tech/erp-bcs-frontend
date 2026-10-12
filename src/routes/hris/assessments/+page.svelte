@@ -19,14 +19,36 @@
 	const assessmentPeriods = $derived((data as any).assessmentPeriods || [String(currentYear), String(currentYear - 1), String(currentYear - 2)]);
 	const currentUser = $derived((data as any).currentUser);
 
-	// Deteksi Hak Akses Admin HR / Superadmin
-	const isAdmin = $derived(
-		currentUser && (
-			['superadmin', 'administrator', 'superhyperadmin', 'super_admin'].includes(currentUser.role?.toLowerCase()) ||
-			currentUser.role?.toLowerCase()?.includes('admin') ||
-			currentUser.email === 'superhyperadmin@bcs-logistics.co.id'
-		)
-	);
+	// Deteksi Hak Akses Admin / HR (Bisa bertindak seperti Superadmin di halaman Assessments)
+	const isAdmin = $derived.by(() => {
+		if (!currentUser) return false;
+		const roleLower = (currentUser.role || '').toLowerCase();
+		const divUpper = (currentUser.division || '').toUpperCase();
+		const divCode = (currentUser.divisionCode || '').toUpperCase();
+		const email = (currentUser.email || '').toLowerCase();
+
+		// 1. Superadmin & Developer
+		const isSuperAdmin = (
+			['superadmin', 'administrator', 'superhyperadmin', 'super_admin'].includes(roleLower) ||
+			roleLower.includes('admin') ||
+			email === 'superhyperadmin@bcs-logistics.co.id'
+		);
+
+		// 2. HR / Human Capital
+		const isHr = (
+			roleLower === 'hr' ||
+			roleLower.includes('hr') ||
+			roleLower.includes('human_capital') ||
+			divCode === 'DV_37' ||
+			divUpper.includes('HUMAN CAPITAL') ||
+			divUpper.includes('HRD')
+		);
+
+		return isSuperAdmin || isHr;
+	});
+
+	// State Filter Lingkup Data untuk HR/Admin (Seluruh Perusahaan vs Tim Atasan Terpilih)
+	let hrScopeFilter = $state<'all' | 'selected_assessor'>('all');
 
 	// Periksa apakah user login terdaftar sebagai atasan
 	const userAssessorMatch = $derived(
@@ -316,7 +338,12 @@
 		return trainingRequests.filter((r: any) => {
 			const assessorName = currentAssessor?.name || '';
 			const currentUserName = currentUser?.nama_karyawan || currentUser?.name || '';
-			const matchAuthor = !assessorName || r.requestedBy === assessorName || r.requestedBy === currentUserName || r.deptName === currentAssessor?.department;
+			
+			// Jika HR/Admin dalam lingkup 'all', tampilkan seluruh usulan se-perusahaan
+			const matchAuthor = (isAdmin && hrScopeFilter === 'all')
+				? true
+				: (!assessorName || r.requestedBy === assessorName || r.requestedBy === currentUserName || r.deptName === currentAssessor?.department);
+
 			const q = requestSearchQuery.trim().toLowerCase();
 			const matchSearch = !q || r.trainingTitle.toLowerCase().includes(q) || r.id.toLowerCase().includes(q) || r.deptName.toLowerCase().includes(q);
 			const matchStatus = requestStatusFilter === 'All' || r.status === requestStatusFilter;
@@ -328,7 +355,9 @@
 		trainingRequests.filter((r: any) => {
 			const assessorName = currentAssessor?.name || '';
 			const currentUserName = currentUser?.nama_karyawan || currentUser?.name || '';
-			const matchAuthor = !assessorName || r.requestedBy === assessorName || r.requestedBy === currentUserName || r.deptName === currentAssessor?.department;
+			const matchAuthor = (isAdmin && hrScopeFilter === 'all')
+				? true
+				: (!assessorName || r.requestedBy === assessorName || r.requestedBy === currentUserName || r.deptName === currentAssessor?.department);
 			return matchAuthor && r.status === 'PENDING';
 		}).length
 	);
@@ -338,6 +367,9 @@
 	);
 
 	const subordinatePostTrainingEvals = $derived.by(() => {
+		if (isAdmin && hrScopeFilter === 'all') {
+			return postTrainingEvals;
+		}
 		if (allDirectSubordinates.length === 0) return postTrainingEvals;
 		return postTrainingEvals.filter((e: any) => assessorDirectSubordinateIds.has(e.payrollId));
 	});
@@ -805,9 +837,33 @@
 			</button>
 		</div>
 
-		<div class="text-[11px] text-slate-400 font-medium px-2 hidden lg:block whitespace-nowrap">
-			Siklus Tertutup TNA & Evaluasi Kirkpatrick BCS
-		</div>
+		{#if isAdmin}
+			<div class="flex items-center gap-1 p-1 rounded-2xl bg-surface-container border border-slate-200/80 dark:border-slate-700/80 text-[11px] font-bold shrink-0 self-end md:self-auto shadow-2xs">
+				<span class="text-[10px] text-slate-400 font-bold uppercase tracking-wider px-1.5 hidden sm:inline">Lingkup Data:</span>
+				<button
+					type="button"
+					onclick={() => (hrScopeFilter = 'all')}
+					class="px-2.5 py-1 rounded-xl transition-all cursor-pointer flex items-center gap-1 {hrScopeFilter === 'all' ? 'bg-primary text-on-primary shadow-xs' : 'text-slate-500 hover:text-on-surface'}"
+					title="Tampilkan seluruh data se-perusahaan"
+				>
+					<span class="material-symbols-outlined text-xs">domain</span>
+					<span>Seluruh Perusahaan</span>
+				</button>
+				<button
+					type="button"
+					onclick={() => (hrScopeFilter = 'selected_assessor')}
+					class="px-2.5 py-1 rounded-xl transition-all cursor-pointer flex items-center gap-1 {hrScopeFilter === 'selected_assessor' ? 'bg-primary text-on-primary shadow-xs' : 'text-slate-500 hover:text-on-surface'}"
+					title="Tampilkan hanya tim atasan penilai terpilih"
+				>
+					<span class="material-symbols-outlined text-xs">person</span>
+					<span>Tim Atasan Terpilih</span>
+				</button>
+			</div>
+		{:else}
+			<div class="text-[11px] text-slate-400 font-medium px-2 hidden lg:block whitespace-nowrap">
+				Siklus Tertutup TNA & Evaluasi Kirkpatrick BCS
+			</div>
+		{/if}
 	</div>
 
 	{#if activeViewTab === 'annual'}
@@ -2267,7 +2323,30 @@
 					/>
 				</div>
 
-				<div class="flex items-center gap-2">
+				<div class="flex items-center gap-2 flex-wrap">
+					{#if isAdmin}
+						<div class="inline-flex p-1 rounded-2xl bg-surface-container border border-slate-200 dark:border-slate-700 text-xs font-bold">
+							<button
+								type="button"
+								onclick={() => (hrScopeFilter = 'all')}
+								class="px-3 py-1.5 rounded-xl transition-all cursor-pointer flex items-center gap-1.5 {hrScopeFilter === 'all' ? 'bg-primary text-on-primary shadow-xs' : 'text-slate-500 hover:text-on-surface'}"
+								title="Tampilkan usulan pelatihan seluruh unit/divisi perusahaan"
+							>
+								<span class="material-symbols-outlined text-xs">domain</span>
+								<span>Seluruh Perusahaan</span>
+							</button>
+							<button
+								type="button"
+								onclick={() => (hrScopeFilter = 'selected_assessor')}
+								class="px-3 py-1.5 rounded-xl transition-all cursor-pointer flex items-center gap-1.5 {hrScopeFilter === 'selected_assessor' ? 'bg-primary text-on-primary shadow-xs' : 'text-slate-500 hover:text-on-surface'}"
+								title="Tampilkan hanya usulan dari tim atasan yang dipilih di header"
+							>
+								<span class="material-symbols-outlined text-xs">person</span>
+								<span>Tim Atasan Terpilih</span>
+							</button>
+						</div>
+					{/if}
+
 					<span class="text-slate-400 font-bold">Status:</span>
 					<select
 						bind:value={requestStatusFilter}
