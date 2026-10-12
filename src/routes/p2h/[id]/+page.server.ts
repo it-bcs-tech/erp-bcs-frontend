@@ -43,7 +43,7 @@ export const load: PageServerLoad = async ({ params }) => {
 			inspection: {
 				id: insp.id,
 				inspectionNo: insp.inspection_no,
-				date: insp.inspection_date ? new Date(insp.inspection_date).toLocaleDateString('id-ID', { dateStyle: 'long', timeStyle: 'short' }) : '-',
+				date: insp.inspection_date ? new Date(insp.inspection_date).toLocaleString('id-ID', { dateStyle: 'long', timeStyle: 'short' }) : '-',
 				unitId: insp.unit_id,
 				unitType: insp.unit_type || 'Truck',
 				policeNo: insp.police_no || insp.unit_id,
