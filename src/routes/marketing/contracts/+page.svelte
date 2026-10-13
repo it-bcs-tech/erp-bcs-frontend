@@ -17,8 +17,7 @@
 	let masterRuteOpts = $derived((masterRutes || []).map((r: any) => ({
 		value: String(r.id),
 		label: `${r.origin_name} → ${r.destination_name}`,
-		sublabel: `Unit: ${r.tipe_unit || '-'} • UJO: ${formatCurrency(Number(r.total_ujo || 0))}`,
-		searchTerms: `${r.origin_name} ${r.destination_name} ${r.tipe_unit || ''}`
+		searchTerms: `${r.origin_name} ${r.destination_name}`
 	})));
 	let products = $derived(data.products || []);
 
