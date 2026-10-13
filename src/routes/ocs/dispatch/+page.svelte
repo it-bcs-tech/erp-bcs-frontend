@@ -60,6 +60,7 @@
 	let showUjoModal = $state(false);
 	let showClosingModal = $state(false);
 	let selectedOrder = $state<any>(null);
+	let viewMode = $state<'table' | 'cards'>('table');
 
 	// Panel Armada Filter State
 	let unitPanelSearch = $state('');
@@ -899,24 +900,156 @@
 					</div>
 				</div>
 			{/if}
-			<!-- Status Filter Segmented Control Tabs -->
-			<div class="inline-flex p-1 rounded-2xl bg-surface-container border border-slate-200 dark:border-slate-800 overflow-x-auto max-w-full">
-				{#each ['All', 'New Order', 'Waiting Marketing', 'Ready to Dispatch', 'Dispatched', 'Closing'] as tab}
-					<button class="px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all {statusFilter === tab ? 'bg-blue-600 text-white shadow-xs' : 'text-on-surface hover:bg-surface-container-high'}"
-						onclick={() => handleStatusClick(tab)}>
-						{tab}
+			<!-- Filter & View Mode Bar -->
+			<div class="flex flex-wrap items-center justify-between gap-3">
+				<!-- Status Filter Segmented Control Tabs -->
+				<div class="inline-flex p-1 rounded-2xl bg-surface-container border border-slate-200 dark:border-slate-800 overflow-x-auto max-w-full">
+					{#each ['All', 'New Order', 'Waiting Marketing', 'Ready to Dispatch', 'Dispatched', 'Closing'] as tab}
+						<button class="px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all {statusFilter === tab ? 'bg-blue-600 text-white shadow-xs' : 'text-on-surface hover:bg-surface-container-high'}"
+							onclick={() => handleStatusClick(tab)}>
+							{tab}
+						</button>
+					{/each}
+				</div>
+
+				<!-- View Mode Toggle (Table vs Cards) -->
+				<div class="inline-flex p-1 rounded-xl bg-surface-container border border-slate-200/80 dark:border-slate-800 shrink-0">
+					<button 
+						type="button"
+						onclick={() => viewMode = 'table'} 
+						class="px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer {viewMode === 'table' ? 'bg-surface-container-lowest text-blue-600 shadow-2xs font-black' : 'text-on-surface-variant hover:text-on-surface'}"
+						title="Tampilan Tabel Ringkas"
+					>
+						<span class="material-symbols-outlined text-[16px]">view_list</span>
+						<span>Tabel</span>
 					</button>
-				{/each}
+					<button 
+						type="button"
+						onclick={() => viewMode = 'cards'} 
+						class="px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer {viewMode === 'cards' ? 'bg-surface-container-lowest text-blue-600 shadow-2xs font-black' : 'text-on-surface-variant hover:text-on-surface'}"
+						title="Tampilan Kartu Visual"
+					>
+						<span class="material-symbols-outlined text-[16px]">grid_view</span>
+						<span>Kartu</span>
+					</button>
+				</div>
 			</div>
 
-			<div class="space-y-3">
-				{#if filteredOrders.length === 0}
-					<div class="p-12 text-center text-sm font-medium text-on-surface-variant bg-surface-container-low border border-slate-200/60 dark:border-slate-800/60 rounded-2xl shadow-xs">
-						<span class="material-symbols-outlined text-4xl text-on-surface-variant/40 block mb-2">assignment_late</span>
-						<p class="font-bold text-on-surface">Tidak ada surat jalan yang cocok</p>
-						<p class="text-xs text-on-surface-variant/70 mt-0.5">Coba ganti filter status di atas</p>
+			{#if filteredOrders.length === 0}
+				<div class="p-12 text-center text-sm font-medium text-on-surface-variant bg-surface-container-low border border-slate-200/60 dark:border-slate-800/60 rounded-2xl shadow-xs">
+					<span class="material-symbols-outlined text-4xl text-on-surface-variant/40 block mb-2">assignment_late</span>
+					<p class="font-bold text-on-surface">Tidak ada surat jalan yang cocok</p>
+					<p class="text-xs text-on-surface-variant/70 mt-0.5">Coba ganti filter status di atas</p>
+				</div>
+			{:else if viewMode === 'table'}
+				<!-- Dense Table View -->
+				<div class="rounded-2xl bg-surface-container-low border border-slate-200/70 dark:border-slate-800/70 overflow-hidden shadow-xs">
+					<div class="overflow-x-auto">
+						<table class="w-full text-left text-xs border-collapse">
+							<thead>
+								<tr class="bg-surface-container/70 border-b border-surface-container text-on-surface-variant font-bold text-[10px] uppercase tracking-wider">
+									<th class="py-3 px-3.5 font-mono">No DO</th>
+									<th class="py-3 px-3.5">Pelanggan</th>
+									<th class="py-3 px-3.5">Rute (Asal &rarr; Tujuan)</th>
+									<th class="py-3 px-3.5">Muatan / Ton</th>
+									<th class="py-3 px-3.5">Tgl Muat</th>
+									<th class="py-3 px-3.5">Armada / Sopir</th>
+									<th class="py-3 px-3.5 text-center">Status</th>
+									<th class="py-3 px-3.5 text-right">Aksi</th>
+								</tr>
+							</thead>
+							<tbody class="divide-y divide-surface-container/60">
+								{#each filteredOrders as order}
+									<tr class="hover:bg-surface-container-lowest/80 transition-colors">
+										<td class="py-3 px-3.5 font-mono font-bold text-on-surface whitespace-nowrap">
+											{order.id}
+										</td>
+										<td class="py-3 px-3.5 font-bold text-on-surface whitespace-nowrap">
+											{order.customer}
+										</td>
+										<td class="py-3 px-3.5 text-on-surface font-medium whitespace-nowrap">
+											<span class="inline-flex items-center gap-1">
+												<span>{order.origin}</span>
+												<span class="material-symbols-outlined text-[12px] text-on-surface-variant">arrow_forward</span>
+												<span>{order.destination}</span>
+											</span>
+											{#if !order.origin_lat || !order.dest_lat}
+												<span class="block text-[9px] text-rose-500 font-bold" title="Lengkapi koordinat di Master Customer">⚠️ Koordinat kosong</span>
+											{/if}
+										</td>
+										<td class="py-3 px-3.5 text-on-surface-variant whitespace-nowrap">
+											<span class="font-bold text-on-surface">{order.cargo}</span>
+											<span class="text-[10px] text-on-surface-variant">({order.weight} T)</span>
+										</td>
+										<td class="py-3 px-3.5 text-on-surface-variant whitespace-nowrap">
+											{order.loadingDate ? new Date(order.loadingDate).toLocaleDateString('id-ID') : '-'}
+										</td>
+										<td class="py-3 px-3.5 text-on-surface whitespace-nowrap">
+											{#if order.assignedUnit}
+												<span class="inline-flex items-center gap-1 font-bold">
+													<span class="material-symbols-outlined text-[14px] text-emerald-600">local_shipping</span>
+													<span>{order.assignedUnit}</span>
+													<span class="text-[10px] text-on-surface-variant font-normal">({order.assignedDriver || '-'})</span>
+												</span>
+											{:else}
+												<span class="text-on-surface-variant/60 italic">-</span>
+											{/if}
+										</td>
+										<td class="py-3 px-3.5 text-center whitespace-nowrap">
+											<span class="inline-flex items-center gap-1 font-bold text-[10px] px-2 py-0.5 rounded-md uppercase tracking-wider border {order.status === 'WAITING_UJO' ? 'text-indigo-600 bg-indigo-500/10 border-indigo-500/20' : (order.status === 'WAITING_TARIFF' || order.status === 'WAITING_CUSTOMER') ? 'text-amber-600 bg-amber-500/10 border-amber-500/20' : order.status === 'READY_TO_DISPATCH' ? 'text-emerald-600 bg-emerald-500/10 border-emerald-500/20' : order.status === 'DISPATCHED' ? 'text-sky-600 bg-sky-500/10 border-sky-500/20' : 'text-rose-600 bg-rose-500/10 border-rose-500/20'}">
+												<span class="w-1.5 h-1.5 rounded-full {order.status === 'DISPATCHED' ? 'bg-sky-500 animate-pulse' : order.status === 'WAITING_UJO' ? 'bg-indigo-500' : (order.status === 'WAITING_TARIFF' || order.status === 'WAITING_CUSTOMER') ? 'bg-amber-500' : order.status === 'READY_TO_DISPATCH' ? 'bg-emerald-500' : 'bg-rose-500'}"></span> 
+												{#if order.status === 'WAITING_UJO'} New Order 
+												{:else if order.status === 'WAITING_TARIFF' || order.status === 'WAITING_CUSTOMER'} Waiting Mkt 
+												{:else if order.status === 'READY_TO_DISPATCH'} Ready 
+												{:else if order.status === 'DISPATCHED'} Dispatched 
+												{:else if order.status === 'CLOSING'} Closing 
+												{/if}
+											</span>
+										</td>
+										<td class="py-3 px-3.5 text-right whitespace-nowrap">
+											{#if order.status === 'WAITING_UJO'}
+												<button onclick={() => openUjoModal(order)} disabled={!order.origin_lat || !order.dest_lat} class="px-2.5 py-1.5 bg-indigo-600 text-white rounded-lg text-[11px] font-bold hover:bg-indigo-700 transition-colors inline-flex items-center gap-1 disabled:opacity-50 cursor-pointer">
+													<span class="material-symbols-outlined text-[14px]">add_task</span>
+													<span>Assign</span>
+												</button>
+											{:else if order.status === 'WAITING_TARIFF' || order.status === 'WAITING_CUSTOMER'}
+												<button onclick={() => openUjoModal(order)} class="px-2.5 py-1.5 bg-surface-container hover:bg-indigo-50 hover:text-indigo-600 text-on-surface-variant rounded-lg text-[11px] font-bold transition-colors inline-flex items-center gap-1 cursor-pointer">
+													<span class="material-symbols-outlined text-[14px]">edit</span>
+													<span>Edit</span>
+												</button>
+											{:else if order.status === 'READY_TO_DISPATCH'}
+												<span class="text-[11px] text-emerald-600 font-bold inline-flex items-center gap-1">
+													<span class="material-symbols-outlined text-[13px] animate-spin">sync</span> Menunggu Kasir
+												</span>
+											{:else if order.status === 'DISPATCHED'}
+												{#if (data.user?.role === 'superadmin' || data.user?.role === 'administrator') && checkIsInsideNonDestinationPool(order)}
+													<form method="POST" action="?/submitClosing" class="inline" use:enhance={() => { isSubmitting = true; return async ({ update }) => { await update(); isSubmitting = false; } }}>
+														<input type="hidden" name="orderId" value={order.id}>
+														<button type="submit" disabled={isSubmitting} class="px-2.5 py-1 bg-rose-600 text-white rounded-lg text-[11px] font-bold hover:bg-rose-700 transition-colors inline-flex items-center gap-1 disabled:opacity-50 cursor-pointer">
+															<span class="material-symbols-outlined text-[13px]">pin_drop</span> Selesaikan
+														</button>
+													</form>
+												{:else}
+													<span class="text-[11px] text-sky-600 font-bold inline-flex items-center gap-1">
+														<span class="material-symbols-outlined text-[13px] animate-pulse">local_shipping</span> OTW
+													</span>
+												{/if}
+											{:else if order.status === 'CLOSING'}
+												<button onclick={() => openClosingModal(order)} class="px-2.5 py-1.5 bg-rose-600 text-white rounded-lg text-[11px] font-bold hover:bg-rose-700 transition-colors inline-flex items-center gap-1 cursor-pointer">
+													<span class="material-symbols-outlined text-[14px]">receipt_long</span>
+													<span>Close</span>
+												</button>
+											{/if}
+										</td>
+									</tr>
+								{/each}
+							</tbody>
+						</table>
 					</div>
-				{/if}
+				</div>
+			{:else}
+				<!-- Card View (existing) -->
+				<div class="space-y-3">
 				{#each filteredOrders as order}
 					<div class="rounded-2xl bg-surface-container-low p-5 shadow-xs border border-slate-200/60 dark:border-slate-800/60 hover:border-blue-500/30 transition-all">
 						<div class="flex items-start justify-between mb-3">
@@ -1036,7 +1169,8 @@
 					</div>
 				{/each}
 			</div>
-		</div>
+		{/if}
+	</div>
 
 		<!-- Available Units Panel -->
 		<div class="rounded-2xl bg-surface-container-low p-5 shadow-xs border border-slate-200/60 dark:border-slate-800/60 h-fit sticky top-8">
