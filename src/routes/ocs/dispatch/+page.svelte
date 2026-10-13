@@ -141,6 +141,12 @@
 		};
 	}));
 	let productOpts = $derived(products.map(p => ({ value: p.name, label: p.name })));
+	let ruteOpts = $derived(masterRutes.map(r => ({
+		value: String(r.id),
+		label: `${r.origin_name} → ${r.destination_name}`,
+		sublabel: `${r.tipe_unit_name || 'Unit'} • Total UJO: ${formatCurrency(Number(r.total_ujo || 0))}`,
+		searchTerms: `${r.origin_name} ${r.destination_name} ${r.tipe_unit_name || ''}`
+	})));
 	let activeMode = $state($page.url.searchParams.get('mode') || 'reguler');
 	let ngepokBatches = $derived(data.ngepokBatches || []);
 	let dedicatedDispatches = $derived(data.dedicatedDispatches || []);
@@ -351,12 +357,16 @@
 	}
 
 	function handleRuteUjoChange(ruteId: string) {
-		manualDispatchRuteUjoId = ruteId;
+		manualDispatchRuteUjoId = String(ruteId || '');
 		const r = masterRutes.find((mr: any) => String(mr.id) === String(ruteId));
 		if (r) {
 			manualDispatchCustomUjo = String(r.total_ujo || 0);
 			manualDispatchCustomTol = String(r.biaya_tol || 0);
 			manualDispatchCustomMakan = String(r.uang_makan || 0);
+		} else {
+			manualDispatchCustomUjo = '';
+			manualDispatchCustomTol = '';
+			manualDispatchCustomMakan = '';
 		}
 	}
 
@@ -1654,19 +1664,13 @@
 							</div>
 
 							<div>
-								<select
-									name="ruteUjoId"
-									value={manualDispatchRuteUjoId}
-									onchange={(e) => handleRuteUjoChange((e.target as HTMLSelectElement).value)}
-									class="w-full bg-surface-container rounded-xl px-4 py-2.5 text-sm font-medium border-none focus:ring-2 focus:ring-sky-500 outline-none text-on-surface"
-								>
-									<option value="">-- Gunakan Estimasi Kontrak / Rute Kustom --</option>
-									{#each masterRutes as r}
-										<option value={r.id}>
-											{r.origin_name} &rarr; {r.destination_name} ({r.tipe_unit_name}) — {formatCurrency(Number(r.total_ujo))}
-										</option>
-									{/each}
-								</select>
+								<SearchableSelect
+									options={ruteOpts}
+									bind:value={manualDispatchRuteUjoId}
+									placeholder="-- Cari & Pilih Rute UJO OCS --"
+									onchange={(val) => handleRuteUjoChange(String(val || ''))}
+								/>
+								<input type="hidden" name="ruteUjoId" value={manualDispatchRuteUjoId || ''} />
 							</div>
 
 							<!-- Rincian Komponen UJO -->

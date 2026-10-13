@@ -2,13 +2,24 @@
 	import type { PageData, ActionData } from './$types';
 	import { enhance } from '$app/forms';
 	import ContractSimulator from '$lib/components/ContractSimulator.svelte';
+	import SearchableSelect from '$lib/components/SearchableSelect.svelte';
 	
 	let { data, form }: { data: PageData, form: ActionData } = $props();
 	
 	let contracts = $derived(data.contracts || []);
+	function formatCurrency(amount: number) {
+		return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(amount);
+	}
+
 	let customersList = $state<any[]>(data.customers || []);
 	let projects = $derived(data.projects || []);
 	let masterRutes = $derived(data.masterRutes || []);
+	let masterRuteOpts = $derived((masterRutes || []).map((r: any) => ({
+		value: String(r.id),
+		label: `${r.origin_name} → ${r.destination_name}`,
+		sublabel: `Unit: ${r.tipe_unit || '-'} • UJO: ${formatCurrency(Number(r.total_ujo || 0))}`,
+		searchTerms: `${r.origin_name} ${r.destination_name} ${r.tipe_unit || ''}`
+	})));
 	let products = $derived(data.products || []);
 
 	let showModal = $state(false);
@@ -123,7 +134,7 @@
 	}
 
 	function applyMasterRute(rId: string) {
-		selectedMasterRuteId = rId;
+		selectedMasterRuteId = String(rId || '');
 		const r = masterRutes.find((mr: any) => String(mr.id) === String(rId));
 		if (r) {
 			selectedOrigin = r.origin_id;
@@ -194,9 +205,6 @@
 		selectedRenewContract = null;
 	}
 
-	const formatCurrency = (amount: number) => {
-		return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(amount);
-	};
 
 	// --- Contract Simulator State ---
 	let showSimulatorModal = $state(false);
@@ -460,16 +468,12 @@
 								</label>
 								<span class="text-[11px] text-on-surface-variant/70">Pilih untuk mengisi Origin & Destination otomatis</span>
 							</div>
-							<select 
-								value={selectedMasterRuteId} 
-								onchange={(e) => applyMasterRute((e.target as HTMLSelectElement).value)}
-								class="w-full bg-surface-container-low border border-surface-container rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-rose-500 transition-all text-on-surface"
-							>
-								<option value="">-- Pilih Templat Master Rute (Jika Ada) --</option>
-								{#each masterRutes as r}
-									<option value={r.id}>{r.origin_name} &rarr; {r.destination_name} (Unit: {r.tipe_unit})</option>
-								{/each}
-							</select>
+							<SearchableSelect 
+								options={masterRuteOpts} 
+								bind:value={selectedMasterRuteId} 
+								placeholder="-- Pilih Templat Master Rute (Jika Ada) --" 
+								onchange={(val) => applyMasterRute(String(val || ''))}
+							/>
 							<input type="hidden" name="master_rute_id" value={selectedMasterRuteId || ''} />
 						</div>
 
