@@ -39,7 +39,7 @@
 </script>
 
 <svelte:head>
-	<title>UJO | OCS</title>
+	<title>Realisasi Kasbon UJO | OCS</title>
 </svelte:head>
 
 <div class="flex flex-col h-full space-y-6">
@@ -48,10 +48,10 @@
 		<div>
 			<div class="flex items-center gap-2.5">
 				<span class="material-symbols-outlined text-blue-600 dark:text-blue-400 text-2xl">payments</span>
-				<h1 class="text-2xl font-black text-on-surface tracking-tight">UJO — Uang Jalan Operasional</h1>
+				<h1 class="text-2xl font-black text-on-surface tracking-tight">Realisasi Kasbon UJO Perjalanan</h1>
 			</div>
 			<p class="text-on-surface-variant font-medium text-sm mt-0.5">
-				Pengelolaan rincian uang jalan supir per perjalanan (BBM, Tol, Uang Makan, dan Kasir Pencairan)
+				Pengelolaan & monitoring status pencairan kasbon uang jalan supir per Surat Jalan (BBM, Tol, Uang Makan, dan Kasir Pencairan)
 			</p>
 		</div>
 		<button class="bg-blue-600 text-white px-4 py-2.5 rounded-xl text-sm font-bold shadow-xs flex items-center gap-2 hover:bg-blue-700 transition-colors cursor-pointer">

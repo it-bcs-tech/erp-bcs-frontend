@@ -1,6 +1,7 @@
 <script lang="ts">
 	import type { PageData, ActionData } from './$types';
 	import { enhance } from '$app/forms';
+	import SearchableSelect from '$lib/components/SearchableSelect.svelte';
 	
 	let { data, form }: { data: PageData, form: ActionData } = $props();
 	
@@ -43,28 +44,37 @@
 	let selectedPosisi = $state('SUPIR_UTAMA');
 	let isException = $state(false);
 
-	// Unit Combobox
-	let unitSearch = $state('');
-	let showUnitDropdown = $state(false);
-	let filteredUnits = $derived(units.filter((u: any) => 
-		(u.nomor_unit && u.nomor_unit.toLowerCase().includes(unitSearch.toLowerCase())) || 
-		(u.type && u.type.toLowerCase().includes(unitSearch.toLowerCase()))
-	));
+	let unitOpts = $derived(units.map((u: any) => ({
+		value: String(u.id),
+		label: `${u.nomor_unit} (${u.type || '-'})`,
+		sublabel: `${u.total_assigned_drivers || 0} sopir terdaftar`,
+		searchTerms: `${u.nomor_unit} ${u.type || ''}`
+	})));
 
-	// Driver Combobox
-	let driverSearch = $state('');
-	let showDriverDropdown = $state(false);
-	let filteredDrivers = $derived(drivers.filter((d: any) => 
-		(d.name && d.name.toLowerCase().includes(driverSearch.toLowerCase()))
-	));
+	let driverOpts = $derived(drivers.map((d: any) => ({
+		value: String(d.id),
+		label: d.name,
+		sublabel: `${d.working_days_this_month || 0} hari kerja`,
+		searchTerms: d.name
+	})));
+
+	function handleUnitSelect(uId: string) {
+		selectedUnitId = String(uId || '');
+		const u = units.find((x: any) => String(x.id) === String(uId));
+		if (u) {
+			if (u.total_assigned_drivers >= 2) {
+				selectedPosisi = 'HELPER';
+			} else {
+				selectedPosisi = u.has_supir_utama ? 'SUPIR_CADANGAN' : 'SUPIR_UTAMA';
+			}
+		}
+	}
 
 	function openModal() {
 		selectedUnitId = '';
 		selectedDriverId = '';
 		selectedPosisi = 'SUPIR_UTAMA';
 		isException = false;
-		unitSearch = '';
-		driverSearch = '';
 		showModal = true;
 	}
 
@@ -89,7 +99,7 @@
 </script>
 
 <svelte:head>
-	<title>Assign Driver | OCS</title>
+	<title>Penugasan Supir Tetap | OCS</title>
 </svelte:head>
 
 <div class="flex flex-col h-full space-y-6">
@@ -98,10 +108,10 @@
 		<div>
 			<div class="flex items-center gap-2.5">
 				<span class="material-symbols-outlined text-blue-600 dark:text-blue-400 text-2xl">person_pin</span>
-				<h1 class="text-2xl font-black text-on-surface tracking-tight">Driver Assignment & Penugasan</h1>
+				<h1 class="text-2xl font-black text-on-surface tracking-tight">Penugasan Supir Tetap (Fleet Pairing)</h1>
 			</div>
 			<p class="text-on-surface-variant font-medium text-sm mt-0.5">
-				Kelola pasangan Supir Utama / Cadangan dan unit kendaraan operasional secara real-time
+				Kelola pasangan tetap Supir Utama / Cadangan dan unit armada di pool (standby pairing)
 			</p>
 		</div>
 		<div class="flex flex-col md:flex-row gap-3">
@@ -262,51 +272,25 @@
 			<form method="POST" action="?/assignDriver" use:enhance={() => { isSubmitting = true; return async ({ update }) => { await update(); }; }}>
 				<div class="p-6 overflow-y-auto space-y-5">
 					
-					<div class="relative">
+					<div>
 						<label class="block text-xs font-bold text-on-surface-variant mb-2">Pilih Unit Kendaraan</label>
-						<input type="hidden" name="unitId" bind:value={selectedUnitId} required />
-						<input type="text" bind:value={unitSearch} onfocus={() => showUnitDropdown = true} onblur={() => setTimeout(() => showUnitDropdown = false, 200)} placeholder="Cari Nopol atau Tipe Unit..." class="w-full bg-surface-container-low border border-surface-container rounded-xl px-4 py-3 text-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-sky-500/50" autocomplete="off" required />
-						{#if showUnitDropdown && filteredUnits.length > 0}
-							<ul class="absolute z-10 w-full mt-1 bg-surface-container-lowest border border-surface-container rounded-xl shadow-lg max-h-48 overflow-y-auto hide-scrollbar">
-								{#each filteredUnits as u}
-									<!-- svelte-ignore a11y_click_events_have_key_events -->
-									<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
-									<li class="px-4 py-3 text-sm text-on-surface cursor-pointer hover:bg-sky-50 dark:hover:bg-sky-900/30 transition-colors border-b border-surface-container last:border-0" onclick={() => { 
-										selectedUnitId = u.id; 
-										unitSearch = `${u.nomor_unit} (${u.type})`; 
-										showUnitDropdown = false; 
-										if (u.total_assigned_drivers >= 2) {
-											selectedPosisi = 'HELPER';
-										} else {
-											selectedPosisi = u.has_supir_utama ? 'SUPIR_CADANGAN' : 'SUPIR_UTAMA'; 
-										}
-									}}>
-										<span class="font-bold">{u.nomor_unit}</span> 
-										<span class="text-[10px] bg-surface-container-high px-1.5 py-0.5 rounded ml-1 text-on-surface-variant">{u.type}</span>
-									</li>
-								{/each}
-							</ul>
-						{/if}
+						<SearchableSelect
+							options={unitOpts}
+							bind:value={selectedUnitId}
+							placeholder="-- Cari Nopol atau Tipe Unit --"
+							onchange={(val) => handleUnitSelect(String(val || ''))}
+						/>
+						<input type="hidden" name="unitId" value={selectedUnitId} required />
 					</div>
 
-					<div class="relative">
+					<div>
 						<label class="block text-xs font-bold text-on-surface-variant mb-2">Pilih Sopir</label>
-						<input type="hidden" name="driverId" bind:value={selectedDriverId} required />
-						<input type="text" bind:value={driverSearch} onfocus={() => showDriverDropdown = true} onblur={() => setTimeout(() => showDriverDropdown = false, 200)} placeholder="Cari Nama Sopir..." class="w-full bg-surface-container-low border border-surface-container rounded-xl px-4 py-3 text-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-sky-500/50" autocomplete="off" required />
-						{#if showDriverDropdown && filteredDrivers.length > 0}
-							<ul class="absolute z-10 w-full mt-1 bg-surface-container-lowest border border-surface-container rounded-xl shadow-lg max-h-48 overflow-y-auto hide-scrollbar">
-								{#each filteredDrivers as d}
-									<!-- svelte-ignore a11y_click_events_have_key_events -->
-									<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
-									<li class="px-4 py-3 text-sm flex items-center justify-between cursor-pointer hover:bg-sky-50 dark:hover:bg-sky-900/30 transition-colors border-b border-surface-container last:border-0" onclick={() => { selectedDriverId = d.id; driverSearch = d.name; showDriverDropdown = false; }}>
-										<span class="font-bold text-on-surface">{d.name}</span>
-										<span class="text-[10px] px-2 py-0.5 rounded-full font-bold {d.working_days_this_month >= 14 ? 'bg-rose-100 text-rose-700' : 'bg-emerald-100 text-emerald-700'}" title="{d.working_days_this_month} hari kerja bulan ini">
-											{d.working_days_this_month} Hari
-										</span>
-									</li>
-								{/each}
-							</ul>
-						{/if}
+						<SearchableSelect
+							options={driverOpts}
+							bind:value={selectedDriverId}
+							placeholder="-- Cari Nama Sopir --"
+						/>
+						<input type="hidden" name="driverId" value={selectedDriverId} required />
 					</div>
 
 					<div>

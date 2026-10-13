@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
+	import SearchableSelect from '$lib/components/SearchableSelect.svelte';
 	import type { PageData } from './$types';
 
 	let { data, form } = $props<{ data: PageData, form: any }>();
@@ -14,19 +15,20 @@
 	let selectedDetailRute = $state<any>(null);
 
 	let selectedOrigin = $state('');
-	let originSearch = $state('');
-	let showOriginDropdown = $state(false);
-	let filteredOrigins = $derived((data.customers || []).filter((c: any) => c.name.toLowerCase().includes(originSearch.toLowerCase())));
-
 	let selectedDestination = $state('');
-	let destSearch = $state('');
-	let showDestDropdown = $state(false);
-	let filteredDests = $derived((data.customers || []).filter((c: any) => c.name.toLowerCase().includes(destSearch.toLowerCase())));
-
 	let selectedTipeUnit = $state('');
-	let tipeUnitSearch = $state('');
-	let showTipeUnitDropdown = $state(false);
-	let filteredTipeUnits = $derived((data.tipeUnits || []).filter((t: any) => t.name.toLowerCase().includes(tipeUnitSearch.toLowerCase())));
+
+	let customerOpts = $derived((data.customers || []).map((c: any) => ({
+		value: String(c.id),
+		label: c.name,
+		searchTerms: c.name
+	})));
+
+	let tipeUnitOpts = $derived((data.tipeUnits || []).map((t: any) => ({
+		value: String(t.id),
+		label: t.name,
+		searchTerms: t.name
+	})));
 
 	let googleDistanceKm = $state<number>(0);
 	let manualJarakKm = $state<number | ''>('');
@@ -255,9 +257,9 @@
 	function resetForm() {
 		isEditing = false;
 		editRuteId = null;
-		selectedOrigin = ''; originSearch = '';
-		selectedDestination = ''; destSearch = '';
-		selectedTipeUnit = ''; tipeUnitSearch = '';
+		selectedOrigin = '';
+		selectedDestination = '';
+		selectedTipeUnit = '';
 		googleDistanceKm = 0;
 		manualJarakKm = '';
 		isJarakManual = false;
@@ -288,12 +290,9 @@
 	function openEditModal(r: any) {
 		isEditing = true;
 		editRuteId = r.id;
-		selectedOrigin = r.origin_id;
-		originSearch = r.origin_name || '';
-		selectedDestination = r.destination_id;
-		destSearch = r.destination_name || '';
-		selectedTipeUnit = r.tipe_unit_id;
-		tipeUnitSearch = r.tipe_unit_name || '';
+		selectedOrigin = String(r.origin_id || '');
+		selectedDestination = String(r.destination_id || '');
+		selectedTipeUnit = String(r.tipe_unit_id || '');
 		googleDistanceKm = parseFloat(r.jarak_km) || 0;
 		manualJarakKm = parseFloat(r.jarak_km) || 0;
 		isJarakManual = true; // Preserve saved distance upon edit
@@ -483,7 +482,7 @@
 </script>
 
 <svelte:head>
-	<title>Master Rute & UJO | Marketing</title>
+	<title>Katalog Master Rute & UJO | OCS</title>
 </svelte:head>
 
 <div class="flex flex-col h-full space-y-6">
@@ -492,10 +491,10 @@
 		<div>
 			<div class="flex items-center gap-2.5">
 				<span class="material-symbols-outlined text-blue-600 dark:text-blue-400 text-2xl">route</span>
-				<h1 class="text-2xl font-black text-on-surface tracking-tight">Master Rute & Standar Biaya (UJO)</h1>
+				<h1 class="text-2xl font-black text-on-surface tracking-tight">Katalog Master Rute & Standar Biaya (UJO)</h1>
 			</div>
 			<p class="text-on-surface-variant font-medium text-sm mt-0.5">
-				Kelola katalog jarak rute, estimasi konsumsi BBM solar, rincian biaya gerbang tol, dan perhitungan dasar UJO
+				Kelola katalog resmi rute perjalanan, jarak tempuh, estimasi konsumsi BBM solar, rincian tol, dan perhitungan standar UJO
 			</p>
 		</div>
 		<div class="flex items-center gap-2">
@@ -657,59 +656,40 @@
 						</h4>
 						
 						<div class="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-							<div class="relative">
+							<div>
 								<label class="block text-[11px] font-bold text-on-surface-variant uppercase tracking-wider mb-1.5">Origin</label>
+								<SearchableSelect
+									options={customerOpts}
+									bind:value={selectedOrigin}
+									placeholder="-- Cari Origin --"
+									onchange={(val) => {
+										selectedOrigin = String(val || '');
+										if (selectedDestination) { calculateGPS(); }
+									}}
+								/>
 								<input type="hidden" name="origin_id" value={selectedOrigin} required />
-								<input type="text" bind:value={originSearch} onfocus={() => showOriginDropdown = true} onblur={() => setTimeout(() => showOriginDropdown = false, 200)} placeholder="Cari Origin..." class="w-full px-3.5 py-2.5 rounded-xl bg-surface-container-lowest border border-surface-container focus:border-sky-500 focus:ring-1 focus:ring-sky-500 outline-none transition-all text-sm font-medium" autocomplete="off" />
-								{#if showOriginDropdown}
-									<ul class="absolute z-30 w-full mt-1 bg-surface-container-lowest border border-surface-container rounded-xl shadow-xl max-h-48 overflow-y-auto">
-										{#each filteredOrigins as c}
-											<!-- svelte-ignore a11y_click_events_have_key_events -->
-											<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
-											<li class="px-4 py-2.5 text-sm text-on-surface cursor-pointer hover:bg-surface-container-low transition-colors border-b border-surface-container last:border-0" onclick={() => { selectedOrigin = c.id; originSearch = c.name; showOriginDropdown = false; if (selectedDestination) { calculateGPS(); } }}>
-												{c.name}
-											</li>
-										{:else}
-											<li class="px-4 py-3 text-center text-xs text-on-surface-variant">Tidak ditemukan</li>
-										{/each}
-									</ul>
-								{/if}
 							</div>
-							<div class="relative">
+							<div>
 								<label class="block text-[11px] font-bold text-on-surface-variant uppercase tracking-wider mb-1.5">Destination</label>
+								<SearchableSelect
+									options={customerOpts}
+									bind:value={selectedDestination}
+									placeholder="-- Cari Destination --"
+									onchange={(val) => {
+										selectedDestination = String(val || '');
+										if (selectedOrigin) { calculateGPS(); }
+									}}
+								/>
 								<input type="hidden" name="destination_id" value={selectedDestination} required />
-								<input type="text" bind:value={destSearch} onfocus={() => showDestDropdown = true} onblur={() => setTimeout(() => showDestDropdown = false, 200)} placeholder="Cari Destination..." class="w-full px-3.5 py-2.5 rounded-xl bg-surface-container-lowest border border-surface-container focus:border-sky-500 focus:ring-1 focus:ring-sky-500 outline-none transition-all text-sm font-medium" autocomplete="off" />
-								{#if showDestDropdown}
-									<ul class="absolute z-30 w-full mt-1 bg-surface-container-lowest border border-surface-container rounded-xl shadow-xl max-h-48 overflow-y-auto">
-										{#each filteredDests as c}
-											<!-- svelte-ignore a11y_click_events_have_key_events -->
-											<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
-											<li class="px-4 py-2.5 text-sm text-on-surface cursor-pointer hover:bg-surface-container-low transition-colors border-b border-surface-container last:border-0" onclick={() => { selectedDestination = c.id; destSearch = c.name; showDestDropdown = false; if (selectedOrigin) { calculateGPS(); } }}>
-												{c.name}
-											</li>
-										{:else}
-											<li class="px-4 py-3 text-center text-xs text-on-surface-variant">Tidak ditemukan</li>
-										{/each}
-									</ul>
-								{/if}
 							</div>
-							<div class="relative">
+							<div>
 								<label class="block text-[11px] font-bold text-on-surface-variant uppercase tracking-wider mb-1.5">Tipe Unit Kendaraan</label>
+								<SearchableSelect
+									options={tipeUnitOpts}
+									bind:value={selectedTipeUnit}
+									placeholder="-- Cari Tipe Truk --"
+								/>
 								<input type="hidden" name="tipe_unit_id" value={selectedTipeUnit} required />
-								<input type="text" bind:value={tipeUnitSearch} onfocus={() => showTipeUnitDropdown = true} onblur={() => setTimeout(() => showTipeUnitDropdown = false, 200)} placeholder="Cari Tipe Truk..." class="w-full px-3.5 py-2.5 rounded-xl bg-surface-container-lowest border border-surface-container focus:border-sky-500 focus:ring-1 focus:ring-sky-500 outline-none transition-all text-sm font-medium" autocomplete="off" />
-								{#if showTipeUnitDropdown}
-									<ul class="absolute z-30 w-full mt-1 bg-surface-container-lowest border border-surface-container rounded-xl shadow-xl max-h-48 overflow-y-auto">
-										{#each filteredTipeUnits as t}
-											<!-- svelte-ignore a11y_click_events_have_key_events -->
-											<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
-											<li class="px-4 py-2.5 text-sm text-on-surface cursor-pointer hover:bg-surface-container-low transition-colors border-b border-surface-container last:border-0" onclick={() => { selectedTipeUnit = t.id; tipeUnitSearch = t.name; showTipeUnitDropdown = false; }}>
-												{t.name}
-											</li>
-										{:else}
-											<li class="px-4 py-3 text-center text-xs text-on-surface-variant">Tidak ditemukan</li>
-										{/each}
-									</ul>
-								{/if}
 							</div>
 
 							<!-- Jarak Tempuh (Bisa diketik manual) -->

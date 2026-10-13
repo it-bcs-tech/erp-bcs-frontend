@@ -65,14 +65,14 @@
 			{#if hasMenuAccess(user, 'ocs', 'ocs.ujo')}
 			<a class="flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200 hover:translate-x-1 {$page.url.pathname.includes('/ocs/ujo') ? 'bg-surface-container-highest text-sky-600 dark:text-sky-400 font-bold' : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container font-medium text-sm'}" href="/ocs/ujo">
 				<span class="material-symbols-outlined text-[20px]">payments</span>
-				<span class="text-sm">UJO (Driver Allowance)</span>
+				<span class="text-sm">Realisasi Kasbon UJO</span>
 			</a>
 			{/if}
 			
 			{#if hasMenuAccess(user, 'ocs', 'ocs.assign-driver')}
 			<a class="flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200 hover:translate-x-1 {$page.url.pathname.includes('/ocs/assign-driver') ? 'bg-surface-container-highest text-sky-600 dark:text-sky-400 font-bold' : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container font-medium text-sm'}" href="/ocs/assign-driver">
 				<span class="material-symbols-outlined text-[20px]">person_pin</span>
-				<span class="text-sm">Assign Driver</span>
+				<span class="text-sm">Penugasan Supir Tetap</span>
 			</a>
 			{/if}
 			
@@ -92,7 +92,7 @@
 			{#if isAdmin || hasMenuAccess(user, 'ocs', 'ocs.rute')}
 			<a class="flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200 hover:translate-x-1 {$page.url.pathname.includes('/ocs/rute') ? 'bg-surface-container-highest text-sky-600 dark:text-sky-400 font-bold' : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container font-medium text-sm'}" href="/ocs/rute">
 				<span class="material-symbols-outlined text-[20px]">route</span>
-				<span class="text-sm">Master Rute & UJO</span>
+				<span class="text-sm">Katalog Master Rute & UJO</span>
 			</a>
 			{/if}
 

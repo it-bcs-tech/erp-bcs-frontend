@@ -56,10 +56,27 @@
 	}
 
 	// Modal States
-	let isAiSectionOpen = $state(true);
+	let isAiSectionOpen = $state(false);
 	let showUjoModal = $state(false);
 	let showClosingModal = $state(false);
 	let selectedOrder = $state<any>(null);
+
+	// Panel Armada Filter State
+	let unitPanelSearch = $state('');
+	let filteredAvailableUnits = $derived(
+		unitPanelSearch.trim() === ''
+			? availableUnits
+			: availableUnits.filter((u: any) => {
+				const q = unitPanelSearch.toLowerCase();
+				return (
+					(u.id && u.id.toLowerCase().includes(q)) ||
+					(u.driver && u.driver.toLowerCase().includes(q)) ||
+					(u.type && u.type.toLowerCase().includes(q)) ||
+					(u.brand && u.brand.toLowerCase().includes(q)) ||
+					(u.location && u.location.toLowerCase().includes(q))
+				);
+			})
+	);
 
 	// UJO Form State
 	let ujoUnit = $state('');
@@ -1023,12 +1040,36 @@
 
 		<!-- Available Units Panel -->
 		<div class="rounded-2xl bg-surface-container-low p-5 shadow-xs border border-slate-200/60 dark:border-slate-800/60 h-fit sticky top-8">
-			<h3 class="text-sm font-bold text-on-surface uppercase tracking-wider mb-4 flex items-center gap-2">
-				<span class="material-symbols-outlined text-emerald-500 text-lg">check_circle</span>
-				<span>Armada Siap (Available)</span>
-			</h3>
+			<div class="flex items-center justify-between mb-3">
+				<h3 class="text-sm font-bold text-on-surface uppercase tracking-wider flex items-center gap-2">
+					<span class="material-symbols-outlined text-emerald-500 text-lg">check_circle</span>
+					<span>Armada Siap</span>
+				</h3>
+				<span class="text-xs font-mono font-bold px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300">
+					{filteredAvailableUnits.length}/{availableUnits.length}
+				</span>
+			</div>
+
+			<!-- Quick Filter Search Input -->
+			<div class="mb-3">
+				<div class="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-surface border border-slate-200/80 dark:border-slate-800 text-xs">
+					<span class="material-symbols-outlined text-on-surface-variant text-[16px]">search</span>
+					<input 
+						type="text" 
+						bind:value={unitPanelSearch} 
+						placeholder="Cari unit / supir..." 
+						class="bg-transparent text-xs text-on-surface outline-none w-full placeholder:text-on-surface-variant/50"
+					/>
+					{#if unitPanelSearch}
+						<button type="button" onclick={() => unitPanelSearch = ''} class="text-on-surface-variant hover:text-rose-500 cursor-pointer">
+							<span class="material-symbols-outlined text-[14px]">close</span>
+						</button>
+					{/if}
+				</div>
+			</div>
+
 			<div class="space-y-3 max-h-[600px] overflow-y-auto pr-1">
-				{#each availableUnits as unit}
+				{#each filteredAvailableUnits as unit}
 					<div class="p-3.5 rounded-xl bg-surface hover:bg-surface-container-high transition-colors cursor-pointer group border border-slate-200/60 dark:border-slate-800/60">
 						<div class="flex items-center justify-between mb-2">
 							<div class="flex items-center gap-3">
@@ -1069,6 +1110,12 @@
 								</span>
 							{/if}
 						</div>
+					</div>
+				{:else}
+					<div class="p-6 text-center rounded-xl bg-surface-container/40 border border-dashed border-surface-container">
+						<span class="material-symbols-outlined text-2xl text-on-surface-variant/40 mb-1">search_off</span>
+						<p class="text-xs font-bold text-on-surface">Tidak ada armada</p>
+						<p class="text-[10px] text-on-surface-variant mt-0.5">Tidak ditemukan armada yang cocok dengan "{unitPanelSearch}"</p>
 					</div>
 				{/each}
 			</div>
