@@ -13,11 +13,11 @@
 	
 	// Kanban Stages
 	const stages = [
-		{ id: 'PROSPECTING', label: 'Prospecting', color: 'bg-slate-100 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700', textColor: 'text-slate-700 dark:text-slate-300' },
-		{ id: 'QUOTATION', label: 'Quotation', color: 'bg-blue-50 dark:bg-blue-900/10 border-blue-200 dark:border-blue-900/30', textColor: 'text-blue-700 dark:text-blue-300' },
-		{ id: 'NEGOTIATION', label: 'Negotiation', color: 'bg-amber-50 dark:bg-amber-900/10 border-amber-200 dark:border-amber-900/30', textColor: 'text-amber-700 dark:text-amber-300' },
-		{ id: 'WON', label: 'Closed Won', color: 'bg-emerald-50 dark:bg-emerald-900/10 border-emerald-200 dark:border-emerald-900/30', textColor: 'text-emerald-700 dark:text-emerald-300' },
-		{ id: 'LOST', label: 'Closed Lost', color: 'bg-rose-50 dark:bg-rose-900/10 border-rose-200 dark:border-rose-900/30', textColor: 'text-rose-700 dark:text-rose-300' }
+		{ id: 'PROSPECTING', label: 'Prospek Awal', color: 'bg-slate-100 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700', textColor: 'text-slate-700 dark:text-slate-300' },
+		{ id: 'QUOTATION', label: 'Penawaran Harga', color: 'bg-blue-50 dark:bg-blue-900/10 border-blue-200 dark:border-blue-900/30', textColor: 'text-blue-700 dark:text-blue-300' },
+		{ id: 'NEGOTIATION', label: 'Negosiasi Margin', color: 'bg-amber-50 dark:bg-amber-900/10 border-amber-200 dark:border-amber-900/30', textColor: 'text-amber-700 dark:text-amber-300' },
+		{ id: 'WON', label: 'Dimenangkan (Won)', color: 'bg-emerald-50 dark:bg-emerald-900/10 border-emerald-200 dark:border-emerald-900/30', textColor: 'text-emerald-700 dark:text-emerald-300' },
+		{ id: 'LOST', label: 'Batal / Kalah (Lost)', color: 'bg-rose-50 dark:bg-rose-900/10 border-rose-200 dark:border-rose-900/30', textColor: 'text-rose-700 dark:text-rose-300' }
 	];
 
 	let showNewDealModal = $state(false);
@@ -139,7 +139,7 @@
 </script>
 
 <svelte:head>
-	<title>Sales Pipeline | Marketing</title>
+	<title>CRM & Pipeline | ERP BCS</title>
 </svelte:head>
 
 <div class="flex flex-col h-full space-y-6">
@@ -148,7 +148,7 @@
 		<div>
 			<div class="flex items-center gap-2.5">
 				<span class="material-symbols-outlined text-rose-600 dark:text-rose-400 text-2xl">insights</span>
-				<h1 class="text-2xl font-black text-on-surface tracking-tight">Sales Pipeline & CRM Leads</h1>
+				<h1 class="text-2xl font-black text-on-surface tracking-tight">CRM & Pipeline Prospek Bisnis</h1>
 			</div>
 			<p class="text-on-surface-variant font-medium text-sm mt-0.5">
 				Tahapan konversi peluang bisnis dari prospek awal, penawaran harga, negosiasi margin, hingga penandatanganan kontrak

@@ -25,7 +25,7 @@
 </script>
 
 <svelte:head>
-	<title>Quotation - {deal.company_name}</title>
+	<title>Surat Penawaran - {deal.company_name} | ERP BCS</title>
 </svelte:head>
 
 <!-- Print Container (Only shows exactly what we want to print, hiding the app shell) -->

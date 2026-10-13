@@ -48,52 +48,12 @@
 
 	let isSubmitting = $state(false);
 
-	// Searchable Dropdown States
-	let customerSearch = $state('');
-	let showCustomerDropdown = $state(false);
-	let filteredCustomers = $derived(customersList.filter((c: any) => c.name.toLowerCase().includes(customerSearch.toLowerCase())));
-
-	let originSearch = $state('');
-	let showOriginDropdown = $state(false);
-	let filteredOrigins = $derived(customersList.filter((c: any) => c.name.toLowerCase().includes(originSearch.toLowerCase())));
-
-	let destSearch = $state('');
-	let showDestDropdown = $state(false);
-	let filteredDests = $derived(customersList.filter((c: any) => c.name.toLowerCase().includes(destSearch.toLowerCase())));
-
-	async function quickCreateCustomer(name: string, type: 'customer' | 'origin' | 'dest') {
-		isSubmitting = true;
-		try {
-			const res = await fetch('/api/customers', {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ name })
-			});
-			const result = await res.json();
-			if (result.success) {
-				customersList = [...customersList, result.customer];
-				
-				if (type === 'customer') {
-					selectedCustomer = result.customer.id;
-					customerSearch = result.customer.name;
-					showCustomerDropdown = false;
-				} else if (type === 'origin') {
-					selectedOrigin = result.customer.id;
-					originSearch = result.customer.name;
-					showOriginDropdown = false;
-				} else if (type === 'dest') {
-					selectedDestination = result.customer.id;
-					destSearch = result.customer.name;
-					showDestDropdown = false;
-				}
-			} else {
-				alert('Failed to create: ' + result.error);
-			}
-		} catch (e) {
-			alert('Error creating new data');
-		}
-		isSubmitting = false;
-	}
+	let customerOpts = $derived((customersList || []).map((c: any) => ({
+		value: String(c.id),
+		label: c.name || c.nama_kustomer || '',
+		sublabel: c.code || c.type || undefined,
+		searchTerms: `${c.name || c.nama_kustomer || ''} ${c.code || ''}`
+	})));
 
 	// Reactive logic based on Project Category
 	let selectedProject = $derived(projects.find((p: any) => p.id.toString() === selectedProjectId.toString()));
@@ -126,9 +86,6 @@
 		maxUjoPercentage = 25;
 		produkId = '';
 		notes = '';
-		customerSearch = '';
-		originSearch = '';
-		destSearch = '';
 		showModal = true;
 	}
 
@@ -136,21 +93,19 @@
 		selectedMasterRuteId = String(rId || '');
 		const r = masterRutes.find((mr: any) => String(mr.id) === String(rId));
 		if (r) {
-			selectedOrigin = r.origin_id;
-			originSearch = r.origin_name;
-			selectedDestination = r.destination_id;
-			destSearch = r.destination_name;
+			selectedOrigin = String(r.origin_id || '');
+			selectedDestination = String(r.destination_id || '');
 		}
 	}
 
 	function openEditModal(contract: any) {
 		editingContractId = contract.id;
 		selectedProjectId = contract.project_id?.toString() || '';
-		selectedCustomer = contract.customer_id || '';
+		selectedCustomer = contract.customer_id?.toString() || '';
 		tipeRute = contract.master_rute_id ? 'master' : 'kustom';
 		selectedMasterRuteId = contract.master_rute_id?.toString() || '';
-		selectedOrigin = contract.origin_id || '';
-		selectedDestination = contract.destination_id || '';
+		selectedOrigin = contract.origin_id?.toString() || '';
+		selectedDestination = contract.destination_id?.toString() || '';
 		startDate = contract.startDate || '';
 		endDate = contract.endDate || '';
 		targetTonnage = contract.targetTonnage || 0;
@@ -158,11 +113,6 @@
 		maxUjoPercentage = contract.maxUjoPercentage || 25;
 		produkId = contract.produk_id?.toString() || '';
 		notes = contract.notes || '';
-
-		customerSearch = customersList.find((c: any) => c.id === selectedCustomer)?.name || '';
-		originSearch = customersList.find((c: any) => c.id === selectedOrigin)?.name || '';
-		destSearch = customersList.find((c: any) => c.id === selectedDestination)?.name || '';
-
 		showModal = true;
 	}
 
@@ -225,7 +175,7 @@
 </script>
 
 <svelte:head>
-	<title>Master Kontrak (PO) | Marketing Dashboard</title>
+	<title>Kontrak Kerja Sama | ERP BCS</title>
 </svelte:head>
 
 <div class="flex flex-col h-full space-y-6">
@@ -422,30 +372,22 @@
 				{/if}
 
 				<div class="grid grid-cols-1 md:grid-cols-2 gap-5 mb-6">
-					<div class="relative">
-						<label class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-2">Customer</label>
+					<div>
+						<div class="flex items-center justify-between mb-2">
+							<label class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider">
+								Pelanggan (Customer) <span class="text-rose-500">*</span>
+							</label>
+							<a href="/marketing/customers" target="_blank" class="text-[11px] font-bold text-rose-600 hover:text-rose-700 hover:underline flex items-center gap-0.5" title="Buka Master Pelanggan di tab baru">
+								<span class="material-symbols-outlined text-[14px]">add</span> Tambah Pelanggan
+							</a>
+						</div>
+						<SearchableSelect 
+							options={customerOpts} 
+							bind:value={selectedCustomer} 
+							placeholder="-- Pilih Pelanggan --" 
+							required 
+						/>
 						<input type="hidden" name="customerId" value={selectedCustomer} required />
-						<input type="text" bind:value={customerSearch} onfocus={() => showCustomerDropdown = true} onblur={() => setTimeout(() => showCustomerDropdown = false, 200)} placeholder="Search Customer..." class="w-full bg-surface-container-low border border-surface-container rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-rose-500 transition-all" autocomplete="off" />
-						{#if showCustomerDropdown}
-							<ul class="absolute z-10 w-full mt-1 bg-surface-container-lowest border border-surface-container rounded-xl shadow-lg max-h-48 overflow-y-auto hide-scrollbar">
-								{#if filteredCustomers.length > 0}
-									{#each filteredCustomers as c}
-										<!-- svelte-ignore a11y_click_events_have_key_events -->
-										<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
-										<li class="px-4 py-2 text-sm text-on-surface cursor-pointer hover:bg-surface-container-low transition-colors border-b border-surface-container last:border-0" onclick={() => { selectedCustomer = c.id; customerSearch = c.name; showCustomerDropdown = false; }}>
-											{c.name}
-										</li>
-									{/each}
-								{:else if customerSearch.trim().length > 0}
-									<li class="px-4 py-3 text-center">
-										<p class="text-xs text-on-surface-variant mb-2">"{customerSearch}" not found</p>
-										<button type="button" class="px-3 py-1.5 bg-rose-100 text-rose-700 hover:bg-rose-200 transition-colors rounded-lg text-xs font-bold w-full" onclick={() => quickCreateCustomer(customerSearch, 'customer')}>
-											+ Tambah "{customerSearch}"
-										</button>
-									</li>
-								{/if}
-							</ul>
-						{/if}
 					</div>
 					
 					<div>
@@ -477,57 +419,41 @@
 						</div>
 
 						<!-- Origin (Titik Muat) -->
-						<div class="relative">
-							<label class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-2">Origin (Titik Muat) <span class="text-rose-500">*</span></label>
+						<div>
+							<div class="flex items-center justify-between mb-2">
+								<label class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider">
+									Origin (Titik Muat) <span class="text-rose-500">*</span>
+								</label>
+								<a href="/marketing/customers" target="_blank" class="text-[11px] font-bold text-rose-600 hover:text-rose-700 hover:underline flex items-center gap-0.5" title="Buka Master Pelanggan di tab baru">
+									<span class="material-symbols-outlined text-[14px]">add</span> Tambah Lokasi
+								</a>
+							</div>
+							<SearchableSelect 
+								options={customerOpts} 
+								bind:value={selectedOrigin} 
+								placeholder="-- Pilih Titik Muat (Origin) --" 
+								required 
+							/>
 							<input type="hidden" name="originId" value={selectedOrigin} required />
-							<input type="text" bind:value={originSearch} onfocus={() => showOriginDropdown = true} onblur={() => setTimeout(() => showOriginDropdown = false, 200)} placeholder="Search Origin..." class="w-full bg-surface-container-low border border-surface-container rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-rose-500 transition-all text-on-surface" autocomplete="off" />
-							{#if showOriginDropdown}
-								<ul class="absolute z-10 w-full mt-1 bg-surface-container-lowest border border-surface-container rounded-xl shadow-lg max-h-48 overflow-y-auto hide-scrollbar">
-									{#if filteredOrigins.length > 0}
-										{#each filteredOrigins as c}
-											<!-- svelte-ignore a11y_click_events_have_key_events -->
-											<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
-											<li class="px-4 py-2 text-sm text-on-surface cursor-pointer hover:bg-surface-container-low transition-colors border-b border-surface-container last:border-0" onclick={() => { selectedOrigin = c.id; originSearch = c.name; showOriginDropdown = false; }}>
-												{c.name}
-											</li>
-										{/each}
-									{:else if originSearch.trim().length > 0}
-										<li class="px-4 py-3 text-center">
-											<p class="text-xs text-on-surface-variant mb-2">"{originSearch}" not found</p>
-											<button type="button" class="px-3 py-1.5 bg-rose-100 text-rose-700 hover:bg-rose-200 transition-colors rounded-lg text-xs font-bold w-full" onclick={() => quickCreateCustomer(originSearch, 'origin')}>
-												+ Tambah "{originSearch}"
-											</button>
-										</li>
-									{/if}
-								</ul>
-							{/if}
 						</div>
 						
 						<!-- Destination (Titik Bongkar) -->
-						<div class="relative">
-							<label class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-2">Destination (Titik Bongkar) <span class="text-rose-500">*</span></label>
+						<div>
+							<div class="flex items-center justify-between mb-2">
+								<label class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider">
+									Destination (Titik Bongkar) <span class="text-rose-500">*</span>
+								</label>
+								<a href="/marketing/customers" target="_blank" class="text-[11px] font-bold text-rose-600 hover:text-rose-700 hover:underline flex items-center gap-0.5" title="Buka Master Pelanggan di tab baru">
+									<span class="material-symbols-outlined text-[14px]">add</span> Tambah Lokasi
+								</a>
+							</div>
+							<SearchableSelect 
+								options={customerOpts} 
+								bind:value={selectedDestination} 
+								placeholder="-- Pilih Titik Bongkar (Destination) --" 
+								required 
+							/>
 							<input type="hidden" name="destinationId" value={selectedDestination} required />
-							<input type="text" bind:value={destSearch} onfocus={() => showDestDropdown = true} onblur={() => setTimeout(() => showDestDropdown = false, 200)} placeholder="Search Destination..." class="w-full bg-surface-container-low border border-surface-container rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-rose-500 transition-all text-on-surface" autocomplete="off" />
-							{#if showDestDropdown}
-								<ul class="absolute z-10 w-full mt-1 bg-surface-container-lowest border border-surface-container rounded-xl shadow-lg max-h-48 overflow-y-auto hide-scrollbar">
-									{#if filteredDests.length > 0}
-										{#each filteredDests as c}
-											<!-- svelte-ignore a11y_click_events_have_key_events -->
-											<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
-											<li class="px-4 py-2 text-sm text-on-surface cursor-pointer hover:bg-surface-container-low transition-colors border-b border-surface-container last:border-0" onclick={() => { selectedDestination = c.id; destSearch = c.name; showDestDropdown = false; }}>
-												{c.name}
-											</li>
-										{/each}
-									{:else if destSearch.trim().length > 0}
-										<li class="px-4 py-3 text-center">
-											<p class="text-xs text-on-surface-variant mb-2">"{destSearch}" not found</p>
-											<button type="button" class="px-3 py-1.5 bg-rose-100 text-rose-700 hover:bg-rose-200 transition-colors rounded-lg text-xs font-bold w-full" onclick={() => quickCreateCustomer(destSearch, 'dest')}>
-												+ Tambah "{destSearch}"
-											</button>
-										</li>
-									{/if}
-								</ul>
-							{/if}
 						</div>
 					{/if}
 

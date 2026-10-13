@@ -20,7 +20,7 @@
 </script>
 
 <svelte:head>
-	<title>Marketing Dashboard | Nexus ERP</title>
+	<title>Ringkasan Marketing | ERP BCS</title>
 </svelte:head>
 
 <div class="flex flex-col h-full space-y-6">
@@ -29,7 +29,7 @@
 		<div>
 			<div class="flex items-center gap-2.5">
 				<span class="material-symbols-outlined text-rose-600 dark:text-rose-400 text-2xl">campaign</span>
-				<h1 class="text-2xl font-black text-on-surface tracking-tight">Marketing & Sales Overview</h1>
+				<h1 class="text-2xl font-black text-on-surface tracking-tight">Ringkasan Marketing & Penjualan</h1>
 			</div>
 			<p class="text-on-surface-variant font-medium text-sm mt-0.5">
 				Pemantauan performa bisnis, pipeline prospek klien, pesanan aktif, dan analitik pendapatan
@@ -49,7 +49,7 @@
 		<div class="p-5 rounded-2xl bg-surface-container-low border border-slate-200/60 dark:border-slate-800/60 shadow-xs">
 			<div class="flex items-center justify-between">
 				<div>
-					<span class="font-bold text-on-surface-variant uppercase tracking-wider text-xs">Total Customers</span>
+					<span class="font-bold text-on-surface-variant uppercase tracking-wider text-xs">Total Pelanggan</span>
 					<p class="text-3xl font-black text-on-surface mt-1">{metrics.totalCustomers}</p>
 				</div>
 				<div class="w-12 h-12 rounded-xl bg-rose-500/10 text-rose-600 flex items-center justify-center font-bold">
@@ -66,7 +66,7 @@
 		<div class="p-5 rounded-2xl bg-surface-container-low border border-slate-200/60 dark:border-slate-800/60 shadow-xs">
 			<div class="flex items-center justify-between">
 				<div>
-					<span class="font-bold text-on-surface-variant uppercase tracking-wider text-xs">Active Customers</span>
+					<span class="font-bold text-on-surface-variant uppercase tracking-wider text-xs">Pelanggan Aktif</span>
 					<p class="text-3xl font-black text-on-surface mt-1">{metrics.activeCustomers}</p>
 				</div>
 				<div class="w-12 h-12 rounded-xl bg-rose-500/10 text-rose-600 flex items-center justify-center font-bold">
@@ -76,14 +76,14 @@
 			<div class="w-full bg-surface-container-highest h-1.5 rounded-full mt-3 overflow-hidden">
 				<div class="bg-rose-500 h-full rounded-full" style="width: {metrics.totalCustomers > 0 ? Math.round(metrics.activeCustomers / metrics.totalCustomers * 100) : 0}%"></div>
 			</div>
-			<p class="text-xs text-on-surface-variant font-medium mt-1.5">{metrics.totalCustomers > 0 ? Math.round(metrics.activeCustomers / metrics.totalCustomers * 100) : 0}% Active Rate</p>
+			<p class="text-xs text-on-surface-variant font-medium mt-1.5">{metrics.totalCustomers > 0 ? Math.round(metrics.activeCustomers / metrics.totalCustomers * 100) : 0}% Tingkat Keaktifan</p>
 		</div>
 
 		<!-- Orders This Month -->
 		<div class="p-5 rounded-2xl bg-surface-container-low border border-slate-200/60 dark:border-slate-800/60 shadow-xs">
 			<div class="flex items-center justify-between">
 				<div>
-					<span class="font-bold text-on-surface-variant uppercase tracking-wider text-xs">Orders This Month</span>
+					<span class="font-bold text-on-surface-variant uppercase tracking-wider text-xs">Pesanan Bulan Ini</span>
 					<p class="text-3xl font-black text-on-surface mt-1">{metrics.ordersThisMonth}</p>
 				</div>
 				<div class="w-12 h-12 rounded-xl bg-blue-500/10 text-blue-600 flex items-center justify-center font-bold">
@@ -91,7 +91,7 @@
 				</div>
 			</div>
 			<div class="flex items-center gap-2 mt-2">
-				<span class="px-2 py-0.5 bg-amber-500/10 text-amber-600 border border-amber-500/20 text-[10px] font-bold rounded-md">{metrics.pendingOrders} Pending DO</span>
+				<span class="px-2 py-0.5 bg-amber-500/10 text-amber-600 border border-amber-500/20 text-[10px] font-bold rounded-md">{metrics.pendingOrders} Menunggu DO</span>
 			</div>
 		</div>
 
@@ -99,7 +99,7 @@
 		<div class="p-5 rounded-2xl bg-surface-container-low border border-slate-200/60 dark:border-slate-800/60 shadow-xs">
 			<div class="flex items-center justify-between">
 				<div>
-					<span class="font-bold text-on-surface-variant uppercase tracking-wider text-xs">Monthly Revenue</span>
+					<span class="font-bold text-on-surface-variant uppercase tracking-wider text-xs">Pendapatan Bulanan</span>
 					<p class="text-xl font-black text-emerald-600 mt-1">{formatCurrency(metrics.revenue)}</p>
 				</div>
 				<div class="w-12 h-12 rounded-xl bg-emerald-500/10 text-emerald-600 flex items-center justify-center font-bold">

@@ -46,7 +46,7 @@
 </script>
 
 <svelte:head>
-	<title>Reports | Marketing</title>
+	<title>Laporan Kinerja & Pendapatan | ERP BCS</title>
 </svelte:head>
 
 <div class="flex flex-col h-full space-y-6">

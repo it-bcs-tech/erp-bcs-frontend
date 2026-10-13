@@ -54,13 +54,14 @@
 		return result;
 	});
 
+	let perPage = $state(10);
 	let totalItems = $derived(filteredCustomers.length);
-	let totalPages = $derived(Math.max(1, Math.ceil(totalItems / 5)));
+	let totalPages = $derived(Math.max(1, Math.ceil(totalItems / perPage)));
 	let currentPage = $derived(parseInt($page.url.searchParams.get('page') || '1'));
-	let startItem = $derived(totalItems === 0 ? 0 : ((currentPage - 1) * 5) + 1);
-	let endItem = $derived(Math.min(currentPage * 5, totalItems));
+	let startItem = $derived(totalItems === 0 ? 0 : ((currentPage - 1) * perPage) + 1);
+	let endItem = $derived(Math.min(currentPage * perPage, totalItems));
 	
-	let paginatedCustomers = $derived(filteredCustomers.slice((currentPage - 1) * 5, currentPage * 5));
+	let paginatedCustomers = $derived(filteredCustomers.slice((currentPage - 1) * perPage, currentPage * perPage));
 
 	function goToPage(p: number) {
 		if (p < 1 || p > totalPages) return;
@@ -241,7 +242,7 @@
 </script>
 
 <svelte:head>
-	<title>Customers | Marketing</title>
+	<title>Master Pelanggan | ERP BCS</title>
 </svelte:head>
 
 <div class="flex flex-col h-full space-y-6">
@@ -285,7 +286,7 @@
 		<div class="p-5 rounded-2xl bg-surface-container-low border border-slate-200/60 dark:border-slate-800/60 shadow-xs">
 			<div class="flex items-center justify-between">
 				<div>
-					<p class="text-xs font-bold text-on-surface-variant uppercase tracking-wider">Total Customers</p>
+					<p class="text-xs font-bold text-on-surface-variant uppercase tracking-wider">Total Pelanggan</p>
 					<h3 class="text-3xl font-black text-on-surface mt-1">{metrics.total}</h3>
 				</div>
 				<div class="w-12 h-12 rounded-xl bg-rose-500/10 text-rose-600 flex items-center justify-center font-bold">
@@ -466,18 +467,28 @@
 		</div>
 		
 		<!-- Pagination Footer -->
-		<div class="px-6 py-4 border-t border-surface-container flex items-center justify-between bg-surface-container-lowest">
-			<p class="text-xs text-on-surface-variant font-medium">Showing {startItem} to {endItem} of {totalItems} entries</p>
-			<div class="flex gap-1">
-				<button class="w-8 h-8 rounded-lg flex items-center justify-center text-on-surface-variant hover:bg-surface-container-high disabled:opacity-50 transition-colors" disabled={currentPage <= 1} onclick={() => goToPage(currentPage - 1)}>
+		<div class="px-6 py-4 border-t border-surface-container flex flex-col sm:flex-row items-center justify-between gap-3 bg-surface-container-lowest">
+			<div class="flex items-center gap-3">
+				<p class="text-xs text-on-surface-variant font-medium">Menampilkan {startItem} - {endItem} dari {totalItems} data</p>
+				<div class="flex items-center gap-1.5 text-xs text-on-surface-variant font-medium">
+					<span>Baris:</span>
+					<select bind:value={perPage} class="bg-surface-container border border-surface-container rounded-lg px-2 py-1 text-xs font-bold text-on-surface focus:outline-none">
+						<option value={10}>10</option>
+						<option value={25}>25</option>
+						<option value={50}>50</option>
+					</select>
+				</div>
+			</div>
+			<div class="flex gap-1 items-center">
+				<button class="w-8 h-8 rounded-lg flex items-center justify-center text-on-surface-variant hover:bg-surface-container-high disabled:opacity-40 transition-colors cursor-pointer" disabled={currentPage <= 1} onclick={() => goToPage(currentPage - 1)} title="Halaman Sebelumnya">
 					<span class="material-symbols-outlined text-lg">chevron_left</span>
 				</button>
 				{#each Array(totalPages) as _, i}
-					<button class="w-8 h-8 rounded-lg flex items-center justify-center font-bold text-sm shadow-sm transition-colors {currentPage === i + 1 ? 'bg-rose-600 text-white' : 'text-on-surface hover:bg-surface-container-high'}" onclick={() => goToPage(i + 1)}>
+					<button class="w-8 h-8 rounded-lg flex items-center justify-center font-bold text-xs shadow-xs transition-colors cursor-pointer {currentPage === i + 1 ? 'bg-rose-600 text-white' : 'text-on-surface hover:bg-surface-container-high'}" onclick={() => goToPage(i + 1)}>
 						{i + 1}
 					</button>
 				{/each}
-				<button class="w-8 h-8 rounded-lg flex items-center justify-center text-on-surface-variant hover:bg-surface-container-high disabled:opacity-50 transition-colors" disabled={currentPage >= totalPages} onclick={() => goToPage(currentPage + 1)}>
+				<button class="w-8 h-8 rounded-lg flex items-center justify-center text-on-surface-variant hover:bg-surface-container-high disabled:opacity-40 transition-colors cursor-pointer" disabled={currentPage >= totalPages} onclick={() => goToPage(currentPage + 1)} title="Halaman Berikutnya">
 					<span class="material-symbols-outlined text-lg">chevron_right</span>
 				</button>
 			</div>
