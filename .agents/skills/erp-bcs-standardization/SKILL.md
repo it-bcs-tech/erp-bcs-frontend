@@ -93,12 +93,86 @@ Seluruh komponen baru wajib ditulis menggunakan **Svelte 5 Runes** (bukan sintak
 * **Danger / Rejected / Critical:** `bg-rose-50 text-rose-700 dark:bg-rose-950/50 dark:text-rose-300 border border-rose-200 dark:border-rose-800`
 * **Draft / Neutral / Standby:** `bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border border-slate-200 dark:border-slate-700`
 
-### C. Input Field & Filter Bar
+### C. Standar Form Input & Filter Bar (Tanpa Border Hitam / Borderless)
+
+> [!IMPORTANT]
+> **Aturan Wajib Border Input:**
+> 1. **Dilarang Border Hitam:** DILARANG menggunakan border hitam/pekat (`border-black`, `border-slate-900`, atau border default browser) pada seluruh elemen input.
+> 2. **Gaya Borderless:** Gunakan pendekatan **tanpa border (`border-0` / tanpa class `border`)** dengan latar belakang container terisi (`bg-surface-container-low` atau `bg-surface-container-lowest`).
+> 3. **Focus State:** Gunakan soft ring warna primer saat aktif (`focus:ring-2 focus:ring-primary/20 outline-none`) agar pengguna mengetahui kolom yang sedang aktif.
+> 4. **Pengecualian Checkbox & Radio:** Khusus elemen checkbox dan radio, tetap gunakan border halus netral (`border border-slate-300 dark:border-slate-700`) agar bentuk kotak/lingkaran tetap terbaca dengan jelas.
+
+#### 1. Filter Bar / Search Bar
 ```svelte
-<div class="flex items-center gap-3 px-4 py-2.5 rounded-xl bg-surface-container-low border border-slate-200 dark:border-slate-800 focus-within:ring-2 focus-within:ring-primary/20 focus-within:border-primary">
+<div class="flex items-center gap-3 px-4 py-2.5 rounded-xl bg-surface-container-low focus-within:ring-2 focus-within:ring-primary/20 transition-all">
     <span class="material-symbols-outlined text-on-surface-variant text-[20px]">search</span>
-    <input type="text" bind:value={searchQuery} placeholder="Cari data..." class="bg-transparent text-sm text-on-surface outline-none w-full placeholder:text-on-surface-variant/50" />
+    <input 
+        type="text" 
+        bind:value={searchQuery} 
+        placeholder="Cari data..." 
+        class="bg-transparent text-sm text-on-surface border-0 outline-none w-full placeholder:text-on-surface-variant/50 focus:ring-0" 
+    />
 </div>
+```
+
+#### 2. Input Field Biasa (Text / Email / Number / Date)
+```svelte
+<div class="space-y-1.5">
+    <label for="nama_field" class="block text-xs font-bold text-on-surface uppercase tracking-wider">
+        Nama Field <span class="text-rose-500">*</span>
+    </label>
+    <input 
+        id="nama_field"
+        type="text" 
+        bind:value={formData.nama} 
+        placeholder="Masukkan nama..." 
+        class="w-full bg-surface-container-low text-on-surface rounded-xl px-4 py-2.5 text-sm border-0 outline-none placeholder:text-on-surface-variant/50 focus:ring-2 focus:ring-primary/20 transition-all" 
+        required 
+    />
+</div>
+```
+
+#### 3. Select Dropdown
+```svelte
+<div class="space-y-1.5">
+    <label for="kategori" class="block text-xs font-bold text-on-surface uppercase tracking-wider">Kategori</label>
+    <select 
+        id="kategori"
+        bind:value={formData.kategori_id} 
+        class="w-full bg-surface-container-low text-on-surface rounded-xl px-4 py-2.5 text-sm border-0 outline-none focus:ring-2 focus:ring-primary/20 transition-all cursor-pointer"
+    >
+        <option value="">Pilih kategori...</option>
+        {#each categories as cat}
+            <option value={cat.id}>{cat.name}</option>
+        {/each}
+    </select>
+</div>
+```
+
+#### 4. Textarea
+```svelte
+<div class="space-y-1.5">
+    <label for="keterangan" class="block text-xs font-bold text-on-surface uppercase tracking-wider">Keterangan</label>
+    <textarea 
+        id="keterangan"
+        rows="3" 
+        bind:value={formData.keterangan} 
+        placeholder="Tuliskan catatan atau keterangan..." 
+        class="w-full bg-surface-container-low text-on-surface rounded-xl p-3 text-sm border-0 outline-none placeholder:text-on-surface-variant/50 focus:ring-2 focus:ring-primary/20 transition-all resize-y"
+    ></textarea>
+</div>
+```
+
+#### 5. Checkbox & Radio (Border Halus Netral)
+```svelte
+<label class="flex items-center gap-2.5 cursor-pointer">
+    <input 
+        type="checkbox" 
+        bind:checked={formData.is_active} 
+        class="rounded border border-slate-300 dark:border-slate-700 text-primary focus:ring-primary/20" 
+    />
+    <span class="text-xs font-medium text-on-surface">Status Aktif</span>
+</label>
 ```
 
 ---
