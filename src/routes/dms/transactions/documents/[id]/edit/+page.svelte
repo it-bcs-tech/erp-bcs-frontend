@@ -25,6 +25,7 @@
 		partner_id: doc.partner_id || '',
 		asset_id: doc.asset_id ? String(doc.asset_id) : '',
 		employee_id: doc.employee_id ? String(doc.employee_id) : '',
+		company_id: doc.company_id || '',
 		notary_id: doc.notary_id || '',
 		issuer_id: doc.issuer_id || '',
 		issue_date: doc.issue_date_str || '',
@@ -108,6 +109,7 @@
 	const notaryOpts = data.notaries.map((n: any) => ({ value: n.id, label: n.name }));
 	const issuerOpts = data.issuers.map((i: any) => ({ value: i.id, label: `${i.name} (${i.type || 'Penerbit'})` }));
 	const locationOpts = data.locations.map((l: any) => ({ value: l.id, label: `${l.code} - ${l.name}` }));
+	const companyOpts = ((data as any).companies || []).map((c: any) => ({ value: c.id, label: `${c.name} [${c.code}]` }));
 
 	// Prepare payload with compiled metadata object
 	let payloadJson = $derived.by(() => {
@@ -121,6 +123,7 @@
 			doc_number: formState.doc_number,
 			doc_type_id: formState.doc_type_id,
 			category_id: formState.category_id || null,
+			company_id: formState.entity_type === 'CORPORATE' ? (formState.company_id || null) : null,
 			title: formState.title,
 			entity_type: formState.entity_type,
 			partner_id: formState.entity_type === 'CUSTOMER' ? formState.partner_id : null,
@@ -290,6 +293,16 @@
 							Pilih Mitra / Customer
 						</label>
 						<SearchableSelect options={partnerOpts} bind:value={formState.partner_id} placeholder="-- Pilih Mitra --" />
+					</div>
+				{:else}
+					<div class="space-y-3">
+						<div>
+							<label class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-1.5">
+								Pilih Entitas Perusahaan (Group Company) <span class="text-xs font-normal text-on-surface-variant/60 lowercase">(opsional)</span>
+							</label>
+							<SearchableSelect options={companyOpts} bind:value={formState.company_id} placeholder="-- Pilih Perusahaan Grup (Opsional) --" />
+							<p class="text-[11px] text-on-surface-variant mt-1">Pilih entitas badan hukum grup BCS jika dokumen ini milik PT/CV tertentu.</p>
+						</div>
 					</div>
 				{/if}
 			</div>

@@ -84,10 +84,17 @@
 		return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(val);
 	}
 
-	// Local state bound to store
+	// Local state bound to store with initial fallback to server/db privacy
+	const dbPrivacySetting = $derived(
+		data.moduleSettings?.find((s: any) => s.module === 'system' && s.setting_key === 'privacy')?.setting_value
+	);
+
+	let isSavingPrivacy = $state(false);
+	let privacyToastMsg = $state('');
+
 	let settings = $state({
-		hideSalaryNominals: $systemSettings.hideSalaryNominals,
-		maskSensitiveInfo: $systemSettings.maskSensitiveInfo,
+		hideSalaryNominals: data.privacySettings?.hideSalaryNominals ?? $systemSettings.hideSalaryNominals,
+		maskSensitiveInfo: data.privacySettings?.maskSensitiveInfo ?? $systemSettings.maskSensitiveInfo,
 		companyName: $systemSettings.companyName,
 		companyShortName: $systemSettings.companyShortName,
 		headOfficeAddress: $systemSettings.headOfficeAddress,
@@ -102,50 +109,70 @@
 		autoLogoutMinutes: $systemSettings.autoLogoutMinutes
 	});
 
-	// Sync local state when store changes
+	// Sync local privacy state when database or layout data changes
 	$effect(() => {
-		settings = {
-			hideSalaryNominals: $systemSettings.hideSalaryNominals,
-			maskSensitiveInfo: $systemSettings.maskSensitiveInfo,
-			companyName: $systemSettings.companyName,
-			companyShortName: $systemSettings.companyShortName,
-			headOfficeAddress: $systemSettings.headOfficeAddress,
-			poolCilegonAddress: $systemSettings.poolCilegonAddress,
-			poolGunungPutriAddress: $systemSettings.poolGunungPutriAddress,
-			companyTaxId: $systemSettings.companyTaxId,
-			companyPhone: $systemSettings.companyPhone,
-			companyEmail: $systemSettings.companyEmail,
-			theme: $systemSettings.theme,
-			dateFormat: $systemSettings.dateFormat,
-			enableAudioAlerts: $systemSettings.enableAudioAlerts,
-			autoLogoutMinutes: $systemSettings.autoLogoutMinutes
-		};
+		if (data.privacySettings) {
+			settings.hideSalaryNominals = data.privacySettings.hideSalaryNominals;
+			settings.maskSensitiveInfo = data.privacySettings.maskSensitiveInfo;
+		}
 	});
+
+	async function persistPrivacyToDb(hideSalary: boolean, maskInfo: boolean) {
+		isSavingPrivacy = true;
+		try {
+			const fd = new FormData();
+			fd.append('hideSalaryNominals', hideSalary ? 'true' : 'false');
+			fd.append('maskSensitiveInfo', maskInfo ? 'true' : 'false');
+
+			const res = await fetch('?/savePrivacySettings', {
+				method: 'POST',
+				body: fd
+			});
+
+			if (res.ok) {
+				systemSettings.updateSettings({
+					hideSalaryNominals: hideSalary,
+					maskSensitiveInfo: maskInfo
+				});
+				isSavedToast = true;
+				privacyToastMsg = hideSalary 
+					? 'Mode Sensor Gaji AKTIF di seluruh sistem & semua akun!'
+					: 'Mode Sensor Gaji DINONAKTIFKAN di database global.';
+				setTimeout(() => {
+					isSavedToast = false;
+					privacyToastMsg = '';
+				}, 3500);
+			} else {
+				console.error('Gagal menyimpan privasi ke database');
+			}
+		} catch (err) {
+			console.error('Error auto-saving privacy to database:', err);
+		} finally {
+			isSavingPrivacy = false;
+		}
+	}
 
 	function handleSave() {
 		systemSettings.updateSettings(settings);
+		persistPrivacyToDb(settings.hideSalaryNominals, settings.maskSensitiveInfo);
 		isSavedToast = true;
+		privacyToastMsg = 'Pengaturan sistem & privasi global berhasil disimpan!';
 		setTimeout(() => {
 			isSavedToast = false;
+			privacyToastMsg = '';
 		}, 3000);
 	}
 
 	function handleTogglePrivacy() {
-		settings.hideSalaryNominals = !settings.hideSalaryNominals;
-		systemSettings.updateSettings({ hideSalaryNominals: settings.hideSalaryNominals });
-		isSavedToast = true;
-		setTimeout(() => {
-			isSavedToast = false;
-		}, 2500);
+		const nextVal = !settings.hideSalaryNominals;
+		settings.hideSalaryNominals = nextVal;
+		persistPrivacyToDb(nextVal, settings.maskSensitiveInfo);
 	}
 
 	function handleToggleMasking() {
-		settings.maskSensitiveInfo = !settings.maskSensitiveInfo;
-		systemSettings.updateSettings({ maskSensitiveInfo: settings.maskSensitiveInfo });
-		isSavedToast = true;
-		setTimeout(() => {
-			isSavedToast = false;
-		}, 2500);
+		const nextVal = !settings.maskSensitiveInfo;
+		settings.maskSensitiveInfo = nextVal;
+		persistPrivacyToDb(settings.hideSalaryNominals, nextVal);
 	}
 </script>
 
@@ -170,15 +197,16 @@
 			{#if isSavedToast}
 				<span class="text-xs font-bold text-emerald-600 bg-emerald-500/10 border border-emerald-500/20 px-3 py-1.5 rounded-xl inline-flex items-center gap-1.5 animate-in fade-in">
 					<span class="material-symbols-outlined text-sm">check_circle</span>
-					<span>Pengaturan tersimpan!</span>
+					<span>{privacyToastMsg || 'Pengaturan tersimpan!'}</span>
 				</span>
 			{/if}
 			<button
 				onclick={handleSave}
-				class="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-primary text-on-primary font-bold text-sm shadow-xs hover:bg-primary/90 transition-all cursor-pointer"
+				disabled={isSavingPrivacy}
+				class="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-primary text-on-primary font-bold text-sm shadow-xs hover:bg-primary/90 transition-all cursor-pointer disabled:opacity-50"
 			>
 				<span class="material-symbols-outlined text-lg">save</span>
-				<span>Simpan Perubahan</span>
+				<span>{isSavingPrivacy ? 'Menyimpan...' : 'Simpan Perubahan'}</span>
 			</button>
 		</div>
 	</div>
@@ -228,23 +256,28 @@
 	<!-- TAB 1: PRIVACY & PRESENTATION MODE -->
 	{#if activeTab === 'privacy'}
 		<div class="space-y-6">
-			<!-- Banner Info Mode Presentasi -->
+			<!-- Banner Info Mode Presentasi & Privasi Database Global -->
 			<div class="p-5 rounded-3xl bg-gradient-to-r from-blue-600 to-indigo-700 text-white shadow-md flex flex-col md:flex-row items-center justify-between gap-4">
 				<div class="flex items-center gap-4">
 					<div class="w-12 h-12 rounded-2xl bg-white/20 flex items-center justify-center text-white flex-shrink-0">
 						<span class="material-symbols-outlined text-2xl">slideshow</span>
 					</div>
 					<div>
-						<h3 class="text-base font-bold">Mode Presentasi Layar (Screen Privacy Mode)</h3>
+						<div class="flex items-center gap-2">
+							<h3 class="text-base font-bold">Mode Presentasi Layar & Privasi Database Global</h3>
+							<span class="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-white/20 text-white border border-white/30">
+								Global System Setting
+							</span>
+						</div>
 						<p class="text-xs text-blue-100 mt-0.5 leading-relaxed">
-							Gunakan fitur ini ketika sedang melakukan presentasi layar, demo sistem, atau sharing screen agar nominal gaji dan data finansial sensitif tidak terlihat oleh audiens.
+							Pengaturan sensor gaji dan masking data ini tersimpan di database server (<code class="font-mono bg-black/20 px-1 py-0.5 rounded">master.module_settings</code>) dan berlaku serentak ke <strong>seluruh akun pengguna</strong> di ERP BCS.
 						</p>
 					</div>
 				</div>
 				<div class="flex items-center gap-2 bg-white/15 px-3 py-1.5 rounded-full text-xs font-bold border border-white/20">
 					<span>Status:</span>
 					<span class="uppercase tracking-wider {settings.hideSalaryNominals ? 'text-amber-300' : 'text-emerald-300'}">
-						{settings.hideSalaryNominals ? '🔒 Tersensor (Aktif)' : '👁️ Terbuka (Publik)'}
+						{settings.hideSalaryNominals ? '🔒 Tersensor (Aktif Global)' : '👁️ Terbuka (Publik)'}
 					</span>
 				</div>
 			</div>
@@ -262,8 +295,11 @@
 						</p>
 					</div>
 					<button
+						type="button"
 						onclick={handleTogglePrivacy}
-						class="w-14 h-8 rounded-full transition-colors relative p-1 cursor-pointer flex-shrink-0 {settings.hideSalaryNominals ? 'bg-primary' : 'bg-slate-300 dark:bg-slate-700'}"
+						disabled={isSavingPrivacy}
+						aria-label="Toggle sensor nominal gaji global"
+						class="w-14 h-8 rounded-full transition-colors relative p-1 cursor-pointer flex-shrink-0 disabled:opacity-50 {settings.hideSalaryNominals ? 'bg-primary' : 'bg-slate-300 dark:bg-slate-700'}"
 					>
 						<span
 							class="w-6 h-6 rounded-full bg-white block transition-transform shadow-md {settings.hideSalaryNominals ? 'translate-x-6' : 'translate-x-0'}"
@@ -310,8 +346,11 @@
 						</p>
 					</div>
 					<button
+						type="button"
 						onclick={handleToggleMasking}
-						class="w-14 h-8 rounded-full transition-colors relative p-1 cursor-pointer flex-shrink-0 {settings.maskSensitiveInfo ? 'bg-primary' : 'bg-slate-300 dark:bg-slate-700'}"
+						disabled={isSavingPrivacy}
+						aria-label="Toggle sensor NIK dan nomor rekening global"
+						class="w-14 h-8 rounded-full transition-colors relative p-1 cursor-pointer flex-shrink-0 disabled:opacity-50 {settings.maskSensitiveInfo ? 'bg-primary' : 'bg-slate-300 dark:bg-slate-700'}"
 					>
 						<span
 							class="w-6 h-6 rounded-full bg-white block transition-transform shadow-md {settings.maskSensitiveInfo ? 'translate-x-6' : 'translate-x-0'}"

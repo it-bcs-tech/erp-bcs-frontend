@@ -28,10 +28,13 @@ export const load: PageServerLoad = async ({ params }) => {
 				i.name as issuer_name,
 				n.name as notary_name,
 				dc.name as category_name,
-				dc.code as category_code
+				dc.code as category_code,
+				cmp.name as company_name,
+				cmp.code as company_code
 			FROM dms.documents d
 			LEFT JOIN dms.m_doc_type dt ON dt.id = d.doc_type_id
 			LEFT JOIN dms.m_doc_category dc ON dc.id = d.category_id
+			LEFT JOIN master.m_company cmp ON cmp.id = d.company_id
 			LEFT JOIN master.m_customer c ON c.id = d.partner_id
 			LEFT JOIN fleet.unit u ON u.id = d.asset_id
 			LEFT JOIN master.m_drivers drv ON drv.id = d.employee_id

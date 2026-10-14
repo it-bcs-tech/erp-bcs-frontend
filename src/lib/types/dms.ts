@@ -51,7 +51,9 @@ export interface DocumentItem {
 	metadata?: Record<string, any> | null;
 	created_at: string;
 	updated_at: string;
-	created_by?: string | null;
+	company_id?: string | null;
+	company_name?: string | null;
+	company_code?: string | null;
 	days_remaining?: number | null;
 	gate_level?: ExpiryGateLevel;
 }
@@ -107,5 +109,19 @@ export interface DocumentCategory {
 	created_at?: string;
 	updated_at?: string;
 	document_count?: number;
+}
+
+export interface CompanyItem {
+	id: string;
+	code: string;
+	name: string;
+	address?: string | null;
+	phone?: string | null;
+	remarks?: string | null;
+	legacy_id?: number | null;
+	is_active: boolean;
+	created_at?: string;
+	updated_at?: string;
+	doc_count?: number;
 }
 

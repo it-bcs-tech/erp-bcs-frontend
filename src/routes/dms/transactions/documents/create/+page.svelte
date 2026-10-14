@@ -15,6 +15,7 @@
 		partner_id: '',
 		asset_id: '',
 		employee_id: '',
+		company_id: '',
 		notary_id: '',
 		issuer_id: '',
 		issue_date: '',
@@ -103,6 +104,7 @@
 	const notaryOpts = data.notaries.map((n: any) => ({ value: n.id, label: n.name }));
 	const issuerOpts = data.issuers.map((i: any) => ({ value: i.id, label: `${i.name} (${i.type || 'Penerbit'})` }));
 	const locationOpts = data.locations.map((l: any) => ({ value: l.id, label: `${l.code} - ${l.name}` }));
+	const companyOpts = ((data as any).companies || []).map((c: any) => ({ value: c.id, label: `${c.name} [${c.code}]` }));
 
 	// Prepare payload with compiled metadata object
 	let payloadJson = $derived.by(() => {
@@ -116,6 +118,7 @@
 			doc_number: formState.doc_number,
 			doc_type_id: formState.doc_type_id,
 			category_id: formState.category_id || null,
+			company_id: formState.entity_type === 'CORPORATE' ? (formState.company_id || null) : null,
 			title: formState.title,
 			entity_type: formState.entity_type,
 			partner_id: formState.entity_type === 'CUSTOMER' ? formState.partner_id : null,
@@ -309,11 +312,24 @@
 						/>
 					</div>
 				{:else}
-					<div class="p-3.5 bg-violet-50/50 dark:bg-violet-950/20 rounded-xl border border-violet-200 dark:border-violet-900/40 flex items-center gap-3">
-						<span class="material-symbols-outlined text-violet-600 dark:text-violet-400">info</span>
-						<span class="text-xs font-medium text-violet-950 dark:text-violet-200">
-							Dokumen ini diarsipkan sebagai dokumen korporat/legal internal umum perusahaan (tidak terikat unit khusus).
-						</span>
+					<div class="space-y-3">
+						<div>
+							<label class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-1.5">
+								Pilih Entitas Perusahaan (Group Company) <span class="text-xs font-normal text-on-surface-variant/60 lowercase">(opsional)</span>
+							</label>
+							<SearchableSelect
+								options={companyOpts}
+								bind:value={formState.company_id}
+								placeholder="-- Ketik / Pilih Nama Perusahaan Grup (Opsional) --"
+							/>
+							<p class="text-[11px] text-on-surface-variant mt-1">Pilih entitas badan hukum grup BCS jika dokumen ini milik PT/CV tertentu.</p>
+						</div>
+						<div class="p-3.5 bg-violet-50/50 dark:bg-violet-950/20 rounded-xl border border-violet-200 dark:border-violet-900/40 flex items-center gap-3">
+							<span class="material-symbols-outlined text-violet-600 dark:text-violet-400">info</span>
+							<span class="text-xs font-medium text-violet-950 dark:text-violet-200">
+								Dokumen ini diarsipkan sebagai dokumen korporat/legal internal (dapat dikosongkan jika bersifat umum/holding).
+							</span>
+						</div>
 					</div>
 				{/if}
 			</div>

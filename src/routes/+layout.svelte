@@ -6,6 +6,7 @@
 	import { page } from '$app/stores';
 	import { activeToasts, removeToast } from '$lib/stores/notifications';
 	import { authUser } from '$lib/stores/auth';
+	import { systemSettings } from '$lib/stores/settings';
 	import { fade, fly } from 'svelte/transition';
 	
 	let { data, children } = $props();
@@ -16,6 +17,13 @@
 			authUser.set(data.user);
 		} else {
 			authUser.set(null);
+		}
+	});
+
+	// Hydrate global privacy settings dari database
+	$effect(() => {
+		if (data.privacySettings) {
+			systemSettings.updateSettings(data.privacySettings);
 		}
 	});
 

@@ -14,6 +14,7 @@ export const load: PageServerLoad = async ({ url }) => {
 		const entityType = url.searchParams.get('entity_type') || '';
 		const type = url.searchParams.get('type') || '';
 		const category = url.searchParams.get('category') || '';
+		const company = url.searchParams.get('company') || '';
 		const status = url.searchParams.get('status') || '';
 		const gateFilter = url.searchParams.get('gate') || '';
 
@@ -31,12 +32,15 @@ export const load: PageServerLoad = async ({ url }) => {
 				u.no_rangka ILIKE ${pattern} OR 
 				k.nama_karyawan ILIKE ${pattern} OR 
 				c.nama_kustomer ILIKE ${pattern} OR
+				cmp.name ILIKE ${pattern} OR
+				cmp.code ILIKE ${pattern} OR
 				d.qr_code_id ILIKE ${pattern}
 			)`);
 		}
 		if (entityType) conditions.push(sql`d.entity_type = ${entityType}`);
 		if (type) conditions.push(sql`dt.code = ${type}`);
 		if (category) conditions.push(sql`d.category_id = ${category}`);
+		if (company) conditions.push(sql`d.company_id = ${company}`);
 		if (status) conditions.push(sql`d.status = ${status}`);
 
 		const whereClause = conditions.length > 0 ? sql`WHERE ${conditions.reduce((acc, curr) => sql`${acc} AND ${curr}`)}` : sql``;
@@ -45,6 +49,7 @@ export const load: PageServerLoad = async ({ url }) => {
 			SELECT count(*) FROM dms.documents d
 			LEFT JOIN dms.m_doc_type dt ON dt.id = d.doc_type_id
 			LEFT JOIN dms.m_doc_category dc ON dc.id = d.category_id
+			LEFT JOIN master.m_company cmp ON cmp.id = d.company_id
 			LEFT JOIN master.m_customer c ON c.id = d.partner_id
 			LEFT JOIN fleet.unit u ON u.id = d.asset_id
 			LEFT JOIN master.m_drivers drv ON drv.id = d.employee_id
@@ -61,6 +66,8 @@ export const load: PageServerLoad = async ({ url }) => {
 				dt.name as type_name,
 				dc.name as category_name,
 				dc.code as category_code,
+				cmp.name as company_name,
+				cmp.code as company_code,
 				c.nama_kustomer as partner_name,
 				u.nomor_unit as unit_number,
 				u.business_unit as unit_type,
@@ -71,6 +78,7 @@ export const load: PageServerLoad = async ({ url }) => {
 			FROM dms.documents d
 			LEFT JOIN dms.m_doc_type dt ON dt.id = d.doc_type_id
 			LEFT JOIN dms.m_doc_category dc ON dc.id = d.category_id
+			LEFT JOIN master.m_company cmp ON cmp.id = d.company_id
 			LEFT JOIN master.m_customer c ON c.id = d.partner_id
 			LEFT JOIN fleet.unit u ON u.id = d.asset_id
 			LEFT JOIN master.m_drivers drv ON drv.id = d.employee_id
@@ -107,11 +115,13 @@ export const load: PageServerLoad = async ({ url }) => {
 
 		const docTypes = await sql`SELECT code, name FROM dms.m_doc_type WHERE is_active = true ORDER BY name`;
 		const categories = await sql`SELECT id, code, name FROM dms.m_doc_category WHERE is_active = true ORDER BY legacy_id ASC NULLS LAST, name ASC`;
+		const companies = await sql`SELECT id, code, name FROM master.m_company WHERE is_active = true ORDER BY name ASC`;
 
 		return {
 			documents,
 			docTypes,
 			categories,
+			companies,
 			pagination: {
 				page,
 				limit,

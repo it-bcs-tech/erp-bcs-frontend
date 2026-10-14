@@ -10,6 +10,7 @@
 	let entityType = $derived($page.url.searchParams.get('entity_type') || '');
 	let type = $derived($page.url.searchParams.get('type') || '');
 	let category = $derived($page.url.searchParams.get('category') || '');
+	let company = $derived($page.url.searchParams.get('company') || '');
 	let gate = $derived($page.url.searchParams.get('gate') || '');
 
 	let isDenseView = $state(false);
@@ -18,7 +19,7 @@
 	let isViewerOpen = $state(false);
 	let selectedDoc = $state<any>(null);
 
-	let hasActiveFilters = $derived(Boolean(q || entityType || type || category || gate));
+	let hasActiveFilters = $derived(Boolean(q || entityType || type || category || company || gate));
 
 	function openViewer(doc: any) {
 		selectedDoc = doc;
@@ -66,6 +67,18 @@
 			url.searchParams.set('category', val);
 		} else {
 			url.searchParams.delete('category');
+		}
+		url.searchParams.set('page', '1');
+		goto(url.toString(), { keepFocus: true, noScroll: true });
+	}
+
+	function handleCompanyChange(e: Event) {
+		const val = (e.target as HTMLSelectElement).value;
+		const url = new URL(window.location.href);
+		if (val) {
+			url.searchParams.set('company', val);
+		} else {
+			url.searchParams.delete('company');
 		}
 		url.searchParams.set('page', '1');
 		goto(url.toString(), { keepFocus: true, noScroll: true });
@@ -237,6 +250,20 @@
 				{/each}
 			</select>
 
+			{#if entityType === 'CORPORATE' || !entityType}
+				<select
+					name="company"
+					onchange={handleCompanyChange}
+					value={company}
+					class="bg-surface-container-low text-on-surface rounded-xl px-3 py-2 text-xs font-medium border-0 outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all cursor-pointer w-full sm:w-auto"
+				>
+					<option value="">Semua Perusahaan</option>
+					{#each data.companies || [] as cmp}
+						<option value={cmp.id}>{cmp.name}</option>
+					{/each}
+				</select>
+			{/if}
+
 			<div class="flex items-center gap-2 w-full sm:w-auto">
 				<button
 					type="submit"
@@ -384,8 +411,8 @@
 												<p class="font-bold text-on-surface">{doc.customer_name || doc.partner_name || 'Mitra'}</p>
 												<p class="text-[10px] text-on-surface-variant">Customer SPK</p>
 											{:else}
-												<p class="font-bold text-on-surface">PT BCS Logistics</p>
-												<p class="text-[10px] text-on-surface-variant">Korporat / Legal</p>
+												<p class="font-bold text-on-surface">{doc.company_name || 'Korporat / Umum'}</p>
+												<p class="text-[10px] text-on-surface-variant">{doc.company_code ? `[${doc.company_code}] Legal` : 'Holding & Legal'}</p>
 											{/if}
 										</div>
 									</div>

@@ -69,9 +69,18 @@ export const load: PageServerLoad = async () => {
 			ORDER BY k.nama_karyawan ASC
 		`;
 
+		// Master Perusahaan untuk dokumen KORPORAT
+		const companies = await sql`
+			SELECT id, code, name, address 
+			FROM master.m_company 
+			WHERE is_active = true 
+			ORDER BY name ASC
+		`;
+
 		return {
 			docTypes,
 			categories,
+			companies,
 			notaries,
 			issuers,
 			locations,
@@ -114,6 +123,7 @@ export const actions: Actions = {
 				doc_number,
 				doc_type_id,
 				category_id,
+				company_id,
 				title,
 				entity_type = 'CORPORATE',
 				partner_id,
@@ -140,6 +150,7 @@ export const actions: Actions = {
 			const formattedEmployeeId = employee_id ? Number(employee_id) : null;
 			const formattedPartnerId = partner_id ? partner_id : null;
 			const formattedCategoryId = category_id ? category_id : null;
+			const formattedCompanyId = company_id ? company_id : null;
 
 			// 1. Simpan dokumen utama
 			const [doc] = await sql`
@@ -147,6 +158,7 @@ export const actions: Actions = {
 					doc_number, 
 					doc_type_id, 
 					category_id,
+					company_id,
 					title, 
 					entity_type,
 					partner_id, 
@@ -169,6 +181,7 @@ export const actions: Actions = {
 					${doc_number || null}, 
 					${doc_type_id}, 
 					${formattedCategoryId},
+					${formattedCompanyId},
 					${title}, 
 					${entity_type as DMSEntityType},
 					${formattedPartnerId}, 

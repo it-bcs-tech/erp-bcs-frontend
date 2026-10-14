@@ -14,9 +14,20 @@
 import type { LayoutServerLoad } from './$types';
 import type { AuthUser } from '$lib/types/auth';
 import { getUserFromToken, getAuthUserByEmail, signUserData, verifyUserData } from '$lib/server/auth';
+import { getModuleSetting } from '$lib/server/settings';
 
 export const load: LayoutServerLoad = async ({ cookies }) => {
 	let user: AuthUser | null = null;
+
+	let privacySettings = { hideSalaryNominals: false, maskSensitiveInfo: false };
+	try {
+		privacySettings = await getModuleSetting('system', 'privacy', {
+			hideSalaryNominals: false,
+			maskSensitiveInfo: false
+		});
+	} catch (e) {
+		console.warn('Failed to load global privacy settings:', e);
+	}
 
 	const authToken = cookies.get('auth_token');
 	const userDataCookie = cookies.get('user_data');
@@ -60,6 +71,7 @@ export const load: LayoutServerLoad = async ({ cookies }) => {
 	}
 
 	return {
-		user
+		user,
+		privacySettings
 	};
 };

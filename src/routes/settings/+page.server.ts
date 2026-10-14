@@ -178,5 +178,36 @@ export const actions: Actions = {
 			settingKey: 'solar_general',
 			message: 'Pengaturan acuan solar modul OCS berhasil diperbarui dari Admin Settings.'
 		};
+	},
+
+	savePrivacySettings: async ({ request, locals }) => {
+		const formData = await request.formData();
+		const hideSalaryNominals = formData.get('hideSalaryNominals') === 'true' || formData.get('hideSalaryNominals') === '1';
+		const maskSensitiveInfo = formData.get('maskSensitiveInfo') === 'true' || formData.get('maskSensitiveInfo') === '1';
+
+		const sessionUser = (locals as any)?.user?.name || (locals as any)?.user?.username || 'admin';
+
+		const privacyValue = {
+			hideSalaryNominals,
+			maskSensitiveInfo
+		};
+
+		const ok = await setModuleSetting(
+			'system',
+			'privacy',
+			privacyValue,
+			'Pengaturan Privasi Global & Sensor Nominal Gaji / Data Finansial ERP BCS',
+			sessionUser
+		);
+
+		if (!ok) {
+			return fail(500, { success: false, message: 'Gagal menyimpan pengaturan privasi ke database.' });
+		}
+
+		return {
+			success: true,
+			privacyValue,
+			message: 'Pengaturan Privasi Global berhasil disimpan ke database dan aktif di seluruh akun.'
+		};
 	}
 };
