@@ -41,6 +41,20 @@
 		notes: ''
 	});
 
+	// Toast Feedback State
+	let toast = $state<{ show: boolean; type: 'success' | 'error'; message: string }>({
+		show: false,
+		type: 'success',
+		message: ''
+	});
+	let toastTimer: ReturnType<typeof setTimeout> | undefined;
+
+	function showToast(message: string, type: 'success' | 'error' = 'success') {
+		if (toastTimer) clearTimeout(toastTimer);
+		toast = { show: true, type, message };
+		toastTimer = setTimeout(() => (toast.show = false), 4000);
+	}
+
 	// Derived helpers
 	let statusInfo = $derived(getStatusInfo(doc.status, doc.gate_level, doc.days_remaining));
 	let physicalStatusInfo = $derived(getPhysicalStatusInfo(doc.physical_status));
@@ -124,7 +138,7 @@
 				type="button"
 				onclick={() => {
 					renewState.doc_number = doc.doc_number || '';
-					renewState.issue_date = doc.issue_date_str || '';
+					renewState.issue_date = doc.issue_date_str || (doc.issue_date ? String(doc.issue_date).slice(0, 10) : '') || '';
 					renewState.expiry_date = '';
 					isRenewModalOpen = true;
 				}}
@@ -242,11 +256,11 @@
 						</div>
 						<div>
 							<p class="text-xs font-bold text-on-surface-variant uppercase tracking-wider">Sisa Masa Berlaku</p>
-							<p class="text-sm font-black mt-1 {doc.days_remaining !== null && doc.days_remaining < 0 ? 'text-rose-600' : doc.days_remaining !== null && doc.days_remaining <= 30 ? 'text-orange-600' : 'text-emerald-600'}">
-								{#if doc.days_remaining === null}
+							<p class="text-sm font-black mt-1 {doc.days_remaining !== null && doc.days_remaining !== undefined && doc.days_remaining < 0 ? 'text-rose-600' : doc.days_remaining !== null && doc.days_remaining !== undefined && doc.days_remaining <= 30 ? 'text-orange-600' : 'text-emerald-600'}">
+								{#if doc.days_remaining === null || doc.days_remaining === undefined}
 									Tanpa Batas Waktu
 								{:else if doc.days_remaining < 0}
-									Kadaluarsa ({Math.abs(doc.days_remaining)} hari lalu)
+									Kadaluarsa ({Math.abs(doc.days_remaining || 0)} hari lalu)
 								{:else}
 									{doc.days_remaining} Hari Lagi
 								{/if}
@@ -629,11 +643,13 @@
 					isSubmitting = true;
 					return async ({ result }) => {
 						isSubmitting = false;
+						const resData = (result as any).data;
 						if (result.type === 'success') {
 							isRenewModalOpen = false;
-							window.location.reload();
+							showToast('Masa berlaku dokumen berhasil diperpanjang!', 'success');
+							setTimeout(() => window.location.reload(), 800);
 						} else {
-							alert(result.data?.message || 'Gagal memperpanjang dokumen');
+							showToast(resData?.message || 'Gagal memperpanjang dokumen', 'error');
 						}
 					};
 				}}
@@ -646,7 +662,7 @@
 						name="doc_number"
 						bind:value={renewState.doc_number}
 						placeholder="Nomor baru jika berubah"
-						class="w-full bg-surface-container-low dark:bg-surface-container-high border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs font-bold text-on-surface"
+						class="w-full bg-surface-container-low dark:bg-surface-container-high rounded-xl px-3 py-2 text-xs font-bold text-on-surface border-0 outline-none placeholder:text-on-surface-variant/50 focus:ring-2 focus:ring-indigo-500/20 transition-all"
 					/>
 				</div>
 
@@ -657,7 +673,7 @@
 							type="date"
 							name="issue_date"
 							bind:value={renewState.issue_date}
-							class="w-full bg-surface-container-low dark:bg-surface-container-high border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs font-bold text-on-surface"
+							class="w-full bg-surface-container-low dark:bg-surface-container-high rounded-xl px-3 py-2 text-xs font-bold text-on-surface border-0 outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all"
 						/>
 					</div>
 					<div>
@@ -667,7 +683,7 @@
 							name="expiry_date"
 							required
 							bind:value={renewState.expiry_date}
-							class="w-full bg-surface-container-low dark:bg-surface-container-high border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs font-bold text-on-surface"
+							class="w-full bg-surface-container-low dark:bg-surface-container-high rounded-xl px-3 py-2 text-xs font-bold text-on-surface border-0 outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all"
 						/>
 					</div>
 				</div>
@@ -679,7 +695,7 @@
 						name="change_summary"
 						bind:value={renewState.change_summary}
 						placeholder="Misal: Perpanjangan Uji KIR Semester 2 2026"
-						class="w-full bg-surface-container-low dark:bg-surface-container-high border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs font-bold text-on-surface"
+						class="w-full bg-surface-container-low dark:bg-surface-container-high rounded-xl px-3 py-2 text-xs font-bold text-on-surface border-0 outline-none placeholder:text-on-surface-variant/50 focus:ring-2 focus:ring-indigo-500/20 transition-all"
 					/>
 				</div>
 
@@ -689,7 +705,7 @@
 						type="file"
 						name="file_upload"
 						accept=".pdf"
-						class="w-full text-xs text-on-surface-variant file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-indigo-50 file:text-indigo-600"
+						class="w-full text-xs text-on-surface-variant file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-indigo-50 file:text-indigo-600 cursor-pointer"
 					/>
 				</div>
 
@@ -697,14 +713,14 @@
 					<button
 						type="button"
 						onclick={() => isRenewModalOpen = false}
-						class="px-4 py-2 rounded-xl border text-xs font-bold"
+						class="px-4 py-2 rounded-xl border border-slate-300 dark:border-slate-700 text-xs font-bold hover:bg-surface-container-high cursor-pointer"
 					>
 						Batal
 					</button>
 					<button
 						type="submit"
 						disabled={isSubmitting}
-						class="px-6 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-bold flex items-center gap-1.5"
+						class="px-6 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
 					>
 						<span class="material-symbols-outlined text-base">save</span>
 						<span>Simpan Snapshot Versi Baru</span>
@@ -736,11 +752,13 @@
 					isSubmitting = true;
 					return async ({ result }) => {
 						isSubmitting = false;
+						const resData = (result as any).data;
 						if (result.type === 'success') {
 							isCheckoutModalOpen = false;
-							window.location.reload();
+							showToast('Peminjaman berkas fisik berhasil dicatat!', 'success');
+							setTimeout(() => window.location.reload(), 800);
 						} else {
-							alert(result.data?.message || 'Gagal mencatat peminjaman');
+							showToast(resData?.message || 'Gagal mencatat peminjaman', 'error');
 						}
 					};
 				}}
@@ -754,7 +772,7 @@
 						required
 						bind:value={checkoutState.borrower_name}
 						placeholder="Nama staff atau driver peminjam"
-						class="w-full bg-surface-container-low dark:bg-surface-container-high border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs font-bold text-on-surface"
+						class="w-full bg-surface-container-low dark:bg-surface-container-high rounded-xl px-3 py-2 text-xs font-bold text-on-surface border-0 outline-none placeholder:text-on-surface-variant/50 focus:ring-2 focus:ring-indigo-500/20 transition-all"
 					/>
 				</div>
 
@@ -765,7 +783,7 @@
 							type="date"
 							name="borrow_date"
 							bind:value={checkoutState.borrow_date}
-							class="w-full bg-surface-container-low dark:bg-surface-container-high border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs font-bold text-on-surface"
+							class="w-full bg-surface-container-low dark:bg-surface-container-high rounded-xl px-3 py-2 text-xs font-bold text-on-surface border-0 outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all"
 						/>
 					</div>
 					<div>
@@ -774,7 +792,7 @@
 							type="date"
 							name="expected_return_date"
 							bind:value={checkoutState.expected_return_date}
-							class="w-full bg-surface-container-low dark:bg-surface-container-high border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs font-bold text-on-surface"
+							class="w-full bg-surface-container-low dark:bg-surface-container-high rounded-xl px-3 py-2 text-xs font-bold text-on-surface border-0 outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all"
 						/>
 					</div>
 				</div>
@@ -787,7 +805,7 @@
 						required
 						bind:value={checkoutState.purpose}
 						placeholder="Misal: Uji Berkala KIR / Sidang Tilang / Samsat"
-						class="w-full bg-surface-container-low dark:bg-surface-container-high border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs font-bold text-on-surface"
+						class="w-full bg-surface-container-low dark:bg-surface-container-high rounded-xl px-3 py-2 text-xs font-bold text-on-surface border-0 outline-none placeholder:text-on-surface-variant/50 focus:ring-2 focus:ring-indigo-500/20 transition-all"
 					/>
 				</div>
 
@@ -795,14 +813,14 @@
 					<button
 						type="button"
 						onclick={() => isCheckoutModalOpen = false}
-						class="px-4 py-2 rounded-xl border text-xs font-bold"
+						class="px-4 py-2 rounded-xl border border-slate-300 dark:border-slate-700 text-xs font-bold hover:bg-surface-container-high cursor-pointer"
 					>
 						Batal
 					</button>
 					<button
 						type="submit"
 						disabled={isSubmitting}
-						class="px-6 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-xl text-xs font-bold flex items-center gap-1.5"
+						class="px-6 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
 					>
 						<span class="material-symbols-outlined text-base">check</span>
 						<span>Konfirmasi Check-Out</span>
@@ -822,7 +840,7 @@
 					<span class="material-symbols-outlined text-emerald-600">input</span>
 					<h3 class="text-base font-extrabold text-on-surface">Konfirmasi Pengembalian Berkas Fisik</h3>
 				</div>
-				<button type="button" onclick={() => isCheckinModalOpen = false} class="text-slate-400 hover:text-slate-600">
+				<button type="button" onclick={() => isCheckinModalOpen = false} class="text-slate-400 hover:text-slate-600 cursor-pointer">
 					<span class="material-symbols-outlined">close</span>
 				</button>
 			</div>
@@ -834,11 +852,13 @@
 					isSubmitting = true;
 					return async ({ result }) => {
 						isSubmitting = false;
+						const resData = (result as any).data;
 						if (result.type === 'success') {
 							isCheckinModalOpen = false;
-							window.location.reload();
+							showToast('Pengembalian berkas fisik berhasil dicatat!', 'success');
+							setTimeout(() => window.location.reload(), 800);
 						} else {
-							alert(result.data?.message || 'Gagal mengembalikan berkas');
+							showToast(resData?.message || 'Gagal mengembalikan berkas', 'error');
 						}
 					};
 				}}
@@ -850,7 +870,7 @@
 						type="text"
 						name="borrower_name"
 						placeholder="Nama pengembali"
-						class="w-full bg-surface-container-low dark:bg-surface-container-high border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs font-bold text-on-surface"
+						class="w-full bg-surface-container-low dark:bg-surface-container-high rounded-xl px-3 py-2 text-xs font-bold text-on-surface border-0 outline-none placeholder:text-on-surface-variant/50 focus:ring-2 focus:ring-indigo-500/20 transition-all"
 					/>
 				</div>
 
@@ -860,7 +880,7 @@
 						type="date"
 						name="actual_return_date"
 						value={new Date().toISOString().slice(0, 10)}
-						class="w-full bg-surface-container-low dark:bg-surface-container-high border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs font-bold text-on-surface"
+						class="w-full bg-surface-container-low dark:bg-surface-container-high rounded-xl px-3 py-2 text-xs font-bold text-on-surface border-0 outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all"
 					/>
 				</div>
 
@@ -870,7 +890,7 @@
 						name="notes"
 						rows="2"
 						placeholder="Kondisi berkas lengkap dan telah disimpan kembali ke lemari rak"
-						class="w-full bg-surface-container-low dark:bg-surface-container-high border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs font-medium text-on-surface"
+						class="w-full bg-surface-container-low dark:bg-surface-container-high rounded-xl px-3 py-2 text-xs font-medium text-on-surface border-0 outline-none placeholder:text-on-surface-variant/50 focus:ring-2 focus:ring-indigo-500/20 transition-all resize-none"
 					></textarea>
 				</div>
 
@@ -878,14 +898,14 @@
 					<button
 						type="button"
 						onclick={() => isCheckinModalOpen = false}
-						class="px-4 py-2 rounded-xl border text-xs font-bold"
+						class="px-4 py-2 rounded-xl border border-slate-300 dark:border-slate-700 text-xs font-bold hover:bg-surface-container-high cursor-pointer"
 					>
 						Batal
 					</button>
 					<button
 						type="submit"
 						disabled={isSubmitting}
-						class="px-6 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold flex items-center gap-1.5"
+						class="px-6 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
 					>
 						<span class="material-symbols-outlined text-base">check_circle</span>
 						<span>Konfirmasi Masuk Lemari (Check-In)</span>
@@ -893,5 +913,18 @@
 				</div>
 			</form>
 		</div>
+	</div>
+{/if}
+
+<!-- Floating Toast Notification -->
+{#if toast.show}
+	<div class="fixed top-6 right-6 z-50 flex items-center gap-3 px-4 py-3 rounded-2xl shadow-xl border animate-in slide-in-from-top-4 duration-300 {toast.type === 'success' ? 'bg-emerald-600 text-white border-emerald-500' : 'bg-rose-600 text-white border-rose-500'}">
+		<span class="material-symbols-outlined text-lg">
+			{toast.type === 'success' ? 'check_circle' : 'error'}
+		</span>
+		<p class="text-xs font-bold">{toast.message}</p>
+		<button type="button" class="ml-2 text-white/80 hover:text-white cursor-pointer" onclick={() => toast.show = false} aria-label="Tutup notifikasi">
+			<span class="material-symbols-outlined text-sm">close</span>
+		</button>
 	</div>
 {/if}

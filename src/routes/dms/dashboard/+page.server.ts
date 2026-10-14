@@ -78,7 +78,7 @@ export const load: PageServerLoad = async () => {
 
 		// Dokumen yang perlu perhatian segera (Urgent, Critical, Warning, Expired)
 		const upcomingExpiringDocs = processedDocs
-			.filter(d => d.expiry_date && (d.days_remaining !== null && d.days_remaining <= 60))
+			.filter(d => d.expiry_date && d.days_remaining !== null && d.days_remaining !== undefined && d.days_remaining <= 60)
 			.slice(0, 10);
 
 		// Dokumen fisik yang sedang dipinjam

@@ -12,9 +12,13 @@
 	let category = $derived($page.url.searchParams.get('category') || '');
 	let gate = $derived($page.url.searchParams.get('gate') || '');
 
+	let isDenseView = $state(false);
+
 	// Quick Preview modal
 	let isViewerOpen = $state(false);
 	let selectedDoc = $state<any>(null);
+
+	let hasActiveFilters = $derived(Boolean(q || entityType || type || category || gate));
 
 	function openViewer(doc: any) {
 		selectedDoc = doc;
@@ -65,6 +69,18 @@
 		}
 		url.searchParams.set('page', '1');
 		goto(url.toString(), { keepFocus: true, noScroll: true });
+	}
+
+	function handleLimitChange(e: Event) {
+		const val = (e.target as HTMLSelectElement).value;
+		const url = new URL(window.location.href);
+		url.searchParams.set('limit', val);
+		url.searchParams.set('page', '1');
+		goto(url.toString(), { keepFocus: true, noScroll: true });
+	}
+
+	function resetFilters() {
+		goto('/dms/transactions/documents', { keepFocus: true, noScroll: true });
 	}
 
 	function goToPage(pNum: number) {
@@ -182,18 +198,18 @@
 	<!-- Table Container with Filter Header -->
 	<div class="rounded-2xl bg-surface-container-low border border-slate-200/60 dark:border-slate-800/60 overflow-hidden shadow-xs flex-1 flex flex-col">
 		<!-- Search & Filters Bar -->
-		<form method="GET" data-sveltekit-keepfocus class="p-4 border-b border-slate-200/60 dark:border-slate-800/60 bg-slate-50/50 dark:bg-slate-800/30 flex flex-col sm:flex-row gap-3">
+		<form method="GET" data-sveltekit-keepfocus class="p-4 border-b border-slate-200/60 dark:border-slate-800/60 bg-slate-50/50 dark:bg-slate-800/30 flex flex-col sm:flex-row gap-3 items-center">
 			<input type="hidden" name="entity_type" value={entityType} />
 			<input type="hidden" name="limit" value={data.pagination.limit} />
 
-			<div class="relative flex-1">
+			<div class="relative flex-1 w-full">
 				<span class="material-symbols-outlined absolute left-3.5 top-1/2 -translate-y-1/2 text-on-surface-variant text-lg">search</span>
 				<input
 					type="text"
 					name="q"
 					value={q}
 					placeholder="Cari nomor dokumen, judul, unit truk, driver, atau QR ID..."
-					class="w-full bg-surface-container-lowest dark:bg-surface-container border border-slate-200 dark:border-slate-800 rounded-xl py-2 pl-10 pr-4 text-xs font-medium text-on-surface focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
+					class="w-full bg-surface-container-low text-on-surface rounded-xl py-2 pl-10 pr-4 text-xs font-medium border-0 outline-none placeholder:text-on-surface-variant/50 focus:ring-2 focus:ring-indigo-500/20 transition-all"
 				/>
 			</div>
 
@@ -201,7 +217,7 @@
 				name="type"
 				onchange={handleTypeChange}
 				value={type}
-				class="bg-surface-container-lowest dark:bg-surface-container border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs font-medium text-on-surface focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
+				class="bg-surface-container-low text-on-surface rounded-xl px-3 py-2 text-xs font-medium border-0 outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all cursor-pointer w-full sm:w-auto"
 			>
 				<option value="">Semua Tipe Dokumen</option>
 				{#each data.docTypes as dt}
@@ -213,7 +229,7 @@
 				name="category"
 				onchange={handleCategoryChange}
 				value={category}
-				class="bg-surface-container-lowest dark:bg-surface-container border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs font-medium text-on-surface focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
+				class="bg-surface-container-low text-on-surface rounded-xl px-3 py-2 text-xs font-medium border-0 outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all cursor-pointer w-full sm:w-auto"
 			>
 				<option value="">Semua Kategori</option>
 				{#each data.categories || [] as cat}
@@ -221,72 +237,99 @@
 				{/each}
 			</select>
 
-			<button
-				type="submit"
-				class="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2 rounded-xl text-xs font-bold transition-colors flex items-center justify-center gap-1.5 shadow-xs"
-			>
-				<span class="material-symbols-outlined text-sm">filter_alt</span>
-				<span>Filter</span>
-			</button>
+			<div class="flex items-center gap-2 w-full sm:w-auto">
+				<button
+					type="submit"
+					class="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2 rounded-xl text-xs font-bold transition-colors flex items-center justify-center gap-1.5 shadow-xs cursor-pointer flex-1 sm:flex-initial"
+				>
+					<span class="material-symbols-outlined text-sm">filter_alt</span>
+					<span>Filter</span>
+				</button>
+
+				{#if hasActiveFilters}
+					<button
+						type="button"
+						onclick={resetFilters}
+						class="px-3.5 py-2 rounded-xl text-xs font-bold text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors flex items-center gap-1 cursor-pointer flex-shrink-0"
+						title="Reset semua filter ke default"
+					>
+						<span class="material-symbols-outlined text-sm">filter_alt_off</span>
+						<span>Reset</span>
+					</button>
+				{/if}
+			</div>
 		</form>
 
-		<!-- Expiry Gate Quick Filters -->
-		<div class="px-4 py-2.5 bg-surface-container-lowest dark:bg-surface-container-low/50 border-b border-slate-200/60 dark:border-slate-800/60 flex items-center gap-2 overflow-x-auto text-xs">
-			<span class="text-on-surface-variant font-bold text-[11px] uppercase tracking-wider mr-1">Status Gate:</span>
-			
-			<button
-				type="button"
-				onclick={() => setGateFilter('')}
-				class="px-2.5 py-1 rounded-lg font-bold transition-colors cursor-pointer {gate === '' ? 'bg-indigo-500/10 text-indigo-600 border border-indigo-500/30' : 'text-on-surface-variant hover:text-on-surface'}"
-			>
-				Semua
-			</button>
+		<!-- Expiry Gate Quick Filters & View Mode Toggle -->
+		<div class="px-4 py-2.5 bg-surface-container-lowest dark:bg-surface-container-low/50 border-b border-slate-200/60 dark:border-slate-800/60 flex items-center justify-between gap-3 overflow-x-auto text-xs">
+			<div class="flex items-center gap-2">
+				<span class="text-on-surface-variant font-bold text-[11px] uppercase tracking-wider mr-1">Status Gate:</span>
+				
+				<button
+					type="button"
+					onclick={() => setGateFilter('')}
+					class="px-2.5 py-1 rounded-lg font-bold transition-colors cursor-pointer {gate === '' ? 'bg-indigo-500/10 text-indigo-600 border border-indigo-500/30' : 'text-on-surface-variant hover:text-on-surface'}"
+				>
+					Semua
+				</button>
 
-			<button
-				type="button"
-				onclick={() => setGateFilter('EXPIRED')}
-				class="px-2.5 py-1 rounded-lg font-bold transition-colors cursor-pointer {gate === 'EXPIRED' ? 'bg-rose-500/10 text-rose-600 border border-rose-500/30' : 'text-on-surface-variant hover:text-on-surface'}"
-			>
-				Expired (Kadaluarsa)
-			</button>
+				<button
+					type="button"
+					onclick={() => setGateFilter('EXPIRED')}
+					class="px-2.5 py-1 rounded-lg font-bold transition-colors cursor-pointer {gate === 'EXPIRED' ? 'bg-rose-500/10 text-rose-600 border border-rose-500/30' : 'text-on-surface-variant hover:text-on-surface'}"
+				>
+					Expired (Kadaluarsa)
+				</button>
 
-			<button
-				type="button"
-				onclick={() => setGateFilter('URGENT_7')}
-				class="px-2.5 py-1 rounded-lg font-bold transition-colors cursor-pointer {gate === 'URGENT_7' ? 'bg-red-500/10 text-red-600 border border-red-500/30' : 'text-on-surface-variant hover:text-on-surface'}"
-			>
-				H-7 Urgent
-			</button>
+				<button
+					type="button"
+					onclick={() => setGateFilter('URGENT_7')}
+					class="px-2.5 py-1 rounded-lg font-bold transition-colors cursor-pointer {gate === 'URGENT_7' ? 'bg-red-500/10 text-red-600 border border-red-500/30' : 'text-on-surface-variant hover:text-on-surface'}"
+				>
+					H-7 Urgent
+				</button>
 
-			<button
-				type="button"
-				onclick={() => setGateFilter('CRITICAL_30')}
-				class="px-2.5 py-1 rounded-lg font-bold transition-colors cursor-pointer {gate === 'CRITICAL_30' ? 'bg-orange-500/10 text-orange-600 border border-orange-500/30' : 'text-on-surface-variant hover:text-on-surface'}"
-			>
-				H-30 Kritis
-			</button>
+				<button
+					type="button"
+					onclick={() => setGateFilter('CRITICAL_30')}
+					class="px-2.5 py-1 rounded-lg font-bold transition-colors cursor-pointer {gate === 'CRITICAL_30' ? 'bg-orange-500/10 text-orange-600 border border-orange-500/30' : 'text-on-surface-variant hover:text-on-surface'}"
+				>
+					H-30 Kritis
+				</button>
 
+				<button
+					type="button"
+					onclick={() => setGateFilter('WARNING_60')}
+					class="px-2.5 py-1 rounded-lg font-bold transition-colors cursor-pointer {gate === 'WARNING_60' ? 'bg-amber-500/10 text-amber-600 border border-amber-500/30' : 'text-on-surface-variant hover:text-on-surface'}"
+				>
+					H-60 Warning
+				</button>
+			</div>
+
+			<!-- Dense View Toggle Button -->
 			<button
 				type="button"
-				onclick={() => setGateFilter('WARNING_60')}
-				class="px-2.5 py-1 rounded-lg font-bold transition-colors cursor-pointer {gate === 'WARNING_60' ? 'bg-amber-500/10 text-amber-600 border border-amber-500/30' : 'text-on-surface-variant hover:text-on-surface'}"
+				onclick={() => isDenseView = !isDenseView}
+				class="flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs font-bold transition-all cursor-pointer flex-shrink-0 {isDenseView ? 'bg-indigo-600 text-white shadow-xs' : 'bg-surface-container-low hover:bg-surface-container text-on-surface-variant hover:text-on-surface'}"
+				title="Toggle tampilan tabel rapat / padat"
 			>
-				H-60 Warning
+				<span class="material-symbols-outlined text-[16px]">{isDenseView ? 'density_small' : 'density_medium'}</span>
+				<span>{isDenseView ? 'Mode Ringkas' : 'Mode Standar'}</span>
 			</button>
 		</div>
 
 		<!-- Main Document Table -->
 		<div class="overflow-x-auto flex-1">
 			<table class="w-full text-left text-sm min-w-[1000px]">
-				<thead class="bg-slate-100/70 dark:bg-slate-800/50 text-xs font-bold text-on-surface-variant uppercase tracking-wider border-b border-slate-200/60 dark:border-slate-800/60">
+				<thead class="bg-slate-100/70 dark:bg-slate-800/50 font-bold text-on-surface-variant uppercase tracking-wider border-b border-slate-200/60 dark:border-slate-800/60 {isDenseView ? 'text-[10px]' : 'text-xs'}">
 					<tr>
-						<th class="py-3.5 px-4">Dokumen & QR ID</th>
-						<th class="py-3.5 px-4">Entitas Terkait</th>
-						<th class="py-3.5 px-4">Tipe & Versi</th>
-						<th class="py-3.5 px-4">Masa Berlaku</th>
-						<th class="py-3.5 px-4">Status & Sisa Hari</th>
-						<th class="py-3.5 px-4">Lokasi Fisik</th>
-						<th class="py-3.5 px-4 text-right">Aksi</th>
+						<th class="{isDenseView ? 'py-2 px-3' : 'py-3.5 px-4'}">Dokumen & QR ID</th>
+						<th class="{isDenseView ? 'py-2 px-3' : 'py-3.5 px-4'}">Entitas Terkait</th>
+						<th class="{isDenseView ? 'py-2 px-3' : 'py-3.5 px-4'}">Tipe & Versi</th>
+						<th class="{isDenseView ? 'py-2 px-3' : 'py-3.5 px-4'}">Masa Berlaku</th>
+						<th class="{isDenseView ? 'py-2 px-3' : 'py-3.5 px-4'}">Status & Sisa Hari</th>
+						<th class="{isDenseView ? 'py-2 px-3' : 'py-3.5 px-4'}">Lokasi Fisik</th>
+						<th class="{isDenseView ? 'py-2 px-3' : 'py-3.5 px-4'} text-right">Aksi</th>
 					</tr>
 				</thead>
 				<tbody class="divide-y divide-slate-200/60 dark:divide-slate-800/60">
@@ -299,19 +342,19 @@
 						</tr>
 					{:else}
 						{#each data.documents as doc}
-							{@const sInfo = getStatusInfo(doc.computedStatus, doc.daysRemaining, doc.gateLevel)}
+							{@const sInfo = getStatusInfo(doc.status, doc.gate_level, doc.days_remaining)}
 							{@const eInfo = getEntityTypeInfo(doc.entity_type)}
 							{@const pInfo = getPhysicalStatusInfo(doc.physical_status)}
 
 							<tr class="hover:bg-surface-container-high/40 transition-colors">
 								<!-- Document Title & QR -->
-								<td class="py-3.5 px-4">
+								<td class="{isDenseView ? 'py-2 px-3' : 'py-3.5 px-4'}">
 									<div class="flex items-start gap-2.5">
-										<div class="w-8 h-8 rounded-lg bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 flex items-center justify-center flex-shrink-0 mt-0.5">
-											<span class="material-symbols-outlined text-base">description</span>
+										<div class="{isDenseView ? 'w-6 h-6' : 'w-8 h-8'} rounded-lg bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 flex items-center justify-center flex-shrink-0 mt-0.5">
+											<span class="material-symbols-outlined {isDenseView ? 'text-xs' : 'text-base'}">description</span>
 										</div>
 										<div>
-											<a href="/dms/transactions/documents/{doc.id}" class="font-bold text-on-surface hover:text-indigo-600 transition-colors text-xs line-clamp-1">
+											<a href="/dms/transactions/documents/{doc.id}" class="font-bold text-on-surface hover:text-indigo-600 transition-colors {isDenseView ? 'text-[11px]' : 'text-xs'} line-clamp-1">
 												{doc.title}
 											</a>
 											<div class="flex items-center gap-1.5 mt-0.5">
@@ -327,18 +370,18 @@
 								</td>
 
 								<!-- Linked Entity -->
-								<td class="py-3.5 px-4">
+								<td class="{isDenseView ? 'py-2 px-3' : 'py-3.5 px-4'}">
 									<div class="flex items-center gap-2">
 										<span class="material-symbols-outlined text-sm {eInfo.color}">{eInfo.icon}</span>
-										<div class="text-xs">
+										<div class="{isDenseView ? 'text-[11px]' : 'text-xs'}">
 											{#if doc.entity_type === 'FLEET'}
-												<p class="font-bold text-on-surface">{doc.unit_nomor || 'Armada'}</p>
-												<p class="text-[10px] text-on-surface-variant">{doc.unit_lambung || 'Fleet Unit'}</p>
+												<p class="font-bold text-on-surface">{doc.unit_nomor || doc.unit_number || 'Armada'}</p>
+												<p class="text-[10px] text-on-surface-variant">{doc.unit_lambung || doc.unit_type || 'Fleet Unit'}</p>
 											{:else if doc.entity_type === 'DRIVER'}
 												<p class="font-bold text-on-surface">{doc.driver_name || 'Driver'}</p>
-												<p class="text-[10px] text-on-surface-variant">NIK: {doc.driver_payroll || '-'}</p>
+												<p class="text-[10px] text-on-surface-variant">NIK: {doc.driver_payroll || doc.driver_payroll_id || '-'}</p>
 											{:else if doc.entity_type === 'CUSTOMER'}
-												<p class="font-bold text-on-surface">{doc.customer_name || 'Mitra'}</p>
+												<p class="font-bold text-on-surface">{doc.customer_name || doc.partner_name || 'Mitra'}</p>
 												<p class="text-[10px] text-on-surface-variant">Customer SPK</p>
 											{:else}
 												<p class="font-bold text-on-surface">PT BCS Logistics</p>
@@ -349,7 +392,7 @@
 								</td>
 
 								<!-- Doc Type, Category & Version -->
-								<td class="py-3.5 px-4">
+								<td class="{isDenseView ? 'py-2 px-3' : 'py-3.5 px-4'}">
 									<div class="flex flex-col gap-1 items-start">
 										<div class="flex items-center gap-1">
 											<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 dark:bg-slate-800 text-on-surface-variant">
@@ -366,12 +409,12 @@
 								</td>
 
 								<!-- Expiry Date -->
-								<td class="py-3.5 px-4 font-mono text-xs">
+								<td class="{isDenseView ? 'py-2 px-3 text-[11px]' : 'py-3.5 px-4 text-xs'} font-mono">
 									{doc.expiry_date ? formatDateId(doc.expiry_date) : 'Permanen'}
 								</td>
 
 								<!-- Status Badge & Remaining Days -->
-								<td class="py-3.5 px-4">
+								<td class="{isDenseView ? 'py-2 px-3' : 'py-3.5 px-4'}">
 									<span class="px-2.5 py-0.5 rounded-full text-[11px] font-black border inline-flex items-center gap-1 {sInfo.badgeClass}">
 										<span class="material-symbols-outlined text-xs">{sInfo.icon}</span>
 										<span>{sInfo.label}</span>
@@ -379,7 +422,7 @@
 								</td>
 
 								<!-- Physical Location -->
-								<td class="py-3.5 px-4">
+								<td class="{isDenseView ? 'py-2 px-3' : 'py-3.5 px-4'}">
 									<div class="flex items-center gap-1">
 										<span class="material-symbols-outlined text-xs text-slate-400">inventory_2</span>
 										<span class="text-on-surface-variant font-medium text-[11px]">
@@ -389,7 +432,7 @@
 								</td>
 
 								<!-- Actions -->
-								<td class="py-3.5 px-4 text-right">
+								<td class="{isDenseView ? 'py-2 px-3' : 'py-3.5 px-4'} text-right">
 									<div class="flex items-center justify-end gap-1.5">
 										{#if doc.file_path}
 											<button
@@ -417,10 +460,26 @@
 			</table>
 		</div>
 
-		<!-- Pagination Footer -->
+		<!-- Pagination Footer with Dynamic Limit -->
 		<div class="px-4 py-3 border-t border-slate-200/60 dark:border-slate-800/60 bg-surface-container-low flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-on-surface-variant">
-			<div>
-				Menampilkan <span class="font-bold text-on-surface">{startItem}</span> - <span class="font-bold text-on-surface">{endItem}</span> dari <span class="font-bold text-on-surface">{data.pagination.total}</span> dokumen
+			<div class="flex items-center gap-4">
+				<div>
+					Menampilkan <span class="font-bold text-on-surface">{startItem}</span> - <span class="font-bold text-on-surface">{endItem}</span> dari <span class="font-bold text-on-surface">{data.pagination.total}</span> dokumen
+				</div>
+
+				<div class="flex items-center gap-2">
+					<span class="text-[11px] text-on-surface-variant">Tampilkan:</span>
+					<select
+						onchange={handleLimitChange}
+						value={String(data.pagination.limit)}
+						class="bg-surface-container-lowest dark:bg-surface-container text-on-surface rounded-lg px-2 py-1 text-xs border-0 outline-none focus:ring-2 focus:ring-indigo-500/20 cursor-pointer font-bold"
+					>
+						<option value="10">10</option>
+						<option value="25">25</option>
+						<option value="50">50</option>
+						<option value="100">100</option>
+					</select>
+				</div>
 			</div>
 
 			<div class="flex items-center gap-1">

@@ -50,7 +50,7 @@ export const load: PageServerLoad = async ({ params }) => {
 		const { daysRemaining, gateLevel, computedStatus } = calculateExpiryGate(doc.expiry_date, doc.status);
 
 		const documentData: DocumentItem = {
-			...doc,
+			...(doc as any),
 			status: computedStatus,
 			days_remaining: daysRemaining,
 			gate_level: gateLevel

@@ -21,10 +21,16 @@ export interface DocumentItem {
 	partner_name?: string | null;
 	asset_id?: string | number | null;
 	unit_number?: string | null;
+	unit_nomor?: string | null;
+	unit_lambung?: string | null;
+	unit_type?: string | null;
 	unit_plate?: string | null;
 	employee_id?: string | number | null;
 	driver_name?: string | null;
 	driver_payroll_id?: string | null;
+	driver_payroll?: string | null;
+	customer_name?: string | null;
+	doc_type_name?: string | null;
 	notary_id?: string | null;
 	notary_name?: string | null;
 	issuer_id?: string | null;
@@ -33,7 +39,9 @@ export interface DocumentItem {
 	filing_location_name?: string | null;
 	filing_location_code?: string | null;
 	issue_date: string | null;
+	issue_date_str?: string | null;
 	expiry_date: string | null;
+	expiry_date_str?: string | null;
 	status: DMSStatus;
 	current_version: number;
 	physical_status: DMSPhysicalStatus;

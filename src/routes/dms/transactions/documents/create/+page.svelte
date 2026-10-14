@@ -34,6 +34,20 @@
 	let fileInputRef: HTMLInputElement | null = $state(null);
 	let selectedFileName = $state('');
 
+	// Toast Feedback State
+	let toast = $state<{ show: boolean; type: 'success' | 'error'; message: string }>({
+		show: false,
+		type: 'success',
+		message: ''
+	});
+	let toastTimer: ReturnType<typeof setTimeout> | undefined;
+
+	function showToast(message: string, type: 'success' | 'error' = 'success') {
+		if (toastTimer) clearTimeout(toastTimer);
+		toast = { show: true, type, message };
+		toastTimer = setTimeout(() => (toast.show = false), 4000);
+	}
+
 	function handleFileChange(e: Event) {
 		const target = e.target as HTMLInputElement;
 		if (target.files && target.files[0]) {
@@ -150,10 +164,14 @@
 			isSubmitting = true;
 			return async ({ result }) => {
 				isSubmitting = false;
-				if (result.type === 'success' && result.data?.success) {
-					window.location.href = `/dms/transactions/documents/${result.data.id}`;
+				const resData = (result as any).data;
+				if (result.type === 'success' && resData?.success) {
+					showToast('Dokumen berhasil diregistrasi!', 'success');
+					setTimeout(() => {
+						window.location.href = `/dms/transactions/documents/${resData.id}`;
+					}, 800);
 				} else {
-					alert(result.data?.message || 'Gagal menyimpan dokumen. Silakan periksa kembali formulir.');
+					showToast(resData?.message || 'Gagal menyimpan dokumen. Silakan periksa kembali formulir.', 'error');
 				}
 			};
 		}}
@@ -339,7 +357,7 @@
 						type="text"
 						bind:value={formState.doc_number}
 						placeholder="Misal: 12345/STNK/2026 atau KIR-99881"
-						class="w-full bg-surface-container-low dark:bg-surface-container-high border border-slate-200/80 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm font-semibold text-on-surface focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+						class="w-full bg-surface-container-low dark:bg-surface-container-high rounded-xl px-4 py-2.5 text-sm font-semibold text-on-surface border-0 outline-none placeholder:text-on-surface-variant/50 focus:ring-2 focus:ring-indigo-500/20 transition-all"
 					/>
 				</div>
 
@@ -352,7 +370,7 @@
 						bind:value={formState.title}
 						required
 						placeholder="Misal: STNK Truk Tronton B 9012 BCS atau SIM B2 Umum Ahmad Fauzi"
-						class="w-full bg-surface-container-low dark:bg-surface-container-high border border-slate-200/80 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm font-semibold text-on-surface focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+						class="w-full bg-surface-container-low dark:bg-surface-container-high rounded-xl px-4 py-2.5 text-sm font-semibold text-on-surface border-0 outline-none placeholder:text-on-surface-variant/50 focus:ring-2 focus:ring-indigo-500/20 transition-all"
 					/>
 				</div>
 
@@ -397,7 +415,7 @@
 						<input
 							type="date"
 							bind:value={formState.issue_date}
-							class="w-full bg-surface-container-low dark:bg-surface-container-high border border-slate-200/80 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm font-semibold text-on-surface focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+							class="w-full bg-surface-container-low dark:bg-surface-container-high rounded-xl px-4 py-2.5 text-sm font-semibold text-on-surface border-0 outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all"
 						/>
 					</div>
 
@@ -408,7 +426,7 @@
 						<input
 							type="date"
 							bind:value={formState.expiry_date}
-							class="w-full bg-surface-container-low dark:bg-surface-container-high border border-slate-200/80 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm font-semibold text-on-surface focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+							class="w-full bg-surface-container-low dark:bg-surface-container-high rounded-xl px-4 py-2.5 text-sm font-semibold text-on-surface border-0 outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all"
 						/>
 					</div>
 				</div>
@@ -489,7 +507,7 @@
 					bind:value={formState.notes}
 					rows="3"
 					placeholder="Catatan khusus, histori nomor lama, atau klausul perjanjian penting..."
-					class="w-full bg-surface-container-low dark:bg-surface-container-high border border-slate-200/80 dark:border-slate-700 rounded-xl p-4 text-sm font-medium text-on-surface focus:ring-2 focus:ring-indigo-500 focus:outline-none resize-none"
+					class="w-full bg-surface-container-low dark:bg-surface-container-high rounded-xl p-4 text-sm font-medium text-on-surface border-0 outline-none placeholder:text-on-surface-variant/50 focus:ring-2 focus:ring-indigo-500/20 transition-all resize-none"
 				></textarea>
 			</div>
 		</div>
@@ -504,7 +522,7 @@
 				<button
 					type="button"
 					onclick={addMetadataRow}
-					class="px-3 py-1.5 bg-indigo-50 dark:bg-indigo-950/50 hover:bg-indigo-100 text-indigo-600 dark:text-indigo-400 text-xs font-bold rounded-lg transition-colors flex items-center gap-1.5"
+					class="px-3 py-1.5 bg-indigo-50 dark:bg-indigo-950/50 hover:bg-indigo-100 text-indigo-600 dark:text-indigo-400 text-xs font-bold rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer"
 				>
 					<span class="material-symbols-outlined text-sm">add</span>
 					Tambah Parameter
@@ -523,18 +541,18 @@
 								type="text"
 								bind:value={meta.key}
 								placeholder="Nama Atribut (e.g. No Rangka)"
-								class="w-1/3 bg-surface-container-low dark:bg-surface-container-high border border-slate-200/80 dark:border-slate-700 rounded-xl px-3 py-2 text-xs font-bold text-on-surface focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+								class="w-1/3 bg-surface-container-low dark:bg-surface-container-high rounded-xl px-3 py-2 text-xs font-bold text-on-surface border-0 outline-none placeholder:text-on-surface-variant/50 focus:ring-2 focus:ring-indigo-500/20 transition-all"
 							/>
 							<input
 								type="text"
 								bind:value={meta.value}
 								placeholder="Nilai Atribut (e.g. MH3456789...)"
-								class="flex-1 bg-surface-container-low dark:bg-surface-container-high border border-slate-200/80 dark:border-slate-700 rounded-xl px-3 py-2 text-xs font-medium text-on-surface focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+								class="flex-1 bg-surface-container-low dark:bg-surface-container-high rounded-xl px-3 py-2 text-xs font-medium text-on-surface border-0 outline-none placeholder:text-on-surface-variant/50 focus:ring-2 focus:ring-indigo-500/20 transition-all"
 							/>
 							<button
 								type="button"
 								onclick={() => removeMetadataRow(i)}
-								class="p-2 text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-lg transition-colors"
+								class="p-2 text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-lg transition-colors cursor-pointer"
 							>
 								<span class="material-symbols-outlined text-sm">delete</span>
 							</button>
@@ -555,7 +573,7 @@
 			<button
 				type="submit"
 				disabled={isSubmitting}
-				class="px-8 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-extrabold shadow-sm hover:shadow transition-all flex items-center gap-2 disabled:opacity-50"
+				class="px-8 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-extrabold shadow-sm hover:shadow transition-all flex items-center gap-2 disabled:opacity-50 cursor-pointer"
 			>
 				{#if isSubmitting}
 					<span class="material-symbols-outlined animate-spin text-lg">progress_activity</span>
@@ -568,3 +586,16 @@
 		</div>
 	</form>
 </div>
+
+<!-- Floating Toast Notification -->
+{#if toast.show}
+	<div class="fixed top-6 right-6 z-50 flex items-center gap-3 px-4 py-3 rounded-2xl shadow-xl border animate-in slide-in-from-top-4 duration-300 {toast.type === 'success' ? 'bg-emerald-600 text-white border-emerald-500' : 'bg-rose-600 text-white border-rose-500'}">
+		<span class="material-symbols-outlined text-lg">
+			{toast.type === 'success' ? 'check_circle' : 'error'}
+		</span>
+		<p class="text-xs font-bold">{toast.message}</p>
+		<button type="button" class="ml-2 text-white/80 hover:text-white cursor-pointer" onclick={() => toast.show = false} aria-label="Tutup notifikasi">
+			<span class="material-symbols-outlined text-sm">close</span>
+		</button>
+	</div>
+{/if}

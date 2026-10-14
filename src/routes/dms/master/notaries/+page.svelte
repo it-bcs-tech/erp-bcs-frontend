@@ -6,6 +6,20 @@
 	let isModalOpen = $state(false);
 	let searchQuery = $state('');
 
+	// Toast Feedback State
+	let toast = $state<{ show: boolean; type: 'success' | 'error'; message: string }>({
+		show: false,
+		type: 'success',
+		message: ''
+	});
+	let toastTimer: ReturnType<typeof setTimeout> | undefined;
+
+	function showToast(message: string, type: 'success' | 'error' = 'success') {
+		if (toastTimer) clearTimeout(toastTimer);
+		toast = { show: true, type, message };
+		toastTimer = setTimeout(() => (toast.show = false), 4000);
+	}
+
 	let filteredNotaries = $derived.by(() => {
 		if (!searchQuery.trim()) return data.notaries || [];
 		const q = searchQuery.toLowerCase();
@@ -46,12 +60,12 @@
 	<!-- Search Bar -->
 	<div class="p-4 rounded-2xl bg-surface-container-low border border-slate-200/60 dark:border-slate-800/60 shadow-xs flex items-center justify-between gap-4">
 		<div class="relative flex-1 max-w-md">
-			<span class="material-symbols-outlined absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-lg">search</span>
+			<span class="material-symbols-outlined absolute left-3.5 top-1/2 -translate-y-1/2 text-on-surface-variant text-lg">search</span>
 			<input
 				type="text"
 				bind:value={searchQuery}
 				placeholder="Cari nama notaris, alamat, atau nomor telepon..."
-				class="w-full bg-surface border border-slate-200 dark:border-slate-700 text-on-surface rounded-xl py-2 pl-10 pr-4 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500/40"
+				class="w-full bg-surface-container-lowest dark:bg-surface-container text-on-surface rounded-xl py-2 pl-10 pr-4 text-xs font-medium border-0 outline-none placeholder:text-on-surface-variant/50 focus:ring-2 focus:ring-indigo-500/20 transition-all"
 			/>
 		</div>
 		<span class="text-xs font-medium text-on-surface-variant">
@@ -121,11 +135,13 @@
 				isSubmitting = true;
 				return async ({ result, update }) => {
 					isSubmitting = false;
-					if (result.type === 'success' && result.data?.success) {
+					const resData = (result as any).data;
+					if (result.type === 'success' && resData?.success) {
 						isModalOpen = false;
+						showToast('Notaris berhasil ditambahkan!', 'success');
 						update();
 					} else {
-						alert(result.data?.message || 'Terjadi kesalahan saat menyimpan data');
+						showToast(resData?.message || 'Terjadi kesalahan saat menyimpan data', 'error');
 					}
 				};
 			}}>
@@ -139,7 +155,7 @@
 							name="name"
 							required
 							placeholder="Misal: Hendra Gunawan, S.H., M.Kn."
-							class="w-full bg-surface-container border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-xs font-bold text-on-surface focus:ring-2 focus:ring-indigo-500 outline-none"
+							class="w-full bg-surface-container-low text-on-surface rounded-xl px-4 py-2.5 text-xs font-bold border-0 outline-none placeholder:text-on-surface-variant/50 focus:ring-2 focus:ring-indigo-500/20 transition-all"
 						/>
 					</div>
 
@@ -151,7 +167,7 @@
 							type="text"
 							name="phone"
 							placeholder="Misal: 0812-3456-7890"
-							class="w-full bg-surface-container border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-xs font-bold text-on-surface focus:ring-2 focus:ring-indigo-500 outline-none"
+							class="w-full bg-surface-container-low text-on-surface rounded-xl px-4 py-2.5 text-xs font-bold border-0 outline-none placeholder:text-on-surface-variant/50 focus:ring-2 focus:ring-indigo-500/20 transition-all"
 						/>
 					</div>
 
@@ -163,7 +179,7 @@
 							name="address"
 							rows="3"
 							placeholder="Alamat kantor..."
-							class="w-full bg-surface-container border border-slate-200 dark:border-slate-700 rounded-xl p-3 text-xs font-medium text-on-surface focus:ring-2 focus:ring-indigo-500 outline-none resize-none"
+							class="w-full bg-surface-container-low text-on-surface rounded-xl p-3 text-xs font-medium border-0 outline-none placeholder:text-on-surface-variant/50 focus:ring-2 focus:ring-indigo-500/20 transition-all resize-none"
 						></textarea>
 					</div>
 				</div>
@@ -172,14 +188,14 @@
 					<button
 						type="button"
 						onclick={() => isModalOpen = false}
-						class="px-4 py-2 text-xs font-bold text-on-surface-variant hover:text-on-surface"
+						class="px-4 py-2 text-xs font-bold text-on-surface-variant hover:text-on-surface cursor-pointer"
 					>
 						Batal
 					</button>
 					<button
 						type="submit"
 						disabled={isSubmitting}
-						class="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2 rounded-xl text-xs font-bold shadow-xs transition-colors disabled:opacity-50 flex items-center gap-1.5"
+						class="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2 rounded-xl text-xs font-bold shadow-xs transition-colors disabled:opacity-50 flex items-center gap-1.5 cursor-pointer"
 					>
 						{#if isSubmitting}
 							<span class="material-symbols-outlined text-sm animate-spin">progress_activity</span>
@@ -192,5 +208,18 @@
 				</div>
 			</form>
 		</div>
+	</div>
+{/if}
+
+<!-- Floating Toast Notification -->
+{#if toast.show}
+	<div class="fixed top-6 right-6 z-50 flex items-center gap-3 px-4 py-3 rounded-2xl shadow-xl border animate-in slide-in-from-top-4 duration-300 {toast.type === 'success' ? 'bg-emerald-600 text-white border-emerald-500' : 'bg-rose-600 text-white border-rose-500'}">
+		<span class="material-symbols-outlined text-lg">
+			{toast.type === 'success' ? 'check_circle' : 'error'}
+		</span>
+		<p class="text-xs font-bold">{toast.message}</p>
+		<button type="button" class="ml-2 text-white/80 hover:text-white cursor-pointer" onclick={() => toast.show = false} aria-label="Tutup notifikasi">
+			<span class="material-symbols-outlined text-sm">close</span>
+		</button>
 	</div>
 {/if}

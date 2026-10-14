@@ -8,6 +8,20 @@
 
 	let editingCategory = $state<any>(null);
 
+	// Toast Feedback State
+	let toast = $state<{ show: boolean; type: 'success' | 'error'; message: string }>({
+		show: false,
+		type: 'success',
+		message: ''
+	});
+	let toastTimer: ReturnType<typeof setTimeout> | undefined;
+
+	function showToast(message: string, type: 'success' | 'error' = 'success') {
+		if (toastTimer) clearTimeout(toastTimer);
+		toast = { show: true, type, message };
+		toastTimer = setTimeout(() => (toast.show = false), 4000);
+	}
+
 	function openCreateModal() {
 		editingCategory = null;
 		isModalOpen = true;
@@ -58,12 +72,12 @@
 	<!-- Search Bar & Summary -->
 	<div class="p-4 rounded-2xl bg-surface-container-low border border-slate-200/60 dark:border-slate-800/60 shadow-xs flex items-center justify-between gap-4">
 		<div class="relative flex-1 max-w-md">
-			<span class="material-symbols-outlined absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-lg">search</span>
+			<span class="material-symbols-outlined absolute left-3.5 top-1/2 -translate-y-1/2 text-on-surface-variant text-lg">search</span>
 			<input
 				type="text"
 				bind:value={searchQuery}
 				placeholder="Cari kode atau nama kategori..."
-				class="w-full bg-surface border border-slate-200 dark:border-slate-700 text-on-surface rounded-xl py-2 pl-10 pr-4 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500/40"
+				class="w-full bg-surface-container-lowest dark:bg-surface-container text-on-surface rounded-xl py-2 pl-10 pr-4 text-xs font-medium border-0 outline-none placeholder:text-on-surface-variant/50 focus:ring-2 focus:ring-indigo-500/20 transition-all"
 			/>
 		</div>
 		<span class="text-xs font-medium text-on-surface-variant">
@@ -184,9 +198,10 @@
 						isSubmitting = false;
 						if (result.type === 'success') {
 							isModalOpen = false;
+							showToast('Kategori dokumen berhasil disimpan!', 'success');
 							await update();
 						} else {
-							alert((result as any).data?.message || 'Terjadi kesalahan sistem.');
+							showToast((result as any).data?.message || 'Terjadi kesalahan sistem.', 'error');
 						}
 					};
 				}}
@@ -207,7 +222,7 @@
 						value={editingCategory?.code || ''}
 						required
 						placeholder="Misal: CAT-ANGKUTAN atau CAT-GUDANG"
-						class="w-full bg-surface border border-slate-200 dark:border-slate-700 text-on-surface rounded-xl p-2.5 font-mono text-xs uppercase focus:outline-none focus:ring-2 focus:ring-indigo-500/40"
+						class="w-full bg-surface-container-low text-on-surface rounded-xl p-2.5 font-mono text-xs uppercase border-0 outline-none placeholder:text-on-surface-variant/50 focus:ring-2 focus:ring-indigo-500/20 transition-all"
 					/>
 				</div>
 
@@ -222,7 +237,7 @@
 						value={editingCategory?.name || ''}
 						required
 						placeholder="Misal: Angkutan atau Pergudangan"
-						class="w-full bg-surface border border-slate-200 dark:border-slate-700 text-on-surface rounded-xl p-2.5 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-indigo-500/40"
+						class="w-full bg-surface-container-low text-on-surface rounded-xl p-2.5 text-xs font-bold border-0 outline-none placeholder:text-on-surface-variant/50 focus:ring-2 focus:ring-indigo-500/20 transition-all"
 					/>
 				</div>
 
@@ -235,7 +250,7 @@
 						name="description"
 						rows="3"
 						placeholder="Uraian singkat lini bisnis atau jenis dokumen yang termasuk..."
-						class="w-full bg-surface border border-slate-200 dark:border-slate-700 text-on-surface rounded-xl p-2.5 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500/40"
+						class="w-full bg-surface-container-low text-on-surface rounded-xl p-2.5 text-xs font-medium border-0 outline-none placeholder:text-on-surface-variant/50 focus:ring-2 focus:ring-indigo-500/20 transition-all resize-none"
 					>{editingCategory?.description || ''}</textarea>
 				</div>
 
@@ -246,7 +261,7 @@
 						name="is_active"
 						value="true"
 						checked={editingCategory ? editingCategory.is_active : true}
-						class="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+						class="rounded border-slate-300 dark:border-slate-700 text-indigo-600 focus:ring-indigo-500/20"
 					/>
 					<label for="cat-active" class="font-bold text-on-surface cursor-pointer">
 						Status Kategori Aktif
@@ -257,7 +272,7 @@
 					<button
 						type="button"
 						onclick={() => isModalOpen = false}
-						class="px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-on-surface-variant font-bold hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+						class="px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-on-surface-variant font-bold hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
 					>
 						Batal
 					</button>
@@ -271,5 +286,18 @@
 				</div>
 			</form>
 		</div>
+	</div>
+{/if}
+
+<!-- Floating Toast Notification -->
+{#if toast.show}
+	<div class="fixed top-6 right-6 z-50 flex items-center gap-3 px-4 py-3 rounded-2xl shadow-xl border animate-in slide-in-from-top-4 duration-300 {toast.type === 'success' ? 'bg-emerald-600 text-white border-emerald-500' : 'bg-rose-600 text-white border-rose-500'}">
+		<span class="material-symbols-outlined text-lg">
+			{toast.type === 'success' ? 'check_circle' : 'error'}
+		</span>
+		<p class="text-xs font-bold">{toast.message}</p>
+		<button type="button" class="ml-2 text-white/80 hover:text-white cursor-pointer" onclick={() => toast.show = false} aria-label="Tutup notifikasi">
+			<span class="material-symbols-outlined text-sm">close</span>
+		</button>
 	</div>
 {/if}
