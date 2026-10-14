@@ -74,6 +74,8 @@ export const load: PageServerLoad = async () => {
         const masterRutes = await sql`
             SELECT 
                 r.id,
+                r.origin_id,
+                r.destination_id,
                 ori.nama_kustomer as origin_name,
                 dest.nama_kustomer as destination_name,
                 tu.nama_tipe as tipe_unit,
@@ -137,7 +139,7 @@ export const load: PageServerLoad = async () => {
         };
     } catch (error) {
         console.error("Error loading contracts:", error);
-        return { contracts: [], customers: [], projects: [], products: [] };
+        return { contracts: [], customers: [], projects: [], masterRutes: [], availableUnits: 0, products: [] };
     }
 };
 
@@ -152,8 +154,6 @@ export const actions: Actions = {
         const destinationId = data.get('destinationId') as string || null;
         const masterRuteId = data.get('master_rute_id') as string || null;
 
-        if (!originId || !destinationId) return fail(400, { message: 'Origin (Titik Muat) dan Destination (Tujuan) wajib dipilih' });
-
         const startDate = data.get('startDate') as string;
         const endDate = data.get('endDate') as string;
         const targetTonnage = parseFloat(data.get('targetTonnage') as string) || 0;
@@ -163,10 +163,23 @@ export const actions: Actions = {
         const notes = data.get('notes') as string || '';
 
         if (!customerId || !projectId) {
-            return fail(400, { message: 'Customer and Project are required' });
+            return fail(400, { error: 'Pelanggan dan Project Category wajib dipilih.' });
+        }
+        if (!startDate || !endDate) {
+            return fail(400, { error: 'Start Date dan End Date wajib diisi.' });
+        }
+        if (endDate < startDate) {
+            return fail(400, { error: 'End Date tidak boleh lebih awal dari Start Date.' });
         }
 
         try {
+            // Origin & Destination hanya wajib untuk project kategori TRANSPORTATION
+            const projectRows = await sql`SELECT category FROM master.m_project WHERE id = ${projectId}`;
+            const isTransportation = projectRows[0]?.category === 'TRANSPORTATION';
+            if (isTransportation && (!originId || !destinationId)) {
+                return fail(400, { error: 'Origin (Titik Muat) dan Destination (Titik Bongkar) wajib dipilih.' });
+            }
+
             // Generate auto ID: PO-YYYY-MM-XXXX
             const now = new Date();
             const year = now.getFullYear();
@@ -179,15 +192,15 @@ export const actions: Actions = {
                     id, customer_id, project_id, master_rute_id, origin_id, destination_id, 
                     start_date, end_date, target_tonnage, contract_value, max_ujo_percentage, produk_id, notes
                 ) VALUES (
-                    ${newId}, ${customerId}, ${projectId}, ${masterRuteId ? parseInt(masterRuteId) : null}, ${originId}, ${destinationId},
+                    ${newId}, ${customerId}, ${projectId}, ${isTransportation && masterRuteId ? parseInt(masterRuteId) : null}, ${isTransportation ? originId : null}, ${isTransportation ? destinationId : null},
                     ${startDate}, ${endDate}, ${targetTonnage}, ${contractValue}, ${maxUjoPercentage}, ${produkId ? parseInt(produkId) : null}, ${notes}
                 )
             `;
 
-            return { success: true, message: 'Contract created successfully' };
+            return { success: true, message: `Kontrak ${newId} berhasil dibuat.` };
         } catch (error: any) {
             console.error("Error creating contract:", error);
-            return fail(500, { error: error.message || 'Failed to create contract' });
+            return fail(500, { error: `Gagal menyimpan kontrak: ${error.message || 'terjadi kesalahan server'}` });
         }
     },
 
@@ -202,8 +215,6 @@ export const actions: Actions = {
         const destinationId = data.get('destinationId') as string || null;
         const masterRuteId = data.get('master_rute_id') as string || null;
 
-        if (!originId || !destinationId) return fail(400, { message: 'Origin (Titik Muat) dan Destination (Tujuan) wajib dipilih' });
-
         const startDate = data.get('startDate') as string;
         const endDate = data.get('endDate') as string;
         const targetTonnage = parseFloat(data.get('targetTonnage') as string) || 0;
@@ -213,17 +224,29 @@ export const actions: Actions = {
         const notes = data.get('notes') as string || '';
 
         if (!id || !customerId || !projectId) {
-            return fail(400, { message: 'ID, Customer, and Project are required' });
+            return fail(400, { error: 'ID Kontrak, Pelanggan, dan Project Category wajib diisi.' });
+        }
+        if (!startDate || !endDate) {
+            return fail(400, { error: 'Start Date dan End Date wajib diisi.' });
+        }
+        if (endDate < startDate) {
+            return fail(400, { error: 'End Date tidak boleh lebih awal dari Start Date.' });
         }
 
         try {
+            const projectRows = await sql`SELECT category FROM master.m_project WHERE id = ${projectId}`;
+            const isTransportation = projectRows[0]?.category === 'TRANSPORTATION';
+            if (isTransportation && (!originId || !destinationId)) {
+                return fail(400, { error: 'Origin (Titik Muat) dan Destination (Titik Bongkar) wajib dipilih.' });
+            }
+
             await sql`
                 UPDATE marketing.contract SET
                     customer_id = ${customerId},
                     project_id = ${projectId},
-                    master_rute_id = ${masterRuteId ? parseInt(masterRuteId) : null},
-                    origin_id = ${originId},
-                    destination_id = ${destinationId},
+                    master_rute_id = ${isTransportation && masterRuteId ? parseInt(masterRuteId) : null},
+                    origin_id = ${isTransportation ? originId : null},
+                    destination_id = ${isTransportation ? destinationId : null},
                     start_date = ${startDate},
                     end_date = ${endDate},
                     target_tonnage = ${targetTonnage},
@@ -235,10 +258,10 @@ export const actions: Actions = {
                 WHERE id = ${id}
             `;
 
-            return { success: true, message: 'Contract updated successfully' };
+            return { success: true, message: `Kontrak ${id} berhasil diperbarui.` };
         } catch (error: any) {
             console.error("Error updating contract:", error);
-            return fail(500, { error: error.message || 'Failed to update contract' });
+            return fail(500, { error: `Gagal memperbarui kontrak: ${error.message || 'terjadi kesalahan server'}` });
         }
     },
 
@@ -248,7 +271,7 @@ export const actions: Actions = {
         const newEndDate = data.get('newEndDate') as string;
 
         if (!id || !newEndDate) {
-            return fail(400, { message: 'ID and New End Date are required' });
+            return fail(400, { error: 'ID Kontrak dan tanggal berakhir baru wajib diisi.' });
         }
 
         try {
@@ -269,13 +292,13 @@ export const actions: Actions = {
         const id = data.get('id') as string;
 
         if (!id) {
-            return fail(400, { message: 'Contract ID is required' });
+            return fail(400, { error: 'ID Kontrak wajib diisi.' });
         }
 
         try {
             // First, get the old contract
             const oldContractResult = await sql`SELECT * FROM marketing.contract WHERE id = ${id}`;
-            if (oldContractResult.length === 0) return fail(404, { message: 'Contract not found' });
+            if (oldContractResult.length === 0) return fail(404, { error: 'Kontrak tidak ditemukan.' });
             
             const oldContract = oldContractResult[0];
 

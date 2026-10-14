@@ -1,5 +1,6 @@
 <script lang="ts">
 	import type { PageData, ActionData } from './$types';
+	import type { SubmitFunction } from '@sveltejs/kit';
 	import { enhance } from '$app/forms';
 	import ContractSimulator from '$lib/components/ContractSimulator.svelte';
 	import SearchableSelect from '$lib/components/SearchableSelect.svelte';
@@ -59,17 +60,43 @@
 	let selectedProject = $derived(projects.find((p: any) => p.id.toString() === selectedProjectId.toString()));
 	let isTransportation = $derived(selectedProject ? selectedProject.category === 'TRANSPORTATION' : false);
 
-	$effect(() => {
-		if (form?.success) {
-			showModal = false;
-			showRenewModal = false;
-			isSubmitting = false;
-		}
-		if (form?.error) {
-			isSubmitting = false;
-			alert(form.error);
-		}
+	// --- Feedback UI: Floating Toast & Inline Error ---
+	let formError = $state('');
+	let toast = $state<{ show: boolean; type: 'success' | 'error'; message: string }>({
+		show: false,
+		type: 'success',
+		message: ''
 	});
+	let toastTimer: ReturnType<typeof setTimeout> | undefined;
+
+	function showToast(type: 'success' | 'error', message: string) {
+		if (toastTimer) clearTimeout(toastTimer);
+		toast = { show: true, type, message };
+		toastTimer = setTimeout(() => (toast.show = false), 4000);
+	}
+
+	// Handler enhance terpusat untuk form Create/Update/Renew kontrak
+	const handleSubmit: SubmitFunction = () => {
+		isSubmitting = true;
+		formError = '';
+		return async ({ result, update }) => {
+			isSubmitting = false;
+			if (result.type === 'success') {
+				showModal = false;
+				showRenewModal = false;
+				showToast('success', (result.data?.message as string) || 'Data kontrak berhasil disimpan.');
+				await update({ reset: false });
+			} else if (result.type === 'failure') {
+				formError = (result.data?.error as string) || 'Gagal menyimpan kontrak. Periksa kembali isian form.';
+				showToast('error', formError);
+			} else if (result.type === 'error') {
+				formError = result.error?.message || 'Terjadi kesalahan pada server.';
+				showToast('error', formError);
+			} else {
+				await update();
+			}
+		};
+	};
 
 	function openCreateModal() {
 		editingContractId = null;
@@ -86,15 +113,18 @@
 		maxUjoPercentage = 25;
 		produkId = '';
 		notes = '';
+		formError = '';
 		showModal = true;
 	}
 
+	// Isi cepat Origin & Destination dari templat Master Rute OCS (tetap bisa diubah manual)
 	function applyMasterRute(rId: string) {
 		selectedMasterRuteId = String(rId || '');
-		const r = masterRutes.find((mr: any) => String(mr.id) === String(rId));
+		if (!selectedMasterRuteId) return;
+		const r = masterRutes.find((mr: any) => String(mr.id) === selectedMasterRuteId);
 		if (r) {
-			selectedOrigin = String(r.origin_id || '');
-			selectedDestination = String(r.destination_id || '');
+			selectedOrigin = r.origin_id != null ? String(r.origin_id) : '';
+			selectedDestination = r.destination_id != null ? String(r.destination_id) : '';
 		}
 	}
 
@@ -113,6 +143,7 @@
 		maxUjoPercentage = contract.maxUjoPercentage || 25;
 		produkId = contract.produk_id?.toString() || '';
 		notes = contract.notes || '';
+		formError = '';
 		showModal = true;
 	}
 
@@ -146,6 +177,7 @@
 			renewActionType = 'extend_time';
 		}
 		renewEndDate = contract.endDate || '';
+		formError = '';
 		showRenewModal = true;
 	}
 
@@ -365,22 +397,27 @@
 				</button>
 			</div>
 			
-			<form method="POST" action="?/{editingContractId ? 'update' : 'create'}" use:enhance={() => { isSubmitting = true; return async ({ update }) => { await update(); }; }} class="p-6">
+			<form method="POST" action="?/{editingContractId ? 'update' : 'create'}" use:enhance={handleSubmit} class="p-6">
 				
 				{#if editingContractId}
 					<input type="hidden" name="id" value={editingContractId} />
 				{/if}
 
+				{#if formError}
+					<div class="mb-5 p-3.5 rounded-xl border bg-rose-50 border-rose-200 text-rose-700 dark:bg-rose-950/40 dark:border-rose-900/60 dark:text-rose-300 flex items-start gap-2.5" role="alert">
+						<span class="material-symbols-outlined text-[20px] flex-shrink-0">error</span>
+						<p class="text-xs font-bold flex-1 pt-0.5">{formError}</p>
+						<button type="button" class="text-rose-500 hover:text-rose-700 flex-shrink-0" onclick={() => (formError = '')} aria-label="Tutup pesan error">
+							<span class="material-symbols-outlined text-[18px]">close</span>
+						</button>
+					</div>
+				{/if}
+
 				<div class="grid grid-cols-1 md:grid-cols-2 gap-5 mb-6">
 					<div>
-						<div class="flex items-center justify-between mb-2">
-							<label class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider">
-								Pelanggan (Customer) <span class="text-rose-500">*</span>
-							</label>
-							<a href="/marketing/customers" target="_blank" class="text-[11px] font-bold text-rose-600 hover:text-rose-700 hover:underline flex items-center gap-0.5" title="Buka Master Pelanggan di tab baru">
-								<span class="material-symbols-outlined text-[14px]">add</span> Tambah Pelanggan
-							</a>
-						</div>
+						<label class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-2">
+							Pelanggan (Customer) <span class="text-rose-500">*</span>
+						</label>
 						<SearchableSelect 
 							options={customerOpts} 
 							bind:value={selectedCustomer} 
@@ -420,14 +457,9 @@
 
 						<!-- Origin (Titik Muat) -->
 						<div>
-							<div class="flex items-center justify-between mb-2">
-								<label class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider">
-									Origin (Titik Muat) <span class="text-rose-500">*</span>
-								</label>
-								<a href="/marketing/customers" target="_blank" class="text-[11px] font-bold text-rose-600 hover:text-rose-700 hover:underline flex items-center gap-0.5" title="Buka Master Pelanggan di tab baru">
-									<span class="material-symbols-outlined text-[14px]">add</span> Tambah Lokasi
-								</a>
-							</div>
+							<label class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-2">
+								Origin (Titik Muat) <span class="text-rose-500">*</span>
+							</label>
 							<SearchableSelect 
 								options={customerOpts} 
 								bind:value={selectedOrigin} 
@@ -439,14 +471,9 @@
 						
 						<!-- Destination (Titik Bongkar) -->
 						<div>
-							<div class="flex items-center justify-between mb-2">
-								<label class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider">
-									Destination (Titik Bongkar) <span class="text-rose-500">*</span>
-								</label>
-								<a href="/marketing/customers" target="_blank" class="text-[11px] font-bold text-rose-600 hover:text-rose-700 hover:underline flex items-center gap-0.5" title="Buka Master Pelanggan di tab baru">
-									<span class="material-symbols-outlined text-[14px]">add</span> Tambah Lokasi
-								</a>
-							</div>
+							<label class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-2">
+								Destination (Titik Bongkar) <span class="text-rose-500">*</span>
+							</label>
 							<SearchableSelect 
 								options={customerOpts} 
 								bind:value={selectedDestination} 
@@ -544,10 +571,20 @@
 				</button>
 			</div>
 			
-			<form method="POST" action="?/{renewActionType === 'extend_time' ? 'extendTime' : 'renewContract'}" use:enhance={() => { isSubmitting = true; return async ({ update }) => { await update(); }; }} class="p-6">
+			<form method="POST" action="?/{renewActionType === 'extend_time' ? 'extendTime' : 'renewContract'}" use:enhance={handleSubmit} class="p-6">
 				<input type="hidden" name="id" value={selectedRenewContract.id} />
 				<input type="hidden" name="contractValue" value={selectedRenewContract.contractValue} />
 				
+				{#if formError}
+					<div class="mb-5 p-3.5 rounded-xl border bg-rose-50 border-rose-200 text-rose-700 dark:bg-rose-950/40 dark:border-rose-900/60 dark:text-rose-300 flex items-start gap-2.5" role="alert">
+						<span class="material-symbols-outlined text-[20px] flex-shrink-0">error</span>
+						<p class="text-xs font-bold flex-1 pt-0.5">{formError}</p>
+						<button type="button" class="text-rose-500 hover:text-rose-700 flex-shrink-0" onclick={() => (formError = '')} aria-label="Tutup pesan error">
+							<span class="material-symbols-outlined text-[18px]">close</span>
+						</button>
+					</div>
+				{/if}
+
 				<div class="mb-6">
 					<p class="text-sm text-on-surface-variant font-medium mb-4">Pilih tindakan perpanjangan untuk kontrak <strong>{selectedRenewContract.id}</strong> ({selectedRenewContract.customer}):</p>
 					
@@ -590,5 +627,18 @@
 				</div>
 			</form>
 		</div>
+	</div>
+{/if}
+
+<!-- Floating Toast Notification -->
+{#if toast.show}
+	<div class="fixed top-6 right-6 z-50 flex items-center gap-3 px-4 py-3 rounded-2xl shadow-xl border animate-in slide-in-from-top-4 duration-300 {toast.type === 'success' ? 'bg-emerald-600 text-white border-emerald-500' : 'bg-rose-600 text-white border-rose-500'}">
+		<span class="material-symbols-outlined text-[20px]">
+			{toast.type === 'success' ? 'check_circle' : 'error'}
+		</span>
+		<p class="text-xs font-bold">{toast.message}</p>
+		<button type="button" class="ml-2 text-white/80 hover:text-white" onclick={() => toast.show = false} aria-label="Tutup notifikasi">
+			<span class="material-symbols-outlined text-[18px]">close</span>
+		</button>
 	</div>
 {/if}
