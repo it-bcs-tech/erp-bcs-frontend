@@ -17,7 +17,7 @@
 </script>
 
 <svelte:head>
-	<title>DMS Dashboard & Expiry Pipeline | ERP BCS</title>
+	<title>DMS Dashboard | ERP BCS</title>
 </svelte:head>
 
 <div class="flex flex-col h-full space-y-6">
@@ -26,7 +26,7 @@
 		<div>
 			<div class="flex items-center gap-2.5">
 				<span class="material-symbols-outlined text-indigo-600 dark:text-indigo-400 text-2xl">folder_open</span>
-				<h1 class="text-2xl font-black text-on-surface tracking-tight">DMS Dashboard & Expiry Horizon</h1>
+				<h1 class="text-2xl font-black text-on-surface tracking-tight">DMS Dashboard</h1>
 			</div>
 			<p class="text-on-surface-variant font-medium text-sm mt-0.5">
 				Pemantauan kepatuhan legalitas logistik, gerbang masa berlaku (H-60, H-30, H-7), dan pelacakan arsip fisik.

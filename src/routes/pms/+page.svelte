@@ -5,7 +5,7 @@
 </script>
 
 <svelte:head>
-	<title>Procurement Management System (PMS) | ERP BCS</title>
+	<title>Procurement Dashboard | ERP BCS</title>
 </svelte:head>
 
 <div class="flex flex-col h-full space-y-6">
@@ -14,7 +14,7 @@
 		<div>
 			<div class="flex items-center gap-2.5">
 				<span class="material-symbols-outlined text-amber-600 dark:text-amber-400 text-2xl">dashboard</span>
-				<h1 class="text-2xl font-black text-on-surface tracking-tight">Dashboard Procurement & Logistik</h1>
+				<h1 class="text-2xl font-black text-on-surface tracking-tight">Procurement Dashboard</h1>
 			</div>
 			<p class="text-on-surface-variant font-medium text-xs sm:text-sm mt-0.5">
 				Monitoring terpadu Purchase Request (PR), Purchase Order (PO), dan Penerimaan Barang Gudang (WRS / LPB)

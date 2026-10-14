@@ -51,7 +51,7 @@
 					href="/qhse"
 				>
 					<span class="material-symbols-outlined text-[20px]">space_dashboard</span>
-					<span class="text-sm">Overview & KPI</span>
+					<span class="text-sm">Dashboard</span>
 				</a>
 			{/if}
 
@@ -70,7 +70,7 @@
 					href="/qhse/incidents"
 				>
 					<span class="material-symbols-outlined text-[20px]">emergency</span>
-					<span class="text-sm">Insiden & CAR (Lagging)</span>
+					<span class="text-sm">Incidents & CAR (Lagging)</span>
 				</a>
 			{/if}
 
@@ -83,7 +83,7 @@
 					href="/qhse/inspections"
 				>
 					<span class="material-symbols-outlined text-[20px]">fact_check</span>
-					<span class="text-sm">Inspeksi & Proaktif (Leading)</span>
+					<span class="text-sm">Inspections & Proactive (Leading)</span>
 				</a>
 			{/if}
 
@@ -102,7 +102,7 @@
 					href="/qhse/safety-enablement"
 				>
 					<span class="material-symbols-outlined text-[20px]">health_and_safety</span>
-					<span class="text-sm">Safety Briefing & APD</span>
+					<span class="text-sm">Safety Briefings & PPE</span>
 				</a>
 			{/if}
 
@@ -115,7 +115,7 @@
 					href="/qhse/quality"
 				>
 					<span class="material-symbols-outlined text-[20px]">policy</span>
-					<span class="text-sm">SOP & Complain System</span>
+					<span class="text-sm">SOP & Customer Complaints</span>
 				</a>
 			{/if}
 		</nav>

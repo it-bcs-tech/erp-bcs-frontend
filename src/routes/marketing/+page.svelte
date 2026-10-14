@@ -29,7 +29,7 @@
 		<div>
 			<div class="flex items-center gap-2.5">
 				<span class="material-symbols-outlined text-rose-600 dark:text-rose-400 text-2xl">campaign</span>
-				<h1 class="text-2xl font-black text-on-surface tracking-tight">Ringkasan Marketing & Penjualan</h1>
+				<h1 class="text-2xl font-black text-on-surface tracking-tight">Marketing Dashboard</h1>
 			</div>
 			<p class="text-on-surface-variant font-medium text-sm mt-0.5">
 				Pemantauan performa bisnis, pipeline prospek klien, pesanan aktif, dan analitik pendapatan

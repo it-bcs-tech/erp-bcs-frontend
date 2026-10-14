@@ -11,14 +11,14 @@
 </script>
 
 <svelte:head>
-	<title>Executive HR Overview | ERP BCS</title>
+	<title>HR Dashboard | ERP BCS</title>
 </svelte:head>
 
 <div class="space-y-8 pb-10">
 	<!-- Top Bar / Executive Header -->
 	<div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
 		<div>
-			<h1 class="text-2xl font-black text-on-surface tracking-tight">Executive HR Overview</h1>
+			<h1 class="text-2xl font-black text-on-surface tracking-tight">HR Dashboard</h1>
 			<p class="text-xs text-on-surface-variant font-medium mt-0.5">
 				Ringkasan Manajemen SDM, Kehadiran, Payroll & Benefit PT Buana Centra Swakarsa
 			</p>

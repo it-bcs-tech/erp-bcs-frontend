@@ -51,7 +51,7 @@
 			{#if hasMenuAccess(user, 'kasir', 'kasir.overview')}
 				<a class="flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200 hover:translate-x-1 {isActive('/kasir') ? 'bg-surface-container-highest text-emerald-600 dark:text-emerald-400 font-bold' : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container font-medium text-sm'}" href="/kasir">
 					<span class="material-symbols-outlined text-[20px]">space_dashboard</span>
-					<span class="text-sm">Overview</span>
+					<span class="text-sm">Dashboard</span>
 				</a>
 			{/if}
 
@@ -71,7 +71,7 @@
 			{#if hasMenuAccess(user, 'kasir', 'kasir.kas-operasional')}
 				<a class="flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200 hover:translate-x-1 {isActive('/kasir/kas-operasional') ? 'bg-surface-container-highest text-emerald-600 dark:text-emerald-400 font-bold' : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container font-medium text-sm'}" href="/kasir/kas-operasional">
 					<span class="material-symbols-outlined text-[20px]">account_balance_wallet</span>
-					<span class="text-sm">Kas & Saldo Operasional</span>
+					<span class="text-sm">Petty Cash & Balance</span>
 				</a>
 			{/if}
 
@@ -85,7 +85,7 @@
 				<a class="flex items-center justify-between px-4 py-2.5 rounded-xl transition-all duration-200 hover:translate-x-1 {isActive('/kasir/ujo') ? 'bg-surface-container-highest text-emerald-600 dark:text-emerald-400 font-bold' : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container font-medium text-sm'}" href="/kasir/ujo">
 					<div class="flex items-center gap-3">
 						<span class="material-symbols-outlined text-[20px]">payments</span>
-						<span class="text-sm">Pencairan UJO</span>
+						<span class="text-sm">Driver UJO Advance</span>
 					</div>
 					{#if counts.pendingUjo > 0}
 						<span class="px-2 py-0.5 rounded-full text-[10px] font-bold font-mono bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
@@ -98,7 +98,7 @@
 				<a class="flex items-center justify-between px-4 py-2.5 rounded-xl transition-all duration-200 hover:translate-x-1 {isActive('/kasir/surat-jalan') ? 'bg-surface-container-highest text-emerald-600 dark:text-emerald-400 font-bold' : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container font-medium text-sm'}" href="/kasir/surat-jalan">
 					<div class="flex items-center gap-3">
 						<span class="material-symbols-outlined text-[20px]">edit_document</span>
-						<span class="text-sm">Surat Jalan Balik (DN)</span>
+						<span class="text-sm">Return Delivery Notes</span>
 					</div>
 					{#if counts.pendingDN > 0}
 						<span class="px-2 py-0.5 rounded-full text-[10px] font-bold font-mono bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 border border-cyan-500/20">
@@ -111,7 +111,7 @@
 				<a class="flex items-center justify-between px-4 py-2.5 rounded-xl transition-all duration-200 hover:translate-x-1 {isActive('/kasir/closing') ? 'bg-surface-container-highest text-emerald-600 dark:text-emerald-400 font-bold' : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container font-medium text-sm'}" href="/kasir/closing">
 					<div class="flex items-center gap-3">
 						<span class="material-symbols-outlined text-[20px]">assignment_turned_in</span>
-						<span class="text-sm">Closing Kasbon UJO</span>
+						<span class="text-sm">UJO Settlement</span>
 					</div>
 					{#if counts.pendingClosing > 0}
 						<span class="px-2 py-0.5 rounded-full text-[10px] font-bold font-mono bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20">

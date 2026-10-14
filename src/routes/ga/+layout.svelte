@@ -51,13 +51,13 @@
 					href="/ga"
 				>
 					<span class="material-symbols-outlined text-[20px]">space_dashboard</span>
-					<span class="text-sm">Overview & KPI</span>
+					<span class="text-sm">Dashboard</span>
 				</a>
 			{/if}
 
 			{#if hasMenuAccess(user, 'ga', 'ga.assets') || hasMenuAccess(user, 'ga', 'ga.permits')}
 				<div class="pt-3 pb-1 px-4">
-					<p class="text-[9px] font-black text-on-surface-variant/50 uppercase tracking-[0.2em]">Tata Kelola Aset</p>
+					<p class="text-[9px] font-black text-on-surface-variant/50 uppercase tracking-[0.2em]">Asset Management</p>
 				</div>
 			{/if}
 
@@ -70,7 +70,7 @@
 					href="/ga/assets"
 				>
 					<span class="material-symbols-outlined text-[20px]">inventory_2</span>
-					<span class="text-sm">Master Aset (KR 7.1)</span>
+					<span class="text-sm">Master Assets (KR 7.1)</span>
 				</a>
 			{/if}
 
@@ -83,13 +83,13 @@
 					href="/ga/permits"
 				>
 					<span class="material-symbols-outlined text-[20px]">badge</span>
-					<span class="text-sm">Legalitas Armada (KR 7.2)</span>
+					<span class="text-sm">Fleet Legal & Permits (KR 7.2)</span>
 				</a>
 			{/if}
 
 			{#if hasMenuAccess(user, 'ga', 'ga.facilities') || hasMenuAccess(user, 'ga', 'ga.stationery')}
 				<div class="pt-3 pb-1 px-4">
-					<p class="text-[9px] font-black text-on-surface-variant/50 uppercase tracking-[0.2em]">Operasional GA</p>
+					<p class="text-[9px] font-black text-on-surface-variant/50 uppercase tracking-[0.2em]">GA Operations</p>
 				</div>
 			{/if}
 
@@ -115,7 +115,7 @@
 					href="/ga/stationery"
 				>
 					<span class="material-symbols-outlined text-[20px]">edit_document</span>
-					<span class="text-sm">Request & Stok ATK (KR 7.4)</span>
+					<span class="text-sm">Stationery Requests & Stock (KR 7.4)</span>
 				</a>
 			{/if}
 
@@ -127,7 +127,7 @@
 				href="/ga/room-bookings"
 			>
 				<span class="material-symbols-outlined text-[20px]">meeting_room</span>
-				<span class="text-sm">Peminjaman Ruangan</span>
+				<span class="text-sm">Room Reservations</span>
 			</a>
 		</nav>
 	</aside>

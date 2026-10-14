@@ -8,7 +8,7 @@
 </script>
 
 <svelte:head>
-	<title>Overview & Safety KPI | QHSE ERP BCS</title>
+	<title>QHSE Dashboard | ERP BCS</title>
 </svelte:head>
 
 <div class="space-y-6">
@@ -17,7 +17,7 @@
 		<div>
 			<div class="flex items-center gap-2.5">
 				<span class="material-symbols-outlined text-orange-600 dark:text-orange-400 text-2xl">verified_user</span>
-				<h1 class="text-2xl font-black text-on-surface tracking-tight">QHSE & Safety Control Tower</h1>
+				<h1 class="text-2xl font-black text-on-surface tracking-tight">QHSE Dashboard</h1>
 			</div>
 			<p class="text-on-surface-variant font-medium text-sm mt-0.5">
 				Pemantauan terpadu Indikator K3 (Lagging vs Leading), Zero Accident, Manajemen APD, dan Sistem Mutu ISO

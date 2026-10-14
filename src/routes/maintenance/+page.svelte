@@ -54,7 +54,7 @@
 </script>
 
 <svelte:head>
-	<title>Maintenance Overview | ERP BCS</title>
+	<title>Maintenance Dashboard | ERP BCS</title>
 </svelte:head>
 
 <div class="space-y-6">
@@ -66,7 +66,7 @@
 				<span>•</span>
 				<span>Closed-Loop Maintenance</span>
 			</div>
-			<h1 class="text-2xl font-black text-on-surface tracking-tight">Bengkel & Inspeksi Armada</h1>
+			<h1 class="text-2xl font-black text-on-surface tracking-tight">Maintenance Dashboard</h1>
 		</div>
 
 		<div class="flex items-center gap-2.5 flex-wrap">

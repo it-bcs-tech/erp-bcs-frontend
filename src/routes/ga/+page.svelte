@@ -65,6 +65,10 @@
 	}
 </script>
 
+<svelte:head>
+	<title>GA Dashboard | ERP BCS</title>
+</svelte:head>
+
 <div class="space-y-8">
 	<!-- Page Header & Fast Navigation Actions -->
 	<div class="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-200/60 dark:border-slate-800/60 pb-5">
@@ -73,7 +77,7 @@
 				<span class="material-symbols-outlined text-sm">domain</span>
 				<span>ERP BCS • General Affair & Asset Management</span>
 			</div>
-			<h1 class="text-3xl font-black text-on-surface tracking-tight">Overview & Dashboard GA</h1>
+			<h1 class="text-3xl font-black text-on-surface tracking-tight">GA Dashboard</h1>
 			<p class="text-xs text-on-surface-variant mt-1 max-w-2xl">
 				Pusat komando pemantauan aset kantor/pool, sistem peringatan dini (EWS) pajak armada, tiket perbaikan gedung, dan stok perlengkapan operasional.
 			</p>

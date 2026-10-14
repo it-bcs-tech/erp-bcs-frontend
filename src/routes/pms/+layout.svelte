@@ -59,7 +59,7 @@
 					href="/pms"
 				>
 					<span class="material-symbols-outlined text-[20px]">dashboard</span>
-					<span class="text-sm">Dashboard Resume</span>
+					<span class="text-sm">Dashboard</span>
 				</a>
 			{/if}
 
@@ -78,7 +78,7 @@
 					href="/pms/master/vendors"
 				>
 					<span class="material-symbols-outlined text-[18px]">storefront</span>
-					<span class="text-xs font-semibold">Master Vendor</span>
+					<span class="text-xs font-semibold">Vendors</span>
 				</a>
 			{/if}
 
@@ -90,7 +90,7 @@
 					href="/pms/master/sites"
 				>
 					<span class="material-symbols-outlined text-[18px]">location_city</span>
-					<span class="text-xs font-semibold">Master Site / Lokasi</span>
+					<span class="text-xs font-semibold">Sites & Locations</span>
 				</a>
 			{/if}
 
@@ -102,7 +102,7 @@
 					href="/pms/master/projects"
 				>
 					<span class="material-symbols-outlined text-[18px]">folder_special</span>
-					<span class="text-xs font-semibold">Master Project</span>
+					<span class="text-xs font-semibold">Projects</span>
 				</a>
 			{/if}
 
@@ -114,14 +114,14 @@
 					href="/pms/master/materials"
 				>
 					<span class="material-symbols-outlined text-[18px]">category</span>
-					<span class="text-xs font-semibold">Master Material</span>
+					<span class="text-xs font-semibold">Materials Catalog</span>
 				</a>
 			{/if}
 
 			<!-- 3. Transactions Section -->
 			{#if hasMenuAccess(user, 'pms', 'pms.transactions-pr') || hasMenuAccess(user, 'pms', 'pms.transactions-po') || hasMenuAccess(user, 'pms', 'pms.transactions-wrs') || hasMenuAccess(user, 'pms', 'pms.transactions-outstanding') || hasMenuAccess(user, 'pms', 'pms.transactions-service-sheets') || hasMenuAccess(user, 'pms', 'pms.transactions-delivery-notes')}
 				<div class="pt-3 pb-1 px-4">
-					<p class="text-[9px] font-black text-on-surface-variant/50 uppercase tracking-[0.2em]">Transaksi Pengadaan</p>
+					<p class="text-[9px] font-black text-on-surface-variant/50 uppercase tracking-[0.2em]">Procurement Transactions</p>
 				</div>
 			{/if}
 
@@ -157,7 +157,7 @@
 					href="/pms/transactions/wrs"
 				>
 					<span class="material-symbols-outlined text-[18px]">receipt_long</span>
-					<span class="text-xs font-semibold">WRS / LPB Gudang</span>
+					<span class="text-xs font-semibold">Warehouse Receiving (WRS)</span>
 				</a>
 			{/if}
 
@@ -181,7 +181,7 @@
 					href="/pms/transactions/service-sheets"
 				>
 					<span class="material-symbols-outlined text-[18px]">build</span>
-					<span class="text-xs font-semibold">Supply Slip (SS / WO)</span>
+					<span class="text-xs font-semibold">Supply Slips (SS / WO)</span>
 				</a>
 			{/if}
 
@@ -200,7 +200,7 @@
 			<!-- 4. History Section -->
 			{#if hasMenuAccess(user, 'pms', 'pms.history-materials') || hasMenuAccess(user, 'pms', 'pms.history-vendors') || hasMenuAccess(user, 'pms', 'pms.history-remarks')}
 				<div class="pt-3 pb-1 px-4">
-					<p class="text-[9px] font-black text-on-surface-variant/50 uppercase tracking-[0.2em]">Riwayat Pengadaan</p>
+					<p class="text-[9px] font-black text-on-surface-variant/50 uppercase tracking-[0.2em]">Procurement History</p>
 				</div>
 			{/if}
 
@@ -243,7 +243,7 @@
 			<!-- 5. Reports & Analytics -->
 			{#if hasMenuAccess(user, 'pms', 'pms.reports-yearly-matrix') || hasMenuAccess(user, 'pms', 'pms.reports-lead-time') || hasMenuAccess(user, 'pms', 'pms.reports-transactions')}
 				<div class="pt-3 pb-1 px-4">
-					<p class="text-[9px] font-black text-on-surface-variant/50 uppercase tracking-[0.2em]">Laporan & Analitik</p>
+					<p class="text-[9px] font-black text-on-surface-variant/50 uppercase tracking-[0.2em]">Reports & Analytics</p>
 				</div>
 			{/if}
 
@@ -279,14 +279,14 @@
 					href="/pms/reports/transactions"
 				>
 					<span class="material-symbols-outlined text-[18px]">table_chart</span>
-					<span class="text-xs font-semibold">Detail PO & Rekap SS/DN</span>
+					<span class="text-xs font-semibold">PO Details & SS/DN Recap</span>
 				</a>
 			{/if}
 
 			<!-- 6. Inventory & Stock -->
 			{#if hasMenuAccess(user, 'pms', 'pms.inventory-on-hand') || hasMenuAccess(user, 'pms', 'pms.inventory-stock-history')}
 				<div class="pt-3 pb-1 px-4">
-					<p class="text-[9px] font-black text-on-surface-variant/50 uppercase tracking-[0.2em]">Inventori & Gudang</p>
+					<p class="text-[9px] font-black text-on-surface-variant/50 uppercase tracking-[0.2em]">Inventory & Warehouse</p>
 				</div>
 			{/if}
 
@@ -298,7 +298,7 @@
 					href="/pms/inventory/on-hand"
 				>
 					<span class="material-symbols-outlined text-[18px]">warehouse</span>
-					<span class="text-xs font-semibold">Stok On Hand</span>
+					<span class="text-xs font-semibold">Stock on Hand</span>
 				</a>
 			{/if}
 
@@ -310,13 +310,13 @@
 					href="/pms/inventory/stock-history"
 				>
 					<span class="material-symbols-outlined text-[18px]">swap_horiz</span>
-					<span class="text-xs font-semibold">Kartu Stok / Mutasi</span>
+					<span class="text-xs font-semibold">Stock Cards & Movements</span>
 				</a>
 			{/if}
 
 			<!-- 7. Settings Section -->
 			<div class="pt-3 pb-1 px-4">
-				<p class="text-[9px] font-black text-on-surface-variant/50 uppercase tracking-[0.2em]">Konfigurasi</p>
+				<p class="text-[9px] font-black text-on-surface-variant/50 uppercase tracking-[0.2em]">Settings & Configuration</p>
 			</div>
 			<a
 				class="flex items-center gap-3 px-4 py-2 rounded-xl transition-all duration-200 hover:translate-x-1 {isActive('/pms/settings')
@@ -325,7 +325,7 @@
 				href="/pms/settings"
 			>
 				<span class="material-symbols-outlined text-[18px]">tune</span>
-				<span class="text-xs font-semibold">Pengaturan Approval</span>
+				<span class="text-xs font-semibold">Approval Settings</span>
 			</a>
 		</nav>
 	</aside>

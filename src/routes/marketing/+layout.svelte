@@ -37,54 +37,54 @@
 
 		<nav class="flex-1 flex flex-col space-y-1">
 			{#if hasMenuAccess(user, 'marketing', 'marketing.overview')}
-				<a class="flex items-center {isSidebarExpanded ? 'justify-start px-4' : 'justify-center'} gap-3 py-2.5 rounded-xl transition-all duration-200 hover:translate-x-1 {$page.url.pathname === '/marketing' ? 'bg-surface-container-highest text-rose-600 dark:text-rose-400 font-bold' : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container font-medium text-sm'}" href="/marketing" title="Ringkasan Marketing">
+				<a class="flex items-center {isSidebarExpanded ? 'justify-start px-4' : 'justify-center'} gap-3 py-2.5 rounded-xl transition-all duration-200 hover:translate-x-1 {$page.url.pathname === '/marketing' ? 'bg-surface-container-highest text-rose-600 dark:text-rose-400 font-bold' : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container font-medium text-sm'}" href="/marketing" title="Marketing Dashboard">
 					<span class="material-symbols-outlined text-[20px]">dashboard</span>
-					{#if isSidebarExpanded}<span class="text-sm whitespace-nowrap">Ringkasan</span>{/if}
+					{#if isSidebarExpanded}<span class="text-sm whitespace-nowrap">Dashboard</span>{/if}
 				</a>
 			{/if}
 
-			<!-- Siklus Komersial & Transaksi -->
+			<!-- Commercial Cycle -->
 			<div class="pt-3 pb-1 {isSidebarExpanded ? 'px-4' : 'px-0 text-center'}">
-				<p class="text-[9px] font-black text-on-surface-variant/50 uppercase tracking-[0.2em]">{isSidebarExpanded ? 'Siklus Bisnis' : '...'}</p>
+				<p class="text-[9px] font-black text-on-surface-variant/50 uppercase tracking-[0.2em]">{isSidebarExpanded ? 'Commercial Cycle' : '...'}</p>
 			</div>
 
 			{#if hasMenuAccess(user, 'marketing', 'marketing.pipeline')}
-				<a class="flex items-center {isSidebarExpanded ? 'justify-start px-4' : 'justify-center'} gap-3 py-2.5 rounded-xl transition-all duration-200 hover:translate-x-1 {$page.url.pathname.includes('/marketing/pipeline') ? 'bg-surface-container-highest text-rose-600 dark:text-rose-400 font-bold' : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container font-medium text-sm'}" href="/marketing/pipeline" title="CRM & Pipeline Penjualan">
+				<a class="flex items-center {isSidebarExpanded ? 'justify-start px-4' : 'justify-center'} gap-3 py-2.5 rounded-xl transition-all duration-200 hover:translate-x-1 {$page.url.pathname.includes('/marketing/pipeline') ? 'bg-surface-container-highest text-rose-600 dark:text-rose-400 font-bold' : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container font-medium text-sm'}" href="/marketing/pipeline" title="Sales Pipeline & CRM">
 					<span class="material-symbols-outlined text-[20px]">view_kanban</span>
 					{#if isSidebarExpanded}<span class="text-sm whitespace-nowrap">CRM & Pipeline</span>{/if}
 				</a>
 			{/if}
 
 			{#if hasMenuAccess(user, 'marketing', 'marketing.contracts')}
-				<a class="flex items-center {isSidebarExpanded ? 'justify-start px-4' : 'justify-center'} gap-3 py-2.5 rounded-xl transition-all duration-200 hover:translate-x-1 {$page.url.pathname.includes('/marketing/contracts') ? 'bg-surface-container-highest text-rose-600 dark:text-rose-400 font-bold' : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container font-medium text-sm'}" href="/marketing/contracts" title="Kontrak Kerja Sama">
+				<a class="flex items-center {isSidebarExpanded ? 'justify-start px-4' : 'justify-center'} gap-3 py-2.5 rounded-xl transition-all duration-200 hover:translate-x-1 {$page.url.pathname.includes('/marketing/contracts') ? 'bg-surface-container-highest text-rose-600 dark:text-rose-400 font-bold' : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container font-medium text-sm'}" href="/marketing/contracts" title="Customer Contracts">
 					<span class="material-symbols-outlined text-[20px]">handshake</span>
-					{#if isSidebarExpanded}<span class="text-sm whitespace-nowrap">Kontrak Kerja Sama</span>{/if}
+					{#if isSidebarExpanded}<span class="text-sm whitespace-nowrap">Customer Contracts</span>{/if}
 				</a>
 			{/if}
 
 			{#if hasMenuAccess(user, 'marketing', 'marketing.orders')}
-				<a class="flex items-center {isSidebarExpanded ? 'justify-start px-4' : 'justify-center'} gap-3 py-2.5 rounded-xl transition-all duration-200 hover:translate-x-1 {$page.url.pathname.includes('/marketing/orders') ? 'bg-surface-container-highest text-rose-600 dark:text-rose-400 font-bold' : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container font-medium text-sm'}" href="/marketing/orders" title="Pesanan Pengiriman / DO">
+				<a class="flex items-center {isSidebarExpanded ? 'justify-start px-4' : 'justify-center'} gap-3 py-2.5 rounded-xl transition-all duration-200 hover:translate-x-1 {$page.url.pathname.includes('/marketing/orders') ? 'bg-surface-container-highest text-rose-600 dark:text-rose-400 font-bold' : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container font-medium text-sm'}" href="/marketing/orders" title="Orders & Delivery">
 					<span class="material-symbols-outlined text-[20px]">receipt_long</span>
-					{#if isSidebarExpanded}<span class="text-sm whitespace-nowrap">Pesanan Pengiriman (DO)</span>{/if}
+					{#if isSidebarExpanded}<span class="text-sm whitespace-nowrap">Orders & Delivery</span>{/if}
 				</a>
 			{/if}
 
-			<!-- Data Master & Analitik -->
+			<!-- Master & Analytics -->
 			<div class="pt-3 pb-1 {isSidebarExpanded ? 'px-4' : 'px-0 text-center'}">
-				<p class="text-[9px] font-black text-on-surface-variant/50 uppercase tracking-[0.2em]">{isSidebarExpanded ? 'Master & Laporan' : '...'}</p>
+				<p class="text-[9px] font-black text-on-surface-variant/50 uppercase tracking-[0.2em]">{isSidebarExpanded ? 'Master & Analytics' : '...'}</p>
 			</div>
 
 			{#if hasMenuAccess(user, 'marketing', 'marketing.customers')}
-				<a class="flex items-center {isSidebarExpanded ? 'justify-start px-4' : 'justify-center'} gap-3 py-2.5 rounded-xl transition-all duration-200 hover:translate-x-1 {$page.url.pathname.includes('/marketing/customers') ? 'bg-surface-container-highest text-rose-600 dark:text-rose-400 font-bold' : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container font-medium text-sm'}" href="/marketing/customers" title="Master Pelanggan">
+				<a class="flex items-center {isSidebarExpanded ? 'justify-start px-4' : 'justify-center'} gap-3 py-2.5 rounded-xl transition-all duration-200 hover:translate-x-1 {$page.url.pathname.includes('/marketing/customers') ? 'bg-surface-container-highest text-rose-600 dark:text-rose-400 font-bold' : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container font-medium text-sm'}" href="/marketing/customers" title="Master Customers">
 					<span class="material-symbols-outlined text-[20px]">group</span>
-					{#if isSidebarExpanded}<span class="text-sm whitespace-nowrap">Master Pelanggan</span>{/if}
+					{#if isSidebarExpanded}<span class="text-sm whitespace-nowrap">Master Customers</span>{/if}
 				</a>
 			{/if}
 
 			{#if hasMenuAccess(user, 'marketing', 'marketing.reports')}
-				<a class="flex items-center {isSidebarExpanded ? 'justify-start px-4' : 'justify-center'} gap-3 py-2.5 rounded-xl transition-all duration-200 hover:translate-x-1 {$page.url.pathname.includes('/marketing/reports') ? 'bg-surface-container-highest text-rose-600 dark:text-rose-400 font-bold' : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container font-medium text-sm'}" href="/marketing/reports" title="Laporan Kinerja">
+				<a class="flex items-center {isSidebarExpanded ? 'justify-start px-4' : 'justify-center'} gap-3 py-2.5 rounded-xl transition-all duration-200 hover:translate-x-1 {$page.url.pathname.includes('/marketing/reports') ? 'bg-surface-container-highest text-rose-600 dark:text-rose-400 font-bold' : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container font-medium text-sm'}" href="/marketing/reports" title="Performance Reports">
 					<span class="material-symbols-outlined text-[20px]">bar_chart</span>
-					{#if isSidebarExpanded}<span class="text-sm whitespace-nowrap">Laporan Kinerja</span>{/if}
+					{#if isSidebarExpanded}<span class="text-sm whitespace-nowrap">Performance Reports</span>{/if}
 				</a>
 			{/if}
 

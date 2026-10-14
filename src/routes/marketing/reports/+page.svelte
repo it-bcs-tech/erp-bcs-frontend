@@ -46,7 +46,7 @@
 </script>
 
 <svelte:head>
-	<title>Laporan Kinerja & Pendapatan | ERP BCS</title>
+	<title>Performance Reports | ERP BCS</title>
 </svelte:head>
 
 <div class="flex flex-col h-full space-y-6">
@@ -55,7 +55,7 @@
 		<div>
 			<div class="flex items-center gap-2.5">
 				<span class="material-symbols-outlined text-rose-600 dark:text-rose-400 text-2xl">assessment</span>
-				<h1 class="text-2xl font-black text-on-surface tracking-tight">Laporan Marketing & Pendapatan</h1>
+				<h1 class="text-2xl font-black text-on-surface tracking-tight">Performance Reports</h1>
 			</div>
 			<p class="text-on-surface-variant font-medium text-sm mt-0.5">
 				Analitik performa penjualan, rincian omzet Delivery Order, perbandingan biaya UJO, dan profit margin

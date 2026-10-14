@@ -71,7 +71,7 @@
 </script>
 
 <svelte:head>
-	<title>FMS Dashboard | Architectural ERP</title>
+	<title>Fleet Dashboard | ERP BCS</title>
 </svelte:head>
 
 <div class="flex flex-col h-full space-y-8">
@@ -80,7 +80,7 @@
 		<div>
 			<div class="flex items-center gap-2.5">
 				<span class="material-symbols-outlined text-blue-600 dark:text-blue-400 text-2xl">local_shipping</span>
-				<h1 class="text-2xl font-black text-on-surface tracking-tight">Fleet Management Overview</h1>
+				<h1 class="text-2xl font-black text-on-surface tracking-tight">Fleet Dashboard</h1>
 			</div>
 			<p class="text-on-surface-variant font-medium text-sm mt-0.5">
 				Intelligence Dashboard operasional armada logistik, utilisasi unit, status perbaikan, dan live tracking

@@ -482,7 +482,7 @@
 </script>
 
 <svelte:head>
-	<title>Katalog Master Rute & UJO | OCS</title>
+	<title>Routes & UJO Catalog | ERP BCS</title>
 </svelte:head>
 
 <div class="flex flex-col h-full space-y-6">
@@ -491,7 +491,7 @@
 		<div>
 			<div class="flex items-center gap-2.5">
 				<span class="material-symbols-outlined text-blue-600 dark:text-blue-400 text-2xl">route</span>
-				<h1 class="text-2xl font-black text-on-surface tracking-tight">Katalog Master Rute & Standar Biaya (UJO)</h1>
+				<h1 class="text-2xl font-black text-on-surface tracking-tight">Routes & UJO Catalog</h1>
 			</div>
 			<p class="text-on-surface-variant font-medium text-sm mt-0.5">
 				Kelola katalog resmi rute perjalanan, jarak tempuh, estimasi konsumsi BBM solar, rincian tol, dan perhitungan standar UJO

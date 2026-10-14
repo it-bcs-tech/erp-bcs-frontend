@@ -46,7 +46,7 @@
 		<div>
 			<div class="flex items-center gap-2.5">
 				<span class="material-symbols-outlined text-amber-600 dark:text-amber-400 text-2xl">account_balance</span>
-				<h1 class="text-2xl font-black text-on-surface tracking-tight">Financial Performance & Ledger</h1>
+				<h1 class="text-2xl font-black text-on-surface tracking-tight">Finance Dashboard</h1>
 			</div>
 			<p class="text-on-surface-variant font-medium text-sm mt-0.5">
 				Pemantauan arus kas operasional, tagihan piutang kustomer, hutang vendor, dan rekonsiliasi kasir

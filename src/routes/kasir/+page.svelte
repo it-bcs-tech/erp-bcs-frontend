@@ -8,7 +8,7 @@
 </script>
 
 <svelte:head>
-	<title>Kasir Dashboard | ERP BCS</title>
+	<title>Cashier Dashboard | ERP BCS</title>
 </svelte:head>
 
 <div class="flex flex-col h-full space-y-6">
@@ -17,7 +17,7 @@
 		<div>
 			<div class="flex items-center gap-2.5">
 				<span class="material-symbols-outlined text-emerald-600 dark:text-emerald-400 text-2xl">point_of_sale</span>
-				<h1 class="text-2xl font-black text-on-surface tracking-tight">Dashboard Operasional Kasir</h1>
+				<h1 class="text-2xl font-black text-on-surface tracking-tight">Cashier Dashboard</h1>
 			</div>
 			<p class="text-on-surface-variant font-medium text-sm mt-0.5 flex items-center gap-1.5">
 				<span class="material-symbols-outlined text-base">calendar_today</span>

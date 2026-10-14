@@ -162,7 +162,7 @@
 </script>
 
 <svelte:head>
-	<title>Pesanan Pengiriman (DO) | ERP BCS</title>
+	<title>Orders & Delivery (DO) | ERP BCS</title>
 </svelte:head>
 
 <div class="flex flex-col h-full space-y-6">
@@ -171,7 +171,7 @@
 		<div>
 			<div class="flex items-center gap-2.5">
 				<span class="material-symbols-outlined text-rose-600 dark:text-rose-400 text-2xl">receipt_long</span>
-				<h1 class="text-2xl font-black text-on-surface tracking-tight">Pesanan Pengiriman (DO)</h1>
+				<h1 class="text-2xl font-black text-on-surface tracking-tight">Orders & Delivery (DO)</h1>
 			</div>
 			<p class="text-on-surface-variant font-medium text-sm mt-0.5">
 				Pembuatan dan pemantauan Surat Jalan (DO) klien, verifikasi tarif, penentuan UJO, dan alur dispatch ke OCS

@@ -57,7 +57,7 @@
 				href="/maintenance"
 			>
 				<span class="material-symbols-outlined text-[20px]">dashboard</span>
-				<span class="text-sm">Dashboard Overview</span>
+				<span class="text-sm">Dashboard</span>
 			</a>
 		{/if}
 		
@@ -75,7 +75,7 @@
 				href="/maintenance/transactions/inspections"
 			>
 				<span class="material-symbols-outlined text-[20px]">assignment_turned_in</span>
-				<span class="text-sm">Inspeksi Armada (P2H)</span>
+				<span class="text-sm">Fleet Inspections (P2H)</span>
 			</a>
 		{/if}
 
@@ -97,7 +97,7 @@
 				href="/maintenance/transactions/schedules"
 			>
 				<span class="material-symbols-outlined text-[20px]">event_repeat</span>
-				<span class="text-sm">Jadwal Servis (PM)</span>
+				<span class="text-sm">Service Schedules (PM)</span>
 			</a>
 		{/if}
 
@@ -108,7 +108,7 @@
 				href="/maintenance/tires"
 			>
 				<span class="material-symbols-outlined text-[20px]">tire_repair</span>
-				<span class="text-sm">Manajemen Ban (Tire)</span>
+				<span class="text-sm">Tire Management</span>
 			</a>
 		{/if}
 
@@ -126,7 +126,7 @@
 				href="/maintenance/master/mechanics"
 			>
 				<span class="material-symbols-outlined text-[20px]">badge</span>
-				<span class="text-sm">Mekanik & Teknisi</span>
+				<span class="text-sm">Mechanics & Technicians</span>
 			</a>
 		{/if}
 
@@ -137,14 +137,14 @@
 				href="/maintenance/master/service-categories"
 			>
 				<span class="material-symbols-outlined text-[20px]">category</span>
-				<span class="text-sm">Kategori Servis</span>
+				<span class="text-sm">Service Categories</span>
 			</a>
 		{/if}
 
 		<!-- Section Divider: Reports -->
 		{#if isAdmin || hasMenuAccess(user, 'maintenance', 'maintenance.reports-history') || hasMenuAccess(user, 'maintenance', 'maintenance.reports-costs')}
 			<div class="pt-3 pb-1 px-3">
-				<p class="text-[9px] font-black text-on-surface-variant/50 uppercase tracking-[0.2em]">Laporan & Analitik</p>
+				<p class="text-[9px] font-black text-on-surface-variant/50 uppercase tracking-[0.2em]">Reports & Analytics</p>
 			</div>
 		{/if}
 
@@ -155,7 +155,7 @@
 				href="/maintenance/reports/history"
 			>
 				<span class="material-symbols-outlined text-[20px]">history</span>
-				<span class="text-sm">Riwayat Servis Armada</span>
+				<span class="text-sm">Fleet Service History</span>
 			</a>
 		{/if}
 
@@ -166,7 +166,7 @@
 				href="/maintenance/reports/costs"
 			>
 				<span class="material-symbols-outlined text-[20px]">payments</span>
-				<span class="text-sm">Analisis Biaya Servis</span>
+				<span class="text-sm">Service Cost Analysis</span>
 			</a>
 		{/if}
 	</nav>

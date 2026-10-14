@@ -735,7 +735,7 @@
 </script>
 
 <svelte:head>
-	<title>Master Gerbang Tol | OCS ERP BCS</title>
+	<title>Toll Gates | ERP BCS</title>
 	<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 </svelte:head>
 
@@ -750,7 +750,7 @@
 			</div>
 			<h1 class="text-2xl font-black text-on-surface tracking-tight flex items-center gap-2">
 				<span class="material-symbols-outlined text-sky-600 dark:text-sky-400 text-[28px]">toll</span>
-				Master Gerbang Tol
+				Toll Gates
 			</h1>
 			<p class="text-xs text-on-surface-variant mt-1">
 				Database ruas jalan tol, titik gerbang asal-tujuan, tarif golongan truk operasional, dan pemetaan geofence GPS.

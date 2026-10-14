@@ -175,7 +175,7 @@
 </script>
 
 <svelte:head>
-	<title>Kontrak Kerja Sama | ERP BCS</title>
+	<title>Customer Contracts | ERP BCS</title>
 </svelte:head>
 
 <div class="flex flex-col h-full space-y-6">
@@ -184,7 +184,7 @@
 		<div>
 			<div class="flex items-center gap-2.5">
 				<span class="material-symbols-outlined text-rose-600 dark:text-rose-400 text-2xl">handshake</span>
-				<h1 class="text-2xl font-black text-on-surface tracking-tight">Master Kontrak & PO Klien</h1>
+				<h1 class="text-2xl font-black text-on-surface tracking-tight">Customer Contracts & PO</h1>
 			</div>
 			<p class="text-on-surface-variant font-medium text-sm mt-0.5">
 				Pengelolaan kontrak bulanan klien, target tonase pengiriman, parameter tarif, batas UJO, dan perpanjangan masa berlaku

@@ -39,7 +39,7 @@
 </script>
 
 <svelte:head>
-	<title>Realisasi Kasbon UJO | OCS</title>
+	<title>Driver Allowance (UJO) | ERP BCS</title>
 </svelte:head>
 
 <div class="flex flex-col h-full space-y-6">
@@ -48,7 +48,7 @@
 		<div>
 			<div class="flex items-center gap-2.5">
 				<span class="material-symbols-outlined text-blue-600 dark:text-blue-400 text-2xl">payments</span>
-				<h1 class="text-2xl font-black text-on-surface tracking-tight">Realisasi Kasbon UJO Perjalanan</h1>
+				<h1 class="text-2xl font-black text-on-surface tracking-tight">Driver Allowance (UJO)</h1>
 			</div>
 			<p class="text-on-surface-variant font-medium text-sm mt-0.5">
 				Pengelolaan & monitoring status pencairan kasbon uang jalan supir per Surat Jalan (BBM, Tol, Uang Makan, dan Kasir Pencairan)

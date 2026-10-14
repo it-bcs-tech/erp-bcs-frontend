@@ -37,7 +37,7 @@
 			{#if hasMenuAccess(user, 'ocs', 'ocs.dashboard')}
 			<a class="flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200 hover:translate-x-1 {$page.url.pathname === '/ocs' ? 'bg-surface-container-highest text-sky-600 dark:text-sky-400 font-bold' : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container font-medium text-sm'}" href="/ocs">
 				<span class="material-symbols-outlined text-[20px]">space_dashboard</span>
-				<span class="text-sm">Overview</span>
+				<span class="text-sm">Dashboard</span>
 			</a>
 			{/if}
 
@@ -58,55 +58,55 @@
 			{#if hasMenuAccess(user, 'ocs', 'ocs.pod')}
 			<a class="flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200 hover:translate-x-1 {$page.url.pathname.includes('/ocs/pod') ? 'bg-surface-container-highest text-sky-600 dark:text-sky-400 font-bold' : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container font-medium text-sm'}" href="/ocs/pod">
 				<span class="material-symbols-outlined text-[20px]">verified</span>
-				<span class="text-sm">e-POD (Surat Jalan Balik)</span>
+				<span class="text-sm">e-POD (Proof of Delivery)</span>
 			</a>
 			{/if}
 			
 			{#if hasMenuAccess(user, 'ocs', 'ocs.ujo')}
 			<a class="flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200 hover:translate-x-1 {$page.url.pathname.includes('/ocs/ujo') ? 'bg-surface-container-highest text-sky-600 dark:text-sky-400 font-bold' : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container font-medium text-sm'}" href="/ocs/ujo">
 				<span class="material-symbols-outlined text-[20px]">payments</span>
-				<span class="text-sm">Realisasi Kasbon UJO</span>
+				<span class="text-sm">Driver Allowance (UJO)</span>
 			</a>
 			{/if}
 			
 			{#if hasMenuAccess(user, 'ocs', 'ocs.assign-driver')}
 			<a class="flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200 hover:translate-x-1 {$page.url.pathname.includes('/ocs/assign-driver') ? 'bg-surface-container-highest text-sky-600 dark:text-sky-400 font-bold' : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container font-medium text-sm'}" href="/ocs/assign-driver">
 				<span class="material-symbols-outlined text-[20px]">person_pin</span>
-				<span class="text-sm">Penugasan Supir Tetap</span>
+				<span class="text-sm">Driver Assignment</span>
 			</a>
 			{/if}
 			
 			{#if hasMenuAccess(user, 'ocs', 'ocs.daily-targets')}
 			<a class="flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200 hover:translate-x-1 {$page.url.pathname.includes('/ocs/daily-targets') ? 'bg-surface-container-highest text-sky-600 dark:text-sky-400 font-bold' : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container font-medium text-sm'}" href="/ocs/daily-targets">
 				<span class="material-symbols-outlined text-[20px]">track_changes</span>
-				<span class="text-sm">Daily Fleet Targets</span>
+				<span class="text-sm">Daily Delivery Targets</span>
 			</a>
 			{/if}
 			
-			<!-- Section Divider: Master Data & Pengaturan -->
+			<!-- Section Divider: Master Data & Settings -->
 			{#if isAdmin || hasMenuAccess(user, 'ocs', 'ocs.rute') || hasMenuAccess(user, 'ocs', 'ocs.gerbang-tol') || hasMenuAccess(user, 'ocs', 'ocs.settings')}
 			<div class="pt-3 pb-1 px-4">
-				<p class="text-[9px] font-black text-on-surface-variant/50 uppercase tracking-[0.2em]">Master Data & Pengaturan</p>
+				<p class="text-[9px] font-black text-on-surface-variant/50 uppercase tracking-[0.2em]">Master Data & Settings</p>
 			</div>
 
 			{#if isAdmin || hasMenuAccess(user, 'ocs', 'ocs.rute')}
 			<a class="flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200 hover:translate-x-1 {$page.url.pathname.includes('/ocs/rute') ? 'bg-surface-container-highest text-sky-600 dark:text-sky-400 font-bold' : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container font-medium text-sm'}" href="/ocs/rute">
 				<span class="material-symbols-outlined text-[20px]">route</span>
-				<span class="text-sm">Katalog Master Rute & UJO</span>
+				<span class="text-sm">Routes & UJO Catalog</span>
 			</a>
 			{/if}
 
 			{#if isAdmin || hasMenuAccess(user, 'ocs', 'ocs.gerbang-tol') || hasMenuAccess(user, 'ocs', 'ocs.rute')}
 			<a class="flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200 hover:translate-x-1 {$page.url.pathname.includes('/ocs/gerbang-tol') ? 'bg-surface-container-highest text-sky-600 dark:text-sky-400 font-bold' : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container font-medium text-sm'}" href="/ocs/gerbang-tol">
 				<span class="material-symbols-outlined text-[20px]">toll</span>
-				<span class="text-sm">Master Gerbang Tol</span>
+				<span class="text-sm">Toll Gates</span>
 			</a>
 			{/if}
 
 			{#if isAdmin || hasMenuAccess(user, 'ocs', 'ocs.settings')}
 			<a class="flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200 hover:translate-x-1 {$page.url.pathname.includes('/ocs/settings') ? 'bg-surface-container-highest text-sky-600 dark:text-sky-400 font-bold' : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container font-medium text-sm'}" href="/ocs/settings">
 				<span class="material-symbols-outlined text-[20px]">tune</span>
-				<span class="text-sm">Pengaturan OCS</span>
+				<span class="text-sm">OCS Settings</span>
 			</a>
 			{/if}
 			{/if}

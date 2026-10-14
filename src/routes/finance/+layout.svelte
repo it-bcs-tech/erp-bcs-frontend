@@ -59,7 +59,7 @@
 					href="/finance"
 				>
 					<span class="material-symbols-outlined text-[20px]">dashboard</span>
-					<span class="text-sm">Overview</span>
+					<span class="text-sm">Dashboard</span>
 				</a>
 			{/if}
 

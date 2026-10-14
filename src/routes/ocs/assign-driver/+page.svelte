@@ -99,7 +99,7 @@
 </script>
 
 <svelte:head>
-	<title>Penugasan Supir Tetap | OCS</title>
+	<title>Driver Assignment | ERP BCS</title>
 </svelte:head>
 
 <div class="flex flex-col h-full space-y-6">
@@ -108,7 +108,7 @@
 		<div>
 			<div class="flex items-center gap-2.5">
 				<span class="material-symbols-outlined text-blue-600 dark:text-blue-400 text-2xl">person_pin</span>
-				<h1 class="text-2xl font-black text-on-surface tracking-tight">Penugasan Supir Tetap (Fleet Pairing)</h1>
+				<h1 class="text-2xl font-black text-on-surface tracking-tight">Driver Assignment</h1>
 			</div>
 			<p class="text-on-surface-variant font-medium text-sm mt-0.5">
 				Kelola pasangan tetap Supir Utama / Cadangan dan unit armada di pool (standby pairing)

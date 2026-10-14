@@ -242,7 +242,7 @@
 </script>
 
 <svelte:head>
-	<title>Master Pelanggan | ERP BCS</title>
+	<title>Master Customers | ERP BCS</title>
 </svelte:head>
 
 <div class="flex flex-col h-full space-y-6">
@@ -251,7 +251,7 @@
 		<div>
 			<div class="flex items-center gap-2.5">
 				<span class="material-symbols-outlined text-rose-600 dark:text-rose-400 text-2xl">group</span>
-				<h1 class="text-2xl font-black text-on-surface tracking-tight">Master Pelanggan & Klien</h1>
+				<h1 class="text-2xl font-black text-on-surface tracking-tight">Master Customers</h1>
 			</div>
 			<p class="text-on-surface-variant font-medium text-sm mt-0.5">
 				Manajemen direktori pelanggan korporat & retail, koordinat lokasi GPS muat/bongkar, dan ketentuan termin pembayaran
