@@ -63,7 +63,10 @@
 	let entityDisplayName = $derived.by(() => {
 		if (doc.entity_type === 'FLEET') return doc.unit_number ? `Unit: ${doc.unit_number} (${doc.unit_type || 'Fleet'})` : 'Armada Umum';
 		if (doc.entity_type === 'DRIVER') return doc.driver_name ? `Driver: ${doc.driver_name} ${doc.driver_payroll_id ? `[${doc.driver_payroll_id}]` : ''}` : 'Driver Operasional';
-		if (doc.entity_type === 'CUSTOMER') return doc.partner_name ? `Mitra: ${doc.partner_name}` : 'Mitra Bisnis';
+		if (doc.entity_type === 'CUSTOMER' || doc.entity_type === 'VENDOR' || doc.type_code === 'KONTRAK_KERJASAMA') {
+			if (doc.partner_name) return `Rekanan: ${doc.partner_name}`;
+			return doc.entity_type === 'VENDOR' ? 'Vendor / Rekanan' : 'Mitra Pelanggan';
+		}
 		return doc.company_name ? `Perusahaan: ${doc.company_name}` : 'Dokumen Korporat';
 	});
 

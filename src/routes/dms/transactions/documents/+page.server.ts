@@ -28,6 +28,7 @@ export const load: PageServerLoad = async ({ url }) => {
 				d.title ILIKE ${pattern} OR 
 				d.notes ILIKE ${pattern} OR
 				(d.metadata->>'partner_name') ILIKE ${pattern} OR
+				(d.metadata->>'partner_code') ILIKE ${pattern} OR
 				(d.metadata->>'scope') ILIKE ${pattern} OR
 				(d.metadata->>'pic') ILIKE ${pattern} OR
 				(d.metadata->>'parent_contract_number') ILIKE ${pattern} OR
@@ -38,6 +39,7 @@ export const load: PageServerLoad = async ({ url }) => {
 				u.no_rangka ILIKE ${pattern} OR 
 				k.nama_karyawan ILIKE ${pattern} OR 
 				c.nama_kustomer ILIKE ${pattern} OR
+				v.nama_vendor ILIKE ${pattern} OR
 				cmp.name ILIKE ${pattern} OR
 				cmp.code ILIKE ${pattern} OR
 				d.qr_code_id ILIKE ${pattern}
@@ -69,6 +71,7 @@ export const load: PageServerLoad = async ({ url }) => {
 			LEFT JOIN dms.m_doc_category dc ON dc.id = d.category_id
 			LEFT JOIN master.m_company cmp ON cmp.id = d.company_id
 			LEFT JOIN master.m_customer c ON c.id = d.partner_id
+			LEFT JOIN master.m_vendor v ON v.id = (CASE WHEN d.metadata->>'vendor_id' ~ '^[0-9a-fA-F-]{36}$' THEN (d.metadata->>'vendor_id')::uuid ELSE NULL END)
 			LEFT JOIN fleet.unit u ON u.id = d.asset_id
 			LEFT JOIN master.m_drivers drv ON drv.id = d.employee_id
 			LEFT JOIN master.m_karyawan k ON k.id = drv.karyawan_id
@@ -86,7 +89,7 @@ export const load: PageServerLoad = async ({ url }) => {
 				dc.code as category_code,
 				cmp.name as company_name,
 				cmp.code as company_code,
-				COALESCE(c.nama_kustomer, d.metadata->>'partner_name') as partner_name,
+				COALESCE(c.nama_kustomer, v.nama_vendor, d.metadata->>'partner_name') as partner_name,
 				u.nomor_unit as unit_number,
 				u.business_unit as unit_type,
 				k.nama_karyawan as driver_name,
@@ -98,6 +101,7 @@ export const load: PageServerLoad = async ({ url }) => {
 			LEFT JOIN dms.m_doc_category dc ON dc.id = d.category_id
 			LEFT JOIN master.m_company cmp ON cmp.id = d.company_id
 			LEFT JOIN master.m_customer c ON c.id = d.partner_id
+			LEFT JOIN master.m_vendor v ON v.id = (CASE WHEN d.metadata->>'vendor_id' ~ '^[0-9a-fA-F-]{36}$' THEN (d.metadata->>'vendor_id')::uuid ELSE NULL END)
 			LEFT JOIN fleet.unit u ON u.id = d.asset_id
 			LEFT JOIN master.m_drivers drv ON drv.id = d.employee_id
 			LEFT JOIN master.m_karyawan k ON k.id = drv.karyawan_id

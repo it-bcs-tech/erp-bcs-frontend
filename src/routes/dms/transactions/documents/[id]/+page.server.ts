@@ -18,7 +18,7 @@ export const load: PageServerLoad = async ({ params }) => {
 				to_char(d.expiry_date, 'YYYY-MM-DD') as expiry_date_str,
 				dt.code as type_code,
 				dt.name as type_name,
-				COALESCE(c.nama_kustomer, d.metadata->>'partner_name') as partner_name,
+				COALESCE(c.nama_kustomer, v.nama_vendor, d.metadata->>'partner_name') as partner_name,
 				u.nomor_unit as unit_number,
 				u.business_unit as unit_type,
 				k.nama_karyawan as driver_name,
@@ -36,6 +36,7 @@ export const load: PageServerLoad = async ({ params }) => {
 			LEFT JOIN dms.m_doc_category dc ON dc.id = d.category_id
 			LEFT JOIN master.m_company cmp ON cmp.id = d.company_id
 			LEFT JOIN master.m_customer c ON c.id = d.partner_id
+			LEFT JOIN master.m_vendor v ON v.id = (CASE WHEN d.metadata->>'vendor_id' ~ '^[0-9a-fA-F-]{36}$' THEN (d.metadata->>'vendor_id')::uuid ELSE NULL END)
 			LEFT JOIN fleet.unit u ON u.id = d.asset_id
 			LEFT JOIN master.m_drivers drv ON drv.id = d.employee_id
 			LEFT JOIN master.m_karyawan k ON k.id = drv.karyawan_id
