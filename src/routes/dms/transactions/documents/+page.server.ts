@@ -3,6 +3,7 @@ import sql from '$lib/server/db';
 import { error } from '@sveltejs/kit';
 import { calculateExpiryGate, logDocumentAudit } from '$lib/server/dms';
 import type { DocumentItem } from '$lib/types/dms';
+import { SCOPE_CLUSTERS } from '$lib/types/dms';
 
 export const load: PageServerLoad = async ({ url }) => {
 	try {
@@ -17,6 +18,7 @@ export const load: PageServerLoad = async ({ url }) => {
 		const company = url.searchParams.get('company') || '';
 		const status = url.searchParams.get('status') || '';
 		const gateFilter = url.searchParams.get('gate') || '';
+		const scope = url.searchParams.get('scope') || '';
 
 		const conditions = [];
 		if (q) {
@@ -46,6 +48,18 @@ export const load: PageServerLoad = async ({ url }) => {
 		if (category) conditions.push(sql`d.category_id = ${category}`);
 		if (company) conditions.push(sql`d.company_id = ${company}`);
 		if (status) conditions.push(sql`d.status = ${status}`);
+		if (scope) {
+			if (scope === 'EMPTY_SCOPE') {
+				conditions.push(sql`(d.metadata->>'scope' IS NULL OR d.metadata->>'scope' = '')`);
+			} else {
+				const cluster = SCOPE_CLUSTERS.find(c => c.id === scope);
+				if (cluster && cluster.scopes.length > 0) {
+					conditions.push(sql`d.metadata->>'scope' = ANY(${cluster.scopes})`);
+				} else {
+					conditions.push(sql`d.metadata->>'scope' = ${scope}`);
+				}
+			}
+		}
 
 		const whereClause = conditions.length > 0 ? sql`WHERE ${conditions.reduce((acc, curr) => sql`${acc} AND ${curr}`)}` : sql``;
 
@@ -126,6 +140,8 @@ export const load: PageServerLoad = async ({ url }) => {
 			docTypes,
 			categories,
 			companies,
+			scopeClusters: SCOPE_CLUSTERS,
+			selectedScope: scope,
 			pagination: {
 				page,
 				limit,

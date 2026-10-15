@@ -12,6 +12,7 @@
 	let category = $derived($page.url.searchParams.get('category') || '');
 	let company = $derived($page.url.searchParams.get('company') || '');
 	let gate = $derived($page.url.searchParams.get('gate') || '');
+	let scope = $derived($page.url.searchParams.get('scope') || '');
 
 	let isDenseView = $state(false);
 
@@ -19,38 +20,38 @@
 	let isViewerOpen = $state(false);
 	let selectedDoc = $state<any>(null);
 
-	let hasActiveFilters = $derived(Boolean(q || entityType || type || category || company || gate));
+	let hasActiveFilters = $derived(Boolean(q || entityType || type || category || company || gate || scope));
 
 	function openViewer(doc: any) {
 		selectedDoc = doc;
 		isViewerOpen = true;
 	}
 
-	function setQuickFilter(mode: 'ALL' | 'FLEET' | 'DRIVER' | 'CUSTOMER' | 'VENDOR' | 'CORPORATE') {
+	function setQuickFilter(mode: 'ALL' | 'CONTRACT' | 'FLEET' | 'DRIVER' | 'CORPORATE') {
 		const url = new URL(window.location.href);
 		url.searchParams.delete('entity_type');
+		url.searchParams.delete('type');
+		url.searchParams.delete('scope');
 		url.searchParams.set('page', '1');
 
-		if (mode === 'FLEET') {
+		if (mode === 'CONTRACT') {
+			url.searchParams.set('type', 'KONTRAK_KERJASAMA');
+		} else if (mode === 'FLEET') {
 			url.searchParams.set('entity_type', 'FLEET');
 		} else if (mode === 'DRIVER') {
 			url.searchParams.set('entity_type', 'DRIVER');
-		} else if (mode === 'CUSTOMER') {
-			url.searchParams.set('entity_type', 'CUSTOMER');
-		} else if (mode === 'VENDOR') {
-			url.searchParams.set('entity_type', 'VENDOR');
 		} else if (mode === 'CORPORATE') {
 			url.searchParams.set('entity_type', 'CORPORATE');
 		}
 		goto(url.toString(), { keepFocus: true, noScroll: true });
 	}
 
-	function toggleContractFilter() {
+	function handleScopeClusterClick(clusterId: string) {
 		const url = new URL(window.location.href);
-		if (type === 'KONTRAK_KERJASAMA') {
-			url.searchParams.delete('type');
+		if (!clusterId || scope === clusterId) {
+			url.searchParams.delete('scope');
 		} else {
-			url.searchParams.set('type', 'KONTRAK_KERJASAMA');
+			url.searchParams.set('scope', clusterId);
 		}
 		url.searchParams.set('page', '1');
 		goto(url.toString(), { keepFocus: true, noScroll: true });
@@ -180,91 +181,99 @@
 		</div>
 	</header>
 
-	<!-- Segmented Entity Tabs (Semua, Armada, Driver, Pelanggan, Vendor, Korporat) & Quick Contract Toggle -->
-	<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+	<!-- Segmented Navigation Tabs (Semua, Kontrak Legal & PKS, Armada, Driver, Korporat & ISO) -->
+	<div class="flex flex-col gap-3">
 		<div class="inline-flex p-1.5 rounded-2xl bg-surface-container-low border border-slate-200/80 dark:border-slate-800/80 gap-1 overflow-x-auto shadow-xs max-w-full">
 			<button
 				type="button"
 				onclick={() => setQuickFilter('ALL')}
-				class="px-3.5 py-1.5 rounded-xl text-xs font-bold transition-colors flex items-center gap-1.5 cursor-pointer {!entityType
+				class="px-4 py-2 rounded-xl text-xs font-bold transition-colors flex items-center gap-2 cursor-pointer {!entityType && !type
 					? 'bg-indigo-600 text-white shadow-xs'
 					: 'bg-transparent text-on-surface-variant hover:text-on-surface'}"
 			>
 				<span class="material-symbols-outlined text-sm">grid_view</span>
-				<span>Semua</span>
+				<span>Semua Dokumen</span>
+			</button>
+
+			<button
+				type="button"
+				onclick={() => setQuickFilter('CONTRACT')}
+				class="px-4 py-2 rounded-xl text-xs font-bold transition-colors flex items-center gap-2 cursor-pointer {type === 'KONTRAK_KERJASAMA'
+					? 'bg-amber-600 text-white shadow-xs'
+					: 'bg-transparent text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/40'}"
+			>
+				<span class="material-symbols-outlined text-sm">history_edu</span>
+				<span>Kontrak Legal & PKS</span>
+				<span class="px-1.5 py-0.2 rounded-full text-[10px] font-mono {type === 'KONTRAK_KERJASAMA' ? 'bg-amber-700/60 text-white' : 'bg-amber-100 dark:bg-amber-950/80 text-amber-800 dark:text-amber-300'}">1.706</span>
 			</button>
 
 			<button
 				type="button"
 				onclick={() => setQuickFilter('FLEET')}
-				class="px-3.5 py-1.5 rounded-xl text-xs font-bold transition-colors flex items-center gap-1.5 cursor-pointer {entityType === 'FLEET'
+				class="px-4 py-2 rounded-xl text-xs font-bold transition-colors flex items-center gap-2 cursor-pointer {entityType === 'FLEET'
 					? 'bg-sky-600 text-white shadow-xs'
 					: 'bg-transparent text-on-surface-variant hover:text-on-surface'}"
 			>
 				<span class="material-symbols-outlined text-sm">local_shipping</span>
-				<span>Armada</span>
+				<span>Dokumen Armada (FMS)</span>
+				<span class="px-1.5 py-0.2 rounded-full text-[10px] font-mono {entityType === 'FLEET' ? 'bg-sky-700/60 text-white' : 'bg-sky-100 dark:bg-sky-950/80 text-sky-800 dark:text-sky-300'}">470</span>
 			</button>
 
 			<button
 				type="button"
 				onclick={() => setQuickFilter('DRIVER')}
-				class="px-3.5 py-1.5 rounded-xl text-xs font-bold transition-colors flex items-center gap-1.5 cursor-pointer {entityType === 'DRIVER'
+				class="px-4 py-2 rounded-xl text-xs font-bold transition-colors flex items-center gap-2 cursor-pointer {entityType === 'DRIVER'
 					? 'bg-indigo-600 text-white shadow-xs'
 					: 'bg-transparent text-on-surface-variant hover:text-on-surface'}"
 			>
 				<span class="material-symbols-outlined text-sm">airline_seat_recline_normal</span>
-				<span>Driver</span>
-			</button>
-
-			<button
-				type="button"
-				onclick={() => setQuickFilter('CUSTOMER')}
-				class="px-3.5 py-1.5 rounded-xl text-xs font-bold transition-colors flex items-center gap-1.5 cursor-pointer {entityType === 'CUSTOMER'
-					? 'bg-teal-600 text-white shadow-xs'
-					: 'bg-transparent text-on-surface-variant hover:text-on-surface'}"
-			>
-				<span class="material-symbols-outlined text-sm">handshake</span>
-				<span>Pelanggan</span>
-			</button>
-
-			<button
-				type="button"
-				onclick={() => setQuickFilter('VENDOR')}
-				class="px-3.5 py-1.5 rounded-xl text-xs font-bold transition-colors flex items-center gap-1.5 cursor-pointer {entityType === 'VENDOR'
-					? 'bg-amber-600 text-white shadow-xs'
-					: 'bg-transparent text-on-surface-variant hover:text-on-surface'}"
-			>
-				<span class="material-symbols-outlined text-sm">store</span>
-				<span>Vendor Rekanan</span>
+				<span>Dokumen Driver (HRIS)</span>
+				<span class="px-1.5 py-0.2 rounded-full text-[10px] font-mono {entityType === 'DRIVER' ? 'bg-indigo-700/60 text-white' : 'bg-indigo-100 dark:bg-indigo-950/80 text-indigo-800 dark:text-indigo-300'}">1</span>
 			</button>
 
 			<button
 				type="button"
 				onclick={() => setQuickFilter('CORPORATE')}
-				class="px-3.5 py-1.5 rounded-xl text-xs font-bold transition-colors flex items-center gap-1.5 cursor-pointer {entityType === 'CORPORATE'
+				class="px-4 py-2 rounded-xl text-xs font-bold transition-colors flex items-center gap-2 cursor-pointer {entityType === 'CORPORATE'
 					? 'bg-violet-600 text-white shadow-xs'
 					: 'bg-transparent text-on-surface-variant hover:text-on-surface'}"
 			>
 				<span class="material-symbols-outlined text-sm">corporate_fare</span>
 				<span>Korporat & ISO</span>
+				<span class="px-1.5 py-0.2 rounded-full text-[10px] font-mono {entityType === 'CORPORATE' ? 'bg-violet-700/60 text-white' : 'bg-violet-100 dark:bg-violet-950/80 text-violet-800 dark:text-violet-300'}">78</span>
 			</button>
 		</div>
 
-		<!-- Quick Toggle Filter: Hanya Kontrak & PKS -->
-		<button
-			type="button"
-			onclick={toggleContractFilter}
-			class="px-3.5 py-1.5 rounded-2xl text-xs font-bold transition-all flex items-center gap-2 border cursor-pointer flex-shrink-0 {type === 'KONTRAK_KERJASAMA'
-				? 'bg-amber-500 hover:bg-amber-600 text-white border-amber-600 shadow-xs'
-				: 'bg-surface-container-low text-amber-700 dark:text-amber-400 border-slate-200/80 dark:border-slate-800/80 hover:bg-amber-50 dark:hover:bg-amber-950/40'}"
-			title="Filter dokumen hanya yang bertipe Kontrak Kerja Sama / PKS"
-		>
-			<span class="material-symbols-outlined text-base">history_edu</span>
-			<span>Hanya Kontrak & PKS</span>
-			{#if type === 'KONTRAK_KERJASAMA'}
-				<span class="material-symbols-outlined text-xs bg-amber-700/50 text-white rounded-full p-0.5">check</span>
-			{/if}
-		</button>
+		<!-- Scope Cluster Filter Chips (Aktif saat di Tab Kontrak Legal & PKS) -->
+		{#if type === 'KONTRAK_KERJASAMA' && data.scopeClusters}
+			<div class="flex items-center gap-1.5 flex-wrap p-2.5 rounded-2xl bg-amber-50/60 dark:bg-amber-950/20 border border-amber-200/80 dark:border-amber-900/40">
+				<span class="text-[11px] font-bold text-amber-900 dark:text-amber-300 ml-1 mr-1 flex items-center gap-1">
+					<span class="material-symbols-outlined text-sm">category</span>
+					Klaster Ruang Lingkup:
+				</span>
+				<button
+					type="button"
+					onclick={() => handleScopeClusterClick('')}
+					class="px-2.5 py-1 rounded-xl text-xs font-bold transition-all cursor-pointer {!scope
+						? 'bg-amber-600 text-white shadow-xs'
+						: 'bg-surface-container-low text-on-surface-variant hover:bg-amber-100 dark:hover:bg-amber-900/40'}"
+				>
+					Semua Scope
+				</button>
+				{#each data.scopeClusters as cluster}
+					<button
+						type="button"
+						onclick={() => handleScopeClusterClick(cluster.id)}
+						class="px-2.5 py-1 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer {scope === cluster.id
+							? 'bg-amber-600 text-white shadow-xs'
+							: 'bg-surface-container-low text-on-surface-variant hover:bg-amber-100 dark:hover:bg-amber-900/40'}"
+					>
+						<span class="material-symbols-outlined text-xs">{cluster.icon}</span>
+						<span>{cluster.name}</span>
+					</button>
+				{/each}
+			</div>
+		{/if}
 	</div>
 
 	<!-- Table Container with Filter Header -->
@@ -273,6 +282,7 @@
 		<form method="GET" data-sveltekit-keepfocus class="p-4 border-b border-slate-200/60 dark:border-slate-800/60 bg-slate-50/50 dark:bg-slate-800/30 flex flex-col sm:flex-row gap-3 items-center">
 			<input type="hidden" name="entity_type" value={entityType} />
 			<input type="hidden" name="type" value={type} />
+			<input type="hidden" name="scope" value={scope} />
 			<input type="hidden" name="limit" value={data.pagination.limit} />
 
 			<div class="relative flex-1 w-full">

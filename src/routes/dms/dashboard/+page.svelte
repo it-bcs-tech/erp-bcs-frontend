@@ -131,90 +131,70 @@
 		</a>
 	</div>
 
-	<!-- Entity Breakdown Chips -->
-	<div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+	<!-- Entity Breakdown Chips (4 Kategori Inti) -->
+	<div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
 		<a
 			href="/dms/transactions/documents?type=KONTRAK_KERJASAMA"
-			class="p-3.5 rounded-2xl bg-surface-container-lowest dark:bg-surface-container-low border border-slate-200/80 dark:border-slate-800/80 flex items-center justify-between hover:border-amber-400 transition-colors"
+			class="p-4 rounded-2xl bg-surface-container-lowest dark:bg-surface-container-low border border-slate-200/80 dark:border-slate-800/80 flex items-center justify-between hover:border-amber-400 transition-colors shadow-xs"
 		>
-			<div class="flex items-center gap-2.5">
-				<span class="material-symbols-outlined text-amber-600">history_edu</span>
+			<div class="flex items-center gap-3">
+				<div class="w-10 h-10 rounded-xl bg-amber-50 dark:bg-amber-950/40 text-amber-600 flex items-center justify-center">
+					<span class="material-symbols-outlined text-xl">history_edu</span>
+				</div>
 				<div>
-					<h4 class="text-xs font-black text-on-surface">Kontrak Legal</h4>
-					<p class="text-[10px] text-on-surface-variant">PKS, Sewa, Vendor</p>
+					<h4 class="text-xs font-black text-on-surface">Kontrak Legal & PKS</h4>
+					<p class="text-[10px] text-on-surface-variant">PKS, Sewa, Rekanan</p>
 				</div>
 			</div>
-			<span class="text-base font-black text-amber-600">{stats.entities.contracts || 0}</span>
+			<span class="text-lg font-black text-amber-600">{stats.entities.contracts || 0}</span>
 		</a>
 
 		<a
 			href="/dms/transactions/documents?entity_type=FLEET"
-			class="p-3.5 rounded-2xl bg-surface-container-lowest dark:bg-surface-container-low border border-slate-200/80 dark:border-slate-800/80 flex items-center justify-between hover:border-sky-400 transition-colors"
+			class="p-4 rounded-2xl bg-surface-container-lowest dark:bg-surface-container-low border border-slate-200/80 dark:border-slate-800/80 flex items-center justify-between hover:border-sky-400 transition-colors shadow-xs"
 		>
-			<div class="flex items-center gap-2.5">
-				<span class="material-symbols-outlined text-sky-600">local_shipping</span>
+			<div class="flex items-center gap-3">
+				<div class="w-10 h-10 rounded-xl bg-sky-50 dark:bg-sky-950/40 text-sky-600 flex items-center justify-center">
+					<span class="material-symbols-outlined text-xl">local_shipping</span>
+				</div>
 				<div>
 					<h4 class="text-xs font-black text-on-surface">Armada (FMS)</h4>
 					<p class="text-[10px] text-on-surface-variant">KIR, STNK, BPKB</p>
 				</div>
 			</div>
-			<span class="text-base font-black text-on-surface">{stats.entities.fleet}</span>
+			<span class="text-lg font-black text-sky-600">{stats.entities.fleet}</span>
 		</a>
 
 		<a
 			href="/dms/transactions/documents?entity_type=DRIVER"
-			class="p-3.5 rounded-2xl bg-surface-container-lowest dark:bg-surface-container-low border border-slate-200/80 dark:border-slate-800/80 flex items-center justify-between hover:border-indigo-400 transition-colors"
+			class="p-4 rounded-2xl bg-surface-container-lowest dark:bg-surface-container-low border border-slate-200/80 dark:border-slate-800/80 flex items-center justify-between hover:border-indigo-400 transition-colors shadow-xs"
 		>
-			<div class="flex items-center gap-2.5">
-				<span class="material-symbols-outlined text-indigo-600">airline_seat_recline_normal</span>
+			<div class="flex items-center gap-3">
+				<div class="w-10 h-10 rounded-xl bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 flex items-center justify-center">
+					<span class="material-symbols-outlined text-xl">airline_seat_recline_normal</span>
+				</div>
 				<div>
 					<h4 class="text-xs font-black text-on-surface">Driver (HRIS)</h4>
 					<p class="text-[10px] text-on-surface-variant">SIM, SIO, KTP</p>
 				</div>
 			</div>
-			<span class="text-base font-black text-on-surface">{stats.entities.driver}</span>
-		</a>
-
-		<a
-			href="/dms/transactions/documents?entity_type=CUSTOMER"
-			class="p-3.5 rounded-2xl bg-surface-container-lowest dark:bg-surface-container-low border border-slate-200/80 dark:border-slate-800/80 flex items-center justify-between hover:border-teal-400 transition-colors"
-		>
-			<div class="flex items-center gap-2.5">
-				<span class="material-symbols-outlined text-teal-600">handshake</span>
-				<div>
-					<h4 class="text-xs font-black text-on-surface">Pelanggan</h4>
-					<p class="text-[10px] text-on-surface-variant">SPK & Pelanggan</p>
-				</div>
-			</div>
-			<span class="text-base font-black text-on-surface">{stats.entities.customer}</span>
-		</a>
-
-		<a
-			href="/dms/transactions/documents?entity_type=VENDOR"
-			class="p-3.5 rounded-2xl bg-surface-container-lowest dark:bg-surface-container-low border border-slate-200/80 dark:border-slate-800/80 flex items-center justify-between hover:border-amber-400 transition-colors"
-		>
-			<div class="flex items-center gap-2.5">
-				<span class="material-symbols-outlined text-amber-600">store</span>
-				<div>
-					<h4 class="text-xs font-black text-on-surface">Vendor Rekanan</h4>
-					<p class="text-[10px] text-on-surface-variant">Mitra & Supplier</p>
-				</div>
-			</div>
-			<span class="text-base font-black text-on-surface">{stats.entities.vendor || 0}</span>
+			<span class="text-lg font-black text-indigo-600">{stats.entities.driver}</span>
 		</a>
 
 		<a
 			href="/dms/transactions/documents?entity_type=CORPORATE"
-			class="p-3.5 rounded-2xl bg-surface-container-lowest dark:bg-surface-container-low border border-slate-200/80 dark:border-slate-800/80 flex items-center justify-between hover:border-violet-400 transition-colors"
+			class="p-4 rounded-2xl bg-surface-container-lowest dark:bg-surface-container-low border border-slate-200/80 dark:border-slate-800/80 flex items-center justify-between hover:border-violet-400 transition-colors shadow-xs"
 		>
-			<div class="flex items-center gap-2.5">
-				<span class="material-symbols-outlined text-violet-600">corporate_fare</span>
+			<div class="flex items-center gap-3">
+				<div class="w-10 h-10 rounded-xl bg-violet-50 dark:bg-violet-950/40 text-violet-600 flex items-center justify-center">
+					<span class="material-symbols-outlined text-xl">corporate_fare</span>
+				</div>
 				<div>
 					<h4 class="text-xs font-black text-on-surface">Korporat & ISO</h4>
 					<p class="text-[10px] text-on-surface-variant">Legal Perusahaan</p>
 				</div>
 			</div>
-			<span class="text-base font-black text-on-surface">{stats.entities.corporate}</span>
+			<span class="text-lg font-black text-violet-600">{stats.entities.corporate}</span>
 		</a>
 	</div>
 

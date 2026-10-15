@@ -125,3 +125,76 @@ export interface CompanyItem {
 	doc_count?: number;
 }
 
+export interface ScopeCluster {
+	id: string;
+	name: string;
+	icon: string;
+	scopes: string[];
+}
+
+export const SCOPE_CLUSTERS: ScopeCluster[] = [
+	{
+		id: 'INSURANCE_LEASING',
+		name: 'Asuransi & Leasing',
+		icon: 'verified_user',
+		scopes: ['INSURANCE', 'LEASING']
+	},
+	{
+		id: 'WAREHOUSE_PACKAGING',
+		name: 'Gudang & Packaging',
+		icon: 'warehouse',
+		scopes: ['WAREHOUSE', 'PACKAGING', 'OPEN YARD LEASE', 'WAREHOUSE & PACKAGING', 'OFFICE LEASE', 'COIL & PALLETS']
+	},
+	{
+		id: 'TRANSPORT_LOGISTICS',
+		name: 'Transportasi & Angkutan',
+		icon: 'local_shipping',
+		scopes: [
+			'HANDLING & TRANSPORT',
+			'TRANSPORTATION CILEGON',
+			'TRANSPORTATION DUMPTRUCK',
+			'FORWARDING',
+			'TRANSPORTATION NAROGONG',
+			'HANDLING',
+			'RAILWAY',
+			'CUSTOMS',
+			'FORKLIFT LEASE'
+		]
+	},
+	{
+		id: 'AUDITOR_CONSULTANT',
+		name: 'Auditor & Konsultan',
+		icon: 'account_balance',
+		scopes: ['AUDITOR', 'CONSULTANT']
+	},
+	{
+		id: 'LABOUR_SUPPLY',
+		name: 'Tenaga Kerja / Labour',
+		icon: 'badge',
+		scopes: ['LABOUR', 'LABOUR - PLATE ROLLING PLANT', 'LABOUR - MRO CENTRA WAREHOUSE AREA', 'LABOUR - PLATE MILL']
+	},
+	{
+		id: 'BANKING',
+		name: 'Perbankan & Fasilitas',
+		icon: 'account_balance_wallet',
+		scopes: ['BANK']
+	},
+	{
+		id: 'VENDOR_SECURITY_PURCHASE',
+		name: 'Vendor, Satpam & Unit',
+		icon: 'store',
+		scopes: ['VENDOR', 'PURCHASE', 'CONSTRUCTION', 'SECURITY', 'IT']
+	},
+	{
+		id: 'LEGAL_MOU',
+		name: 'MOU & Kerja Sama',
+		icon: 'handshake',
+		scopes: ['MOU', 'COOPERATION', 'NDA', 'DISPOSAL ASSET']
+	},
+	{
+		id: 'EMPTY_SCOPE',
+		name: 'Historis (Tanpa Scope)',
+		icon: 'history',
+		scopes: []
+	}
+];
