@@ -132,6 +132,12 @@ export function getEntityTypeInfo(type: DMSEntityType) {
 				color: 'text-teal-600 dark:text-teal-400 bg-teal-50 dark:bg-teal-950/30 border-teal-200 dark:border-teal-800',
 				icon: 'handshake'
 			};
+		case 'VENDOR':
+			return {
+				label: 'Vendor / Rekanan',
+				color: 'text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-800',
+				icon: 'store'
+			};
 		case 'CORPORATE':
 		default:
 			return {

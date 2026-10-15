@@ -1,4 +1,4 @@
-export type DMSEntityType = 'FLEET' | 'DRIVER' | 'CUSTOMER' | 'CORPORATE';
+export type DMSEntityType = 'FLEET' | 'DRIVER' | 'CUSTOMER' | 'CORPORATE' | 'VENDOR';
 
 export type DMSStatus = 'ACTIVE' | 'EXPIRING_SOON' | 'EXPIRED' | 'RENEWAL_IN_PROGRESS' | 'REVOKED';
 

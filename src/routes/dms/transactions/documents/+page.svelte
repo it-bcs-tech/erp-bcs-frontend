@@ -26,6 +26,26 @@
 		isViewerOpen = true;
 	}
 
+	function setQuickFilter(mode: 'ALL' | 'CONTRACT' | 'FLEET' | 'DRIVER' | 'CUSTOMER' | 'CORPORATE') {
+		const url = new URL(window.location.href);
+		url.searchParams.delete('entity_type');
+		url.searchParams.delete('type');
+		url.searchParams.set('page', '1');
+
+		if (mode === 'CONTRACT') {
+			url.searchParams.set('type', 'KONTRAK_KERJASAMA');
+		} else if (mode === 'FLEET') {
+			url.searchParams.set('entity_type', 'FLEET');
+		} else if (mode === 'DRIVER') {
+			url.searchParams.set('entity_type', 'DRIVER');
+		} else if (mode === 'CUSTOMER') {
+			url.searchParams.set('entity_type', 'CUSTOMER');
+		} else if (mode === 'CORPORATE') {
+			url.searchParams.set('entity_type', 'CORPORATE');
+		}
+		goto(url.toString(), { keepFocus: true, noScroll: true });
+	}
+
 	function setEntityFilter(newType: string) {
 		const url = new URL(window.location.href);
 		if (newType) {
@@ -150,22 +170,33 @@
 		</div>
 	</header>
 
-	<!-- Segmented Entity Category Selector (Armada, Driver, Customer, Corporate) -->
+	<!-- Segmented Category Selector (Semua, Kontrak Legal, Armada, Driver, Customer, Corporate) -->
 	<div class="inline-flex p-1.5 rounded-2xl bg-surface-container-low border border-slate-200/80 dark:border-slate-800/80 gap-1 overflow-x-auto shadow-xs max-w-full">
 		<button
 			type="button"
-			onclick={() => setEntityFilter('')}
-			class="px-4 py-2 rounded-xl text-xs font-bold transition-colors flex items-center gap-2 cursor-pointer {entityType === ''
+			onclick={() => setQuickFilter('ALL')}
+			class="px-4 py-2 rounded-xl text-xs font-bold transition-colors flex items-center gap-2 cursor-pointer {!entityType && !type
 				? 'bg-indigo-600 text-white shadow-xs'
 				: 'bg-transparent text-on-surface-variant hover:text-on-surface'}"
 		>
 			<span class="material-symbols-outlined text-sm">grid_view</span>
-			<span>Semua Kategori</span>
+			<span>Semua Dokumen</span>
 		</button>
 
 		<button
 			type="button"
-			onclick={() => setEntityFilter('FLEET')}
+			onclick={() => setQuickFilter('CONTRACT')}
+			class="px-4 py-2 rounded-xl text-xs font-bold transition-colors flex items-center gap-2 cursor-pointer {type === 'KONTRAK_KERJASAMA'
+				? 'bg-amber-600 text-white shadow-xs'
+				: 'bg-transparent text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/40'}"
+		>
+			<span class="material-symbols-outlined text-sm">history_edu</span>
+			<span>Kontrak Legal & PKS</span>
+		</button>
+
+		<button
+			type="button"
+			onclick={() => setQuickFilter('FLEET')}
 			class="px-4 py-2 rounded-xl text-xs font-bold transition-colors flex items-center gap-2 cursor-pointer {entityType === 'FLEET'
 				? 'bg-sky-600 text-white shadow-xs'
 				: 'bg-transparent text-on-surface-variant hover:text-on-surface'}"
@@ -176,7 +207,7 @@
 
 		<button
 			type="button"
-			onclick={() => setEntityFilter('DRIVER')}
+			onclick={() => setQuickFilter('DRIVER')}
 			class="px-4 py-2 rounded-xl text-xs font-bold transition-colors flex items-center gap-2 cursor-pointer {entityType === 'DRIVER'
 				? 'bg-indigo-600 text-white shadow-xs'
 				: 'bg-transparent text-on-surface-variant hover:text-on-surface'}"
@@ -187,18 +218,18 @@
 
 		<button
 			type="button"
-			onclick={() => setEntityFilter('CUSTOMER')}
-			class="px-4 py-2 rounded-xl text-xs font-bold transition-colors flex items-center gap-2 cursor-pointer {entityType === 'CUSTOMER'
+			onclick={() => setQuickFilter('CUSTOMER')}
+			class="px-4 py-2 rounded-xl text-xs font-bold transition-colors flex items-center gap-2 cursor-pointer {entityType === 'CUSTOMER' && type !== 'KONTRAK_KERJASAMA'
 				? 'bg-teal-600 text-white shadow-xs'
 				: 'bg-transparent text-on-surface-variant hover:text-on-surface'}"
 		>
 			<span class="material-symbols-outlined text-sm">handshake</span>
-			<span>Mitra / Legal Customer</span>
+			<span>Mitra Customer</span>
 		</button>
 
 		<button
 			type="button"
-			onclick={() => setEntityFilter('CORPORATE')}
+			onclick={() => setQuickFilter('CORPORATE')}
 			class="px-4 py-2 rounded-xl text-xs font-bold transition-colors flex items-center gap-2 cursor-pointer {entityType === 'CORPORATE'
 				? 'bg-violet-600 text-white shadow-xs'
 				: 'bg-transparent text-on-surface-variant hover:text-on-surface'}"
@@ -213,6 +244,7 @@
 		<!-- Search & Filters Bar -->
 		<form method="GET" data-sveltekit-keepfocus class="p-4 border-b border-slate-200/60 dark:border-slate-800/60 bg-slate-50/50 dark:bg-slate-800/30 flex flex-col sm:flex-row gap-3 items-center">
 			<input type="hidden" name="entity_type" value={entityType} />
+			<input type="hidden" name="type" value={type} />
 			<input type="hidden" name="limit" value={data.pagination.limit} />
 
 			<div class="relative flex-1 w-full">
@@ -384,8 +416,27 @@
 											<a href="/dms/transactions/documents/{doc.id}" class="font-bold text-on-surface hover:text-indigo-600 transition-colors {isDenseView ? 'text-[11px]' : 'text-xs'} line-clamp-1">
 												{doc.title}
 											</a>
-											<div class="flex items-center gap-1.5 mt-0.5">
+											<div class="flex items-center gap-1.5 flex-wrap mt-0.5">
 												<span class="text-[10px] font-mono text-on-surface-variant">No: {doc.doc_number || '-'}</span>
+												{#if doc.metadata?.is_addendum}
+													<span class="px-1.5 py-0.2 rounded bg-amber-100 dark:bg-amber-950/60 text-[9px] font-bold text-amber-800 dark:text-amber-300 border border-amber-300">
+														Adendum
+													</span>
+												{:else if doc.type_code === 'KONTRAK_KERJASAMA'}
+													<span class="px-1.5 py-0.2 rounded bg-blue-100 dark:bg-blue-950/60 text-[9px] font-bold text-blue-800 dark:text-blue-300 border border-blue-300">
+														Kontrak Induk
+													</span>
+												{/if}
+												{#if doc.metadata?.scope}
+													<span class="px-1.5 py-0.2 rounded bg-slate-100 dark:bg-slate-800 text-[9px] font-bold text-slate-700 dark:text-slate-300">
+														{doc.metadata.scope}
+													</span>
+												{/if}
+												{#if doc.metadata?.contract_value && doc.metadata.contract_value !== '0' && Number(doc.metadata.contract_value) > 0}
+													<span class="text-[9px] font-mono font-bold text-emerald-600 dark:text-emerald-400">
+														Rp {Number(doc.metadata.contract_value).toLocaleString('id-ID')}
+													</span>
+												{/if}
 												{#if doc.qr_code_id}
 													<span class="px-1.5 py-0.2 rounded bg-slate-100 dark:bg-slate-800 text-[9px] font-mono text-slate-600 dark:text-slate-400">
 														{doc.qr_code_id}
@@ -409,7 +460,10 @@
 												<p class="text-[10px] text-on-surface-variant">NIK: {doc.driver_payroll || doc.driver_payroll_id || '-'}</p>
 											{:else if doc.entity_type === 'CUSTOMER'}
 												<p class="font-bold text-on-surface">{doc.customer_name || doc.partner_name || 'Mitra'}</p>
-												<p class="text-[10px] text-on-surface-variant">Customer SPK</p>
+												<p class="text-[10px] text-on-surface-variant">{doc.metadata?.legal_entity ? `[${doc.metadata.legal_entity}] Customer` : 'Customer SPK'}</p>
+											{:else if doc.entity_type === 'VENDOR'}
+												<p class="font-bold text-on-surface">{doc.customer_name || doc.partner_name || 'Vendor / Rekanan'}</p>
+												<p class="text-[10px] text-amber-600 font-semibold">{doc.metadata?.legal_entity ? `[${doc.metadata.legal_entity}] Rekanan` : 'Vendor & Jasa'}</p>
 											{:else}
 												<p class="font-bold text-on-surface">{doc.company_name || 'Korporat / Umum'}</p>
 												<p class="text-[10px] text-on-surface-variant">{doc.company_code ? `[${doc.company_code}] Legal` : 'Holding & Legal'}</p>

@@ -13,7 +13,7 @@ export const load: PageServerLoad = async () => {
 				to_char(d.expiry_date, 'YYYY-MM-DD') as expiry_date_str,
 				dt.code as type_code,
 				dt.name as type_name,
-				c.nama_kustomer as partner_name,
+				COALESCE(c.nama_kustomer, d.metadata->>'partner_name') as partner_name,
 				u.nomor_unit as unit_number,
 				u.business_unit as unit_type,
 				k.nama_karyawan as driver_name,
@@ -43,13 +43,18 @@ export const load: PageServerLoad = async () => {
 		let driverCount = 0;
 		let customerCount = 0;
 		let corporateCount = 0;
+		let vendorCount = 0;
+		let contractCount = 0;
 
 		const processedDocs: DocumentItem[] = allDocs.map((r: any) => {
 			const { daysRemaining, gateLevel, computedStatus } = calculateExpiryGate(r.expiry_date, r.status);
 
+			if (r.type_code === 'KONTRAK_KERJASAMA') contractCount++;
+
 			if (r.entity_type === 'FLEET') fleetCount++;
 			else if (r.entity_type === 'DRIVER') driverCount++;
 			else if (r.entity_type === 'CUSTOMER') customerCount++;
+			else if (r.entity_type === 'VENDOR') vendorCount++;
 			else corporateCount++;
 
 			if (r.physical_status === 'BORROWED') borrowedCount++;
@@ -100,7 +105,9 @@ export const load: PageServerLoad = async () => {
 					fleet: fleetCount,
 					driver: driverCount,
 					customer: customerCount,
-					corporate: corporateCount
+					vendor: vendorCount,
+					corporate: corporateCount,
+					contracts: contractCount
 				}
 			},
 			upcomingExpiringDocs,
