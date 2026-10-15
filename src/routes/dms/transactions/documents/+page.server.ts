@@ -25,6 +25,10 @@ export const load: PageServerLoad = async ({ url }) => {
 				d.doc_number ILIKE ${pattern} OR 
 				d.title ILIKE ${pattern} OR 
 				d.notes ILIKE ${pattern} OR
+				(d.metadata->>'partner_name') ILIKE ${pattern} OR
+				(d.metadata->>'scope') ILIKE ${pattern} OR
+				(d.metadata->>'pic') ILIKE ${pattern} OR
+				(d.metadata->>'parent_contract_number') ILIKE ${pattern} OR
 				(d.metadata->>'owner_name') ILIKE ${pattern} OR
 				(d.metadata->>'no_chasis') ILIKE ${pattern} OR
 				(d.metadata->>'brand_name') ILIKE ${pattern} OR
@@ -68,7 +72,7 @@ export const load: PageServerLoad = async ({ url }) => {
 				dc.code as category_code,
 				cmp.name as company_name,
 				cmp.code as company_code,
-				c.nama_kustomer as partner_name,
+				COALESCE(c.nama_kustomer, d.metadata->>'partner_name') as partner_name,
 				u.nomor_unit as unit_number,
 				u.business_unit as unit_type,
 				k.nama_karyawan as driver_name,

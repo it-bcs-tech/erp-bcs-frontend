@@ -18,7 +18,7 @@ export const load: PageServerLoad = async ({ params }) => {
 				to_char(d.expiry_date, 'YYYY-MM-DD') as expiry_date_str,
 				dt.code as type_code,
 				dt.name as type_name,
-				c.nama_kustomer as partner_name,
+				COALESCE(c.nama_kustomer, d.metadata->>'partner_name') as partner_name,
 				u.nomor_unit as unit_number,
 				u.business_unit as unit_type,
 				k.nama_karyawan as driver_name,

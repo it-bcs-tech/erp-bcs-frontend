@@ -47,6 +47,7 @@
 		"ai": "^6.0.176",
 		"bcryptjs": "^3.0.3",
 		"csv-parse": "^7.0.3",
+		"dotenv": "^18.0.8",
 		"isomorphic-dompurify": "^3.3.0",
 		"leaflet": "^1.9.4",
 		"marked": "^18.0.3",
