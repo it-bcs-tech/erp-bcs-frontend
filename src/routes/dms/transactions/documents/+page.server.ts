@@ -19,6 +19,16 @@ export const load: PageServerLoad = async ({ url }) => {
 		const status = url.searchParams.get('status') || '';
 		const gateFilter = url.searchParams.get('gate') || '';
 		const scope = url.searchParams.get('scope') || '';
+		const sort = url.searchParams.get('sort') || 'newest';
+
+		let orderClause = sql`ORDER BY COALESCE(d.issue_date, d.created_at::date) DESC, d.created_at DESC, d.id DESC`;
+		if (sort === 'oldest') {
+			orderClause = sql`ORDER BY COALESCE(d.issue_date, d.created_at::date) ASC, d.created_at ASC, d.id ASC`;
+		} else if (sort === 'expiring_soon') {
+			orderClause = sql`ORDER BY d.expiry_date ASC NULLS LAST, COALESCE(d.issue_date, d.created_at::date) DESC`;
+		} else if (sort === 'created_recent') {
+			orderClause = sql`ORDER BY d.created_at DESC, d.id DESC`;
+		}
 
 		const conditions = [];
 		if (q) {
@@ -107,7 +117,7 @@ export const load: PageServerLoad = async ({ url }) => {
 			LEFT JOIN master.m_karyawan k ON k.id = drv.karyawan_id
 			LEFT JOIN dms.m_filing_location fl ON fl.id = d.filing_location_id
 			${whereClause}
-			ORDER BY d.created_at DESC
+			${orderClause}
 			LIMIT ${limit} OFFSET ${offset}
 		`;
 
@@ -146,6 +156,7 @@ export const load: PageServerLoad = async ({ url }) => {
 			companies,
 			scopeClusters: SCOPE_CLUSTERS,
 			selectedScope: scope,
+			selectedSort: sort,
 			pagination: {
 				page,
 				limit,

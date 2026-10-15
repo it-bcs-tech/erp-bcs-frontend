@@ -13,6 +13,7 @@
 	let company = $derived($page.url.searchParams.get('company') || '');
 	let gate = $derived($page.url.searchParams.get('gate') || '');
 	let scope = $derived($page.url.searchParams.get('scope') || '');
+	let sort = $derived($page.url.searchParams.get('sort') || data.selectedSort || 'newest');
 
 	let isDenseView = $state(false);
 
@@ -20,7 +21,7 @@
 	let isViewerOpen = $state(false);
 	let selectedDoc = $state<any>(null);
 
-	let hasActiveFilters = $derived(Boolean(q || entityType || type || category || company || gate || scope));
+	let hasActiveFilters = $derived(Boolean(q || entityType || type || category || company || gate || scope || (sort && sort !== 'newest')));
 
 	function openViewer(doc: any) {
 		selectedDoc = doc;
@@ -110,6 +111,18 @@
 			url.searchParams.set('company', val);
 		} else {
 			url.searchParams.delete('company');
+		}
+		url.searchParams.set('page', '1');
+		goto(url.toString(), { keepFocus: true, noScroll: true });
+	}
+
+	function handleSortChange(e: Event) {
+		const val = (e.target as HTMLSelectElement).value;
+		const url = new URL(window.location.href);
+		if (val && val !== 'newest') {
+			url.searchParams.set('sort', val);
+		} else {
+			url.searchParams.delete('sort');
 		}
 		url.searchParams.set('page', '1');
 		goto(url.toString(), { keepFocus: true, noScroll: true });
@@ -333,6 +346,19 @@
 					{/each}
 				</select>
 			{/if}
+
+			<select
+				name="sort"
+				onchange={handleSortChange}
+				value={sort}
+				class="bg-surface-container-low text-on-surface rounded-xl px-3 py-2 text-xs font-medium border-0 outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all cursor-pointer w-full sm:w-auto"
+				title="Urutan Tampilan Dokumen"
+			>
+				<option value="newest">🕒 Terbaru (Tanggal Terbit)</option>
+				<option value="oldest">⏳ Terlama (Tanggal Terbit)</option>
+				<option value="expiring_soon">⚠️ Segera Kadaluarsa</option>
+				<option value="created_recent">📥 Terakhir Ditambahkan</option>
+			</select>
 
 			<div class="flex items-center gap-2 w-full sm:w-auto">
 				<button
