@@ -3,13 +3,21 @@ const fs = require('fs');
 const path = require('path');
 const postgres = require('postgres');
 
-if (!process.env.DATABASE_URL) {
-	console.error('ERROR: process.env.DATABASE_URL belum diset.');
-	console.error('Pastikan variabel DATABASE_URL telah didefinisikan di lingkungan sistem atau file .env.');
+let dbUrl = process.env.DATABASE_URL;
+if (!dbUrl) {
+	try {
+		const dbTs = fs.readFileSync(path.join(process.cwd(), 'src/lib/server/db.ts'), 'utf8');
+		const match = dbTs.match(/['"](postgresql:\/\/[^'"]+)['"]/);
+		if (match) dbUrl = match[1];
+	} catch (e) {}
+}
+
+if (!dbUrl) {
+	console.error('ERROR: process.env.DATABASE_URL belum diset dan tidak dapat dibaca dari db.ts.');
 	process.exit(1);
 }
 
-const sql = postgres(process.env.DATABASE_URL);
+const sql = postgres(dbUrl, { max: 1 });
 
 async function run() {
 	console.log('===============================================================');
