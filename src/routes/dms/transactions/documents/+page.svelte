@@ -26,23 +26,33 @@
 		isViewerOpen = true;
 	}
 
-	function setQuickFilter(mode: 'ALL' | 'CONTRACT' | 'FLEET' | 'DRIVER' | 'CUSTOMER' | 'CORPORATE') {
+	function setQuickFilter(mode: 'ALL' | 'FLEET' | 'DRIVER' | 'CUSTOMER' | 'VENDOR' | 'CORPORATE') {
 		const url = new URL(window.location.href);
 		url.searchParams.delete('entity_type');
-		url.searchParams.delete('type');
 		url.searchParams.set('page', '1');
 
-		if (mode === 'CONTRACT') {
-			url.searchParams.set('type', 'KONTRAK_KERJASAMA');
-		} else if (mode === 'FLEET') {
+		if (mode === 'FLEET') {
 			url.searchParams.set('entity_type', 'FLEET');
 		} else if (mode === 'DRIVER') {
 			url.searchParams.set('entity_type', 'DRIVER');
 		} else if (mode === 'CUSTOMER') {
 			url.searchParams.set('entity_type', 'CUSTOMER');
+		} else if (mode === 'VENDOR') {
+			url.searchParams.set('entity_type', 'VENDOR');
 		} else if (mode === 'CORPORATE') {
 			url.searchParams.set('entity_type', 'CORPORATE');
 		}
+		goto(url.toString(), { keepFocus: true, noScroll: true });
+	}
+
+	function toggleContractFilter() {
+		const url = new URL(window.location.href);
+		if (type === 'KONTRAK_KERJASAMA') {
+			url.searchParams.delete('type');
+		} else {
+			url.searchParams.set('type', 'KONTRAK_KERJASAMA');
+		}
+		url.searchParams.set('page', '1');
 		goto(url.toString(), { keepFocus: true, noScroll: true });
 	}
 
@@ -170,72 +180,90 @@
 		</div>
 	</header>
 
-	<!-- Segmented Category Selector (Semua, Kontrak Legal, Armada, Driver, Customer, Corporate) -->
-	<div class="inline-flex p-1.5 rounded-2xl bg-surface-container-low border border-slate-200/80 dark:border-slate-800/80 gap-1 overflow-x-auto shadow-xs max-w-full">
-		<button
-			type="button"
-			onclick={() => setQuickFilter('ALL')}
-			class="px-4 py-2 rounded-xl text-xs font-bold transition-colors flex items-center gap-2 cursor-pointer {!entityType && !type
-				? 'bg-indigo-600 text-white shadow-xs'
-				: 'bg-transparent text-on-surface-variant hover:text-on-surface'}"
-		>
-			<span class="material-symbols-outlined text-sm">grid_view</span>
-			<span>Semua Dokumen</span>
-		</button>
+	<!-- Segmented Entity Tabs (Semua, Armada, Driver, Pelanggan, Vendor, Korporat) & Quick Contract Toggle -->
+	<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+		<div class="inline-flex p-1.5 rounded-2xl bg-surface-container-low border border-slate-200/80 dark:border-slate-800/80 gap-1 overflow-x-auto shadow-xs max-w-full">
+			<button
+				type="button"
+				onclick={() => setQuickFilter('ALL')}
+				class="px-3.5 py-1.5 rounded-xl text-xs font-bold transition-colors flex items-center gap-1.5 cursor-pointer {!entityType
+					? 'bg-indigo-600 text-white shadow-xs'
+					: 'bg-transparent text-on-surface-variant hover:text-on-surface'}"
+			>
+				<span class="material-symbols-outlined text-sm">grid_view</span>
+				<span>Semua</span>
+			</button>
 
-		<button
-			type="button"
-			onclick={() => setQuickFilter('CONTRACT')}
-			class="px-4 py-2 rounded-xl text-xs font-bold transition-colors flex items-center gap-2 cursor-pointer {type === 'KONTRAK_KERJASAMA'
-				? 'bg-amber-600 text-white shadow-xs'
-				: 'bg-transparent text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/40'}"
-		>
-			<span class="material-symbols-outlined text-sm">history_edu</span>
-			<span>Kontrak Legal & PKS</span>
-		</button>
+			<button
+				type="button"
+				onclick={() => setQuickFilter('FLEET')}
+				class="px-3.5 py-1.5 rounded-xl text-xs font-bold transition-colors flex items-center gap-1.5 cursor-pointer {entityType === 'FLEET'
+					? 'bg-sky-600 text-white shadow-xs'
+					: 'bg-transparent text-on-surface-variant hover:text-on-surface'}"
+			>
+				<span class="material-symbols-outlined text-sm">local_shipping</span>
+				<span>Armada</span>
+			</button>
 
-		<button
-			type="button"
-			onclick={() => setQuickFilter('FLEET')}
-			class="px-4 py-2 rounded-xl text-xs font-bold transition-colors flex items-center gap-2 cursor-pointer {entityType === 'FLEET'
-				? 'bg-sky-600 text-white shadow-xs'
-				: 'bg-transparent text-on-surface-variant hover:text-on-surface'}"
-		>
-			<span class="material-symbols-outlined text-sm">local_shipping</span>
-			<span>Dokumen Armada (FMS)</span>
-		</button>
+			<button
+				type="button"
+				onclick={() => setQuickFilter('DRIVER')}
+				class="px-3.5 py-1.5 rounded-xl text-xs font-bold transition-colors flex items-center gap-1.5 cursor-pointer {entityType === 'DRIVER'
+					? 'bg-indigo-600 text-white shadow-xs'
+					: 'bg-transparent text-on-surface-variant hover:text-on-surface'}"
+			>
+				<span class="material-symbols-outlined text-sm">airline_seat_recline_normal</span>
+				<span>Driver</span>
+			</button>
 
-		<button
-			type="button"
-			onclick={() => setQuickFilter('DRIVER')}
-			class="px-4 py-2 rounded-xl text-xs font-bold transition-colors flex items-center gap-2 cursor-pointer {entityType === 'DRIVER'
-				? 'bg-indigo-600 text-white shadow-xs'
-				: 'bg-transparent text-on-surface-variant hover:text-on-surface'}"
-		>
-			<span class="material-symbols-outlined text-sm">airline_seat_recline_normal</span>
-			<span>Dokumen Driver (HRIS)</span>
-		</button>
+			<button
+				type="button"
+				onclick={() => setQuickFilter('CUSTOMER')}
+				class="px-3.5 py-1.5 rounded-xl text-xs font-bold transition-colors flex items-center gap-1.5 cursor-pointer {entityType === 'CUSTOMER'
+					? 'bg-teal-600 text-white shadow-xs'
+					: 'bg-transparent text-on-surface-variant hover:text-on-surface'}"
+			>
+				<span class="material-symbols-outlined text-sm">handshake</span>
+				<span>Pelanggan</span>
+			</button>
 
-		<button
-			type="button"
-			onclick={() => setQuickFilter('CUSTOMER')}
-			class="px-4 py-2 rounded-xl text-xs font-bold transition-colors flex items-center gap-2 cursor-pointer {entityType === 'CUSTOMER' && type !== 'KONTRAK_KERJASAMA'
-				? 'bg-teal-600 text-white shadow-xs'
-				: 'bg-transparent text-on-surface-variant hover:text-on-surface'}"
-		>
-			<span class="material-symbols-outlined text-sm">handshake</span>
-			<span>Mitra Customer</span>
-		</button>
+			<button
+				type="button"
+				onclick={() => setQuickFilter('VENDOR')}
+				class="px-3.5 py-1.5 rounded-xl text-xs font-bold transition-colors flex items-center gap-1.5 cursor-pointer {entityType === 'VENDOR'
+					? 'bg-amber-600 text-white shadow-xs'
+					: 'bg-transparent text-on-surface-variant hover:text-on-surface'}"
+			>
+				<span class="material-symbols-outlined text-sm">store</span>
+				<span>Vendor Rekanan</span>
+			</button>
 
+			<button
+				type="button"
+				onclick={() => setQuickFilter('CORPORATE')}
+				class="px-3.5 py-1.5 rounded-xl text-xs font-bold transition-colors flex items-center gap-1.5 cursor-pointer {entityType === 'CORPORATE'
+					? 'bg-violet-600 text-white shadow-xs'
+					: 'bg-transparent text-on-surface-variant hover:text-on-surface'}"
+			>
+				<span class="material-symbols-outlined text-sm">corporate_fare</span>
+				<span>Korporat & ISO</span>
+			</button>
+		</div>
+
+		<!-- Quick Toggle Filter: Hanya Kontrak & PKS -->
 		<button
 			type="button"
-			onclick={() => setQuickFilter('CORPORATE')}
-			class="px-4 py-2 rounded-xl text-xs font-bold transition-colors flex items-center gap-2 cursor-pointer {entityType === 'CORPORATE'
-				? 'bg-violet-600 text-white shadow-xs'
-				: 'bg-transparent text-on-surface-variant hover:text-on-surface'}"
+			onclick={toggleContractFilter}
+			class="px-3.5 py-1.5 rounded-2xl text-xs font-bold transition-all flex items-center gap-2 border cursor-pointer flex-shrink-0 {type === 'KONTRAK_KERJASAMA'
+				? 'bg-amber-500 hover:bg-amber-600 text-white border-amber-600 shadow-xs'
+				: 'bg-surface-container-low text-amber-700 dark:text-amber-400 border-slate-200/80 dark:border-slate-800/80 hover:bg-amber-50 dark:hover:bg-amber-950/40'}"
+			title="Filter dokumen hanya yang bertipe Kontrak Kerja Sama / PKS"
 		>
-			<span class="material-symbols-outlined text-sm">corporate_fare</span>
-			<span>Korporat & ISO</span>
+			<span class="material-symbols-outlined text-base">history_edu</span>
+			<span>Hanya Kontrak & PKS</span>
+			{#if type === 'KONTRAK_KERJASAMA'}
+				<span class="material-symbols-outlined text-xs bg-amber-700/50 text-white rounded-full p-0.5">check</span>
+			{/if}
 		</button>
 	</div>
 

@@ -132,7 +132,7 @@
 	</div>
 
 	<!-- Entity Breakdown Chips -->
-	<div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+	<div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
 		<a
 			href="/dms/transactions/documents?type=KONTRAK_KERJASAMA"
 			class="p-3.5 rounded-2xl bg-surface-container-lowest dark:bg-surface-container-low border border-slate-200/80 dark:border-slate-800/80 flex items-center justify-between hover:border-amber-400 transition-colors"
@@ -182,11 +182,25 @@
 			<div class="flex items-center gap-2.5">
 				<span class="material-symbols-outlined text-teal-600">handshake</span>
 				<div>
-					<h4 class="text-xs font-black text-on-surface">Mitra Customer</h4>
+					<h4 class="text-xs font-black text-on-surface">Pelanggan</h4>
 					<p class="text-[10px] text-on-surface-variant">SPK & Pelanggan</p>
 				</div>
 			</div>
 			<span class="text-base font-black text-on-surface">{stats.entities.customer}</span>
+		</a>
+
+		<a
+			href="/dms/transactions/documents?entity_type=VENDOR"
+			class="p-3.5 rounded-2xl bg-surface-container-lowest dark:bg-surface-container-low border border-slate-200/80 dark:border-slate-800/80 flex items-center justify-between hover:border-amber-400 transition-colors"
+		>
+			<div class="flex items-center gap-2.5">
+				<span class="material-symbols-outlined text-amber-600">store</span>
+				<div>
+					<h4 class="text-xs font-black text-on-surface">Vendor Rekanan</h4>
+					<p class="text-[10px] text-on-surface-variant">Mitra & Supplier</p>
+				</div>
+			</div>
+			<span class="text-base font-black text-on-surface">{stats.entities.vendor || 0}</span>
 		</a>
 
 		<a
