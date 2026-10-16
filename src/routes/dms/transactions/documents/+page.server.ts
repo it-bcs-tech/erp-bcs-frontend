@@ -60,6 +60,13 @@ export const load: PageServerLoad = async ({ url }) => {
 				(d.metadata->>'no_nib') ILIKE ${pattern} OR
 				(d.metadata->>'administrative_village') ILIKE ${pattern} OR
 				(d.metadata->>'district') ILIKE ${pattern} OR
+				(d.metadata->>'driver_name') ILIKE ${pattern} OR
+				(d.metadata->>'operator_name') ILIKE ${pattern} OR
+				(d.metadata->>'payroll_id') ILIKE ${pattern} OR
+				(d.metadata->>'sio_no') ILIKE ${pattern} OR
+				(d.metadata->>'no_license') ILIKE ${pattern} OR
+				(d.metadata->>'title_license') ILIKE ${pattern} OR
+				(d.metadata->>'issued_by') ILIKE ${pattern} OR
 				d.qr_code_id ILIKE ${pattern}
 			)`);
 		}
@@ -112,8 +119,8 @@ export const load: PageServerLoad = async ({ url }) => {
 				COALESCE(c.nama_kustomer, v.nama_vendor, d.metadata->>'partner_name') as partner_name,
 				u.nomor_unit as unit_number,
 				u.business_unit as unit_type,
-				k.nama_karyawan as driver_name,
-				k.payroll_id as driver_payroll_id,
+				COALESCE(k.nama_karyawan, d.metadata->>'driver_name', d.metadata->>'operator_name') as driver_name,
+				COALESCE(k.payroll_id, d.metadata->>'payroll_id') as driver_payroll_id,
 				fl.name as filing_location_name,
 				fl.code as filing_location_code
 			FROM dms.documents d

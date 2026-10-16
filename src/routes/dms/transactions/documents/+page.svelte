@@ -531,6 +531,26 @@
 														📍 {doc.metadata.administrative_village}
 													</span>
 												{/if}
+												{#if doc.metadata?.job_desc}
+													<span class="px-1.5 py-0.2 rounded bg-amber-50 dark:bg-amber-950/60 text-[9px] font-bold text-amber-700 dark:text-amber-300 border border-amber-300">
+														👷 {doc.metadata.job_desc}
+													</span>
+												{/if}
+												{#if doc.metadata?.work_location}
+													<span class="px-1.5 py-0.2 rounded bg-slate-100 dark:bg-slate-800 text-[9px] font-medium text-slate-700 dark:text-slate-300">
+														🏢 {doc.metadata.work_location}
+													</span>
+												{/if}
+												{#if doc.metadata?.issued_by && doc.type_code === 'LEGAL_PERUSAHAAN'}
+													<span class="px-1.5 py-0.2 rounded bg-blue-50 dark:bg-blue-950/60 text-[9px] text-blue-700 dark:text-blue-300 border border-blue-200">
+														🏛️ {doc.metadata.issued_by.length > 25 ? doc.metadata.issued_by.substring(0, 23) + '...' : doc.metadata.issued_by}
+													</span>
+												{/if}
+												{#if doc.metadata?.capacity}
+													<span class="px-1.5 py-0.2 rounded bg-emerald-50 dark:bg-emerald-950/60 text-[9px] font-mono text-emerald-700 dark:text-emerald-300">
+														⚖️ {doc.metadata.capacity}
+													</span>
+												{/if}
 												{#if doc.qr_code_id}
 													<span class="px-1.5 py-0.2 rounded bg-slate-100 dark:bg-slate-800 text-[9px] font-mono text-slate-600 dark:text-slate-400">
 														{doc.qr_code_id}
