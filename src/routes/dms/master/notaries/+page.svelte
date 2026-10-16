@@ -81,13 +81,14 @@
 					<th class="py-3.5 px-5">Nama Notaris / Rekanan</th>
 					<th class="py-3.5 px-5">Alamat Kantor</th>
 					<th class="py-3.5 px-5">Kontak & Telepon</th>
+					<th class="py-3.5 px-5 text-center">Dokumen Dibuat</th>
 					<th class="py-3.5 px-5 text-center">Status</th>
 				</tr>
 			</thead>
 			<tbody class="divide-y divide-slate-200/60 dark:divide-slate-800/60 font-medium text-xs">
 				{#if filteredNotaries.length === 0}
 					<tr>
-						<td colspan="4" class="py-12 text-center text-on-surface-variant">
+						<td colspan="5" class="py-12 text-center text-on-surface-variant">
 							<span class="material-symbols-outlined text-4xl text-slate-300 dark:text-slate-600 mb-2">gavel</span>
 							<p class="text-xs font-semibold">Tidak ada data notaris yang cocok.</p>
 						</td>
@@ -103,6 +104,12 @@
 							</td>
 							<td class="py-3.5 px-5 text-on-surface-variant max-w-sm">{notary.address || '-'}</td>
 							<td class="py-3.5 px-5 font-mono text-on-surface">{notary.phone || '-'}</td>
+							<td class="py-3.5 px-5 text-center">
+								<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold {notary.document_count > 0 ? 'bg-indigo-100 dark:bg-indigo-950/80 text-indigo-700 dark:text-indigo-300' : 'bg-slate-100 dark:bg-slate-800 text-on-surface-variant'}">
+									<span class="material-symbols-outlined text-sm">history_edu</span>
+									<span>{notary.document_count || 0} Berkas</span>
+								</span>
+							</td>
 							<td class="py-3.5 px-5 text-center">
 								<span class="inline-flex items-center gap-1.5 text-xs font-bold px-2.5 py-0.5 rounded-full border {notary.is_active ? 'bg-emerald-100 text-emerald-800 border-emerald-300' : 'bg-slate-100 text-slate-700 border-slate-300'}">
 									<span class="w-1.5 h-1.5 rounded-full {notary.is_active ? 'bg-emerald-500' : 'bg-slate-400'}"></span>

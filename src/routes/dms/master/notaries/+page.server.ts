@@ -2,7 +2,15 @@ import type { PageServerLoad, Actions } from './$types';
 import sql from '$lib/server/db';
 
 export const load: PageServerLoad = async () => {
-	const notaries = await sql`SELECT * FROM dms.m_notary ORDER BY name`;
+	const notaries = await sql`
+		SELECT 
+			n.*,
+			COUNT(d.id)::int as document_count
+		FROM dms.m_notary n
+		LEFT JOIN dms.documents d ON d.notary_id = n.id
+		GROUP BY n.id
+		ORDER BY document_count DESC, n.name ASC
+	`;
 	return { notaries };
 };
 

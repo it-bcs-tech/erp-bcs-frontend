@@ -2,7 +2,15 @@ import type { PageServerLoad, Actions } from './$types';
 import sql from '$lib/server/db';
 
 export const load: PageServerLoad = async () => {
-	const locations = await sql`SELECT * FROM dms.m_filing_location ORDER BY name`;
+	const locations = await sql`
+		SELECT 
+			fl.*,
+			COUNT(d.id)::int as document_count
+		FROM dms.m_filing_location fl
+		LEFT JOIN dms.documents d ON d.filing_location_id = fl.id
+		GROUP BY fl.id
+		ORDER BY document_count DESC, fl.name ASC
+	`;
 	return { locations };
 };
 

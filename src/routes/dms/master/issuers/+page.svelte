@@ -79,13 +79,14 @@
 				<tr>
 					<th class="py-3.5 px-5">Nama Instansi / Lembaga</th>
 					<th class="py-3.5 px-5">Klasifikasi Lembaga</th>
+					<th class="py-3.5 px-5 text-center">Dokumen Diterbitkan</th>
 					<th class="py-3.5 px-5 text-center">Status</th>
 				</tr>
 			</thead>
 			<tbody class="divide-y divide-slate-200/60 dark:divide-slate-800/60 font-medium text-xs">
 				{#if filteredIssuers.length === 0}
 					<tr>
-						<td colspan="3" class="py-12 text-center text-on-surface-variant">
+						<td colspan="4" class="py-12 text-center text-on-surface-variant">
 							<span class="material-symbols-outlined text-4xl text-slate-300 dark:text-slate-600 mb-2">account_balance</span>
 							<p class="text-xs font-semibold">Tidak ada instansi penerbit yang cocok.</p>
 						</td>
@@ -102,6 +103,12 @@
 							<td class="py-3.5 px-5">
 								<span class="px-2.5 py-1 rounded-lg text-xs font-bold {issuer.type === 'Government' ? 'bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800' : 'bg-purple-50 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800'}">
 									{issuer.type || 'Government / Lembaga'}
+								</span>
+							</td>
+							<td class="py-3.5 px-5 text-center">
+								<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold {issuer.document_count > 0 ? 'bg-indigo-100 dark:bg-indigo-950/80 text-indigo-700 dark:text-indigo-300' : 'bg-slate-100 dark:bg-slate-800 text-on-surface-variant'}">
+									<span class="material-symbols-outlined text-sm">verified</span>
+									<span>{issuer.document_count || 0} Berkas</span>
 								</span>
 							</td>
 							<td class="py-3.5 px-5 text-center">
