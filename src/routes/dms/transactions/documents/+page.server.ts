@@ -52,6 +52,9 @@ export const load: PageServerLoad = async ({ url }) => {
 				v.nama_vendor ILIKE ${pattern} OR
 				cmp.name ILIKE ${pattern} OR
 				cmp.code ILIKE ${pattern} OR
+				n.name ILIKE ${pattern} OR
+				(d.metadata->>'molhr_no') ILIKE ${pattern} OR
+				(d.metadata->>'deed_no') ILIKE ${pattern} OR
 				d.qr_code_id ILIKE ${pattern}
 			)`);
 		}
@@ -85,6 +88,7 @@ export const load: PageServerLoad = async ({ url }) => {
 			LEFT JOIN fleet.unit u ON u.id = d.asset_id
 			LEFT JOIN master.m_drivers drv ON drv.id = d.employee_id
 			LEFT JOIN master.m_karyawan k ON k.id = drv.karyawan_id
+			LEFT JOIN dms.m_notary n ON n.id = d.notary_id
 			${whereClause}
 		`;
 
@@ -99,6 +103,7 @@ export const load: PageServerLoad = async ({ url }) => {
 				dc.code as category_code,
 				cmp.name as company_name,
 				cmp.code as company_code,
+				n.name as notary_name,
 				COALESCE(c.nama_kustomer, v.nama_vendor, d.metadata->>'partner_name') as partner_name,
 				u.nomor_unit as unit_number,
 				u.business_unit as unit_type,
@@ -115,6 +120,7 @@ export const load: PageServerLoad = async ({ url }) => {
 			LEFT JOIN fleet.unit u ON u.id = d.asset_id
 			LEFT JOIN master.m_drivers drv ON drv.id = d.employee_id
 			LEFT JOIN master.m_karyawan k ON k.id = drv.karyawan_id
+			LEFT JOIN dms.m_notary n ON n.id = d.notary_id
 			LEFT JOIN dms.m_filing_location fl ON fl.id = d.filing_location_id
 			${whereClause}
 			${orderClause}

@@ -501,6 +501,11 @@
 														Rp {Number(doc.metadata.contract_value).toLocaleString('id-ID')}
 													</span>
 												{/if}
+												{#if doc.metadata?.molhr_no && doc.metadata.molhr_no !== '-'}
+													<span class="px-1.5 py-0.2 rounded bg-purple-100 dark:bg-purple-950/60 text-[9px] font-mono font-bold text-purple-800 dark:text-purple-300 border border-purple-300">
+														SK: {doc.metadata.molhr_no}
+													</span>
+												{/if}
 												{#if doc.qr_code_id}
 													<span class="px-1.5 py-0.2 rounded bg-slate-100 dark:bg-slate-800 text-[9px] font-mono text-slate-600 dark:text-slate-400">
 														{doc.qr_code_id}
@@ -530,7 +535,12 @@
 												<p class="text-[10px] text-amber-600 font-semibold">{doc.metadata?.legal_entity ? `[${doc.metadata.legal_entity}] Rekanan` : 'Vendor & Jasa'}</p>
 											{:else}
 												<p class="font-bold text-on-surface">{doc.company_name || 'Korporat / Umum'}</p>
-												<p class="text-[10px] text-on-surface-variant">{doc.company_code ? `[${doc.company_code}] Legal` : 'Holding & Legal'}</p>
+												<div class="flex items-center gap-1.5 flex-wrap">
+													<p class="text-[10px] text-on-surface-variant">{doc.company_code ? `[${doc.company_code}] Legal` : 'Holding & Legal'}</p>
+													{#if doc.notary_name}
+														<span class="text-[10px] font-semibold text-indigo-600 dark:text-indigo-400">· {doc.notary_name}</span>
+													{/if}
+												</div>
 											{/if}
 										</div>
 									</div>
