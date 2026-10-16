@@ -206,6 +206,9 @@
 			>
 				<span class="material-symbols-outlined text-sm">grid_view</span>
 				<span>Semua Dokumen</span>
+				{#if data.tabCounts?.total}
+					<span class="px-1.5 py-0.2 rounded-full text-[10px] font-mono {!entityType && !type ? 'bg-indigo-700/60 text-white' : 'bg-slate-200 dark:bg-slate-800 text-slate-800 dark:text-slate-300'}">{data.tabCounts.total.toLocaleString('id-ID')}</span>
+				{/if}
 			</button>
 
 			<button
@@ -217,7 +220,7 @@
 			>
 				<span class="material-symbols-outlined text-sm">history_edu</span>
 				<span>Kontrak Legal & PKS</span>
-				<span class="px-1.5 py-0.2 rounded-full text-[10px] font-mono {type === 'KONTRAK_KERJASAMA' ? 'bg-amber-700/60 text-white' : 'bg-amber-100 dark:bg-amber-950/80 text-amber-800 dark:text-amber-300'}">1.706</span>
+				<span class="px-1.5 py-0.2 rounded-full text-[10px] font-mono {type === 'KONTRAK_KERJASAMA' ? 'bg-amber-700/60 text-white' : 'bg-amber-100 dark:bg-amber-950/80 text-amber-800 dark:text-amber-300'}">{data.tabCounts?.contracts ? data.tabCounts.contracts.toLocaleString('id-ID') : '1.706'}</span>
 			</button>
 
 			<button
@@ -229,7 +232,7 @@
 			>
 				<span class="material-symbols-outlined text-sm">local_shipping</span>
 				<span>Dokumen Armada (FMS)</span>
-				<span class="px-1.5 py-0.2 rounded-full text-[10px] font-mono {entityType === 'FLEET' ? 'bg-sky-700/60 text-white' : 'bg-sky-100 dark:bg-sky-950/80 text-sky-800 dark:text-sky-300'}">470</span>
+				<span class="px-1.5 py-0.2 rounded-full text-[10px] font-mono {entityType === 'FLEET' ? 'bg-sky-700/60 text-white' : 'bg-sky-100 dark:bg-sky-950/80 text-sky-800 dark:text-sky-300'}">{data.tabCounts?.fleet ? data.tabCounts.fleet.toLocaleString('id-ID') : '657'}</span>
 			</button>
 
 			<button
@@ -241,7 +244,7 @@
 			>
 				<span class="material-symbols-outlined text-sm">airline_seat_recline_normal</span>
 				<span>Dokumen Driver (HRIS)</span>
-				<span class="px-1.5 py-0.2 rounded-full text-[10px] font-mono {entityType === 'DRIVER' ? 'bg-indigo-700/60 text-white' : 'bg-indigo-100 dark:bg-indigo-950/80 text-indigo-800 dark:text-indigo-300'}">1</span>
+				<span class="px-1.5 py-0.2 rounded-full text-[10px] font-mono {entityType === 'DRIVER' ? 'bg-indigo-700/60 text-white' : 'bg-indigo-100 dark:bg-indigo-950/80 text-indigo-800 dark:text-indigo-300'}">{data.tabCounts?.driver ? data.tabCounts.driver.toLocaleString('id-ID') : '247'}</span>
 			</button>
 
 			<button
@@ -253,7 +256,7 @@
 			>
 				<span class="material-symbols-outlined text-sm">corporate_fare</span>
 				<span>Korporat & ISO</span>
-				<span class="px-1.5 py-0.2 rounded-full text-[10px] font-mono {entityType === 'CORPORATE' ? 'bg-violet-700/60 text-white' : 'bg-violet-100 dark:bg-violet-950/80 text-violet-800 dark:text-violet-300'}">78</span>
+				<span class="px-1.5 py-0.2 rounded-full text-[10px] font-mono {entityType === 'CORPORATE' ? 'bg-violet-700/60 text-white' : 'bg-violet-100 dark:bg-violet-950/80 text-violet-800 dark:text-violet-300'}">{data.tabCounts?.corporate ? data.tabCounts.corporate.toLocaleString('id-ID') : '822'}</span>
 			</button>
 		</div>
 
@@ -520,6 +523,39 @@
 													<span class="text-[9px] font-mono font-bold text-emerald-600 dark:text-emerald-400">
 														📐 {doc.metadata.land_size_formatted}
 													</span>
+												{/if}
+												{#if doc.metadata?.status_agunan}
+													{#if doc.metadata?.is_pledged}
+														<span class="px-1.5 py-0.2 rounded bg-rose-100 dark:bg-rose-950/60 text-[9px] font-bold text-rose-800 dark:text-rose-300 border border-rose-300 inline-flex items-center gap-0.5">
+															<span class="material-symbols-outlined text-[11px]">account_balance</span>
+															Agunan: {doc.metadata.posisi_dokumen || doc.metadata.status_agunan}
+														</span>
+													{:else}
+														<span class="px-1.5 py-0.2 rounded bg-emerald-100 dark:bg-emerald-950/60 text-[9px] font-bold text-emerald-800 dark:text-emerald-300 border border-emerald-300 inline-flex items-center gap-0.5">
+															<span class="material-symbols-outlined text-[11px]">lock</span>
+															Brankas
+														</span>
+													{/if}
+												{/if}
+												{#if doc.metadata?.no_ajb}
+													<span class="px-1.5 py-0.2 rounded bg-amber-50 dark:bg-amber-950/60 text-[9px] font-mono text-amber-800 dark:text-amber-300 border border-amber-200">
+														AJB: {doc.metadata.no_ajb}
+													</span>
+												{/if}
+												{#if doc.type_code === 'SK_DIREKSI'}
+													<span class="px-1.5 py-0.2 rounded bg-purple-100 dark:bg-purple-950/60 text-[9px] font-bold text-purple-800 dark:text-purple-300 border border-purple-300">
+														📜 SK Direksi
+													</span>
+												{/if}
+												{#if doc.type_code === 'IZIN_B3'}
+													<span class="px-1.5 py-0.2 rounded bg-emerald-100 dark:bg-emerald-950/60 text-[9px] font-bold text-emerald-800 dark:text-emerald-300 border border-emerald-300">
+														☣️ Izin Limbah B3
+													</span>
+													{#if doc.metadata?.rekom_klh}
+														<span class="px-1.5 py-0.2 rounded bg-teal-50 dark:bg-teal-950/60 text-[9px] font-mono font-bold text-teal-800 dark:text-teal-300 border border-teal-200">
+															KLHK: {doc.metadata.rekom_klh}
+														</span>
+													{/if}
 												{/if}
 												{#if doc.metadata?.no_nib && doc.metadata.no_nib !== '-'}
 													<span class="px-1.5 py-0.2 rounded bg-indigo-50 dark:bg-indigo-950/60 text-[9px] font-mono text-indigo-700 dark:text-indigo-300">

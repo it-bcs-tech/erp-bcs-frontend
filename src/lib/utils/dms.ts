@@ -102,6 +102,12 @@ export function getPhysicalStatusInfo(status: DMSPhysicalStatus) {
 				badgeClass: 'bg-purple-100 dark:bg-purple-950/40 text-purple-800 dark:text-purple-300 border-purple-300 dark:border-purple-700/50',
 				icon: 'warehouse'
 			};
+		case 'LOANED_OUT':
+			return {
+				label: 'Dijaminkan / Bank',
+				badgeClass: 'bg-rose-100 dark:bg-rose-950/40 text-rose-800 dark:text-rose-300 border-rose-300 dark:border-rose-700/50',
+				icon: 'account_balance'
+			};
 		case 'IN_STORAGE':
 		default:
 			return {

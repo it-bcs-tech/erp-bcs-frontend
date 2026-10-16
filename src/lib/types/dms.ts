@@ -2,7 +2,7 @@ export type DMSEntityType = 'FLEET' | 'DRIVER' | 'CUSTOMER' | 'CORPORATE' | 'VEN
 
 export type DMSStatus = 'ACTIVE' | 'EXPIRING_SOON' | 'EXPIRED' | 'RENEWAL_IN_PROGRESS' | 'REVOKED';
 
-export type DMSPhysicalStatus = 'IN_STORAGE' | 'BORROWED' | 'ARCHIVED_OFFSITE';
+export type DMSPhysicalStatus = 'IN_STORAGE' | 'BORROWED' | 'ARCHIVED_OFFSITE' | 'LOANED_OUT';
 
 export type ExpiryGateLevel = 'VALID' | 'WARNING_60' | 'CRITICAL_30' | 'URGENT_7' | 'EXPIRED' | 'NO_EXPIRY';
 

@@ -67,6 +67,12 @@ export const load: PageServerLoad = async ({ url }) => {
 				(d.metadata->>'no_license') ILIKE ${pattern} OR
 				(d.metadata->>'title_license') ILIKE ${pattern} OR
 				(d.metadata->>'issued_by') ILIKE ${pattern} OR
+				(d.metadata->>'no_sk') ILIKE ${pattern} OR
+				(d.metadata->>'title_sk') ILIKE ${pattern} OR
+				(d.metadata->>'rekom_klh') ILIKE ${pattern} OR
+				(d.metadata->>'status_agunan') ILIKE ${pattern} OR
+				(d.metadata->>'posisi_dokumen') ILIKE ${pattern} OR
+				(d.metadata->>'keterangan_agunan') ILIKE ${pattern} OR
 				d.qr_code_id ILIKE ${pattern}
 			)`);
 		}
@@ -167,6 +173,16 @@ export const load: PageServerLoad = async ({ url }) => {
 		const categories = await sql`SELECT id, code, name FROM dms.m_doc_category WHERE is_active = true ORDER BY legacy_id ASC NULLS LAST, name ASC`;
 		const companies = await sql`SELECT id, code, name FROM master.m_company WHERE is_active = true ORDER BY name ASC`;
 
+		const [tabCounts] = await sql`
+			SELECT 
+				count(*) as total,
+				count(*) FILTER (WHERE doc_type_id IN (SELECT id FROM dms.m_doc_type WHERE code = 'KONTRAK_KERJASAMA')) as contracts,
+				count(*) FILTER (WHERE entity_type = 'FLEET') as fleet,
+				count(*) FILTER (WHERE entity_type = 'DRIVER') as driver,
+				count(*) FILTER (WHERE entity_type = 'CORPORATE') as corporate
+			FROM dms.documents;
+		`;
+
 		return {
 			documents,
 			docTypes,
@@ -175,6 +191,13 @@ export const load: PageServerLoad = async ({ url }) => {
 			scopeClusters: SCOPE_CLUSTERS,
 			selectedScope: scope,
 			selectedSort: sort,
+			tabCounts: {
+				total: Number(tabCounts?.total || 0),
+				contracts: Number(tabCounts?.contracts || 0),
+				fleet: Number(tabCounts?.fleet || 0),
+				driver: Number(tabCounts?.driver || 0),
+				corporate: Number(tabCounts?.corporate || 0)
+			},
 			pagination: {
 				page,
 				limit,
