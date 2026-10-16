@@ -557,6 +557,32 @@
 														</span>
 													{/if}
 												{/if}
+												{#if doc.type_code === 'SERTIFIKAT_B3_DRIVER'}
+													<span class="px-1.5 py-0.2 rounded bg-amber-100 dark:bg-amber-950/60 text-[9px] font-bold text-amber-800 dark:text-amber-300 border border-amber-300">
+														🪪 Sertifikat B3 Driver
+													</span>
+													{#if doc.metadata?.jenis_kendaraan}
+														<span class="px-1.5 py-0.2 rounded bg-slate-100 dark:bg-slate-800 text-[9px] font-semibold text-slate-700 dark:text-slate-300">
+															🚛 {doc.metadata.jenis_kendaraan}
+														</span>
+													{/if}
+													{#if doc.metadata?.dilaksanakan}
+														<span class="px-1.5 py-0.2 rounded bg-indigo-50 dark:bg-indigo-950/60 text-[9px] text-indigo-700 dark:text-indigo-300 border border-indigo-200">
+															🎓 {doc.metadata.dilaksanakan}
+														</span>
+													{/if}
+												{/if}
+												{#if doc.type_code === 'KREDIT_PERBANKAN'}
+													<span class="px-1.5 py-0.2 rounded bg-rose-100 dark:bg-rose-950/60 text-[9px] font-bold text-rose-800 dark:text-rose-300 border border-rose-300 inline-flex items-center gap-0.5">
+														<span class="material-symbols-outlined text-[11px]">account_balance</span>
+														Bank: {doc.metadata?.nama_bank || 'Perbankan'}
+													</span>
+													{#if doc.metadata?.attachments && doc.metadata.attachments.length > 1}
+														<span class="px-1.5 py-0.2 rounded bg-slate-100 dark:bg-slate-800 text-[9px] font-mono text-slate-600 dark:text-slate-400">
+															📎 {doc.metadata.attachments.length} berkas
+														</span>
+													{/if}
+												{/if}
 												{#if doc.metadata?.no_nib && doc.metadata.no_nib !== '-'}
 													<span class="px-1.5 py-0.2 rounded bg-indigo-50 dark:bg-indigo-950/60 text-[9px] font-mono text-indigo-700 dark:text-indigo-300">
 														NIB: {doc.metadata.no_nib}
