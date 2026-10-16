@@ -511,6 +511,26 @@
 														{doc.metadata.bentuk_fisik_akta.split(' ')[0]}
 													</span>
 												{/if}
+												{#if doc.metadata?.certificate_type}
+													<span class="px-1.5 py-0.2 rounded text-[9px] font-bold border {doc.metadata.certificate_type === 'SHM' ? 'bg-teal-100 dark:bg-teal-950/60 text-teal-800 dark:text-teal-300 border-teal-300' : 'bg-cyan-100 dark:bg-cyan-950/60 text-cyan-800 dark:text-cyan-300 border-cyan-300'}">
+														{doc.metadata.certificate_type}
+													</span>
+												{/if}
+												{#if doc.metadata?.land_size_formatted}
+													<span class="text-[9px] font-mono font-bold text-emerald-600 dark:text-emerald-400">
+														📐 {doc.metadata.land_size_formatted}
+													</span>
+												{/if}
+												{#if doc.metadata?.no_nib && doc.metadata.no_nib !== '-'}
+													<span class="px-1.5 py-0.2 rounded bg-indigo-50 dark:bg-indigo-950/60 text-[9px] font-mono text-indigo-700 dark:text-indigo-300">
+														NIB: {doc.metadata.no_nib}
+													</span>
+												{/if}
+												{#if doc.metadata?.administrative_village}
+													<span class="px-1.5 py-0.2 rounded bg-slate-100 dark:bg-slate-800 text-[9px] text-slate-700 dark:text-slate-300">
+														📍 {doc.metadata.administrative_village}
+													</span>
+												{/if}
 												{#if doc.qr_code_id}
 													<span class="px-1.5 py-0.2 rounded bg-slate-100 dark:bg-slate-800 text-[9px] font-mono text-slate-600 dark:text-slate-400">
 														{doc.qr_code_id}
@@ -539,13 +559,20 @@
 												<p class="font-bold text-on-surface">{doc.customer_name || doc.partner_name || 'Vendor / Rekanan'}</p>
 												<p class="text-[10px] text-amber-600 font-semibold">{doc.metadata?.legal_entity ? `[${doc.metadata.legal_entity}] Rekanan` : 'Vendor & Jasa'}</p>
 											{:else}
-												<p class="font-bold text-on-surface">{doc.company_name || 'Korporat / Umum'}</p>
-												<div class="flex items-center gap-1.5 flex-wrap">
-													<p class="text-[10px] text-on-surface-variant">{doc.company_code ? `[${doc.company_code}] Legal` : 'Holding & Legal'}</p>
-													{#if doc.notary_name}
-														<span class="text-[10px] font-semibold text-indigo-600 dark:text-indigo-400">· {doc.notary_name}</span>
-													{/if}
-												</div>
+												{#if doc.metadata?.owner_name}
+													<p class="font-bold text-on-surface">{doc.metadata.owner_name}</p>
+													<div class="flex items-center gap-1.5 flex-wrap">
+														<p class="text-[10px] text-on-surface-variant">Hak Atas Tanah · {doc.company_name || 'BCS Group'}</p>
+													</div>
+												{:else}
+													<p class="font-bold text-on-surface">{doc.company_name || 'Korporat / Umum'}</p>
+													<div class="flex items-center gap-1.5 flex-wrap">
+														<p class="text-[10px] text-on-surface-variant">{doc.company_code ? `[${doc.company_code}] Legal` : 'Holding & Legal'}</p>
+														{#if doc.notary_name}
+															<span class="text-[10px] font-semibold text-indigo-600 dark:text-indigo-400">· {doc.notary_name}</span>
+														{/if}
+													</div>
+												{/if}
 											{/if}
 										</div>
 									</div>
