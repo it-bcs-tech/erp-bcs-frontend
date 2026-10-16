@@ -506,6 +506,11 @@
 														SK: {doc.metadata.molhr_no}
 													</span>
 												{/if}
+												{#if doc.metadata?.bentuk_fisik_akta}
+													<span class="px-1.5 py-0.2 rounded text-[9px] font-bold border {doc.metadata.is_original ? 'bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 border-emerald-300' : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-300'}">
+														{doc.metadata.bentuk_fisik_akta.split(' ')[0]}
+													</span>
+												{/if}
 												{#if doc.qr_code_id}
 													<span class="px-1.5 py-0.2 rounded bg-slate-100 dark:bg-slate-800 text-[9px] font-mono text-slate-600 dark:text-slate-400">
 														{doc.qr_code_id}

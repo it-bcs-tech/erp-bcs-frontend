@@ -55,6 +55,7 @@ export const load: PageServerLoad = async ({ url }) => {
 				n.name ILIKE ${pattern} OR
 				(d.metadata->>'molhr_no') ILIKE ${pattern} OR
 				(d.metadata->>'deed_no') ILIKE ${pattern} OR
+				(d.metadata->>'bentuk_fisik_akta') ILIKE ${pattern} OR
 				d.qr_code_id ILIKE ${pattern}
 			)`);
 		}
