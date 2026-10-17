@@ -24,10 +24,12 @@ export const load: PageServerLoad = async ({ url }) => {
 		let orderClause = sql`ORDER BY COALESCE(d.issue_date, d.created_at::date) DESC, d.created_at DESC, d.id DESC`;
 		if (sort === 'oldest') {
 			orderClause = sql`ORDER BY COALESCE(d.issue_date, d.created_at::date) ASC, d.created_at ASC, d.id ASC`;
-		} else if (sort === 'expiring_soon') {
+		} else if (sort === 'expiring_soon' || ((gateFilter === 'URGENT_7' || gateFilter === 'CRITICAL_30' || gateFilter === 'WARNING_60') && !url.searchParams.get('sort'))) {
 			orderClause = sql`ORDER BY d.expiry_date ASC NULLS LAST, COALESCE(d.issue_date, d.created_at::date) DESC`;
 		} else if (sort === 'created_recent') {
 			orderClause = sql`ORDER BY d.created_at DESC, d.id DESC`;
+		} else if (gateFilter === 'EXPIRED' && !url.searchParams.get('sort')) {
+			orderClause = sql`ORDER BY d.expiry_date DESC NULLS LAST, d.id DESC`;
 		}
 
 		const conditions = [];
@@ -84,6 +86,19 @@ export const load: PageServerLoad = async ({ url }) => {
 		if (category) conditions.push(sql`d.category_id = ${category}`);
 		if (company) conditions.push(sql`d.company_id = ${company}`);
 		if (status) conditions.push(sql`d.status = ${status}`);
+		if (gateFilter) {
+			if (gateFilter === 'EXPIRED') {
+				conditions.push(sql`(d.expiry_date IS NOT NULL AND d.expiry_date::date < CURRENT_DATE AND (d.status IS NULL OR d.status != 'RENEWAL_IN_PROGRESS'))`);
+			} else if (gateFilter === 'URGENT_7') {
+				conditions.push(sql`(d.expiry_date IS NOT NULL AND d.expiry_date::date >= CURRENT_DATE AND d.expiry_date::date <= CURRENT_DATE + INTERVAL '7 days' AND (d.status IS NULL OR d.status != 'RENEWAL_IN_PROGRESS'))`);
+			} else if (gateFilter === 'CRITICAL_30') {
+				conditions.push(sql`(d.expiry_date IS NOT NULL AND d.expiry_date::date > CURRENT_DATE + INTERVAL '7 days' AND d.expiry_date::date <= CURRENT_DATE + INTERVAL '30 days' AND (d.status IS NULL OR d.status != 'RENEWAL_IN_PROGRESS'))`);
+			} else if (gateFilter === 'WARNING_60') {
+				conditions.push(sql`(d.expiry_date IS NOT NULL AND d.expiry_date::date > CURRENT_DATE + INTERVAL '30 days' AND d.expiry_date::date <= CURRENT_DATE + INTERVAL '60 days' AND (d.status IS NULL OR d.status != 'RENEWAL_IN_PROGRESS'))`);
+			} else if (gateFilter === 'VALID') {
+				conditions.push(sql`(d.expiry_date IS NULL OR d.expiry_date::date > CURRENT_DATE + INTERVAL '60 days')`);
+			}
+		}
 		if (scope) {
 			if (scope === 'EMPTY_SCOPE') {
 				conditions.push(sql`(d.metadata->>'scope' IS NULL OR d.metadata->>'scope' = '')`);
@@ -159,18 +174,6 @@ export const load: PageServerLoad = async ({ url }) => {
 			};
 		});
 
-		// Optional filter in-memory if gate filter is specified
-		if (gateFilter) {
-			if (gateFilter === 'EXPIRED') {
-				documents = documents.filter(d => d.gate_level === 'EXPIRED');
-			} else if (gateFilter === 'URGENT_7') {
-				documents = documents.filter(d => d.gate_level === 'URGENT_7');
-			} else if (gateFilter === 'CRITICAL_30') {
-				documents = documents.filter(d => d.gate_level === 'CRITICAL_30' || d.gate_level === 'URGENT_7');
-			} else if (gateFilter === 'WARNING_60') {
-				documents = documents.filter(d => d.gate_level === 'WARNING_60' || d.gate_level === 'CRITICAL_30' || d.gate_level === 'URGENT_7');
-			}
-		}
 
 		const docTypes = await sql`SELECT code, name FROM dms.m_doc_type WHERE is_active = true ORDER BY name`;
 		const categories = await sql`SELECT id, code, name FROM dms.m_doc_category WHERE is_active = true ORDER BY legacy_id ASC NULLS LAST, name ASC`;

@@ -298,6 +298,7 @@
 		<form method="GET" data-sveltekit-keepfocus class="p-4 border-b border-slate-200/60 dark:border-slate-800/60 bg-slate-50/50 dark:bg-slate-800/30 flex flex-col sm:flex-row gap-3 items-center">
 			<input type="hidden" name="entity_type" value={entityType} />
 			<input type="hidden" name="type" value={type} />
+			<input type="hidden" name="gate" value={gate} />
 			<input type="hidden" name="scope" value={scope} />
 			<input type="hidden" name="limit" value={data.pagination.limit} />
 
