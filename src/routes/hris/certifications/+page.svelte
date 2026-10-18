@@ -94,7 +94,7 @@
 		<div>
 			<h1 class="text-2xl font-black text-on-surface tracking-tight">Document Expiry & Certifications</h1>
 			<p class="text-sm text-on-surface-variant font-medium mt-0.5">
-				Peringatan Dini Masa Berlaku SIM Driver, Sertifikasi K3 & Kontrak Kerja PKWT
+				Peringatan Dini Masa Berlaku SIM Driver, Kontrak PKWT, K3, SIO Operator & Sertifikat B3 Driver
 			</p>
 		</div>
 	</div>
@@ -170,7 +170,7 @@
 		</button>
 	</div>
 
-	<!-- 3 Category Tabs (Segmented Control) -->
+	<!-- 5 Category Tabs (Segmented Control) -->
 	<div class="inline-flex p-1 rounded-2xl bg-surface-container border border-slate-200 dark:border-slate-800 overflow-x-auto max-w-full">
 		<button
 			onclick={() => handleCategoryChange('sim')}
@@ -202,6 +202,28 @@
 			<span>Sertifikat K3 & Training</span>
 			<span class="px-2 py-0.5 rounded-full text-[10px] {activeCategory === 'k3' ? 'bg-primary/10 text-primary' : 'bg-surface-container-high text-on-surface-variant'} font-bold font-mono">
 				{data.summary.k3_count || 0}
+			</span>
+		</button>
+
+		<button
+			onclick={() => handleCategoryChange('sio')}
+			class="px-4 py-2.5 rounded-xl font-bold text-xs transition-all cursor-pointer flex items-center gap-2 whitespace-nowrap {activeCategory === 'sio' ? 'bg-surface text-primary shadow-xs' : 'text-on-surface-variant hover:text-on-surface'}"
+		>
+			<span class="material-symbols-outlined text-sm">precision_manufacturing</span>
+			<span>SIO Operator</span>
+			<span class="px-2 py-0.5 rounded-full text-[10px] {activeCategory === 'sio' ? 'bg-primary/10 text-primary' : 'bg-surface-container-high text-on-surface-variant'} font-bold font-mono">
+				{data.summary.sio_count || 0}
+			</span>
+		</button>
+
+		<button
+			onclick={() => handleCategoryChange('b3')}
+			class="px-4 py-2.5 rounded-xl font-bold text-xs transition-all cursor-pointer flex items-center gap-2 whitespace-nowrap {activeCategory === 'b3' ? 'bg-surface text-primary shadow-xs' : 'text-on-surface-variant hover:text-on-surface'}"
+		>
+			<span class="material-symbols-outlined text-sm">local_shipping</span>
+			<span>Sertifikat Driver B3</span>
+			<span class="px-2 py-0.5 rounded-full text-[10px] {activeCategory === 'b3' ? 'bg-primary/10 text-primary' : 'bg-surface-container-high text-on-surface-variant'} font-bold font-mono">
+				{data.summary.b3_count || 0}
 			</span>
 		</button>
 	</div>
@@ -280,7 +302,14 @@
 							<tr class="hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors">
 								<td class="px-5 py-4">
 									<div>
-										<p class="font-bold text-on-surface">{doc.nama_karyawan || '-'}</p>
+										{#if doc.id}
+											<a href="/hris/employees/{doc.id}" class="font-bold text-on-surface hover:text-primary transition-colors inline-flex items-center gap-1 group">
+												<span>{doc.nama_karyawan || '-'}</span>
+												<span class="material-symbols-outlined text-[13px] opacity-0 group-hover:opacity-100 transition-opacity">open_in_new</span>
+											</a>
+										{:else}
+											<p class="font-bold text-on-surface">{doc.nama_karyawan || '-'}</p>
+										{/if}
 										<p class="text-xs text-on-surface-variant font-mono mt-0.5">NIK: {doc.payroll_id || '-'}</p>
 										<p class="text-[11px] text-slate-400 mt-0.5">{doc.job_title || ''}</p>
 									</div>
@@ -305,12 +334,25 @@
 									</span>
 								</td>
 								<td class="px-5 py-4 text-right">
-									<button
-										onclick={() => openRenewModal(doc)}
-										class="px-3.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-xs font-bold text-primary transition-all cursor-pointer"
-									>
-										Perbarui
-									</button>
+									<div class="flex items-center justify-end gap-1.5">
+										{#if doc.dms_document_id}
+											<a
+												href="/dms/transactions/documents/{doc.dms_document_id}"
+												target="_blank"
+												class="px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-xs font-bold text-on-surface-variant hover:text-primary transition-all flex items-center gap-1"
+												title="Buka Dokumen Asli di DMS"
+											>
+												<span class="material-symbols-outlined text-xs">folder_open</span>
+												<span>DMS</span>
+											</a>
+										{/if}
+										<button
+											onclick={() => openRenewModal(doc)}
+											class="px-3.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-xs font-bold text-primary transition-all cursor-pointer"
+										>
+											Perbarui
+										</button>
+									</div>
 								</td>
 							</tr>
 						{/each}
@@ -378,6 +420,7 @@
 					closeModal();
 				};
 			}} class="p-6 space-y-4 text-xs">
+				<input type="hidden" name="dms_document_id" value={selectedDoc.dms_document_id || ''} />
 				<input type="hidden" name="payroll_id" value={selectedDoc.payroll_id} />
 				<input type="hidden" name="doc_type" value={selectedDoc.doc_type} />
 

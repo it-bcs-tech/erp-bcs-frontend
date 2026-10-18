@@ -95,6 +95,48 @@ export const load: PageServerLoad = async ({ url }) => {
 			ORDER BY prog.certificate_expiry ASC NULLS LAST
 		`;
 
+		// 4. Ambil data SIO Operator dari DMS (dms.documents)
+		const sioDocuments = await sql`
+			SELECT 
+				d.id as dms_document_id,
+				k.id,
+				COALESCE(k.payroll_id, d.metadata->>'payroll_id', '-') as payroll_id,
+				COALESCE(k.nama_karyawan, d.metadata->>'operator_name', d.metadata->>'driver_name', 'Operator') as nama_karyawan,
+				COALESCE(t.title, k.title, d.metadata->>'job_desc', d.metadata->>'tipe', 'Operator') as job_title,
+				COALESCE(dept.dept_name, d.metadata->>'work_location', 'Operasional') as dept_name,
+				COALESCE(d.doc_number, d.metadata->>'sio_no', '-') as doc_number,
+				'SIO Operator' as doc_type,
+				TO_CHAR(d.expiry_date, 'YYYY-MM-DD') as expire_date,
+				(d.expiry_date::date - CURRENT_DATE)::int as days_remaining
+			FROM dms.documents d
+			JOIN dms.m_doc_type dt ON dt.id = d.doc_type_id AND dt.code = 'SIO_DRIVER'
+			LEFT JOIN master.m_karyawan k ON k.payroll_id = (d.metadata->>'payroll_id')
+			LEFT JOIN master.m_title t ON t.title_code = k.title
+			LEFT JOIN master.m_dept dept ON dept.dept_code = k.dept_id
+			ORDER BY d.expiry_date ASC NULLS LAST
+		`;
+
+		// 5. Ambil data Sertifikat B3 Driver dari DMS (dms.documents)
+		const b3Documents = await sql`
+			SELECT 
+				d.id as dms_document_id,
+				k.id,
+				COALESCE(k.payroll_id, d.metadata->>'payroll_id', '-') as payroll_id,
+				COALESCE(k.nama_karyawan, d.metadata->>'driver_name', 'Driver B3') as nama_karyawan,
+				COALESCE(t.title, k.title, d.metadata->>'jenis_kendaraan', 'Driver B3') as job_title,
+				COALESCE(dept.dept_name, d.metadata->>'project', 'Transport Cilegon') as dept_name,
+				COALESCE(d.doc_number, d.metadata->>'no_sertifikat', '-') as doc_number,
+				'Sertifikat Pengemudi Angkutan B3' as doc_type,
+				TO_CHAR(d.expiry_date, 'YYYY-MM-DD') as expire_date,
+				(d.expiry_date::date - CURRENT_DATE)::int as days_remaining
+			FROM dms.documents d
+			JOIN dms.m_doc_type dt ON dt.id = d.doc_type_id AND dt.code = 'SERTIFIKAT_B3_DRIVER'
+			LEFT JOIN master.m_karyawan k ON k.payroll_id = (d.metadata->>'payroll_id')
+			LEFT JOIN master.m_title t ON t.title_code = k.title
+			LEFT JOIN master.m_dept dept ON dept.dept_code = k.dept_id
+			ORDER BY d.expiry_date ASC NULLS LAST
+		`;
+
 		// Helper function untuk menentukan severity
 		const mapSeverity = (item: any) => {
 			const days = item.days_remaining;
@@ -108,9 +150,11 @@ export const load: PageServerLoad = async ({ url }) => {
 		const simMapped = (simDocuments || []).map(mapSeverity);
 		const contractMapped = (contractDocuments || []).map(mapSeverity);
 		const k3Mapped = (k3Documents || []).map(mapSeverity);
+		const sioMapped = (sioDocuments || []).map(mapSeverity);
+		const b3Mapped = (b3Documents || []).map(mapSeverity);
 
 		// Gabungkan ringkasan KPI
-		const allDocs = [...simMapped, ...contractMapped, ...k3Mapped];
+		const allDocs = [...simMapped, ...contractMapped, ...k3Mapped, ...sioMapped, ...b3Mapped];
 		const summary = {
 			total_expired: allDocs.filter(d => d.status === 'expired').length,
 			total_critical: allDocs.filter(d => d.status === 'critical').length,
@@ -119,13 +163,17 @@ export const load: PageServerLoad = async ({ url }) => {
 			total_docs: allDocs.length,
 			sim_count: simMapped.length,
 			contract_count: contractMapped.length,
-			k3_count: k3Mapped.length
+			k3_count: k3Mapped.length,
+			sio_count: sioMapped.length,
+			b3_count: b3Mapped.length
 		};
 
 		// Filter list sesuai category, severity, search
 		let activeDocs = simMapped;
 		if (category === 'contract') activeDocs = contractMapped;
-		if (category === 'k3') activeDocs = k3Mapped;
+		else if (category === 'k3') activeDocs = k3Mapped;
+		else if (category === 'sio') activeDocs = sioMapped;
+		else if (category === 'b3') activeDocs = b3Mapped;
 
 		if (severity) {
 			activeDocs = activeDocs.filter(d => d.status === severity);
@@ -156,7 +204,18 @@ export const load: PageServerLoad = async ({ url }) => {
 			category: 'sim',
 			severity: '',
 			searchQuery: '',
-			summary: { total_expired: 0, total_critical: 0, total_warning: 0, total_valid: 0, total_docs: 0, sim_count: 0, contract_count: 0, k3_count: 0 },
+			summary: {
+				total_expired: 0,
+				total_critical: 0,
+				total_warning: 0,
+				total_valid: 0,
+				total_docs: 0,
+				sim_count: 0,
+				contract_count: 0,
+				k3_count: 0,
+				sio_count: 0,
+				b3_count: 0
+			},
 			documents: [],
 			dataSource: 'direct-db'
 		};
@@ -166,16 +225,32 @@ export const load: PageServerLoad = async ({ url }) => {
 export const actions: Actions = {
 	renewDocument: async ({ request }) => {
 		const formData = await request.formData();
+		const dmsDocumentId = formData.get('dms_document_id')?.toString()?.trim();
 		const payrollId = formData.get('payroll_id')?.toString();
 		const docType = formData.get('doc_type')?.toString();
 		const newDocNumber = formData.get('new_doc_number')?.toString()?.trim() || null;
 		const newExpireDate = formData.get('new_expire_date')?.toString()?.trim();
 
-		if (!payrollId || !newExpireDate) {
-			return fail(400, { message: 'Payroll ID dan Tanggal Kedaluwarsa Baru wajib diisi' });
+		if (!newExpireDate) {
+			return fail(400, { message: 'Tanggal Kedaluwarsa Baru wajib diisi' });
 		}
 
 		try {
+			if (dmsDocumentId) {
+				await sql`
+					UPDATE dms.documents 
+					SET doc_number = COALESCE(${newDocNumber}, doc_number),
+					    expiry_date = ${newExpireDate}::date,
+					    updated_at = NOW()
+					WHERE id = ${dmsDocumentId}
+				`;
+				return { success: true, message: 'Berhasil memperbarui tanggal kedaluwarsa dokumen di DMS' };
+			}
+
+			if (!payrollId) {
+				return fail(400, { message: 'Payroll ID wajib diisi' });
+			}
+
 			if (docType?.includes('SIM B2')) {
 				await sql`
 					UPDATE master.m_karyawan 
