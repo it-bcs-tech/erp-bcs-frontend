@@ -82,6 +82,10 @@ export const load: PageServerLoad = async ({ url }) => {
 				u.expire_date_asuransi,
 				u.created_at,
 				u.updated_at,
+				(SELECT count(*) FROM dms.documents dms WHERE dms.asset_id = u.id) AS dms_docs_count,
+				(SELECT dms.id FROM dms.documents dms JOIN dms.m_doc_type dt ON dt.id = dms.doc_type_id WHERE dms.asset_id = u.id AND dt.code = 'BPKB' LIMIT 1) AS dms_bpkb_id,
+				(SELECT dms.id FROM dms.documents dms JOIN dms.m_doc_type dt ON dt.id = dms.doc_type_id WHERE dms.asset_id = u.id AND dt.code = 'IZIN_B3' LIMIT 1) AS dms_b3_id,
+				(SELECT to_char(dms.expiry_date, 'YYYY-MM-DD') FROM dms.documents dms JOIN dms.m_doc_type dt ON dt.id = dms.doc_type_id WHERE dms.asset_id = u.id AND dt.code = 'IZIN_B3' LIMIT 1) AS dms_b3_expiry,
 				-- Driver utama (SUPIR_UTAMA aktif) — NULL jika tidak ada
 				CASE
 					WHEN d.id IS NOT NULL THEN

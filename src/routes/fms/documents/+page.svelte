@@ -11,6 +11,7 @@
 	let docTypes = $derived(data.docTypes || []);
 
 	let searchQuery = $state($page.url.searchParams.get('search') || '');
+	let categoryFilter = $state($page.url.searchParams.get('category') || 'All');
 	let typeFilter = $state($page.url.searchParams.get('type') || 'All');
 	let statusFilter = $state($page.url.searchParams.get('status') || 'All');
 	
@@ -20,6 +21,9 @@
 		const url = new URL(window.location.href);
 		if (searchQuery) url.searchParams.set('search', searchQuery);
 		else url.searchParams.delete('search');
+
+		if (categoryFilter && categoryFilter !== 'All') url.searchParams.set('category', categoryFilter);
+		else url.searchParams.delete('category');
 		
 		if (typeFilter && typeFilter !== 'All') url.searchParams.set('type', typeFilter);
 		else url.searchParams.delete('type');
@@ -29,6 +33,12 @@
 		
 		url.searchParams.set('page', '1');
 		goto(url.toString(), { keepFocus: true, noScroll: true });
+	}
+
+	function handleCategoryClick(cat: string) {
+		categoryFilter = cat;
+		typeFilter = 'All';
+		updateQueryParams();
 	}
 
 	function handleSearchInput() {
@@ -63,10 +73,10 @@
 		<div>
 			<div class="flex items-center gap-2.5">
 				<span class="material-symbols-outlined text-blue-600 dark:text-blue-400 text-2xl">verified_user</span>
-				<h1 class="text-2xl font-black text-on-surface tracking-tight">Kepatuhan Dokumen Armada (Live DMS)</h1>
+				<h1 class="text-2xl font-black text-on-surface tracking-tight">Kepatuhan Dokumen Armada & Sopir (Live DMS)</h1>
 			</div>
 			<p class="text-on-surface-variant font-medium text-xs sm:text-sm mt-0.5">
-				Status legalitas STNK, KIR, BPKB, dan Polis Asuransi terhubung langsung dengan sistem DMS BCS
+				Status legalitas BPKB, Izin Limbah B3, Faktur Unit, STNK, KIR, SIO Operator & Sertifikat Driver B3 terhubung langsung dengan DMS BCS
 			</p>
 		</div>
 		<div class="flex items-center gap-2.5">
@@ -92,7 +102,7 @@
 					<span class="material-symbols-outlined text-2xl">description</span>
 				</div>
 			</div>
-			<p class="text-xs text-on-surface-variant font-medium mt-2">Seluruh berkas armada</p>
+			<p class="text-xs text-on-surface-variant font-medium mt-2">Armada: <strong>{metrics.fleetCount || 0}</strong> • Sopir: <strong>{metrics.driverCount || 0}</strong></p>
 		</div>
 
 		<div class="p-5 rounded-2xl bg-surface-container-low border border-slate-200/60 dark:border-slate-800/60 shadow-xs">
@@ -137,6 +147,44 @@
 
 	<!-- Unified Filter & Search Bar -->
 	<div class="p-4 rounded-2xl bg-surface-container-low border border-slate-200/60 dark:border-slate-800/60 flex flex-col gap-4 shadow-xs">
+		<!-- Row 0: Category Tabs (Segmented Control: All, FLEET, DRIVER) -->
+		<div class="flex items-center justify-between pb-3 border-b border-slate-200/60 dark:border-slate-800/60">
+			<div class="inline-flex p-1 rounded-2xl bg-surface-container border border-slate-200 dark:border-slate-800 overflow-x-auto">
+				<button
+					class="px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all cursor-pointer flex items-center gap-2 {categoryFilter === 'All'
+						? 'bg-surface text-blue-600 dark:text-blue-400 shadow-xs'
+						: 'text-on-surface-variant hover:text-on-surface'}"
+					onclick={() => handleCategoryClick('All')}
+				>
+					<span class="material-symbols-outlined text-sm">dashboard</span>
+					<span>Semua Berkas</span>
+					<span class="px-1.5 py-0.2 rounded-full text-[10px] bg-slate-200/60 dark:bg-slate-700 font-mono font-bold">{metrics.totalDocs}</span>
+				</button>
+
+				<button
+					class="px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all cursor-pointer flex items-center gap-2 {categoryFilter === 'FLEET'
+						? 'bg-surface text-blue-600 dark:text-blue-400 shadow-xs'
+						: 'text-on-surface-variant hover:text-on-surface'}"
+					onclick={() => handleCategoryClick('FLEET')}
+				>
+					<span class="material-symbols-outlined text-sm">local_shipping</span>
+					<span>Dokumen Armada Kendaraan</span>
+					<span class="px-1.5 py-0.2 rounded-full text-[10px] bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300 font-mono font-bold">{metrics.fleetCount}</span>
+				</button>
+
+				<button
+					class="px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all cursor-pointer flex items-center gap-2 {categoryFilter === 'DRIVER'
+						? 'bg-surface text-blue-600 dark:text-blue-400 shadow-xs'
+						: 'text-on-surface-variant hover:text-on-surface'}"
+					onclick={() => handleCategoryClick('DRIVER')}
+				>
+					<span class="material-symbols-outlined text-sm">badge</span>
+					<span>Legalitas Sopir & Operator</span>
+					<span class="px-1.5 py-0.2 rounded-full text-[10px] bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300 font-mono font-bold">{metrics.driverCount}</span>
+				</button>
+			</div>
+		</div>
+
 		<!-- Row 1: Document Type Tabs & Search -->
 		<div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
 			<div class="inline-flex p-1 rounded-2xl bg-surface-container border border-slate-200 dark:border-slate-800 overflow-x-auto max-w-full">
@@ -167,7 +215,7 @@
 					type="text" 
 					bind:value={searchQuery}
 					oninput={handleSearchInput}
-					placeholder="Cari nopol unit, nomor dokumen..." 
+					placeholder="Cari nopol, nama sopir, no dokumen..." 
 					class="w-full bg-surface border border-slate-200 dark:border-slate-700 text-on-surface rounded-xl py-2 pl-10 pr-4 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/40 placeholder:text-slate-400"
 				/>
 			</div>
@@ -197,7 +245,7 @@
 				<thead class="bg-slate-100/70 dark:bg-slate-800/50 text-xs font-bold text-on-surface-variant uppercase tracking-wider border-b border-slate-200/60 dark:border-slate-800/60">
 					<tr>
 						<th class="py-3.5 px-5">Informasi Dokumen</th>
-						<th class="py-3.5 px-5">Unit Kendaraan</th>
+						<th class="py-3.5 px-5">Entitas Terkait (Armada / Sopir)</th>
 						<th class="py-3.5 px-5">Instansi Penerbit</th>
 						<th class="py-3.5 px-5">Masa Berlaku</th>
 						<th class="py-3.5 px-5">Status</th>
@@ -209,7 +257,7 @@
 						<tr class="group hover:bg-surface-container-high/40 transition-colors">
 							<td class="py-3.5 px-5">
 								<div class="flex flex-col gap-0.5">
-									<div class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-surface-container-high text-on-surface-variant text-[10px] font-bold uppercase tracking-wider w-fit">
+									<div class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md {doc.category === 'FLEET' ? 'bg-blue-500/10 text-blue-700 dark:text-blue-300' : 'bg-amber-500/10 text-amber-700 dark:text-amber-300'} text-[10px] font-bold uppercase tracking-wider w-fit">
 										{doc.type}
 									</div>
 									<span class="text-sm font-bold text-on-surface">{doc.title || doc.docNumber}</span>
@@ -217,12 +265,29 @@
 								</div>
 							</td>
 							<td class="py-3.5 px-5">
-								<div class="flex items-center gap-3">
-									<div class="w-9 h-9 rounded-xl bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center text-blue-600 dark:text-blue-400 flex-shrink-0">
-										<span class="material-symbols-outlined text-[18px]">local_shipping</span>
+								{#if doc.category === 'FLEET'}
+									<div class="flex items-center gap-3">
+										<div class="w-9 h-9 rounded-xl bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center text-blue-600 dark:text-blue-400 flex-shrink-0">
+											<span class="material-symbols-outlined text-[18px]">local_shipping</span>
+										</div>
+										<div>
+											<span class="text-sm font-bold text-on-surface block font-mono">{doc.vehicle}</span>
+											<span class="text-[10px] text-on-surface-variant font-medium">Unit Armada</span>
+										</div>
 									</div>
-									<span class="text-sm font-bold text-on-surface">{doc.vehicle}</span>
-								</div>
+								{:else}
+									<div class="flex items-center gap-3">
+										<div class="w-9 h-9 rounded-xl bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center text-amber-600 dark:text-amber-400 flex-shrink-0">
+											<span class="material-symbols-outlined text-[18px]">person</span>
+										</div>
+										<div>
+											<span class="text-sm font-bold text-on-surface block">{doc.driver_name || 'Driver / Operator'}</span>
+											{#if doc.driver_payroll}
+												<span class="text-[10px] text-on-surface-variant font-mono">NIK: {doc.driver_payroll}</span>
+											{/if}
+										</div>
+									</div>
+								{/if}
 							</td>
 							<td class="py-3.5 px-5">
 								<span class="text-xs font-medium text-on-surface-variant">{doc.issuer}</span>
@@ -230,7 +295,7 @@
 							<td class="py-3.5 px-5">
 								<div class="flex items-center gap-2">
 									<span class="material-symbols-outlined text-[16px] text-slate-400">calendar_today</span>
-									<span class="text-sm font-bold text-on-surface">{doc.expiryDate || '-'}</span>
+									<span class="text-sm font-bold text-on-surface">{doc.expiryDate || 'Permanen'}</span>
 								</div>
 							</td>
 							<td class="py-3.5 px-5">
@@ -251,8 +316,9 @@
 							<td class="py-3.5 px-5 text-right">
 								<a
 									href="/dms/transactions/documents/{doc.id}"
+									target="_blank"
 									class="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/50 transition-colors"
-									title="Buka di DMS"
+									title="Buka Dokumen Asli di DMS"
 								>
 									<span class="material-symbols-outlined text-[18px]">visibility</span>
 									<span>Detail DMS</span>
@@ -263,8 +329,8 @@
 						<tr>
 							<td colspan="6" class="py-20 text-center">
 								<span class="material-symbols-outlined text-5xl text-on-surface-variant/30 block mb-3">folder_open</span>
-								<p class="text-on-surface-variant font-semibold">Tidak ada dokumen kendaraan di DMS</p>
-								<p class="text-xs text-on-surface-variant/60 mt-1">Coba ubah filter atau tambahkan dokumen armada baru di modul DMS.</p>
+								<p class="text-on-surface-variant font-semibold">Tidak ada dokumen kendaraan atau sopir di DMS</p>
+								<p class="text-xs text-on-surface-variant/60 mt-1">Coba ubah filter kategori atau tambahkan berkas baru di modul DMS.</p>
 							</td>
 						</tr>
 					{/each}

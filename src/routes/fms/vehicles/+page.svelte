@@ -370,13 +370,25 @@
 							<td class="py-4 px-6">
 								<p class="text-sm font-bold text-on-surface">{vhc.nama_produk || '—'} {vhc.tahun ? '(' + vhc.tahun + ')' : ''}</p>
 								<p class="text-xs text-on-surface-variant mt-0.5">{vhc.nama_model || '—'}</p>
-								<div class="flex items-center gap-1.5 mt-1.5">
+								<div class="flex flex-wrap items-center gap-1.5 mt-1.5">
 									<span class="inline-flex items-center px-2 py-0.5 rounded-md bg-surface-container-high text-on-surface-variant text-[10px] font-bold uppercase tracking-wider">
 										{vhc.nama_tipe || '—'}
 									</span>
 									<span class="inline-flex items-center px-2 py-0.5 rounded-md bg-{buColor}-100 text-{buColor}-700 dark:bg-{buColor}-900/30 dark:text-{buColor}-300 text-[10px] font-bold uppercase tracking-wider">
 										{buLabel[vhc.business_unit] ?? vhc.business_unit}
 									</span>
+									{#if vhc.dms_docs_count && Number(vhc.dms_docs_count) > 0}
+										<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-blue-500/10 text-blue-700 dark:text-blue-300 text-[10px] font-bold" title="{vhc.dms_docs_count} Berkas Terdaftar di DMS">
+											<span class="material-symbols-outlined text-[12px]">folder</span>
+											<span>{vhc.dms_docs_count} DMS</span>
+										</span>
+									{/if}
+									{#if vhc.dms_b3_id}
+										<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-500/10 text-amber-700 dark:text-amber-300 text-[10px] font-bold" title="Izin Limbah B3 Armada (Exp: {vhc.dms_b3_expiry || '-'})">
+											<span class="material-symbols-outlined text-[12px]">warning</span>
+											<span>Izin B3</span>
+										</span>
+									{/if}
 								</div>
 							</td>
 
@@ -798,9 +810,12 @@
 						<div class="flex items-center justify-between border-b border-slate-200/60 dark:border-slate-800/60 pb-3">
 							<div class="flex items-center gap-2">
 								<span class="material-symbols-outlined text-blue-600 text-lg">description</span>
-								<h3 class="text-xs font-black text-on-surface uppercase tracking-wider">Legalitas & Dokumen</h3>
+								<h3 class="text-xs font-black text-on-surface uppercase tracking-wider">Legalitas & Dokumen (DMS)</h3>
 							</div>
-							<a href="/fms/documents" class="text-[11px] font-bold text-blue-600 hover:underline">Semua Dokumen</a>
+							<a href="/fms/documents?search={encodeURIComponent(selectedVehicle.nomor_unit)}" class="text-[11px] font-bold text-blue-600 hover:underline flex items-center gap-1">
+								<span>Lihat di Kepatuhan</span>
+								<span class="material-symbols-outlined text-xs">arrow_forward</span>
+							</a>
 						</div>
 
 						<div class="grid grid-cols-2 gap-3 pt-1 text-xs">
@@ -813,7 +828,15 @@
 								<p class="font-bold text-on-surface font-mono mt-0.5">{selectedVehicle.no_mesin || '—'}</p>
 							</div>
 							<div>
-								<p class="text-[10px] text-on-surface-variant font-medium uppercase">No. BPKB</p>
+								<div class="flex items-center justify-between">
+									<p class="text-[10px] text-on-surface-variant font-medium uppercase">No. BPKB</p>
+									{#if selectedVehicle.dms_bpkb_id}
+										<a href="/dms/transactions/documents/{selectedVehicle.dms_bpkb_id}" target="_blank" class="text-[10px] font-bold text-blue-600 hover:underline flex items-center gap-0.5">
+											<span>DMS</span>
+											<span class="material-symbols-outlined text-[10px]">open_in_new</span>
+										</a>
+									{/if}
+								</div>
 								<p class="font-bold text-on-surface font-mono mt-0.5">{selectedVehicle.no_bpkb || '—'}</p>
 							</div>
 							<div>
@@ -821,14 +844,35 @@
 								<p class="font-bold text-on-surface font-mono mt-0.5">{selectedVehicle.no_kir || '—'}</p>
 							</div>
 							<div>
-								<p class="text-[10px] text-on-surface-variant font-medium uppercase">Jadwal Servis Preventif</p>
-								<p class="font-bold text-on-surface mt-0.5">{selectedVehicle.tgl_maintenance_prevent || '—'}</p>
+								<div class="flex items-center justify-between">
+									<p class="text-[10px] text-on-surface-variant font-medium uppercase">Izin Limbah B3</p>
+									{#if selectedVehicle.dms_b3_id}
+										<a href="/dms/transactions/documents/{selectedVehicle.dms_b3_id}" target="_blank" class="text-[10px] font-bold text-amber-600 hover:underline flex items-center gap-0.5">
+											<span>DMS</span>
+											<span class="material-symbols-outlined text-[10px]">open_in_new</span>
+										</a>
+									{/if}
+								</div>
+								<p class="font-bold text-on-surface mt-0.5 font-mono">{selectedVehicle.dms_b3_expiry ? `Exp: ${selectedVehicle.dms_b3_expiry}` : '—'}</p>
 							</div>
 							<div>
 								<p class="text-[10px] text-on-surface-variant font-medium uppercase">Asuransi Expired</p>
 								<p class="font-bold text-on-surface mt-0.5">{selectedVehicle.expire_date_asuransi || '—'}</p>
 							</div>
 						</div>
+
+						{#if selectedVehicle.dms_docs_count && Number(selectedVehicle.dms_docs_count) > 0}
+							<div class="p-3 rounded-xl bg-blue-500/5 border border-blue-500/20 flex items-center justify-between text-xs mt-2">
+								<div class="flex items-center gap-2">
+									<span class="material-symbols-outlined text-blue-600 text-base">folder_special</span>
+									<span class="font-semibold text-on-surface">Unit ini memiliki <strong>{selectedVehicle.dms_docs_count} dokumen</strong> tersimpan di DMS</span>
+								</div>
+								<a href="/dms/transactions/documents?q={encodeURIComponent(selectedVehicle.nomor_unit)}" target="_blank" class="px-2.5 py-1 rounded-lg bg-blue-600 text-white text-[11px] font-bold hover:bg-blue-700 transition-colors inline-flex items-center gap-1">
+									<span>Buka DMS</span>
+									<span class="material-symbols-outlined text-[12px]">open_in_new</span>
+								</a>
+							</div>
+						{/if}
 					</div>
 
 					<!-- Section: Area Proyek Operasional -->
