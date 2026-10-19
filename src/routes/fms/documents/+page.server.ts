@@ -101,6 +101,29 @@ export const load: PageServerLoad = async ({ url }) => {
 		}
 
 		const total = filtered.length;
+
+		// Sorting cerdas:
+		// Jika pengguna memfilter status kedaluwarsa ('Expired' / 'Expiring Soon'), urutkan berdasarkan expiry_date ASC
+		// Jika melihat Semua ('All') atau 'Valid', urutkan berdasarkan Unit Kendaraan dan prioritaskan BPKB agar langsung tampil di Halaman 1
+		if (statusFilter === 'Expired' || statusFilter === 'Expiring Soon') {
+			filtered.sort((a, b) => {
+				const aTime = a.expiryDate ? new Date(a.expiryDate).getTime() : Infinity;
+				const bTime = b.expiryDate ? new Date(b.expiryDate).getTime() : Infinity;
+				return aTime - bTime;
+			});
+		} else {
+			filtered.sort((a, b) => {
+				const aHasUnit = a.vehicle && a.vehicle !== 'Armada Umum';
+				const bHasUnit = b.vehicle && b.vehicle !== 'Armada Umum';
+				if (aHasUnit && !bHasUnit) return -1;
+				if (!aHasUnit && bHasUnit) return 1;
+				if (a.vehicle !== b.vehicle) return (a.vehicle || '').localeCompare(b.vehicle || '');
+				const rank = (code: string) => code === 'BPKB' ? 1 : code === 'IZIN_B3' ? 2 : 3;
+				if (rank(a.type_code) !== rank(b.type_code)) return rank(a.type_code) - rank(b.type_code);
+				return (a.title || '').localeCompare(b.title || '');
+			});
+		}
+
 		const paginated = filtered.slice(offset, offset + perPage);
 
 		// Ambil list doc types khusus fleet & driver
