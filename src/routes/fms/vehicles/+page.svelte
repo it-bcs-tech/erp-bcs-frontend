@@ -840,8 +840,28 @@
 								<p class="font-bold text-on-surface font-mono mt-0.5">{selectedVehicle.no_bpkb || '—'}</p>
 							</div>
 							<div>
-								<p class="text-[10px] text-on-surface-variant font-medium uppercase">No. Uji KIR</p>
-								<p class="font-bold text-on-surface font-mono mt-0.5">{selectedVehicle.no_kir || '—'}</p>
+								<div class="flex items-center justify-between">
+									<p class="text-[10px] text-on-surface-variant font-medium uppercase">No. Uji KIR</p>
+									{#if selectedVehicle.dms_kir_id}
+										<a href="/dms/transactions/documents/{selectedVehicle.dms_kir_id}" target="_blank" class="text-[10px] font-bold text-teal-600 hover:underline flex items-center gap-0.5">
+											<span>DMS</span>
+											<span class="material-symbols-outlined text-[10px]">open_in_new</span>
+										</a>
+									{/if}
+								</div>
+								<p class="font-bold text-on-surface font-mono mt-0.5">{selectedVehicle.no_uji || selectedVehicle.no_kir || '—'}</p>
+							</div>
+							<div>
+								<div class="flex items-center justify-between">
+									<p class="text-[10px] text-on-surface-variant font-medium uppercase">STNK Kendaraan</p>
+									{#if selectedVehicle.dms_stnk_id}
+										<a href="/dms/transactions/documents/{selectedVehicle.dms_stnk_id}" target="_blank" class="text-[10px] font-bold text-indigo-600 hover:underline flex items-center gap-0.5">
+											<span>DMS</span>
+											<span class="material-symbols-outlined text-[10px]">open_in_new</span>
+										</a>
+									{/if}
+								</div>
+								<p class="font-bold text-on-surface font-mono mt-0.5">{selectedVehicle.dms_stnk_id ? 'Tersedia di DMS' : '—'}</p>
 							</div>
 							<div>
 								<div class="flex items-center justify-between">

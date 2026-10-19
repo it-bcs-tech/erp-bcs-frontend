@@ -66,6 +66,7 @@ export const load: PageServerLoad = async ({ url }) => {
 				u.no_mesin,
 				u.no_bpkb,
 				u.no_kir,
+				u.no_uji,
 				u.tahun,
 				mu.nama_produk,
 				mu.nama_model,
@@ -84,6 +85,8 @@ export const load: PageServerLoad = async ({ url }) => {
 				u.updated_at,
 				(SELECT count(*) FROM dms.documents dms WHERE dms.asset_id = u.id) AS dms_docs_count,
 				(SELECT dms.id FROM dms.documents dms JOIN dms.m_doc_type dt ON dt.id = dms.doc_type_id WHERE dms.asset_id = u.id AND dt.code = 'BPKB' LIMIT 1) AS dms_bpkb_id,
+				(SELECT dms.id FROM dms.documents dms JOIN dms.m_doc_type dt ON dt.id = dms.doc_type_id WHERE dms.asset_id = u.id AND dt.code = 'KIR' LIMIT 1) AS dms_kir_id,
+				(SELECT dms.id FROM dms.documents dms JOIN dms.m_doc_type dt ON dt.id = dms.doc_type_id WHERE dms.asset_id = u.id AND dt.code = 'STNK' LIMIT 1) AS dms_stnk_id,
 				(SELECT dms.id FROM dms.documents dms JOIN dms.m_doc_type dt ON dt.id = dms.doc_type_id WHERE dms.asset_id = u.id AND dt.code = 'IZIN_B3' LIMIT 1) AS dms_b3_id,
 				(SELECT to_char(dms.expiry_date, 'YYYY-MM-DD') FROM dms.documents dms JOIN dms.m_doc_type dt ON dt.id = dms.doc_type_id WHERE dms.asset_id = u.id AND dt.code = 'IZIN_B3' LIMIT 1) AS dms_b3_expiry,
 				-- Driver utama (SUPIR_UTAMA aktif) — NULL jika tidak ada
