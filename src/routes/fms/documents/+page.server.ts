@@ -39,7 +39,10 @@ export const load: PageServerLoad = async ({ url }) => {
 			LEFT JOIN master.m_drivers drv ON drv.id = d.employee_id
 			LEFT JOIN master.m_karyawan k ON k.id = drv.karyawan_id OR k.payroll_id = (d.metadata->>'payroll_id')
 			LEFT JOIN dms.m_issuer i ON i.id = d.issuer_id
-			WHERE dt.code IN ('BPKB', 'IZIN_B3', 'FAKTUR_ARMADA', 'STNK', 'KIR', 'SIM_DRIVER', 'SERTIFIKAT_B3_DRIVER', 'SIO_DRIVER')
+			WHERE dt.code IN (
+				'BPKB', 'STNK', 'PAJAK_STNK', 'KIR', 'KIU', 'IZIN_B3', 'IBM', 'UJI_EMISI', 'FAKTUR_ARMADA',
+				'SIM_DRIVER', 'SERTIFIKAT_B3_DRIVER', 'SIO_DRIVER'
+			)
 			ORDER BY d.expiry_date ASC NULLS LAST
 		`;
 
@@ -118,7 +121,20 @@ export const load: PageServerLoad = async ({ url }) => {
 				if (aHasUnit && !bHasUnit) return -1;
 				if (!aHasUnit && bHasUnit) return 1;
 				if (a.vehicle !== b.vehicle) return (a.vehicle || '').localeCompare(b.vehicle || '');
-				const rank = (code: string) => code === 'BPKB' ? 1 : code === 'IZIN_B3' ? 2 : 3;
+				const rank = (code: string) => {
+					switch (code) {
+						case 'BPKB': return 1;
+						case 'STNK': return 2;
+						case 'PAJAK_STNK': return 3;
+						case 'KIR': return 4;
+						case 'KIU': return 5;
+						case 'IZIN_B3': return 6;
+						case 'IBM': return 7;
+						case 'UJI_EMISI': return 8;
+						case 'FAKTUR_ARMADA': return 9;
+						default: return 10;
+					}
+				};
 				if (rank(a.type_code) !== rank(b.type_code)) return rank(a.type_code) - rank(b.type_code);
 				return (a.title || '').localeCompare(b.title || '');
 			});
@@ -129,7 +145,10 @@ export const load: PageServerLoad = async ({ url }) => {
 		// Ambil list doc types khusus fleet & driver
 		const docTypes = await sql`
 			SELECT code, name FROM dms.m_doc_type 
-			WHERE code IN ('BPKB', 'IZIN_B3', 'FAKTUR_ARMADA', 'STNK', 'KIR', 'SIM_DRIVER', 'SERTIFIKAT_B3_DRIVER', 'SIO_DRIVER')
+			WHERE code IN (
+				'BPKB', 'STNK', 'PAJAK_STNK', 'KIR', 'KIU', 'IZIN_B3', 'IBM', 'UJI_EMISI', 'FAKTUR_ARMADA',
+				'SIM_DRIVER', 'SERTIFIKAT_B3_DRIVER', 'SIO_DRIVER'
+			)
 			ORDER BY name
 		`;
 
