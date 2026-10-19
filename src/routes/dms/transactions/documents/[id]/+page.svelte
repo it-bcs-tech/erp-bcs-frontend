@@ -110,6 +110,13 @@
 				<span class="px-2.5 py-1 rounded-lg text-xs font-black bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800">
 					v{doc.current_version || 1}
 				</span>
+				<!-- Old Plate Badge if unit underwent mutation -->
+				{#if doc.unit_old_plate && doc.unit_old_plate !== doc.unit_number}
+					<span class="px-2.5 py-1 rounded-lg text-xs font-bold bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800 flex items-center gap-1.5" title={`Sebelumnya berpelat nomor ${doc.unit_old_plate}`}>
+						<span class="material-symbols-outlined text-[15px]">sync_alt</span>
+						<span>Eks Nopol: <strong>{doc.unit_old_plate}</strong></span>
+					</span>
+				{/if}
 			</div>
 			<p class="text-xs md:text-sm text-on-surface-variant font-medium mt-1 flex flex-wrap items-center gap-2">
 				<span class="font-bold text-on-surface">{doc.type_name || 'Dokumen'}</span>
@@ -224,6 +231,38 @@
 		<div class="grid grid-cols-1 lg:grid-cols-3 gap-6 animate-in fade-in duration-150">
 			<!-- Left / Main: General Info & Dates -->
 			<div class="lg:col-span-2 space-y-6">
+				<!-- Plate Mutation History Banner -->
+				{#if doc.unit_old_plate && doc.unit_old_plate !== doc.unit_number}
+					<div class="p-4 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/70 flex items-start gap-3.5 shadow-xs">
+						<div class="w-10 h-10 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center flex-shrink-0">
+							<span class="material-symbols-outlined text-xl">published_with_changes</span>
+						</div>
+						<div class="flex-1">
+							<div class="flex flex-wrap items-center justify-between gap-2">
+								<h4 class="text-xs font-black uppercase tracking-wider text-amber-900 dark:text-amber-300 flex items-center gap-1.5">
+									<span>Riwayat Perubahan Plat Nomor (Mutasi Kendaraan)</span>
+									<span class="px-2 py-0.5 rounded-full text-[10px] bg-amber-200/60 dark:bg-amber-900/60 text-amber-900 dark:text-amber-100 font-bold">Mutasi Tercatat</span>
+								</h4>
+								<button
+									type="button"
+									onclick={() => activeTab = 'versions'}
+									class="text-xs font-bold text-amber-700 dark:text-amber-300 hover:underline flex items-center gap-1 cursor-pointer"
+								>
+									<span>Lihat Riwayat Versi (v1 & v2)</span>
+									<span class="material-symbols-outlined text-sm">arrow_forward</span>
+								</button>
+							</div>
+							<p class="text-xs text-amber-800 dark:text-amber-200 mt-1 font-medium leading-relaxed">
+								Unit armada ini sebelumnya terdaftar resmi dengan Nomor Polisi Lama: 
+								<span class="font-mono font-bold bg-amber-200/60 dark:bg-amber-900/60 px-1.5 py-0.5 rounded text-amber-950 dark:text-amber-100">{doc.unit_old_plate}</span> 
+								sebelum dimutasi menjadi Nomor Polisi Baru: 
+								<span class="font-mono font-bold bg-amber-200/60 dark:bg-amber-900/60 px-1.5 py-0.5 rounded text-amber-950 dark:text-amber-100">{doc.unit_number}</span>. 
+								Seluruh rekam jejak identitas masa lalu dan berkas pindaian terdahulu tersimpan rapi di snapshot riwayat versi dokumen.
+							</p>
+						</div>
+					</div>
+				{/if}
+
 				<!-- Expiry & Entity Banner -->
 				<div class="bg-surface-container-lowest dark:bg-surface-container-low border border-slate-200/80 dark:border-slate-800/80 rounded-3xl p-6 shadow-xs">
 					<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-slate-100 dark:border-slate-800/80">
@@ -424,6 +463,7 @@
 					<thead>
 						<tr class="border-b border-slate-200 dark:border-slate-800 text-on-surface-variant font-bold uppercase tracking-wider">
 							<th class="py-3 px-4">Versi</th>
+							<th class="py-3 px-4">Judul Versi & Identitas</th>
 							<th class="py-3 px-4">Nomor Dokumen</th>
 							<th class="py-3 px-4">Tanggal Terbit</th>
 							<th class="py-3 px-4">Jatuh Tempo</th>
@@ -441,10 +481,19 @@
 										<span class="ml-1.5 px-2 py-0.5 text-[10px] rounded bg-emerald-100 text-emerald-800 font-bold uppercase">Aktif</span>
 									{/if}
 								</td>
+								<td class="py-3.5 px-4 font-bold text-on-surface">
+									<div>{ver.title || doc.title}</div>
+									{#if ver.metadata?.unit_plate || ver.metadata?.previous_plate}
+										<span class="inline-flex items-center gap-1 mt-0.5 px-2 py-0.5 rounded text-[10px] font-mono font-bold {ver.version_number === 1 ? 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300' : 'bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300'}">
+											<span class="material-symbols-outlined text-[12px]">{ver.version_number === 1 ? 'history' : 'verified'}</span>
+											<span>Plat: {ver.metadata?.unit_plate || ver.metadata?.current_plate}</span>
+										</span>
+									{/if}
+								</td>
 								<td class="py-3.5 px-4 font-mono font-bold text-on-surface">{ver.doc_number || '-'}</td>
 								<td class="py-3.5 px-4 text-on-surface">{formatDateId(ver.issue_date)}</td>
 								<td class="py-3.5 px-4 text-on-surface font-bold">{formatDateId(ver.expiry_date)}</td>
-								<td class="py-3.5 px-4 text-on-surface-variant max-w-xs truncate">{ver.change_summary || 'Perpanjangan reguler'}</td>
+								<td class="py-3.5 px-4 text-on-surface-variant max-w-xs">{ver.change_summary || 'Perpanjangan reguler'}</td>
 								<td class="py-3.5 px-4 text-on-surface-variant">{formatDateTimeId(ver.created_at)}</td>
 								<td class="py-3.5 px-4 text-right">
 									{#if ver.file_path}

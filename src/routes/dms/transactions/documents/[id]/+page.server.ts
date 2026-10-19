@@ -20,6 +20,7 @@ export const load: PageServerLoad = async ({ params }) => {
 				dt.name as type_name,
 				COALESCE(c.nama_kustomer, v.nama_vendor, d.metadata->>'partner_name') as partner_name,
 				u.nomor_unit as unit_number,
+				u.nomor_unit_lama as unit_old_plate,
 				u.business_unit as unit_type,
 				k.nama_karyawan as driver_name,
 				k.payroll_id as driver_payroll_id,

@@ -22,6 +22,7 @@ export interface DocumentItem {
 	asset_id?: string | number | null;
 	unit_number?: string | null;
 	unit_nomor?: string | null;
+	unit_old_plate?: string | null;
 	unit_lambung?: string | null;
 	unit_type?: string | null;
 	unit_plate?: string | null;
