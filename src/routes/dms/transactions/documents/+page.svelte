@@ -295,14 +295,16 @@
 	<!-- Table Container with Filter Header -->
 	<div class="rounded-2xl bg-surface-container-low border border-slate-200/60 dark:border-slate-800/60 overflow-hidden shadow-xs flex-1 flex flex-col">
 		<!-- Search & Filters Bar -->
-		<form method="GET" data-sveltekit-keepfocus class="p-4 border-b border-slate-200/60 dark:border-slate-800/60 bg-slate-50/50 dark:bg-slate-800/30 flex flex-col sm:flex-row gap-3 items-center">
+		<form method="GET" data-sveltekit-keepfocus class="p-3 sm:p-4 border-b border-slate-200/60 dark:border-slate-800/60 bg-slate-50/50 dark:bg-slate-800/30 flex flex-wrap items-center gap-2 sm:gap-2.5">
 			<input type="hidden" name="entity_type" value={entityType} />
-			<input type="hidden" name="type" value={type} />
+			{#if type === 'KONTRAK_KERJASAMA'}
+				<input type="hidden" name="type" value={type} />
+			{/if}
 			<input type="hidden" name="gate" value={gate} />
 			<input type="hidden" name="scope" value={scope} />
 			<input type="hidden" name="limit" value={data.pagination.limit} />
 
-			<div class="relative flex-1 w-full">
+			<div class="relative flex-1 min-w-[200px] sm:min-w-[240px]">
 				<span class="material-symbols-outlined absolute left-3.5 top-1/2 -translate-y-1/2 text-on-surface-variant text-lg">search</span>
 				<input
 					type="text"
@@ -313,23 +315,27 @@
 				/>
 			</div>
 
-			<select
-				name="type"
-				onchange={handleTypeChange}
-				value={type}
-				class="bg-surface-container-low text-on-surface rounded-xl px-3 py-2 text-xs font-medium border-0 outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all cursor-pointer w-full sm:w-auto"
-			>
-				<option value="">Semua Tipe Dokumen</option>
-				{#each data.docTypes as dt}
-					<option value={dt.code}>{dt.name}</option>
-				{/each}
-			</select>
+			{#if type !== 'KONTRAK_KERJASAMA'}
+				<select
+					name="type"
+					onchange={handleTypeChange}
+					value={type}
+					class="bg-surface-container-low text-on-surface rounded-xl px-3 py-2 text-xs font-medium border-0 outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all cursor-pointer w-full sm:w-auto sm:max-w-[155px] truncate"
+					title="Filter berdasarkan Tipe Dokumen"
+				>
+					<option value="">Semua Tipe Dokumen</option>
+					{#each data.docTypes as dt}
+						<option value={dt.code}>{dt.name}</option>
+					{/each}
+				</select>
+			{/if}
 
 			<select
 				name="category"
 				onchange={handleCategoryChange}
 				value={category}
-				class="bg-surface-container-low text-on-surface rounded-xl px-3 py-2 text-xs font-medium border-0 outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all cursor-pointer w-full sm:w-auto"
+				class="bg-surface-container-low text-on-surface rounded-xl px-3 py-2 text-xs font-medium border-0 outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all cursor-pointer w-full sm:w-auto sm:max-w-[150px] truncate"
+				title="Filter berdasarkan Kategori Dokumen"
 			>
 				<option value="">Semua Kategori</option>
 				{#each data.categories || [] as cat}
@@ -342,7 +348,8 @@
 					name="company"
 					onchange={handleCompanyChange}
 					value={company}
-					class="bg-surface-container-low text-on-surface rounded-xl px-3 py-2 text-xs font-medium border-0 outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all cursor-pointer w-full sm:w-auto"
+					class="bg-surface-container-low text-on-surface rounded-xl px-3 py-2 text-xs font-medium border-0 outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all cursor-pointer w-full sm:w-auto sm:max-w-[175px] truncate"
+					title="Filter berdasarkan Entitas Perusahaan"
 				>
 					<option value="">Semua Perusahaan</option>
 					{#each data.companies || [] as cmp}
@@ -355,19 +362,19 @@
 				name="sort"
 				onchange={handleSortChange}
 				value={sort}
-				class="bg-surface-container-low text-on-surface rounded-xl px-3 py-2 text-xs font-medium border-0 outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all cursor-pointer w-full sm:w-auto"
+				class="bg-surface-container-low text-on-surface rounded-xl px-3 py-2 text-xs font-medium border-0 outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all cursor-pointer w-full sm:w-auto sm:max-w-[160px] truncate"
 				title="Urutan Tampilan Dokumen"
 			>
-				<option value="newest">🕒 Terbaru (Tanggal Terbit)</option>
-				<option value="oldest">⏳ Terlama (Tanggal Terbit)</option>
-				<option value="expiring_soon">⚠️ Segera Kadaluarsa</option>
+				<option value="newest">🕒 Terbaru (Terbit)</option>
+				<option value="oldest">⏳ Terlama (Terbit)</option>
+				<option value="expiring_soon">⚠️ Segera Expired</option>
 				<option value="created_recent">📥 Terakhir Ditambahkan</option>
 			</select>
 
-			<div class="flex items-center gap-2 w-full sm:w-auto">
+			<div class="flex items-center gap-1.5 w-full sm:w-auto shrink-0">
 				<button
 					type="submit"
-					class="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2 rounded-xl text-xs font-bold transition-colors flex items-center justify-center gap-1.5 shadow-xs cursor-pointer flex-1 sm:flex-initial"
+					class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-xl text-xs font-bold transition-colors flex items-center justify-center gap-1.5 shadow-xs cursor-pointer flex-1 sm:flex-initial shrink-0"
 				>
 					<span class="material-symbols-outlined text-sm">filter_alt</span>
 					<span>Filter</span>
@@ -377,7 +384,7 @@
 					<button
 						type="button"
 						onclick={resetFilters}
-						class="px-3.5 py-2 rounded-xl text-xs font-bold text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors flex items-center gap-1 cursor-pointer flex-shrink-0"
+						class="px-3 py-2 rounded-xl text-xs font-bold text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors flex items-center gap-1 cursor-pointer shrink-0"
 						title="Reset semua filter ke default"
 					>
 						<span class="material-symbols-outlined text-sm">filter_alt_off</span>
