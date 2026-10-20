@@ -5053,7 +5053,7 @@
 													</td>
 												</tr>
 											{:else}
-												{#each filteredRecapRows as row (row.no)}
+												{#each filteredRecapRows as row, idx (row.id || `${row.no || 'row'}_${idx}`)}
 													<tr class="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors">
 														<!-- IDENTITAS -->
 														<td class="p-2.5 text-center font-mono font-bold text-slate-500 border-r border-slate-200 dark:border-slate-800 sticky left-0 bg-surface z-10">{row.no}</td>
@@ -11296,7 +11296,7 @@
 
 					<!-- List Checklist Multi-Select: Satu Daftar Tunggal dengan Item Tercentang Otomatis Naik ke Atas -->
 					<div class="flex-1 overflow-y-auto divide-y divide-slate-200/60 dark:divide-slate-800/60 rounded-2xl border border-slate-200/60 dark:border-slate-800/60 bg-surface">
-						{#each filteredModalCompetencies as comp (comp.code)}
+						{#each filteredModalCompetencies as comp, idx (comp.code ? `${comp.code}_${idx}` : idx)}
 							{@const isChecked = Boolean(selectedCompStandards[comp.code]?.selected)}
 							{@const currentLevel = selectedCompStandards[comp.code]?.requiredLevel || 3}
 							<div class="p-3 flex items-center justify-between gap-3 hover:bg-surface-container/40 transition-colors {isChecked ? 'bg-primary/5 dark:bg-primary/10 border-l-4 border-l-primary' : ''}">

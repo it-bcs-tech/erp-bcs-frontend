@@ -114,6 +114,16 @@
 			requiredComps = jobStandards.filter((s: any) => s.positionTitle.toLowerCase() === posLower);
 		}
 
+		// De-duplikasi kompetensi jika ada duplikasi posisi dari multi-divisi
+		const uniqueReqMap = new Map<string, any>();
+		for (const item of requiredComps) {
+			const code = item.competencyCode || item.code || item.id;
+			if (code && !uniqueReqMap.has(code)) {
+				uniqueReqMap.set(code, item);
+			}
+		}
+		requiredComps = Array.from(uniqueReqMap.values());
+
 		const assessedComps = existingAssessments.filter((a: any) => a.payrollId === payrollId && a.period === selectedPeriod);
 
 		const isAssessed = assessedComps.length > 0;
@@ -194,7 +204,16 @@
 			matched = jobStandards.filter((s: any) => s.positionTitle.toLowerCase() === posLower);
 		}
 
-		return matched;
+		// De-duplikasi berdasarkan competencyCode agar tidak ada unit kompetensi ganda
+		const uniqueMap = new Map<string, any>();
+		for (const item of matched) {
+			const code = item.competencyCode || item.code || item.id;
+			if (code && !uniqueMap.has(code)) {
+				uniqueMap.set(code, item);
+			}
+		}
+
+		return Array.from(uniqueMap.values());
 	});
 
 	// Kelompokkan Kompetensi Berdasarkan Aspek
@@ -1284,7 +1303,7 @@
 								</div>
 
 								<div class="space-y-3">
-									{#each coreCompetencies as comp (comp.competencyCode)}
+									{#each coreCompetencies as comp, idx (comp.id || `${comp.competencyCode}_${idx}`)}
 										{@render competencyCard(comp, 'Core Competency', 'indigo')}
 									{/each}
 								</div>
@@ -1302,7 +1321,7 @@
 								</div>
 
 								<div class="space-y-3">
-									{#each behavioralCompetencies as comp (comp.competencyCode)}
+									{#each behavioralCompetencies as comp, idx (comp.id || `${comp.competencyCode}_${idx}`)}
 										{@render competencyCard(comp, 'Behavioral Competency', 'amber')}
 									{/each}
 								</div>
@@ -1320,7 +1339,7 @@
 								</div>
 
 								<div class="space-y-3">
-									{#each technicalCompetencies as comp (comp.competencyCode)}
+									{#each technicalCompetencies as comp, idx (comp.id || `${comp.competencyCode}_${idx}`)}
 										{@render competencyCard(comp, 'Technical Competency', 'emerald')}
 									{/each}
 								</div>
