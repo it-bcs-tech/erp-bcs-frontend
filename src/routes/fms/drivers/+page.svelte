@@ -33,10 +33,18 @@
 		updateQueryParams();
 	}
 
-	let totalPages = $derived(Math.max(1, Math.ceil((meta?.total || 0) / (meta?.per_page || 5))));
+	let totalPages = $derived(Math.max(1, Math.ceil((meta?.total || 0) / (meta?.per_page || 10))));
 	let currentPage = $derived(meta?.current_page || 1);
-	let startItem = $derived(meta?.total === 0 ? 0 : ((currentPage - 1) * (meta?.per_page || 5)) + 1);
-	let endItem = $derived(Math.min(currentPage * (meta?.per_page || 5), meta?.total || 0));
+	let startItem = $derived(meta?.total === 0 ? 0 : ((currentPage - 1) * (meta?.per_page || 10)) + 1);
+	let endItem = $derived(Math.min(currentPage * (meta?.per_page || 10), meta?.total || 0));
+
+	let pageNumbers = $derived.by(() => {
+		const pages: number[] = [];
+		const start = Math.max(1, currentPage - 2);
+		const end = Math.min(totalPages, Math.max(1, start + 4));
+		for (let i = start; i <= end; i++) pages.push(i);
+		return pages;
+	});
 
 	function goToPage(p: number) {
 		if (p < 1 || p > totalPages) return;
@@ -317,11 +325,11 @@
 					onclick={() => goToPage(currentPage - 1)}>
 					<span class="material-symbols-outlined text-lg">chevron_left</span>
 				</button>
-				{#each Array(totalPages) as _, i}
+				{#each pageNumbers as pNum}
 					<button 
-						class="w-8 h-8 rounded-lg flex items-center justify-center font-bold text-xs shadow-xs transition-colors {currentPage === i + 1 ? 'bg-blue-600 text-white' : 'text-on-surface hover:bg-surface-container-high'}"
-						onclick={() => goToPage(i + 1)}>
-						{i + 1}
+						class="w-8 h-8 rounded-lg flex items-center justify-center font-bold text-xs shadow-xs transition-colors {currentPage === pNum ? 'bg-blue-600 text-white' : 'text-on-surface hover:bg-surface-container-high'}"
+						onclick={() => goToPage(pNum)}>
+						{pNum}
 					</button>
 				{/each}
 				<button 

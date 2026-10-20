@@ -5,7 +5,7 @@ export const load: PageServerLoad = async ({ cookies, url }) => {
 	const authToken = cookies.get('auth_token');
 	
 	const page = Number(url.searchParams.get('page')) || 1;
-	const perPage = 5;
+	const perPage = Number(url.searchParams.get('limit')) || 10;
 	const searchQuery = url.searchParams.get('search') || '';
 	const statusFilter = url.searchParams.get('status') || '';
 
