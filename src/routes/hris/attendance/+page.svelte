@@ -1,6 +1,7 @@
 <script lang="ts">
 	import type { PageData } from './$types';
 	import { goto } from '$app/navigation';
+	import Pagination from '$lib/components/Pagination.svelte';
 	
 	let { data }: { data: PageData } = $props();
 	
@@ -452,39 +453,16 @@
 			</div>
 			
 			<!-- Pagination Controls -->
+			<!-- Pagination Controls -->
 			{#if paginationMeta && paginationMeta.total > 0}
-				<div class="px-6 py-4 border-t border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-4 bg-slate-50/50 dark:bg-slate-800/20">
-					<div class="text-sm text-slate-500 dark:text-slate-400">
-						Menampilkan <span class="font-bold text-slate-700 dark:text-slate-200">{(paginationMeta.current_page - 1) * paginationMeta.per_page + 1}</span> 
-						sampai <span class="font-bold text-slate-700 dark:text-slate-200">{Math.min(paginationMeta.current_page * paginationMeta.per_page, paginationMeta.total)}</span> 
-						dari <span class="font-bold text-slate-700 dark:text-slate-200">{paginationMeta.total}</span> total data
-					</div>
-					
-					<div class="flex items-center gap-1.5">
-						<button 
-							type="button"
-							disabled={paginationMeta.current_page <= 1}
-							onclick={() => handleFilterChange(paginationMeta.current_page - 1)}
-							class="w-8 h-8 rounded-lg flex items-center justify-center border border-slate-200 dark:border-slate-700 text-slate-500 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-slate-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-						>
-							<span class="material-symbols-outlined text-sm">chevron_left</span>
-						</button>
-						
-						<!-- Simplified page numbers -->
-						<div class="px-3 text-sm font-bold text-slate-700 dark:text-slate-200">
-							Halaman {paginationMeta.current_page}
-						</div>
-						
-						<button 
-							type="button"
-							disabled={paginationMeta.current_page * paginationMeta.per_page >= paginationMeta.total}
-							onclick={() => handleFilterChange(paginationMeta.current_page + 1)}
-							class="w-8 h-8 rounded-lg flex items-center justify-center border border-slate-200 dark:border-slate-700 text-slate-500 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-slate-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-						>
-							<span class="material-symbols-outlined text-sm">chevron_right</span>
-						</button>
-					</div>
-				</div>
+				<Pagination
+					currentPage={paginationMeta.current_page}
+					totalPages={Math.max(1, Math.ceil(paginationMeta.total / paginationMeta.per_page))}
+					totalItems={paginationMeta.total}
+					perPage={paginationMeta.per_page}
+					itemLabel="data presensi"
+					onPageChange={(p) => handleFilterChange(p)}
+				/>
 			{/if}
 		</div>
 	{:else if activeTab === 'roster'}

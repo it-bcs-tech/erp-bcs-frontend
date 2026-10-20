@@ -3,6 +3,7 @@
 	import { goto } from '$app/navigation';
 	import { page } from '$app/stores';
 	import { enhance } from '$app/forms';
+	import Pagination from '$lib/components/Pagination.svelte';
 	
 	let { data, form }: { data: PageData; form: ActionData } = $props();
 	
@@ -240,28 +241,13 @@
 		</div>
 		
 		<!-- Pagination Footer -->
-		<div class="px-6 py-4 border-t border-surface-container flex items-center justify-between bg-surface-container-lowest">
-			<p class="text-xs text-on-surface-variant font-medium">Menampilkan {startItem} - {endItem} dari {meta?.total || 0} entri</p>
-			<div class="flex gap-1">
-				<button 
-					class="w-8 h-8 rounded-xl flex items-center justify-center text-on-surface-variant hover:bg-surface-container-high disabled:opacity-40 transition-colors" 
-					disabled={currentPage <= 1}
-					onclick={() => goToPage(currentPage - 1)}>
-					<span class="material-symbols-outlined text-base">chevron_left</span>
-				</button>
-				
-				<span class="px-3 py-1 text-xs font-bold text-on-surface flex items-center">
-					Halaman {currentPage} / {totalPages}
-				</span>
-
-				<button 
-					class="w-8 h-8 rounded-xl flex items-center justify-center text-on-surface-variant hover:bg-surface-container-high disabled:opacity-40 transition-colors"
-					disabled={currentPage >= totalPages}
-					onclick={() => goToPage(currentPage + 1)}>
-					<span class="material-symbols-outlined text-base">chevron_right</span>
-				</button>
-			</div>
-		</div>
+		<Pagination
+			currentPage={currentPage}
+			totalPages={totalPages}
+			totalItems={meta?.total || 0}
+			perPage={meta?.per_page || 10}
+			itemLabel="pengajuan"
+		/>
 	</div>
 </div>
 

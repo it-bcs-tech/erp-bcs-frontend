@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { enhance } from '$app/forms';
+	import Pagination from '$lib/components/Pagination.svelte';
 
 	let { data, form } = $props();
 
@@ -363,34 +364,14 @@
 
 		<!-- Pagination Footer -->
 		{#if totalDocuments > pageSize}
-			<div class="px-5 py-4 bg-surface border-t border-slate-200/60 dark:border-slate-800/60 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-on-surface-variant">
-				<div>
-					Menampilkan <strong class="text-on-surface font-mono">{(currentPage - 1) * pageSize + 1}</strong> - <strong class="text-on-surface font-mono">{Math.min(currentPage * pageSize, totalDocuments)}</strong> dari <strong class="text-on-surface font-mono">{totalDocuments}</strong> dokumen
-				</div>
-				<div class="flex items-center gap-2">
-					<button
-						onclick={() => currentPage = Math.max(1, currentPage - 1)}
-						disabled={currentPage === 1}
-						class="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 font-bold hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer flex items-center gap-1"
-					>
-						<span class="material-symbols-outlined text-sm">chevron_left</span>
-						<span>Sebelumnya</span>
-					</button>
-
-					<span class="px-3 py-1.5 font-bold font-mono">
-						Halaman {currentPage} dari {totalPages}
-					</span>
-
-					<button
-						onclick={() => currentPage = Math.min(totalPages, currentPage + 1)}
-						disabled={currentPage === totalPages}
-						class="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 font-bold hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer flex items-center gap-1"
-					>
-						<span>Berikutnya</span>
-						<span class="material-symbols-outlined text-sm">chevron_right</span>
-					</button>
-				</div>
-			</div>
+			<Pagination
+				currentPage={currentPage}
+				totalPages={totalPages}
+				totalItems={totalDocuments}
+				perPage={pageSize}
+				itemLabel="dokumen"
+				onPageChange={(p) => (currentPage = p)}
+			/>
 		{/if}
 	</div>
 </div>

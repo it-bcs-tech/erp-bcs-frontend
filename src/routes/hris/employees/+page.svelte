@@ -2,6 +2,7 @@
 	import type { PageData } from './$types';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/stores';
+	import Pagination from '$lib/components/Pagination.svelte';
 	
 	let { data }: { data: PageData } = $props();
 	
@@ -197,36 +198,13 @@
 		</div>
 		
 		<!-- Pagination Footer -->
-		<div class="px-6 py-4 border-t border-surface-container flex items-center justify-between bg-surface-container-lowest">
-			<p class="text-xs text-on-surface-variant font-medium">Showing {startItem} to {endItem} of {meta?.total || 0} entries</p>
-			<div class="flex gap-1">
-				<button 
-					class="w-8 h-8 rounded-lg flex items-center justify-center text-on-surface-variant hover:bg-surface-container-high disabled:opacity-50 transition-colors" 
-					disabled={currentPage <= 1}
-					onclick={() => goToPage(currentPage - 1)}>
-					<span class="material-symbols-outlined text-lg">chevron_left</span>
-				</button>
-				
-				{#each Array(totalPages) as _, i}
-					{#if Math.abs(currentPage - (i + 1)) <= 2 || i === 0 || i === totalPages - 1}
-						<button 
-							class="w-8 h-8 rounded-lg flex items-center justify-center font-bold text-sm shadow-sm transition-colors {currentPage === i + 1 ? 'bg-primary text-on-primary' : 'text-on-surface hover:bg-surface-container-high'}"
-							onclick={() => goToPage(i + 1)}>
-							{i + 1}
-						</button>
-					{:else if Math.abs(currentPage - (i + 1)) === 3}
-						<span class="w-8 h-8 flex items-center justify-center text-on-surface-variant text-sm font-bold">...</span>
-					{/if}
-				{/each}
-
-				<button 
-					class="w-8 h-8 rounded-lg flex items-center justify-center text-on-surface-variant hover:bg-surface-container-high disabled:opacity-50 transition-colors"
-					disabled={currentPage >= totalPages}
-					onclick={() => goToPage(currentPage + 1)}>
-					<span class="material-symbols-outlined text-lg">chevron_right</span>
-				</button>
-			</div>
-		</div>
+		<Pagination
+			currentPage={currentPage}
+			totalPages={totalPages}
+			totalItems={meta?.total || 0}
+			perPage={meta?.per_page || 10}
+			itemLabel="karyawan"
+		/>
 	</div>
 </div>
 

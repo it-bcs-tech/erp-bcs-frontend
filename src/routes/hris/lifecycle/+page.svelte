@@ -1,5 +1,6 @@
 <script lang="ts">
 	import type { PageData } from './$types';
+	import Pagination from '$lib/components/Pagination.svelte';
 	
 	let { data }: { data: PageData } = $props();
 	const { actions, metrics, dataSource } = data;
@@ -234,24 +235,14 @@
 		</div>
 		
 		<!-- Pagination Footer -->
-		<div class="px-6 py-4 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between bg-surface-container-low">
-			<p class="text-xs text-on-surface-variant font-medium">Menampilkan {startItem} - {endItem} dari {filteredActions.length} data</p>
-			<div class="flex gap-1">
-				<button 
-					class="w-8 h-8 rounded-lg flex items-center justify-center text-on-surface-variant hover:bg-surface-container disabled:opacity-50 transition-colors" 
-					disabled={currentPage <= 1}
-					onclick={() => currentPage -= 1}>
-					<span class="material-symbols-outlined text-lg">chevron_left</span>
-				</button>
-				<span class="w-8 h-8 rounded-lg flex items-center justify-center bg-primary text-on-primary font-bold text-xs shadow-xs">{currentPage}</span>
-				<button 
-					class="w-8 h-8 rounded-lg flex items-center justify-center text-on-surface-variant hover:bg-surface-container disabled:opacity-50 transition-colors"
-					disabled={currentPage >= totalPages}
-					onclick={() => currentPage += 1}>
-					<span class="material-symbols-outlined text-lg">chevron_right</span>
-				</button>
-			</div>
-		</div>
+		<Pagination
+			currentPage={currentPage}
+			totalPages={totalPages}
+			totalItems={filteredActions.length}
+			perPage={itemsPerPage}
+			itemLabel="data"
+			onPageChange={(p) => (currentPage = p)}
+		/>
 	</div>
 </div>
 
