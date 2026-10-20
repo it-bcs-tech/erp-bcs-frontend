@@ -232,7 +232,7 @@
 			>
 				<span class="material-symbols-outlined text-sm">local_shipping</span>
 				<span>Dokumen Armada (FMS)</span>
-				<span class="px-1.5 py-0.2 rounded-full text-[10px] font-mono {entityType === 'FLEET' ? 'bg-sky-700/60 text-white' : 'bg-sky-100 dark:bg-sky-950/80 text-sky-800 dark:text-sky-300'}">{data.tabCounts?.fleet ? data.tabCounts.fleet.toLocaleString('id-ID') : '657'}</span>
+				<span class="px-1.5 py-0.2 rounded-full text-[10px] font-mono {entityType === 'FLEET' ? 'bg-sky-700/60 text-white' : 'bg-sky-100 dark:bg-sky-950/80 text-sky-800 dark:text-sky-300'}">{data.tabCounts?.fleet ? data.tabCounts.fleet.toLocaleString('id-ID') : '2.744'}</span>
 			</button>
 
 			<button
@@ -244,7 +244,7 @@
 			>
 				<span class="material-symbols-outlined text-sm">airline_seat_recline_normal</span>
 				<span>Dokumen Driver (HRIS)</span>
-				<span class="px-1.5 py-0.2 rounded-full text-[10px] font-mono {entityType === 'DRIVER' ? 'bg-indigo-700/60 text-white' : 'bg-indigo-100 dark:bg-indigo-950/80 text-indigo-800 dark:text-indigo-300'}">{data.tabCounts?.driver ? data.tabCounts.driver.toLocaleString('id-ID') : '247'}</span>
+				<span class="px-1.5 py-0.2 rounded-full text-[10px] font-mono {entityType === 'DRIVER' ? 'bg-indigo-700/60 text-white' : 'bg-indigo-100 dark:bg-indigo-950/80 text-indigo-800 dark:text-indigo-300'}">{data.tabCounts?.driver ? data.tabCounts.driver.toLocaleString('id-ID') : '574'}</span>
 			</button>
 
 			<button
@@ -256,7 +256,7 @@
 			>
 				<span class="material-symbols-outlined text-sm">corporate_fare</span>
 				<span>Korporat & ISO</span>
-				<span class="px-1.5 py-0.2 rounded-full text-[10px] font-mono {entityType === 'CORPORATE' ? 'bg-violet-700/60 text-white' : 'bg-violet-100 dark:bg-violet-950/80 text-violet-800 dark:text-violet-300'}">{data.tabCounts?.corporate ? data.tabCounts.corporate.toLocaleString('id-ID') : '822'}</span>
+				<span class="px-1.5 py-0.2 rounded-full text-[10px] font-mono {entityType === 'CORPORATE' ? 'bg-violet-700/60 text-white' : 'bg-violet-100 dark:bg-violet-950/80 text-violet-800 dark:text-violet-300'}">{data.tabCounts?.corporate ? data.tabCounts.corporate.toLocaleString('id-ID') : '846'}</span>
 			</button>
 		</div>
 
@@ -564,6 +564,12 @@
 															KLHK: {doc.metadata.rekom_klh}
 														</span>
 													{/if}
+												{/if}
+
+												{#if doc.type_code === 'SIM_DRIVER'}
+													<span class="px-1.5 py-0.2 rounded bg-indigo-100 dark:bg-indigo-950/60 text-[9px] font-bold text-indigo-800 dark:text-indigo-300 border border-indigo-300">
+														🪪 {doc.metadata?.golongan ? `SIM ${doc.metadata.golongan}` : 'SIM Pengemudi'}
+													</span>
 												{/if}
 												{#if doc.type_code === 'SERTIFIKAT_B3_DRIVER'}
 													<span class="px-1.5 py-0.2 rounded bg-amber-100 dark:bg-amber-950/60 text-[9px] font-bold text-amber-800 dark:text-amber-300 border border-amber-300">
