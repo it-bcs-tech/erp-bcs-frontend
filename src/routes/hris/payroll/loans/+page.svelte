@@ -2,15 +2,25 @@
 	import { goto } from '$app/navigation';
 	import { systemSettings, formatCurrencyPrivacy, formatMaskedText } from '$lib/stores/settings';
 	import { isAdmin } from '$lib/stores/auth';
+	import Pagination from '$lib/components/Pagination.svelte';
 
 	let { data } = $props();
 
 	let searchQuery = $state(data.searchQuery || '');
 	let selectedStatus = $state(data.statusFilter || '');
 
+	// Pagination State
+	let loanCurrentPage = $state(1);
+	const loanPerPage = 10;
+	let totalLoanPages = $derived(Math.max(1, Math.ceil((data.loans?.length || 0) / loanPerPage)));
+	let paginatedLoans = $derived(
+		(data.loans || []).slice((loanCurrentPage - 1) * loanPerPage, loanCurrentPage * loanPerPage)
+	);
+
 	$effect(() => {
 		searchQuery = data.searchQuery || '';
 		selectedStatus = data.statusFilter || '';
+		loanCurrentPage = 1;
 	});
 
 	let selectedLoan = $state<any>(null);
@@ -227,7 +237,7 @@
 							</td>
 						</tr>
 					{:else}
-						{#each data.loans as loan}
+						{#each paginatedLoans as loan}
 							{@const badge = getStatusBadge(loan.status)}
 							<tr class="hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors">
 								<td class="px-5 py-4">
@@ -270,6 +280,18 @@
 				</tbody>
 			</table>
 		</div>
+
+		<!-- Pagination Footer -->
+		{#if data.loans.length > 0}
+			<Pagination
+				currentPage={loanCurrentPage}
+				totalPages={totalLoanPages}
+				totalItems={data.loans.length}
+				perPage={loanPerPage}
+				itemLabel="kasbon"
+				onPageChange={(p) => (loanCurrentPage = p)}
+			/>
+		{/if}
 	</div>
 </div>
 

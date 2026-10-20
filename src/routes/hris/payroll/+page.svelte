@@ -3,6 +3,7 @@
 	import { page } from '$app/stores';
 	import { systemSettings, formatCurrencyPrivacy, formatMaskedText } from '$lib/stores/settings';
 	import { isAdmin } from '$lib/stores/auth';
+	import Pagination from '$lib/components/Pagination.svelte';
 
 	let { data } = $props();
 
@@ -10,6 +11,28 @@
 	let selectedPeriod = $state(data.selectedPeriod);
 	let searchQuery = $state(data.searchQuery);
 	let selectedDivision = $state(data.divisionFilter);
+
+	// Payroll Table Pagination
+	let payrollCurrentPage = $state(1);
+	const payrollPerPage = 10;
+	let totalPayrollPages = $derived(Math.max(1, Math.ceil((data.salarySlips?.length || 0) / payrollPerPage)));
+	let paginatedSalarySlips = $derived(
+		(data.salarySlips || []).slice((payrollCurrentPage - 1) * payrollPerPage, payrollCurrentPage * payrollPerPage)
+	);
+
+	// Reimbursement Table Pagination
+	let claimCurrentPage = $state(1);
+	const claimPerPage = 10;
+	let totalClaimPages = $derived(Math.max(1, Math.ceil((data.reimbursements?.length || 0) / claimPerPage)));
+	let paginatedClaims = $derived(
+		(data.reimbursements || []).slice((claimCurrentPage - 1) * claimPerPage, claimCurrentPage * claimPerPage)
+	);
+
+	// Reset halaman saat filter berubah
+	$effect(() => {
+		const _ = [selectedPeriod, searchQuery, selectedDivision, data.salarySlips];
+		payrollCurrentPage = 1;
+	});
 
 	// Payslip Modal State
 	let selectedSlip = $state<any>(null);
@@ -403,7 +426,7 @@
 								</td>
 							</tr>
 						{:else}
-							{#each data.salarySlips as slip}
+							{#each paginatedSalarySlips as slip}
 								<tr class="hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors">
 									<td class="px-5 py-4">
 										<div>
@@ -448,6 +471,18 @@
 					</tbody>
 				</table>
 			</div>
+
+			<!-- Pagination Footer -->
+			{#if data.salarySlips.length > 0}
+				<Pagination
+					currentPage={payrollCurrentPage}
+					totalPages={totalPayrollPages}
+					totalItems={data.salarySlips.length}
+					perPage={payrollPerPage}
+					itemLabel="karyawan"
+					onPageChange={(p) => (payrollCurrentPage = p)}
+				/>
+			{/if}
 		</div>
 	{:else}
 		<!-- TAB 2: KLAIM REIMBURSEMENT -->
@@ -498,7 +533,7 @@
 									<td colspan="7" class="px-5 py-12 text-center text-slate-400">Belum ada data klaim reimbursement diajukan.</td>
 								</tr>
 							{:else}
-								{#each data.reimbursements as claim}
+								{#each paginatedClaims as claim}
 									<tr class="hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors">
 										<td class="px-5 py-4">
 											<p class="font-bold text-on-surface">{claim.employee_name}</p>
@@ -561,6 +596,18 @@
 						</tbody>
 					</table>
 				</div>
+
+				<!-- Pagination Footer -->
+				{#if data.reimbursements.length > 0}
+					<Pagination
+						currentPage={claimCurrentPage}
+						totalPages={totalClaimPages}
+						totalItems={data.reimbursements.length}
+						perPage={claimPerPage}
+						itemLabel="klaim"
+						onPageChange={(p) => (claimCurrentPage = p)}
+					/>
+				{/if}
 			</div>
 		</div>
 	{/if}

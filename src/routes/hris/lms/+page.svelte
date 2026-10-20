@@ -3,6 +3,7 @@
 	import { enhance } from '$app/forms';
 	import { spawnToast, notifySuccess, notifyError } from '$lib/stores/notifications';
 	import { formatEmbedUrl, detectEmbedPlatform } from '$lib/utils/embed';
+	import Pagination from '$lib/components/Pagination.svelte';
 	import type { PageData, ActionData } from './$types';
 
 	let { data, form }: { data: PageData; form: ActionData } = $props();
@@ -5931,39 +5932,14 @@
 
 							<!-- Pagination Controls -->
 							{#if totalCompPages > 1}
-								<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-4 border-t border-slate-200/60 dark:border-slate-800/60">
-									<p class="text-xs text-on-surface-variant">
-										Menampilkan <strong class="text-on-surface font-mono">{(compCurrentPage - 1) * compPerPage + 1}</strong>
-										s.d. <strong class="text-on-surface font-mono">{Math.min(compCurrentPage * compPerPage, filteredCompetencyLibrary.length)}</strong>
-										dari <strong class="text-on-surface font-mono">{filteredCompetencyLibrary.length}</strong> kompetensi
-									</p>
-
-									<div class="flex items-center gap-2">
-										<button
-											type="button"
-											disabled={compCurrentPage === 1}
-											onclick={() => (compCurrentPage = Math.max(1, compCurrentPage - 1))}
-											class="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-surface text-xs font-bold text-on-surface disabled:opacity-40 disabled:cursor-not-allowed hover:bg-surface-container transition-all cursor-pointer flex items-center gap-1"
-										>
-											<span class="material-symbols-outlined text-xs">chevron_left</span>
-											<span>Sebelumnya</span>
-										</button>
-
-										<span class="px-3 py-1.5 rounded-xl bg-surface-container-high font-mono text-xs font-bold text-on-surface">
-											Hal {compCurrentPage} / {totalCompPages}
-										</span>
-
-										<button
-											type="button"
-											disabled={compCurrentPage === totalCompPages}
-											onclick={() => (compCurrentPage = Math.min(totalCompPages, compCurrentPage + 1))}
-											class="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-surface text-xs font-bold text-on-surface disabled:opacity-40 disabled:cursor-not-allowed hover:bg-surface-container transition-all cursor-pointer flex items-center gap-1"
-										>
-											<span>Selanjutnya</span>
-											<span class="material-symbols-outlined text-xs">chevron_right</span>
-										</button>
-									</div>
-								</div>
+								<Pagination
+									currentPage={compCurrentPage}
+									totalPages={totalCompPages}
+									totalItems={filteredCompetencyLibrary.length}
+									perPage={compPerPage}
+									itemLabel="kompetensi"
+									onPageChange={(p) => (compCurrentPage = p)}
+								/>
 							{/if}
 						</div>
 

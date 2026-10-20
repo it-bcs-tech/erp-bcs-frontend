@@ -1,5 +1,6 @@
 <script lang="ts">
 	import type { PageData } from './$types';
+	import Pagination from '$lib/components/Pagination.svelte';
 	
 	let { data }: { data: PageData } = $props();
 	const { kpiRecords, trainingPrograms, metrics, dataSource } = data;
@@ -30,6 +31,28 @@
 			return title.includes(q) || provider.includes(q) || dept.includes(q);
 		})
 	);
+
+	// KPI Pagination State
+	let kpiCurrentPage = $state(1);
+	const kpiPerPage = 10;
+	let totalKpiPages = $derived(Math.max(1, Math.ceil(filteredKpiRecords.length / kpiPerPage)));
+	let paginatedKpiRecords = $derived(
+		filteredKpiRecords.slice((kpiCurrentPage - 1) * kpiPerPage, kpiCurrentPage * kpiPerPage)
+	);
+
+	// Training Pagination State
+	let trainingCurrentPage = $state(1);
+	const trainingPerPage = 10;
+	let totalTrainingPages = $derived(Math.max(1, Math.ceil(filteredTrainingPrograms.length / trainingPerPage)));
+	let paginatedTrainingPrograms = $derived(
+		filteredTrainingPrograms.slice((trainingCurrentPage - 1) * trainingPerPage, trainingCurrentPage * trainingPerPage)
+	);
+
+	$effect(() => {
+		const _ = [searchQuery, activeTab];
+		kpiCurrentPage = 1;
+		trainingCurrentPage = 1;
+	});
 
 	// Modal State
 	let isAddModalOpen = $state(false);
@@ -145,7 +168,7 @@
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-surface-container">
-                        {#each filteredKpiRecords as kpi}
+                        {#each paginatedKpiRecords as kpi}
                             <tr class="group hover:bg-surface-container-low transition-colors">
                                 <td class="py-4 px-6">
                                     <div class="flex items-center gap-2 mb-0.5">
@@ -190,6 +213,18 @@
                     </tbody>
                 </table>
             </div>
+
+            <!-- Pagination Footer KPI -->
+            {#if filteredKpiRecords.length > 0}
+                <Pagination
+                    currentPage={kpiCurrentPage}
+                    totalPages={totalKpiPages}
+                    totalItems={filteredKpiRecords.length}
+                    perPage={kpiPerPage}
+                    itemLabel="evaluasi"
+                    onPageChange={(p) => (kpiCurrentPage = p)}
+                />
+            {/if}
         {:else}
             <div class="overflow-x-auto flex-1">
                 <table class="w-full text-left border-collapse min-w-[900px]">
@@ -203,7 +238,7 @@
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-surface-container">
-                        {#each filteredTrainingPrograms as trn}
+                        {#each paginatedTrainingPrograms as trn}
                             <tr class="group hover:bg-surface-container-low transition-colors">
                                 <td class="py-4 px-6">
                                     <p class="text-sm font-bold text-on-surface">{trn.title}</p>
@@ -237,6 +272,18 @@
                     </tbody>
                 </table>
             </div>
+
+            <!-- Pagination Footer Training -->
+            {#if filteredTrainingPrograms.length > 0}
+                <Pagination
+                    currentPage={trainingCurrentPage}
+                    totalPages={totalTrainingPages}
+                    totalItems={filteredTrainingPrograms.length}
+                    perPage={trainingPerPage}
+                    itemLabel="program"
+                    onPageChange={(p) => (trainingCurrentPage = p)}
+                />
+            {/if}
         {/if}
 	</div>
 </div>
