@@ -60,7 +60,7 @@
 		if (page < 1 || page > totalPages) return;
 		const url = new URL(window.location.href);
 		url.searchParams.set('page', page.toString());
-		goto(url.toString(), { invalidateAll: true, noScroll: true });
+		goto(url.toString(), { keepFocus: true, noScroll: true, invalidateAll: true });
 	}
 </script>
 
@@ -138,73 +138,86 @@
 					</tr>
 				</thead>
 				<tbody class="divide-y divide-surface-container">
-					{#each employees as emp}
-						<tr class="group hover:bg-surface-container-low transition-colors">
-							<td class="py-4 px-6">
-								<a href={`/hris/employees/${emp.id}`} class="flex items-center gap-4 cursor-pointer">
-									<div class="w-12 h-12 rounded-xl overflow-hidden border-2 border-surface-container-high group-hover:border-{emp.color}-container transition-colors shadow-sm">
-										<img src={emp.avatar} alt={emp.name} class="w-full h-full object-cover" />
-									</div>
-									<div>
-										<p class="text-sm font-bold text-on-surface group-hover:text-primary transition-colors">{emp.name}</p>
-										<p class="text-xs text-on-surface-variant font-mono font-medium mt-0.5">{emp.payroll_id || emp.id}</p>
-									</div>
-								</a>
-							</td>
-							<td class="py-4 px-6">
-								<p class="text-sm font-bold text-on-surface">{emp.role}</p>
-								<div class="flex items-center gap-1.5 mt-1 flex-wrap">
-									<span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md bg-blue-500/10 text-blue-600 dark:text-blue-300 text-[10px] font-bold uppercase tracking-wider">
-										{emp.directorate || 'Operations'}
-									</span>
-									{#if emp.department && emp.department !== emp.directorate}
-										<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-surface-container-high text-on-surface-variant text-[10px] font-medium">
-											{emp.department}
-										</span>
-									{/if}
-								</div>
-							</td>
-							<td class="py-4 px-6">
-								{#if emp.status === 'Active'}
-									<span class="inline-flex items-center gap-2 text-emerald-700 dark:text-emerald-300 font-bold text-xs bg-emerald-500/15 px-3 py-1 rounded-full">
-										<span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> Active
-									</span>
-								{:else}
-									<span class="inline-flex items-center gap-2 text-amber-700 dark:text-amber-300 font-bold text-xs bg-amber-500/15 px-3 py-1 rounded-full">
-										<span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span> On Leave
-									</span>
-								{/if}
-							</td>
-							<td class="py-4 px-6">
-								<p class="text-sm font-medium text-on-surface flex items-center gap-2">
-									<span class="material-symbols-outlined text-base text-on-surface-variant">mail</span>
-									{emp.email}
-								</p>
-							</td>
-							<td class="py-4 px-6 text-right">
-								<div class="flex items-center justify-end gap-2">
-									<a href={`/hris/employees/${emp.id}`} class="p-2 rounded-lg text-primary hover:bg-primary-container/20 transition-colors tooltip" title="View Profile">
-										<span class="material-symbols-outlined text-[20px]">visibility</span>
-									</a>
-									<button class="p-2 rounded-lg text-on-surface-variant hover:bg-surface-container-high transition-colors tooltip" title="More Options">
-										<span class="material-symbols-outlined text-[20px]">more_vert</span>
-									</button>
-								</div>
+					{#if employees.length === 0}
+						<tr>
+							<td colspan="5" class="py-12 text-center text-on-surface-variant">
+								<span class="material-symbols-outlined text-4xl block mb-2 opacity-40">person_search</span>
+								<p class="font-bold text-sm">Tidak ada data karyawan yang ditemukan</p>
+								<p class="text-xs text-slate-400 mt-1">Coba sesuaikan kata kunci pencarian atau filter direktorat.</p>
 							</td>
 						</tr>
-					{/each}
+					{:else}
+						{#each employees as emp}
+							<tr class="group hover:bg-surface-container-low transition-colors">
+								<td class="py-4 px-6">
+									<a href={`/hris/employees/${emp.id}`} class="flex items-center gap-4 cursor-pointer">
+										<div class="w-12 h-12 rounded-xl overflow-hidden border-2 border-surface-container-high group-hover:border-{emp.color}-container transition-colors shadow-sm">
+											<img src={emp.avatar} alt={emp.name} class="w-full h-full object-cover" />
+										</div>
+										<div>
+											<p class="text-sm font-bold text-on-surface group-hover:text-primary transition-colors">{emp.name}</p>
+											<p class="text-xs text-on-surface-variant font-mono font-medium mt-0.5">{emp.payroll_id || emp.id}</p>
+										</div>
+									</a>
+								</td>
+								<td class="py-4 px-6">
+									<p class="text-sm font-bold text-on-surface">{emp.role}</p>
+									<div class="flex items-center gap-1.5 mt-1 flex-wrap">
+										<span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md bg-blue-500/10 text-blue-600 dark:text-blue-300 text-[10px] font-bold uppercase tracking-wider">
+											{emp.directorate || 'Operations'}
+										</span>
+										{#if emp.department && emp.department !== emp.directorate}
+											<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-surface-container-high text-on-surface-variant text-[10px] font-medium">
+												{emp.department}
+											</span>
+										{/if}
+									</div>
+								</td>
+								<td class="py-4 px-6">
+									{#if emp.status === 'Active'}
+										<span class="inline-flex items-center gap-2 text-emerald-700 dark:text-emerald-300 font-bold text-xs bg-emerald-500/15 px-3 py-1 rounded-full">
+											<span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> Active
+										</span>
+									{:else}
+										<span class="inline-flex items-center gap-2 text-amber-700 dark:text-amber-300 font-bold text-xs bg-amber-500/15 px-3 py-1 rounded-full">
+											<span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span> On Leave
+										</span>
+									{/if}
+								</td>
+								<td class="py-4 px-6">
+									<p class="text-sm font-medium text-on-surface flex items-center gap-2">
+										<span class="material-symbols-outlined text-base text-on-surface-variant">mail</span>
+										{emp.email}
+									</p>
+								</td>
+								<td class="py-4 px-6 text-right">
+									<div class="flex items-center justify-end gap-2">
+										<a href={`/hris/employees/${emp.id}`} class="p-2 rounded-lg text-primary hover:bg-primary-container/20 transition-colors tooltip" title="View Profile">
+											<span class="material-symbols-outlined text-[20px]">visibility</span>
+										</a>
+										<button class="p-2 rounded-lg text-on-surface-variant hover:bg-surface-container-high transition-colors tooltip" title="More Options">
+											<span class="material-symbols-outlined text-[20px]">more_vert</span>
+										</button>
+									</div>
+								</td>
+							</tr>
+						{/each}
+					{/if}
 				</tbody>
 			</table>
 		</div>
 		
 		<!-- Pagination Footer -->
-		<Pagination
-			currentPage={currentPage}
-			totalPages={totalPages}
-			totalItems={meta?.total || 0}
-			perPage={meta?.per_page || 10}
-			itemLabel="karyawan"
-		/>
+		{#if meta && meta.total > 0}
+			<Pagination
+				currentPage={currentPage}
+				totalPages={totalPages}
+				totalItems={meta?.total || 0}
+				perPage={meta?.per_page || 10}
+				itemLabel="karyawan"
+				onPageChange={(p) => goToPage(p)}
+			/>
+		{/if}
 	</div>
 </div>
 
