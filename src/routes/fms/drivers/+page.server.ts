@@ -1,5 +1,6 @@
 import type { PageServerLoad } from './$types';
 import { apiFetch } from '$lib/utils/api';
+import { redirect } from '@sveltejs/kit';
 
 export const load: PageServerLoad = async ({ cookies, url }) => {
 	const authToken = cookies.get('auth_token');
@@ -63,12 +64,9 @@ export const load: PageServerLoad = async ({ cookies, url }) => {
 		return { drivers, metrics, meta };
 	} catch (error: any) {
 		console.error('Failed to fetch FMS drivers:', error);
-		
-		// ┌─────────────────────────────────────────────────────┐
-		// │ MOCK DATA TELAH DIHAPUS                             │
-		// │ Sekarang melempar (throw) error agar halaman crash  │
-		// │ dan menampilkan pesan error API aslinya ke layar    │
-		// └─────────────────────────────────────────────────────┘
+		if (error.message?.includes('401') || error.message?.includes('Unauthorized')) {
+			throw redirect(307, '/login');
+		}
 		throw error;
 	}
 };

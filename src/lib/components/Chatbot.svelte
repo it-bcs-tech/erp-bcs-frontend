@@ -131,7 +131,7 @@
 			// Tampilkan pesan error yang informatif
 			messages = messages.map(m =>
 				m.id === assistantId
-					? { ...m, content: `⚠️ Gagal terhubung ke server AI. Pastikan konfigurasi Openclaw sudah diatur dengan benar di file .env.` }
+					? { ...m, content: `⚠️ Gagal terhubung ke AI Assistant. Silakan coba kirim ulang pesan Anda.` }
 					: m
 			);
 			console.error('[Chatbot] Error:', err);
