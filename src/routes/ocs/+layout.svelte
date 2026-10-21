@@ -42,7 +42,7 @@
 			{/if}
 
 			<!-- Section Divider: Operations -->
-			{#if hasMenuAccess(user, 'ocs', 'ocs.dispatch') || hasMenuAccess(user, 'ocs', 'ocs.pod') || hasMenuAccess(user, 'ocs', 'ocs.ujo') || hasMenuAccess(user, 'ocs', 'ocs.assign-driver') || hasMenuAccess(user, 'ocs', 'ocs.daily-targets')}
+			{#if hasMenuAccess(user, 'ocs', 'ocs.dispatch') || hasMenuAccess(user, 'ocs', 'ocs.pod') || hasMenuAccess(user, 'ocs', 'ocs.ujo') || hasMenuAccess(user, 'ocs', 'ocs.assign-driver') || hasMenuAccess(user, 'ocs', 'ocs.driver-readiness') || hasMenuAccess(user, 'ocs', 'ocs.daily-targets')}
 			<div class="pt-3 pb-1 px-4">
 				<p class="text-[9px] font-black text-on-surface-variant/50 uppercase tracking-[0.2em]">Operations</p>
 			</div>
@@ -73,6 +73,13 @@
 			<a class="flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200 hover:translate-x-1 {$page.url.pathname.includes('/ocs/assign-driver') ? 'bg-surface-container-highest text-sky-600 dark:text-sky-400 font-bold' : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container font-medium text-sm'}" href="/ocs/assign-driver">
 				<span class="material-symbols-outlined text-[20px]">person_pin</span>
 				<span class="text-sm">Driver Assignment</span>
+			</a>
+			{/if}
+
+			{#if hasMenuAccess(user, 'ocs', 'ocs.driver-readiness') || hasMenuAccess(user, 'ocs', 'ocs.assign-driver')}
+			<a class="flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200 hover:translate-x-1 {$page.url.pathname.includes('/ocs/driver-readiness') ? 'bg-surface-container-highest text-sky-600 dark:text-sky-400 font-bold' : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container font-medium text-sm'}" href="/ocs/driver-readiness">
+				<span class="material-symbols-outlined text-[20px]">badge</span>
+				<span class="text-sm">Driver Readiness</span>
 			</a>
 			{/if}
 			

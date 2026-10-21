@@ -1,10 +1,11 @@
 import type { PageServerLoad, Actions } from './$types';
 import sql from '$lib/server/db';
 import { fail } from '@sveltejs/kit';
+import { syncDriverSimToDb } from '$lib/server/sim-sync';
 
 export const load: PageServerLoad = async () => {
 	try {
-		// Get all active and disabled assignments
+		// Get all active and disabled assignments with driver's SIM validity
 		const assignments = await sql`
 			SELECT 
 				a.id as assignment_id,
@@ -13,6 +14,16 @@ export const load: PageServerLoad = async () => {
 				u.business_unit as unit_type,
 				d.id as driver_id,
 				k.nama_karyawan as driver_name,
+				k.payroll_id,
+				d.sim_type,
+				TO_CHAR(d.sim_expiry_date, 'YYYY-MM-DD') as sim_expiry_date,
+				(d.sim_expiry_date - CURRENT_DATE)::int as sim_days_remaining,
+				CASE 
+					WHEN d.sim_expiry_date IS NULL THEN 'NO_DATE'
+					WHEN d.sim_expiry_date < CURRENT_DATE THEN 'EXPIRED'
+					WHEN d.sim_expiry_date <= CURRENT_DATE + INTERVAL '30 days' THEN 'WARNING_30'
+					ELSE 'VALID'
+				END as sim_gate_status,
 				a.posisi,
 				a.tgl_mulai,
 				a.assignment_status,
@@ -44,11 +55,22 @@ export const load: PageServerLoad = async () => {
 			ORDER BY u.nomor_unit ASC
 		`;
 
-		// Get available drivers
+		// Get available drivers with SIM validity details
 		const drivers = await sql`
 			SELECT 
-				d.id, 
+				d.id,
+				d.karyawan_id,
+				k.payroll_id,
 				k.nama_karyawan as name,
+				d.sim_type,
+				TO_CHAR(d.sim_expiry_date, 'YYYY-MM-DD') as sim_expiry_date,
+				(d.sim_expiry_date - CURRENT_DATE)::int as sim_days_remaining,
+				CASE 
+					WHEN d.sim_expiry_date IS NULL THEN 'NO_DATE'
+					WHEN d.sim_expiry_date < CURRENT_DATE THEN 'EXPIRED'
+					WHEN d.sim_expiry_date <= CURRENT_DATE + INTERVAL '30 days' THEN 'WARNING_30'
+					ELSE 'VALID'
+				END as sim_gate_status,
 				COALESCE(wd.days_worked, 0) as working_days_this_month
 			FROM master.m_drivers d
 			JOIN master.m_karyawan k ON k.id = d.karyawan_id
@@ -90,6 +112,31 @@ export const actions: Actions = {
 		
 		if (!unitId || !driverId || !posisi) {
 			return fail(400, { error: 'Unit, Driver, and Position are required' });
+		}
+
+		// 1. GATE CHECK KESELAMATAN & LEGALITAS: Cek Masa Berlaku SIM Pengemudi (HARD BLOCK jika Expired)
+		const [simCheck] = await sql`
+			SELECT 
+				d.sim_type,
+				d.sim_expiry_date,
+				(d.sim_expiry_date - CURRENT_DATE)::int as days_remaining,
+				k.nama_karyawan
+			FROM master.m_drivers d
+			JOIN master.m_karyawan k ON k.id = d.karyawan_id
+			WHERE d.id = ${driverId}
+		`;
+
+		if (simCheck && simCheck.sim_expiry_date) {
+			const daysRemaining = Number(simCheck.days_remaining);
+			if (daysRemaining < 0) {
+				return fail(400, {
+					error: `PENEGASAN KESELAMATAN (GATE CHECK): Sopir ${simCheck.nama_karyawan} tidak dapat ditugaskan karena ${simCheck.sim_type || 'SIM'} telah KEDALUWARSA (Expired sejak ${Math.abs(daysRemaining)} hari lalu). Silakan perbarui dengan Scan SIM AI sebelum melanjutkan.`,
+					isSimExpired: true,
+					driverId: Number(driverId),
+					driverName: simCheck.nama_karyawan,
+					simType: simCheck.sim_type
+				});
+			}
 		}
 
 		const totalAssignedData = await sql`
@@ -147,7 +194,7 @@ export const actions: Actions = {
 					WHERE driver_id = ${driverId} AND is_aktif = true
 				`;
 
-				// 3. Insert new assignment
+				// 2. Insert new assignment
 				await tx`
 					INSERT INTO fleet.unit_driver_assignment 
 					(unit_id, driver_id, posisi, tgl_mulai, is_aktif, assignment_status, created_by, created_at)
