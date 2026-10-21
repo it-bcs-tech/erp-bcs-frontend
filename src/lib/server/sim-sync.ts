@@ -5,7 +5,7 @@ import { randomUUID } from 'crypto';
 import { calculateExpiryGate, logDocumentAudit } from '$lib/server/dms';
 
 export interface SaveDriverSimParams {
-	driverId: number | string;
+	driverId?: number | string | null;
 	karyawanId?: number | string | null;
 	driverName: string;
 	simType: string; // 'SIM B2 UMUM' | 'SIM B2' | 'SIM B1 UMUM' | 'SIM B1' | 'SIM A' | 'SIM C'
@@ -35,18 +35,24 @@ export async function syncDriverSimToDb({
 	fileBuffer,
 	fileExt,
 	base64Image,
-	updatedBy = 'Tim Operasional OCS'
+	updatedBy = 'Tim Operasional OCS / HRIS'
 }: SaveDriverSimParams) {
-	if (!driverId || !simNumber || !expiryDate) {
-		throw new Error('Driver ID, Nomor SIM, dan Tanggal Kedaluwarsa wajib diisi.');
+	if ((!driverId && !karyawanId) || !simNumber || !expiryDate) {
+		throw new Error('Identitas Karyawan/Driver, Nomor SIM, dan Tanggal Kedaluwarsa wajib diisi.');
 	}
 
-	const numericDriverId = Number(driverId);
+	let numericDriverId = driverId ? Number(driverId) : null;
 	let numericKaryawanId = karyawanId ? Number(karyawanId) : null;
 
-	// Jika karyawanId belum ada, cari dari master.m_drivers
-	if (!numericKaryawanId && numericDriverId > 0) {
-		const [drv] = await sql`SELECT karyawan_id FROM master.m_drivers WHERE id = ${numericDriverId}`;
+	// Jika driverId belum ada tapi karyawanId ada, cari di master.m_drivers
+	if (!numericDriverId && numericKaryawanId) {
+		const [drv] = await sql`SELECT id FROM master.m_drivers WHERE karyawan_id = ${numericKaryawanId} LIMIT 1`;
+		if (drv) numericDriverId = Number(drv.id);
+	}
+
+	// Jika karyawanId belum ada tapi driverId ada, cari dari master.m_drivers
+	if (!numericKaryawanId && numericDriverId && numericDriverId > 0) {
+		const [drv] = await sql`SELECT karyawan_id FROM master.m_drivers WHERE id = ${numericDriverId} LIMIT 1`;
 		if (drv) numericKaryawanId = Number(drv.karyawan_id);
 	}
 
@@ -82,16 +88,31 @@ export async function syncDriverSimToDb({
 	if (upperType.includes('DUMP') || upperType.includes('DT')) standardizedCategory = 'DUMPTRUCK';
 	else if (upperType.includes('SLAB') || upperType.includes('PROJECT')) standardizedCategory = 'PROJECT';
 
-	// 3. Update master.m_drivers
-	await sql`
-		UPDATE master.m_drivers
-		SET 
-			sim_type = ${simType},
-			sim_expiry_date = ${expiryDate}::date,
-			status = 'ACTIVE',
-			updated_at = NOW()
-		WHERE id = ${numericDriverId}
-	`;
+	// 3. Update master.m_drivers jika driver_id valid atau buat jika lisensi sopir berat
+	if (numericDriverId && numericDriverId > 0) {
+		await sql`
+			UPDATE master.m_drivers
+			SET 
+				sim_type = ${simType},
+				sim_expiry_date = ${expiryDate}::date,
+				status = 'ACTIVE',
+				updated_at = NOW()
+			WHERE id = ${numericDriverId}
+		`;
+	} else if (numericKaryawanId && (upperType.includes('B2') || upperType.includes('B1') || upperType.includes('TRAILER') || upperType.includes('DUMP'))) {
+		// Otomatis buat / link master.m_drivers
+		const [newDrv] = await sql`
+			INSERT INTO master.m_drivers (karyawan_id, sim_type, sim_expiry_date, category, status, created_at, updated_at)
+			VALUES (${numericKaryawanId}, ${simType}, ${expiryDate}::date, ${standardizedCategory}, 'ACTIVE', NOW(), NOW())
+			ON CONFLICT (karyawan_id) DO UPDATE
+			SET sim_type = EXCLUDED.sim_type,
+			    sim_expiry_date = EXCLUDED.sim_expiry_date,
+			    status = 'ACTIVE',
+			    updated_at = NOW()
+			RETURNING id
+		`;
+		if (newDrv) numericDriverId = Number(newDrv.id);
+	}
 
 	// 4. Update master.m_karyawan jika ada karyawan_id
 	if (numericKaryawanId) {
@@ -148,8 +169,9 @@ export async function syncDriverSimToDb({
 	const existingDocs = await sql`
 		SELECT id, file_path FROM dms.documents
 		WHERE (
-			(doc_type_id = ${docTypeId} AND employee_id = ${numericDriverId}) OR
-			(doc_type_id = ${docTypeId} AND metadata->>'driver_id' = ${String(numericDriverId)})
+			(doc_type_id = ${docTypeId} AND employee_id = ${numericDriverId || numericKaryawanId}) OR
+			(doc_type_id = ${docTypeId} AND metadata->>'driver_id' = ${String(numericDriverId || '')}) OR
+			(doc_type_id = ${docTypeId} AND metadata->>'karyawan_id' = ${String(numericKaryawanId || '')})
 		)
 		LIMIT 1
 	`;
@@ -198,12 +220,12 @@ export async function syncDriverSimToDb({
 				${categoryId || null},
 				${`SIM ${simType} Pengemudi - ${driverName}`},
 				'EMPLOYEE',
-				${numericDriverId},
+				${numericDriverId || numericKaryawanId},
 				${issueDate ? sql`${issueDate}::date` : sql`CURRENT_DATE`},
 				${expiryDate}::date,
 				${filePath},
 				${gate.computedStatus},
-				'Dipindai & disinkronkan otomatis via AI Vision OCS',
+				'Dipindai & disinkronkan otomatis via AI Vision (OCS/HRIS)',
 				${JSON.stringify({
 					driver_id: numericDriverId,
 					karyawan_id: numericKaryawanId,

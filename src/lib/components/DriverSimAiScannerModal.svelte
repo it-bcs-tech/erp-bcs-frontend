@@ -144,7 +144,7 @@
 				if (extracted.confidence_score) aiConfidence = Math.round(extracted.confidence_score * 100);
 
 				// Jika nama driver pada SIM terbaca dan targetDriver belum dipilih, cocokkan otomatis
-				if (extracted.driver_name && !targetDriverId && driversList.length > 0) {
+				if (extracted.driver_name && !targetDriverId && !targetKaryawanId && driversList.length > 0) {
 					const cleanAiName = extracted.driver_name.toUpperCase();
 					const match = driversList.find((d) => cleanAiName.includes(d.name.toUpperCase()) || d.name.toUpperCase().includes(cleanAiName));
 					if (match) {
@@ -172,8 +172,8 @@
 	}
 
 	async function handleSaveAndSync() {
-		if (!targetDriverId) {
-			alert('Pilih pengemudi yang akan diperbarui.');
+		if (!targetDriverId && !targetKaryawanId) {
+			alert('Pilih karyawan / pengemudi yang akan diperbarui.');
 			return;
 		}
 		if (!formSimNumber || !formExpiryDate) {
@@ -185,7 +185,7 @@
 
 		try {
 			const formData = new FormData();
-			formData.append('driver_id', String(targetDriverId));
+			if (targetDriverId) formData.append('driver_id', String(targetDriverId));
 			if (targetKaryawanId) formData.append('karyawan_id', String(targetKaryawanId));
 			formData.append('driver_name', targetDriverName || 'Pengemudi');
 			formData.append('sim_type', formSimType);

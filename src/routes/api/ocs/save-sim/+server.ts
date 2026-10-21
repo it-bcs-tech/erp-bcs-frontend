@@ -15,10 +15,10 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		const base64Image = formData.get('image_base64')?.toString();
 		const file = formData.get('file') as File | null;
 
-		if (!driverId || !simNumber || !expiryDate) {
+		if ((!driverId && !karyawanId) || !simNumber || !expiryDate) {
 			return json({
 				success: false,
-				message: 'Driver, Nomor SIM, dan Tanggal Kedaluwarsa wajib diisi.'
+				message: 'Identitas Karyawan/Driver, Nomor SIM, dan Tanggal Kedaluwarsa wajib diisi.'
 			}, { status: 400 });
 		}
 
@@ -29,7 +29,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 			fileExt = file.name.split('.').pop() || 'jpg';
 		}
 
-		const updatedBy = locals?.user?.name || locals?.user?.email || 'Tim Operasional OCS';
+		const updatedBy = locals?.user?.name || locals?.user?.email || 'Tim Operasional OCS / HRIS';
 
 		const result = await syncDriverSimToDb({
 			driverId,

@@ -1,4 +1,7 @@
 <script lang="ts">
+	import DriverSimAiScannerModal from '$lib/components/DriverSimAiScannerModal.svelte';
+	import { invalidateAll } from '$app/navigation';
+
 	let { data } = $props();
 	const employee = data.employee;
 	const trainingData = $derived(data.trainingData || {
@@ -8,6 +11,17 @@
 		competencyCerts: [],
 		driverLicenses: [],
 		summary: { totalTrainings: 0, totalCertificates: 0, activeCourses: 0, validLicenses: 0, hasExpired: false, hasWarning: false, expiredCount: 0, warningCount: 0 }
+	});
+
+	let showSimModal = $state(false);
+
+	const selectedDriverForSim = $derived({
+		id: (data as any).driverInfo?.id || employee.id,
+		karyawan_id: employee.id,
+		name: employee.name,
+		payroll_id: employee.payrollId,
+		sim_type: (data as any).driverInfo?.sim_type || (trainingData.driverLicenses && trainingData.driverLicenses[0]?.type) || 'SIM B2 UMUM',
+		sim_expiry_date: (data as any).driverInfo?.sim_expiry_date || (trainingData.driverLicenses && trainingData.driverLicenses[0]?.expiryDate) || ''
 	});
 
 	let activeTab = $state('employment'); // 'employment', 'personal', 'documents', 'training'
@@ -391,15 +405,24 @@
 
 					{#if activeTab === 'documents'}
 						<div class="space-y-6">
-							<div class="flex items-center justify-between">
+							<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
 								<div>
 									<h4 class="text-sm font-bold text-on-surface">Dokumen Legalitas & Lisensi Driver (DMS)</h4>
 									<p class="text-xs text-on-surface-variant mt-0.5">SIM, SIO, KTP, MCU, dan Surat Perjanjian Kerja yang tercatat di DMS</p>
 								</div>
-								<a href="/dms/transactions/documents/create" class="text-xs font-bold text-primary flex items-center gap-1 hover:underline">
-									<span class="material-symbols-outlined text-sm">upload_file</span>
-									<span>Tambah Dokumen</span>
-								</a>
+								<div class="flex items-center gap-2.5">
+									<button
+										type="button"
+										onclick={() => showSimModal = true}
+										class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-xs font-bold rounded-xl shadow-xs hover:from-blue-700 hover:to-indigo-700 transition-all cursor-pointer">
+										<span class="material-symbols-outlined text-sm">auto_awesome</span>
+										<span>Scan SIM AI</span>
+									</button>
+									<a href="/dms/transactions/documents/create" class="text-xs font-bold text-primary flex items-center gap-1 hover:underline">
+										<span class="material-symbols-outlined text-sm">upload_file</span>
+										<span>Tambah Dokumen</span>
+									</a>
+								</div>
 							</div>
 
 							<!-- Static NIK / NPWP Cards -->
@@ -771,6 +794,13 @@
 											<span class="material-symbols-outlined text-base text-amber-600">badge</span>
 											<span>Lisensi Mengemudi Pengemudi ({filteredDriverLicenses.length})</span>
 										</h5>
+										<button
+											type="button"
+											onclick={() => showSimModal = true}
+											class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/20 rounded-xl text-xs font-bold hover:bg-amber-500/20 transition-colors cursor-pointer">
+											<span class="material-symbols-outlined text-sm">auto_awesome</span>
+											<span>Scan SIM AI</span>
+										</button>
 									</div>
 
 									<div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
@@ -794,6 +824,23 @@
 											</div>
 										{/each}
 									</div>
+								</div>
+							{:else if trainingCategoryFilter === 'licenses' && filteredDriverLicenses.length === 0}
+								<div class="bg-surface-container-low rounded-2xl p-6 border border-dashed border-outline-variant/50 text-center space-y-3 pt-4">
+									<div class="w-12 h-12 rounded-2xl bg-amber-500/10 text-amber-600 flex items-center justify-center mx-auto">
+										<span class="material-symbols-outlined text-2xl">badge</span>
+									</div>
+									<div>
+										<p class="text-xs font-bold text-on-surface">Belum ada lisensi mengemudi terdata</p>
+										<p class="text-[11px] text-on-surface-variant mt-0.5">Karyawan ini belum memiliki data SIM A, B1, B2 Umum, atau C aktif.</p>
+									</div>
+									<button
+										type="button"
+										onclick={() => showSimModal = true}
+										class="inline-flex items-center gap-1.5 px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-xs font-bold rounded-xl shadow-xs hover:from-blue-700 hover:to-indigo-700 transition-all cursor-pointer">
+										<span class="material-symbols-outlined text-sm">auto_awesome</span>
+										<span>Scan & Daftarkan SIM (AI)</span>
+									</button>
 								</div>
 							{/if}
 
@@ -920,3 +967,11 @@
 		</div>
 	</div>
 </div>
+
+<!-- AI SIM Scanner Modal -->
+<DriverSimAiScannerModal
+	isOpen={showSimModal}
+	selectedDriver={selectedDriverForSim}
+	onClose={() => { showSimModal = false; }}
+	onSuccess={() => { invalidateAll(); }}
+/>

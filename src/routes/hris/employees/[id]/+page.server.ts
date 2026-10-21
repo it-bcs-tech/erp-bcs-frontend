@@ -384,8 +384,27 @@ export const load: PageServerLoad = async ({ params, cookies }) => {
 		warningCount: allExpiryGates.filter(s => s === 'EXPIRING_SOON').length
 	};
 
+	// Query driver info jika karyawan ini adalah driver di master.m_drivers
+	let driverInfo: any = null;
+	try {
+		if (effectiveEmpId > 0) {
+			const [drv] = await sql`
+				SELECT id, sim_type, TO_CHAR(sim_expiry_date, 'YYYY-MM-DD') as sim_expiry_date, status, category
+				FROM master.m_drivers
+				WHERE karyawan_id = ${effectiveEmpId}
+				LIMIT 1
+			`;
+			if (drv) {
+				driverInfo = drv;
+			}
+		}
+	} catch (e) {
+		console.warn('Driver lookup failed in employee detail:', e);
+	}
+
 	return {
 		employee,
+		driverInfo,
 		dmsDocs,
 		trainingData: {
 			trainings,

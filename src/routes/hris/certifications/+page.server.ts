@@ -12,6 +12,7 @@ export const load: PageServerLoad = async ({ url }) => {
 		const simDocuments = await sql`
 			SELECT 
 				k.id,
+				drv.id as driver_id,
 				k.payroll_id,
 				k.nama_karyawan,
 				COALESCE(t.title, k.title, '-') as job_title,
@@ -23,8 +24,8 @@ export const load: PageServerLoad = async ({ url }) => {
 					NULLIF(TRIM(k.no_sim_c), '')
 				) as doc_number,
 				CASE 
-					WHEN NULLIF(TRIM(k.no_sim_b2_umum), '') IS NOT NULL THEN 'SIM B2 Umum'
-					WHEN NULLIF(TRIM(k.no_sim_b1), '') IS NOT NULL THEN 'SIM B1'
+					WHEN NULLIF(TRIM(k.no_sim_b2_umum), '') IS NOT NULL THEN 'SIM B2 UMUM'
+					WHEN NULLIF(TRIM(k.no_sim_b1), '') IS NOT NULL THEN 'SIM B1 UMUM'
 					WHEN NULLIF(TRIM(k.no_sim_a), '') IS NOT NULL THEN 'SIM A'
 					WHEN NULLIF(TRIM(k.no_sim_c), '') IS NOT NULL THEN 'SIM C'
 					ELSE 'SIM'
@@ -42,6 +43,7 @@ export const load: PageServerLoad = async ({ url }) => {
 					k.no_sim_c_expiredate
 				) - CURRENT_DATE)::int as days_remaining
 			FROM master.m_karyawan k
+			LEFT JOIN master.m_drivers drv ON drv.karyawan_id = k.id
 			LEFT JOIN master.m_title t ON t.title_code = k.title
 			LEFT JOIN master.m_dept d ON d.dept_code = k.dept_id
 			WHERE (
@@ -190,12 +192,36 @@ export const load: PageServerLoad = async ({ url }) => {
 			);
 		}
 
+		// 6. Ambil daftar sopir & karyawan aktif untuk dropdown & auto-match di modal Scan SIM AI
+		const driversList = await sql`
+			SELECT 
+				COALESCE(d.id, k.id) as id,
+				d.id as driver_id,
+				k.id as karyawan_id,
+				k.payroll_id,
+				k.nama_karyawan as name,
+				COALESCE(d.sim_type, 'SIM B2 UMUM') as sim_type,
+				TO_CHAR(COALESCE(d.sim_expiry_date, k.no_sim_b2_umum_expiredate), 'YYYY-MM-DD') as sim_expiry_date
+			FROM master.m_karyawan k
+			LEFT JOIN master.m_drivers d ON d.karyawan_id = k.id
+			WHERE k.aktif = 'Y'
+			ORDER BY k.nama_karyawan ASC
+		`;
+
 		return {
 			category,
 			severity,
 			searchQuery,
 			summary,
 			documents: activeDocs,
+			driversList: driversList.map(d => ({
+				id: d.id,
+				name: d.name,
+				payroll_id: d.payroll_id,
+				karyawan_id: d.karyawan_id,
+				sim_type: d.sim_type,
+				sim_expiry_date: d.sim_expiry_date
+			})),
 			dataSource: 'direct-db'
 		};
 	} catch (err: any) {
@@ -217,6 +243,7 @@ export const load: PageServerLoad = async ({ url }) => {
 				b3_count: 0
 			},
 			documents: [],
+			driversList: [],
 			dataSource: 'direct-db'
 		};
 	}

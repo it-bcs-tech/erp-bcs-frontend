@@ -1,13 +1,23 @@
 <script lang="ts">
-	import { goto } from '$app/navigation';
+	import { goto, invalidateAll } from '$app/navigation';
 	import { enhance } from '$app/forms';
 	import Pagination from '$lib/components/Pagination.svelte';
+	import DriverSimAiScannerModal from '$lib/components/DriverSimAiScannerModal.svelte';
 
 	let { data, form } = $props();
 
 	let activeCategory = $state(data.category || 'sim');
 	let selectedSeverity = $state(data.severity || '');
 	let searchQuery = $state(data.searchQuery || '');
+
+	// AI SIM Scanner Modal State
+	let showSimModal = $state(false);
+	let selectedDriverForSim = $state<any>(null);
+
+	function openSimModal(driver: any = null) {
+		selectedDriverForSim = driver;
+		showSimModal = true;
+	}
 
 	// Sync state if server data changes
 	$effect(() => {
@@ -97,6 +107,15 @@
 			<p class="text-sm text-on-surface-variant font-medium mt-0.5">
 				Peringatan Dini Masa Berlaku SIM Driver, Kontrak PKWT, K3, SIO Operator & Sertifikat B3 Driver
 			</p>
+		</div>
+		<div class="flex items-center gap-3">
+			<button 
+				type="button"
+				onclick={() => openSimModal(null)}
+				class="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-xs font-bold shadow-md hover:from-blue-700 hover:to-indigo-700 transition-all cursor-pointer">
+				<span class="material-symbols-outlined text-base">auto_awesome</span>
+				<span>Scan SIM AI</span>
+			</button>
 		</div>
 	</div>
 
@@ -336,6 +355,22 @@
 								</td>
 								<td class="px-5 py-4 text-right">
 									<div class="flex items-center justify-end gap-1.5">
+										{#if doc.doc_type?.toUpperCase().includes('SIM')}
+											<button
+												type="button"
+												onclick={() => openSimModal({
+													id: doc.driver_id || doc.id,
+													karyawan_id: doc.id,
+													name: doc.nama_karyawan,
+													sim_type: doc.doc_type,
+													sim_expiry_date: doc.expire_date
+												})}
+												class="px-2.5 py-1.5 rounded-lg bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800 hover:bg-blue-100 text-xs font-bold transition-all flex items-center gap-1 cursor-pointer"
+												title="Scan SIM Pengemudi via AI Vision">
+												<span class="material-symbols-outlined text-xs">auto_awesome</span>
+												<span>Scan AI</span>
+											</button>
+										{/if}
 										{#if doc.dms_document_id}
 											<a
 												href="/dms/transactions/documents/{doc.dms_document_id}"
@@ -454,3 +489,12 @@
 		</div>
 	</div>
 {/if}
+
+<!-- AI SIM Scanner Modal -->
+<DriverSimAiScannerModal
+	isOpen={showSimModal}
+	selectedDriver={selectedDriverForSim}
+	driversList={(data as any).driversList || []}
+	onClose={() => { showSimModal = false; selectedDriverForSim = null; }}
+	onSuccess={() => { invalidateAll(); }}
+/>
