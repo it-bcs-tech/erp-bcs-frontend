@@ -94,15 +94,24 @@ export const load: PageServerLoad = async () => {
 			) unit_compliance ON true
 			LEFT JOIN LATERAL (
 				SELECT 
-					EXISTS(
-						SELECT 1 FROM dms.documents doc 
-						WHERE (doc.employee_id = d.id OR doc.employee_id = k.id) AND (doc.expiry_date < CURRENT_DATE OR doc.status = 'EXPIRED')
+					(
+						(d.sim_expiry_date IS NOT NULL AND d.sim_expiry_date < CURRENT_DATE)
+						OR
+						EXISTS(
+							SELECT 1 FROM dms.documents doc 
+							WHERE (doc.employee_id = d.id OR (k.id IS NOT NULL AND doc.employee_id = k.id)) AND (doc.expiry_date < CURRENT_DATE OR doc.status = 'EXPIRED')
+						)
 					) as has_expired_sim,
 					(
-						SELECT string_agg(COALESCE(dt.name, doc.title) || ' (Expired: ' || to_char(doc.expiry_date, 'DD/MM/YYYY') || ')', ', ') 
-						FROM dms.documents doc 
-						LEFT JOIN dms.m_doc_type dt ON dt.id = doc.doc_type_id 
-						WHERE (doc.employee_id = d.id OR doc.employee_id = k.id) AND (doc.expiry_date < CURRENT_DATE OR doc.status = 'EXPIRED')
+						SELECT string_agg(detail, ', ') FROM (
+							SELECT COALESCE(d.sim_type, 'SIM') || ' (Expired: ' || to_char(d.sim_expiry_date, 'DD/MM/YYYY') || ')' as detail
+							WHERE d.sim_expiry_date IS NOT NULL AND d.sim_expiry_date < CURRENT_DATE
+							UNION ALL
+							SELECT COALESCE(dt.name, doc.title) || ' (Expired: ' || to_char(doc.expiry_date, 'DD/MM/YYYY') || ')' as detail
+							FROM dms.documents doc 
+							LEFT JOIN dms.m_doc_type dt ON dt.id = doc.doc_type_id 
+							WHERE (doc.employee_id = d.id OR (k.id IS NOT NULL AND doc.employee_id = k.id)) AND (doc.expiry_date < CURRENT_DATE OR doc.status = 'EXPIRED')
+						) sub
 					) as expired_sim_details
 			) driver_compliance ON true
 			WHERE u.is_active = true 
@@ -155,18 +164,18 @@ export const load: PageServerLoad = async () => {
 		}
 
 		for (const contract of activeContracts) {
-			// AI Logic: Find best unit that is AT_POOL and driver days < 14
+			// AI Logic: Find best unit that is AT_POOL, driver days < 14, and compliant (docs + SIM valid)
 			// unitsResult is already filtered and sorted by days_worked ASC
-			let bestUnit = availableUnitsPool.find(u => u.driverId && u.days_worked < 14);
+			let bestUnit = availableUnitsPool.find(u => u.driverId && u.days_worked < 14 && !u.has_expired_doc && !u.has_expired_sim);
 			
 			if (bestUnit) {
 				// Remove the chosen unit from the pool so it doesn't get assigned to the next contract
 				availableUnitsPool = availableUnitsPool.filter(u => u.unitId !== bestUnit?.unitId);
 			}
 			
-			// Find up to 5 alternatives (excluding the best unit)
+			// Find up to 5 alternatives (strictly compliant units only)
 			let alternatives = availableUnitsPool
-				.filter(u => u.driverId && u.days_worked < 14 && (!bestUnit || u.unitId !== bestUnit.unitId))
+				.filter(u => u.driverId && u.days_worked < 14 && !u.has_expired_doc && !u.has_expired_sim && (!bestUnit || u.unitId !== bestUnit.unitId))
 				.slice(0, 5)
 				.map(u => ({
 					unitId: u.unitId,
@@ -195,16 +204,13 @@ export const load: PageServerLoad = async () => {
 				ai_recommended_unit_id: bestUnit ? bestUnit.unitId : '',
 				ai_recommended_driver: bestUnit ? bestUnit.driver : '-',
 				ai_recommended_driver_id: bestUnit ? bestUnit.driverId : '',
+				has_expired_doc: bestUnit ? Boolean(bestUnit.has_expired_doc) : false,
+				has_expired_sim: bestUnit ? Boolean(bestUnit.has_expired_sim) : false,
 				ai_reason: bestUnit 
-					? `Rekomendasi AI: Unit ready di Pool. Sopir baru bekerja ${bestUnit.days_worked} hari bulan ini.` 
-					: `PERINGATAN: Saat ini tidak ada unit yang tersedia di Pool dengan Supir yang berstatus aktif. Kontrak ini belum bisa dijalankan.`,
+					? `Rekomendasi AI: Unit ready di Pool & dokumen lengkap/valid. Sopir baru bekerja ${bestUnit.days_worked} hari bulan ini.` 
+					: `PERINGATAN: Saat ini tidak ada armada di Pool dengan supir aktif dan dokumen kepatuhan (KIR, STNK, SIM) yang valid. Kontrak belum dapat didispatch.`,
 				alternatives: alternatives
 			});
-
-			if (bestUnit) {
-				// Remove unit from pool so next contract gets a different unit
-				availableUnitsPool = availableUnitsPool.filter(u => u.unitId !== bestUnit.unitId);
-			}
 		}
 
 		console.log("Contract Orders length:", contractOrders.length);
@@ -382,6 +388,108 @@ function parseId(val: any): number | null {
 	return isNaN(num) ? null : num;
 }
 
+/**
+ * Validasi kepatuhan armada (DMS) & SIM pengemudi sebelum dispatch
+ */
+async function validateDispatchCompliance(
+	sqlClient: any,
+	unitId: number | null,
+	driverId: number | null
+): Promise<{ valid: boolean; reason?: string }> {
+	if (!unitId) {
+		return { valid: false, reason: 'ID Armada/Unit tidak valid.' };
+	}
+
+	// 1. Validasi Dokumen Kepatuhan Armada di DMS (Uji KIR, STNK, Pajak Tahunan, Izin Limbah B3, dll.)
+	const unitDocs = await sqlClient`
+		SELECT 
+			COALESCE(dt.name, doc.title) as doc_name,
+			doc.expiry_date,
+			doc.status
+		FROM dms.documents doc
+		LEFT JOIN dms.m_doc_type dt ON dt.id = doc.doc_type_id
+		WHERE doc.asset_id = ${unitId} 
+		  AND (doc.expiry_date < CURRENT_DATE OR doc.status = 'EXPIRED')
+	`;
+
+	if (unitDocs.length > 0) {
+		const docDetails = unitDocs.map((d: any) => {
+			const expStr = d.expiry_date ? new Date(d.expiry_date).toLocaleDateString('id-ID') : 'Expired';
+			return `${d.doc_name} (Expired: ${expStr})`;
+		}).join(', ');
+		return {
+			valid: false,
+			reason: `Armada memiliki dokumen kepatuhan kedaluwarsa: ${docDetails}. Wajib diperbarui di DMS sebelum armada dapat didispatch.`
+		};
+	}
+
+	// 2. Validasi Kepatuhan Pengemudi & SIM
+	if (!driverId) {
+		return {
+			valid: false,
+			reason: 'Armada belum memiliki pengemudi aktif yang ditugaskan. Pengemudi wajib terpasang dan valid untuk proses dispatch.'
+		};
+	}
+
+	// Cek master.m_drivers
+	const driverRes = await sqlClient`
+		SELECT 
+			d.id,
+			d.karyawan_id,
+			d.sim_expiry_date,
+			d.sim_type,
+			k.nama_karyawan
+		FROM master.m_drivers d
+		LEFT JOIN master.m_karyawan k ON k.id = d.karyawan_id
+		WHERE d.id = ${driverId}
+	`;
+
+	if (driverRes.length === 0) {
+		return {
+			valid: false,
+			reason: `Data pengemudi (ID: ${driverId}) tidak ditemukan di Master Pengemudi.`
+		};
+	}
+
+	const drv = driverRes[0];
+	const simExp = drv.sim_expiry_date ? new Date(drv.sim_expiry_date) : null;
+	const now = new Date();
+	now.setHours(0, 0, 0, 0);
+
+	if (simExp && simExp < now) {
+		const expStr = simExp.toLocaleDateString('id-ID');
+		return {
+			valid: false,
+			reason: `SIM Pengemudi (${drv.nama_karyawan}) telah kedaluwarsa sejak ${expStr} (${drv.sim_type || 'SIM'}). Pengemudi dilarang jalan.`
+		};
+	}
+
+	// Cek dms.documents untuk dokumen pengemudi (SIM, Sertifikat B3, dsb)
+	const driverDocs = await sqlClient`
+		SELECT 
+			COALESCE(dt.name, doc.title) as doc_name,
+			doc.expiry_date,
+			doc.status
+		FROM dms.documents doc
+		LEFT JOIN dms.m_doc_type dt ON dt.id = doc.doc_type_id
+		WHERE (doc.employee_id = ${drv.id} OR (doc.employee_id IS NOT NULL AND ${drv.karyawan_id || null} IS NOT NULL AND doc.employee_id = ${drv.karyawan_id}))
+		  AND (doc.expiry_date < CURRENT_DATE OR doc.status = 'EXPIRED')
+	`;
+
+	if (driverDocs.length > 0) {
+		const docDetails = driverDocs.map((d: any) => {
+			const expStr = d.expiry_date ? new Date(d.expiry_date).toLocaleDateString('id-ID') : 'Expired';
+			return `${d.doc_name} (Expired: ${expStr})`;
+		}).join(', ');
+		return {
+			valid: false,
+			reason: `Pengemudi (${drv.nama_karyawan}) memiliki dokumen kepatuhan kedaluwarsa: ${docDetails}. Wajib diperbarui sebelum dispatch.`
+		};
+	}
+
+	return { valid: true };
+}
+
 export const actions: Actions = {
 	createDoFromPo: async ({ request }) => {
 		const data = await request.formData();
@@ -506,6 +614,12 @@ export const actions: Actions = {
 						if (driverRes.length > 0 && driverRes[0].driver_id) {
 							resolvedDriverId = parseId(driverRes[0].driver_id);
 						}
+					}
+
+					// Compliance Check: Block dispatch if armada docs or driver SIM is expired
+					const compliance = await validateDispatchCompliance(sql, assignment.unitId, resolvedDriverId);
+					if (!compliance.valid) {
+						throw new Error(`Gagal Dispatch: ${compliance.reason}`);
 					}
 
 					// Get Unit Capacity and Tipe Unit ID
@@ -677,6 +791,12 @@ export const actions: Actions = {
 			const dbDriverId = parseId(unitData[0].driver_id);
 			const totalUjo = ujoAmount + ujoMakan + ujoTol;
 
+			// Compliance Check: Block assign if unit docs or driver SIM is expired
+			const compliance = await validateDispatchCompliance(sql, dbUnitId, dbDriverId);
+			if (!compliance.valid) {
+				return fail(400, { message: `Gagal Assign: ${compliance.reason}` });
+			}
+
 			await sql.begin(async (sql) => {
 				await sql`
 					UPDATE marketing.sales_order 
@@ -776,6 +896,12 @@ export const actions: Actions = {
 						ORDER BY CASE WHEN posisi = 'SUPIR_UTAMA' THEN 1 ELSE 2 END ASC LIMIT 1
 					`;
 					if (dRes.length > 0) driverId = parseId(dRes[0].driver_id);
+				}
+
+				// Compliance Check
+				const compliance = await validateDispatchCompliance(sql, unitId, driverId);
+				if (!compliance.valid) {
+					throw new Error(`Gagal Dispatch Ngepok: ${compliance.reason}`);
 				}
 
 				let custName = 'Customer Umum';
@@ -923,6 +1049,12 @@ export const actions: Actions = {
 				const currentMaxRit = lastTrip.ritase_ke || 0;
 				const newTotalRitasePlan = currentMaxRit + count;
 
+				// Compliance Check: Block ritase susulan if armada docs or driver SIM is expired
+				const compliance = await validateDispatchCompliance(sql, parseId(lastTrip.unit_id), parseId(lastTrip.driver_id));
+				if (!compliance.valid) {
+					throw new Error(`Gagal Tambah Ritase Susulan: ${compliance.reason}`);
+				}
+
 				// Cari data cash advance ritase sebelumnya untuk mendapatkan tarif UJO per rit
 				const caSample = await sql`
 					SELECT ca.sales_order_id, ca.estimated_ujo, ca.ujo_tol, ca.ujo_makan
@@ -1055,6 +1187,12 @@ export const actions: Actions = {
 						ORDER BY CASE WHEN posisi = 'SUPIR_UTAMA' THEN 1 ELSE 2 END ASC LIMIT 1
 					`;
 					if (dRes.length > 0) driverId = parseId(dRes[0].driver_id);
+				}
+
+				// Compliance Check: Block dispatch if armada docs or driver SIM is expired
+				const compliance = await validateDispatchCompliance(sql, unitId, driverId);
+				if (!compliance.valid) {
+					throw new Error(`Gagal Dispatch Dedicated: ${compliance.reason}`);
 				}
 
 				let custName = 'Customer Dedicated';

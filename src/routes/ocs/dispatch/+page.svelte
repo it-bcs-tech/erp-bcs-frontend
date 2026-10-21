@@ -123,11 +123,14 @@
 
 	let unitSearch = $state('');
 	let showUnitDropdown = $state(false);
-	let filteredUnits = $derived(availableUnits.filter(u => 
-		(u.id && u.id.toLowerCase().includes(unitSearch.toLowerCase())) || 
-		(u.driver && u.driver.toLowerCase().includes(unitSearch.toLowerCase())) ||
-		(u.type && u.type.toLowerCase().includes(unitSearch.toLowerCase()))
-	));
+	let filteredUnits = $derived(availableUnits
+		.filter(u => !u.has_expired_doc && !u.has_expired_sim)
+		.filter(u => 
+			(u.id && u.id.toLowerCase().includes(unitSearch.toLowerCase())) || 
+			(u.driver && u.driver.toLowerCase().includes(unitSearch.toLowerCase())) ||
+			(u.type && u.type.toLowerCase().includes(unitSearch.toLowerCase()))
+		)
+	);
 
 	// Closing Form State
 	let closeWeight = $state('');
@@ -143,18 +146,18 @@
 	let manualDispatchUnloadingDate = $state('');
 	let manualDispatchRuteUjoId = $state('');
 
-	// Dropdown Options
-	let unitOpts = $derived(availableUnits.map(u => {
-		const warnings: string[] = [];
-		if (u.has_expired_doc) warnings.push('⚠️ Dokumen Expired');
-		if (u.has_expired_sim) warnings.push('⚠️ SIM Expired');
-		const warnTag = warnings.length > 0 ? ` [${warnings.join(', ')}]` : '';
-		const dId = (u.driverId && u.driverId !== 'null' && u.driverId !== 'undefined') ? u.driverId : '';
-		return {
-			value: `${u.unitId}|${dId}`,
-			label: `${u.id} • ${u.driver || 'Tanpa Sopir'} • ${u.brand || ''} ${u.type || ''}${warnTag}`
-		};
-	}));
+	// Dropdown Options (Hanya unit & supir yang patuh: dokumen & SIM aktif/valid)
+	let unitOpts = $derived(
+		availableUnits
+			.filter(u => !u.has_expired_doc && !u.has_expired_sim)
+			.map(u => {
+				const dId = (u.driverId && u.driverId !== 'null' && u.driverId !== 'undefined') ? u.driverId : '';
+				return {
+					value: `${u.unitId}|${dId}`,
+					label: `${u.id} • ${u.driver || 'Tanpa Sopir'} • ${u.brand || ''} ${u.type || ''}`
+				};
+			})
+	);
 	let productOpts = $derived(products.map(p => ({ value: p.name, label: p.name })));
 	let ruteOpts = $derived(masterRutes.map(r => ({
 		value: String(r.id),
@@ -376,8 +379,9 @@
 
 	function openManualDispatchModal(order: any) {
 		manualDispatchOrder = order;
-		const uId = (order.ai_recommended_unit_id && order.ai_recommended_unit_id !== 'null' && order.ai_recommended_unit_id !== 'undefined') ? order.ai_recommended_unit_id : '';
-		const dId = (order.ai_recommended_driver_id && order.ai_recommended_driver_id !== 'null' && order.ai_recommended_driver_id !== 'undefined') ? order.ai_recommended_driver_id : '';
+		const isCompliant = !order.has_expired_doc && !order.has_expired_sim;
+		const uId = (isCompliant && order.ai_recommended_unit_id && order.ai_recommended_unit_id !== 'null' && order.ai_recommended_unit_id !== 'undefined') ? order.ai_recommended_unit_id : '';
+		const dId = (isCompliant && order.ai_recommended_driver_id && order.ai_recommended_driver_id !== 'null' && order.ai_recommended_driver_id !== 'undefined') ? order.ai_recommended_driver_id : '';
 		manualDispatchUnitIds = uId ? [`${uId}|${dId}`] : [];
 		manualDispatchCargoName = '';
 		manualDispatchLoadingDate = '';
@@ -785,13 +789,20 @@
 											<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2 border-t border-slate-100 dark:border-slate-800/80">
 												<div>
 													<p class="text-[10px] uppercase font-bold text-on-surface-variant tracking-wider">Unit & Sopir Rekomendasi</p>
-													<div class="flex items-center gap-2 mt-0.5">
+													<div class="flex items-center gap-2 mt-0.5 flex-wrap">
 														<span class="text-xs font-black text-blue-600 dark:text-blue-400 flex items-center gap-1.5">
 															<span class="material-symbols-outlined text-sm">local_shipping</span>
 															<span>{contractOrder.ai_recommended_unit}</span>
 														</span>
 														<span class="text-xs text-on-surface-variant">•</span>
 														<span class="text-xs font-bold text-on-surface">{contractOrder.ai_recommended_driver}</span>
+
+														{#if contractOrder.has_expired_doc}
+															<span class="text-[9px] font-bold text-rose-700 bg-rose-50 border border-rose-200 px-1.5 py-0.5 rounded">⚠️ Dokumen Armada Expired</span>
+														{/if}
+														{#if contractOrder.has_expired_sim}
+															<span class="text-[9px] font-bold text-rose-700 bg-rose-50 border border-rose-200 px-1.5 py-0.5 rounded">⚠️ SIM Sopir Expired</span>
+														{/if}
 
 														{#if contractOrder.alternatives && contractOrder.alternatives.length > 0}
 															<button
@@ -811,13 +822,13 @@
 													<button
 														type="button"
 														onclick={() => openManualDispatchModal(contractOrder)}
-														class="px-3 py-2 {contractOrder.ai_recommended_unit_id ? 'bg-surface-container hover:bg-surface-container-high text-on-surface-variant' : 'bg-rose-50 text-rose-700 border border-rose-200 animate-pulse'} rounded-xl text-xs font-bold transition-colors flex items-center gap-1.5 cursor-pointer"
+														class="px-3 py-2 {contractOrder.ai_recommended_unit_id && !contractOrder.has_expired_doc && !contractOrder.has_expired_sim ? 'bg-surface-container hover:bg-surface-container-high text-on-surface-variant' : 'bg-rose-50 text-rose-700 border border-rose-200 animate-pulse'} rounded-xl text-xs font-bold transition-colors flex items-center gap-1.5 cursor-pointer"
 													>
 														<span class="material-symbols-outlined text-base">swap_horiz</span>
 														<span>{contractOrder.ai_recommended_unit_id ? 'Tukar Unit Manual' : 'Pilih Unit Manual'}</span>
 													</button>
 
-													{#if contractOrder.ai_recommended_unit_id}
+													{#if contractOrder.ai_recommended_unit_id && !contractOrder.has_expired_doc && !contractOrder.has_expired_sim}
 														<form
 															method="POST"
 															action="?/createDoFromPo"
@@ -850,6 +861,16 @@
 																<span>Approve Dispatch</span>
 															</button>
 														</form>
+													{:else if contractOrder.ai_recommended_unit_id && (contractOrder.has_expired_doc || contractOrder.has_expired_sim)}
+														<div class="flex items-center gap-2">
+															<span class="px-3 py-1.5 rounded-xl bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-400 border border-rose-200 dark:border-rose-900 text-xs font-bold flex items-center gap-1.5">
+																<span class="material-symbols-outlined text-base">gpp_bad</span>
+																<span>⛔ Dokumen / SIM Expired</span>
+															</span>
+															<button disabled class="bg-surface-container text-on-surface-variant px-3 py-2 rounded-xl text-xs font-bold cursor-not-allowed flex items-center gap-1.5 opacity-60">
+																<span>Approve Diblokir</span>
+															</button>
+														</div>
 													{:else}
 														<button disabled class="bg-surface-container text-on-surface-variant px-4 py-2 rounded-xl text-xs font-bold cursor-not-allowed flex items-center gap-1.5">
 															<span class="material-symbols-outlined text-base">hourglass_empty</span>
