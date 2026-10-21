@@ -1,7 +1,5 @@
 <script lang="ts">
 	import type { PageData } from './$types';
-	import DriverSimAiScannerModal from '$lib/components/DriverSimAiScannerModal.svelte';
-	import { invalidateAll } from '$app/navigation';
 
 	let { data }: { data: PageData } = $props();
 
@@ -23,10 +21,6 @@
 	// Pagination state
 	let currentPage = $state(1);
 	let itemsPerPage = $state(12);
-
-	// Modal State
-	let showSimModal = $state(false);
-	let selectedDriverForSim = $state<any>(null);
 
 	let filteredDrivers = $derived(
 		drivers.filter((d: any) => {
@@ -68,20 +62,6 @@
 		}
 	});
 
-	function openScanner(driver?: any) {
-		selectedDriverForSim = driver ? {
-			id: driver.id,
-			name: driver.name,
-			karyawan_id: driver.karyawan_id,
-			sim_type: driver.sim_type,
-			sim_expiry_date: driver.sim_expiry_date
-		} : null;
-		showSimModal = true;
-	}
-
-	function handleScanSuccess() {
-		invalidateAll();
-	}
 
 	function formatDate(d: string | null | undefined): string {
 		if (!d) return '-';
@@ -126,14 +106,6 @@
 				<span class="material-symbols-outlined text-base text-primary">person_pin</span>
 				<span>Penugasan Armada</span>
 			</a>
-
-			<button 
-				type="button"
-				onclick={() => openScanner()}
-				class="px-4 py-2 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-xs font-bold hover:opacity-95 transition-all shadow-xs flex items-center gap-1.5 cursor-pointer">
-				<span class="material-symbols-outlined text-base">auto_awesome</span>
-				<span>Scan & Perbarui SIM (AI)</span>
-			</button>
 		</div>
 	</header>
 
@@ -241,7 +213,7 @@
 						<th class="py-3.5 px-5">Masa Berlaku</th>
 						<th class="py-3.5 px-5">Penugasan Unit</th>
 						<th class="py-3.5 px-5">Trip Bulan Ini</th>
-						<th class="py-3.5 px-5 text-right">Aksi</th>
+						<th class="py-3.5 px-5 text-right">Status Kesiapan</th>
 					</tr>
 				</thead>
 				<tbody class="divide-y divide-slate-200/60 dark:divide-slate-800/60">
@@ -330,14 +302,22 @@
 							</td>
 
 							<td class="py-4 px-5 text-right">
-								<button 
-									type="button"
-									onclick={() => openScanner(drv)}
-									class="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-surface border border-slate-200 dark:border-slate-800 text-xs font-bold text-primary hover:bg-primary/10 transition-colors shadow-xs cursor-pointer"
-									title="Scan & Perbarui SIM Pengemudi (AI)">
-									<span class="material-symbols-outlined text-sm">auto_awesome</span>
-									<span>Scan SIM</span>
-								</button>
+								{#if drv.gate_status === 'EXPIRED'}
+									<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-bold bg-rose-50 text-rose-700 dark:bg-rose-950/40 dark:text-rose-300 border border-rose-200 dark:border-rose-800">
+										<span class="material-symbols-outlined text-sm">block</span>
+										<span>Blokir Penugasan</span>
+									</span>
+								{:else if drv.assigned_unit}
+									<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-bold bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
+										<span class="material-symbols-outlined text-sm">local_shipping</span>
+										<span>Beroperasi</span>
+									</span>
+								{:else}
+									<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-bold bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
+										<span class="material-symbols-outlined text-sm">check_circle</span>
+										<span>Siap Jalan</span>
+									</span>
+								{/if}
 							</td>
 						</tr>
 					{/each}
@@ -374,12 +354,3 @@
 		</div>
 	</div>
 </div>
-
-<!-- Modal AI SIM Scanner -->
-<DriverSimAiScannerModal
-	isOpen={showSimModal}
-	selectedDriver={selectedDriverForSim}
-	driversList={drivers}
-	onClose={() => showSimModal = false}
-	onSuccess={handleScanSuccess}
-/>

@@ -232,6 +232,16 @@
 
 			const data = await res.json();
 
+			if (data && data.is_rejected) {
+				// TOLAK KERAS (Hard Reject)
+				step = 'upload';
+				scanError = data.message || 'Berkas Ditolak: Gambar yang diunggah bukan fisik kartu SIM atau e-KTP Republik Indonesia yang sah. Silakan unggah foto kartu identitas yang benar.';
+				selectedFile = null;
+				previewUrl = null;
+				base64Image = null;
+				return;
+			}
+
 			if (data && data.success && data.data) {
 				const extracted = data.data;
 				const docType = String(extracted.doc_type || '').toUpperCase();
@@ -353,6 +363,18 @@
 			<div class="p-6 overflow-y-auto flex-1 space-y-5">
 				{#if step === 'upload'}
 					<div class="space-y-4">
+						{#if scanError}
+							<div class="p-3.5 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-rose-700 dark:text-rose-400 text-xs flex items-start gap-2.5 animate-in fade-in duration-200">
+								<span class="material-symbols-outlined text-base mt-0.5 text-rose-600 dark:text-rose-400">block</span>
+								<div>
+									<p class="font-bold">Unggahan Ditolak</p>
+									<p class="text-[11px] mt-0.5 text-rose-700/80 dark:text-rose-400/80 leading-relaxed">
+										{scanError}
+									</p>
+								</div>
+							</div>
+						{/if}
+
 						<!-- Target Driver Selection if not preselected -->
 						{#if !selectedDriver && driversList.length > 0}
 							<div class="space-y-1.5">

@@ -56,6 +56,13 @@ export const POST: RequestHandler = async ({ request }) => {
 
 				if (bridgeResponse.ok) {
 					const bridgeResult = await bridgeResponse.json();
+					if (bridgeResult && bridgeResult.is_rejected) {
+						return json({
+							success: false,
+							is_rejected: true,
+							message: bridgeResult.message || 'Berkas Ditolak: Gambar yang diunggah bukan fisik kartu SIM atau e-KTP yang sah.'
+						});
+					}
 					if (bridgeResult && bridgeResult.success) {
 						return json(bridgeResult);
 					}
@@ -75,26 +82,42 @@ export const POST: RequestHandler = async ({ request }) => {
 			];
 
 			const systemPrompt = 
-				'Anda adalah asisten AI Vision OCR cerdas khusus membaca dokumen identitas resmi Republik Indonesia: ' +
+				'Anda adalah asisten AI Vision OCR resmi untuk verifikasi kartu identitas Republik Indonesia: ' +
 				'Surat Izin Mengemudi (SIM) atau Kartu Tanda Penduduk (e-KTP). ' +
-				'Tugas Anda mendeteksi jenis dokumen yang diunggah dan mengekstrak informasi di dalamnya secara akurat. ' +
-				'Kembalikan HANYA JSON murni tanpa kata pengantar atau markdown.';
+				'Tugas utama Anda adalah MEMVERIFIKASI keaslian dan jenis dokumen terlebih dahulu. ' +
+				'Jika gambar BUKAN fisik SIM asli dan BUKAN fisik e-KTP asli Republik Indonesia ' +
+				'(misal: STNK, BPKB, foto hewan, pemandangan, selfie/wajah tanpa kartu, faktur/surat biasa, atau gambar acak/buram tidak terbaca), Anda WAJIB MENOLAKNYA. ' +
+				'Kembalikan HANYA JSON murni tanpa markdown.';
 
 			const userPrompt = 
-				'Analisis gambar berikut. Deteksi apakah gambar ini adalah SIM atau KTP (e-KTP), lalu ekstrak datanya ke format JSON persis seperti ini:\n' +
-				'{\n' +
-				'  "doc_type": "SIM",\n' +
-				'  "sim_type": "SIM B2 UMUM",\n' +
-				'  "sim_number": "123456789012",\n' +
-				'  "nik": "3671012345670001",\n' +
-				'  "driver_name": "NAMA LENGKAP",\n' +
-				'  "expiry_date": "YYYY-MM-DD",\n' +
-				'  "birth_place": "KOTA LAHIR",\n' +
-				'  "birth_date": "YYYY-MM-DD",\n' +
-				'  "address": "ALAMAT LENGKAP",\n' +
-				'  "confidence_score": 0.95\n' +
-				'}\n' +
-				'Aturan: Format tanggal WAJIB ISO YYYY-MM-DD. Jangan gunakan triple backtick markdown.';
+				'Analisis gambar yang diunggah secara saksama:\n' +
+				'1. Uji Keabsahan Dokumen:\n' +
+				'   - Apakah gambar ini secara fisik adalah Surat Izin Mengemudi (SIM) Republik Indonesia yang jelas?\n' +
+				'   - ATAU apakah gambar ini secara fisik adalah Kartu Tanda Penduduk Elektronik (e-KTP) Republik Indonesia yang jelas?\n' +
+				'   - Jika BUKAN keduanya (misal: STNK, sertifikat, invoice, foto orang/selfie biasa, pemandangan, benda, teks dokumen biasa, atau gambar buram/palsu), maka KEMBALIKAN format penolakan:\n' +
+				'   {\n' +
+				'     "is_valid_id": false,\n' +
+				'     "doc_type": "UNKNOWN",\n' +
+				'     "rejection_reason": "Gambar yang diunggah bukan fisik kartu SIM atau e-KTP Republik Indonesia yang sah.",\n' +
+				'     "confidence_score": 0.0\n' +
+				'   }\n\n' +
+				'2. Jika gambar BENAR adalah SIM atau e-KTP yang valid, kembalikan format:\n' +
+				'   {\n' +
+				'     "is_valid_id": true,\n' +
+				'     "doc_type": "SIM", // "SIM" atau "KTP"\n' +
+				'     "sim_type": "SIM B2 UMUM", // Jika SIM, pilih: "SIM A", "SIM B1", "SIM B1 UMUM", "SIM B2", "SIM B2 UMUM", "SIM C". Jika KTP, isi null.\n' +
+				'     "sim_number": "123456789012", // Nomor SIM jika SIM, atau nomor NIK jika KTP\n' +
+				'     "nik": "3671012345670001", // Nomor NIK jika KTP, atau null jika SIM\n' +
+				'     "driver_name": "NAMA LENGKAP", // Sesuai kartu\n' +
+				'     "expiry_date": "YYYY-MM-DD", // Tanggal masa berlaku ISO YYYY-MM-DD. Jika KTP Seumur Hidup, isi null.\n' +
+				'     "birth_place": "KOTA LAHIR",\n' +
+				'     "birth_date": "YYYY-MM-DD",\n' +
+				'     "address": "ALAMAT LENGKAP",\n' +
+				'     "gender": "L / P",\n' +
+				'     "blood_type": "A / B / AB / O / -",\n' +
+				'     "confidence_score": 0.95\n' +
+				'   }\n\n' +
+				'Aturan: Format tanggal WAJIB ISO YYYY-MM-DD. Berikan respons HANYA teks JSON valid tanpa backtick.';
 
 			for (const visionModel of candidateVisionModels) {
 				try {
@@ -136,8 +159,26 @@ export const POST: RequestHandler = async ({ request }) => {
 						}
 						const parsed = JSON.parse(cleaned);
 
-						// Normalisasi Jenis SIM
+						// Validasi Penolakan Keras (Hard Reject)
+						const isValid = parsed.is_valid_id !== false;
 						const detectedDoc = String(parsed.doc_type || '').toUpperCase();
+						const rejectionReason = parsed.rejection_reason || 'Gambar yang diunggah bukan fisik kartu SIM atau e-KTP yang sah.';
+
+						if (
+							!isValid ||
+							detectedDoc.includes('UNKNOWN') ||
+							detectedDoc.includes('INVALID') ||
+							(!detectedDoc.includes('SIM') && !detectedDoc.includes('KTP')) ||
+							(!parsed.sim_number && !parsed.nik)
+						) {
+							return json({
+								success: false,
+								is_rejected: true,
+								message: `Berkas Ditolak: ${rejectionReason}`
+							});
+						}
+
+						// Normalisasi Jenis SIM
 						if (detectedDoc.includes('KTP')) {
 							parsed.doc_type = 'KTP';
 							if (!parsed.sim_type) parsed.sim_type = 'KTP KARYAWAN';
@@ -156,6 +197,7 @@ export const POST: RequestHandler = async ({ request }) => {
 
 						return json({
 							success: true,
+							is_rejected: false,
 							message: `Dokumen ${parsed.doc_type} berhasil dipindai via Vision AI (${visionModel}).`,
 							data: parsed
 						});

@@ -2,7 +2,6 @@
 	import type { PageData, ActionData } from './$types';
 	import { enhance } from '$app/forms';
 	import SearchableSelect from '$lib/components/SearchableSelect.svelte';
-	import DriverSimAiScannerModal from '$lib/components/DriverSimAiScannerModal.svelte';
 	import { invalidateAll } from '$app/navigation';
 	
 	let { data, form }: { data: PageData, form: any } = $props();
@@ -15,10 +14,6 @@
 	let showModal = $state(false);
 	let isSubmitting = $state(false);
 	let tableSearch = $state('');
-
-	// AI SIM Scanner Modal State
-	let showSimModal = $state(false);
-	let selectedDriverForSim = $state<any>(null);
 
 	let filteredAssignments = $derived(
 		tableSearch.trim() === '' 
@@ -104,25 +99,6 @@
 		showModal = false;
 	}
 
-	function triggerSimScan(driver?: any) {
-		if (driver) {
-			selectedDriverForSim = {
-				id: driver.id || driver.driver_id,
-				name: driver.name || driver.driver_name,
-				karyawan_id: driver.karyawan_id,
-				sim_type: driver.sim_type,
-				sim_expiry_date: driver.sim_expiry_date
-			};
-		} else {
-			selectedDriverForSim = null;
-		}
-		showSimModal = true;
-	}
-
-	function handleSimScanSuccess(result: any) {
-		invalidateAll();
-	}
-
 	$effect(() => {
 		if (form?.success) {
 			closeModal();
@@ -166,14 +142,6 @@
 				/>
 			</div>
 
-			<!-- Tombol Quick Action Scan SIM AI -->
-			<button 
-				type="button"
-				onclick={() => triggerSimScan()} 
-				class="bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-3.5 py-2 rounded-xl text-xs font-bold shadow-xs flex items-center justify-center gap-1.5 hover:opacity-95 transition-all whitespace-nowrap cursor-pointer">
-				<span class="material-symbols-outlined text-base">auto_awesome</span>
-				<span>Scan SIM AI</span>
-			</button>
 
 			<button 
 				type="button"
@@ -191,13 +159,10 @@
 			<div class="flex-1 space-y-2">
 				<p class="font-bold">{form.error}</p>
 				{#if form.isSimExpired}
-					<button 
-						type="button"
-						onclick={() => triggerSimScan({ id: form.driverId, name: form.driverName, sim_type: form.simType })}
-						class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-rose-600 text-white rounded-xl text-xs font-bold hover:bg-rose-700 transition-colors shadow-xs">
-						<span class="material-symbols-outlined text-sm">auto_awesome</span>
-						<span>Buka Kamera & Scan SIM Baru ({form.driverName})</span>
-					</button>
+					<p class="text-[11px] text-rose-700 dark:text-rose-400 font-semibold flex items-center gap-1.5 mt-1">
+						<span class="material-symbols-outlined text-sm">info</span>
+						<span>Silakan ajukan pembaruan masa berlaku SIM ke tim HRIS agar data pengemudi dapat diaktifkan kembali.</span>
+					</p>
 				{/if}
 			</div>
 		</div>
@@ -292,14 +257,7 @@
 							</td>
 							<td class="py-4 px-5 text-right">
 								<div class="flex items-center justify-end gap-1">
-									<!-- Tombol Scan SIM AI untuk pengemudi ini -->
-									<button 
-										type="button" 
-										onclick={() => triggerSimScan(item)} 
-										class="p-2 rounded-lg text-primary hover:bg-primary/10 transition-colors" 
-										title="Scan & Perbarui SIM Pengemudi Ini (AI)">
-										<span class="material-symbols-outlined text-lg">auto_awesome</span>
-									</button>
+
 
 									{#if item.assignment_status === 'ACTIVE'}
 										<form method="POST" action="?/disableDriver" use:enhance={() => { return async ({ update }) => { await update(); }; }}>
@@ -409,13 +367,10 @@
 								<p class="text-[11px] text-rose-700 dark:text-rose-300 font-medium">
 									❌ <strong>DITOLAK:</strong> {selectedDriverObj.sim_type || 'SIM'} telah kedaluwarsa. Sistem memblokir penugasan untuk mencegah pelanggaran hukum dan keselamatan jalan.
 								</p>
-								<button 
-									type="button" 
-									onclick={() => triggerSimScan(selectedDriverObj)}
-									class="inline-flex items-center gap-1 px-3 py-1.5 bg-rose-600 text-white rounded-xl text-xs font-bold hover:bg-rose-700 transition-colors shadow-xs cursor-pointer">
-									<span class="material-symbols-outlined text-sm">auto_awesome</span>
-									<span>Pindai SIM Baru via AI (Buka Blokir)</span>
-								</button>
+								<div class="p-2.5 rounded-xl bg-rose-500/10 text-[11px] text-rose-700 dark:text-rose-400 font-medium flex items-center gap-1.5">
+									<span class="material-symbols-outlined text-base">info</span>
+									<span>Pengemudi tidak dapat ditugaskan. Silakan hubungi tim HRIS untuk memperbarui data SIM pengemudi ini.</span>
+								</div>
 							{:else if selectedDriverObj.sim_gate_status === 'WARNING_30'}
 								<p class="text-[11px] text-amber-700 dark:text-amber-300">
 									⚠️ <strong>Peringatan:</strong> SIM akan kedaluwarsa dalam {selectedDriverObj.sim_days_remaining} hari. Penugasan tetap diizinkan, harap ingatkan sopir untuk perpanjangan.
@@ -483,12 +438,3 @@
 		</div>
 	</div>
 {/if}
-
-<!-- Reusable AI SIM Scanner Modal -->
-<DriverSimAiScannerModal
-	isOpen={showSimModal}
-	selectedDriver={selectedDriverForSim}
-	driversList={drivers}
-	onClose={() => showSimModal = false}
-	onSuccess={handleSimScanSuccess}
-/>
