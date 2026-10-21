@@ -26,6 +26,8 @@
 	let isScanning = $state(false);
 	let isSaving = $state(false);
 	let scanError = $state<string | null>(null);
+	let detectedDocType = $state<'SIM' | 'KTP' | null>(null);
+	let detectedNik = $state<string | null>(null);
 
 	// Form review data (terisi oleh AI)
 	let targetDriverId = $state<string | number>('');
@@ -63,6 +65,8 @@
 		isScanning = false;
 		isSaving = false;
 		scanError = null;
+		detectedDocType = null;
+		detectedNik = null;
 		formSimNumber = '';
 		formExpiryDate = '';
 		formBirthPlace = '';
@@ -97,22 +101,105 @@
 		}
 	}
 
-	function processChosenFile(file: File) {
-		selectedFile = file;
-		scanError = null;
-		const reader = new FileReader();
-		reader.onload = (event) => {
-			const res = event.target?.result as string;
-			previewUrl = res;
-			base64Image = res;
-			// Otomatis mulai scan AI saat file terpilih
-			startAiScan();
-		};
-		reader.readAsDataURL(file);
+	/**
+	 * Kompresi gambar sisi klien menggunakan HTML5 Canvas
+	 * Meresize gambar beresolusi tinggi (kamera ponsel 12MP-50MP) menjadi max 1280px & JPEG 0.82
+	 * Mengurangi ukuran file dari 5-15MB menjadi ~150-280KB tanpa mengurangi ketajaman OCR AI
+	 */
+	async function compressImageFile(file: File, maxDimension = 1280, quality = 0.82): Promise<{ file: File; base64: string }> {
+		if (!file.type.startsWith('image/')) {
+			return new Promise((resolve, reject) => {
+				const reader = new FileReader();
+				reader.onload = (e) => resolve({ file, base64: (e.target?.result as string) || '' });
+				reader.onerror = reject;
+				reader.readAsDataURL(file);
+			});
+		}
+
+		return new Promise((resolve) => {
+			const img = new Image();
+			const objectUrl = URL.createObjectURL(file);
+			img.onload = () => {
+				URL.revokeObjectURL(objectUrl);
+				let { width, height } = img;
+				if (width > maxDimension || height > maxDimension) {
+					if (width > height) {
+						height = Math.round((height * maxDimension) / width);
+						width = maxDimension;
+					} else {
+						width = Math.round((width * maxDimension) / height);
+						height = maxDimension;
+					}
+				}
+
+				const canvas = document.createElement('canvas');
+				canvas.width = width;
+				canvas.height = height;
+				const ctx = canvas.getContext('2d');
+				if (ctx) {
+					ctx.drawImage(img, 0, 0, width, height);
+					const dataUrl = canvas.toDataURL('image/jpeg', quality);
+					canvas.toBlob(
+						(blob) => {
+							if (blob) {
+								const compressed = new File([blob], file.name.replace(/\.[^/.]+$/, '.jpg'), {
+									type: 'image/jpeg',
+									lastModified: Date.now()
+								});
+								resolve({ file: compressed, base64: dataUrl });
+							} else {
+								resolve({ file, base64: dataUrl });
+							}
+						},
+						'image/jpeg',
+						quality
+					);
+				} else {
+					const reader = new FileReader();
+					reader.onload = (e) => resolve({ file, base64: (e.target?.result as string) || '' });
+					reader.readAsDataURL(file);
+				}
+			};
+			img.onerror = () => {
+				URL.revokeObjectURL(objectUrl);
+				const reader = new FileReader();
+				reader.onload = (e) => resolve({ file, base64: (e.target?.result as string) || '' });
+				reader.readAsDataURL(file);
+			};
+			img.src = objectUrl;
+		});
 	}
 
-	async function startAiScan() {
-		if (!base64Image && !selectedFile) return;
+	async function processChosenFile(file: File) {
+		step = 'scanning';
+		isScanning = true;
+		scanError = null;
+
+		try {
+			const { file: compressedFile, base64 } = await compressImageFile(file);
+			selectedFile = compressedFile;
+			previewUrl = base64;
+			base64Image = base64;
+			await startAiScan(compressedFile, base64);
+		} catch (err: any) {
+			console.error('File compression error, fallback to raw file:', err);
+			selectedFile = file;
+			const reader = new FileReader();
+			reader.onload = async (event) => {
+				const res = (event.target?.result as string) || '';
+				previewUrl = res;
+				base64Image = res;
+				await startAiScan(file, res);
+			};
+			reader.readAsDataURL(file);
+		}
+	}
+
+	async function startAiScan(fileToScan?: File | null, base64ToScan?: string | null) {
+		const targetFile = fileToScan ?? selectedFile;
+		const targetBase64 = base64ToScan ?? base64Image;
+
+		if (!targetBase64 && !targetFile) return;
 
 		step = 'scanning';
 		isScanning = true;
@@ -120,10 +207,10 @@
 
 		try {
 			const formData = new FormData();
-			if (selectedFile) {
-				formData.append('file', selectedFile);
-			} else if (base64Image) {
-				formData.append('image_base64', base64Image);
+			if (targetFile) {
+				formData.append('file', targetFile);
+			} else if (targetBase64) {
+				formData.append('image_base64', targetBase64);
 			}
 
 			const res = await fetch('/api/ocs/scan-sim', {
@@ -131,10 +218,30 @@
 				body: formData
 			});
 
+			const contentType = res.headers.get('content-type') || '';
+
+			if (!contentType.includes('application/json')) {
+				if (res.status === 413) {
+					scanError = 'Ukuran berkas terlalu besar untuk server (>1MB). Berkas telah dikompresi otomatis, silakan coba unggah ulang.';
+				} else {
+					scanError = `Layanan AI Vision sedang offline atau tidak dapat dijangkau (Status ${res.status}). Form isian manual terbuka otomatis untuk diisi.`;
+				}
+				step = 'review';
+				return;
+			}
+
 			const data = await res.json();
 
 			if (data && data.success && data.data) {
 				const extracted = data.data;
+				const docType = String(extracted.doc_type || '').toUpperCase();
+				if (docType.includes('KTP')) {
+					detectedDocType = 'KTP';
+					detectedNik = extracted.nik || extracted.sim_number || null;
+				} else {
+					detectedDocType = 'SIM';
+				}
+
 				if (extracted.sim_type) formSimType = extracted.sim_type;
 				if (extracted.sim_number) formSimNumber = extracted.sim_number;
 				if (extracted.expiry_date) formExpiryDate = extracted.expiry_date;
@@ -143,7 +250,7 @@
 				if (extracted.address) formAddress = extracted.address;
 				if (extracted.confidence_score) aiConfidence = Math.round(extracted.confidence_score * 100);
 
-				// Jika nama driver pada SIM terbaca dan targetDriver belum dipilih, cocokkan otomatis
+				// Jika nama driver pada SIM/KTP terbaca dan targetDriver belum dipilih, cocokkan otomatis
 				if (extracted.driver_name && !targetDriverId && !targetKaryawanId && driversList.length > 0) {
 					const cleanAiName = extracted.driver_name.toUpperCase();
 					const match = driversList.find((d) => cleanAiName.includes(d.name.toUpperCase()) || d.name.toUpperCase().includes(cleanAiName));
@@ -157,14 +264,14 @@
 				step = 'review';
 			} else if (data && data.fallback_manual) {
 				// Fallback ke manual review
-				scanError = data.message || 'AI tidak dapat membaca teks secara jelas. Silakan lengkapi manual.';
+				scanError = data.message || 'AI Vision sedang offline atau foto buram. Form isian manual terbuka otomatis untuk diisi.';
 				step = 'review';
 			} else {
 				throw new Error(data?.message || 'Gagal memindai SIM');
 			}
 		} catch (err: any) {
 			console.error('Scan error:', err);
-			scanError = err.message || 'Terjadi kesalahan jaringan saat memindai SIM.';
+			scanError = err.message || 'Terjadi kesalahan jaringan saat memindai SIM. Form isian manual terbuka otomatis untuk diisi.';
 			step = 'review'; // Tetap buka form review agar user bisa input manual
 		} finally {
 			isScanning = false;
@@ -290,8 +397,8 @@
 							</div>
 
 							<div>
-								<h4 class="text-xs font-bold text-on-surface">Tarik & Lepas Foto Fisik SIM di sini</h4>
-								<p class="text-[11px] text-on-surface-variant mt-0.5">Mendukung format JPG, PNG, WEBP, atau scan dokumen (Maks. 10MB)</p>
+								<h4 class="text-xs font-bold text-on-surface">Tarik & Lepas Foto Fisik SIM / KTP di sini</h4>
+								<p class="text-[11px] text-on-surface-variant mt-0.5">Mendukung format JPG, PNG, WEBP (Kompresi otomatis dari kamera HP, Maks. 15MB)</p>
 							</div>
 
 							<div class="flex flex-wrap items-center justify-center gap-2.5 pt-2">
@@ -337,6 +444,18 @@
 						<div class="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-700 dark:text-amber-400 text-xs flex items-center gap-2">
 							<span class="material-symbols-outlined text-base">info</span>
 							<span>{scanError}</span>
+						</div>
+					{/if}
+
+					{#if detectedDocType === 'KTP'}
+						<div class="p-3.5 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-700 dark:text-indigo-300 text-xs flex items-start gap-2.5">
+							<span class="material-symbols-outlined text-base mt-0.5 text-indigo-600 dark:text-indigo-400">badge</span>
+							<div>
+								<p class="font-bold">Dokumen Terdeteksi: e-KTP (Kependudukan)</p>
+								<p class="text-[11px] mt-0.5 text-indigo-700/80 dark:text-indigo-300/80">
+									Nomor NIK <strong>{detectedNik || formSimNumber}</strong> dan data identitas berhasil diekstrak. Silakan sesuaikan jenis SIM dan tanggal kedaluwarsa pengemudi untuk disimpan ke OCS & HRIS.
+								</p>
+							</div>
 						</div>
 					{/if}
 

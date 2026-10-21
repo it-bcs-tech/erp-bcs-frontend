@@ -74,11 +74,11 @@ jobs:
             echo "=== DISK USAGE SETELAH CLEANUP ==="
             df -h /
             
-            # Tarik image frontend terbaru
-            docker compose pull frontend
+            # Tarik image frontend dan ai-bridge terbaru
+            docker compose pull frontend ai-bridge || docker compose pull frontend
             
-            # Recreate container frontend dengan image baru secara paksa
-            docker compose up -d --force-recreate --no-deps frontend
+            # Recreate container frontend dan pastikan ai-bridge aktif
+            docker compose up -d frontend ai-bridge
             
             echo "=== STATUS CONTAINER ==="
-            docker compose ps frontend
+            docker compose ps
