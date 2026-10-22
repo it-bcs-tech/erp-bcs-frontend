@@ -599,14 +599,14 @@
 		</div>
 
 		<!-- Search Input -->
-		<div class="relative w-full md:w-80 flex-shrink-0">
-			<span class="material-symbols-outlined absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-lg">search</span>
+		<div class="flex items-center gap-2.5 w-full md:w-80 flex-shrink-0 px-3.5 py-2 rounded-xl bg-surface border-0 focus-within:ring-2 focus-within:ring-blue-500/30 transition-all">
+			<span class="material-symbols-outlined text-on-surface-variant text-[18px]">search</span>
 			<input 
 				type="text" 
 				bind:value={searchQuery} 
 				oninput={handleSearchInput}
 				placeholder="Cari nopol unit, driver, rute..." 
-				class="w-full bg-surface border border-slate-200 dark:border-slate-700 text-on-surface rounded-xl py-2 pl-10 pr-4 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/40 placeholder:text-slate-400" 
+				class="w-full bg-transparent border-0 outline-none text-on-surface text-xs font-medium placeholder:text-on-surface-variant/50 focus:ring-0" 
 			/>
 		</div>
 	</div>

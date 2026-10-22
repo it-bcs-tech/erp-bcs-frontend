@@ -215,7 +215,7 @@
 
 	<!-- Main Content Canvas -->
 	<main class="flex-1 h-full overflow-y-auto p-8 bg-surface">
-		<div class="max-w-7xl mx-auto space-y-4">
+		<div class="max-w-7xl mx-auto space-y-6">
 			<!-- Admin-Only Data Source Status Badge -->
 			{#if isAdmin}
 				<div class="flex items-center justify-between px-4 py-2 rounded-xl bg-surface-container-low border border-slate-200/60 dark:border-slate-800/60 text-xs shadow-2xs">

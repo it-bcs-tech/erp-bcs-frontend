@@ -185,7 +185,7 @@
 							</ol>
 
 							<form method="POST" action="?/add" onsubmit={() => setTimeout(() => window.location.reload(), 500)}>
-								<input type="text" name="nama" bind:value={nama} placeholder="Nama Rest Area (Cth: KM 57)" class="w-full text-sm p-2.5 rounded-xl border border-amber-200/60 bg-white/50 focus:bg-white mb-3 shadow-inner focus:outline-none focus:ring-2 focus:ring-amber-500/30" required />
+								<input type="text" name="nama" bind:value={nama} placeholder="Nama Rest Area (Cth: KM 57)" class="w-full text-sm p-2.5 rounded-xl border-0 bg-surface-container-low text-on-surface mb-3 outline-none focus:ring-2 focus:ring-amber-500/30 placeholder:text-on-surface-variant/50 transition-all" required />
 								
 								<div class="flex justify-between items-center mb-3 px-1">
 									<span class="text-xs font-bold text-amber-800">Titik: {points.length}/4</span>
