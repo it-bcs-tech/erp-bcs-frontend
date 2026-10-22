@@ -92,9 +92,8 @@ export const load: PageServerLoad = async ({ parent }) => {
 };
 
 export const actions: Actions = {
-	createBooking: async ({ request, parent }) => {
-		const parentData = await parent();
-		const user = parentData?.user;
+	createBooking: async ({ request, locals }) => {
+		const user = locals.user;
 
 		const formData = await request.formData();
 		const roomId = parseInt((formData.get('roomId') as string) || '0', 10);
@@ -105,9 +104,9 @@ export const actions: Actions = {
 		const description = ((formData.get('description') as string) || '').trim();
 		const attendeesCount = parseInt((formData.get('attendeesCount') as string) || '1', 10);
 		const phone = ((formData.get('phone') as string) || '').trim();
-		const department = ((formData.get('department') as string) || (user?.department || 'Umum')).trim();
+		const department = ((formData.get('department') as string) || (user?.division || (user as any)?.department || 'Umum')).trim();
 		const requesterName = ((formData.get('requesterName') as string) || (user?.name || 'Karyawan BCS')).trim();
-		const requesterId = user?.payroll_id || user?.email || 'EMP-GUEST';
+		const requesterId = user?.payrollId || (user as any)?.payroll_id || user?.email || 'EMP-GUEST';
 
 		if (!roomId || isNaN(roomId)) {
 			return fail(400, { success: false, message: 'Ruangan wajib dipilih!' });
@@ -227,9 +226,8 @@ export const actions: Actions = {
 		}
 	},
 
-	cancelBooking: async ({ request, parent }) => {
-		const parentData = await parent();
-		const user = parentData?.user;
+	cancelBooking: async ({ request, locals }) => {
+		const user = locals.user;
 
 		const formData = await request.formData();
 		const bookingId = parseInt((formData.get('bookingId') as string) || '0', 10);
@@ -251,7 +249,8 @@ export const actions: Actions = {
 
 			// Admin or the requester can cancel
 			const isAdmin = user && ['superadmin', 'administrator', 'superhyperadmin', 'admin'].some(r => user.role?.toLowerCase()?.includes(r));
-			const isOwner = user && (user.payroll_id === booking.requester_id || user.email === booking.requester_id);
+			const userPayrollId = user?.payrollId || (user as any)?.payroll_id;
+			const isOwner = user && (userPayrollId === booking.requester_id || user.email === booking.requester_id);
 
 			if (!isAdmin && !isOwner) {
 				return fail(403, { success: false, message: 'Anda tidak memiliki hak untuk membatalkan booking ini!' });

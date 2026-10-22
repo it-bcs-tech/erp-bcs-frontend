@@ -96,9 +96,8 @@ export const load: PageServerLoad = async ({ parent }) => {
 };
 
 export const actions: Actions = {
-	approveBooking: async ({ request, parent }) => {
-		const parentData = await parent();
-		const user = parentData?.user;
+	approveBooking: async ({ request, locals }) => {
+		const user = locals.user;
 
 		const formData = await request.formData();
 		const bookingId = parseInt((formData.get('bookingId') as string) || '0', 10);
@@ -159,9 +158,8 @@ export const actions: Actions = {
 		}
 	},
 
-	rejectBooking: async ({ request, parent }) => {
-		const parentData = await parent();
-		const user = parentData?.user;
+	rejectBooking: async ({ request, locals }) => {
+		const user = locals.user;
 
 		const formData = await request.formData();
 		const bookingId = parseInt((formData.get('bookingId') as string) || '0', 10);
