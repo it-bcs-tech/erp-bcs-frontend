@@ -23,6 +23,23 @@
 	let isDetailModalOpen = $state(false);
 	let selectedEventDetail = $state<any>(null);
 	let isSubmitting = $state(false);
+	let showQuickRejectInput = $state(false);
+	let quickRejectionReason = $state('');
+
+	const canReviewGA = $derived.by(() => {
+		const u = data.user;
+		if (!u) return false;
+		const role = (u.role || '').toLowerCase();
+		const div = (u.division || u.department || '').toLowerCase();
+		return (
+			role.includes('admin') ||
+			role.includes('manager') ||
+			role.includes('lead') ||
+			div.includes('ga') ||
+			div.includes('general affair') ||
+			u.email === 'superhyperadmin@bcs-logistics.co.id'
+		);
+	});
 
 	// Form States for new booking
 	let newBookingRoomId = $state(data.rooms?.[0]?.id?.toString() || '');
@@ -233,6 +250,8 @@
 
 	function openEventDetail(event: any) {
 		selectedEventDetail = event;
+		showQuickRejectInput = false;
+		quickRejectionReason = '';
 		isDetailModalOpen = true;
 	}
 
@@ -333,13 +352,13 @@
 			</button>
 		</div>
 
-		<!-- Middle: Room & Status Sub-filters -->
+		<!-- Middle: Room & Status Sub-filters (Borderless Standard) -->
 		<div class="flex flex-wrap items-center gap-2.5">
 			{#if activeLayer !== 'HR'}
 				<!-- Room Filter -->
 				<select
 					bind:value={selectedRoomFilter}
-					class="px-3 py-1.5 rounded-xl bg-surface border border-slate-200 dark:border-slate-700 text-xs font-semibold text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/20 cursor-pointer"
+					class="px-3.5 py-2 rounded-xl bg-surface border-0 outline-none text-xs font-semibold text-on-surface focus:ring-2 focus:ring-primary/20 cursor-pointer"
 				>
 					<option value="ALL">🏢 Semua Ruangan ({data.rooms?.length || 0})</option>
 					{#each data.rooms || [] as r}
@@ -350,7 +369,7 @@
 				<!-- Status Filter -->
 				<select
 					bind:value={selectedStatusFilter}
-					class="px-3 py-1.5 rounded-xl bg-surface border border-slate-200 dark:border-slate-700 text-xs font-semibold text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/20 cursor-pointer"
+					class="px-3.5 py-2 rounded-xl bg-surface border-0 outline-none text-xs font-semibold text-on-surface focus:ring-2 focus:ring-primary/20 cursor-pointer"
 				>
 					<option value="ALL">Status: Semua</option>
 					<option value="APPROVED">🔒 Terkunci (Disetujui GA)</option>
@@ -635,13 +654,13 @@
 			>
 				<!-- Pilih Ruangan -->
 				<div>
-					<label for="roomId" class="block font-bold text-on-surface mb-1">Ruangan / Fasilitas Rapat *</label>
+					<label for="roomId" class="block font-bold text-on-surface mb-1.5">Ruangan / Fasilitas Rapat <span class="text-rose-500">*</span></label>
 					<select
 						id="roomId"
 						name="roomId"
 						bind:value={newBookingRoomId}
 						required
-						class="w-full px-3.5 py-2.5 rounded-xl bg-surface-container-low border border-slate-200 dark:border-slate-700 text-on-surface font-medium focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 outline-none"
+						class="w-full px-4 py-2.5 rounded-xl bg-surface-container-low border-0 outline-none text-on-surface font-medium focus:ring-2 focus:ring-amber-500/20 cursor-pointer"
 					>
 						{#each data.rooms || [] as rm}
 							<option value={rm.id.toString()}>
@@ -653,7 +672,7 @@
 
 				<!-- Judul Pertemuan -->
 				<div>
-					<label for="title" class="block font-bold text-on-surface mb-1">Keperluan / Judul Pertemuan *</label>
+					<label for="title" class="block font-bold text-on-surface mb-1.5">Keperluan / Judul Pertemuan <span class="text-rose-500">*</span></label>
 					<input
 						type="text"
 						id="title"
@@ -661,43 +680,43 @@
 						bind:value={newBookingTitle}
 						placeholder="Misal: Rapat Koordinasi Pengadaan & Finance"
 						required
-						class="w-full px-3.5 py-2.5 rounded-xl bg-surface-container-low border border-slate-200 dark:border-slate-700 text-on-surface font-medium focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 outline-none"
+						class="w-full px-4 py-2.5 rounded-xl bg-surface-container-low border-0 outline-none text-on-surface font-medium focus:ring-2 focus:ring-amber-500/20"
 					/>
 				</div>
 
 				<!-- Tanggal & Jam (Grid) -->
 				<div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
 					<div>
-						<label for="date" class="block font-bold text-on-surface mb-1">Tanggal *</label>
+						<label for="date" class="block font-bold text-on-surface mb-1.5">Tanggal <span class="text-rose-500">*</span></label>
 						<input
 							type="date"
 							id="date"
 							name="date"
 							bind:value={newBookingDate}
 							required
-							class="w-full px-3 py-2 rounded-xl bg-surface-container-low border border-slate-200 dark:border-slate-700 text-on-surface font-mono font-bold focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 outline-none"
+							class="w-full px-3.5 py-2.5 rounded-xl bg-surface-container-low border-0 outline-none text-on-surface font-mono font-bold focus:ring-2 focus:ring-amber-500/20"
 						/>
 					</div>
 					<div>
-						<label for="startTime" class="block font-bold text-on-surface mb-1">Jam Mulai *</label>
+						<label for="startTime" class="block font-bold text-on-surface mb-1.5">Jam Mulai <span class="text-rose-500">*</span></label>
 						<input
 							type="time"
 							id="startTime"
 							name="startTime"
 							bind:value={newBookingStartTime}
 							required
-							class="w-full px-3 py-2 rounded-xl bg-surface-container-low border border-slate-200 dark:border-slate-700 text-on-surface font-mono font-bold focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 outline-none"
+							class="w-full px-3.5 py-2.5 rounded-xl bg-surface-container-low border-0 outline-none text-on-surface font-mono font-bold focus:ring-2 focus:ring-amber-500/20"
 						/>
 					</div>
 					<div>
-						<label for="endTime" class="block font-bold text-on-surface mb-1">Jam Selesai *</label>
+						<label for="endTime" class="block font-bold text-on-surface mb-1.5">Jam Selesai <span class="text-rose-500">*</span></label>
 						<input
 							type="time"
 							id="endTime"
 							name="endTime"
 							bind:value={newBookingEndTime}
 							required
-							class="w-full px-3 py-2 rounded-xl bg-surface-container-low border border-slate-200 dark:border-slate-700 text-on-surface font-mono font-bold focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 outline-none"
+							class="w-full px-3.5 py-2.5 rounded-xl bg-surface-container-low border-0 outline-none text-on-surface font-mono font-bold focus:ring-2 focus:ring-amber-500/20"
 						/>
 					</div>
 				</div>
@@ -705,7 +724,7 @@
 				<!-- Info Pemohon & Jumlah Peserta -->
 				<div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
 					<div>
-						<label for="attendeesCount" class="block font-bold text-on-surface mb-1">Estimasi Peserta</label>
+						<label for="attendeesCount" class="block font-bold text-on-surface mb-1.5">Estimasi Peserta</label>
 						<input
 							type="number"
 							id="attendeesCount"
@@ -713,45 +732,45 @@
 							bind:value={newBookingAttendees}
 							min="1"
 							max="100"
-							class="w-full px-3.5 py-2.5 rounded-xl bg-surface-container-low border border-slate-200 dark:border-slate-700 text-on-surface font-medium focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 outline-none"
+							class="w-full px-4 py-2.5 rounded-xl bg-surface-container-low border-0 outline-none text-on-surface font-medium focus:ring-2 focus:ring-amber-500/20"
 						/>
 					</div>
 					<div>
-						<label for="phone" class="block font-bold text-on-surface mb-1">No. WhatsApp / HP</label>
+						<label for="phone" class="block font-bold text-on-surface mb-1.5">No. WhatsApp / HP</label>
 						<input
 							type="text"
 							id="phone"
 							name="phone"
 							bind:value={newBookingPhone}
 							placeholder="Misal: 081234567890"
-							class="w-full px-3.5 py-2.5 rounded-xl bg-surface-container-low border border-slate-200 dark:border-slate-700 text-on-surface font-medium focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 outline-none"
+							class="w-full px-4 py-2.5 rounded-xl bg-surface-container-low border-0 outline-none text-on-surface font-medium focus:ring-2 focus:ring-amber-500/20"
 						/>
 					</div>
 				</div>
 
 				<!-- Departemen -->
 				<div>
-					<label for="department" class="block font-bold text-on-surface mb-1">Departemen / Unit Pemohon</label>
+					<label for="department" class="block font-bold text-on-surface mb-1.5">Departemen / Unit Pemohon</label>
 					<input
 						type="text"
 						id="department"
 						name="department"
 						bind:value={newBookingDepartment}
 						placeholder="Misal: Procurement / Operasional"
-						class="w-full px-3.5 py-2.5 rounded-xl bg-surface-container-low border border-slate-200 dark:border-slate-700 text-on-surface font-medium focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 outline-none"
+						class="w-full px-4 py-2.5 rounded-xl bg-surface-container-low border-0 outline-none text-on-surface font-medium focus:ring-2 focus:ring-amber-500/20"
 					/>
 				</div>
 
 				<!-- Deskripsi / Catatan Fasilitas Tambahan -->
 				<div>
-					<label for="description" class="block font-bold text-on-surface mb-1">Keterangan / Kebutuhan Tambahan (Opsional)</label>
+					<label for="description" class="block font-bold text-on-surface mb-1.5">Keterangan / Kebutuhan Tambahan (Opsional)</label>
 					<textarea
 						id="description"
 						name="description"
 						bind:value={newBookingDescription}
 						rows="2"
 						placeholder="Misal: Mohon disiapkan kabel HDMI dan sound system wireless"
-						class="w-full px-3.5 py-2 rounded-xl bg-surface-container-low border border-slate-200 dark:border-slate-700 text-on-surface font-medium focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 outline-none resize-none"
+						class="w-full px-4 py-2.5 rounded-xl bg-surface-container-low border-0 outline-none text-on-surface font-medium focus:ring-2 focus:ring-amber-500/20 resize-none"
 					></textarea>
 				</div>
 
@@ -870,9 +889,72 @@
 					{#if selectedEventDetail.description}
 						<div>
 							<span class="text-[10px] uppercase font-bold text-on-surface-variant block mb-1">Catatan Tambahan:</span>
-							<p class="p-3 rounded-xl bg-surface-container-low text-on-surface border border-slate-200/60 dark:border-slate-800/60 leading-relaxed">
+							<p class="p-3 rounded-xl bg-surface-container-low text-on-surface leading-relaxed">
 								{selectedEventDetail.description}
 							</p>
+						</div>
+					{/if}
+
+					<!-- Quick Review GA Section (When PENDING & Admin/GA) -->
+					{#if selectedEventDetail.status === 'PENDING' && canReviewGA}
+						<div class="p-3.5 rounded-2xl bg-amber-50/60 dark:bg-amber-950/30 border border-amber-200/80 dark:border-amber-800/60 space-y-2.5">
+							<div class="flex items-center justify-between">
+								<span class="text-[11px] font-bold text-amber-800 dark:text-amber-300 flex items-center gap-1.5">
+									<span class="material-symbols-outlined text-sm">verified_user</span>
+									<span>Kontrol Quick Review GA</span>
+								</span>
+								{#if !showQuickRejectInput}
+									<div class="flex items-center gap-1.5">
+										<form method="POST" action="?/approveBooking" use:enhance>
+											<input type="hidden" name="bookingId" value={selectedEventDetail.originalId} />
+											<button
+												type="submit"
+												class="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold inline-flex items-center gap-1 shadow-xs cursor-pointer"
+											>
+												<span class="material-symbols-outlined text-xs">check</span>
+												<span>Setujui & Kunci</span>
+											</button>
+										</form>
+										<button
+											type="button"
+											onclick={() => showQuickRejectInput = true}
+											class="px-3 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 dark:bg-rose-950/50 dark:text-rose-300 border border-rose-200 dark:border-rose-800 text-xs font-bold inline-flex items-center gap-1 cursor-pointer"
+										>
+											<span class="material-symbols-outlined text-xs">close</span>
+											<span>Tolak</span>
+										</button>
+									</div>
+								{/if}
+							</div>
+
+							{#if showQuickRejectInput}
+								<form method="POST" action="?/rejectBooking" use:enhance class="space-y-2 pt-2 border-t border-amber-200/60 dark:border-amber-800/60">
+									<input type="hidden" name="bookingId" value={selectedEventDetail.originalId} />
+									<input
+										type="text"
+										name="rejectionReason"
+										bind:value={quickRejectionReason}
+										required
+										placeholder="Tuliskan alasan penolakan booking..."
+										class="w-full px-3.5 py-2 rounded-xl bg-surface border-0 outline-none focus:ring-2 focus:ring-rose-500/20 text-xs text-on-surface"
+									/>
+									<div class="flex justify-end gap-2">
+										<button
+											type="button"
+											onclick={() => showQuickRejectInput = false}
+											class="px-3 py-1.5 rounded-xl bg-surface text-on-surface-variant text-xs font-bold cursor-pointer"
+										>
+											Batal
+										</button>
+										<button
+											type="submit"
+											class="px-3.5 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold cursor-pointer"
+										>
+											Konfirmasi Tolak
+										</button>
+									</div>
+								</form>
+							{/if}
 						</div>
 					{/if}
 
@@ -882,7 +964,7 @@
 							<input type="hidden" name="bookingId" value={selectedEventDetail.originalId} />
 							<button
 								type="submit"
-								class="px-3 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 dark:bg-rose-950/40 dark:text-rose-300 text-xs font-bold border border-rose-200 dark:border-rose-800 transition-colors cursor-pointer"
+								class="px-3 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 dark:bg-rose-950/40 dark:text-rose-300 text-xs font-bold transition-colors cursor-pointer"
 								onclick={(e) => {
 									if (!confirm('Apakah Anda yakin ingin membatalkan booking ruangan ini?')) {
 										e.preventDefault();
@@ -895,7 +977,7 @@
 						<button
 							type="button"
 							onclick={() => isDetailModalOpen = false}
-							class="px-4 py-1.5 rounded-xl bg-surface border border-slate-200 dark:border-slate-700 text-on-surface font-bold hover:bg-surface-container transition-colors cursor-pointer"
+							class="px-4 py-1.5 rounded-xl bg-surface-container-low text-on-surface font-bold hover:bg-surface-container transition-colors cursor-pointer"
 						>
 							Tutup
 						</button>

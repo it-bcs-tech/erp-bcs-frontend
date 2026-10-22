@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
+	import Pagination from '$lib/components/Pagination.svelte';
 
 	let { data } = $props();
 
@@ -79,15 +80,15 @@
 	function getStatusBadge(status: string) {
 		switch (status) {
 			case 'COMPLETED':
-				return 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300 border border-emerald-200';
+				return 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800';
 			case 'IN_PROGRESS':
-				return 'bg-blue-50 text-blue-700 dark:bg-blue-950/50 dark:text-blue-300 border border-blue-200';
+				return 'bg-blue-50 text-blue-700 dark:bg-blue-950/50 dark:text-blue-300 border border-blue-200 dark:border-blue-800';
 			case 'APPROVED':
-				return 'bg-purple-50 text-purple-700 dark:bg-purple-950/50 dark:text-purple-300 border border-purple-200';
+				return 'bg-purple-50 text-purple-700 dark:bg-purple-950/50 dark:text-purple-300 border border-purple-200 dark:border-purple-800';
 			case 'CANCELLED':
-				return 'bg-slate-200 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border border-slate-300';
+				return 'bg-slate-200 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border border-slate-300 dark:border-slate-700';
 			default:
-				return 'bg-amber-50 text-amber-700 dark:bg-amber-950/50 dark:text-amber-300 border border-amber-200';
+				return 'bg-amber-50 text-amber-700 dark:bg-amber-950/50 dark:text-amber-300 border border-amber-200 dark:border-amber-800';
 		}
 	}
 
@@ -122,7 +123,24 @@
 			return matchQ && matchStatus && matchFacility;
 		})
 	);
+
+	// Pagination state
+	let currentPage = $state(1);
+	const perPage = 10;
+	const totalPages = $derived(Math.max(1, Math.ceil(filteredWorkOrders.length / perPage)));
+	const paginatedWorkOrders = $derived(
+		filteredWorkOrders.slice((currentPage - 1) * perPage, currentPage * perPage)
+	);
+
+	$effect(() => {
+		const _ = [searchQuery, statusFilter, facilityFilter, data.workOrders];
+		currentPage = 1;
+	});
 </script>
+
+<svelte:head>
+	<title>Facility Maintenance (KR 7.3) | General Affair | ERP BCS</title>
+</svelte:head>
 
 <div class="space-y-6">
 	<!-- Header -->
@@ -140,7 +158,7 @@
 
 		<button
 			onclick={openCreateModal}
-			class="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-xs transition-colors self-start md:self-auto"
+			class="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-xs transition-colors self-start md:self-auto cursor-pointer"
 		>
 			<span class="material-symbols-outlined text-base">add_task</span>
 			<span>+ Buat Tiket Perbaikan Baru</span>
@@ -196,7 +214,7 @@
 		<div class="flex flex-wrap items-center gap-2 border-b border-slate-200/60 dark:border-slate-800/60 pb-3">
 			<button
 				onclick={() => setTab('ALL')}
-				class="px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all {activeTab === 'ALL'
+				class="px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer {activeTab === 'ALL'
 					? 'bg-blue-600 text-white shadow-xs'
 					: 'bg-surface-container-low text-on-surface-variant hover:text-on-surface'}"
 			>
@@ -204,7 +222,7 @@
 			</button>
 			<button
 				onclick={() => setTab('PENDING')}
-				class="px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 {activeTab === 'PENDING'
+				class="px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer {activeTab === 'PENDING'
 					? 'bg-amber-600 text-white shadow-xs'
 					: 'bg-surface-container-low text-amber-700 hover:bg-amber-50'}"
 			>
@@ -213,7 +231,7 @@
 			</button>
 			<button
 				onclick={() => setTab('IN_PROGRESS')}
-				class="px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all {activeTab === 'IN_PROGRESS'
+				class="px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer {activeTab === 'IN_PROGRESS'
 					? 'bg-blue-600 text-white shadow-xs'
 					: 'bg-surface-container-low text-on-surface-variant hover:text-on-surface'}"
 			>
@@ -221,7 +239,7 @@
 			</button>
 			<button
 				onclick={() => setTab('COMPLETED')}
-				class="px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all {activeTab === 'COMPLETED'
+				class="px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer {activeTab === 'COMPLETED'
 					? 'bg-emerald-600 text-white shadow-xs'
 					: 'bg-surface-container-low text-on-surface-variant hover:text-on-surface'}"
 			>
@@ -229,22 +247,22 @@
 			</button>
 		</div>
 
-		<!-- Search Box & Selectors -->
+		<!-- Search Box & Selectors (Borderless Standard) -->
 		<div class="flex flex-col md:flex-row gap-3 items-center justify-between p-4 rounded-2xl bg-surface-container-lowest border border-slate-200/70 dark:border-slate-800/70 shadow-2xs">
-			<div class="flex items-center gap-3 px-3.5 py-2 rounded-xl bg-surface-container-low border border-slate-200/60 dark:border-slate-800/60 w-full md:w-80 focus-within:border-blue-500">
+			<div class="flex items-center gap-3 px-4 py-2.5 rounded-xl bg-surface-container-low w-full md:w-80 focus-within:ring-2 focus-within:ring-blue-500/20 transition-all">
 				<span class="material-symbols-outlined text-on-surface-variant text-[18px]">search</span>
 				<input
 					type="text"
 					bind:value={searchQuery}
 					placeholder="Cari no WO, masalah, lokasi, pemohon..."
-					class="bg-transparent text-xs text-on-surface outline-none w-full placeholder:text-on-surface-variant/50"
+					class="bg-transparent text-xs text-on-surface border-0 outline-none w-full placeholder:text-on-surface-variant/50 focus:ring-0"
 				/>
 			</div>
 
 			<div class="flex flex-wrap items-center gap-2 w-full md:w-auto">
 				<select
 					bind:value={facilityFilter}
-					class="px-3 py-2 rounded-xl bg-surface-container-low border border-slate-200/60 dark:border-slate-800/60 text-xs text-on-surface font-medium"
+					class="px-3.5 py-2.5 rounded-xl bg-surface-container-low border-0 outline-none focus:ring-2 focus:ring-blue-500/20 text-xs text-on-surface font-medium cursor-pointer transition-all"
 				>
 					<option value="All">Semua Kategori Fasilitas</option>
 					<option value="AC_HVAC">AC & Pendingin</option>
@@ -258,7 +276,7 @@
 
 				<select
 					bind:value={statusFilter}
-					class="px-3 py-2 rounded-xl bg-surface-container-low border border-slate-200/60 dark:border-slate-800/60 text-xs text-on-surface font-medium"
+					class="px-3.5 py-2.5 rounded-xl bg-surface-container-low border-0 outline-none focus:ring-2 focus:ring-blue-500/20 text-xs text-on-surface font-medium cursor-pointer transition-all"
 				>
 					<option value="All">Semua Status</option>
 					<option value="PENDING">PENDING</option>
@@ -289,7 +307,7 @@
 					</tr>
 				</thead>
 				<tbody class="divide-y divide-slate-200/60 dark:divide-slate-800/60">
-					{#each filteredWorkOrders as wo}
+					{#each paginatedWorkOrders as wo (wo.id)}
 						<tr class="hover:bg-surface-container transition-colors">
 							<td class="py-3 px-4 whitespace-nowrap">
 								<div class="font-mono font-bold text-on-surface">{wo.wo_number}</div>
@@ -344,7 +362,7 @@
 										<button
 											onclick={() => openApproveModal(wo)}
 											title="Setujui & Tunjuk Teknisi"
-											class="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-purple-50 dark:bg-purple-950/50 text-purple-700 dark:text-purple-300 border border-purple-200 font-bold text-[11px] hover:bg-purple-100 transition-colors"
+											class="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-purple-50 dark:bg-purple-950/50 text-purple-700 dark:text-purple-300 border border-purple-200 font-bold text-[11px] hover:bg-purple-100 transition-colors cursor-pointer"
 										>
 											<span class="material-symbols-outlined text-[13px]">check_circle</span>
 											<span>Approve</span>
@@ -355,7 +373,7 @@
 											<button
 												type="submit"
 												title="Mulai Pekerjaan"
-												class="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-blue-50 dark:bg-blue-950/50 text-blue-700 dark:text-blue-300 border border-blue-200 font-bold text-[11px] hover:bg-blue-100 transition-colors"
+												class="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-blue-50 dark:bg-blue-950/50 text-blue-700 dark:text-blue-300 border border-blue-200 font-bold text-[11px] hover:bg-blue-100 transition-colors cursor-pointer"
 											>
 												<span class="material-symbols-outlined text-[13px]">play_arrow</span>
 												<span>Mulai</span>
@@ -365,7 +383,7 @@
 										<button
 											onclick={() => openCompleteModal(wo)}
 											title="Selesaikan Pekerjaan"
-											class="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 border border-emerald-200 font-bold text-[11px] hover:bg-emerald-100 transition-colors"
+											class="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 border border-emerald-200 font-bold text-[11px] hover:bg-emerald-100 transition-colors cursor-pointer"
 										>
 											<span class="material-symbols-outlined text-[13px]">task_alt</span>
 											<span>Selesai</span>
@@ -375,7 +393,7 @@
 									<button
 										onclick={() => openDetailModal(wo)}
 										title="Detail Tiket"
-										class="p-1.5 rounded-lg text-slate-500 hover:bg-surface-container hover:text-on-surface transition-colors"
+										class="p-1.5 rounded-lg text-slate-500 hover:bg-surface-container hover:text-on-surface transition-colors cursor-pointer"
 									>
 										<span class="material-symbols-outlined text-[17px]">visibility</span>
 									</button>
@@ -392,7 +410,7 @@
 										<button
 											type="submit"
 											title="Hapus Tiket"
-											class="p-1.5 rounded-lg text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/50 transition-colors"
+											class="p-1.5 rounded-lg text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/50 transition-colors cursor-pointer"
 										>
 											<span class="material-symbols-outlined text-[17px]">delete</span>
 										</button>
@@ -412,6 +430,17 @@
 				</tbody>
 			</table>
 		</div>
+
+		{#if filteredWorkOrders.length > 0}
+			<Pagination
+				currentPage={currentPage}
+				totalPages={totalPages}
+				totalItems={filteredWorkOrders.length}
+				perPage={perPage}
+				itemLabel="tiket WO"
+				onPageChange={(p) => (currentPage = p)}
+			/>
+		{/if}
 	</div>
 </div>
 
@@ -424,7 +453,7 @@
 					<span class="material-symbols-outlined text-blue-600">add_task</span>
 					<h3 class="font-bold text-base text-on-surface">Buat Tiket Perbaikan Sarana & Fasilitas</h3>
 				</div>
-				<button onclick={() => isCreateModalOpen = false} class="text-on-surface-variant hover:text-on-surface">
+				<button onclick={() => isCreateModalOpen = false} class="text-on-surface-variant hover:text-on-surface cursor-pointer">
 					<span class="material-symbols-outlined">close</span>
 				</button>
 			</div>
@@ -444,12 +473,12 @@
 			>
 				<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
 					<div>
-						<label for="create_fac_type" class="block text-xs font-bold text-on-surface mb-1">Kategori Sarana / Fasilitas *</label>
+						<label for="create_fac_type" class="block text-xs font-bold text-on-surface mb-1.5">Kategori Sarana / Fasilitas <span class="text-rose-500">*</span></label>
 						<select
 							id="create_fac_type"
 							name="facility_type"
 							required
-							class="w-full px-3.5 py-2 text-xs rounded-xl bg-surface-container-low border border-slate-200 dark:border-slate-700 text-on-surface"
+							class="w-full px-4 py-2.5 text-xs rounded-xl bg-surface-container-low border-0 outline-none focus:ring-2 focus:ring-blue-500/20 text-on-surface cursor-pointer transition-all"
 						>
 							<option value="AC_HVAC">AC & Pendingin Ruangan</option>
 							<option value="PLUMBING_AIR">Plumbing & Saluran Air</option>
@@ -461,37 +490,37 @@
 						</select>
 					</div>
 					<div>
-						<label for="create_location" class="block text-xs font-bold text-on-surface mb-1">Lokasi Detail *</label>
+						<label for="create_location" class="block text-xs font-bold text-on-surface mb-1.5">Lokasi Detail <span class="text-rose-500">*</span></label>
 						<input
 							id="create_location"
 							type="text"
 							name="location"
 							required
 							placeholder="Misal: Pool Cilegon - Ruang Istirahat Driver"
-							class="w-full px-3.5 py-2 text-xs rounded-xl bg-surface-container-low border border-slate-200 dark:border-slate-700 text-on-surface"
+							class="w-full px-4 py-2.5 text-xs rounded-xl bg-surface-container-low border-0 outline-none focus:ring-2 focus:ring-blue-500/20 text-on-surface transition-all"
 						/>
 					</div>
 				</div>
 
 				<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
 					<div>
-						<label for="create_req_name" class="block text-xs font-bold text-on-surface mb-1">Nama Pelapor / Pemohon *</label>
+						<label for="create_req_name" class="block text-xs font-bold text-on-surface mb-1.5">Nama Pelapor / Pemohon <span class="text-rose-500">*</span></label>
 						<input
 							id="create_req_name"
 							type="text"
 							name="requester_name"
 							required
 							placeholder="Nama staf yang melaporkan"
-							class="w-full px-3.5 py-2 text-xs rounded-xl bg-surface-container-low border border-slate-200 dark:border-slate-700 text-on-surface"
+							class="w-full px-4 py-2.5 text-xs rounded-xl bg-surface-container-low border-0 outline-none focus:ring-2 focus:ring-blue-500/20 text-on-surface transition-all"
 						/>
 					</div>
 					<div>
-						<label for="create_dept" class="block text-xs font-bold text-on-surface mb-1">Departemen / Divisi *</label>
+						<label for="create_dept" class="block text-xs font-bold text-on-surface mb-1.5">Departemen / Divisi <span class="text-rose-500">*</span></label>
 						<select
 							id="create_dept"
 							name="department"
 							required
-							class="w-full px-3.5 py-2 text-xs rounded-xl bg-surface-container-low border border-slate-200 dark:border-slate-700 text-on-surface"
+							class="w-full px-4 py-2.5 text-xs rounded-xl bg-surface-container-low border-0 outline-none focus:ring-2 focus:ring-blue-500/20 text-on-surface cursor-pointer transition-all"
 						>
 							<option value="Operations">Operations / Lapangan</option>
 							<option value="IT Support">IT Support & Systems</option>
@@ -507,11 +536,11 @@
 
 				<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
 					<div>
-						<label for="create_urgency" class="block text-xs font-bold text-on-surface mb-1">Tingkat Urgensi Masalah *</label>
+						<label for="create_urgency" class="block text-xs font-bold text-on-surface mb-1.5">Tingkat Urgensi Masalah <span class="text-rose-500">*</span></label>
 						<select
 							id="create_urgency"
 							name="urgency"
-							class="w-full px-3.5 py-2 text-xs rounded-xl bg-surface-container-low border border-slate-200 dark:border-slate-700 text-on-surface"
+							class="w-full px-4 py-2.5 text-xs rounded-xl bg-surface-container-low border-0 outline-none focus:ring-2 focus:ring-blue-500/20 text-on-surface cursor-pointer transition-all"
 						>
 							<option value="LOW">Low (Dapat ditunda)</option>
 							<option value="MEDIUM" selected>Medium (Penanganan standar)</option>
@@ -520,7 +549,7 @@
 						</select>
 					</div>
 					<div>
-						<label for="create_est_cost" class="block text-xs font-bold text-on-surface mb-1">Estimasi Awal Biaya (Rp)</label>
+						<label for="create_est_cost" class="block text-xs font-bold text-on-surface mb-1.5">Estimasi Awal Biaya (Rp)</label>
 						<input
 							id="create_est_cost"
 							type="number"
@@ -528,20 +557,20 @@
 							min="0"
 							step="1000"
 							placeholder="0"
-							class="w-full px-3.5 py-2 text-xs rounded-xl bg-surface-container-low border border-slate-200 dark:border-slate-700 text-on-surface font-mono"
+							class="w-full px-4 py-2.5 text-xs rounded-xl bg-surface-container-low border-0 outline-none focus:ring-2 focus:ring-blue-500/20 text-on-surface font-mono transition-all"
 						/>
 					</div>
 				</div>
 
 				<div>
-					<label for="create_desc" class="block text-xs font-bold text-on-surface mb-1">Uraian Kerusakan / Permintaan Perbaikan *</label>
+					<label for="create_desc" class="block text-xs font-bold text-on-surface mb-1.5">Uraian Kerusakan / Permintaan Perbaikan <span class="text-rose-500">*</span></label>
 					<textarea
 						id="create_desc"
 						name="description"
 						required
 						rows="3"
 						placeholder="Jelaskan secara detail gejala kerusakan atau kebutuhan perbaikan fasilitas..."
-						class="w-full px-3.5 py-2 text-xs rounded-xl bg-surface-container-low border border-slate-200 dark:border-slate-700 text-on-surface outline-none focus:border-blue-500"
+						class="w-full px-4 py-2.5 text-xs rounded-xl bg-surface-container-low border-0 outline-none focus:ring-2 focus:ring-blue-500/20 text-on-surface transition-all"
 					></textarea>
 				</div>
 
@@ -549,13 +578,13 @@
 					<button
 						type="button"
 						onclick={() => isCreateModalOpen = false}
-						class="px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold text-on-surface hover:bg-surface-container"
+						class="px-4 py-2.5 rounded-xl bg-surface-container-low text-xs font-bold text-on-surface hover:bg-surface-container cursor-pointer"
 					>
 						Batal
 					</button>
 					<button
 						type="submit"
-						class="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-xs transition-colors"
+						class="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-xs transition-colors cursor-pointer"
 					>
 						Kirim Tiket Perbaikan
 					</button>
@@ -574,7 +603,7 @@
 					<span class="material-symbols-outlined text-purple-600">assignment_ind</span>
 					<h3 class="font-bold text-base text-on-surface">Persetujuan & Penugasan Teknisi</h3>
 				</div>
-				<button onclick={() => isApproveModalOpen = false} class="text-on-surface-variant hover:text-on-surface">
+				<button onclick={() => isApproveModalOpen = false} class="text-on-surface-variant hover:text-on-surface cursor-pointer">
 					<span class="material-symbols-outlined">close</span>
 				</button>
 			</div>
@@ -594,7 +623,7 @@
 			>
 				<input type="hidden" name="id" value={selectedWo.id} />
 
-				<div class="p-3 rounded-xl bg-surface-container-low border border-slate-200/60 dark:border-slate-800/60 text-xs space-y-1">
+				<div class="p-3 rounded-xl bg-surface-container-low text-xs space-y-1">
 					<div class="font-mono font-bold text-on-surface">{selectedWo.wo_number} • {getFacilityLabel(selectedWo.facility_type)}</div>
 					<p class="text-on-surface">{selectedWo.description}</p>
 					<div class="text-[11px] text-on-surface-variant pt-1">
@@ -603,30 +632,30 @@
 				</div>
 
 				<div>
-					<label for="approve_vendor" class="block text-xs font-bold text-on-surface mb-1">Teknisi Internal / Nama Vendor Eksternal *</label>
+					<label for="approve_vendor" class="block text-xs font-bold text-on-surface mb-1.5">Teknisi Internal / Nama Vendor Eksternal <span class="text-rose-500">*</span></label>
 					<input
 						id="approve_vendor"
 						type="text"
 						name="technician_vendor"
 						required
 						placeholder="Misal: Tim Maintenance Listrik GA / CV Sejuk Sentosa"
-						class="w-full px-3.5 py-2 text-xs rounded-xl bg-surface-container-low border border-slate-200 dark:border-slate-700 text-on-surface"
+						class="w-full px-4 py-2.5 text-xs rounded-xl bg-surface-container-low border-0 outline-none focus:ring-2 focus:ring-purple-500/20 text-on-surface transition-all"
 					/>
 				</div>
 
 				<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
 					<div>
-						<label for="approve_sched_date" class="block text-xs font-bold text-on-surface mb-1">Jadwal Pelaksanaan</label>
+						<label for="approve_sched_date" class="block text-xs font-bold text-on-surface mb-1.5">Jadwal Pelaksanaan</label>
 						<input
 							id="approve_sched_date"
 							type="date"
 							name="scheduled_date"
 							value={new Date().toISOString().split('T')[0]}
-							class="w-full px-3.5 py-2 text-xs rounded-xl bg-surface-container-low border border-slate-200 dark:border-slate-700 text-on-surface"
+							class="w-full px-4 py-2.5 text-xs rounded-xl bg-surface-container-low border-0 outline-none focus:ring-2 focus:ring-purple-500/20 text-on-surface transition-all"
 						/>
 					</div>
 					<div>
-						<label for="approve_est_cost" class="block text-xs font-bold text-on-surface mb-1">Estimasi Biaya Disetujui (Rp)</label>
+						<label for="approve_est_cost" class="block text-xs font-bold text-on-surface mb-1.5">Estimasi Biaya Disetujui (Rp)</label>
 						<input
 							id="approve_est_cost"
 							type="number"
@@ -634,7 +663,7 @@
 							min="0"
 							step="1000"
 							value={selectedWo.estimated_cost}
-							class="w-full px-3.5 py-2 text-xs rounded-xl bg-surface-container-low border border-slate-200 dark:border-slate-700 text-on-surface font-mono"
+							class="w-full px-4 py-2.5 text-xs rounded-xl bg-surface-container-low border-0 outline-none focus:ring-2 focus:ring-purple-500/20 text-on-surface font-mono transition-all"
 						/>
 					</div>
 				</div>
@@ -643,13 +672,13 @@
 					<button
 						type="button"
 						onclick={() => isApproveModalOpen = false}
-						class="px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold text-on-surface hover:bg-surface-container"
+						class="px-4 py-2.5 rounded-xl bg-surface-container-low text-xs font-bold text-on-surface hover:bg-surface-container cursor-pointer"
 					>
 						Batal
 					</button>
 					<button
 						type="submit"
-						class="px-5 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold shadow-xs transition-colors"
+						class="px-5 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold shadow-xs transition-colors cursor-pointer"
 					>
 						Setujui & Tugaskan
 					</button>
@@ -668,7 +697,7 @@
 					<span class="material-symbols-outlined text-emerald-600">task_alt</span>
 					<h3 class="font-bold text-base text-on-surface">Catat Penyelesaian Pekerjaan</h3>
 				</div>
-				<button onclick={() => isCompleteModalOpen = false} class="text-on-surface-variant hover:text-on-surface">
+				<button onclick={() => isCompleteModalOpen = false} class="text-on-surface-variant hover:text-on-surface cursor-pointer">
 					<span class="material-symbols-outlined">close</span>
 				</button>
 			</div>
@@ -688,7 +717,7 @@
 			>
 				<input type="hidden" name="id" value={selectedWo.id} />
 
-				<div class="p-3 rounded-xl bg-surface-container-low border border-slate-200/60 dark:border-slate-800/60 text-xs space-y-1">
+				<div class="p-3 rounded-xl bg-surface-container-low text-xs space-y-1">
 					<div class="font-mono font-bold text-on-surface">{selectedWo.wo_number} • {selectedWo.technician_vendor}</div>
 					<p class="text-on-surface">{selectedWo.description}</p>
 					<div class="text-[11px] text-on-surface-variant">
@@ -698,18 +727,18 @@
 
 				<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
 					<div>
-						<label for="comp_date" class="block text-xs font-bold text-on-surface mb-1">Tanggal Selesai Dikerjakan *</label>
+						<label for="comp_date" class="block text-xs font-bold text-on-surface mb-1.5">Tanggal Selesai Dikerjakan <span class="text-rose-500">*</span></label>
 						<input
 							id="comp_date"
 							type="date"
 							name="completion_date"
 							value={new Date().toISOString().split('T')[0]}
 							required
-							class="w-full px-3.5 py-2 text-xs rounded-xl bg-surface-container-low border border-slate-200 dark:border-slate-700 text-on-surface"
+							class="w-full px-4 py-2.5 text-xs rounded-xl bg-surface-container-low border-0 outline-none focus:ring-2 focus:ring-emerald-500/20 text-on-surface transition-all"
 						/>
 					</div>
 					<div>
-						<label for="comp_actual_cost" class="block text-xs font-bold text-on-surface mb-1">Total Biaya Aktual / Realisasi (Rp) *</label>
+						<label for="comp_actual_cost" class="block text-xs font-bold text-on-surface mb-1.5">Total Biaya Aktual / Realisasi (Rp) <span class="text-rose-500">*</span></label>
 						<input
 							id="comp_actual_cost"
 							type="number"
@@ -718,19 +747,19 @@
 							step="1000"
 							value={selectedWo.estimated_cost}
 							required
-							class="w-full px-3.5 py-2 text-xs rounded-xl bg-surface-container-low border border-slate-200 dark:border-slate-700 text-on-surface font-mono"
+							class="w-full px-4 py-2.5 text-xs rounded-xl bg-surface-container-low border-0 outline-none focus:ring-2 focus:ring-emerald-500/20 text-on-surface font-mono transition-all"
 						/>
 					</div>
 				</div>
 
 				<div>
-					<label for="comp_notes" class="block text-xs font-bold text-on-surface mb-1">Catatan Hasil Pekerjaan / Servis Teknisi</label>
+					<label for="comp_notes" class="block text-xs font-bold text-on-surface mb-1.5">Catatan Hasil Pekerjaan / Servis Teknisi</label>
 					<textarea
 						id="comp_notes"
 						name="completion_notes"
 						rows="3"
 						placeholder="Uraikan part yang diganti, hasil tes fungsi, garansi pengerjaan..."
-						class="w-full px-3.5 py-2 text-xs rounded-xl bg-surface-container-low border border-slate-200 dark:border-slate-700 text-on-surface"
+						class="w-full px-4 py-2.5 text-xs rounded-xl bg-surface-container-low border-0 outline-none focus:ring-2 focus:ring-emerald-500/20 text-on-surface transition-all"
 					></textarea>
 				</div>
 
@@ -738,13 +767,13 @@
 					<button
 						type="button"
 						onclick={() => isCompleteModalOpen = false}
-						class="px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold text-on-surface hover:bg-surface-container"
+						class="px-4 py-2.5 rounded-xl bg-surface-container-low text-xs font-bold text-on-surface hover:bg-surface-container cursor-pointer"
 					>
 						Batal
 					</button>
 					<button
 						type="submit"
-						class="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-xs transition-colors"
+						class="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-xs transition-colors cursor-pointer"
 					>
 						Simpan & Tutup Tiket
 					</button>
@@ -763,13 +792,13 @@
 					<div class="text-[11px] font-mono font-bold text-blue-600 uppercase">{selectedWo.wo_number}</div>
 					<h3 class="font-bold text-base text-on-surface">Detail Tiket Perbaikan Fasilitas</h3>
 				</div>
-				<button onclick={() => isDetailModalOpen = false} class="text-on-surface-variant hover:text-on-surface">
+				<button onclick={() => isDetailModalOpen = false} class="text-on-surface-variant hover:text-on-surface cursor-pointer">
 					<span class="material-symbols-outlined">close</span>
 				</button>
 			</div>
 
 			<div class="p-6 space-y-4 text-xs">
-				<div class="grid grid-cols-2 gap-3 p-3 rounded-xl bg-surface-container-low border border-slate-200/50 dark:border-slate-800/50">
+				<div class="grid grid-cols-2 gap-3 p-3 rounded-xl bg-surface-container-low">
 					<div>
 						<span class="text-on-surface-variant text-[10px] uppercase font-bold block">Sarana</span>
 						<span class="font-semibold text-on-surface">{getFacilityLabel(selectedWo.facility_type)}</span>
@@ -824,7 +853,7 @@
 					<button
 						type="button"
 						onclick={() => isDetailModalOpen = false}
-						class="px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold text-on-surface hover:bg-surface-container"
+						class="px-4 py-2 rounded-xl bg-surface-container-low text-xs font-bold text-on-surface hover:bg-surface-container cursor-pointer"
 					>
 						Tutup
 					</button>

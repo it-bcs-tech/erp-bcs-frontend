@@ -267,5 +267,106 @@ export const actions: Actions = {
 			console.error('Error cancelling booking:', err);
 			return fail(500, { success: false, message: err?.message || 'Gagal membatalkan booking' });
 		}
+	},
+
+	approveBooking: async ({ request, locals }) => {
+		const user = locals.user;
+		const formData = await request.formData();
+		const bookingId = parseInt((formData.get('bookingId') as string) || '0', 10);
+
+		if (!bookingId || isNaN(bookingId)) {
+			return fail(400, { success: false, message: 'ID booking tidak valid' });
+		}
+
+		try {
+			const [booking] = await sql`
+				SELECT id, room_id, title, booking_number, start_time, end_time, status
+				FROM ga.facility_bookings
+				WHERE id = ${bookingId}
+			`;
+
+			if (!booking) {
+				return fail(404, { success: false, message: 'Peminjaman tidak ditemukan' });
+			}
+
+			const conflicts = await sql`
+				SELECT id, booking_number, title, to_char(start_time, 'HH24:MI') as start_fmt, to_char(end_time, 'HH24:MI') as end_fmt
+				FROM ga.facility_bookings
+				WHERE room_id = ${booking.room_id}
+				  AND status = 'APPROVED'
+				  AND id != ${bookingId}
+				  AND (start_time < ${booking.end_time} AND end_time > ${booking.start_time})
+				LIMIT 1
+			`;
+
+			if (conflicts.length > 0) {
+				const c = conflicts[0];
+				return fail(400, {
+					success: false,
+					message: `Tidak dapat menyetujui: Bentrok dengan jadwal APPROVED (${c.booking_number} - "${c.title}" jam ${c.start_fmt} - ${c.end_fmt})!`
+				});
+			}
+
+			const approverName = user?.name || 'Admin GA';
+			await sql`
+				UPDATE ga.facility_bookings
+				SET
+					status = 'APPROVED',
+					approved_by = ${approverName},
+					approved_at = NOW(),
+					rejection_reason = NULL,
+					updated_at = NOW()
+				WHERE id = ${bookingId}
+			`;
+
+			return {
+				success: true,
+				message: `Booking ${booking.booking_number} berhasil DISETUJUI dan slot waktu terkunci di kalender!`
+			};
+		} catch (err: any) {
+			console.error('Error approving booking from calendar:', err);
+			return fail(500, { success: false, message: err?.message || 'Gagal menyetujui booking' });
+		}
+	},
+
+	rejectBooking: async ({ request, locals }) => {
+		const user = locals.user;
+		const formData = await request.formData();
+		const bookingId = parseInt((formData.get('bookingId') as string) || '0', 10);
+		const rejectionReason = ((formData.get('rejectionReason') as string) || '').trim();
+
+		if (!bookingId || isNaN(bookingId)) {
+			return fail(400, { success: false, message: 'ID booking tidak valid' });
+		}
+		if (!rejectionReason) {
+			return fail(400, { success: false, message: 'Alasan penolakan wajib diisi!' });
+		}
+
+		try {
+			const [booking] = await sql`SELECT id, booking_number FROM ga.facility_bookings WHERE id = ${bookingId}`;
+			if (!booking) {
+				return fail(404, { success: false, message: 'Peminjaman tidak ditemukan' });
+			}
+
+			const approverName = user?.name || 'Admin GA';
+			await sql`
+				UPDATE ga.facility_bookings
+				SET
+					status = 'REJECTED',
+					rejection_reason = ${rejectionReason},
+					approved_by = ${approverName},
+					approved_at = NOW(),
+					updated_at = NOW()
+				WHERE id = ${bookingId}
+			`;
+
+			return {
+				success: true,
+				message: `Booking ${booking.booking_number} telah DITOLAK langsung melalui kalender.`
+			};
+		} catch (err: any) {
+			console.error('Error rejecting booking from calendar:', err);
+			return fail(500, { success: false, message: err?.message || 'Gagal menolak booking' });
+		}
 	}
 };

@@ -181,7 +181,7 @@ export function resolveActivity(pathname: string): ResolvedActivity {
 		const base = { moduleCode: 'ga', moduleName: 'General Affair (GA)', color: 'text-cyan-600 dark:text-cyan-400' };
 		if (path === '/ga') return { ...base, activityLabel: 'Melihat Overview Operasional GA', icon: 'dashboard' };
 		if (path.includes('/assets')) return { ...base, activityLabel: 'Mengelola Master Aset & Inventaris', icon: 'inventory_2' };
-		if (path.includes('/permits')) return { ...base, activityLabel: 'Memeriksa Legalitas & Pajak Armada', icon: 'badge' };
+		if (path.includes('/room-bookings')) return { ...base, activityLabel: 'Mengelola Peminjaman Ruangan & Fasilitas', icon: 'meeting_room' };
 		if (path.includes('/facilities')) return { ...base, activityLabel: 'Pemeliharaan Fasilitas & Kantor (KR 7.3)', icon: 'home_repair_service' };
 		if (path.includes('/stationery')) return { ...base, activityLabel: 'Pengadaan & Stok ATK Kantor (KR 7.4)', icon: 'edit_document' };
 		return { ...base, activityLabel: 'Membuka Modul General Affair', icon: 'domain' };

@@ -6,8 +6,9 @@ export const load: PageServerLoad = async () => {
 		const [
 			assetStats,
 			assetCategories,
-			permitStats,
-			criticalPermits,
+			roomStats,
+			roomsWithRealtimeStatus,
+			upcomingRoomBookings,
 			facilityStats,
 			recentWorkOrders,
 			stationeryStats,
@@ -33,30 +34,81 @@ export const load: PageServerLoad = async () => {
 				GROUP BY category
 				ORDER BY total_value DESC
 			`,
-			// 3. Permit EWS stats
+			// 3. Room Reservations stats
 			sql`
 				SELECT
-					COUNT(*)::int as total_permits,
-					COUNT(CASE WHEN expiry_date < CURRENT_DATE THEN 1 END)::int as expired_count,
-					COUNT(CASE WHEN expiry_date >= CURRENT_DATE AND expiry_date <= CURRENT_DATE + INTERVAL '7 days' THEN 1 END)::int as urgent_7_count,
-					COUNT(CASE WHEN expiry_date > CURRENT_DATE + INTERVAL '7 days' AND expiry_date <= CURRENT_DATE + INTERVAL '30 days' THEN 1 END)::int as critical_30_count,
-					COUNT(CASE WHEN expiry_date > CURRENT_DATE + INTERVAL '30 days' THEN 1 END)::int as valid_count
-				FROM ga.fleet_legal_permits
+					(SELECT COUNT(*)::int FROM ga.facility_rooms WHERE is_active = true) as active_rooms,
+					(SELECT COUNT(*)::int FROM ga.facility_bookings WHERE status = 'PENDING') as pending_bookings,
+					(SELECT COUNT(*)::int FROM ga.facility_bookings WHERE status = 'APPROVED' AND start_time::date = CURRENT_DATE) as today_approved,
+					(SELECT COUNT(*)::int FROM ga.facility_bookings WHERE status = 'APPROVED' AND NOW() BETWEEN start_time AND end_time) as in_use_now
 			`,
-			// 4. Critical & Expiring Permits
+			// 4. Rooms with real-time availability status
 			sql`
 				SELECT 
-					id, unit_number, police_number, permit_type, document_number, institution,
-					to_char(expiry_date, 'YYYY-MM-DD') as expiry_date_str,
-					expiry_date,
-					(expiry_date - CURRENT_DATE)::int as days_remaining,
-					status, renewal_cost
-				FROM ga.fleet_legal_permits
-				WHERE expiry_date <= CURRENT_DATE + INTERVAL '60 days'
-				ORDER BY expiry_date ASC
+					r.id,
+					r.room_code as "roomCode",
+					r.room_name as "roomName",
+					r.location,
+					r.capacity,
+					r.facilities,
+					r.color_hex as "colorHex",
+					r.is_active as "isActive",
+					(
+						SELECT COUNT(*)::int 
+						FROM ga.facility_bookings b 
+						WHERE b.room_id = r.id 
+						  AND b.status IN ('APPROVED', 'PENDING') 
+						  AND b.start_time::date = CURRENT_DATE
+					) as "todayCount",
+					cur.booking_number as "currentBookingNumber",
+					cur.title as "currentTitle",
+					cur.requester_name as "currentRequester",
+					cur.department as "currentDepartment",
+					to_char(cur.start_time, 'HH24:MI') as "currentStart",
+					to_char(cur.end_time, 'HH24:MI') as "currentEnd"
+				FROM ga.facility_rooms r
+				LEFT JOIN LATERAL (
+					SELECT booking_number, title, requester_name, department, start_time, end_time
+					FROM ga.facility_bookings b
+					WHERE b.room_id = r.id
+					  AND b.status = 'APPROVED'
+					  AND NOW() BETWEEN b.start_time AND b.end_time
+					ORDER BY b.start_time ASC
+					LIMIT 1
+				) cur ON true
+				WHERE r.is_active = true
+				ORDER BY r.id ASC
+			`,
+			// 5. Today's & Pending Room Bookings
+			sql`
+				SELECT 
+					b.id,
+					b.booking_number as "bookingNumber",
+					b.room_id as "roomId",
+					r.room_name as "roomName",
+					r.room_code as "roomCode",
+					r.location as "roomLocation",
+					r.color_hex as "roomColor",
+					b.title,
+					b.requester_name as "requesterName",
+					b.department,
+					b.attendees_count as "attendeesCount",
+					to_char(b.start_time, 'YYYY-MM-DD') as "bookingDate",
+					to_char(b.start_time, 'HH24:MI') as "startTimeFormatted",
+					to_char(b.end_time, 'HH24:MI') as "endTimeFormatted",
+					b.status,
+					(NOW() BETWEEN b.start_time AND b.end_time AND b.status = 'APPROVED') as "isInUseNow",
+					(b.start_time::date = CURRENT_DATE) as "isToday"
+				FROM ga.facility_bookings b
+				JOIN ga.facility_rooms r ON r.id = b.room_id
+				WHERE b.status IN ('PENDING', 'APPROVED')
+				  AND b.end_time >= CURRENT_DATE
+				ORDER BY 
+					CASE WHEN b.status = 'PENDING' THEN 0 ELSE 1 END,
+					b.start_time ASC
 				LIMIT 6
 			`,
-			// 5. Facility WO stats
+			// 6. Facility WO stats
 			sql`
 				SELECT
 					COUNT(*)::int as total_wo,
@@ -67,7 +119,7 @@ export const load: PageServerLoad = async () => {
 					COUNT(CASE WHEN urgency = 'EMERGENCY' AND status != 'COMPLETED' THEN 1 END)::int as emergency_active_wo
 				FROM ga.facility_work_orders
 			`,
-			// 6. Recent Work Orders
+			// 7. Recent Work Orders
 			sql`
 				SELECT 
 					id, wo_number, facility_type, location, requester_name, department,
@@ -77,7 +129,7 @@ export const load: PageServerLoad = async () => {
 				ORDER BY created_at DESC
 				LIMIT 5
 			`,
-			// 7. Stationery Stats
+			// 8. Stationery Stats
 			sql`
 				SELECT
 					(SELECT COUNT(*)::int FROM ga.stationery_items) as total_items,
@@ -85,7 +137,7 @@ export const load: PageServerLoad = async () => {
 					(SELECT COUNT(*)::int FROM ga.stationery_requests WHERE status = 'SUBMITTED') as pending_requests,
 					(SELECT COUNT(*)::int FROM ga.stationery_requests WHERE status = 'APPROVED') as approved_requests
 			`,
-			// 8. Low Stock Stationery Items
+			// 9. Low Stock Stationery Items
 			sql`
 				SELECT id, item_code, name, category, unit, stock_quantity, minimum_stock
 				FROM ga.stationery_items
@@ -93,7 +145,7 @@ export const load: PageServerLoad = async () => {
 				ORDER BY stock_quantity ASC
 				LIMIT 5
 			`,
-			// 9. Recent Stationery Requests
+			// 10. Recent Stationery Requests
 			sql`
 				SELECT 
 					id, req_number, to_char(request_date, 'YYYY-MM-DD') as request_date_str,
@@ -109,9 +161,10 @@ export const load: PageServerLoad = async () => {
 				totals: assetStats[0] || { total_assets: 0, active_assets: 0, total_asset_value: 0, damaged_assets: 0 },
 				categories: assetCategories || []
 			},
-			permits: {
-				stats: permitStats[0] || { total_permits: 0, expired_count: 0, urgent_7_count: 0, critical_30_count: 0, valid_count: 0 },
-				criticalList: criticalPermits || []
+			roomBookings: {
+				stats: roomStats[0] || { active_rooms: 0, pending_bookings: 0, today_approved: 0, in_use_now: 0 },
+				rooms: roomsWithRealtimeStatus || [],
+				upcomingList: upcomingRoomBookings || []
 			},
 			facilities: {
 				stats: facilityStats[0] || { total_wo: 0, pending_wo: 0, in_progress_wo: 0, approved_wo: 0, completed_wo: 0, emergency_active_wo: 0 },
@@ -130,9 +183,10 @@ export const load: PageServerLoad = async () => {
 				totals: { total_assets: 0, active_assets: 0, total_asset_value: 0, damaged_assets: 0 },
 				categories: []
 			},
-			permits: {
-				stats: { total_permits: 0, expired_count: 0, urgent_7_count: 0, critical_30_count: 0, valid_count: 0 },
-				criticalList: []
+			roomBookings: {
+				stats: { active_rooms: 0, pending_bookings: 0, today_approved: 0, in_use_now: 0 },
+				rooms: [],
+				upcomingList: []
 			},
 			facilities: {
 				stats: { total_wo: 0, pending_wo: 0, in_progress_wo: 0, approved_wo: 0, completed_wo: 0, emergency_active_wo: 0 },

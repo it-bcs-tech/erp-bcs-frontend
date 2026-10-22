@@ -2,10 +2,9 @@
 	let { data } = $props();
 
 	const assets = $derived(data.assets);
-	const permits = $derived(data.permits);
+	const roomBookings = $derived(data.roomBookings);
 	const facilities = $derived(data.facilities);
 	const stationery = $derived(data.stationery);
-	const totalAttention = $derived((permits.stats.expired_count || 0) + (permits.stats.urgent_7_count || 0) + (permits.stats.critical_30_count || 0));
 
 	function formatRupiah(val: number | string | null) {
 		const num = typeof val === 'string' ? parseFloat(val) : (val || 0);
@@ -23,19 +22,6 @@
 			month: 'short',
 			year: 'numeric'
 		});
-	}
-
-	function getPermitLabel(type: string) {
-		switch (type) {
-			case 'STNK_TAHUNAN': return 'Pajak STNK 1 Tahun';
-			case 'STNK_5_TAHUN': return 'STNK Plat 5 Tahun';
-			case 'KIR_BERKALA': return 'KIR Uji Berkala';
-			case 'IZIN_TRAYEK': return 'Izin Trayek BPTD';
-			case 'UJI_EMISI': return 'Sertifikat Uji Emisi';
-			case 'SIUP_NIB': return 'Legalitas Usaha / NIB';
-			case 'ASURANSI': return 'Polis Asuransi';
-			default: return type;
-		}
 	}
 
 	function getUrgencyBadge(urgency: string) {
@@ -75,11 +61,11 @@
 		<div>
 			<div class="flex items-center gap-2 text-xs font-bold text-cyan-600 dark:text-cyan-400 uppercase tracking-widest mb-1">
 				<span class="material-symbols-outlined text-sm">domain</span>
-				<span>ERP BCS • General Affair & Asset Management</span>
+				<span>ERP BCS • General Affair & Facility Management</span>
 			</div>
 			<h1 class="text-3xl font-black text-on-surface tracking-tight">GA Dashboard</h1>
 			<p class="text-xs text-on-surface-variant mt-1 max-w-2xl">
-				Pusat komando pemantauan aset kantor/pool, sistem peringatan dini (EWS) pajak armada, tiket perbaikan gedung, dan stok perlengkapan operasional.
+				Pusat komando pemantauan aset kantor/pool, reservasi ruangan & fasilitas real-time, tiket perbaikan gedung, dan stok perlengkapan operasional.
 			</p>
 		</div>
 
@@ -92,11 +78,11 @@
 				<span>Master Aset</span>
 			</a>
 			<a
-				href="/ga/permits"
+				href="/ga/room-bookings"
 				class="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-surface-container-high hover:bg-surface-container-highest text-on-surface text-xs font-bold border border-slate-200 dark:border-slate-800 transition-colors shadow-2xs"
 			>
-				<span class="material-symbols-outlined text-base text-amber-600">badge</span>
-				<span>Legalitas Armada</span>
+				<span class="material-symbols-outlined text-base text-amber-600">meeting_room</span>
+				<span>Reservasi Ruangan</span>
 			</a>
 			<a
 				href="/ga/facilities"
@@ -132,32 +118,30 @@
 			</div>
 		</div>
 
-		<!-- Card 2: EWS Legalitas & Pajak Armada -->
+		<!-- Card 2: Reservasi Ruangan & Ketersediaan Real-time -->
 		<div class="p-5 rounded-2xl bg-surface-container-lowest border border-slate-200/70 dark:border-slate-800/70 transition-all hover:border-amber-500/30 flex flex-col justify-between relative overflow-hidden">
 			<div class="absolute -right-4 -bottom-4 text-amber-500/5">
-				<span class="material-symbols-outlined text-9xl">warning</span>
+				<span class="material-symbols-outlined text-9xl">meeting_room</span>
 			</div>
 			<div>
 				<div class="flex items-center justify-between mb-2">
-					<span class="text-xs font-bold text-on-surface-variant uppercase tracking-wider">EWS Pajak & Legalitas</span>
+					<span class="text-xs font-bold text-on-surface-variant uppercase tracking-wider">Reservasi Ruangan</span>
 					<div class="w-8 h-8 rounded-xl bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 flex items-center justify-center border border-amber-200/50 dark:border-amber-800/50">
-						<span class="material-symbols-outlined text-[18px]">notifications_active</span>
+						<span class="material-symbols-outlined text-[18px]">event_available</span>
 					</div>
 				</div>
-				<div class="text-2xl font-black text-amber-600 dark:text-amber-400 tracking-tight flex items-baseline gap-1.5">
-					<span>{totalAttention}</span>
-					<span class="text-sm font-bold text-on-surface-variant">Dokumen Kritis</span>
+				<div class="text-2xl font-black text-on-surface tracking-tight flex items-baseline gap-1.5">
+					<span>{roomBookings.stats.pending_bookings}</span>
+					<span class="text-sm font-normal text-on-surface-variant">Menunggu Review</span>
 				</div>
 			</div>
-			<div class="mt-3 pt-3 border-t border-slate-100 dark:border-slate-800/60 flex items-center gap-2 text-[11px]">
-				{#if permits.stats.expired_count > 0}
-					<span class="px-2 py-0.5 rounded-md font-bold bg-rose-50 text-rose-700 dark:bg-rose-950/50 dark:text-rose-300 border border-rose-200">
-						{permits.stats.expired_count} Expired
+			<div class="mt-3 pt-3 border-t border-slate-100 dark:border-slate-800/60 flex items-center justify-between text-[11px]">
+				<div class="flex items-center gap-1.5">
+					<span class="px-2 py-0.5 rounded-md font-bold bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
+						{Math.max(0, (roomBookings.stats.active_rooms || 0) - (roomBookings.stats.in_use_now || 0))}/{roomBookings.stats.active_rooms || 0} Ruang Tersedia
 					</span>
-				{/if}
-				<span class="px-2 py-0.5 rounded-md font-bold bg-amber-50 text-amber-700 dark:bg-amber-950/50 dark:text-amber-300 border border-amber-200">
-					{permits.stats.urgent_7_count + permits.stats.critical_30_count} &lt; 30 Hari
-				</span>
+				</div>
+				<span class="font-bold text-amber-600 hover:underline text-xs"><a href="/ga/room-bookings">Kelola &rarr;</a></span>
 			</div>
 		</div>
 
@@ -210,93 +194,144 @@
 		</div>
 	</div>
 
-	<!-- Early Warning System (EWS) Section: Critical Fleet Permits Table -->
-	<div class="p-6 rounded-2xl bg-surface-container-lowest border border-slate-200/70 dark:border-slate-800/70 shadow-2xs space-y-4">
+	<!-- Room Reservations & Real-Time Room Availability Section -->
+	<div class="p-6 rounded-2xl bg-surface-container-lowest border border-slate-200/70 dark:border-slate-800/70 shadow-2xs space-y-5">
 		<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
 			<div class="flex items-center gap-3">
-				<div class="w-9 h-9 rounded-xl bg-amber-100 dark:bg-amber-900/50 text-amber-700 dark:text-amber-300 flex items-center justify-center">
-					<span class="material-symbols-outlined text-[20px]">fmd_bad</span>
+				<div class="w-9 h-9 rounded-xl bg-cyan-100 dark:bg-cyan-900/50 text-cyan-700 dark:text-cyan-300 flex items-center justify-center">
+					<span class="material-symbols-outlined text-[20px]">meeting_room</span>
 				</div>
 				<div>
-					<h3 class="text-base font-bold text-on-surface">Early Warning System (EWS) — Pajak & Dokumen Armada</h3>
-					<p class="text-xs text-on-surface-variant">Daftar kendaraan dengan dokumen STNK, KIR, atau izin trayek yang segera habis atau telah lewat masa berlaku.</p>
+					<h3 class="text-base font-bold text-on-surface">Status Ruangan Real-Time & Jadwal Reservasi Terkini</h3>
+					<p class="text-xs text-on-surface-variant">Pantau ketersediaan ruang rapat saat ini serta daftar permohonan peminjaman ruangan yang perlu direview.</p>
 				</div>
 			</div>
-			<a href="/ga/permits" class="text-xs font-bold text-cyan-600 hover:underline flex items-center gap-1">
-				<span>Lihat Semua Dokumen</span>
-				<span class="material-symbols-outlined text-sm">arrow_forward</span>
-			</a>
+			<div class="flex items-center gap-3">
+				<a href="/calendar" class="text-xs font-bold text-amber-600 hover:underline flex items-center gap-1">
+					<span class="material-symbols-outlined text-sm">calendar_month</span>
+					<span>Kalender Global</span>
+				</a>
+				<a href="/ga/room-bookings" class="text-xs font-bold text-cyan-600 hover:underline flex items-center gap-1">
+					<span>Kelola Reservasi</span>
+					<span class="material-symbols-outlined text-sm">arrow_forward</span>
+				</a>
+			</div>
 		</div>
 
-		{#if permits.criticalList.length === 0}
-			<div class="py-8 text-center text-on-surface-variant flex flex-col items-center">
-				<span class="material-symbols-outlined text-4xl text-emerald-500 mb-2">check_circle</span>
-				<p class="text-sm font-bold text-on-surface">Semua Dokumen Legalitas Masih Valid</p>
-				<p class="text-xs text-on-surface-variant">Tidak ada dokumen STNK atau KIR yang mendekati masa kedaluwarsa (&lt; 60 hari).</p>
+		<!-- Real-time Room Status Strip -->
+		{#if roomBookings.rooms.length > 0}
+			<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+				{#each roomBookings.rooms as rm}
+					<div class="p-3.5 rounded-xl bg-surface-container-low border {rm.currentBookingNumber ? 'border-rose-300 dark:border-rose-800/70' : 'border-emerald-200/80 dark:border-emerald-800/50'} flex flex-col justify-between gap-2">
+						<div class="flex items-start justify-between gap-2">
+							<div class="flex items-center gap-2 min-w-0">
+								<span class="w-2.5 h-2.5 rounded-full shrink-0" style="background-color: {rm.colorHex || '#0284c7'};"></span>
+								<div class="truncate">
+									<div class="text-xs font-bold text-on-surface truncate">{rm.roomName}</div>
+									<div class="text-[10px] text-on-surface-variant">{rm.location} • {rm.capacity} org</div>
+								</div>
+							</div>
+							{#if rm.currentBookingNumber}
+								<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-50 text-rose-700 dark:bg-rose-950/50 dark:text-rose-300 border border-rose-200 dark:border-rose-800 shrink-0">
+									<span class="w-1.5 h-1.5 rounded-full bg-rose-500 animate-ping"></span>
+									Dipakai
+								</span>
+							{:else}
+								<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 shrink-0">
+									<span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+									Tersedia
+								</span>
+							{/if}
+						</div>
+
+						{#if rm.currentBookingNumber}
+							<div class="pt-2 border-t border-slate-200/60 dark:border-slate-800/60 text-[10px] text-on-surface-variant">
+								<div class="font-bold text-on-surface truncate">{rm.currentTitle}</div>
+								<div>{rm.currentRequester} ({rm.currentStart} - {rm.currentEnd} WIB)</div>
+							</div>
+						{:else}
+							<div class="pt-2 border-t border-slate-200/60 dark:border-slate-800/60 flex items-center justify-between text-[10px] text-on-surface-variant">
+								<span>Jadwal hari ini: <strong class="text-on-surface">{rm.todayCount || 0} sesi</strong></span>
+								<a href="/ga/room-bookings" class="text-cyan-600 font-bold hover:underline">Pinjam &rarr;</a>
+							</div>
+						{/if}
+					</div>
+				{/each}
+			</div>
+		{/if}
+
+		<!-- Upcoming & Pending Bookings Table -->
+		{#if roomBookings.upcomingList.length === 0}
+			<div class="py-6 text-center text-on-surface-variant flex flex-col items-center bg-surface-container-low rounded-xl">
+				<span class="material-symbols-outlined text-3xl text-emerald-500 mb-1">event_available</span>
+				<p class="text-xs font-bold text-on-surface">Belum Ada Jadwal Reservasi Mendatang</p>
+				<p class="text-[11px] text-on-surface-variant">Seluruh ruang rapat tersedia untuk dipinjam.</p>
 			</div>
 		{:else}
-			<div class="overflow-x-auto">
+			<div class="overflow-x-auto rounded-xl border border-slate-200/60 dark:border-slate-800/60">
 				<table class="w-full text-left text-xs">
 					<thead class="bg-surface-container-low text-on-surface-variant uppercase text-[10px] font-bold tracking-wider border-b border-slate-200/60 dark:border-slate-800/60">
 						<tr>
-							<th class="py-3 px-4">Kendaraan (Unit)</th>
-							<th class="py-3 px-4">No. Polisi</th>
-							<th class="py-3 px-4">Jenis Dokumen</th>
-							<th class="py-3 px-4">Instansi Penerbit</th>
-							<th class="py-3 px-4">Jatuh Tempo</th>
-							<th class="py-3 px-4">Status & Sisa Waktu</th>
-							<th class="py-3 px-4 text-right">Est. Biaya Perpanjangan</th>
+							<th class="py-3 px-4">No. Booking</th>
+							<th class="py-3 px-4">Ruangan</th>
+							<th class="py-3 px-4">Agenda / Keperluan</th>
+							<th class="py-3 px-4">Pemohon & Divisi</th>
+							<th class="py-3 px-4">Waktu Pelaksanaan</th>
+							<th class="py-3 px-4 text-center">Status</th>
 							<th class="py-3 px-4 text-center">Aksi</th>
 						</tr>
 					</thead>
 					<tbody class="divide-y divide-slate-200/60 dark:divide-slate-800/60">
-						{#each permits.criticalList as permit}
+						{#each roomBookings.upcomingList as bkg}
 							<tr class="hover:bg-surface-container transition-colors">
-								<td class="py-3 px-4 font-mono font-bold text-on-surface">
-									{permit.unit_number}
+								<td class="py-3 px-4 font-mono font-bold text-cyan-700 dark:text-cyan-300">
+									{bkg.bookingNumber}
 								</td>
-								<td class="py-3 px-4 font-semibold text-on-surface">
-									{permit.police_number || '-'}
+								<td class="py-3 px-4">
+									<div class="flex items-center gap-1.5 font-semibold text-on-surface">
+										<span class="w-2 h-2 rounded-full" style="background-color: {bkg.roomColor || '#0284c7'};"></span>
+										<span>{bkg.roomName}</span>
+									</div>
+									<div class="text-[10px] text-on-surface-variant">{bkg.roomLocation}</div>
 								</td>
-								<td class="py-3 px-4 font-medium text-on-surface">
-									{getPermitLabel(permit.permit_type)}
+								<td class="py-3 px-4 font-semibold text-on-surface max-w-xs truncate">
+									{bkg.title}
 								</td>
-								<td class="py-3 px-4 text-on-surface-variant">
-									{permit.institution || '-'}
-								</td>
-								<td class="py-3 px-4 font-medium text-on-surface whitespace-nowrap">
-									{formatDate(permit.expiry_date)}
+								<td class="py-3 px-4">
+									<div class="font-medium text-on-surface">{bkg.requesterName}</div>
+									<div class="text-[10px] text-on-surface-variant">{bkg.department || 'Umum'} • {bkg.attendeesCount} org</div>
 								</td>
 								<td class="py-3 px-4 whitespace-nowrap">
-									{#if permit.days_remaining < 0}
-										<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-black bg-rose-100 text-rose-800 dark:bg-rose-950/60 dark:text-rose-300 border border-rose-300">
-											<span class="w-1.5 h-1.5 rounded-full bg-rose-600 animate-ping"></span>
-											Expired {Math.abs(permit.days_remaining)} Hari Lalu
+									<div class="font-medium text-on-surface flex items-center gap-1.5">
+										<span>{formatDate(bkg.bookingDate)}</span>
+										{#if bkg.isToday}
+											<span class="px-1.5 py-0.2 rounded text-[9px] font-bold bg-cyan-100 text-cyan-800 dark:bg-cyan-950 dark:text-cyan-300">Hari Ini</span>
+										{/if}
+									</div>
+									<div class="text-[10px] font-mono text-on-surface-variant">{bkg.startTimeFormatted} - {bkg.endTimeFormatted} WIB</div>
+								</td>
+								<td class="py-3 px-4 text-center whitespace-nowrap">
+									{#if bkg.isInUseNow}
+										<span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-rose-50 text-rose-700 dark:bg-rose-950/50 dark:text-rose-300 border border-rose-200 dark:border-rose-800">
+											<span class="w-1.5 h-1.5 rounded-full bg-rose-500 animate-ping"></span>
+											Sedang Berlangsung
 										</span>
-									{:else if permit.days_remaining <= 7}
-										<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-bold bg-amber-100 text-amber-900 dark:bg-amber-950/60 dark:text-amber-200 border border-amber-300">
-											<span class="w-1.5 h-1.5 rounded-full bg-amber-600"></span>
-											Urgent (H-{permit.days_remaining})
-										</span>
-									{:else if permit.days_remaining <= 30}
-										<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-semibold bg-yellow-50 text-yellow-800 dark:bg-yellow-950/50 dark:text-yellow-300 border border-yellow-300">
-											Kritis ({permit.days_remaining} Hari Lagi)
+									{:else if bkg.status === 'APPROVED'}
+										<span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
+											Disetujui
 										</span>
 									{:else}
-										<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-medium bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300 border border-emerald-200">
-											Aman ({permit.days_remaining} Hari)
+										<span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 dark:bg-amber-950/50 dark:text-amber-300 border border-amber-200 dark:border-amber-800">
+											Menunggu Review
 										</span>
 									{/if}
 								</td>
-								<td class="py-3 px-4 text-right font-mono font-bold text-on-surface">
-									{formatRupiah(permit.renewal_cost)}
-								</td>
 								<td class="py-3 px-4 text-center">
 									<a
-										href="/ga/permits"
-										class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-cyan-50 dark:bg-cyan-950/50 text-cyan-700 dark:text-cyan-300 border border-cyan-200 hover:bg-cyan-100 transition-colors text-[11px] font-bold"
+										href="/ga/room-bookings"
+										class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-cyan-50 dark:bg-cyan-950/50 text-cyan-700 dark:text-cyan-300 border border-cyan-200 dark:border-cyan-800 hover:bg-cyan-100 transition-colors text-[11px] font-bold"
 									>
-										<span>Urus Berkas</span>
+										<span>{bkg.status === 'PENDING' ? 'Review' : 'Detail'}</span>
 										<span class="material-symbols-outlined text-[13px]">arrow_forward</span>
 									</a>
 								</td>

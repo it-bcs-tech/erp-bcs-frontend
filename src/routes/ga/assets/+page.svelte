@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
+	import Pagination from '$lib/components/Pagination.svelte';
 
 	let { data } = $props();
 
@@ -85,13 +86,13 @@
 	function getConditionBadge(condition: string) {
 		switch (condition) {
 			case 'GOOD':
-				return 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300 border border-emerald-200';
+				return 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800';
 			case 'MINOR_DAMAGE':
-				return 'bg-amber-50 text-amber-700 dark:bg-amber-950/50 dark:text-amber-300 border border-amber-200';
+				return 'bg-amber-50 text-amber-700 dark:bg-amber-950/50 dark:text-amber-300 border border-amber-200 dark:border-amber-800';
 			case 'MAJOR_DAMAGE':
-				return 'bg-rose-50 text-rose-700 dark:bg-rose-950/50 dark:text-rose-300 border border-rose-200';
+				return 'bg-rose-50 text-rose-700 dark:bg-rose-950/50 dark:text-rose-300 border border-rose-200 dark:border-rose-800';
 			case 'SCRAP':
-				return 'bg-slate-200 text-slate-800 dark:bg-slate-800 dark:text-slate-300 border border-slate-300';
+				return 'bg-slate-200 text-slate-800 dark:bg-slate-800 dark:text-slate-300 border border-slate-300 dark:border-slate-700';
 			default:
 				return 'bg-slate-100 text-slate-700';
 		}
@@ -114,7 +115,24 @@
 			return matchQ && matchCat && matchLoc && matchCond;
 		})
 	);
+
+	// Pagination state
+	let currentPage = $state(1);
+	const perPage = 10;
+	const totalPages = $derived(Math.max(1, Math.ceil(filteredAssets.length / perPage)));
+	const paginatedAssets = $derived(
+		filteredAssets.slice((currentPage - 1) * perPage, currentPage * perPage)
+	);
+
+	$effect(() => {
+		const _ = [searchQuery, categoryFilter, locationFilter, conditionFilter, data.assets];
+		currentPage = 1;
+	});
 </script>
+
+<svelte:head>
+	<title>Master Assets (KR 7.1) | General Affair | ERP BCS</title>
+</svelte:head>
 
 <div class="space-y-6">
 	<!-- Header -->
@@ -132,7 +150,7 @@
 
 		<button
 			onclick={openAddModal}
-			class="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-cyan-600 hover:bg-cyan-700 text-white text-xs font-bold shadow-xs transition-colors self-start md:self-auto"
+			class="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-cyan-600 hover:bg-cyan-700 text-white text-xs font-bold shadow-xs transition-colors self-start md:self-auto cursor-pointer"
 		>
 			<span class="material-symbols-outlined text-base">add_box</span>
 			<span>+ Registrasi Aset Baru</span>
@@ -182,22 +200,22 @@
 		</div>
 	</div>
 
-	<!-- Filter & Search Bar -->
+	<!-- Filter & Search Bar (Borderless Standard) -->
 	<div class="flex flex-col md:flex-row gap-3 items-center justify-between p-4 rounded-2xl bg-surface-container-lowest border border-slate-200/70 dark:border-slate-800/70 shadow-2xs">
-		<div class="flex items-center gap-3 px-3.5 py-2 rounded-xl bg-surface-container-low border border-slate-200/60 dark:border-slate-800/60 w-full md:w-80 focus-within:border-cyan-500">
+		<div class="flex items-center gap-3 px-4 py-2.5 rounded-xl bg-surface-container-low w-full md:w-80 focus-within:ring-2 focus-within:ring-cyan-500/20 transition-all">
 			<span class="material-symbols-outlined text-on-surface-variant text-[18px]">search</span>
 			<input
 				type="text"
 				bind:value={searchQuery}
 				placeholder="Cari kode, nama aset, S/N, PIC..."
-				class="bg-transparent text-xs text-on-surface outline-none w-full placeholder:text-on-surface-variant/50"
+				class="bg-transparent text-xs text-on-surface border-0 outline-none w-full placeholder:text-on-surface-variant/50 focus:ring-0"
 			/>
 		</div>
 
 		<div class="flex flex-wrap items-center gap-2 w-full md:w-auto">
 			<select
 				bind:value={categoryFilter}
-				class="px-3 py-2 rounded-xl bg-surface-container-low border border-slate-200/60 dark:border-slate-800/60 text-xs text-on-surface font-medium"
+				class="px-3.5 py-2.5 rounded-xl bg-surface-container-low border-0 outline-none focus:ring-2 focus:ring-cyan-500/20 text-xs text-on-surface font-medium cursor-pointer transition-all"
 			>
 				<option value="All">Semua Kategori</option>
 				<option value="ELEKTRONIK_IT">Elektronik & IT</option>
@@ -209,7 +227,7 @@
 
 			<select
 				bind:value={locationFilter}
-				class="px-3 py-2 rounded-xl bg-surface-container-low border border-slate-200/60 dark:border-slate-800/60 text-xs text-on-surface font-medium"
+				class="px-3.5 py-2.5 rounded-xl bg-surface-container-low border-0 outline-none focus:ring-2 focus:ring-cyan-500/20 text-xs text-on-surface font-medium cursor-pointer transition-all"
 			>
 				<option value="All">Semua Lokasi</option>
 				<option value="Head Office Cilegon">Head Office Cilegon</option>
@@ -219,7 +237,7 @@
 
 			<select
 				bind:value={conditionFilter}
-				class="px-3 py-2 rounded-xl bg-surface-container-low border border-slate-200/60 dark:border-slate-800/60 text-xs text-on-surface font-medium"
+				class="px-3.5 py-2.5 rounded-xl bg-surface-container-low border-0 outline-none focus:ring-2 focus:ring-cyan-500/20 text-xs text-on-surface font-medium cursor-pointer transition-all"
 			>
 				<option value="All">Semua Kondisi</option>
 				<option value="GOOD">Baik (Good)</option>
@@ -248,14 +266,14 @@
 					</tr>
 				</thead>
 				<tbody class="divide-y divide-slate-200/60 dark:divide-slate-800/60">
-					{#each filteredAssets as asset}
+					{#each paginatedAssets as asset (asset.id)}
 						<tr class="hover:bg-surface-container transition-colors">
 							<td class="py-3 px-4">
 								<div class="flex items-center gap-2">
 									<button
 										onclick={() => openQrModal(asset)}
 										title="Tampilkan QR Code Stiker Tagging"
-										class="p-1 rounded-md bg-surface-container hover:bg-cyan-100 dark:hover:bg-cyan-950 text-cyan-600 transition-colors"
+										class="p-1 rounded-md bg-surface-container hover:bg-cyan-100 dark:hover:bg-cyan-950 text-cyan-600 transition-colors cursor-pointer"
 									>
 										<span class="material-symbols-outlined text-base">qr_code_2</span>
 									</button>
@@ -300,21 +318,21 @@
 									<button
 										onclick={() => openDetailModal(asset)}
 										title="Rincian & Riwayat Mutasi"
-										class="p-1.5 rounded-lg text-slate-500 hover:bg-surface-container hover:text-on-surface transition-colors"
+										class="p-1.5 rounded-lg text-slate-500 hover:bg-surface-container hover:text-on-surface transition-colors cursor-pointer"
 									>
 										<span class="material-symbols-outlined text-[17px]">visibility</span>
 									</button>
 									<button
 										onclick={() => openMutateModal(asset)}
 										title="Mutasi Lokasi / PIC"
-										class="p-1.5 rounded-lg text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-950/50 transition-colors"
+										class="p-1.5 rounded-lg text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-950/50 transition-colors cursor-pointer"
 									>
 										<span class="material-symbols-outlined text-[17px]">move_up</span>
 									</button>
 									<button
 										onclick={() => openEditModal(asset)}
 										title="Edit Data Aset"
-										class="p-1.5 rounded-lg text-cyan-600 hover:bg-cyan-50 dark:hover:bg-cyan-950/50 transition-colors"
+										class="p-1.5 rounded-lg text-cyan-600 hover:bg-cyan-50 dark:hover:bg-cyan-950/50 transition-colors cursor-pointer"
 									>
 										<span class="material-symbols-outlined text-[17px]">edit</span>
 									</button>
@@ -330,7 +348,7 @@
 										<button
 											type="submit"
 											title="Hapus Aset"
-											class="p-1.5 rounded-lg text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/50 transition-colors"
+											class="p-1.5 rounded-lg text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/50 transition-colors cursor-pointer"
 										>
 											<span class="material-symbols-outlined text-[17px]">delete</span>
 										</button>
@@ -350,6 +368,17 @@
 				</tbody>
 			</table>
 		</div>
+
+		{#if filteredAssets.length > 0}
+			<Pagination
+				currentPage={currentPage}
+				totalPages={totalPages}
+				totalItems={filteredAssets.length}
+				perPage={perPage}
+				itemLabel="aset tetap"
+				onPageChange={(p) => (currentPage = p)}
+			/>
+		{/if}
 	</div>
 </div>
 
@@ -362,7 +391,7 @@
 					<span class="material-symbols-outlined text-cyan-600 text-xl">qr_code_scanner</span>
 					<h3 class="font-bold text-sm text-on-surface">Label Stiker Inventaris Aset</h3>
 				</div>
-				<button onclick={() => isQrModalOpen = false} class="text-on-surface-variant hover:text-on-surface">
+				<button onclick={() => isQrModalOpen = false} class="text-on-surface-variant hover:text-on-surface cursor-pointer">
 					<span class="material-symbols-outlined text-lg">close</span>
 				</button>
 			</div>
@@ -414,7 +443,7 @@
 					<button
 						type="button"
 						onclick={() => window.print()}
-						class="flex-1 py-2.5 px-4 rounded-xl bg-cyan-600 hover:bg-cyan-700 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-xs"
+						class="flex-1 py-2.5 px-4 rounded-xl bg-cyan-600 hover:bg-cyan-700 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-xs cursor-pointer"
 					>
 						<span class="material-symbols-outlined text-base">print</span>
 						<span>Cetak Stiker Label</span>
@@ -422,7 +451,7 @@
 					<button
 						type="button"
 						onclick={() => isQrModalOpen = false}
-						class="py-2.5 px-4 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold text-on-surface hover:bg-surface-container"
+						class="py-2.5 px-4 rounded-xl bg-surface-container-low text-xs font-bold text-on-surface hover:bg-surface-container cursor-pointer"
 					>
 						Tutup
 					</button>
@@ -441,7 +470,7 @@
 					<span class="material-symbols-outlined text-cyan-600">add_box</span>
 					<h3 class="font-bold text-base text-on-surface">Registrasi Aset Tetap Baru</h3>
 				</div>
-				<button onclick={() => isAddModalOpen = false} class="text-on-surface-variant hover:text-on-surface">
+				<button onclick={() => isAddModalOpen = false} class="text-on-surface-variant hover:text-on-surface cursor-pointer">
 					<span class="material-symbols-outlined">close</span>
 				</button>
 			</div>
@@ -461,23 +490,23 @@
 			>
 				<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
 					<div>
-						<label for="create_name" class="block text-xs font-bold text-on-surface mb-1">Nama Aset *</label>
+						<label for="create_name" class="block text-xs font-bold text-on-surface mb-1.5">Nama Aset <span class="text-rose-500">*</span></label>
 						<input
 							id="create_name"
 							type="text"
 							name="name"
 							required
 							placeholder="Misal: Genset Silent 60 KVA"
-							class="w-full px-3.5 py-2 text-xs rounded-xl bg-surface-container-low border border-slate-200 dark:border-slate-700 text-on-surface outline-none focus:border-cyan-500"
+							class="w-full px-4 py-2.5 text-xs rounded-xl bg-surface-container-low border-0 outline-none focus:ring-2 focus:ring-cyan-500/20 text-on-surface transition-all"
 						/>
 					</div>
 					<div>
-						<label for="create_category" class="block text-xs font-bold text-on-surface mb-1">Kategori Aset *</label>
+						<label for="create_category" class="block text-xs font-bold text-on-surface mb-1.5">Kategori Aset <span class="text-rose-500">*</span></label>
 						<select
 							id="create_category"
 							name="category"
 							required
-							class="w-full px-3.5 py-2 text-xs rounded-xl bg-surface-container-low border border-slate-200 dark:border-slate-700 text-on-surface outline-none focus:border-cyan-500"
+							class="w-full px-4 py-2.5 text-xs rounded-xl bg-surface-container-low border-0 outline-none focus:ring-2 focus:ring-cyan-500/20 text-on-surface cursor-pointer transition-all"
 						>
 							<option value="ELEKTRONIK_IT">Elektronik & IT</option>
 							<option value="FASILITAS_GEDUNG">Fasilitas Gedung</option>
@@ -490,23 +519,23 @@
 
 				<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
 					<div>
-						<label for="create_brand" class="block text-xs font-bold text-on-surface mb-1">Merk / Model</label>
+						<label for="create_brand" class="block text-xs font-bold text-on-surface mb-1.5">Merk / Model</label>
 						<input
 							id="create_brand"
 							type="text"
 							name="brand_model"
 							placeholder="Misal: Perkins 1104A / Dell PowerEdge"
-							class="w-full px-3.5 py-2 text-xs rounded-xl bg-surface-container-low border border-slate-200 dark:border-slate-700 text-on-surface outline-none focus:border-cyan-500"
+							class="w-full px-4 py-2.5 text-xs rounded-xl bg-surface-container-low border-0 outline-none focus:ring-2 focus:ring-cyan-500/20 text-on-surface transition-all"
 						/>
 					</div>
 					<div>
-						<label for="create_serial" class="block text-xs font-bold text-on-surface mb-1">Nomor Seri / Serial Number</label>
+						<label for="create_serial" class="block text-xs font-bold text-on-surface mb-1.5">Nomor Seri / Serial Number</label>
 						<input
 							id="create_serial"
 							type="text"
 							name="serial_number"
 							placeholder="Nomor seri pabrikan"
-							class="w-full px-3.5 py-2 text-xs rounded-xl bg-surface-container-low border border-slate-200 dark:border-slate-700 text-on-surface outline-none focus:border-cyan-500 font-mono"
+							class="w-full px-4 py-2.5 text-xs rounded-xl bg-surface-container-low border-0 outline-none focus:ring-2 focus:ring-cyan-500/20 text-on-surface font-mono transition-all"
 						/>
 					</div>
 				</div>
@@ -529,7 +558,7 @@
 								min="0"
 								step="1000"
 								required
-								class="w-full px-3 py-1.5 text-xs rounded-lg bg-surface-container-low border border-slate-200 dark:border-slate-700 text-on-surface font-mono"
+								class="w-full px-3.5 py-2 text-xs rounded-xl bg-surface-container-lowest border-0 outline-none focus:ring-2 focus:ring-cyan-500/20 text-on-surface font-mono"
 							/>
 						</div>
 						<div>
@@ -541,7 +570,7 @@
 								bind:value={formMonths}
 								min="1"
 								required
-								class="w-full px-3 py-1.5 text-xs rounded-lg bg-surface-container-low border border-slate-200 dark:border-slate-700 text-on-surface font-mono"
+								class="w-full px-3.5 py-2 text-xs rounded-xl bg-surface-container-lowest border-0 outline-none focus:ring-2 focus:ring-cyan-500/20 text-on-surface font-mono"
 							/>
 						</div>
 						<div>
@@ -552,7 +581,7 @@
 								name="salvage_value"
 								bind:value={formSalvage}
 								min="0"
-								class="w-full px-3 py-1.5 text-xs rounded-lg bg-surface-container-low border border-slate-200 dark:border-slate-700 text-on-surface font-mono"
+								class="w-full px-3.5 py-2 text-xs rounded-xl bg-surface-container-lowest border-0 outline-none focus:ring-2 focus:ring-cyan-500/20 text-on-surface font-mono"
 							/>
 						</div>
 					</div>
@@ -565,12 +594,12 @@
 
 				<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
 					<div>
-						<label for="create_location" class="block text-xs font-bold text-on-surface mb-1">Lokasi Fisik *</label>
+						<label for="create_location" class="block text-xs font-bold text-on-surface mb-1.5">Lokasi Fisik <span class="text-rose-500">*</span></label>
 						<select
 							id="create_location"
 							name="location"
 							required
-							class="w-full px-3.5 py-2 text-xs rounded-xl bg-surface-container-low border border-slate-200 dark:border-slate-700 text-on-surface outline-none focus:border-cyan-500"
+							class="w-full px-4 py-2.5 text-xs rounded-xl bg-surface-container-low border-0 outline-none focus:ring-2 focus:ring-cyan-500/20 text-on-surface cursor-pointer transition-all"
 						>
 							<option value="Head Office Cilegon">Head Office Cilegon</option>
 							<option value="Pool Cilegon">Pool Cilegon</option>
@@ -578,43 +607,43 @@
 						</select>
 					</div>
 					<div>
-						<label for="create_room" class="block text-xs font-bold text-on-surface mb-1">Ruangan / Area</label>
+						<label for="create_room" class="block text-xs font-bold text-on-surface mb-1.5">Ruangan / Area</label>
 						<input
 							id="create_room"
 							type="text"
 							name="room"
 							placeholder="Misal: Server Room Lt 2, Workshop Mekanik"
-							class="w-full px-3.5 py-2 text-xs rounded-xl bg-surface-container-low border border-slate-200 dark:border-slate-700 text-on-surface outline-none focus:border-cyan-500"
+							class="w-full px-4 py-2.5 text-xs rounded-xl bg-surface-container-low border-0 outline-none focus:ring-2 focus:ring-cyan-500/20 text-on-surface transition-all"
 						/>
 					</div>
 				</div>
 
 				<div class="grid grid-cols-1 md:grid-cols-3 gap-4">
 					<div>
-						<label for="create_acq_date" class="block text-xs font-bold text-on-surface mb-1">Tanggal Perolehan</label>
+						<label for="create_acq_date" class="block text-xs font-bold text-on-surface mb-1.5">Tanggal Perolehan</label>
 						<input
 							id="create_acq_date"
 							type="date"
 							name="acquisition_date"
-							class="w-full px-3.5 py-2 text-xs rounded-xl bg-surface-container-low border border-slate-200 dark:border-slate-700 text-on-surface"
+							class="w-full px-4 py-2.5 text-xs rounded-xl bg-surface-container-low border-0 outline-none focus:ring-2 focus:ring-cyan-500/20 text-on-surface"
 						/>
 					</div>
 					<div>
-						<label for="create_pic" class="block text-xs font-bold text-on-surface mb-1">PIC Penanggung Jawab</label>
+						<label for="create_pic" class="block text-xs font-bold text-on-surface mb-1.5">PIC Penanggung Jawab</label>
 						<input
 							id="create_pic"
 							type="text"
 							name="pic_name"
 							placeholder="Nama staf / penanggung jawab"
-							class="w-full px-3.5 py-2 text-xs rounded-xl bg-surface-container-low border border-slate-200 dark:border-slate-700 text-on-surface"
+							class="w-full px-4 py-2.5 text-xs rounded-xl bg-surface-container-low border-0 outline-none focus:ring-2 focus:ring-cyan-500/20 text-on-surface"
 						/>
 					</div>
 					<div>
-						<label for="create_condition" class="block text-xs font-bold text-on-surface mb-1">Kondisi Awal</label>
+						<label for="create_condition" class="block text-xs font-bold text-on-surface mb-1.5">Kondisi Awal</label>
 						<select
 							id="create_condition"
 							name="condition"
-							class="w-full px-3.5 py-2 text-xs rounded-xl bg-surface-container-low border border-slate-200 dark:border-slate-700 text-on-surface"
+							class="w-full px-4 py-2.5 text-xs rounded-xl bg-surface-container-low border-0 outline-none focus:ring-2 focus:ring-cyan-500/20 text-on-surface cursor-pointer"
 						>
 							<option value="GOOD">Baik (Good)</option>
 							<option value="MINOR_DAMAGE">Rusak Ringan</option>
@@ -623,13 +652,13 @@
 				</div>
 
 				<div>
-					<label for="create_notes" class="block text-xs font-bold text-on-surface mb-1">Catatan Tambahan</label>
+					<label for="create_notes" class="block text-xs font-bold text-on-surface mb-1.5">Catatan Tambahan</label>
 					<textarea
 						id="create_notes"
 						name="notes"
 						rows="2"
 						placeholder="Keterangan kelengkapan dokumen atau spesifikasi aset..."
-						class="w-full px-3.5 py-2 text-xs rounded-xl bg-surface-container-low border border-slate-200 dark:border-slate-700 text-on-surface outline-none focus:border-cyan-500"
+						class="w-full px-4 py-2.5 text-xs rounded-xl bg-surface-container-low border-0 outline-none focus:ring-2 focus:ring-cyan-500/20 text-on-surface transition-all"
 					></textarea>
 				</div>
 
@@ -637,15 +666,247 @@
 					<button
 						type="button"
 						onclick={() => isAddModalOpen = false}
-						class="px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold text-on-surface hover:bg-surface-container"
+						class="px-4 py-2.5 rounded-xl bg-surface-container-low text-xs font-bold text-on-surface hover:bg-surface-container cursor-pointer"
 					>
 						Batal
 					</button>
 					<button
 						type="submit"
-						class="px-5 py-2.5 rounded-xl bg-cyan-600 hover:bg-cyan-700 text-white text-xs font-bold shadow-xs transition-colors"
+						class="px-5 py-2.5 rounded-xl bg-cyan-600 hover:bg-cyan-700 text-white text-xs font-bold shadow-xs transition-colors cursor-pointer"
 					>
 						Simpan & Daftarkan Aset
+					</button>
+				</div>
+			</form>
+		</div>
+	</div>
+{/if}
+
+<!-- MODAL: Edit Data Aset -->
+{#if isEditModalOpen && selectedAsset}
+	<div class="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
+		<div class="bg-surface-container-lowest rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xl w-full max-w-2xl overflow-hidden my-8 animate-in fade-in zoom-in-95 duration-200">
+			<div class="p-5 border-b border-slate-200/60 dark:border-slate-800/60 flex items-center justify-between">
+				<div class="flex items-center gap-2">
+					<span class="material-symbols-outlined text-cyan-600">edit</span>
+					<div>
+						<h3 class="font-bold text-base text-on-surface">Edit Data Aset Tetap</h3>
+						<p class="text-[11px] font-mono text-on-surface-variant">{selectedAsset.asset_code}</p>
+					</div>
+				</div>
+				<button onclick={() => isEditModalOpen = false} class="text-on-surface-variant hover:text-on-surface cursor-pointer">
+					<span class="material-symbols-outlined">close</span>
+				</button>
+			</div>
+
+			<form
+				method="POST"
+				action="?/updateAsset"
+				use:enhance={() => {
+					return async ({ result, update }) => {
+						await update();
+						if (result.type === 'success') {
+							isEditModalOpen = false;
+						}
+					};
+				}}
+				class="p-6 space-y-4"
+			>
+				<input type="hidden" name="id" value={selectedAsset.id} />
+
+				<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+					<div>
+						<label for="edit_name" class="block text-xs font-bold text-on-surface mb-1.5">Nama Aset <span class="text-rose-500">*</span></label>
+						<input
+							id="edit_name"
+							type="text"
+							name="name"
+							value={selectedAsset.name}
+							required
+							class="w-full px-4 py-2.5 text-xs rounded-xl bg-surface-container-low border-0 outline-none focus:ring-2 focus:ring-cyan-500/20 text-on-surface"
+						/>
+					</div>
+					<div>
+						<label for="edit_category" class="block text-xs font-bold text-on-surface mb-1.5">Kategori Aset <span class="text-rose-500">*</span></label>
+						<select
+							id="edit_category"
+							name="category"
+							value={selectedAsset.category}
+							required
+							class="w-full px-4 py-2.5 text-xs rounded-xl bg-surface-container-low border-0 outline-none focus:ring-2 focus:ring-cyan-500/20 text-on-surface cursor-pointer"
+						>
+							<option value="ELEKTRONIK_IT">Elektronik & IT</option>
+							<option value="FASILITAS_GEDUNG">Fasilitas Gedung</option>
+							<option value="MESIN_GENSET">Mesin & Genset</option>
+							<option value="KENDARAAN_OPERASIONAL">Kendaraan Operasional</option>
+							<option value="FURNITUR_KANTOR">Furnitur Kantor</option>
+						</select>
+					</div>
+				</div>
+
+				<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+					<div>
+						<label for="edit_brand" class="block text-xs font-bold text-on-surface mb-1.5">Merk / Model</label>
+						<input
+							id="edit_brand"
+							type="text"
+							name="brand_model"
+							value={selectedAsset.brand_model || ''}
+							class="w-full px-4 py-2.5 text-xs rounded-xl bg-surface-container-low border-0 outline-none focus:ring-2 focus:ring-cyan-500/20 text-on-surface"
+						/>
+					</div>
+					<div>
+						<label for="edit_serial" class="block text-xs font-bold text-on-surface mb-1.5">Nomor Seri / Serial Number</label>
+						<input
+							id="edit_serial"
+							type="text"
+							name="serial_number"
+							value={selectedAsset.serial_number || ''}
+							class="w-full px-4 py-2.5 text-xs rounded-xl bg-surface-container-low border-0 outline-none focus:ring-2 focus:ring-cyan-500/20 text-on-surface font-mono"
+						/>
+					</div>
+				</div>
+
+				<div class="grid grid-cols-1 md:grid-cols-3 gap-3 p-4 rounded-xl bg-surface-container-low">
+					<div>
+						<label for="edit_acq_cost" class="block text-[11px] font-bold text-on-surface mb-1">Nilai Perolehan (Rp)</label>
+						<input
+							id="edit_acq_cost"
+							type="number"
+							name="acquisition_cost"
+							bind:value={formCost}
+							min="0"
+							step="1000"
+							required
+							class="w-full px-3.5 py-2 text-xs rounded-xl bg-surface-container-lowest border-0 outline-none focus:ring-2 focus:ring-cyan-500/20 text-on-surface font-mono"
+						/>
+					</div>
+					<div>
+						<label for="edit_econ_life" class="block text-[11px] font-bold text-on-surface mb-1">Umur Ekonomis (Bln)</label>
+						<input
+							id="edit_econ_life"
+							type="number"
+							name="economic_life_months"
+							bind:value={formMonths}
+							min="1"
+							required
+							class="w-full px-3.5 py-2 text-xs rounded-xl bg-surface-container-lowest border-0 outline-none focus:ring-2 focus:ring-cyan-500/20 text-on-surface font-mono"
+						/>
+					</div>
+					<div>
+						<label for="edit_salvage" class="block text-[11px] font-bold text-on-surface mb-1">Nilai Residu (Rp)</label>
+						<input
+							id="edit_salvage"
+							type="number"
+							name="salvage_value"
+							bind:value={formSalvage}
+							min="0"
+							class="w-full px-3.5 py-2 text-xs rounded-xl bg-surface-container-lowest border-0 outline-none focus:ring-2 focus:ring-cyan-500/20 text-on-surface font-mono"
+						/>
+					</div>
+				</div>
+
+				<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+					<div>
+						<label for="edit_location" class="block text-xs font-bold text-on-surface mb-1.5">Lokasi Fisik *</label>
+						<select
+							id="edit_location"
+							name="location"
+							value={selectedAsset.location}
+							required
+							class="w-full px-4 py-2.5 text-xs rounded-xl bg-surface-container-low border-0 outline-none focus:ring-2 focus:ring-cyan-500/20 text-on-surface cursor-pointer"
+						>
+							<option value="Head Office Cilegon">Head Office Cilegon</option>
+							<option value="Pool Cilegon">Pool Cilegon</option>
+							<option value="Pool Merak">Pool Merak</option>
+						</select>
+					</div>
+					<div>
+						<label for="edit_room" class="block text-xs font-bold text-on-surface mb-1.5">Ruangan / Area</label>
+						<input
+							id="edit_room"
+							type="text"
+							name="room"
+							value={selectedAsset.room || ''}
+							class="w-full px-4 py-2.5 text-xs rounded-xl bg-surface-container-low border-0 outline-none focus:ring-2 focus:ring-cyan-500/20 text-on-surface"
+						/>
+					</div>
+				</div>
+
+				<div class="grid grid-cols-1 md:grid-cols-4 gap-3">
+					<div>
+						<label for="edit_acq_date" class="block text-xs font-bold text-on-surface mb-1.5">Tgl Perolehan</label>
+						<input
+							id="edit_acq_date"
+							type="date"
+							name="acquisition_date"
+							value={selectedAsset.acquisition_date || ''}
+							class="w-full px-3 py-2 text-xs rounded-xl bg-surface-container-low border-0 outline-none focus:ring-2 focus:ring-cyan-500/20 text-on-surface"
+						/>
+					</div>
+					<div>
+						<label for="edit_pic" class="block text-xs font-bold text-on-surface mb-1.5">PIC Unit</label>
+						<input
+							id="edit_pic"
+							type="text"
+							name="pic_name"
+							value={selectedAsset.pic_name || ''}
+							class="w-full px-3 py-2 text-xs rounded-xl bg-surface-container-low border-0 outline-none focus:ring-2 focus:ring-cyan-500/20 text-on-surface"
+						/>
+					</div>
+					<div>
+						<label for="edit_condition" class="block text-xs font-bold text-on-surface mb-1.5">Kondisi</label>
+						<select
+							id="edit_condition"
+							name="condition"
+							value={selectedAsset.condition}
+							class="w-full px-3 py-2 text-xs rounded-xl bg-surface-container-low border-0 outline-none focus:ring-2 focus:ring-cyan-500/20 text-on-surface cursor-pointer"
+						>
+							<option value="GOOD">GOOD</option>
+							<option value="MINOR_DAMAGE">MINOR_DAMAGE</option>
+							<option value="MAJOR_DAMAGE">MAJOR_DAMAGE</option>
+							<option value="SCRAP">SCRAP</option>
+						</select>
+					</div>
+					<div>
+						<label for="edit_status" class="block text-xs font-bold text-on-surface mb-1.5">Status</label>
+						<select
+							id="edit_status"
+							name="status"
+							value={selectedAsset.status}
+							class="w-full px-3 py-2 text-xs rounded-xl bg-surface-container-low border-0 outline-none focus:ring-2 focus:ring-cyan-500/20 text-on-surface cursor-pointer"
+						>
+							<option value="ACTIVE">ACTIVE</option>
+							<option value="IN_REPAIR">IN_REPAIR</option>
+							<option value="DISPOSED">DISPOSED</option>
+						</select>
+					</div>
+				</div>
+
+				<div>
+					<label for="edit_notes" class="block text-xs font-bold text-on-surface mb-1.5">Catatan</label>
+					<textarea
+						id="edit_notes"
+						name="notes"
+						rows="2"
+						value={selectedAsset.notes || ''}
+						class="w-full px-4 py-2.5 text-xs rounded-xl bg-surface-container-low border-0 outline-none focus:ring-2 focus:ring-cyan-500/20 text-on-surface"
+					></textarea>
+				</div>
+
+				<div class="flex items-center justify-end gap-3 pt-4 border-t border-slate-200/60 dark:border-slate-800/60">
+					<button
+						type="button"
+						onclick={() => isEditModalOpen = false}
+						class="px-4 py-2.5 rounded-xl bg-surface-container-low text-xs font-bold text-on-surface hover:bg-surface-container cursor-pointer"
+					>
+						Batal
+					</button>
+					<button
+						type="submit"
+						class="px-5 py-2.5 rounded-xl bg-cyan-600 hover:bg-cyan-700 text-white text-xs font-bold shadow-xs transition-colors cursor-pointer"
+					>
+						Simpan Perubahan
 					</button>
 				</div>
 			</form>
@@ -662,7 +923,7 @@
 					<span class="material-symbols-outlined text-amber-600">move_up</span>
 					<h3 class="font-bold text-base text-on-surface">Form Mutasi Lokasi & PIC Aset</h3>
 				</div>
-				<button onclick={() => isMutateModalOpen = false} class="text-on-surface-variant hover:text-on-surface">
+				<button onclick={() => isMutateModalOpen = false} class="text-on-surface-variant hover:text-on-surface cursor-pointer">
 					<span class="material-symbols-outlined">close</span>
 				</button>
 			</div>
@@ -682,7 +943,7 @@
 			>
 				<input type="hidden" name="asset_id" value={selectedAsset.id} />
 
-				<div class="p-3 rounded-xl bg-surface-container-low border border-slate-200/60 dark:border-slate-800/60 text-xs space-y-1">
+				<div class="p-3 rounded-xl bg-surface-container-low text-xs space-y-1">
 					<div class="font-bold text-on-surface">{selectedAsset.name} ({selectedAsset.asset_code})</div>
 					<div class="text-on-surface-variant">
 						<strong>Lokasi Saat Ini:</strong> {selectedAsset.location} {selectedAsset.room ? `(${selectedAsset.room})` : ''} • <strong>PIC:</strong> {selectedAsset.pic_name || 'Umum'}
@@ -691,12 +952,12 @@
 
 				<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
 					<div>
-						<label for="mutate_loc" class="block text-xs font-bold text-on-surface mb-1">Lokasi Tujuan Baru *</label>
+						<label for="mutate_loc" class="block text-xs font-bold text-on-surface mb-1.5">Lokasi Tujuan Baru <span class="text-rose-500">*</span></label>
 						<select
 							id="mutate_loc"
 							name="to_location"
 							required
-							class="w-full px-3.5 py-2 text-xs rounded-xl bg-surface-container-low border border-slate-200 dark:border-slate-700 text-on-surface"
+							class="w-full px-4 py-2.5 text-xs rounded-xl bg-surface-container-low border-0 outline-none focus:ring-2 focus:ring-amber-500/20 text-on-surface cursor-pointer"
 						>
 							<option value="Head Office Cilegon">Head Office Cilegon</option>
 							<option value="Pool Cilegon">Pool Cilegon</option>
@@ -704,49 +965,49 @@
 						</select>
 					</div>
 					<div>
-						<label for="mutate_room" class="block text-xs font-bold text-on-surface mb-1">Ruangan Tujuan</label>
+						<label for="mutate_room" class="block text-xs font-bold text-on-surface mb-1.5">Ruangan Tujuan</label>
 						<input
 							id="mutate_room"
 							type="text"
 							name="to_room"
 							placeholder="Misal: Ruang Dispatcher OCS"
-							class="w-full px-3.5 py-2 text-xs rounded-xl bg-surface-container-low border border-slate-200 dark:border-slate-700 text-on-surface"
+							class="w-full px-4 py-2.5 text-xs rounded-xl bg-surface-container-low border-0 outline-none focus:ring-2 focus:ring-amber-500/20 text-on-surface"
 						/>
 					</div>
 				</div>
 
 				<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
 					<div>
-						<label for="mutate_pic" class="block text-xs font-bold text-on-surface mb-1">PIC Penanggung Jawab Baru</label>
+						<label for="mutate_pic" class="block text-xs font-bold text-on-surface mb-1.5">PIC Penanggung Jawab Baru</label>
 						<input
 							id="mutate_pic"
 							type="text"
 							name="to_pic"
 							placeholder="Nama staf penerima aset"
-							class="w-full px-3.5 py-2 text-xs rounded-xl bg-surface-container-low border border-slate-200 dark:border-slate-700 text-on-surface"
+							class="w-full px-4 py-2.5 text-xs rounded-xl bg-surface-container-low border-0 outline-none focus:ring-2 focus:ring-amber-500/20 text-on-surface"
 						/>
 					</div>
 					<div>
-						<label for="mutate_date" class="block text-xs font-bold text-on-surface mb-1">Tanggal Mutasi</label>
+						<label for="mutate_date" class="block text-xs font-bold text-on-surface mb-1.5">Tanggal Mutasi</label>
 						<input
 							id="mutate_date"
 							type="date"
 							name="mutation_date"
 							value={new Date().toISOString().split('T')[0]}
-							class="w-full px-3.5 py-2 text-xs rounded-xl bg-surface-container-low border border-slate-200 dark:border-slate-700 text-on-surface"
+							class="w-full px-4 py-2.5 text-xs rounded-xl bg-surface-container-low border-0 outline-none focus:ring-2 focus:ring-amber-500/20 text-on-surface"
 						/>
 					</div>
 				</div>
 
 				<div>
-					<label for="mutate_reason" class="block text-xs font-bold text-on-surface mb-1">Alasan Pemindahan / Mutasi *</label>
+					<label for="mutate_reason" class="block text-xs font-bold text-on-surface mb-1.5">Alasan Pemindahan / Mutasi <span class="text-rose-500">*</span></label>
 					<textarea
 						id="mutate_reason"
 						name="reason"
 						required
 						rows="2"
 						placeholder="Misal: Penyesuaian workstation divisi OCS, rotasi fasilitas pool..."
-						class="w-full px-3.5 py-2 text-xs rounded-xl bg-surface-container-low border border-slate-200 dark:border-slate-700 text-on-surface"
+						class="w-full px-4 py-2.5 text-xs rounded-xl bg-surface-container-low border-0 outline-none focus:ring-2 focus:ring-amber-500/20 text-on-surface"
 					></textarea>
 				</div>
 
@@ -754,13 +1015,13 @@
 					<button
 						type="button"
 						onclick={() => isMutateModalOpen = false}
-						class="px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold text-on-surface hover:bg-surface-container"
+						class="px-4 py-2.5 rounded-xl bg-surface-container-low text-xs font-bold text-on-surface hover:bg-surface-container cursor-pointer"
 					>
 						Batal
 					</button>
 					<button
 						type="submit"
-						class="px-5 py-2.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold shadow-xs transition-colors"
+						class="px-5 py-2.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold shadow-xs transition-colors cursor-pointer"
 					>
 						Catat Mutasi Aset
 					</button>
@@ -779,14 +1040,14 @@
 					<div class="text-[11px] font-mono font-bold text-cyan-600 uppercase">{selectedAsset.asset_code}</div>
 					<h3 class="font-bold text-base text-on-surface">{selectedAsset.name}</h3>
 				</div>
-				<button onclick={() => isDetailModalOpen = false} class="text-on-surface-variant hover:text-on-surface">
+				<button onclick={() => isDetailModalOpen = false} class="text-on-surface-variant hover:text-on-surface cursor-pointer">
 					<span class="material-symbols-outlined">close</span>
 				</button>
 			</div>
 
 			<div class="p-6 space-y-5">
 				<!-- Asset Basic Info Grid -->
-				<div class="grid grid-cols-2 gap-3 text-xs p-3 rounded-xl bg-surface-container-low border border-slate-200/50 dark:border-slate-800/50">
+				<div class="grid grid-cols-2 gap-3 text-xs p-3 rounded-xl bg-surface-container-low">
 					<div>
 						<span class="text-on-surface-variant text-[10px] uppercase font-bold block">Kategori</span>
 						<span class="font-semibold text-on-surface">{getCategoryLabel(selectedAsset.category)}</span>
@@ -841,7 +1102,7 @@
 					<button
 						type="button"
 						onclick={() => isDetailModalOpen = false}
-						class="px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold text-on-surface hover:bg-surface-container"
+						class="px-4 py-2 rounded-xl bg-surface-container-low text-xs font-bold text-on-surface hover:bg-surface-container cursor-pointer"
 					>
 						Tutup
 					</button>

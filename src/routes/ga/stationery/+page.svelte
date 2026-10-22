@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
+	import Pagination from '$lib/components/Pagination.svelte';
 
 	let { data } = $props();
 
@@ -95,13 +96,13 @@
 	function getReqStatusBadge(status: string) {
 		switch (status) {
 			case 'DISTRIBUTED':
-				return 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300 border border-emerald-200';
+				return 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800';
 			case 'APPROVED':
-				return 'bg-blue-50 text-blue-700 dark:bg-blue-950/50 dark:text-blue-300 border border-blue-200';
+				return 'bg-blue-50 text-blue-700 dark:bg-blue-950/50 dark:text-blue-300 border border-blue-200 dark:border-blue-800';
 			case 'REJECTED':
-				return 'bg-rose-50 text-rose-700 dark:bg-rose-950/50 dark:text-rose-300 border border-rose-200';
+				return 'bg-rose-50 text-rose-700 dark:bg-rose-950/50 dark:text-rose-300 border border-rose-200 dark:border-rose-800';
 			default:
-				return 'bg-amber-50 text-amber-700 dark:bg-amber-950/50 dark:text-amber-300 border border-amber-200';
+				return 'bg-amber-50 text-amber-700 dark:bg-amber-950/50 dark:text-amber-300 border border-amber-200 dark:border-amber-800';
 		}
 	}
 
@@ -131,7 +132,37 @@
 			return matchQ && matchStatus;
 		})
 	);
+
+	// Pagination for Tab 1 (Items)
+	let itemCurrentPage = $state(1);
+	const itemPerPage = 10;
+	const totalItemPages = $derived(Math.max(1, Math.ceil(filteredItems.length / itemPerPage)));
+	const paginatedItems = $derived(
+		filteredItems.slice((itemCurrentPage - 1) * itemPerPage, itemCurrentPage * itemPerPage)
+	);
+
+	// Pagination for Tab 2 (Requests)
+	let reqCurrentPage = $state(1);
+	const reqPerPage = 10;
+	const totalReqPages = $derived(Math.max(1, Math.ceil(filteredRequests.length / reqPerPage)));
+	const paginatedRequests = $derived(
+		filteredRequests.slice((reqCurrentPage - 1) * reqPerPage, reqCurrentPage * reqPerPage)
+	);
+
+	$effect(() => {
+		const _ = [searchQuery, categoryFilter, data.items];
+		itemCurrentPage = 1;
+	});
+
+	$effect(() => {
+		const _ = [searchQuery, statusFilter, data.requests];
+		reqCurrentPage = 1;
+	});
 </script>
+
+<svelte:head>
+	<title>Stationery Requests & Stock (KR 7.4) | General Affair | ERP BCS</title>
+</svelte:head>
 
 <div class="space-y-6">
 	<!-- Header -->
@@ -150,14 +181,14 @@
 		<div class="flex items-center gap-2.5 self-start md:self-auto">
 			<button
 				onclick={openCreateRequestModal}
-				class="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold shadow-xs transition-colors"
+				class="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold shadow-xs transition-colors cursor-pointer"
 			>
 				<span class="material-symbols-outlined text-base">post_add</span>
 				<span>+ Ajukan Permintaan ATK</span>
 			</button>
 			<button
 				onclick={() => isAddItemModalOpen = true}
-				class="inline-flex items-center gap-2 px-3.5 py-2.5 rounded-xl bg-surface-container-high hover:bg-surface-container-highest text-on-surface text-xs font-bold border border-slate-200 dark:border-slate-800 transition-colors shadow-2xs"
+				class="inline-flex items-center gap-2 px-3.5 py-2.5 rounded-xl bg-surface-container-high hover:bg-surface-container-highest text-on-surface text-xs font-bold border border-slate-200 dark:border-slate-800 transition-colors shadow-2xs cursor-pointer"
 			>
 				<span class="material-symbols-outlined text-base text-cyan-600">add_box</span>
 				<span>+ Master Barang</span>
@@ -217,7 +248,7 @@
 	<div class="flex items-center gap-2 border-b border-slate-200/60 dark:border-slate-800/60 pb-2">
 		<button
 			onclick={() => activeMainTab = 'ITEMS'}
-			class="px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 {activeMainTab === 'ITEMS'
+			class="px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer {activeMainTab === 'ITEMS'
 				? 'bg-purple-600 text-white shadow-xs'
 				: 'bg-surface-container-low text-on-surface-variant hover:text-on-surface'}"
 		>
@@ -227,7 +258,7 @@
 
 		<button
 			onclick={() => activeMainTab = 'REQUESTS'}
-			class="px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 {activeMainTab === 'REQUESTS'
+			class="px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer {activeMainTab === 'REQUESTS'
 				? 'bg-purple-600 text-white shadow-xs'
 				: 'bg-surface-container-low text-on-surface-variant hover:text-on-surface'}"
 		>
@@ -241,22 +272,22 @@
 
 	<!-- TAB 1: Master Stok ATK -->
 	{#if activeMainTab === 'ITEMS'}
-		<!-- Filter & Search Bar -->
+		<!-- Filter & Search Bar (Borderless Standard) -->
 		<div class="flex flex-col md:flex-row gap-3 items-center justify-between p-4 rounded-2xl bg-surface-container-lowest border border-slate-200/70 dark:border-slate-800/70 shadow-2xs">
-			<div class="flex items-center gap-3 px-3.5 py-2 rounded-xl bg-surface-container-low border border-slate-200/60 dark:border-slate-800/60 w-full md:w-80 focus-within:border-purple-500">
+			<div class="flex items-center gap-3 px-4 py-2.5 rounded-xl bg-surface-container-low w-full md:w-80 focus-within:ring-2 focus-within:ring-purple-500/20 transition-all">
 				<span class="material-symbols-outlined text-on-surface-variant text-[18px]">search</span>
 				<input
 					type="text"
 					bind:value={searchQuery}
 					placeholder="Cari kode, nama barang ATK..."
-					class="bg-transparent text-xs text-on-surface outline-none w-full placeholder:text-on-surface-variant/50"
+					class="bg-transparent text-xs text-on-surface border-0 outline-none w-full placeholder:text-on-surface-variant/50 focus:ring-0"
 				/>
 			</div>
 
 			<div class="flex flex-wrap items-center gap-2 w-full md:w-auto">
 				<select
 					bind:value={categoryFilter}
-					class="px-3 py-2 rounded-xl bg-surface-container-low border border-slate-200/60 dark:border-slate-800/60 text-xs text-on-surface font-medium"
+					class="px-3.5 py-2.5 rounded-xl bg-surface-container-low border-0 outline-none focus:ring-2 focus:ring-purple-500/20 text-xs text-on-surface font-medium cursor-pointer transition-all"
 				>
 					<option value="All">Semua Kategori</option>
 					<option value="ALAT_TULIS">Alat Tulis</option>
@@ -285,7 +316,7 @@
 						</tr>
 					</thead>
 					<tbody class="divide-y divide-slate-200/60 dark:divide-slate-800/60">
-						{#each filteredItems as item}
+						{#each paginatedItems as item (item.id)}
 							<tr class="hover:bg-surface-container transition-colors">
 								<td class="py-3 px-4 font-mono font-bold text-on-surface">
 									{item.item_code}
@@ -325,7 +356,7 @@
 										<button
 											onclick={() => openRestockModal(item)}
 											title="Tambah Stok Masuk"
-											class="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200 font-bold text-[11px] hover:bg-emerald-100 transition-colors"
+											class="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200 font-bold text-[11px] hover:bg-emerald-100 transition-colors cursor-pointer"
 										>
 											<span class="material-symbols-outlined text-[13px]">add</span>
 											<span>Restock</span>
@@ -343,7 +374,7 @@
 											<button
 												type="submit"
 												title="Hapus Barang"
-												class="p-1.5 rounded-lg text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/50 transition-colors"
+												class="p-1.5 rounded-lg text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/50 transition-colors cursor-pointer"
 											>
 												<span class="material-symbols-outlined text-[16px]">delete</span>
 											</button>
@@ -363,27 +394,38 @@
 					</tbody>
 				</table>
 			</div>
+
+			{#if filteredItems.length > 0}
+				<Pagination
+					currentPage={itemCurrentPage}
+					totalPages={totalItemPages}
+					totalItems={filteredItems.length}
+					perPage={itemPerPage}
+					itemLabel="barang ATK"
+					onPageChange={(p) => (itemCurrentPage = p)}
+				/>
+			{/if}
 		</div>
 	{/if}
 
 	<!-- TAB 2: Pengajuan Permintaan ATK -->
 	{#if activeMainTab === 'REQUESTS'}
-		<!-- Filter Bar -->
+		<!-- Filter Bar (Borderless Standard) -->
 		<div class="flex flex-col md:flex-row gap-3 items-center justify-between p-4 rounded-2xl bg-surface-container-lowest border border-slate-200/70 dark:border-slate-800/70 shadow-2xs">
-			<div class="flex items-center gap-3 px-3.5 py-2 rounded-xl bg-surface-container-low border border-slate-200/60 dark:border-slate-800/60 w-full md:w-80 focus-within:border-purple-500">
+			<div class="flex items-center gap-3 px-4 py-2.5 rounded-xl bg-surface-container-low w-full md:w-80 focus-within:ring-2 focus-within:ring-purple-500/20 transition-all">
 				<span class="material-symbols-outlined text-on-surface-variant text-[18px]">search</span>
 				<input
 					type="text"
 					bind:value={searchQuery}
 					placeholder="Cari no request, divisi, pemohon..."
-					class="bg-transparent text-xs text-on-surface outline-none w-full placeholder:text-on-surface-variant/50"
+					class="bg-transparent text-xs text-on-surface border-0 outline-none w-full placeholder:text-on-surface-variant/50 focus:ring-0"
 				/>
 			</div>
 
 			<div class="flex items-center gap-2">
 				<select
 					bind:value={statusFilter}
-					class="px-3 py-2 rounded-xl bg-surface-container-low border border-slate-200/60 dark:border-slate-800/60 text-xs text-on-surface font-medium"
+					class="px-3.5 py-2.5 rounded-xl bg-surface-container-low border-0 outline-none focus:ring-2 focus:ring-purple-500/20 text-xs text-on-surface font-medium cursor-pointer transition-all"
 				>
 					<option value="All">Semua Status</option>
 					<option value="SUBMITTED">SUBMITTED (Menunggu Approval)</option>
@@ -411,7 +453,7 @@
 						</tr>
 					</thead>
 					<tbody class="divide-y divide-slate-200/60 dark:divide-slate-800/60">
-						{#each filteredRequests as req}
+						{#each paginatedRequests as req (req.id)}
 							<tr class="hover:bg-surface-container transition-colors">
 								<td class="py-3 px-4 whitespace-nowrap">
 									<div class="font-mono font-bold text-on-surface">{req.req_number}</div>
@@ -450,7 +492,7 @@
 										<button
 											onclick={() => openDetailRequestModal(req)}
 											title="Rincian Barang & Approval"
-											class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-surface-container hover:bg-surface-container-high text-on-surface font-bold text-[11px] border border-slate-200 dark:border-slate-700 transition-colors"
+											class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-surface-container hover:bg-surface-container-high text-on-surface font-bold text-[11px] transition-colors cursor-pointer"
 										>
 											<span class="material-symbols-outlined text-[14px]">checklist</span>
 											<span>Detail & Proses</span>
@@ -470,6 +512,17 @@
 					</tbody>
 				</table>
 			</div>
+
+			{#if filteredRequests.length > 0}
+				<Pagination
+					currentPage={reqCurrentPage}
+					totalPages={totalReqPages}
+					totalItems={filteredRequests.length}
+					perPage={reqPerPage}
+					itemLabel="pengajuan ATK"
+					onPageChange={(p) => (reqCurrentPage = p)}
+				/>
+			{/if}
 		</div>
 	{/if}
 </div>
@@ -483,7 +536,7 @@
 					<span class="material-symbols-outlined text-purple-600">add_box</span>
 					<h3 class="font-bold text-base text-on-surface">Tambah Master Barang ATK</h3>
 				</div>
-				<button onclick={() => isAddItemModalOpen = false} class="text-on-surface-variant hover:text-on-surface">
+				<button onclick={() => isAddItemModalOpen = false} class="text-on-surface-variant hover:text-on-surface cursor-pointer">
 					<span class="material-symbols-outlined">close</span>
 				</button>
 			</div>
@@ -502,25 +555,25 @@
 				class="p-6 space-y-4"
 			>
 				<div>
-					<label for="item_name" class="block text-xs font-bold text-on-surface mb-1">Nama Barang *</label>
+					<label for="item_name" class="block text-xs font-bold text-on-surface mb-1.5">Nama Barang <span class="text-rose-500">*</span></label>
 					<input
 						id="item_name"
 						type="text"
 						name="name"
 						required
 						placeholder="Misal: Spidol Whiteboard Hitam"
-						class="w-full px-3.5 py-2 text-xs rounded-xl bg-surface-container-low border border-slate-200 dark:border-slate-700 text-on-surface"
+						class="w-full px-4 py-2.5 text-xs rounded-xl bg-surface-container-low border-0 outline-none focus:ring-2 focus:ring-purple-500/20 text-on-surface transition-all"
 					/>
 				</div>
 
 				<div class="grid grid-cols-2 gap-3">
 					<div>
-						<label for="item_category" class="block text-xs font-bold text-on-surface mb-1">Kategori *</label>
+						<label for="item_category" class="block text-xs font-bold text-on-surface mb-1.5">Kategori <span class="text-rose-500">*</span></label>
 						<select
 							id="item_category"
 							name="category"
 							required
-							class="w-full px-3.5 py-2 text-xs rounded-xl bg-surface-container-low border border-slate-200 dark:border-slate-700 text-on-surface"
+							class="w-full px-4 py-2.5 text-xs rounded-xl bg-surface-container-low border-0 outline-none focus:ring-2 focus:ring-purple-500/20 text-on-surface cursor-pointer transition-all"
 						>
 							<option value="ALAT_TULIS">Alat Tulis</option>
 							<option value="KERTAS_CETAK">Kertas & Cetak</option>
@@ -529,14 +582,14 @@
 						</select>
 					</div>
 					<div>
-						<label for="item_unit" class="block text-xs font-bold text-on-surface mb-1">Satuan *</label>
+						<label for="item_unit" class="block text-xs font-bold text-on-surface mb-1.5">Satuan <span class="text-rose-500">*</span></label>
 						<input
 							id="item_unit"
 							type="text"
 							name="unit"
 							required
 							placeholder="Pcs, Rim, Box, Jerigen..."
-							class="w-full px-3.5 py-2 text-xs rounded-xl bg-surface-container-low border border-slate-200 dark:border-slate-700 text-on-surface"
+							class="w-full px-4 py-2.5 text-xs rounded-xl bg-surface-container-low border-0 outline-none focus:ring-2 focus:ring-purple-500/20 text-on-surface transition-all"
 						/>
 					</div>
 				</div>
@@ -550,7 +603,7 @@
 							name="stock_quantity"
 							min="0"
 							value="10"
-							class="w-full px-3 py-1.5 text-xs rounded-lg bg-surface-container-low border border-slate-200 dark:border-slate-700 text-on-surface font-mono"
+							class="w-full px-3.5 py-2 text-xs rounded-xl bg-surface-container-low border-0 outline-none focus:ring-2 focus:ring-purple-500/20 text-on-surface font-mono"
 						/>
 					</div>
 					<div>
@@ -561,7 +614,7 @@
 							name="minimum_stock"
 							min="1"
 							value="5"
-							class="w-full px-3 py-1.5 text-xs rounded-lg bg-surface-container-low border border-slate-200 dark:border-slate-700 text-on-surface font-mono"
+							class="w-full px-3.5 py-2 text-xs rounded-xl bg-surface-container-low border-0 outline-none focus:ring-2 focus:ring-purple-500/20 text-on-surface font-mono"
 						/>
 					</div>
 					<div>
@@ -573,7 +626,7 @@
 							min="0"
 							step="500"
 							value="25000"
-							class="w-full px-3 py-1.5 text-xs rounded-lg bg-surface-container-low border border-slate-200 dark:border-slate-700 text-on-surface font-mono"
+							class="w-full px-3.5 py-2 text-xs rounded-xl bg-surface-container-low border-0 outline-none focus:ring-2 focus:ring-purple-500/20 text-on-surface font-mono"
 						/>
 					</div>
 				</div>
@@ -582,13 +635,13 @@
 					<button
 						type="button"
 						onclick={() => isAddItemModalOpen = false}
-						class="px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold text-on-surface hover:bg-surface-container"
+						class="px-4 py-2 rounded-xl bg-surface-container-low text-xs font-bold text-on-surface hover:bg-surface-container cursor-pointer"
 					>
 						Batal
 					</button>
 					<button
 						type="submit"
-						class="px-5 py-2 rounded-xl bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold shadow-xs transition-colors"
+						class="px-5 py-2 rounded-xl bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold shadow-xs transition-colors cursor-pointer"
 					>
 						Simpan Barang
 					</button>
@@ -604,7 +657,7 @@
 		<div class="bg-surface-container-lowest rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xl w-full max-w-sm overflow-hidden animate-in fade-in zoom-in-95 duration-200">
 			<div class="p-4 border-b border-slate-200/60 dark:border-slate-800/60 flex items-center justify-between">
 				<h3 class="font-bold text-sm text-on-surface">Tambah Stok Barang Masuk</h3>
-				<button onclick={() => isRestockModalOpen = false} class="text-on-surface-variant hover:text-on-surface">
+				<button onclick={() => isRestockModalOpen = false} class="text-on-surface-variant hover:text-on-surface cursor-pointer">
 					<span class="material-symbols-outlined text-lg">close</span>
 				</button>
 			</div>
@@ -630,7 +683,7 @@
 				</div>
 
 				<div>
-					<label for="restock_qty" class="block text-xs font-bold text-on-surface mb-1">Jumlah Tambahan Masuk ({selectedItem.unit}) *</label>
+					<label for="restock_qty" class="block text-xs font-bold text-on-surface mb-1.5">Jumlah Tambahan Masuk ({selectedItem.unit}) <span class="text-rose-500">*</span></label>
 					<input
 						id="restock_qty"
 						type="number"
@@ -638,7 +691,7 @@
 						min="1"
 						value="10"
 						required
-						class="w-full px-3.5 py-2 text-sm rounded-xl bg-surface-container-low border border-slate-200 dark:border-slate-700 text-on-surface font-mono font-bold"
+						class="w-full px-4 py-2.5 text-sm rounded-xl bg-surface-container-low border-0 outline-none focus:ring-2 focus:ring-emerald-500/20 text-on-surface font-mono font-bold"
 					/>
 				</div>
 
@@ -646,13 +699,13 @@
 					<button
 						type="button"
 						onclick={() => isRestockModalOpen = false}
-						class="px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold text-on-surface hover:bg-surface-container"
+						class="px-3.5 py-2 rounded-xl bg-surface-container-low text-xs font-bold text-on-surface hover:bg-surface-container cursor-pointer"
 					>
 						Batal
 					</button>
 					<button
 						type="submit"
-						class="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-xs transition-colors"
+						class="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-xs transition-colors cursor-pointer"
 					>
 						+ Tambah Stok
 					</button>
@@ -671,7 +724,7 @@
 					<span class="material-symbols-outlined text-purple-600">post_add</span>
 					<h3 class="font-bold text-base text-on-surface">Form Pengajuan Kebutuhan ATK Divisi</h3>
 				</div>
-				<button onclick={() => isCreateRequestModalOpen = false} class="text-on-surface-variant hover:text-on-surface">
+				<button onclick={() => isCreateRequestModalOpen = false} class="text-on-surface-variant hover:text-on-surface cursor-pointer">
 					<span class="material-symbols-outlined">close</span>
 				</button>
 			</div>
@@ -694,13 +747,13 @@
 
 				<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
 					<div>
-						<label for="req_dept" class="block text-xs font-bold text-on-surface mb-1">Departemen / Divisi Pemohon *</label>
+						<label for="req_dept" class="block text-xs font-bold text-on-surface mb-1.5">Departemen / Divisi Pemohon <span class="text-rose-500">*</span></label>
 						<select
 							id="req_dept"
 							name="department"
 							bind:value={reqDepartment}
 							required
-							class="w-full px-3.5 py-2 text-xs rounded-xl bg-surface-container-low border border-slate-200 dark:border-slate-700 text-on-surface"
+							class="w-full px-4 py-2.5 text-xs rounded-xl bg-surface-container-low border-0 outline-none focus:ring-2 focus:ring-purple-500/20 text-on-surface cursor-pointer transition-all"
 						>
 							<option value="Operations Control (OCS)">Operations Control (OCS)</option>
 							<option value="QHSE & Safety">QHSE & Safety</option>
@@ -713,7 +766,7 @@
 						</select>
 					</div>
 					<div>
-						<label for="req_pic_name" class="block text-xs font-bold text-on-surface mb-1">Nama Pemohon (PIC) *</label>
+						<label for="req_pic_name" class="block text-xs font-bold text-on-surface mb-1.5">Nama Pemohon (PIC) <span class="text-rose-500">*</span></label>
 						<input
 							id="req_pic_name"
 							type="text"
@@ -721,7 +774,7 @@
 							bind:value={reqName}
 							required
 							placeholder="Nama staf pengaju"
-							class="w-full px-3.5 py-2 text-xs rounded-xl bg-surface-container-low border border-slate-200 dark:border-slate-700 text-on-surface"
+							class="w-full px-4 py-2.5 text-xs rounded-xl bg-surface-container-low border-0 outline-none focus:ring-2 focus:ring-purple-500/20 text-on-surface transition-all"
 						/>
 					</div>
 				</div>
@@ -734,7 +787,7 @@
 							id="daftar_item_atk"
 							type="button"
 							onclick={addRequestLine}
-							class="text-xs font-bold text-purple-600 hover:underline flex items-center gap-1"
+							class="text-xs font-bold text-purple-600 hover:underline flex items-center gap-1 cursor-pointer"
 						>
 							<span class="material-symbols-outlined text-sm">add_circle</span>
 							<span>+ Tambah Baris Barang</span>
@@ -743,12 +796,12 @@
 
 					<div class="space-y-2.5 max-h-60 overflow-y-auto pr-1">
 						{#each reqLines as line, idx}
-							<div class="flex items-center gap-2 p-2.5 rounded-xl bg-surface-container-low border border-slate-200/50 dark:border-slate-800/50">
+							<div class="flex items-center gap-2 p-2.5 rounded-xl bg-surface-container-low">
 								<div class="flex-1">
 									<select
 										value={line.item_id}
 										onchange={(e) => handleItemSelect(idx, parseInt((e.target as HTMLSelectElement).value, 10))}
-										class="w-full px-2.5 py-1.5 text-xs rounded-lg bg-surface-container border border-slate-200 dark:border-slate-700 text-on-surface"
+										class="w-full px-3 py-2 text-xs rounded-xl bg-surface-container-lowest border-0 outline-none focus:ring-2 focus:ring-purple-500/20 text-on-surface cursor-pointer"
 									>
 										{#each data.allItems as it}
 											<option value={it.id}>{it.name} (Stok: {it.stock_quantity} {it.unit})</option>
@@ -761,7 +814,7 @@
 										min="1"
 										bind:value={line.quantity}
 										placeholder="Qty"
-										class="w-full px-2 py-1.5 text-xs rounded-lg bg-surface-container border border-slate-200 dark:border-slate-700 text-on-surface font-mono text-center font-bold"
+										class="w-full px-2.5 py-2 text-xs rounded-xl bg-surface-container-lowest border-0 outline-none focus:ring-2 focus:ring-purple-500/20 text-on-surface font-mono text-center font-bold"
 									/>
 								</div>
 								<div class="w-16 text-xs text-on-surface-variant font-medium text-center">
@@ -772,14 +825,14 @@
 										type="text"
 										bind:value={line.notes}
 										placeholder="Keterangan peruntukan..."
-										class="w-full px-2 py-1.5 text-xs rounded-lg bg-surface-container border border-slate-200 dark:border-slate-700 text-on-surface"
+										class="w-full px-3 py-2 text-xs rounded-xl bg-surface-container-lowest border-0 outline-none focus:ring-2 focus:ring-purple-500/20 text-on-surface"
 									/>
 								</div>
 								{#if reqLines.length > 1}
 									<button
 										type="button"
 										onclick={() => removeRequestLine(idx)}
-										class="p-1 text-rose-500 hover:bg-rose-50 rounded-lg"
+										class="p-1 text-rose-500 hover:bg-rose-50 rounded-lg cursor-pointer"
 									>
 										<span class="material-symbols-outlined text-sm">remove_circle</span>
 									</button>
@@ -790,14 +843,14 @@
 				</div>
 
 				<div>
-					<label for="req_notes" class="block text-xs font-bold text-on-surface mb-1">Catatan Umum Permintaan</label>
+					<label for="req_notes" class="block text-xs font-bold text-on-surface mb-1.5">Catatan Umum Permintaan</label>
 					<textarea
 						id="req_notes"
 						name="notes"
 						bind:value={reqNotes}
 						rows="2"
 						placeholder="Misal: Kebutuhan cetak surat jalan awal bulan, persiapan audit berkas..."
-						class="w-full px-3.5 py-2 text-xs rounded-xl bg-surface-container-low border border-slate-200 dark:border-slate-700 text-on-surface"
+						class="w-full px-4 py-2.5 text-xs rounded-xl bg-surface-container-low border-0 outline-none focus:ring-2 focus:ring-purple-500/20 text-on-surface transition-all"
 					></textarea>
 				</div>
 
@@ -805,13 +858,13 @@
 					<button
 						type="button"
 						onclick={() => isCreateRequestModalOpen = false}
-						class="px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold text-on-surface hover:bg-surface-container"
+						class="px-4 py-2.5 rounded-xl bg-surface-container-low text-xs font-bold text-on-surface hover:bg-surface-container cursor-pointer"
 					>
 						Batal
 					</button>
 					<button
 						type="submit"
-						class="px-5 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold shadow-xs transition-colors"
+						class="px-5 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold shadow-xs transition-colors cursor-pointer"
 					>
 						Kirim Pengajuan ATK
 					</button>
@@ -830,13 +883,13 @@
 					<div class="text-[11px] font-mono font-bold text-purple-600 uppercase">{selectedRequest.req_number}</div>
 					<h3 class="font-bold text-base text-on-surface">Detail & Proses Pengajuan ATK</h3>
 				</div>
-				<button onclick={() => isDetailRequestModalOpen = false} class="text-on-surface-variant hover:text-on-surface">
+				<button onclick={() => isDetailRequestModalOpen = false} class="text-on-surface-variant hover:text-on-surface cursor-pointer">
 					<span class="material-symbols-outlined">close</span>
 				</button>
 			</div>
 
 			<div class="p-6 space-y-4 text-xs">
-				<div class="grid grid-cols-2 gap-3 p-3 rounded-xl bg-surface-container-low border border-slate-200/50 dark:border-slate-800/50">
+				<div class="grid grid-cols-2 gap-3 p-3 rounded-xl bg-surface-container-low">
 					<div>
 						<span class="text-on-surface-variant text-[10px] uppercase font-bold block">Departemen</span>
 						<span class="font-bold text-on-surface">{selectedRequest.department}</span>
@@ -854,7 +907,7 @@
 				</div>
 
 				{#if selectedRequest.notes}
-					<p class="italic text-on-surface bg-surface-container-low p-2.5 rounded-lg border border-slate-200/40">
+					<p class="italic text-on-surface bg-surface-container-low p-2.5 rounded-lg">
 						"{selectedRequest.notes}"
 					</p>
 				{/if}
@@ -891,7 +944,7 @@
 					<button
 						type="button"
 						onclick={() => isDetailRequestModalOpen = false}
-						class="px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold text-on-surface hover:bg-surface-container"
+						class="px-4 py-2 rounded-xl bg-surface-container-low text-xs font-bold text-on-surface hover:bg-surface-container cursor-pointer"
 					>
 						Tutup
 					</button>
@@ -910,7 +963,7 @@
 								<input type="hidden" name="id" value={selectedRequest.id} />
 								<button
 									type="submit"
-									class="px-3.5 py-2 rounded-xl border border-rose-200 text-rose-700 hover:bg-rose-50 text-xs font-bold transition-colors"
+									class="px-3.5 py-2 rounded-xl bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 hover:bg-rose-100 text-xs font-bold transition-colors cursor-pointer"
 								>
 									Tolak
 								</button>
@@ -927,7 +980,7 @@
 								<input type="hidden" name="id" value={selectedRequest.id} />
 								<button
 									type="submit"
-									class="px-4 py-2 rounded-xl bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold shadow-xs transition-colors"
+									class="px-4 py-2 rounded-xl bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold shadow-xs transition-colors cursor-pointer"
 								>
 									Setujui Pengajuan
 								</button>
@@ -945,7 +998,7 @@
 								<input type="hidden" name="id" value={selectedRequest.id} />
 								<button
 									type="submit"
-									class="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-xs transition-colors flex items-center gap-1.5"
+									class="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-xs transition-colors flex items-center gap-1.5 cursor-pointer"
 								>
 									<span class="material-symbols-outlined text-[15px]">done_all</span>
 									<span>Serahkan Barang (Potong Stok)</span>

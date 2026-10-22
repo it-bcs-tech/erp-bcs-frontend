@@ -36,7 +36,7 @@
 				</div>
 				<div>
 					<p class="text-sm font-black text-cyan-700 dark:text-cyan-400 uppercase tracking-wider">General Affair</p>
-					<p class="text-[10px] text-on-surface-variant font-medium uppercase">Aset, Legalitas & Fasilitas</p>
+					<p class="text-[10px] text-on-surface-variant font-medium uppercase">Aset, Fasilitas & Operasional</p>
 				</div>
 			</div>
 		</div>
@@ -55,14 +55,12 @@
 				</a>
 			{/if}
 
-			{#if hasMenuAccess(user, 'ga', 'ga.assets') || hasMenuAccess(user, 'ga', 'ga.permits')}
+			{#if hasMenuAccess(user, 'ga', 'ga.assets')}
 				<div class="pt-3 pb-1 px-4">
 					<p class="text-[9px] font-black text-on-surface-variant/50 uppercase tracking-[0.2em]">Asset Management</p>
 				</div>
-			{/if}
 
-			<!-- Master Aset & Inventaris (KR 7.1) -->
-			{#if hasMenuAccess(user, 'ga', 'ga.assets')}
+				<!-- Master Aset & Inventaris (KR 7.1) -->
 				<a
 					class="flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200 hover:translate-x-1 {isActive('/ga/assets')
 						? 'bg-surface-container-highest text-cyan-700 dark:text-cyan-300 font-bold'
@@ -71,19 +69,6 @@
 				>
 					<span class="material-symbols-outlined text-[20px]">inventory_2</span>
 					<span class="text-sm">Master Assets (KR 7.1)</span>
-				</a>
-			{/if}
-
-			<!-- Legalitas & Perizinan Armada (KR 7.2) -->
-			{#if hasMenuAccess(user, 'ga', 'ga.permits')}
-				<a
-					class="flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200 hover:translate-x-1 {isActive('/ga/permits')
-						? 'bg-surface-container-highest text-cyan-700 dark:text-cyan-300 font-bold'
-						: 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container font-medium text-sm'}"
-					href="/ga/permits"
-				>
-					<span class="material-symbols-outlined text-[20px]">badge</span>
-					<span class="text-sm">Fleet Legal & Permits (KR 7.2)</span>
 				</a>
 			{/if}
 

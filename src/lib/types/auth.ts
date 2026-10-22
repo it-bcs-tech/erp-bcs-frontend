@@ -119,9 +119,9 @@ export const MODULE_MENUS: Record<string, { id: string; name: string }[]> = {
 	ga: [
 		{ id: 'ga.dashboard', name: 'Dashboard GA' },
 		{ id: 'ga.assets', name: 'Master Aset (KR 7.1)' },
-		{ id: 'ga.permits', name: 'Legalitas Armada (KR 7.2)' },
 		{ id: 'ga.facilities', name: 'Facility Maintenance (KR 7.3)' },
-		{ id: 'ga.stationery', name: 'Request ATK & Perlengkapan (KR 7.4)' }
+		{ id: 'ga.stationery', name: 'Request ATK & Perlengkapan (KR 7.4)' },
+		{ id: 'ga.room-bookings', name: 'Peminjaman Ruangan & Fasilitas' }
 	],
 	ocs: [
 		{ id: 'ocs.dashboard', name: 'Overview' },
