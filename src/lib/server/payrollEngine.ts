@@ -131,42 +131,46 @@ export async function runPayrollCalculation(
 				s.*
 			FROM presensi.salary_slips s
 			ORDER BY COALESCE(s.employee_nik, ''), s.period DESC
+		),
+		deduped AS (
+			SELECT DISTINCT ON (k.id)
+				k.id as karyawan_id,
+				k.payroll_id as nik,
+				k.nama_karyawan as name,
+				COALESCE(t.title, k.title, 'Staff') as position,
+				COALESCE(d.dept_name, dv.div_name, dr.dir_name, 'General Operations') as division,
+				COALESCE(k.nama_bank, ls.bank_name, 'BCA') as bank_name,
+				COALESCE(k.no_account_bank, ls.account_number, '-') as account_number,
+				COALESCE(ls.user_id, k.id) as user_id,
+				COALESCE(ls.basic_salary, 4800000) as basic_salary,
+				COALESCE(ls.professional_allowance, 0) as professional_allowance,
+				COALESCE(ls.performance_allowance, 0) as performance_allowance,
+				COALESCE(ls.position_allowance, 0) as position_allowance,
+				COALESCE(ls.meal_allowance, 0) as meal_allowance,
+				COALESCE(ls.transport_allowance, 0) as transport_allowance,
+				COALESCE(ls.relocation_allowance, 0) as relocation_allowance,
+				COALESCE(ls.skill_allowance, 0) as skill_allowance,
+				COALESCE(ls.other_allowance, 0) as other_allowance,
+				COALESCE(ls.incentive_10th, 0) as incentive_10th,
+				COALESCE(ls.communication_allowance, 0) as communication_allowance,
+				COALESCE(ls.incentive, 0) as incentive,
+				COALESCE(ls.shift_allowance, 0) as shift_allowance,
+				COALESCE(ls.khk_allowance, 0) as khk_allowance,
+				COALESCE(ls.zakat, 0) as zakat,
+				COALESCE(ls.union_fee, 0) as union_fee,
+				COALESCE(ls.cooperative, 0) as cooperative,
+				COALESCE(ls.other_deduction, 0) as other_deduction
+			FROM master.m_karyawan k
+			LEFT JOIN master.m_title t ON t.title_code = k.title
+			LEFT JOIN master.m_dept d ON d.dept_code = k.dept_id
+			LEFT JOIN master.m_division dv ON dv.div_code = k.div_id
+			LEFT JOIN master.m_directorat dr ON dr.dir_code = k.dir_id
+			LEFT JOIN latest_slips ls ON ls.employee_nik = k.payroll_id OR ls.employee_name ILIKE k.nama_karyawan
+			WHERE k.aktif = 'Y'
+			ORDER BY k.id, ls.period DESC NULLS LAST
 		)
-		SELECT 
-			k.id as karyawan_id,
-			k.payroll_id as nik,
-			k.nama_karyawan as name,
-			COALESCE(t.title, k.title, 'Staff') as position,
-			COALESCE(d.dept_name, dv.div_name, dr.dir_name, 'General Operations') as division,
-			COALESCE(k.nama_bank, ls.bank_name, 'BCA') as bank_name,
-			COALESCE(k.no_account_bank, ls.account_number, '-') as account_number,
-			COALESCE(ls.user_id, k.id) as user_id,
-			COALESCE(ls.basic_salary, 4800000) as basic_salary,
-			COALESCE(ls.professional_allowance, 0) as professional_allowance,
-			COALESCE(ls.performance_allowance, 0) as performance_allowance,
-			COALESCE(ls.position_allowance, 0) as position_allowance,
-			COALESCE(ls.meal_allowance, 0) as meal_allowance,
-			COALESCE(ls.transport_allowance, 0) as transport_allowance,
-			COALESCE(ls.relocation_allowance, 0) as relocation_allowance,
-			COALESCE(ls.skill_allowance, 0) as skill_allowance,
-			COALESCE(ls.other_allowance, 0) as other_allowance,
-			COALESCE(ls.incentive_10th, 0) as incentive_10th,
-			COALESCE(ls.communication_allowance, 0) as communication_allowance,
-			COALESCE(ls.incentive, 0) as incentive,
-			COALESCE(ls.shift_allowance, 0) as shift_allowance,
-			COALESCE(ls.khk_allowance, 0) as khk_allowance,
-			COALESCE(ls.zakat, 0) as zakat,
-			COALESCE(ls.union_fee, 0) as union_fee,
-			COALESCE(ls.cooperative, 0) as cooperative,
-			COALESCE(ls.other_deduction, 0) as other_deduction
-		FROM master.m_karyawan k
-		LEFT JOIN master.m_title t ON t.title_code = k.title
-		LEFT JOIN master.m_dept d ON d.dept_code = k.dept_id
-		LEFT JOIN master.m_division dv ON dv.div_code = k.div_id
-		LEFT JOIN master.m_directorat dr ON dr.dir_code = k.dir_id
-		LEFT JOIN latest_slips ls ON ls.employee_nik = k.payroll_id OR ls.employee_name ILIKE k.nama_karyawan
-		WHERE (k.aktif = 'Y' OR k.aktif = '1' OR k.aktif IS NULL)
-		ORDER BY k.nama_karyawan ASC
+		SELECT * FROM deduped
+		ORDER BY name ASC
 	`;
 
 	// 2. Ambil data slip yang sudah ada pada periode yang dipilih
@@ -177,37 +181,73 @@ export async function runPayrollCalculation(
 	`;
 	const existingNikSet = new Set(existingSlips.map((s) => s.employee_nik));
 
-	// 3. Ambil data presensi aktual pada bulan tersebut
+	// 3. Ambil data presensi aktual pada bulan tersebut dengan pemetaan relasi m_presensi & erp_users -> karyawan_id
 	const presences = await sql<any[]>`
 		SELECT 
-			user_id,
-			COUNT(*) FILTER (WHERE status ILIKE '%hadir%' OR status ILIKE '%present%' OR status ILIKE '%tepat%' OR status ILIKE '%terlambat%' OR status ILIKE '%late%') as present_days,
-			COUNT(*) FILTER (WHERE status ILIKE '%alpa%' OR status ILIKE '%absent%' OR status ILIKE '%tidak hadir%') as absent_days,
-			COALESCE(SUM(overtime_minutes), 0) as ot_minutes
-		FROM presensi.presences
-		WHERE date >= ${startDate}::date AND date <= ${endDate}::date
-		GROUP BY user_id
+			COALESCE(mp.karyawan_id::text, eu.karyawan_id::text) as karyawan_id,
+			UPPER(TRIM(COALESCE(mp.name, pu.name, ''))) as emp_name,
+			COUNT(DISTINCT p.date) FILTER (
+				WHERE p.status ILIKE '%hadir%' 
+				   OR p.status ILIKE '%present%' 
+				   OR p.status ILIKE '%tepat%' 
+				   OR p.status ILIKE '%terlambat%' 
+				   OR p.status ILIKE '%late%'
+			) as present_days,
+			COUNT(DISTINCT p.date) FILTER (
+				WHERE p.status ILIKE '%alpa%' 
+				   OR p.status ILIKE '%absent%' 
+				   OR p.status ILIKE '%tidak hadir%'
+			) as absent_days,
+			COALESCE(SUM(p.overtime_minutes), 0) as ot_minutes
+		FROM presensi.presences p
+		LEFT JOIN master.m_presensi mp ON mp.id::text = p.user_id::text
+		LEFT JOIN master.erp_users eu ON eu.id::text = p.user_id::text
+		LEFT JOIN presensi.users pu ON pu.id::text = p.user_id::text
+		WHERE p.date >= ${startDate}::date AND p.date <= ${endDate}::date
+		GROUP BY 1, 2
 	`;
-	const presenceMap = new Map<string, any>();
+	const presenceByKaryawanId = new Map<string, any>();
+	const presenceByName = new Map<string, any>();
 	for (const p of presences) {
-		presenceMap.set(String(p.user_id), p);
+		if (p.karyawan_id) {
+			const existing = presenceByKaryawanId.get(String(p.karyawan_id));
+			if (existing) {
+				existing.present_days = Math.max(Number(existing.present_days), Number(p.present_days));
+				existing.absent_days = Math.max(Number(existing.absent_days), Number(p.absent_days));
+				existing.ot_minutes = Number(existing.ot_minutes) + Number(p.ot_minutes);
+			} else {
+				presenceByKaryawanId.set(String(p.karyawan_id), { ...p });
+			}
+		}
+		if (p.emp_name) {
+			const existingName = presenceByName.get(String(p.emp_name));
+			if (existingName) {
+				existingName.present_days = Math.max(Number(existingName.present_days), Number(p.present_days));
+				existingName.absent_days = Math.max(Number(existingName.absent_days), Number(p.absent_days));
+				existingName.ot_minutes = Number(existingName.ot_minutes) + Number(p.ot_minutes);
+			} else {
+				presenceByName.set(String(p.emp_name), { ...p });
+			}
+		}
 	}
 
-	// 4. Ambil data angsuran pinjaman (loans) yang aktif
+	// 4. Ambil data angsuran pinjaman (loans) yang aktif dengan pemetaan relasi m_presensi & erp_users -> karyawan_id
 	const activeLoans = await sql<any[]>`
 		SELECT 
-			user_id,
-			COALESCE(SUM(monthly_installment), 0) as installment
-		FROM presensi.loans
-		WHERE status IN ('approved', 'active', 'disbursed')
-		  AND (start_date IS NULL OR start_date <= ${endDate}::date)
-		  AND (end_date IS NULL OR end_date >= ${startDate}::date)
-		  AND (remaining_amount > 0 OR remaining_amount IS NULL)
-		GROUP BY user_id
+			COALESCE(mp.karyawan_id::text, eu.karyawan_id::text, l.user_id::text) as karyawan_id,
+			COALESCE(SUM(l.monthly_installment), 0) as installment
+		FROM presensi.loans l
+		LEFT JOIN master.m_presensi mp ON mp.id::text = l.user_id::text
+		LEFT JOIN master.erp_users eu ON eu.id::text = l.user_id::text
+		WHERE l.status IN ('approved', 'active', 'disbursed')
+		  AND (l.start_date IS NULL OR l.start_date <= ${endDate}::date)
+		  AND (l.end_date IS NULL OR l.end_date >= ${startDate}::date)
+		  AND (l.remaining_amount > 0 OR l.remaining_amount IS NULL)
+		GROUP BY 1
 	`;
 	const loanMap = new Map<string, number>();
 	for (const l of activeLoans) {
-		loanMap.set(String(l.user_id), Number(l.installment));
+		loanMap.set(String(l.karyawan_id), Number(l.installment));
 	}
 
 	// 5. Kalkulasi Batch
@@ -230,20 +270,25 @@ export async function runPayrollCalculation(
 		}
 
 		const basicSalary = Number(emp.basic_salary) || 4800000;
-		const pres = presenceMap.get(String(emp.user_id)) || { present_days: 22, absent_days: 0, ot_minutes: 0 };
-		const workDays = Number(pres.present_days) || 22;
+		const empNameKey = String(emp.name || '').trim().toUpperCase();
+		const pres =
+			presenceByKaryawanId.get(String(emp.karyawan_id)) ||
+			presenceByName.get(empNameKey) || { present_days: 0, absent_days: 0, ot_minutes: 0 };
+		const workDays = Number(pres.present_days) || 0;
 		const absenceDays = Number(pres.absent_days) || 0;
 		const overtimeHours = Math.round((Number(pres.ot_minutes) / 60) * 100) / 100;
 
 		const overtimeAllowance = calculateOvertimeAllowance(overtimeHours, basicSalary);
 		const absenceDeduction = calculateAbsenceDeduction(absenceDays, basicSalary);
-		const loanInstallment = loanMap.get(String(emp.user_id)) || 0;
+		const loanInstallment =
+			loanMap.get(String(emp.karyawan_id)) || loanMap.get(String(emp.user_id)) || 0;
 
 		const prof = Number(emp.professional_allowance) || 0;
 		const perf = Number(emp.performance_allowance) || 0;
 		const pos = Number(emp.position_allowance) || 0;
-		const meal = Number(emp.meal_allowance) || 0;
-		const trans = Number(emp.transport_allowance) || 0;
+		// Tunjangan Makan (Rp 10.000/HK) dan Transport (Rp 7.000/HK) dihitung riil dari Hari Kerja
+		const meal = workDays * 10000;
+		const trans = workDays * 7000;
 		const reloc = Number(emp.relocation_allowance) || 0;
 		const skill = Number(emp.skill_allowance) || 0;
 		const comm = Number(emp.communication_allowance) || 0;

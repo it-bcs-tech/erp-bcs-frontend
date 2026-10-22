@@ -1,11 +1,8 @@
 import { json } from "@sveltejs/kit";
 import type { RequestHandler } from "./$types";
-import { apiFetch } from "$lib/utils/api";
 import { runPayrollCalculation } from "$lib/server/payrollEngine";
 
-export const POST: RequestHandler = async ({ request, cookies }) => {
-	const authToken = cookies.get('auth_token');
-
+export const POST: RequestHandler = async ({ request }) => {
 	try {
 		let period = "2026-08-01";
 		let mode: "all" | "new_only" = "all";
@@ -23,28 +20,7 @@ export const POST: RequestHandler = async ({ request, cookies }) => {
 			if (m === "new_only" || m === "all") mode = m;
 		}
 
-		// 1. Panggil Laravel API Endpoint
-		try {
-			const res = await apiFetch<any>('/api/v1/hris/payroll/commit', {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ period, mode })
-			}, authToken);
-
-			if (res && (res.status === 'success' || res.data)) {
-				return json({
-					success: true,
-					status: "success",
-					message: res.message || "Payroll berhasil dikunci via Laravel API.",
-					summary: res.data?.summary || res.data || res,
-					source: 'laravel'
-				});
-			}
-		} catch (apiErr: any) {
-			console.warn("⚠️ [Laravel Commit API]:", apiErr?.message);
-		}
-
-		// 2. Engine internal
+		// Jalankan dan simpan hasil Payroll Engine langsung ke PostgreSQL (presensi.salary_slips)
 		const summary = await runPayrollCalculation(period, { mode, commit: true });
 
 		return json({

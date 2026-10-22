@@ -651,10 +651,11 @@
 								Alur Kerja & Integrasi Sumber Data Otomatis:
 							</p>
 							<ul class="list-disc list-inside text-blue-800 dark:text-blue-300/90 space-y-1 pl-1">
-								<li><strong>Gaji Pokok & Tunjangan:</strong> Mewarisi baseline profil slip terakhir seluruh karyawan aktif.</li>
+								<li><strong>Hari Kerja (HK) Riil:</strong> Menarik total hari kehadiran aktual dari log presensi (<code class="font-mono">presensi.presences</code>) per personel (0 hr jika tanpa log absensi).</li>
+								<li><strong>Uang Makan & Transport:</strong> Mengikuti kehadiran riil karyawan: Uang Makan (<code class="font-mono">Rp 10.000 x HK</code>) dan Transport (<code class="font-mono">Rp 7.000 x HK</code>).</li>
+								<li><strong>Gaji Pokok & Tunjangan Tetap:</strong> Mewarisi baseline profil slip terakhir seluruh karyawan aktif (Gaji Pokok tetap utuh).</li>
 								<li><strong>Uang Lembur:</strong> Mengagregasi jam lembur aktual dari log presensi (<code class="font-mono">presensi.presences</code>) x formula Depnaker 1.5x upah sejam.</li>
-								<li><strong>Potongan Alpa:</strong> Mengkalkulasi hari alpa aktual x pro-rata 25 hari kerja.</li>
-								<li><strong>Cicilan Pinjaman/Kasbon:</strong> Menarik angsuran pinjaman berstatus aktif dari modul Kasbon (<code class="font-mono">presensi.loans</code>).</li>
+								<li><strong>Potongan Alpa & Kasbon:</strong> Mengkalkulasi hari alpa aktual serta angsuran pinjaman aktif (<code class="font-mono">presensi.loans</code>).</li>
 								<li><strong>Pajak PPh 21 & BPJS:</strong> Mengalkulasi tarif efektif bulanan (TER 2024) dan porsi BPJS pekerja (4%).</li>
 							</ul>
 						</div>
@@ -771,6 +772,7 @@
 											<th class="p-2.5">Karyawan</th>
 											<th class="p-2.5">Hari Kerja (HK)</th>
 											<th class="p-2.5">Gaji Pokok</th>
+											<th class="p-2.5">Makan & Transport</th>
 											<th class="p-2.5">Lembur</th>
 											<th class="p-2.5">Alpa</th>
 											<th class="p-2.5">Kasbon</th>
@@ -779,14 +781,19 @@
 										</tr>
 									</thead>
 									<tbody class="divide-y divide-slate-100 dark:divide-slate-800">
-										{#each filteredPreviewItems.slice(0, 50) as item}
+										{#each filteredPreviewItems.slice(0, 200) as item}
 											<tr class="hover:bg-slate-50 dark:hover:bg-slate-800/50">
 												<td class="p-2.5">
 													<p class="font-bold text-on-surface">{item.employee_name}</p>
 													<p class="text-[10px] text-slate-400 font-mono">{item.employee_nik}</p>
 												</td>
-												<td class="p-2.5 font-mono font-bold text-blue-600">{item.work_days || 0} hr</td>
+												<td class="p-2.5 font-mono font-bold {(item.work_days || 0) > 0 ? 'text-blue-600' : 'text-slate-400'}">
+													{item.work_days || 0} hr
+												</td>
 												<td class="p-2.5 font-mono">{formatRupiah(item.basic_salary)}</td>
+												<td class="p-2.5 font-mono text-emerald-600">
+													{formatRupiah((item.meal_allowance || 0) + (item.transport_allowance || 0))}
+												</td>
 												<td class="p-2.5 font-mono text-emerald-600">{formatRupiah(item.overtime_allowance)}</td>
 												<td class="p-2.5 font-mono text-rose-600">{item.absence_days > 0 ? `-${formatRupiah(item.absence_deduction)}` : 'Rp 0'}</td>
 												<td class="p-2.5 font-mono text-rose-600">{item.bpr_installment > 0 ? `-${formatRupiah(item.bpr_installment)}` : 'Rp 0'}</td>

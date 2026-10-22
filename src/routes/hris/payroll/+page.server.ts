@@ -31,8 +31,10 @@ export const load: PageServerLoad = async ({ cookies, url }) => {
 			console.error("❌ [DB Periods Query Error]:", dbErr);
 		}
 
-		// Pastikan periode aktif saat ini (August 2026, July 2026, etc) selalu tersedia di dropdown
+		// Pastikan periode aktif saat ini selalu tersedia di dropdown
 		const defaultPeriods = [
+			{ period_key: "2026-10-01", period_label: "October 2026", period_code: "10 - 2026", total_employees: 0 },
+			{ period_key: "2026-09-01", period_label: "September 2026", period_code: "09 - 2026", total_employees: 0 },
 			{ period_key: "2026-08-01", period_label: "August 2026", period_code: "08 - 2026", total_employees: 0 },
 			{ period_key: "2026-07-01", period_label: "July 2026", period_code: "07 - 2026", total_employees: 0 },
 			{ period_key: "2026-06-01", period_label: "June 2026", period_code: "06 - 2026", total_employees: 0 },
@@ -55,30 +57,9 @@ export const load: PageServerLoad = async ({ cookies, url }) => {
 		}
 		const periods = Array.from(periodMap.values()).sort((a, b) => b.period_key.localeCompare(a.period_key));
 
-		// 2. Coba fetch dari Laravel API, fallback ke PostgreSQL direct query
-		const payrollParams = new URLSearchParams();
-		if (formattedPeriod) payrollParams.set("period", formattedPeriod);
-		if (searchQuery) payrollParams.set("search", searchQuery);
-		if (divisionFilter) payrollParams.set("division", divisionFilter);
-		payrollParams.set("per_page", "500");
-
-		const [payrollRes, reimbursementRes] = await Promise.all([
-			apiFetch<any>(`/api/v1/hris/payroll?${payrollParams.toString()}`, {}, authToken).catch((err) => {
-				console.error("⚠️ [Payroll API Warning - will fallback to DB]:", err?.message);
-				return { data: null };
-			}),
-			apiFetch<any>(`/api/v1/hris/payroll/reimbursements?per_page=100`, {}, authToken).catch((err) => {
-				console.error("❌ [Reimbursement API Error]:", err?.message);
-				return {
-					data: {
-						summary: { total_claims: 0, total_approved_amount: 0, pending_claims: 0, rejected_claims: 0 },
-						claims: []
-					}
-				};
-			})
-		]);
-
+		// 2. Ambil data slip gaji langsung dari PostgreSQL presensi.salary_slips agar konsisten dengan hasil Payroll Engine
 		let salarySlips: any[] = [];
+		let divisions: string[] = [];
 		let summary = {
 			total_count: 0,
 			sum_basic: 0,
@@ -90,27 +71,98 @@ export const load: PageServerLoad = async ({ cookies, url }) => {
 			sum_tax: 0,
 			sum_absence_deduction: 0
 		};
-		let divisions: string[] = [];
 
-		if (payrollRes?.data?.slips && payrollRes.data.slips.length > 0) {
-			salarySlips = payrollRes.data.slips.map((s: any) => ({
-				...s,
-				period_date: s.period || selectedPeriod,
-				period_display: s.period || selectedPeriod
-			}));
-			summary = {
-				total_count: payrollRes.data.summary?.total_count || salarySlips.length,
-				sum_basic: 0,
-				sum_gross: Number(payrollRes.data.summary?.total_gross) || 0,
-				sum_deductions: Number(payrollRes.data.summary?.total_deductions) || 0,
-				sum_net: Number(payrollRes.data.summary?.total_net_thp) || 0,
-				avg_net: Number(payrollRes.data.summary?.avg_salary) || 0,
-				sum_bpjs: 0,
-				sum_tax: 0,
-				sum_absence_deduction: 0
-			};
-			divisions = payrollRes.data.divisions || [];
+		try {
+			const dbSlips = await sql<any[]>`
+				SELECT 
+					s.*,
+					TO_CHAR(s.period, 'YYYY-MM-DD') as period_date,
+					TO_CHAR(s.period, 'FMMonth YYYY') as period_display
+				FROM presensi.salary_slips s
+				WHERE s.period = ${formattedPeriod}::date
+				  AND (${searchQuery} = '' OR s.employee_name ILIKE ${'%' + searchQuery + '%'} OR s.employee_nik ILIKE ${'%' + searchQuery + '%'})
+				  AND (${divisionFilter} = '' OR s.employee_division = ${divisionFilter})
+				ORDER BY s.employee_name ASC
+			`;
+
+			const dbDivs = await sql<any[]>`
+				SELECT DISTINCT employee_division
+				FROM presensi.salary_slips
+				WHERE period = ${formattedPeriod}::date
+				  AND employee_division IS NOT NULL
+				  AND employee_division != ''
+				ORDER BY employee_division ASC
+			`;
+			divisions = dbDivs.map((d) => d.employee_division);
+
+			if (dbSlips.length > 0) {
+				salarySlips = dbSlips.map((s) => ({
+					...s,
+					work_days: Number(s.work_days) || 0,
+					basic_salary: Number(s.basic_salary) || 0,
+					professional_allowance: Number(s.professional_allowance) || 0,
+					performance_allowance: Number(s.performance_allowance) || 0,
+					position_allowance: Number(s.position_allowance) || 0,
+					meal_allowance: Number(s.meal_allowance) || 0,
+					transport_allowance: Number(s.transport_allowance) || 0,
+					relocation_allowance: Number(s.relocation_allowance) || 0,
+					skill_allowance: Number(s.skill_allowance) || 0,
+					other_allowance: Number(s.other_allowance) || 0,
+					incentive_10th: Number(s.incentive_10th) || 0,
+					communication_allowance: Number(s.communication_allowance) || 0,
+					incentive: Number(s.incentive) || 0,
+					shift_allowance: Number(s.shift_allowance) || 0,
+					overtime_allowance: Number(s.overtime_allowance) || 0,
+					overtime_hours: Number(s.overtime_hours) || 0,
+					khk_allowance: Number(s.khk_allowance) || 0,
+					zakat: Number(s.zakat) || 0,
+					tax: Number(s.tax) || 0,
+					bpjs: Number(s.bpjs) || 0,
+					union_fee: Number(s.union_fee) || 0,
+					absence_deduction: Number(s.absence_deduction) || 0,
+					absence_days: Number(s.absence_days) || 0,
+					cooperative: Number(s.cooperative) || 0,
+					bpr_installment: Number(s.bpr_installment) || 0,
+					other_deduction: Number(s.other_deduction) || 0,
+					gross_salary: Number(s.gross_salary) || 0,
+					total_deductions: Number(s.total_deductions) || 0,
+					net_salary: Number(s.net_salary) || 0
+				}));
+
+				const sumBasic = salarySlips.reduce((acc, s) => acc + s.basic_salary, 0);
+				const sumGross = salarySlips.reduce((acc, s) => acc + s.gross_salary, 0);
+				const sumDed = salarySlips.reduce((acc, s) => acc + s.total_deductions, 0);
+				const sumNet = salarySlips.reduce((acc, s) => acc + s.net_salary, 0);
+				const sumBpjs = salarySlips.reduce((acc, s) => acc + s.bpjs, 0);
+				const sumTax = salarySlips.reduce((acc, s) => acc + s.tax, 0);
+				const sumAbs = salarySlips.reduce((acc, s) => acc + s.absence_deduction, 0);
+
+				summary = {
+					total_count: salarySlips.length,
+					sum_basic: sumBasic,
+					sum_gross: sumGross,
+					sum_deductions: sumDed,
+					sum_net: sumNet,
+					avg_net: Math.round(sumNet / salarySlips.length),
+					sum_bpjs: sumBpjs,
+					sum_tax: sumTax,
+					sum_absence_deduction: sumAbs
+				};
+			}
+		} catch (dbSlipErr: any) {
+			console.warn("⚠️ [Direct DB Slips Query Warning]:", dbSlipErr?.message);
 		}
+
+		// Ambil data reimbursement dari API
+		const reimbursementRes = await apiFetch<any>(`/api/v1/hris/payroll/reimbursements?per_page=100`, {}, authToken).catch((err) => {
+			console.error("❌ [Reimbursement API Error]:", err?.message);
+			return {
+				data: {
+					summary: { total_claims: 0, total_approved_amount: 0, pending_claims: 0, rejected_claims: 0 },
+					claims: []
+				}
+			};
+		});
 
 		const reimbursementData = reimbursementRes?.data || {};
 		const reimbursementSummary = {
