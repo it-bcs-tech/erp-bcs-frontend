@@ -182,8 +182,8 @@ export function resolveActivity(pathname: string): ResolvedActivity {
 		if (path === '/ga') return { ...base, activityLabel: 'Melihat Overview Operasional GA', icon: 'dashboard' };
 		if (path.includes('/assets')) return { ...base, activityLabel: 'Mengelola Master Aset & Inventaris', icon: 'inventory_2' };
 		if (path.includes('/room-bookings')) return { ...base, activityLabel: 'Mengelola Peminjaman Ruangan & Fasilitas', icon: 'meeting_room' };
-		if (path.includes('/facilities')) return { ...base, activityLabel: 'Pemeliharaan Fasilitas & Kantor (KR 7.3)', icon: 'home_repair_service' };
-		if (path.includes('/stationery')) return { ...base, activityLabel: 'Pengadaan & Stok ATK Kantor (KR 7.4)', icon: 'edit_document' };
+		if (path.includes('/facilities')) return { ...base, activityLabel: 'Pemeliharaan Fasilitas & Kantor', icon: 'home_repair_service' };
+		if (path.includes('/stationery')) return { ...base, activityLabel: 'Pengadaan & Stok ATK Kantor', icon: 'edit_document' };
 		return { ...base, activityLabel: 'Membuka Modul General Affair', icon: 'domain' };
 	}
 

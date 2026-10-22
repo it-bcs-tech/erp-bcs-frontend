@@ -131,7 +131,7 @@
 </script>
 
 <svelte:head>
-	<title>Master Assets (KR 7.1) | General Affair | ERP BCS</title>
+	<title>Master Assets | General Affair | ERP BCS</title>
 </svelte:head>
 
 <div class="space-y-6">
@@ -140,7 +140,7 @@
 		<div>
 			<div class="flex items-center gap-2 text-xs font-bold text-cyan-600 dark:text-cyan-400 uppercase tracking-widest mb-1">
 				<span class="material-symbols-outlined text-sm">inventory_2</span>
-				<span>KR 7.1 • Master Aset & Inventaris Kantor</span>
+				<span>General Affair • Master Aset & Inventaris Kantor</span>
 			</div>
 			<h1 class="text-3xl font-black text-on-surface tracking-tight">Inventaris Aset Tetap</h1>
 			<p class="text-xs text-on-surface-variant mt-1">

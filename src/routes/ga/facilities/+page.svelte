@@ -139,7 +139,7 @@
 </script>
 
 <svelte:head>
-	<title>Facility Maintenance (KR 7.3) | General Affair | ERP BCS</title>
+	<title>Facility Maintenance | General Affair | ERP BCS</title>
 </svelte:head>
 
 <div class="space-y-6">
@@ -148,7 +148,7 @@
 		<div>
 			<div class="flex items-center gap-2 text-xs font-bold text-blue-600 dark:text-blue-400 uppercase tracking-widest mb-1">
 				<span class="material-symbols-outlined text-sm">home_repair_service</span>
-				<span>KR 7.3 • Facility & Building Maintenance</span>
+				<span>General Affair • Facility & Building Maintenance</span>
 			</div>
 			<h1 class="text-3xl font-black text-on-surface tracking-tight">Pemeliharaan Sarana Gedung & Pool</h1>
 			<p class="text-xs text-on-surface-variant mt-1">

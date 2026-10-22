@@ -161,7 +161,7 @@
 </script>
 
 <svelte:head>
-	<title>Stationery Requests & Stock (KR 7.4) | General Affair | ERP BCS</title>
+	<title>Stationery & Stock | General Affair | ERP BCS</title>
 </svelte:head>
 
 <div class="space-y-6">
@@ -170,7 +170,7 @@
 		<div>
 			<div class="flex items-center gap-2 text-xs font-bold text-purple-600 dark:text-purple-400 uppercase tracking-widest mb-1">
 				<span class="material-symbols-outlined text-sm">edit_document</span>
-				<span>KR 7.4 • Pengadaan & Stok Perlengkapan Operasional</span>
+				<span>General Affair • Pengadaan & Stok Perlengkapan Operasional</span>
 			</div>
 			<h1 class="text-3xl font-black text-on-surface tracking-tight">Katalog & Permintaan ATK</h1>
 			<p class="text-xs text-on-surface-variant mt-1">

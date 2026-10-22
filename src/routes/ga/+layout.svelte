@@ -60,7 +60,7 @@
 					<p class="text-[9px] font-black text-on-surface-variant/50 uppercase tracking-[0.2em]">Asset Management</p>
 				</div>
 
-				<!-- Master Aset & Inventaris (KR 7.1) -->
+				<!-- Master Aset & Inventaris -->
 				<a
 					class="flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200 hover:translate-x-1 {isActive('/ga/assets')
 						? 'bg-surface-container-highest text-cyan-700 dark:text-cyan-300 font-bold'
@@ -68,7 +68,7 @@
 					href="/ga/assets"
 				>
 					<span class="material-symbols-outlined text-[20px]">inventory_2</span>
-					<span class="text-sm">Master Assets (KR 7.1)</span>
+					<span class="text-sm">Master Assets</span>
 				</a>
 			{/if}
 
@@ -78,7 +78,7 @@
 				</div>
 			{/if}
 
-			<!-- Facility Maintenance (KR 7.3) -->
+			<!-- Facility Maintenance -->
 			{#if hasMenuAccess(user, 'ga', 'ga.facilities')}
 				<a
 					class="flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200 hover:translate-x-1 {isActive('/ga/facilities')
@@ -87,11 +87,11 @@
 					href="/ga/facilities"
 				>
 					<span class="material-symbols-outlined text-[20px]">home_repair_service</span>
-					<span class="text-sm">Facility Maintenance (KR 7.3)</span>
+					<span class="text-sm">Facility Maintenance</span>
 				</a>
 			{/if}
 
-			<!-- Request ATK & Perlengkapan (KR 7.4) -->
+			<!-- Request ATK & Perlengkapan -->
 			{#if hasMenuAccess(user, 'ga', 'ga.stationery')}
 				<a
 					class="flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200 hover:translate-x-1 {isActive('/ga/stationery')
@@ -100,7 +100,7 @@
 					href="/ga/stationery"
 				>
 					<span class="material-symbols-outlined text-[20px]">edit_document</span>
-					<span class="text-sm">Stationery Requests & Stock (KR 7.4)</span>
+					<span class="text-sm">Stationery & Stock</span>
 				</a>
 			{/if}
 
