@@ -46,10 +46,131 @@ export const load: PageServerLoad = async () => {
 		let vendorCount = 0;
 		let contractCount = 0;
 
+		// 1. Inisialisasi 12 bulan Horizon Expiry ke depan dari bulan berjalan
+		const monthNamesShort = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
+		const monthNamesFull = [
+			'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
+			'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
+		];
+
+		const now = new Date();
+		const currentYear = now.getFullYear();
+		const currentMonth = now.getMonth();
+
+		const horizonMonths: Array<{
+			key: string;
+			label: string;
+			fullName: string;
+			year: number;
+			month: number;
+			fleet: number;
+			driver: number;
+			contracts: number;
+			corporate: number;
+			total: number;
+		}> = [];
+
+		const horizonMap = new Map<string, (typeof horizonMonths)[0]>();
+
+		for (let i = 0; i < 12; i++) {
+			const targetDate = new Date(currentYear, currentMonth + i, 1);
+			const y = targetDate.getFullYear();
+			const m = targetDate.getMonth() + 1;
+			const key = `${y}-${String(m).padStart(2, '0')}`;
+			const item = {
+				key,
+				label: `${monthNamesShort[m - 1]} '${String(y).slice(2)}`,
+				fullName: `${monthNamesFull[m - 1]} ${y}`,
+				year: y,
+				month: m,
+				fleet: 0,
+				driver: 0,
+				contracts: 0,
+				corporate: 0,
+				total: 0
+			};
+			horizonMonths.push(item);
+			horizonMap.set(key, item);
+		}
+
+		// 2. Health & Kepatuhan per Entitas
+		const entityHealth: Record<
+			string,
+			{
+				label: string;
+				total: number;
+				safe: number;
+				warning: number;
+				critical: number;
+				urgent: number;
+				expired: number;
+				score: number;
+				color: string;
+				bg: string;
+			}
+		> = {
+			FLEET: {
+				label: 'Armada (FMS)',
+				total: 0,
+				safe: 0,
+				warning: 0,
+				critical: 0,
+				urgent: 0,
+				expired: 0,
+				score: 100,
+				color: 'text-sky-600 dark:text-sky-400',
+				bg: 'bg-sky-500'
+			},
+			DRIVER: {
+				label: 'Driver (HRIS)',
+				total: 0,
+				safe: 0,
+				warning: 0,
+				critical: 0,
+				urgent: 0,
+				expired: 0,
+				score: 100,
+				color: 'text-indigo-600 dark:text-indigo-400',
+				bg: 'bg-indigo-500'
+			},
+			CONTRACTS: {
+				label: 'Kontrak Legal',
+				total: 0,
+				safe: 0,
+				warning: 0,
+				critical: 0,
+				urgent: 0,
+				expired: 0,
+				score: 100,
+				color: 'text-amber-600 dark:text-amber-400',
+				bg: 'bg-amber-500'
+			},
+			CORPORATE: {
+				label: 'Korporat & ISO',
+				total: 0,
+				safe: 0,
+				warning: 0,
+				critical: 0,
+				urgent: 0,
+				expired: 0,
+				score: 100,
+				color: 'text-violet-600 dark:text-violet-400',
+				bg: 'bg-violet-500'
+			}
+		};
+
 		const processedDocs: DocumentItem[] = allDocs.map((r: any) => {
 			const { daysRemaining, gateLevel, computedStatus } = calculateExpiryGate(r.expiry_date, r.status);
 
-			if (r.type_code === 'KONTRAK_KERJASAMA') contractCount++;
+			const isContract = r.type_code === 'KONTRAK_KERJASAMA';
+			if (isContract) contractCount++;
+
+			let entityCategory = 'CORPORATE';
+			if (isContract) entityCategory = 'CONTRACTS';
+			else if (r.entity_type === 'FLEET') entityCategory = 'FLEET';
+			else if (r.entity_type === 'DRIVER') entityCategory = 'DRIVER';
+			else if (r.entity_type === 'CUSTOMER') entityCategory = 'CONTRACTS';
+			else entityCategory = 'CORPORATE';
 
 			if (r.entity_type === 'FLEET') fleetCount++;
 			else if (r.entity_type === 'DRIVER') driverCount++;
@@ -73,6 +194,29 @@ export const load: PageServerLoad = async () => {
 				valid++;
 			}
 
+			// Agregasi Health per Entitas
+			const targetHealth = entityHealth[entityCategory] || entityHealth.CORPORATE;
+			targetHealth.total++;
+			if (gateLevel === 'EXPIRED') targetHealth.expired++;
+			else if (gateLevel === 'URGENT_7') targetHealth.urgent++;
+			else if (gateLevel === 'CRITICAL_30') targetHealth.critical++;
+			else if (gateLevel === 'WARNING_60') targetHealth.warning++;
+			else targetHealth.safe++;
+
+			// Agregasi Horizon Expiry per Bulan
+			if (r.expiry_date) {
+				const expDate = new Date(r.expiry_date);
+				const expKey = `${expDate.getFullYear()}-${String(expDate.getMonth() + 1).padStart(2, '0')}`;
+				const hMonth = horizonMap.get(expKey);
+				if (hMonth) {
+					hMonth.total++;
+					if (entityCategory === 'FLEET') hMonth.fleet++;
+					else if (entityCategory === 'DRIVER') hMonth.driver++;
+					else if (entityCategory === 'CONTRACTS') hMonth.contracts++;
+					else hMonth.corporate++;
+				}
+			}
+
 			return {
 				...r,
 				status: computedStatus,
@@ -80,6 +224,19 @@ export const load: PageServerLoad = async () => {
 				gate_level: gateLevel
 			};
 		});
+
+		// Hitung persentase skor kepatuhan per entitas
+		let totalDocsHealth = 0;
+		let totalSafeHealth = 0;
+		for (const key of Object.keys(entityHealth)) {
+			const eh = entityHealth[key];
+			if (eh.total > 0) {
+				eh.score = Math.round(((eh.safe + eh.warning) / eh.total) * 100);
+				totalDocsHealth += eh.total;
+				totalSafeHealth += (eh.safe + eh.warning);
+			}
+		}
+		const overallComplianceScore = totalDocsHealth > 0 ? Math.round((totalSafeHealth / totalDocsHealth) * 100) : 100;
 
 		// Dokumen yang perlu perhatian segera (Urgent, Critical, Warning, Expired)
 		const upcomingExpiringDocs = processedDocs
@@ -101,6 +258,7 @@ export const load: PageServerLoad = async () => {
 				expired,
 				inRenewal,
 				borrowedCount,
+				overallComplianceScore,
 				entities: {
 					fleet: fleetCount,
 					driver: driverCount,
@@ -110,6 +268,8 @@ export const load: PageServerLoad = async () => {
 					contracts: contractCount
 				}
 			},
+			expiryHorizon: horizonMonths,
+			entityHealth,
 			upcomingExpiringDocs,
 			borrowedDocs
 		};

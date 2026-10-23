@@ -18,6 +18,7 @@ export const load: PageServerLoad = async ({ url }) => {
 		const company = url.searchParams.get('company') || '';
 		const status = url.searchParams.get('status') || '';
 		const gateFilter = url.searchParams.get('gate') || '';
+		const expiryMonth = url.searchParams.get('expiry_month') || '';
 		const scope = url.searchParams.get('scope') || '';
 		const sort = url.searchParams.get('sort') || 'newest';
 
@@ -98,6 +99,9 @@ export const load: PageServerLoad = async ({ url }) => {
 			} else if (gateFilter === 'VALID') {
 				conditions.push(sql`(d.expiry_date IS NULL OR d.expiry_date::date > CURRENT_DATE + INTERVAL '60 days')`);
 			}
+		}
+		if (expiryMonth) {
+			conditions.push(sql`to_char(d.expiry_date, 'YYYY-MM') = ${expiryMonth}`);
 		}
 		if (scope) {
 			if (scope === 'EMPTY_SCOPE') {
@@ -197,6 +201,7 @@ export const load: PageServerLoad = async ({ url }) => {
 			scopeClusters: SCOPE_CLUSTERS,
 			selectedScope: scope,
 			selectedSort: sort,
+			selectedExpiryMonth: expiryMonth,
 			tabCounts: {
 				total: Number(tabCounts?.total || 0),
 				contracts: Number(tabCounts?.contracts || 0),

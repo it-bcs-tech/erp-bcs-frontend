@@ -6,6 +6,16 @@
 	let stats = $derived(data.stats);
 	let upcomingExpiringDocs = $derived(data.upcomingExpiringDocs || []);
 	let borrowedDocs = $derived(data.borrowedDocs || []);
+	let expiryHorizon = $derived(data.expiryHorizon || []);
+	let entityHealth = $derived(data.entityHealth || {});
+
+	let horizonRange = $state<'6' | '12'>('12');
+	let displayedHorizon = $derived(
+		expiryHorizon.slice(0, horizonRange === '6' ? 6 : 12)
+	);
+	let maxDisplayedTotal = $derived(
+		Math.max(1, ...displayedHorizon.map((m: any) => m.total || 0))
+	);
 
 	let isViewerOpen = $state(false);
 	let selectedDoc = $state<any>(null);
@@ -196,6 +206,223 @@
 			</div>
 			<span class="text-lg font-black text-violet-600">{stats.entities.corporate}</span>
 		</a>
+	</div>
+
+	<!-- Visual Analytics Section (Horizon Bar Chart & Entity Compliance Health) -->
+	<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+		<!-- Left (2 cols): Interactive Expiry Horizon Bar Chart -->
+		<div class="lg:col-span-2 rounded-3xl bg-surface-container-lowest dark:bg-surface-container-low border border-slate-200/80 dark:border-slate-800/80 p-6 shadow-xs flex flex-col justify-between space-y-6">
+			<!-- Chart Header & Range Toggle -->
+			<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+				<div>
+					<div class="flex items-center gap-2">
+						<span class="material-symbols-outlined text-indigo-600 text-xl">bar_chart</span>
+						<h3 class="text-base font-extrabold text-on-surface">Proyeksi Dokumen Jatuh Tempo (Expiry Horizon)</h3>
+					</div>
+					<p class="text-xs text-on-surface-variant font-medium mt-0.5">
+						Estimasi beban perpanjangan berkas logistik per bulan untuk mitigasi risiko operasional
+					</p>
+				</div>
+
+				<div class="flex items-center gap-3 self-start sm:self-auto">
+					<!-- Range Toggle -->
+					<div class="inline-flex items-center p-1 rounded-xl bg-surface-container border border-slate-200/70 dark:border-slate-800/70 text-xs">
+						<button
+							type="button"
+							onclick={() => (horizonRange = '6')}
+							class="px-2.5 py-1 rounded-lg font-bold transition-all cursor-pointer {horizonRange === '6' ? 'bg-indigo-600 text-white shadow-xs' : 'text-on-surface-variant hover:text-on-surface'}"
+						>
+							6 Bulan
+						</button>
+						<button
+							type="button"
+							onclick={() => (horizonRange = '12')}
+							class="px-2.5 py-1 rounded-lg font-bold transition-all cursor-pointer {horizonRange === '12' ? 'bg-indigo-600 text-white shadow-xs' : 'text-on-surface-variant hover:text-on-surface'}"
+						>
+							12 Bulan
+						</button>
+					</div>
+				</div>
+			</div>
+
+			<!-- Color Legend -->
+			<div class="flex flex-wrap items-center justify-between gap-4 text-xs pt-1 border-t border-slate-100 dark:border-slate-800/80">
+				<div class="flex flex-wrap items-center gap-4">
+					<div class="flex items-center gap-1.5">
+						<span class="w-2.5 h-2.5 rounded-full bg-sky-500"></span>
+						<span class="text-[11px] font-bold text-on-surface-variant">Armada</span>
+					</div>
+					<div class="flex items-center gap-1.5">
+						<span class="w-2.5 h-2.5 rounded-full bg-indigo-500"></span>
+						<span class="text-[11px] font-bold text-on-surface-variant">Driver</span>
+					</div>
+					<div class="flex items-center gap-1.5">
+						<span class="w-2.5 h-2.5 rounded-full bg-amber-500"></span>
+						<span class="text-[11px] font-bold text-on-surface-variant">Kontrak</span>
+					</div>
+					<div class="flex items-center gap-1.5">
+						<span class="w-2.5 h-2.5 rounded-full bg-violet-500"></span>
+						<span class="text-[11px] font-bold text-on-surface-variant">Korporat</span>
+					</div>
+				</div>
+				<span class="text-[10px] text-slate-400 font-medium">💡 Klik batang untuk melihat daftar dokumen per bulan</span>
+			</div>
+
+			<!-- Chart Canvas -->
+			<div class="overflow-x-auto pb-1">
+				<div class="h-60 w-full min-w-[500px] flex items-end justify-between gap-2.5 sm:gap-4 px-2 border-b border-slate-200 dark:border-slate-800 pb-2 pt-8">
+					{#each displayedHorizon as mItem}
+						{@const heightPercent = mItem.total > 0 ? Math.max(12, Math.round((mItem.total / maxDisplayedTotal) * 100)) : 4}
+						{@const fleetHeight = mItem.total > 0 ? Math.round((mItem.fleet / mItem.total) * 100) : 0}
+						{@const driverHeight = mItem.total > 0 ? Math.round((mItem.driver / mItem.total) * 100) : 0}
+						{@const contractsHeight = mItem.total > 0 ? Math.round((mItem.contracts / mItem.total) * 100) : 0}
+						{@const corporateHeight = mItem.total > 0 ? Math.round((mItem.corporate / mItem.total) * 100) : 0}
+
+						<a
+							href="/dms/transactions/documents?expiry_month={mItem.key}"
+							class="flex flex-col items-center flex-1 h-full group cursor-pointer relative"
+							title="Klik untuk melihat {mItem.total} dokumen jatuh tempo di {mItem.fullName}"
+						>
+							<div class="w-full flex flex-col justify-end items-center h-full relative">
+								<!-- Number Label Above Bar -->
+								<span class="absolute -top-6 text-[10px] font-mono font-bold {mItem.total > 0 ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-400'} group-hover:scale-110 transition-transform">
+									{mItem.total}
+								</span>
+
+								<!-- Stacked Vertical Bar -->
+								{#if mItem.total > 0}
+									<div
+										class="w-full max-w-[36px] rounded-t-lg overflow-hidden flex flex-col justify-end group-hover:ring-2 group-hover:ring-indigo-500/50 transition-all duration-300 shadow-xs"
+										style="height: {heightPercent}%;"
+									>
+										{#if mItem.corporate > 0}
+											<div class="w-full bg-violet-500/90 group-hover:bg-violet-500 transition-colors" style="height: {corporateHeight}%;"></div>
+										{/if}
+										{#if mItem.contracts > 0}
+											<div class="w-full bg-amber-500/90 group-hover:bg-amber-500 transition-colors" style="height: {contractsHeight}%;"></div>
+										{/if}
+										{#if mItem.driver > 0}
+											<div class="w-full bg-indigo-500/90 group-hover:bg-indigo-500 transition-colors" style="height: {driverHeight}%;"></div>
+										{/if}
+										{#if mItem.fleet > 0}
+											<div class="w-full bg-sky-500/90 group-hover:bg-sky-500 transition-colors" style="height: {fleetHeight}%;"></div>
+										{/if}
+									</div>
+								{:else}
+									<div class="w-full max-w-[36px] h-1.5 bg-slate-200 dark:bg-slate-800 rounded-full"></div>
+								{/if}
+
+								<!-- Detailed Floating Tooltip on Hover -->
+								<div class="absolute -top-32 bg-slate-900/95 text-white p-3 rounded-2xl text-[10px] opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap shadow-2xl z-30 space-y-1 backdrop-blur-xs border border-slate-700">
+									<div class="flex items-center justify-between gap-3 border-b border-slate-700/80 pb-1">
+										<span class="font-black text-indigo-300">{mItem.fullName}</span>
+										<span class="font-mono font-bold text-emerald-400">{mItem.total} Total</span>
+									</div>
+									<div class="space-y-0.5 pt-0.5 text-slate-200 font-medium">
+										<p class="flex items-center justify-between gap-3">
+											<span class="text-sky-400">Armada (FMS):</span>
+											<span class="font-mono font-bold">{mItem.fleet}</span>
+										</p>
+										<p class="flex items-center justify-between gap-3">
+											<span class="text-indigo-400">Driver (HRIS):</span>
+											<span class="font-mono font-bold">{mItem.driver}</span>
+										</p>
+										<p class="flex items-center justify-between gap-3">
+											<span class="text-amber-400">Kontrak Legal:</span>
+											<span class="font-mono font-bold">{mItem.contracts}</span>
+										</p>
+										<p class="flex items-center justify-between gap-3">
+											<span class="text-violet-400">Korporat:</span>
+											<span class="font-mono font-bold">{mItem.corporate}</span>
+										</p>
+									</div>
+									<p class="text-[9px] text-slate-400 italic pt-1 border-t border-slate-700/60">Klik untuk filter direktori</p>
+								</div>
+							</div>
+							<!-- Month Label Bottom -->
+							<span class="text-[11px] font-bold text-on-surface-variant uppercase tracking-wider mt-2 group-hover:text-indigo-600 transition-colors">
+								{mItem.label}
+							</span>
+						</a>
+					{/each}
+				</div>
+			</div>
+		</div>
+
+		<!-- Right (1 col): Compliance Health Ratio per Entity -->
+		<div class="rounded-3xl bg-surface-container-lowest dark:bg-surface-container-low border border-slate-200/80 dark:border-slate-800/80 p-6 shadow-xs flex flex-col justify-between space-y-4">
+			<div>
+				<div class="flex items-center justify-between mb-1">
+					<div class="flex items-center gap-2">
+						<span class="material-symbols-outlined text-emerald-600 text-xl">health_and_safety</span>
+						<h3 class="text-base font-extrabold text-on-surface">Kesehatan Kepatuhan</h3>
+					</div>
+					<span class="px-2.5 py-1 rounded-full text-xs font-black {stats.overallComplianceScore >= 80 ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800' : stats.overallComplianceScore >= 50 ? 'bg-amber-50 text-amber-700 dark:bg-amber-950/50 dark:text-amber-300 border border-amber-200 dark:border-amber-800' : 'bg-rose-50 text-rose-700 dark:bg-rose-950/50 dark:text-rose-300 border border-rose-200 dark:border-rose-800'}">
+						{stats.overallComplianceScore}% Aman
+					</span>
+				</div>
+				<p class="text-xs text-on-surface-variant">
+					Rasio perbandingan dokumen valid vs mendekati jatuh tempo dan kadaluarsa per departemen
+				</p>
+			</div>
+
+			<!-- Entity Health Progress List -->
+			<div class="space-y-4 pt-1">
+				{#each Object.entries(entityHealth) as [catKey, eh]}
+					{@const safePct = eh.total > 0 ? Math.round((eh.safe / eh.total) * 100) : 0}
+					{@const warnPct = eh.total > 0 ? Math.round(((eh.warning + eh.critical + eh.urgent) / eh.total) * 100) : 0}
+					{@const expPct = eh.total > 0 ? Math.round((eh.expired / eh.total) * 100) : 0}
+					{@const filterLink = catKey === 'CONTRACTS' ? '/dms/transactions/documents?type=KONTRAK_KERJASAMA' : `/dms/transactions/documents?entity_type=${catKey}`}
+
+					<div class="p-3.5 rounded-2xl bg-surface-container-low dark:bg-surface-container-low/50 border border-slate-200/60 dark:border-slate-800/60 space-y-2">
+						<div class="flex items-center justify-between text-xs">
+							<a href={filterLink} class="font-extrabold text-on-surface hover:text-indigo-600 transition-colors flex items-center gap-1.5">
+								<span class="w-2 h-2 rounded-full {eh.bg}"></span>
+								<span>{eh.label}</span>
+							</a>
+							<div class="flex items-center gap-2">
+								<span class="font-mono text-[11px] font-bold text-on-surface-variant">
+									{eh.safe + eh.warning}/{eh.total}
+								</span>
+								<span class="px-1.5 py-0.5 rounded text-[10px] font-black font-mono {eh.score >= 80 ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300' : eh.score >= 50 ? 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300' : 'bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300'}">
+									{eh.score}%
+								</span>
+							</div>
+						</div>
+
+						<!-- Multi-segment Progress Bar -->
+						<div class="w-full bg-surface-container-high h-2 rounded-full overflow-hidden flex">
+							{#if safePct > 0}
+								<div class="bg-emerald-500 h-full transition-all duration-500" style="width: {safePct}%;" title="Aman: {eh.safe} dok"></div>
+							{/if}
+							{#if warnPct > 0}
+								<div class="bg-amber-500 h-full transition-all duration-500" style="width: {warnPct}%;" title="Perhatian (H ≤ 60): {eh.warning + eh.critical + eh.urgent} dok"></div>
+							{/if}
+							{#if expPct > 0}
+								<div class="bg-rose-500 h-full transition-all duration-500" style="width: {expPct}%;" title="Kadaluarsa: {eh.expired} dok"></div>
+							{/if}
+						</div>
+
+						<!-- Micro Details -->
+						<div class="flex items-center justify-between text-[10px] text-on-surface-variant font-medium pt-0.5">
+							<span class="text-emerald-600 dark:text-emerald-400 font-bold">{eh.safe} Aman</span>
+							{#if (eh.warning + eh.critical + eh.urgent) > 0}
+								<a href="{filterLink}&gate=WARNING_60" class="text-amber-600 dark:text-amber-400 hover:underline">
+									{eh.warning + eh.critical + eh.urgent} Waspada
+								</a>
+							{/if}
+							{#if eh.expired > 0}
+								<a href="{filterLink}&gate=EXPIRED" class="text-rose-600 dark:text-rose-400 font-bold hover:underline">
+									{eh.expired} Expired
+								</a>
+							{:else}
+								<span class="text-slate-400">0 Expired</span>
+							{/if}
+						</div>
+					</div>
+				{/each}
+			</div>
+		</div>
 	</div>
 
 	<!-- Main Two-Column Layout: Horizon Table & Borrowed Physical Tracker -->

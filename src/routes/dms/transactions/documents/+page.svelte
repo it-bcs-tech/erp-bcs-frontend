@@ -12,6 +12,7 @@
 	let category = $derived($page.url.searchParams.get('category') || '');
 	let company = $derived($page.url.searchParams.get('company') || '');
 	let gate = $derived($page.url.searchParams.get('gate') || '');
+	let expiryMonth = $derived($page.url.searchParams.get('expiry_month') || '');
 	let scope = $derived($page.url.searchParams.get('scope') || '');
 	let sort = $derived($page.url.searchParams.get('sort') || data.selectedSort || 'newest');
 
@@ -21,7 +22,7 @@
 	let isViewerOpen = $state(false);
 	let selectedDoc = $state<any>(null);
 
-	let hasActiveFilters = $derived(Boolean(q || entityType || type || category || company || gate || scope || (sort && sort !== 'newest')));
+	let hasActiveFilters = $derived(Boolean(q || entityType || type || category || company || gate || scope || expiryMonth || (sort && sort !== 'newest')));
 
 	function openViewer(doc: any) {
 		selectedDoc = doc;
@@ -438,6 +439,26 @@
 				>
 					H-60 Warning
 				</button>
+
+				{#if expiryMonth}
+					<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/30 shrink-0">
+						<span class="material-symbols-outlined text-[14px]">calendar_month</span>
+						<span>Bulan: {expiryMonth}</span>
+						<button
+							type="button"
+							onclick={() => {
+								const url = new URL(window.location.href);
+								url.searchParams.delete('expiry_month');
+								url.searchParams.set('page', '1');
+								goto(url.toString(), { keepFocus: true, noScroll: true });
+							}}
+							class="hover:text-rose-600 cursor-pointer ml-1 text-on-surface-variant"
+							title="Hapus filter bulan"
+						>
+							<span class="material-symbols-outlined text-[14px]">close</span>
+						</button>
+					</span>
+				{/if}
 			</div>
 
 			<!-- Dense View Toggle Button -->
