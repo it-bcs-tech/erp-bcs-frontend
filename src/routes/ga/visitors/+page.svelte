@@ -222,7 +222,7 @@
 			</div>
 			<h1 class="text-2xl font-black text-on-surface tracking-tight">Visitor & Guestbook (Buku Tamu)</h1>
 			<p class="text-xs text-on-surface-variant mt-1">
-				Registrasi tamu perusahaan, pencatatan jam masuk & keluar (WIB 24 Jam), penukaran kartu identitas tamu (Visitor Badge), serta evaluasi kepuasan layanan resepsionis.
+				Registrasi tamu perusahaan, penukaran kartu identitas tamu (Visitor Badge), karyawan yang ditemui, serta evaluasi kepuasan layanan resepsionis.
 			</p>
 		</div>
 
@@ -349,7 +349,7 @@
 						<th class="py-3.5 px-4">No. Kartu</th>
 						<th class="py-3.5 px-4">Karyawan Ditemui (Host)</th>
 						<th class="py-3.5 px-4">Keperluan</th>
-						<th class="py-3.5 px-4">Waktu Kunjungan (WIB 24 Jam)</th>
+						<th class="py-3.5 px-4">Waktu Kunjungan</th>
 						<th class="py-3.5 px-4 text-center">Survei Layanan</th>
 						<th class="py-3.5 px-4 text-center">Aksi</th>
 					</tr>
@@ -491,7 +491,7 @@
 					</div>
 					<div>
 						<h3 class="text-sm font-black text-on-surface">Registrasi Check-In Tamu Baru</h3>
-						<p class="text-[11px] text-on-surface-variant">Catat waktu masuk (WIB 24 Jam), identitas tamu, & kartu visitor</p>
+						<p class="text-[11px] text-on-surface-variant">Catat identitas tamu dan kartu visitor yang diberikan</p>
 					</div>
 				</div>
 				<button
@@ -516,59 +516,47 @@
 				}}
 				class="p-6 space-y-4"
 			>
-				<!-- Waktu Kedatangan Tamu (Masuk - Format Indonesia 24 Jam WIB) -->
-				<div class="p-3.5 rounded-xl bg-cyan-50/50 dark:bg-cyan-950/30 border border-cyan-200/70 dark:border-cyan-800/60 space-y-2.5">
-					<div class="flex items-center justify-between">
-						<div class="flex items-center gap-1.5 text-xs font-bold text-cyan-800 dark:text-cyan-300">
-							<span class="material-symbols-outlined text-base">schedule</span>
-							<span>Waktu Masuk Kunjungan (Jam Indonesia 24 Jam - WIB)</span>
-						</div>
-						<button
-							type="button"
-							onclick={setCheckInToNowWib}
-							class="px-2.5 py-1 rounded-lg bg-cyan-600/10 hover:bg-cyan-600/20 text-cyan-700 dark:text-cyan-300 text-[10px] font-bold cursor-pointer"
-						>
-							Reset Jam Sekarang (WIB)
-						</button>
+				<div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+					<div>
+						<label class="block text-[11px] font-bold text-on-surface-variant uppercase mb-1">Tanggal Masuk *</label>
+						<input
+							type="date"
+							name="check_in_date"
+							bind:value={checkInDate}
+							required
+							class="w-full px-3.5 py-2.5 rounded-xl bg-surface-container-low text-xs font-mono text-on-surface border-0 outline-none focus:ring-2 focus:ring-cyan-500/40"
+						/>
 					</div>
-
-					<input type="hidden" name="check_in_clock" value={`${checkInHour}:${checkInMinute}`} />
-
-					<div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-						<div>
-							<label class="block text-[10px] font-bold text-on-surface-variant uppercase mb-1">Tanggal Masuk *</label>
-							<input
-								type="date"
-								name="check_in_date"
-								bind:value={checkInDate}
-								required
-								class="w-full px-3.5 py-2 rounded-xl bg-surface-container-lowest text-xs font-mono text-on-surface border-0 outline-none focus:ring-2 focus:ring-cyan-500/40"
-							/>
+					<div>
+						<div class="flex items-center justify-between mb-1">
+							<label class="block text-[11px] font-bold text-on-surface-variant uppercase">Jam Masuk *</label>
+							<button
+								type="button"
+								onclick={setCheckInToNowWib}
+								class="text-[10px] font-bold text-cyan-600 hover:underline cursor-pointer"
+							>
+								Jam Sekarang
+							</button>
 						</div>
-						<div>
-							<label class="block text-[10px] font-bold text-on-surface-variant uppercase mb-1">Jam Masuk (Format 24 Jam: 00:00 - 23:59 WIB) *</label>
-							<div class="flex items-center gap-1.5">
-								<select
-									bind:value={checkInHour}
-									class="flex-1 px-3 py-2 rounded-xl bg-surface-container-lowest text-xs font-mono font-bold text-on-surface border-0 outline-none focus:ring-2 focus:ring-cyan-500/40 cursor-pointer"
-								>
-									{#each HOURS_24 as h}
-										<option value={h}>{h}</option>
-									{/each}
-								</select>
-								<span class="font-mono font-black text-sm text-on-surface">:</span>
-								<select
-									bind:value={checkInMinute}
-									class="flex-1 px-3 py-2 rounded-xl bg-surface-container-lowest text-xs font-mono font-bold text-on-surface border-0 outline-none focus:ring-2 focus:ring-cyan-500/40 cursor-pointer"
-								>
-									{#each MINUTES_60 as m}
-										<option value={m}>{m}</option>
-									{/each}
-								</select>
-								<span class="px-2.5 py-2 rounded-xl bg-surface-container-high text-[11px] font-mono font-bold text-cyan-700 dark:text-cyan-300">
-									WIB
-								</span>
-							</div>
+						<input type="hidden" name="check_in_clock" value={`${checkInHour}:${checkInMinute}`} />
+						<div class="flex items-center gap-1.5">
+							<select
+								bind:value={checkInHour}
+								class="flex-1 px-3 py-2.5 rounded-xl bg-surface-container-low text-xs font-mono font-bold text-on-surface border-0 outline-none focus:ring-2 focus:ring-cyan-500/40 cursor-pointer"
+							>
+								{#each HOURS_24 as h}
+									<option value={h}>{h}</option>
+								{/each}
+							</select>
+							<span class="font-mono font-black text-sm text-on-surface">:</span>
+							<select
+								bind:value={checkInMinute}
+								class="flex-1 px-3 py-2.5 rounded-xl bg-surface-container-low text-xs font-mono font-bold text-on-surface border-0 outline-none focus:ring-2 focus:ring-cyan-500/40 cursor-pointer"
+							>
+								{#each MINUTES_60 as m}
+									<option value={m}>{m}</option>
+								{/each}
+							</select>
 						</div>
 					</div>
 				</div>
@@ -690,7 +678,7 @@
 						type="submit"
 						class="px-5 py-2 rounded-xl bg-cyan-600 hover:bg-cyan-700 text-white text-xs font-bold shadow-xs cursor-pointer"
 					>
-						Simpan Check-In ({checkInHour}:{checkInMinute} WIB)
+						Simpan Check-In
 					</button>
 				</div>
 			</form>
@@ -698,7 +686,7 @@
 	</div>
 {/if}
 
-<!-- Modal Check-Out / Edit Waktu Masuk & Keluar (24 Jam WIB) + Survei Kepuasan Tamu -->
+<!-- Modal Check-Out / Edit Waktu & Survei Kepuasan Tamu -->
 {#if selectedVisitorForCheckout}
 	<div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4 overflow-y-auto">
 		<div class="bg-surface-container-lowest rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xl w-full max-w-lg overflow-hidden my-8">
@@ -709,7 +697,7 @@
 					</div>
 					<div>
 						<h3 class="text-sm font-black text-on-surface">
-							{selectedVisitorForCheckout.status === 'CHECKED_IN' ? 'Catat Waktu Keluar & Survei Tamu' : 'Edit Waktu Kunjungan & Survei Tamu'}
+							{selectedVisitorForCheckout.status === 'CHECKED_IN' ? 'Check-Out & Survei Tamu' : 'Edit Waktu & Survei Tamu'}
 						</h3>
 						<p class="text-[11px] text-on-surface-variant">{selectedVisitorForCheckout.visitor_name} ({selectedVisitorForCheckout.company})</p>
 					</div>
@@ -747,97 +735,81 @@
 					<div><strong class="text-on-surface">Kartu Tamu:</strong> #{selectedVisitorForCheckout.badge_number}</div>
 				</div>
 
-				<!-- Waktu Masuk (24 Jam WIB) -->
-				<div class="p-3.5 rounded-xl bg-surface-container-low space-y-2">
-					<div class="text-[11px] font-bold text-on-surface uppercase tracking-wider flex items-center gap-1.5">
-						<span class="w-2 h-2 rounded-full bg-emerald-500"></span>
-						<span>Waktu Masuk (Format 24 Jam WIB)</span>
+				<div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+					<div>
+						<label class="block text-[11px] font-bold text-on-surface-variant uppercase mb-1">Tanggal Masuk</label>
+						<input
+							type="date"
+							name="check_in_date"
+							bind:value={editInDate}
+							required
+							class="w-full px-3.5 py-2.5 rounded-xl bg-surface-container-low text-xs font-mono text-on-surface border-0 outline-none focus:ring-2 focus:ring-cyan-500/40"
+						/>
 					</div>
-					<div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-						<div>
-							<label class="block text-[10px] font-bold text-on-surface-variant uppercase mb-1">Tanggal Masuk</label>
-							<input
-								type="date"
-								name="check_in_date"
-								bind:value={editInDate}
-								required
-								class="w-full px-3 py-2 rounded-xl bg-surface-container-lowest text-xs font-mono text-on-surface border-0 outline-none focus:ring-2 focus:ring-cyan-500/40"
-							/>
-						</div>
-						<div>
-							<label class="block text-[10px] font-bold text-on-surface-variant uppercase mb-1">Jam Masuk (00:00 - 23:59 WIB)</label>
-							<div class="flex items-center gap-1">
-								<select
-									bind:value={editInHour}
-									class="flex-1 px-2.5 py-2 rounded-xl bg-surface-container-lowest text-xs font-mono font-bold text-on-surface border-0 outline-none focus:ring-2 focus:ring-cyan-500/40 cursor-pointer"
-								>
-									{#each HOURS_24 as h}
-										<option value={h}>{h}</option>
-									{/each}
-								</select>
-								<span class="font-mono font-black text-xs">:</span>
-								<select
-									bind:value={editInMinute}
-									class="flex-1 px-2.5 py-2 rounded-xl bg-surface-container-lowest text-xs font-mono font-bold text-on-surface border-0 outline-none focus:ring-2 focus:ring-cyan-500/40 cursor-pointer"
-								>
-									{#each MINUTES_60 as m}
-										<option value={m}>{m}</option>
-									{/each}
-								</select>
-								<span class="px-2 py-2 rounded-xl bg-surface-container-high text-[10px] font-mono font-bold text-on-surface-variant">WIB</span>
-							</div>
+					<div>
+						<label class="block text-[11px] font-bold text-on-surface-variant uppercase mb-1">Jam Masuk</label>
+						<div class="flex items-center gap-1.5">
+							<select
+								bind:value={editInHour}
+								class="flex-1 px-3 py-2.5 rounded-xl bg-surface-container-low text-xs font-mono font-bold text-on-surface border-0 outline-none focus:ring-2 focus:ring-cyan-500/40 cursor-pointer"
+							>
+								{#each HOURS_24 as h}
+									<option value={h}>{h}</option>
+								{/each}
+							</select>
+							<span class="font-mono font-black text-xs">:</span>
+							<select
+								bind:value={editInMinute}
+								class="flex-1 px-3 py-2.5 rounded-xl bg-surface-container-low text-xs font-mono font-bold text-on-surface border-0 outline-none focus:ring-2 focus:ring-cyan-500/40 cursor-pointer"
+							>
+								{#each MINUTES_60 as m}
+									<option value={m}>{m}</option>
+								{/each}
+							</select>
 						</div>
 					</div>
 				</div>
 
-				<!-- Waktu Keluar (24 Jam WIB) -->
-				<div class="p-3.5 rounded-xl bg-emerald-50/50 dark:bg-emerald-950/30 border border-emerald-200/70 dark:border-emerald-800/60 space-y-2">
-					<div class="flex items-center justify-between">
-						<div class="text-[11px] font-bold text-emerald-800 dark:text-emerald-300 uppercase tracking-wider flex items-center gap-1.5">
-							<span class="w-2 h-2 rounded-full bg-emerald-600"></span>
-							<span>Waktu Keluar / Selesai Kunjungan (24 Jam WIB) *</span>
-						</div>
-						<button
-							type="button"
-							onclick={setCheckOutToNowWib}
-							class="px-2 py-0.5 rounded-lg bg-emerald-600/10 hover:bg-emerald-600/20 text-emerald-700 dark:text-emerald-300 text-[10px] font-bold cursor-pointer"
-						>
-							Set Jam Sekarang (WIB)
-						</button>
+				<div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+					<div>
+						<label class="block text-[11px] font-bold text-on-surface-variant uppercase mb-1">Tanggal Keluar *</label>
+						<input
+							type="date"
+							name="check_out_date"
+							bind:value={editOutDate}
+							required
+							class="w-full px-3.5 py-2.5 rounded-xl bg-surface-container-low text-xs font-mono text-on-surface border-0 outline-none focus:ring-2 focus:ring-emerald-500/40"
+						/>
 					</div>
-					<div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-						<div>
-							<label class="block text-[10px] font-bold text-on-surface-variant uppercase mb-1">Tanggal Keluar *</label>
-							<input
-								type="date"
-								name="check_out_date"
-								bind:value={editOutDate}
-								required
-								class="w-full px-3 py-2 rounded-xl bg-surface-container-lowest text-xs font-mono text-on-surface border-0 outline-none focus:ring-2 focus:ring-emerald-500/40"
-							/>
+					<div>
+						<div class="flex items-center justify-between mb-1">
+							<label class="block text-[11px] font-bold text-on-surface-variant uppercase">Jam Keluar *</label>
+							<button
+								type="button"
+								onclick={setCheckOutToNowWib}
+								class="text-[10px] font-bold text-emerald-600 hover:underline cursor-pointer"
+							>
+								Jam Sekarang
+							</button>
 						</div>
-						<div>
-							<label class="block text-[10px] font-bold text-on-surface-variant uppercase mb-1">Jam Keluar (00:00 - 23:59 WIB) *</label>
-							<div class="flex items-center gap-1">
-								<select
-									bind:value={editOutHour}
-									class="flex-1 px-2.5 py-2 rounded-xl bg-surface-container-lowest text-xs font-mono font-bold text-on-surface border-0 outline-none focus:ring-2 focus:ring-emerald-500/40 cursor-pointer"
-								>
-									{#each HOURS_24 as h}
-										<option value={h}>{h}</option>
-									{/each}
-								</select>
-								<span class="font-mono font-black text-xs">:</span>
-								<select
-									bind:value={editOutMinute}
-									class="flex-1 px-2.5 py-2 rounded-xl bg-surface-container-lowest text-xs font-mono font-bold text-on-surface border-0 outline-none focus:ring-2 focus:ring-emerald-500/40 cursor-pointer"
-								>
-									{#each MINUTES_60 as m}
-										<option value={m}>{m}</option>
-									{/each}
-								</select>
-								<span class="px-2 py-2 rounded-xl bg-surface-container-high text-[10px] font-mono font-bold text-emerald-700 dark:text-emerald-300">WIB</span>
-							</div>
+						<div class="flex items-center gap-1.5">
+							<select
+								bind:value={editOutHour}
+								class="flex-1 px-3 py-2.5 rounded-xl bg-surface-container-low text-xs font-mono font-bold text-on-surface border-0 outline-none focus:ring-2 focus:ring-emerald-500/40 cursor-pointer"
+							>
+								{#each HOURS_24 as h}
+									<option value={h}>{h}</option>
+								{/each}
+							</select>
+							<span class="font-mono font-black text-xs">:</span>
+							<select
+								bind:value={editOutMinute}
+								class="flex-1 px-3 py-2.5 rounded-xl bg-surface-container-low text-xs font-mono font-bold text-on-surface border-0 outline-none focus:ring-2 focus:ring-emerald-500/40 cursor-pointer"
+							>
+								{#each MINUTES_60 as m}
+									<option value={m}>{m}</option>
+								{/each}
+							</select>
 						</div>
 					</div>
 				</div>
@@ -894,7 +866,7 @@
 						type="submit"
 						class="px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-xs cursor-pointer"
 					>
-						Simpan Waktu Keluar ({editOutHour}:{editOutMinute} WIB) & Survei
+						Simpan & Selesai
 					</button>
 				</div>
 			</form>
