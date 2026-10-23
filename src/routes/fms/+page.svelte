@@ -19,6 +19,7 @@
 	let selectedDriver     = $state<any | null>(null);
 	let selectedAlert      = $state<any | null>(null);
 	let selectedTrendMonth = $state<string | null>(null);
+	let perfTab            = $state<'contracts' | 'drivers'>('contracts');
 
 	// Donut Chart State & Derived Data
 	let donutViewMode     = $state<'READINESS' | 'BU'>('READINESS');
@@ -233,7 +234,9 @@
 			icon: 'local_parking',
 			textCls: 'text-emerald-600 dark:text-emerald-400', 
 			bgCls: 'bg-emerald-500/10',
-			borderCls: 'hover:border-emerald-500/60'
+			borderCls: 'hover:border-emerald-500/60',
+			barCls: 'bg-emerald-500',
+			dotCls: 'bg-emerald-500'
 		},
 		{ 
 			key: 'STATUS_DISPATCHED', 
@@ -242,7 +245,9 @@
 			icon: 'assignment_turned_in',
 			textCls: 'text-purple-600 dark:text-purple-400', 
 			bgCls: 'bg-purple-500/10',
-			borderCls: 'hover:border-purple-500/60'
+			borderCls: 'hover:border-purple-500/60',
+			barCls: 'bg-purple-500',
+			dotCls: 'bg-purple-500'
 		},
 		{ 
 			key: 'STATUS_LOADING', 
@@ -251,7 +256,9 @@
 			icon: 'forklift',
 			textCls: 'text-indigo-600 dark:text-indigo-400', 
 			bgCls: 'bg-indigo-500/10',
-			borderCls: 'hover:border-indigo-500/60'
+			borderCls: 'hover:border-indigo-500/60',
+			barCls: 'bg-indigo-500',
+			dotCls: 'bg-indigo-500'
 		},
 		{ 
 			key: 'STATUS_MOVING', 
@@ -260,7 +267,9 @@
 			icon: 'local_shipping',
 			textCls: 'text-blue-600 dark:text-blue-400', 
 			bgCls: 'bg-blue-500/10',
-			borderCls: 'hover:border-blue-500/60'
+			borderCls: 'hover:border-blue-500/60',
+			barCls: 'bg-blue-500',
+			dotCls: 'bg-blue-500'
 		},
 		{ 
 			key: 'STATUS_UNLOADING', 
@@ -269,7 +278,9 @@
 			icon: 'warehouse',
 			textCls: 'text-cyan-600 dark:text-cyan-400', 
 			bgCls: 'bg-cyan-500/10',
-			borderCls: 'hover:border-cyan-500/60'
+			borderCls: 'hover:border-cyan-500/60',
+			barCls: 'bg-cyan-500',
+			dotCls: 'bg-cyan-500'
 		},
 		{ 
 			key: 'STATUS_RETURNING', 
@@ -278,7 +289,9 @@
 			icon: 'u_turn_left',
 			textCls: 'text-teal-600 dark:text-teal-400', 
 			bgCls: 'bg-teal-500/10',
-			borderCls: 'hover:border-teal-500/60'
+			borderCls: 'hover:border-teal-500/60',
+			barCls: 'bg-teal-500',
+			dotCls: 'bg-teal-500'
 		},
 		{ 
 			key: 'STATUS_MAINTENANCE', 
@@ -287,7 +300,9 @@
 			icon: 'build',
 			textCls: 'text-amber-600 dark:text-amber-400', 
 			bgCls: 'bg-amber-500/10',
-			borderCls: 'hover:border-amber-500/60'
+			borderCls: 'hover:border-amber-500/60',
+			barCls: 'bg-amber-500',
+			dotCls: 'bg-amber-500'
 		},
 		{ 
 			key: 'STATUS_INACTIVE', 
@@ -296,7 +311,9 @@
 			icon: 'pause_circle',
 			textCls: 'text-slate-500 dark:text-slate-400', 
 			bgCls: 'bg-slate-500/10',
-			borderCls: 'hover:border-slate-500/60'
+			borderCls: 'hover:border-slate-500/60',
+			barCls: 'bg-slate-400',
+			dotCls: 'bg-slate-400'
 		}
 	]);
 </script>
@@ -455,29 +472,55 @@
 		</button>
 	</div>
 
-	<!-- Live Operations Status Grid (8 Stages Berbasis Data Riil) -->
-	<div class="p-5 rounded-2xl bg-surface-container-low border border-slate-200/60 dark:border-slate-800/60 shadow-xs">
+	<!-- Executive Live Operational Pipeline Strip -->
+	<div class="p-4 sm:p-5 rounded-2xl bg-surface-container-low border border-slate-200/60 dark:border-slate-800/60 shadow-xs">
 		<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
 			<div class="flex items-center gap-2">
-				<span class="material-symbols-outlined text-blue-600 dark:text-blue-400 text-xl">hub</span>
-				<h2 class="text-base font-bold text-on-surface">Live Operations Status</h2>
-				<span class="text-[10px] font-medium text-on-surface-variant/70">(Klik status untuk rincian unit)</span>
+				<div class="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></div>
+				<h2 class="text-xs font-bold text-on-surface uppercase tracking-wider">Alur Siklus Armada (Live Pipeline)</h2>
+				<span class="text-[11px] text-on-surface-variant font-medium">· Klik tahapan untuk rincian unit</span>
 			</div>
-			<span class="text-xs font-bold text-blue-600">Siklus Armada Berjalan</span>
+			<div class="flex items-center gap-2 text-xs font-bold text-blue-600 dark:text-blue-400">
+				<span class="material-symbols-outlined text-[16px]">local_shipping</span>
+				<span>{metrics.totalVehicles ?? 0} Total Unit Armada</span>
+			</div>
 		</div>
 
-		<div class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3">
+		<!-- Multi-segment continuous horizontal progress track -->
+		<div class="w-full h-2.5 rounded-full bg-slate-200/70 dark:bg-slate-800 overflow-hidden flex shadow-inner">
 			{#each operationalStages as item}
+				{@const total = metrics.totalVehicles || 1}
+				{@const pct = Math.round(((item.count || 0) / total) * 100)}
+				{#if (item.count || 0) > 0}
+					<button
+						type="button"
+						onclick={() => openModal(item.key)}
+						class="{item.barCls} h-full transition-all duration-300 hover:brightness-110 cursor-pointer"
+						style="width: {Math.max(2, pct)}%"
+						title="{item.label}: {item.count} unit ({pct}%)"
+					></button>
+				{/if}
+			{/each}
+		</div>
+
+		<!-- Horizontal interactive stage buttons -->
+		<div class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2 mt-3 pt-3 border-t border-slate-200/50 dark:border-slate-800/50">
+			{#each operationalStages as item}
+				{@const total = metrics.totalVehicles || 1}
+				{@const pct = Math.round(((item.count || 0) / total) * 100)}
 				<button
 					type="button"
 					onclick={() => openModal(item.key)}
-					class="p-3.5 rounded-xl bg-surface border border-slate-200/50 dark:border-slate-800/50 shadow-2xs text-center transition-all cursor-pointer group {item.borderCls} hover:bg-surface-container"
+					class="flex flex-col items-center justify-center p-2.5 rounded-xl bg-surface hover:bg-surface-container border border-slate-200/50 dark:border-slate-800/50 transition-all cursor-pointer group text-center {item.borderCls}"
 				>
-					<div class="w-8 h-8 mx-auto rounded-lg {item.bgCls} {item.textCls} flex items-center justify-center mb-1.5 group-hover:scale-110 transition-transform">
-						<span class="material-symbols-outlined text-xl">{item.icon}</span>
+					<div class="flex items-center gap-1.5 mb-1">
+						<span class="w-2 h-2 rounded-full {item.dotCls}"></span>
+						<span class="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider truncate max-w-[85px]">{item.label}</span>
 					</div>
-					<p class="text-xl font-black text-on-surface">{item.count}</p>
-					<p class="text-[9px] font-bold text-on-surface-variant uppercase tracking-wider mt-0.5 truncate">{item.label}</p>
+					<div class="flex items-baseline gap-1">
+						<span class="text-base font-black text-on-surface group-hover:text-primary transition-colors">{item.count}</span>
+						<span class="text-[10px] font-semibold text-on-surface-variant/70">({pct}%)</span>
+					</div>
 				</button>
 			{/each}
 		</div>
@@ -632,294 +675,286 @@
 			</div>
 		</div>
 
-		<!-- Action Required Sidebar (Interactive Alerts) -->
-		<div class="p-6 rounded-2xl bg-slate-900 text-white shadow-xs flex flex-col justify-between overflow-hidden relative group border border-slate-800">
-			<div class="relative z-10 flex-1">
-				<h3 class="text-base font-bold mb-4 flex items-center gap-2">
-					<span class="material-symbols-outlined text-rose-400">warning</span>
-					<span>Perhatian Segera</span>
+		<!-- Action Required Sidebar (Soft M3 Card) -->
+		<div class="p-5 sm:p-6 rounded-2xl bg-surface-container-low border border-slate-200/60 dark:border-slate-800/60 shadow-xs flex flex-col justify-between overflow-hidden relative group">
+			<div class="relative z-10 flex-1 flex flex-col">
+				<div class="flex items-center justify-between mb-4">
+					<div class="flex items-center gap-2">
+						<div class="w-8 h-8 rounded-lg bg-rose-500/10 text-rose-600 dark:text-rose-400 flex items-center justify-center">
+							<span class="material-symbols-outlined text-[18px]">warning</span>
+						</div>
+						<div>
+							<h3 class="text-sm font-bold text-on-surface">Peringatan Armada</h3>
+							<p class="text-[10px] text-on-surface-variant font-medium">Asuransi & servis jatuh tempo</p>
+						</div>
+					</div>
 					{#if alerts.length > 0}
-						<span class="ml-auto text-[10px] font-bold bg-rose-500 text-white px-2 py-0.5 rounded-full">{alerts.length}</span>
+						<span class="text-[10px] font-bold bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300 border border-rose-200 dark:border-rose-800 px-2 py-0.5 rounded-full">{alerts.length}</span>
 					{/if}
-				</h3>
+				</div>
+
 				{#if alerts.length > 0}
-					<div class="space-y-3">
-						{#each alerts as alert}
+					<div class="space-y-2.5 flex-1">
+						{#each alerts.slice(0, 3) as alert}
 							{@const isRose = alert.severity === 'critical' || alert.severity === 'danger'}
 							<!-- svelte-ignore a11y_click_events_have_key_events -->
 							<!-- svelte-ignore a11y_no_static_element_interactions -->
 							<div 
 								onclick={() => selectedAlert = alert}
-								class="flex items-start gap-3 bg-white/5 hover:bg-white/10 p-3 rounded-xl backdrop-blur-sm transition-colors cursor-pointer border border-white/5"
+								class="flex items-start gap-3 bg-surface hover:bg-surface-container p-3 rounded-xl border border-slate-200/60 dark:border-slate-800/60 transition-colors cursor-pointer group/alert"
 							>
-								<div class="w-8 h-8 rounded-lg flex-shrink-0 flex items-center justify-center mt-0.5
-									{isRose ? 'bg-rose-500/20 text-rose-400' : 'bg-amber-500/20 text-amber-400'}">
+								<div class="w-7 h-7 rounded-lg flex-shrink-0 flex items-center justify-center mt-0.5 {isRose ? 'bg-rose-500/10 text-rose-600 dark:text-rose-400' : 'bg-amber-500/10 text-amber-600 dark:text-amber-400'}">
 									<span class="material-symbols-outlined text-[16px]">{getAlertIcon(alert.type)}</span>
 								</div>
 								<div class="min-w-0 flex-1">
 									<div class="flex items-center justify-between">
-										<p class="text-xs font-bold truncate">{alert.unit}</p>
-										<span class="text-[9px] font-bold uppercase {isRose ? 'text-rose-400' : 'text-amber-400'}">{alert.type}</span>
+										<p class="text-xs font-bold text-on-surface truncate group-hover/alert:text-primary transition-colors">{alert.unit}</p>
+										<span class="text-[9px] font-bold uppercase {isRose ? 'text-rose-600 dark:text-rose-400' : 'text-amber-600 dark:text-amber-400'}">{alert.type}</span>
 									</div>
-									<p class="text-[10px] font-medium mt-0.5 leading-tight {isRose ? 'text-rose-300' : 'text-amber-300'}">
-										{alert.message.length > 55 ? alert.message.slice(0, 55) + '…' : alert.message}
+									<p class="text-[11px] font-medium mt-0.5 leading-snug {isRose ? 'text-rose-700 dark:text-rose-300' : 'text-amber-700 dark:text-amber-300'}">
+										{alert.message.length > 60 ? alert.message.slice(0, 60) + '…' : alert.message}
 									</p>
 								</div>
 							</div>
 						{/each}
 					</div>
 				{:else}
-					<p class="text-xs text-slate-400 italic">Tidak ada alert saat ini</p>
+					<div class="flex-1 flex flex-col items-center justify-center py-6 text-on-surface-variant">
+						<span class="material-symbols-outlined text-3xl mb-1 text-emerald-500">verified_user</span>
+						<p class="text-xs font-bold text-on-surface">Seluruh Armada Laik Operasi</p>
+						<p class="text-[10px] text-on-surface-variant">Tidak ada dokumen atau jadwal servis darurat</p>
+					</div>
 				{/if}
 			</div>
-			<div class="mt-6 flex gap-2 relative z-10">
+
+			<div class="mt-4 pt-3 border-t border-slate-200/50 dark:border-slate-800/50 flex gap-2">
 				<button 
 					type="button" 
 					onclick={() => openModal('MAINTENANCE_ALERTS')}
-					class="flex-1 bg-white/10 hover:bg-white/20 text-white py-2.5 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 border border-white/10 cursor-pointer"
+					class="flex-1 bg-surface-container hover:bg-surface-container-high text-on-surface py-2 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 border border-slate-200/60 dark:border-slate-800/60 cursor-pointer"
 				>
 					<span>Lihat Semua Alert</span>
 				</button>
-				<a href="/fms/vehicles" class="bg-blue-600 hover:bg-blue-700 text-white py-2.5 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 shadow-xs">
-					<span>Roster Armada</span>
+				<a href="/fms/vehicles" class="bg-blue-600 hover:bg-blue-700 text-white py-2 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 shadow-xs">
+					<span>Roster Unit</span>
 				</a>
 			</div>
 		</div>
 	</div>
 
-	<!-- Progress Target Tonase Kontrak Aktif (Operational Delivery Progress) -->
-	{#if activeContracts && activeContracts.length > 0}
-	<div class="p-6 rounded-2xl bg-surface-container-low border border-slate-200/60 dark:border-slate-800/60 shadow-xs flex flex-col gap-4">
-		<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-			<div>
-				<div class="flex items-center gap-2">
-					<span class="material-symbols-outlined text-blue-600 dark:text-blue-400 text-xl">contract</span>
-					<h3 class="text-base font-bold text-on-surface tracking-tight">Progress Target Tonase Kontrak Aktif</h3>
-				</div>
-				<p class="text-xs text-on-surface-variant mt-0.5">Pemantauan realisasi volume pengiriman armada vs target kontrak bulan berjalan</p>
-			</div>
-			<a href="/marketing/contracts" class="text-xs font-bold text-blue-600 hover:underline flex items-center gap-1 self-start sm:self-auto">
-				<span>Kelola Kontrak</span>
-				<span class="material-symbols-outlined text-sm">arrow_forward</span>
-			</a>
-		</div>
-
-		<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-			{#each activeContracts as c}
-				{@const pctDelivered = c.targetTonnage > 0 ? Math.min(100, Math.round((c.deliveredTonnage / c.targetTonnage) * 100)) : 0}
-				{@const pctOnRoute = c.targetTonnage > 0 ? Math.min(100 - pctDelivered, Math.round((c.onrouteTonnage / c.targetTonnage) * 100)) : 0}
-				{@const pctLoading = c.targetTonnage > 0 ? Math.min(100 - pctDelivered - pctOnRoute, Math.round((c.loadingTonnage / c.targetTonnage) * 100)) : 0}
-				<div class="p-4 rounded-xl bg-surface border border-slate-200/50 dark:border-slate-800/50 flex flex-col justify-between gap-3 hover:border-blue-500/30 transition-all">
-					<div class="flex items-start justify-between gap-2">
-						<div class="min-w-0">
-							<div class="flex items-center gap-2">
-								<span class="text-xs font-black text-on-surface truncate">{c.customer}</span>
-								<span class="px-2 py-0.5 rounded text-[9px] font-bold uppercase bg-blue-500/10 text-blue-600 dark:text-blue-400">{c.project_category}</span>
-							</div>
-							<p class="text-[10px] text-on-surface-variant font-mono mt-0.5">{c.id}</p>
-						</div>
-						<div class="text-right flex-shrink-0">
-							<span class="text-sm font-black text-emerald-600">{pctDelivered}%</span>
-							<p class="text-[9px] text-on-surface-variant font-medium">Realisasi</p>
-						</div>
-					</div>
-
-					<!-- Multi-segment Progress Bar -->
-					<div class="space-y-1.5">
-						<div class="w-full h-2.5 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden flex">
-							<div class="bg-emerald-500 h-full transition-all duration-500" style="width: {pctDelivered}%" title="Terkirim: {c.deliveredTonnage.toLocaleString('id-ID')} Ton"></div>
-							<div class="bg-blue-500 h-full transition-all duration-500" style="width: {pctOnRoute}%" title="On Route: {c.onrouteTonnage.toLocaleString('id-ID')} Ton"></div>
-							<div class="bg-indigo-500 h-full transition-all duration-500" style="width: {pctLoading}%" title="Loading: {c.loadingTonnage.toLocaleString('id-ID')} Ton"></div>
-						</div>
-						<div class="flex items-center justify-between text-[10px] font-medium text-on-surface-variant">
-							<span class="flex items-center gap-1">
-								<span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> Terkirim: {c.deliveredTonnage.toLocaleString('id-ID')} Ton
-							</span>
-							<span>Target: {c.targetTonnage > 0 ? c.targetTonnage.toLocaleString('id-ID') + ' Ton' : 'Borongan Ritase'}</span>
-						</div>
-					</div>
-				</div>
-			{/each}
-		</div>
-	</div>
-	{/if}
-
-	<!-- Bottom Grid: Recent Trips & Top Drivers -->
+	<!-- Bottom Grid: Operations & Performance Command (2 Kolom Seimbang) -->
 	<div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-		<!-- Recent Trips -->
-		<div class="p-6 rounded-2xl bg-surface-container-low border border-slate-200/60 dark:border-slate-800/60 shadow-xs flex flex-col">
-			<div class="flex items-center justify-between mb-4">
-				<div>
-					<h3 class="text-base font-bold text-on-surface tracking-tight">Recent Trips</h3>
-					{#if metrics.activeTrips > 0}
-						<p class="text-[10px] text-emerald-600 font-bold uppercase tracking-wider mt-0.5">
-							{metrics.activeTrips} trip aktif saat ini
-						</p>
-					{/if}
-				</div>
-				<a href="/fms/trips" class="text-xs font-bold text-blue-600 cursor-pointer hover:underline">Lihat Semua</a>
-			</div>
-			<div class="space-y-2.5 flex-1">
-				{#if recentTrips && recentTrips.length > 0}
-					{#each recentTrips as trip}
-						{@const badge = getTripStatusBadge(trip.status)}
-						<!-- svelte-ignore a11y_click_events_have_key_events -->
-						<!-- svelte-ignore a11y_no_static_element_interactions -->
-						<div 
-							onclick={() => selectedTrip = trip}
-							class="flex items-center justify-between p-3 bg-surface rounded-xl border border-slate-200/50 dark:border-slate-800/50 hover:bg-surface-container-high transition-colors cursor-pointer group"
-						>
-							<div class="flex items-center gap-3 min-w-0">
-								<div class="w-9 h-9 rounded-lg flex-shrink-0 flex items-center justify-center {getTripIconBg(trip.status)}">
-									<span class="material-symbols-outlined text-base">{getTripIcon(trip.status)}</span>
-								</div>
-								<div class="min-w-0">
-									<p class="text-xs font-bold text-on-surface truncate">
-										{trip.nomor_unit} → {trip.destination || '-'}
-									</p>
-									<p class="text-[10px] text-on-surface-variant font-medium uppercase tracking-wider mt-0.5 truncate">
-										{trip.driver_nama || '-'}
-										{#if trip.cargo} · {trip.cargo}{/if}
-									</p>
-								</div>
-							</div>
-							<div class="text-right flex-shrink-0 ml-3">
-								<span class="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-md border {badge.cls}">
-									<span class="w-1 h-1 rounded-full {badge.dot}"></span>
-									{badge.label}
-								</span>
-								<p class="text-[10px] text-on-surface-variant font-medium mt-0.5">{trip.tgl_trip}</p>
-							</div>
-						</div>
-					{/each}
-				{:else}
-					<div class="flex flex-col items-center justify-center py-10 text-on-surface-variant">
-						<span class="material-symbols-outlined text-4xl mb-2 opacity-30">receipt_long</span>
-						<p class="text-xs font-medium italic">Belum ada data trip</p>
-					</div>
-				{/if}
-			</div>
-		</div>
-
-		<!-- Top Drivers -->
-		<div class="p-6 rounded-2xl bg-surface-container-low border border-slate-200/60 dark:border-slate-800/60 shadow-xs flex flex-col">
-			<div class="flex items-center justify-between mb-4">
-				<h3 class="text-base font-bold text-on-surface tracking-tight">Top Drivers</h3>
-				<a href="/fms/drivers" class="text-xs font-bold text-blue-600 cursor-pointer hover:underline">Lihat Semua</a>
-			</div>
-			<div class="space-y-2.5 flex-1">
-				{#if topDrivers && topDrivers.length > 0}
-					{#each topDrivers as driver, i}
-						<!-- svelte-ignore a11y_click_events_have_key_events -->
-						<!-- svelte-ignore a11y_no_static_element_interactions -->
-						<div 
-							onclick={() => selectedDriver = driver}
-							class="flex items-center justify-between p-3 bg-surface rounded-xl border border-slate-200/50 dark:border-slate-800/50 hover:bg-surface-container-high transition-colors cursor-pointer group"
-						>
-							<div class="flex items-center gap-3">
-								<div class="w-8 h-8 rounded-lg bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center text-blue-700 dark:text-blue-300 font-black text-xs">
-									{i + 1}
-								</div>
-								<div>
-									<p class="text-xs font-bold text-on-surface">{driver.name}</p>
-									<p class="text-[10px] text-on-surface-variant font-medium uppercase tracking-wider mt-0.5">
-										{driver.category || '-'} · SIM {driver.simType || '-'}
-										{#if driver.totalAssigned > 0} · {driver.totalAssigned} unit{/if}
-									</p>
-								</div>
-							</div>
-							<div>
-								{#if driver.totalAssigned > 0}
-									<span class="text-[10px] font-bold text-emerald-600 bg-emerald-500/10 px-2 py-0.5 rounded-md border border-emerald-500/20">Aktif</span>
-								{:else}
-									<span class="text-[10px] font-medium text-on-surface-variant/60">Standby</span>
-								{/if}
-							</div>
-						</div>
-					{/each}
-				{:else}
-					<p class="text-xs text-on-surface-variant italic py-6 text-center">Data driver belum tersedia</p>
-				{/if}
-			</div>
-		</div>
-	</div>
-
-	<!-- Recent Units Registered Table (Interactive Row Clicks) -->
-	<div class="rounded-2xl bg-surface-container-low border border-slate-200/60 dark:border-slate-800/60 overflow-hidden shadow-xs flex flex-col">
-		<div class="px-5 py-4 flex items-center justify-between border-b border-slate-200/60 dark:border-slate-800/60 flex-shrink-0">
+		<!-- Left Column: Recent Trips (Live Activity) -->
+		<div class="p-5 sm:p-6 rounded-2xl bg-surface-container-low border border-slate-200/60 dark:border-slate-800/60 shadow-xs flex flex-col justify-between">
 			<div>
-				<h2 class="text-base font-bold text-on-surface">Unit Terbaru Terdaftar</h2>
-				<p class="text-xs text-on-surface-variant mt-0.5">Daftar registrasi unit armada logistik terakhir di database</p>
-			</div>
-			<a href="/fms/vehicles" class="text-xs font-bold text-blue-600 hover:underline flex items-center gap-1">
-				<span class="material-symbols-outlined text-[16px]">arrow_forward</span>
-				<span>Lihat Seluruh Armada</span>
-			</a>
-		</div>
-		<div class="overflow-x-auto">
-			<table class="w-full text-left text-sm min-w-[520px]">
-				<thead class="bg-slate-100/70 dark:bg-slate-800/50 text-xs font-bold text-on-surface-variant uppercase tracking-wider border-b border-slate-200/60 dark:border-slate-800/60">
-					<tr>
-						<th class="py-3 px-5">Nomor Unit</th>
-						<th class="py-3 px-5">Tipe & Model</th>
-						<th class="py-3 px-5">Business Unit</th>
-						<th class="py-3 px-5">Status</th>
-						<th class="py-3 px-5 text-right">Aksi</th>
-					</tr>
-				</thead>
-				<tbody class="divide-y divide-slate-200/60 dark:divide-slate-800/60">
-					{#if recentUnits && recentUnits.length > 0}
-						{#each recentUnits as unit}
+				<div class="flex items-center justify-between mb-4">
+					<div>
+						<div class="flex items-center gap-2">
+							<span class="material-symbols-outlined text-blue-600 dark:text-blue-400 text-lg">local_shipping</span>
+							<h3 class="text-base font-bold text-on-surface tracking-tight">Recent Trips</h3>
+						</div>
+						{#if metrics.activeTrips > 0}
+							<p class="text-[10px] text-emerald-600 font-bold uppercase tracking-wider mt-0.5">
+								● {metrics.activeTrips} armada aktif di jalan
+							</p>
+						{:else}
+							<p class="text-xs text-on-surface-variant font-medium mt-0.5">Log pembaruan perjalanan armada terakhir</p>
+						{/if}
+					</div>
+					<a href="/fms/trips" class="text-xs font-bold text-blue-600 cursor-pointer hover:underline flex items-center gap-0.5">
+						<span>Semua Trip</span>
+						<span class="material-symbols-outlined text-sm">arrow_forward</span>
+					</a>
+				</div>
+
+				<div class="space-y-2.5">
+					{#if recentTrips && recentTrips.length > 0}
+						{#each recentTrips.slice(0, 5) as trip}
+							{@const badge = getTripStatusBadge(trip.status)}
 							<!-- svelte-ignore a11y_click_events_have_key_events -->
 							<!-- svelte-ignore a11y_no_static_element_interactions -->
-							<tr 
-								onclick={() => selectedUnit = unit}
-								class="hover:bg-surface-container transition-colors cursor-pointer group"
+							<div 
+								onclick={() => selectedTrip = trip}
+								class="flex items-center justify-between p-3 bg-surface rounded-xl border border-slate-200/50 dark:border-slate-800/50 hover:bg-surface-container hover:border-blue-500/30 transition-all cursor-pointer group"
 							>
-								<td class="py-3.5 px-5">
-									<div class="flex items-center gap-3">
-										<div class="w-8 h-8 rounded-lg bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center text-blue-600 dark:text-blue-400 group-hover:scale-105 transition-transform">
-											<span class="material-symbols-outlined text-[16px]">{getBuIcon(unit.business_unit)}</span>
-										</div>
-										<div>
-											<p class="text-xs font-bold text-on-surface group-hover:text-blue-600 transition-colors">{unit.nomor_unit}</p>
-											{#if unit.no_lambung}
-												<p class="text-[10px] text-on-surface-variant font-mono">Lambung: {unit.no_lambung}</p>
-											{/if}
-										</div>
+								<div class="flex items-center gap-3 min-w-0">
+									<div class="w-9 h-9 rounded-lg flex-shrink-0 flex items-center justify-center {getTripIconBg(trip.status)}">
+										<span class="material-symbols-outlined text-base">{getTripIcon(trip.status)}</span>
 									</div>
-								</td>
-								<td class="py-3.5 px-5">
-									<p class="text-xs font-bold text-on-surface">{unit.nama_produk || '—'} {unit.nama_model || ''}</p>
-									<p class="text-[10px] text-on-surface-variant font-medium mt-0.5">{unit.nama_tipe}</p>
-								</td>
-								<td class="py-3.5 px-5">
-									<span class="text-[10px] font-bold px-2 py-0.5 rounded-md
-										{unit.business_unit === 'DUMP_TRUCK' ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300' : 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300'}">
-										{unit.business_unit === 'DUMP_TRUCK' ? 'Dump Truck' : unit.business_unit === 'OUTSOURCING' ? 'Outsourcing' : 'Transportation'}
+									<div class="min-w-0">
+										<p class="text-xs font-bold text-on-surface truncate group-hover:text-blue-600 transition-colors">
+											{trip.nomor_unit} → {trip.destination || '-'}
+										</p>
+										<p class="text-[10px] text-on-surface-variant font-medium uppercase tracking-wider mt-0.5 truncate">
+											{trip.driver_nama || '-'}
+											{#if trip.cargo} · {trip.cargo}{/if}
+										</p>
+									</div>
+								</div>
+								<div class="text-right flex-shrink-0 ml-3">
+									<span class="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-md border {badge.cls}">
+										<span class="w-1 h-1 rounded-full {badge.dot}"></span>
+										{badge.label}
 									</span>
-								</td>
-								<td class="py-3.5 px-5">
-									{#if unit.is_active}
-										<span class="inline-flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400 font-bold text-[10px] bg-emerald-500/10 px-2.5 py-1 rounded-md border border-emerald-500/20">
-											<span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> Aktif
-										</span>
-									{:else}
-										<span class="inline-flex items-center gap-1.5 text-slate-500 dark:text-slate-400 font-bold text-[10px] bg-slate-500/10 px-2.5 py-1 rounded-md border border-slate-500/20">
-											<span class="w-1.5 h-1.5 rounded-full bg-slate-400"></span> Tidak Aktif
-										</span>
-									{/if}
-								</td>
-								<td class="py-3.5 px-5 text-right">
-									<span class="text-xs font-bold text-blue-600 opacity-0 group-hover:opacity-100 transition-opacity">Detail →</span>
-								</td>
-							</tr>
+									<p class="text-[10px] text-on-surface-variant font-medium mt-0.5">{trip.tgl_trip}</p>
+								</div>
+							</div>
 						{/each}
 					{:else}
-						<tr><td colspan="5" class="py-12 text-center text-on-surface-variant text-xs italic">Belum ada data unit terdaftar</td></tr>
+						<div class="flex flex-col items-center justify-center py-10 text-on-surface-variant">
+							<span class="material-symbols-outlined text-4xl mb-2 opacity-30">receipt_long</span>
+							<p class="text-xs font-medium italic">Belum ada data trip aktif</p>
+						</div>
 					{/if}
-				</tbody>
-			</table>
+				</div>
+			</div>
+
+			<div class="mt-4 pt-3 border-t border-slate-200/50 dark:border-slate-800/50 flex items-center justify-between text-xs text-on-surface-variant">
+				<span>Monitoring rute & surat jalan</span>
+				<a href="/fms/live-map" class="font-bold text-blue-600 hover:underline flex items-center gap-1">
+					<span class="material-symbols-outlined text-sm">map</span>
+					<span>Buka Live GPS Map</span>
+				</a>
+			</div>
+		</div>
+
+		<!-- Right Column: Performance Switcher (Target Tonase Kontrak & Top Drivers) -->
+		<div class="p-5 sm:p-6 rounded-2xl bg-surface-container-low border border-slate-200/60 dark:border-slate-800/60 shadow-xs flex flex-col justify-between">
+			<div>
+				<!-- Tab Header Switcher -->
+				<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4">
+					<div>
+						<h3 class="text-base font-bold text-on-surface tracking-tight">
+							{perfTab === 'contracts' ? 'Realisasi Tonase Kontrak' : 'Top Driver Leaderboard'}
+						</h3>
+						<p class="text-xs text-on-surface-variant mt-0.5">
+							{perfTab === 'contracts' ? 'Pencapaian volume pengiriman klien aktif' : 'Supir berkinerja tertinggi berdasarkan ritase'}
+						</p>
+					</div>
+
+					<!-- Segmented Tab Controls -->
+					<div class="inline-flex p-0.5 rounded-xl bg-surface-container border border-slate-200/50 dark:border-slate-800/50 text-xs self-start sm:self-auto">
+						<button 
+							type="button"
+							onclick={() => perfTab = 'contracts'}
+							class="px-3 py-1 rounded-lg font-bold transition-all cursor-pointer flex items-center gap-1.5 {perfTab === 'contracts' ? 'bg-surface text-blue-600 shadow-2xs' : 'text-on-surface-variant hover:text-on-surface'}"
+						>
+							<span class="material-symbols-outlined text-sm">contract</span>
+							<span>Kontrak</span>
+						</button>
+						<button 
+							type="button"
+							onclick={() => perfTab = 'drivers'}
+							class="px-3 py-1 rounded-lg font-bold transition-all cursor-pointer flex items-center gap-1.5 {perfTab === 'drivers' ? 'bg-surface text-blue-600 shadow-2xs' : 'text-on-surface-variant hover:text-on-surface'}"
+						>
+							<span class="material-symbols-outlined text-sm">leaderboard</span>
+							<span>Top Driver</span>
+						</button>
+					</div>
+				</div>
+
+				<!-- Tab Content 1: Kontrak Tonase -->
+				{#if perfTab === 'contracts'}
+					{#if activeContracts && activeContracts.length > 0}
+						<div class="space-y-3">
+							{#each activeContracts.slice(0, 3) as c}
+								{@const pctDelivered = c.targetTonnage > 0 ? Math.min(100, Math.round((c.deliveredTonnage / c.targetTonnage) * 100)) : 0}
+								{@const pctOnRoute = c.targetTonnage > 0 ? Math.min(100 - pctDelivered, Math.round((c.onrouteTonnage / c.targetTonnage) * 100)) : 0}
+								{@const pctLoading = c.targetTonnage > 0 ? Math.min(100 - pctDelivered - pctOnRoute, Math.round((c.loadingTonnage / c.targetTonnage) * 100)) : 0}
+								<div class="p-3.5 rounded-xl bg-surface border border-slate-200/50 dark:border-slate-800/50 hover:border-blue-500/30 transition-all flex flex-col gap-2.5">
+									<div class="flex items-start justify-between gap-2">
+										<div class="min-w-0">
+											<div class="flex items-center gap-2">
+												<span class="text-xs font-black text-on-surface truncate">{c.customer}</span>
+												<span class="px-1.5 py-0.2 rounded text-[9px] font-bold uppercase bg-blue-500/10 text-blue-600 dark:text-blue-400">{c.project_category}</span>
+											</div>
+											<p class="text-[10px] text-on-surface-variant font-mono mt-0.5">{c.id}</p>
+										</div>
+										<div class="text-right flex-shrink-0">
+											<span class="text-sm font-black text-emerald-600">{pctDelivered}%</span>
+											<p class="text-[9px] text-on-surface-variant font-medium">Realisasi</p>
+										</div>
+									</div>
+
+									<!-- Multi-segment Progress Bar -->
+									<div class="space-y-1">
+										<div class="w-full h-2 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden flex">
+											<div class="bg-emerald-500 h-full transition-all duration-500" style="width: {pctDelivered}%" title="Terkirim: {c.deliveredTonnage.toLocaleString('id-ID')} Ton"></div>
+											<div class="bg-blue-500 h-full transition-all duration-500" style="width: {pctOnRoute}%" title="On Route: {c.onrouteTonnage.toLocaleString('id-ID')} Ton"></div>
+											<div class="bg-indigo-500 h-full transition-all duration-500" style="width: {pctLoading}%" title="Loading: {c.loadingTonnage.toLocaleString('id-ID')} Ton"></div>
+										</div>
+										<div class="flex items-center justify-between text-[10px] font-medium text-on-surface-variant">
+											<span class="flex items-center gap-1">
+												<span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> Terkirim: {c.deliveredTonnage.toLocaleString('id-ID')} Ton
+											</span>
+											<span>Target: {c.targetTonnage > 0 ? c.targetTonnage.toLocaleString('id-ID') + ' Ton' : 'Borongan'}</span>
+										</div>
+									</div>
+								</div>
+							{/each}
+						</div>
+					{:else}
+						<div class="flex flex-col items-center justify-center py-10 text-on-surface-variant">
+							<span class="material-symbols-outlined text-4xl mb-2 opacity-30">contract</span>
+							<p class="text-xs font-medium italic">Tidak ada kontrak tonase aktif bulan ini</p>
+						</div>
+					{/if}
+
+				<!-- Tab Content 2: Top Drivers Leaderboard -->
+				{:else}
+					<div class="space-y-2.5">
+						{#if topDrivers && topDrivers.length > 0}
+							{#each topDrivers.slice(0, 4) as driver, i}
+								<!-- svelte-ignore a11y_click_events_have_key_events -->
+								<!-- svelte-ignore a11y_no_static_element_interactions -->
+								<div 
+									onclick={() => selectedDriver = driver}
+									class="flex items-center justify-between p-3 bg-surface rounded-xl border border-slate-200/50 dark:border-slate-800/50 hover:bg-surface-container hover:border-blue-500/30 transition-all cursor-pointer group"
+								>
+									<div class="flex items-center gap-3">
+										<div class="w-8 h-8 rounded-lg bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center text-blue-700 dark:text-blue-300 font-black text-xs">
+											{i + 1}
+										</div>
+										<div>
+											<p class="text-xs font-bold text-on-surface group-hover:text-blue-600 transition-colors">{driver.name}</p>
+											<p class="text-[10px] text-on-surface-variant font-medium uppercase tracking-wider mt-0.5">
+												{driver.category || '-'} · SIM {driver.simType || '-'}
+												{#if driver.totalAssigned > 0} · {driver.totalAssigned} unit{/if}
+											</p>
+										</div>
+									</div>
+									<div>
+										{#if driver.totalAssigned > 0}
+											<span class="text-[10px] font-bold text-emerald-600 bg-emerald-500/10 px-2 py-0.5 rounded-md border border-emerald-500/20">Aktif</span>
+										{:else}
+											<span class="text-[10px] font-medium text-on-surface-variant/60">Standby</span>
+										{/if}
+									</div>
+								</div>
+							{/each}
+						{:else}
+							<p class="text-xs text-on-surface-variant italic py-8 text-center">Data driver belum tersedia</p>
+						{/if}
+					</div>
+				{/if}
+			</div>
+
+			<div class="mt-4 pt-3 border-t border-slate-200/50 dark:border-slate-800/50 flex items-center justify-between text-xs">
+				<span class="text-on-surface-variant">
+					{perfTab === 'contracts' ? 'Integrasi data kontrak pemasaran' : 'Evaluasi performa berkala supir'}
+				</span>
+				{#if perfTab === 'contracts'}
+					<a href="/marketing/contracts" class="font-bold text-blue-600 hover:underline flex items-center gap-0.5">
+						<span>Kelola Kontrak</span>
+						<span class="material-symbols-outlined text-sm">arrow_forward</span>
+					</a>
+				{:else}
+					<a href="/fms/drivers" class="font-bold text-blue-600 hover:underline flex items-center gap-0.5">
+						<span>Direktori Supir</span>
+						<span class="material-symbols-outlined text-sm">arrow_forward</span>
+					</a>
+				{/if}
+			</div>
 		</div>
 	</div>
 </div>
