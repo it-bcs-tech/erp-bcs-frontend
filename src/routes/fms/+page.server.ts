@@ -76,6 +76,7 @@ export const load: PageServerLoad = async () => {
 		}]>`
 			SELECT
 				COUNT(*) FILTER (WHERE t.status IN ('DISPATCHED','AT_ORIGIN','ON_ROUTE','AT_DESTINATION','RETURNING'))             AS active_trips,
+				COUNT(*) FILTER (WHERE t.status = 'DISPATCHED')                          AS count_dispatched,
 				COUNT(*) FILTER (WHERE t.tgl_trip = CURRENT_DATE AND t.status = 'COMPLETED') AS completed_today,
 				COUNT(*) FILTER (WHERE t.status = 'AT_ORIGIN')                           AS count_loading,
 				COUNT(*) FILTER (WHERE t.status = 'ON_ROUTE')                          AS count_on_route,
@@ -333,6 +334,97 @@ export const load: PageServerLoad = async () => {
 			LIMIT 5
 		`;
 
+		// ── 8.5 Recent registered units ───────────────────────────────────────
+		const recentUnits = await sql<{
+			id: string;
+			nomor_unit: string;
+			no_lambung: string | null;
+			business_unit: string;
+			is_active: boolean;
+			current_state: string;
+			nama_model: string;
+			nama_produk: string;
+			nama_tipe: string;
+			created_at: string;
+		}[]>`
+			SELECT 
+				u.id::text,
+				u.nomor_unit,
+				u.no_lambung,
+				u.business_unit,
+				u.is_active,
+				COALESCE(u.current_state, 'AT_POOL') as current_state,
+				COALESCE(mu.nama_model, '-') as nama_model,
+				COALESCE(mu.nama_produk, '-') as nama_produk,
+				COALESCE(tu.nama_tipe, '-') as nama_tipe,
+				u.created_at::text
+			FROM fleet.unit u
+			JOIN master.m_model_unit mu ON mu.id = u.model_unit_id
+			JOIN master.m_tipe_unit tu ON tu.id = mu.tipe_unit_id
+			WHERE u.deleted_at IS NULL
+			  AND tu.asset_group = 'LOGISTICS_FLEET'
+			ORDER BY u.created_at DESC NULLS LAST, u.id DESC
+			LIMIT 6
+		`;
+
+		// ── 8.6 All Fleet Units for Instant Client-side Drill-down ───────────
+		const allFleetUnits = await sql<{
+			id: string;
+			nomor_unit: string;
+			no_lambung: string | null;
+			business_unit: string;
+			is_active: boolean;
+			current_state: string;
+			nama_model: string;
+			nama_tipe: string;
+			driver_nama: string | null;
+			tgl_maintenance_prevent: string | null;
+			expire_date_asuransi: string | null;
+		}[]>`
+			SELECT 
+				u.id::text,
+				u.nomor_unit,
+				u.no_lambung,
+				u.business_unit,
+				u.is_active,
+				COALESCE(u.current_state, 'AT_POOL') as current_state,
+				COALESCE(mu.nama_model, '-') as nama_model,
+				COALESCE(tu.nama_tipe, '-') as nama_tipe,
+				k.nama_karyawan as driver_nama,
+				u.tgl_maintenance_prevent::text,
+				u.expire_date_asuransi::text
+			FROM fleet.unit u
+			JOIN master.m_model_unit mu ON mu.id = u.model_unit_id
+			JOIN master.m_tipe_unit tu ON tu.id = mu.tipe_unit_id
+			LEFT JOIN fleet.unit_driver_assignment uda ON uda.unit_id = u.id AND uda.is_aktif = true
+			LEFT JOIN master.m_drivers d ON d.id = uda.driver_id
+			LEFT JOIN master.m_karyawan k ON k.id = d.karyawan_id
+			WHERE u.deleted_at IS NULL
+			  AND tu.asset_group = 'LOGISTICS_FLEET'
+			ORDER BY u.nomor_unit ASC
+		`;
+
+		// ── 8.7 Open Work Orders for Maintenance Drill-down ───────────────────
+		const openWorkOrders = await sql<{
+			wo_no: string;
+			unit_id: string;
+			keluhan_driver: string | null;
+			maint_category: string | null;
+			status: string;
+			wo_date: string | null;
+		}[]>`
+			SELECT 
+				w.wo_no,
+				w.unit_id,
+				w.keluhan_driver,
+				w.maint_category,
+				w.status,
+				w.wo_date::text
+			FROM fleet.work_orders w
+			WHERE w.status IN ('Open', 'Proses', 'READY_FOR_REINSPECTION', 'DISPENSATION_ACTIVE')
+			ORDER BY w.wo_date DESC
+		`;
+
 		const metricActiveTrips = Number(tripMetrics.active_trips) || 0;
 		const metricMaintenance = Number(woMetrics.in_maintenance) || 0;
 		const metricAvailable = Number(availMetrics.count_available) || 0;
@@ -361,21 +453,21 @@ export const load: PageServerLoad = async () => {
 				criticalMaintenance: Number(metricsRow.asuransi_expired),
 				inMaintenance:       metricMaintenance,
 				availableVehicles:   metricAvailable,
+				dispatchedTrips:     Number(tripMetrics.count_dispatched) || 0,
 				loadingTrips:        Number(tripMetrics.count_loading),
 				onRouteTrips:        Number(tripMetrics.count_on_route),
 				atCustomerTrips:     Number(tripMetrics.count_at_customer),
 				returningTrips:      Number(tripMetrics.count_returning)
 			},
 			fleetSummary: {
-				available,
-				moving:       cntOnRoute,    // ON_ROUTE dari fleet.trip
-				transit:      0,
-				loading:      cntLoading,    // AT_ORIGIN dari fleet.trip
-				maintenance,
-				overhaul:     0,
-				accident:     0,
-				onDO:         0,
-				inactive:     Math.max(0, inactive - maintenance),
+				available:    metricAvailable,
+				dispatched:   Number(tripMetrics.count_dispatched) || 0,
+				loading:      cntLoading,
+				moving:       cntOnRoute,
+				unloading:    Number(tripMetrics.count_at_customer) || 0,
+				returning:    Number(tripMetrics.count_returning) || 0,
+				maintenance:  metricMaintenance,
+				inactive,
 				dumpTruck:    buRows.find(r => r.business_unit === 'DUMP_TRUCK')
 					? Number(buRows.find(r => r.business_unit === 'DUMP_TRUCK')!.total) : 0,
 				transportation: buRows.find(r => r.business_unit === 'TRANSPORTATION')
@@ -392,6 +484,9 @@ export const load: PageServerLoad = async () => {
 			})),
 			trendData,
 			recentTrips,
+			recentUnits,
+			allFleetUnits,
+			openWorkOrders,
 			alerts,
 			// liveUnits: akan diisi ketika GPS real-time tersedia
 			liveUnits: [] as {
@@ -413,11 +508,15 @@ export const load: PageServerLoad = async () => {
 				maintenance: 0, overhaul: 0, accident: 0, onDO: 0,
 				inactive: 0, dumpTruck: 0, transportation: 0
 			},
-			topDrivers:   [],
-			recentTrips:  [],
-			alerts:       [],
-			liveUnits:    [],
-			error:        'Gagal memuat data dashboard.'
+			topDrivers:      [],
+			recentTrips:     [],
+			recentUnits:     [],
+			allFleetUnits:   [],
+			openWorkOrders:  [],
+			activeContracts: [],
+			alerts:          [],
+			liveUnits:       [],
+			error:           'Gagal memuat data dashboard.'
 		};
 	}
 };
