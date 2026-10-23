@@ -138,7 +138,7 @@ export const actions: Actions = {
 				) VALUES (
 					${visitor_name}, ${company}, ${address}, ${phone}, ${purpose},
 					${badge_number}, ${host_nik}, ${host_name}, ${host_department},
-					${check_in_timestamp}, 'CHECKED_IN', 1
+					(${check_in_timestamp}::text)::timestamp, 'CHECKED_IN', 1
 				)
 			`;
 			return { success: true, message: `Tamu ${visitor_name} berhasil Check-In pada ${check_in_clock || ''} WIB.` };
@@ -173,8 +173,8 @@ export const actions: Actions = {
 				await sql`
 					UPDATE ga.visitors
 					SET
-						check_in_time = ${check_in_timestamp},
-						check_out_time = ${check_out_timestamp},
+						check_in_time = (${check_in_timestamp}::text)::timestamp,
+						check_out_time = (${check_out_timestamp}::text)::timestamp,
 						status = 'CHECKED_OUT',
 						survey_rating = ${survey_rating}
 					WHERE id = ${id}
@@ -183,7 +183,7 @@ export const actions: Actions = {
 				await sql`
 					UPDATE ga.visitors
 					SET
-						check_out_time = ${check_out_timestamp},
+						check_out_time = (${check_out_timestamp}::text)::timestamp,
 						status = 'CHECKED_OUT',
 						survey_rating = ${survey_rating}
 					WHERE id = ${id}

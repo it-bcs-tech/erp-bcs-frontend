@@ -1384,6 +1384,12 @@ async function run() {
 
 	if (visitorBatch.length > 0) {
 		await sql`INSERT INTO ga.visitors ${sql(visitorBatch)}`;
+		await sql`
+			UPDATE ga.visitors
+			SET
+				check_in_time = check_in_time + INTERVAL '7 hours',
+				check_out_time = CASE WHEN check_out_time IS NOT NULL THEN check_out_time + INTERVAL '7 hours' ELSE NULL END
+		`;
 	}
 	await sql`SELECT setval('ga.visitors_id_seq', COALESCE((SELECT MAX(id) FROM ga.visitors), 1))`;
 	console.log(`   -> Migrated ${visitorBatch.length} cleaned visitor & survey records.`);
