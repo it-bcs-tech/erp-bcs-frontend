@@ -4,9 +4,32 @@
 	let { data } = $props();
 	let metrics = $derived(data.metrics);
 	let latestPayroll = $derived(data.latestPayroll);
+	let activeChartTab = $state<'attendance' | 'payroll' | 'workforce'>('attendance');
 
 	function formatRupiah(val: any) {
 		return formatCurrencyPrivacy(Number(val) || 0, $systemSettings.hideSalaryNominals);
+	}
+
+	function formatShortRupiah(val: any) {
+		if ($systemSettings.hideSalaryNominals) return 'Rp •••';
+		const num = Number(val) || 0;
+		if (num >= 1_000_000_000) {
+			return `Rp ${(num / 1_000_000_000).toFixed(2).replace('.', ',')} M`;
+		}
+		if (num >= 1_000_000) {
+			return `Rp ${Math.round(num / 1_000_000)} Jt`;
+		}
+		return formatRupiah(num);
+	}
+
+	function getStatusColor(status: string) {
+		const s = (status || '').toUpperCase();
+		if (s.includes('PERMANENT')) return 'bg-emerald-500';
+		if (s.includes('CONTRACT')) return 'bg-blue-500';
+		if (s.includes('MITRA')) return 'bg-indigo-500';
+		if (s.includes('BORONGAN')) return 'bg-amber-500';
+		if (s.includes('HARIAN')) return 'bg-cyan-500';
+		return 'bg-slate-400';
 	}
 </script>
 
@@ -120,51 +143,220 @@
 
 	<!-- Middle Section: Asymmetric Visual Layout -->
 	<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-		<!-- Attendance Trend Chart (2 Kolom) -->
+		<!-- Interactive Multi-Tab Analytics Panel (2 Kolom) -->
 		<div class="lg:col-span-2 p-6 sm:p-8 rounded-3xl bg-surface-container-low border border-slate-200/60 dark:border-slate-800/60 shadow-xs flex flex-col justify-between">
-			<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
-				<div>
-					<h3 class="text-lg font-black text-on-surface tracking-tight">Tren Kehadiran Bulanan (2026)</h3>
-					<p class="text-xs text-on-surface-variant font-medium mt-0.5">Rasio Tepat Waktu vs Terlambat Karyawan</p>
-				</div>
-				<div class="flex items-center gap-4">
-					<div class="flex items-center gap-2">
-						<span class="w-3 h-3 rounded-full bg-emerald-500"></span>
-						<span class="text-[11px] font-bold text-on-surface-variant">Tepat Waktu</span>
+			<!-- Header & Tab Switcher -->
+			<div>
+				<div class="flex flex-col xl:flex-row xl:items-center justify-between gap-4 mb-6">
+					<div>
+						{#if activeChartTab === 'attendance'}
+							<h3 class="text-lg font-black text-on-surface tracking-tight">Tren Kehadiran Bulanan (2026)</h3>
+							<p class="text-xs text-on-surface-variant font-medium mt-0.5">Rasio Kehadiran Tepat Waktu vs Terlambat Karyawan</p>
+						{:else if activeChartTab === 'payroll'}
+							<h3 class="text-lg font-black text-on-surface tracking-tight">Tren Biaya Payroll & Variabel (2026)</h3>
+							<p class="text-xs text-on-surface-variant font-medium mt-0.5">Perbandingan Total Gaji Bersih (THP) vs Biaya Variabel (Lembur + Makan & Transport)</p>
+						{:else}
+							<h3 class="text-lg font-black text-on-surface tracking-tight">Profil Status Ikatan Kerja & Masa Kerja</h3>
+							<p class="text-xs text-on-surface-variant font-medium mt-0.5">Komposisi Kontrak Kepegawaian & Distribusi Masa Kerja (Tenure) Staf Aktif</p>
+						{/if}
 					</div>
-					<div class="flex items-center gap-2">
-						<span class="w-3 h-3 rounded-full bg-rose-400"></span>
-						<span class="text-[11px] font-bold text-on-surface-variant">Terlambat</span>
+
+					<!-- Segmented Tab Control -->
+					<div class="inline-flex items-center p-1 rounded-2xl bg-surface-container border border-slate-200/70 dark:border-slate-800/70 self-start">
+						<button
+							type="button"
+							onclick={() => (activeChartTab = 'attendance')}
+							class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer {activeChartTab === 'attendance'
+								? 'bg-primary text-on-primary shadow-xs'
+								: 'text-on-surface-variant hover:text-on-surface'}"
+						>
+							<span class="material-symbols-outlined text-sm">how_to_reg</span>
+							<span>Kehadiran</span>
+						</button>
+						<button
+							type="button"
+							onclick={() => (activeChartTab = 'payroll')}
+							class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer {activeChartTab === 'payroll'
+								? 'bg-primary text-on-primary shadow-xs'
+								: 'text-on-surface-variant hover:text-on-surface'}"
+						>
+							<span class="material-symbols-outlined text-sm">payments</span>
+							<span>Biaya Payroll</span>
+						</button>
+						<button
+							type="button"
+							onclick={() => (activeChartTab = 'workforce')}
+							class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer {activeChartTab === 'workforce'
+								? 'bg-primary text-on-primary shadow-xs'
+								: 'text-on-surface-variant hover:text-on-surface'}"
+						>
+							<span class="material-symbols-outlined text-sm">badge</span>
+							<span>Status & Masa Kerja</span>
+						</button>
 					</div>
 				</div>
-			</div>
 
-			<!-- Visual Bar Representation -->
-			<div class="h-60 w-full flex items-end justify-between px-2 gap-3 pt-6 border-b border-slate-200 dark:border-slate-800 pb-2">
-				{#each data.attendanceTrend as trend}
-					<div class="flex flex-col items-center flex-1 gap-2 h-full group cursor-pointer">
-						<div class="w-full flex items-end justify-center gap-1.5 h-full relative">
-							<!-- On-Time Bar -->
-							<div class="w-6 sm:w-8 bg-emerald-500/80 group-hover:bg-emerald-500 rounded-t-lg transition-all duration-200" style="height: {trend.onTime}"></div>
-							<!-- Late Bar -->
-							<div class="w-6 sm:w-8 bg-rose-400/80 group-hover:bg-rose-500 rounded-t-lg transition-all duration-200" style="height: {trend.late}"></div>
+				<!-- TAB 1: TREN KEHADIRAN -->
+				{#if activeChartTab === 'attendance'}
+					<div class="flex items-center justify-end gap-4 mb-2">
+						<div class="flex items-center gap-2">
+							<span class="w-3 h-3 rounded-full bg-emerald-500"></span>
+							<span class="text-[11px] font-bold text-on-surface-variant">Tepat Waktu</span>
+						</div>
+						<div class="flex items-center gap-2">
+							<span class="w-3 h-3 rounded-full bg-rose-400"></span>
+							<span class="text-[11px] font-bold text-on-surface-variant">Terlambat</span>
+						</div>
+					</div>
 
-							<!-- Tooltip -->
-							<div class="absolute -top-10 bg-slate-900 text-white px-2.5 py-1 rounded-lg text-[10px] font-bold opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap shadow-lg z-20">
-								Tepat: {trend.onTime} | Terlambat: {trend.late} ({trend.totalPresent} log)
+					<div class="h-60 w-full flex items-end justify-between px-2 gap-3 pt-8 border-b border-slate-200 dark:border-slate-800 pb-2">
+						{#each data.attendanceTrend as trend}
+							<div class="flex flex-col items-center flex-1 gap-2 h-full group cursor-pointer">
+								<div class="w-full flex items-end justify-center gap-1.5 h-full relative">
+									<!-- Rasio Ketepatan Label -->
+									<span class="absolute -top-6 text-[10px] font-mono font-bold text-emerald-600 dark:text-emerald-400">
+										{trend.onTimeRatio ?? 0}%
+									</span>
+
+									<!-- On-Time Bar -->
+									<div
+										class="w-5 sm:w-8 bg-emerald-500/85 group-hover:bg-emerald-500 rounded-t-lg transition-all duration-300"
+										style="height: {trend.onTimePct ?? 10}%"
+									></div>
+									<!-- Late Bar -->
+									<div
+										class="w-5 sm:w-8 bg-rose-400/85 group-hover:bg-rose-500 rounded-t-lg transition-all duration-300"
+										style="height: {trend.latePct ?? 5}%"
+									></div>
+
+									<!-- Tooltip -->
+									<div class="absolute -top-14 bg-slate-900 text-white px-3 py-1.5 rounded-xl text-[10px] font-bold opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap shadow-lg z-20">
+										Tepat: {trend.onTime} | Terlambat: {trend.late} ({trend.totalPresent} log)
+									</div>
+								</div>
+								<span class="text-xs font-bold text-on-surface-variant uppercase tracking-wider group-hover:text-primary transition-colors">{trend.month}</span>
+							</div>
+						{/each}
+					</div>
+
+				<!-- TAB 2: TREN BIAYA PAYROLL & VARIABEL -->
+				{:else if activeChartTab === 'payroll'}
+					<div class="flex items-center justify-end gap-4 mb-2">
+						<div class="flex items-center gap-2">
+							<span class="w-3 h-3 rounded-full bg-blue-600"></span>
+							<span class="text-[11px] font-bold text-on-surface-variant">Total Net THP</span>
+						</div>
+						<div class="flex items-center gap-2">
+							<span class="w-3 h-3 rounded-full bg-amber-500"></span>
+							<span class="text-[11px] font-bold text-on-surface-variant">Variabel (Lembur + Makan/Trans)</span>
+						</div>
+					</div>
+
+					<div class="h-60 w-full flex items-end justify-between px-2 gap-3 pt-8 border-b border-slate-200 dark:border-slate-800 pb-2">
+						{#each data.payrollTrend || [] as item}
+							<div class="flex flex-col items-center flex-1 gap-2 h-full group cursor-pointer">
+								<div class="w-full flex items-end justify-center gap-1.5 h-full relative">
+									<!-- Label Ringkas THP -->
+									<span class="absolute -top-6 text-[10px] font-mono font-bold text-blue-600 dark:text-blue-400 whitespace-nowrap">
+										{formatShortRupiah(item.total_net)}
+									</span>
+
+									<!-- Net THP Bar -->
+									<div
+										class="w-6 sm:w-9 bg-blue-600/85 group-hover:bg-blue-600 rounded-t-lg transition-all duration-300"
+										style="height: {item.netPct}%"
+									></div>
+									<!-- Variable Allowance Bar -->
+									<div
+										class="w-6 sm:w-9 bg-amber-500/85 group-hover:bg-amber-500 rounded-t-lg transition-all duration-300"
+										style="height: {item.varPct}%"
+									></div>
+
+									<!-- Detailed Tooltip -->
+									<div class="absolute -top-24 bg-slate-900 text-white px-3 py-2 rounded-xl text-[10px] opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap shadow-xl z-20 space-y-0.5">
+										<p class="font-black text-blue-300">{item.month_label} ({item.total_slips} Slip)</p>
+										<p>Net THP: <span class="font-mono font-bold">{formatRupiah(item.total_net)}</span></p>
+										<p>Lembur: <span class="font-mono font-bold text-amber-300">{formatRupiah(item.total_ot)}</span></p>
+										<p>Makan & Trans: <span class="font-mono font-bold text-emerald-300">{formatRupiah(item.total_meal_trans)}</span></p>
+									</div>
+								</div>
+								<span class="text-xs font-bold text-on-surface-variant uppercase tracking-wider group-hover:text-primary transition-colors">{item.month}</span>
+							</div>
+						{/each}
+					</div>
+
+				<!-- TAB 3: STATUS KEPEGAWAIAN & MASA KERJA -->
+				{:else}
+					<div class="grid grid-cols-1 md:grid-cols-2 gap-6 py-2">
+						<!-- Sub-panel Kiri: Status Ikatan Kerja -->
+						<div class="p-4 rounded-2xl bg-surface border border-slate-200/60 dark:border-slate-800/60 space-y-3">
+							<div class="flex items-center justify-between">
+								<span class="text-xs font-black text-on-surface uppercase tracking-wider">Status Ikatan Kerja</span>
+								<span class="text-[10px] font-mono font-bold text-slate-400">{metrics.totalEmployees} Staf Aktif</span>
+							</div>
+							<div class="space-y-2.5">
+								{#each data.employmentStatus || [] as st}
+									<div class="space-y-1">
+										<div class="flex items-center justify-between text-xs">
+											<div class="flex items-center gap-2">
+												<span class="w-2.5 h-2.5 rounded-full {getStatusColor(st.status)}"></span>
+												<span class="font-bold text-on-surface">{st.status}</span>
+											</div>
+											<span class="font-mono font-bold text-slate-500">{st.count} ({st.percentage}%)</span>
+										</div>
+										<div class="w-full bg-surface-container-high h-2 rounded-full overflow-hidden">
+											<div class="h-full rounded-full {getStatusColor(st.status)} transition-all duration-500" style="width: {st.percentage}%"></div>
+										</div>
+									</div>
+								{/each}
 							</div>
 						</div>
-						<span class="text-xs font-bold text-on-surface-variant uppercase tracking-wider group-hover:text-primary transition-colors">{trend.month}</span>
+
+						<!-- Sub-panel Kanan: Sebaran Masa Kerja (Tenure) -->
+						<div class="p-4 rounded-2xl bg-surface border border-slate-200/60 dark:border-slate-800/60 space-y-3">
+							<div class="flex items-center justify-between">
+								<span class="text-xs font-black text-on-surface uppercase tracking-wider">Sebaran Masa Kerja (Tenure)</span>
+								<span class="text-[10px] font-mono font-bold text-amber-600">Loyalitas SDM</span>
+							</div>
+							<div class="space-y-3">
+								{#each data.tenureDistribution || [] as tn}
+									<div class="space-y-1">
+										<div class="flex items-center justify-between text-xs">
+											<span class="font-bold text-on-surface">{tn.label}</span>
+											<span class="font-mono font-bold text-slate-500">{tn.count} staf ({tn.percentage}%)</span>
+										</div>
+										<div class="w-full bg-surface-container-high h-2 rounded-full overflow-hidden">
+											<div class="h-full rounded-full bg-primary transition-all duration-500" style="width: {tn.percentage}%"></div>
+										</div>
+									</div>
+								{/each}
+							</div>
+						</div>
 					</div>
-				{/each}
+				{/if}
 			</div>
 
+			<!-- Footer Contextual Action -->
 			<div class="mt-4 flex items-center justify-between text-xs text-on-surface-variant">
-				<span>Log presensi harian otomatis terintegrasi dari modul Attendance</span>
-				<a href="/hris/attendance" class="font-bold text-primary hover:underline inline-flex items-center gap-1">
-					<span>Buka Rekap Presensi</span>
-					<span class="material-symbols-outlined text-xs">arrow_forward</span>
-				</a>
+				{#if activeChartTab === 'attendance'}
+					<span>Log presensi harian otomatis terintegrasi dari modul Attendance</span>
+					<a href="/hris/attendance" class="font-bold text-primary hover:underline inline-flex items-center gap-1">
+						<span>Buka Rekap Presensi</span>
+						<span class="material-symbols-outlined text-xs">arrow_forward</span>
+					</a>
+				{:else if activeChartTab === 'payroll'}
+					<span>Data realisasi slip gaji dari tabel <code class="font-mono">presensi.salary_slips</code></span>
+					<a href="/hris/payroll" class="font-bold text-primary hover:underline inline-flex items-center gap-1">
+						<span>Buka Payroll & Slips</span>
+						<span class="material-symbols-outlined text-xs">arrow_forward</span>
+					</a>
+				{:else}
+					<span>Data kepegawaian real-time dari <code class="font-mono">master.m_karyawan</code></span>
+					<a href="/hris/lifecycle" class="font-bold text-primary hover:underline inline-flex items-center gap-1">
+						<span>Buka Employee Lifecycle</span>
+						<span class="material-symbols-outlined text-xs">arrow_forward</span>
+					</a>
+				{/if}
 			</div>
 		</div>
 
