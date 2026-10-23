@@ -118,12 +118,7 @@ export const actions: Actions = {
 		const host_name = String(fd.get('host_name') || '-').trim();
 		const host_department = String(fd.get('host_department') || 'UMUM').trim();
 
-		const check_in_date = String(fd.get('check_in_date') || '').trim();
-		const check_in_clock = String(fd.get('check_in_clock') || '').trim();
-		const check_in_timestamp =
-			check_in_date && check_in_clock
-				? `${check_in_date} ${check_in_clock}:00`
-				: getNowWibTimestamp();
+		const check_in_timestamp = getNowWibTimestamp();
 
 		if (!visitor_name || !purpose) {
 			return fail(400, { error: 'Nama tamu dan keperluan kunjungan wajib diisi.' });
@@ -141,7 +136,7 @@ export const actions: Actions = {
 					(${check_in_timestamp}::text)::timestamp, 'CHECKED_IN', 1
 				)
 			`;
-			return { success: true, message: `Tamu ${visitor_name} berhasil Check-In pada ${check_in_clock || ''} WIB.` };
+			return { success: true, message: `Tamu ${visitor_name} berhasil Check-In.` };
 		} catch (err) {
 			console.error('Error checking in visitor:', err);
 			return fail(500, { error: 'Gagal mencatat Check-In tamu.' });
@@ -152,44 +147,23 @@ export const actions: Actions = {
 		const fd = await request.formData();
 		const id = Number(fd.get('id'));
 		const survey_rating = Number(fd.get('survey_rating') || 3);
-		const check_in_date = String(fd.get('check_in_date') || '').trim();
-		const check_in_clock = String(fd.get('check_in_clock') || '').trim();
-		const check_out_date = String(fd.get('check_out_date') || '').trim();
-		const check_out_clock = String(fd.get('check_out_clock') || '').trim();
 
 		if (!id) {
 			return fail(400, { error: 'ID kunjungan tidak valid.' });
 		}
 
-		const check_in_timestamp =
-			check_in_date && check_in_clock ? `${check_in_date} ${check_in_clock}:00` : null;
-		const check_out_timestamp =
-			check_out_date && check_out_clock
-				? `${check_out_date} ${check_out_clock}:00`
-				: getNowWibTimestamp();
+		const check_out_timestamp = getNowWibTimestamp();
 
 		try {
-			if (check_in_timestamp) {
-				await sql`
-					UPDATE ga.visitors
-					SET
-						check_in_time = (${check_in_timestamp}::text)::timestamp,
-						check_out_time = (${check_out_timestamp}::text)::timestamp,
-						status = 'CHECKED_OUT',
-						survey_rating = ${survey_rating}
-					WHERE id = ${id}
-				`;
-			} else {
-				await sql`
-					UPDATE ga.visitors
-					SET
-						check_out_time = (${check_out_timestamp}::text)::timestamp,
-						status = 'CHECKED_OUT',
-						survey_rating = ${survey_rating}
-					WHERE id = ${id}
-				`;
-			}
-			return { success: true, message: `Waktu keluar (${check_out_clock || ''} WIB) & survei layanan berhasil disimpan.` };
+			await sql`
+				UPDATE ga.visitors
+				SET
+					check_out_time = COALESCE(check_out_time, (${check_out_timestamp}::text)::timestamp),
+					status = 'CHECKED_OUT',
+					survey_rating = ${survey_rating}
+				WHERE id = ${id}
+			`;
+			return { success: true, message: 'Tamu berhasil Check-Out & survei layanan disimpan.' };
 		} catch (err) {
 			console.error('Error checking out visitor:', err);
 			return fail(500, { error: 'Gagal memproses Check-Out tamu.' });

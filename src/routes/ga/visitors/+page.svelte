@@ -434,17 +434,16 @@
 												class="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-bold transition-colors cursor-pointer flex items-center gap-1"
 											>
 												<span class="material-symbols-outlined text-xs">logout</span>
-												<span>Catat Keluar & Survei</span>
+												<span>Check-Out & Survei</span>
 											</button>
 										{:else}
 											<button
 												type="button"
 												onclick={() => openCheckoutModal(v)}
-												class="px-2.5 py-1 rounded-lg bg-surface-container-high hover:bg-surface-container-highest text-on-surface text-[11px] font-semibold transition-colors cursor-pointer flex items-center gap-1"
-												title="Edit Jam Masuk/Keluar & Skor Survei"
+												class="p-1.5 rounded-lg bg-surface-container-high hover:bg-surface-container-highest text-on-surface-variant hover:text-cyan-600 transition-colors cursor-pointer"
+												title="Ubah Skor Survei"
 											>
-												<span class="material-symbols-outlined text-xs text-cyan-600">schedule</span>
-												<span>Edit Jam & Survei</span>
+												<span class="material-symbols-outlined text-sm">rate_review</span>
 											</button>
 										{/if}
 
@@ -516,51 +515,6 @@
 				}}
 				class="p-6 space-y-4"
 			>
-				<div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-					<div>
-						<label class="block text-[11px] font-bold text-on-surface-variant uppercase mb-1">Tanggal Masuk *</label>
-						<input
-							type="date"
-							name="check_in_date"
-							bind:value={checkInDate}
-							required
-							class="w-full px-3.5 py-2.5 rounded-xl bg-surface-container-low text-xs font-mono text-on-surface border-0 outline-none focus:ring-2 focus:ring-cyan-500/40"
-						/>
-					</div>
-					<div>
-						<div class="flex items-center justify-between mb-1">
-							<label class="block text-[11px] font-bold text-on-surface-variant uppercase">Jam Masuk *</label>
-							<button
-								type="button"
-								onclick={setCheckInToNowWib}
-								class="text-[10px] font-bold text-cyan-600 hover:underline cursor-pointer"
-							>
-								Jam Sekarang
-							</button>
-						</div>
-						<input type="hidden" name="check_in_clock" value={`${checkInHour}:${checkInMinute}`} />
-						<div class="flex items-center gap-1.5">
-							<select
-								bind:value={checkInHour}
-								class="flex-1 px-3 py-2.5 rounded-xl bg-surface-container-low text-xs font-mono font-bold text-on-surface border-0 outline-none focus:ring-2 focus:ring-cyan-500/40 cursor-pointer"
-							>
-								{#each HOURS_24 as h}
-									<option value={h}>{h}</option>
-								{/each}
-							</select>
-							<span class="font-mono font-black text-sm text-on-surface">:</span>
-							<select
-								bind:value={checkInMinute}
-								class="flex-1 px-3 py-2.5 rounded-xl bg-surface-container-low text-xs font-mono font-bold text-on-surface border-0 outline-none focus:ring-2 focus:ring-cyan-500/40 cursor-pointer"
-							>
-								{#each MINUTES_60 as m}
-									<option value={m}>{m}</option>
-								{/each}
-							</select>
-						</div>
-					</div>
-				</div>
-
 				<div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
 					<div>
 						<label class="block text-[11px] font-bold text-on-surface-variant uppercase mb-1">Nama Lengkap Tamu *</label>
@@ -686,19 +640,17 @@
 	</div>
 {/if}
 
-<!-- Modal Check-Out / Edit Waktu & Survei Kepuasan Tamu -->
+<!-- Modal Check-Out / Survei Kepuasan Tamu -->
 {#if selectedVisitorForCheckout}
 	<div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4 overflow-y-auto">
-		<div class="bg-surface-container-lowest rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xl w-full max-w-lg overflow-hidden my-8">
+		<div class="bg-surface-container-lowest rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xl w-full max-w-md overflow-hidden my-8">
 			<div class="px-6 py-4 border-b border-slate-200/60 dark:border-slate-800/60 flex items-center justify-between">
 				<div class="flex items-center gap-2.5">
 					<div class="w-9 h-9 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 flex items-center justify-center">
-						<span class="material-symbols-outlined text-xl">schedule</span>
+						<span class="material-symbols-outlined text-xl">sentiment_satisfied</span>
 					</div>
 					<div>
-						<h3 class="text-sm font-black text-on-surface">
-							{selectedVisitorForCheckout.status === 'CHECKED_IN' ? 'Check-Out & Survei Tamu' : 'Edit Waktu & Survei Tamu'}
-						</h3>
+						<h3 class="text-sm font-black text-on-surface">Check-Out & Survei Layanan Tamu</h3>
 						<p class="text-[11px] text-on-surface-variant">{selectedVisitorForCheckout.visitor_name} ({selectedVisitorForCheckout.company})</p>
 					</div>
 				</div>
@@ -726,92 +678,11 @@
 			>
 				<input type="hidden" name="id" value={selectedVisitorForCheckout.id} />
 				<input type="hidden" name="survey_rating" value={selectedSurveyRating} />
-				<input type="hidden" name="check_in_clock" value={`${editInHour}:${editInMinute}`} />
-				<input type="hidden" name="check_out_clock" value={`${editOutHour}:${editOutMinute}`} />
 
 				<div class="text-xs text-on-surface-variant bg-surface-container-low p-3.5 rounded-xl space-y-1">
 					<div><strong class="text-on-surface">Karyawan Ditemui:</strong> {selectedVisitorForCheckout.host_name} ({selectedVisitorForCheckout.host_department})</div>
 					<div><strong class="text-on-surface">Keperluan:</strong> {selectedVisitorForCheckout.purpose}</div>
 					<div><strong class="text-on-surface">Kartu Tamu:</strong> #{selectedVisitorForCheckout.badge_number}</div>
-				</div>
-
-				<div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-					<div>
-						<label class="block text-[11px] font-bold text-on-surface-variant uppercase mb-1">Tanggal Masuk</label>
-						<input
-							type="date"
-							name="check_in_date"
-							bind:value={editInDate}
-							required
-							class="w-full px-3.5 py-2.5 rounded-xl bg-surface-container-low text-xs font-mono text-on-surface border-0 outline-none focus:ring-2 focus:ring-cyan-500/40"
-						/>
-					</div>
-					<div>
-						<label class="block text-[11px] font-bold text-on-surface-variant uppercase mb-1">Jam Masuk</label>
-						<div class="flex items-center gap-1.5">
-							<select
-								bind:value={editInHour}
-								class="flex-1 px-3 py-2.5 rounded-xl bg-surface-container-low text-xs font-mono font-bold text-on-surface border-0 outline-none focus:ring-2 focus:ring-cyan-500/40 cursor-pointer"
-							>
-								{#each HOURS_24 as h}
-									<option value={h}>{h}</option>
-								{/each}
-							</select>
-							<span class="font-mono font-black text-xs">:</span>
-							<select
-								bind:value={editInMinute}
-								class="flex-1 px-3 py-2.5 rounded-xl bg-surface-container-low text-xs font-mono font-bold text-on-surface border-0 outline-none focus:ring-2 focus:ring-cyan-500/40 cursor-pointer"
-							>
-								{#each MINUTES_60 as m}
-									<option value={m}>{m}</option>
-								{/each}
-							</select>
-						</div>
-					</div>
-				</div>
-
-				<div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-					<div>
-						<label class="block text-[11px] font-bold text-on-surface-variant uppercase mb-1">Tanggal Keluar *</label>
-						<input
-							type="date"
-							name="check_out_date"
-							bind:value={editOutDate}
-							required
-							class="w-full px-3.5 py-2.5 rounded-xl bg-surface-container-low text-xs font-mono text-on-surface border-0 outline-none focus:ring-2 focus:ring-emerald-500/40"
-						/>
-					</div>
-					<div>
-						<div class="flex items-center justify-between mb-1">
-							<label class="block text-[11px] font-bold text-on-surface-variant uppercase">Jam Keluar *</label>
-							<button
-								type="button"
-								onclick={setCheckOutToNowWib}
-								class="text-[10px] font-bold text-emerald-600 hover:underline cursor-pointer"
-							>
-								Jam Sekarang
-							</button>
-						</div>
-						<div class="flex items-center gap-1.5">
-							<select
-								bind:value={editOutHour}
-								class="flex-1 px-3 py-2.5 rounded-xl bg-surface-container-low text-xs font-mono font-bold text-on-surface border-0 outline-none focus:ring-2 focus:ring-emerald-500/40 cursor-pointer"
-							>
-								{#each HOURS_24 as h}
-									<option value={h}>{h}</option>
-								{/each}
-							</select>
-							<span class="font-mono font-black text-xs">:</span>
-							<select
-								bind:value={editOutMinute}
-								class="flex-1 px-3 py-2.5 rounded-xl bg-surface-container-low text-xs font-mono font-bold text-on-surface border-0 outline-none focus:ring-2 focus:ring-emerald-500/40 cursor-pointer"
-							>
-								{#each MINUTES_60 as m}
-									<option value={m}>{m}</option>
-								{/each}
-							</select>
-						</div>
-					</div>
 				</div>
 
 				<div>
