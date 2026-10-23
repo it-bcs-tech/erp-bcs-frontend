@@ -2,6 +2,24 @@ import { fail } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import sql from '$lib/server/db';
 
+function getNowWibTimestamp(): string {
+	const now = new Date();
+	const parts = new Intl.DateTimeFormat('en-CA', {
+		timeZone: 'Asia/Jakarta',
+		year: 'numeric',
+		month: '2-digit',
+		day: '2-digit',
+		hour: '2-digit',
+		minute: '2-digit',
+		second: '2-digit',
+		hour12: false
+	}).formatToParts(now);
+	const map: Record<string, string> = {};
+	for (const p of parts) map[p.type] = p.value;
+	const hr = map.hour === '24' ? '00' : map.hour;
+	return `${map.year}-${map.month}-${map.day} ${hr}:${map.minute}:${map.second || '00'}`;
+}
+
 export const load: PageServerLoad = async () => {
 	try {
 		const [visitors, statsRows, employees] = await Promise.all([
@@ -17,7 +35,11 @@ export const load: PageServerLoad = async () => {
 					host_nik,
 					host_name,
 					host_department,
+					to_char(check_in_time, 'YYYY-MM-DD') as check_in_date,
+					to_char(check_in_time, 'HH24:MI') as check_in_clock,
 					to_char(check_in_time, 'YYYY-MM-DD HH24:MI') as check_in_str,
+					to_char(check_out_time, 'YYYY-MM-DD') as check_out_date,
+					to_char(check_out_time, 'HH24:MI') as check_out_clock,
 					to_char(check_out_time, 'YYYY-MM-DD HH24:MI') as check_out_str,
 					survey_rating,
 					photo_file,
@@ -96,6 +118,13 @@ export const actions: Actions = {
 		const host_name = String(fd.get('host_name') || '-').trim();
 		const host_department = String(fd.get('host_department') || 'UMUM').trim();
 
+		const check_in_date = String(fd.get('check_in_date') || '').trim();
+		const check_in_clock = String(fd.get('check_in_clock') || '').trim();
+		const check_in_timestamp =
+			check_in_date && check_in_clock
+				? `${check_in_date} ${check_in_clock}:00`
+				: getNowWibTimestamp();
+
 		if (!visitor_name || !purpose) {
 			return fail(400, { error: 'Nama tamu dan keperluan kunjungan wajib diisi.' });
 		}
@@ -109,10 +138,10 @@ export const actions: Actions = {
 				) VALUES (
 					${visitor_name}, ${company}, ${address}, ${phone}, ${purpose},
 					${badge_number}, ${host_nik}, ${host_name}, ${host_department},
-					CURRENT_TIMESTAMP, 'CHECKED_IN', 1
+					${check_in_timestamp}, 'CHECKED_IN', 1
 				)
 			`;
-			return { success: true, message: `Tamu ${visitor_name} berhasil Check-In.` };
+			return { success: true, message: `Tamu ${visitor_name} berhasil Check-In pada ${check_in_clock || ''} WIB.` };
 		} catch (err) {
 			console.error('Error checking in visitor:', err);
 			return fail(500, { error: 'Gagal mencatat Check-In tamu.' });
@@ -123,21 +152,44 @@ export const actions: Actions = {
 		const fd = await request.formData();
 		const id = Number(fd.get('id'));
 		const survey_rating = Number(fd.get('survey_rating') || 3);
+		const check_in_date = String(fd.get('check_in_date') || '').trim();
+		const check_in_clock = String(fd.get('check_in_clock') || '').trim();
+		const check_out_date = String(fd.get('check_out_date') || '').trim();
+		const check_out_clock = String(fd.get('check_out_clock') || '').trim();
 
 		if (!id) {
 			return fail(400, { error: 'ID kunjungan tidak valid.' });
 		}
 
+		const check_in_timestamp =
+			check_in_date && check_in_clock ? `${check_in_date} ${check_in_clock}:00` : null;
+		const check_out_timestamp =
+			check_out_date && check_out_clock
+				? `${check_out_date} ${check_out_clock}:00`
+				: getNowWibTimestamp();
+
 		try {
-			await sql`
-				UPDATE ga.visitors
-				SET
-					check_out_time = COALESCE(check_out_time, CURRENT_TIMESTAMP),
-					status = 'CHECKED_OUT',
-					survey_rating = ${survey_rating}
-				WHERE id = ${id}
-			`;
-			return { success: true, message: 'Tamu berhasil Check-Out & survei layanan disimpan.' };
+			if (check_in_timestamp) {
+				await sql`
+					UPDATE ga.visitors
+					SET
+						check_in_time = ${check_in_timestamp},
+						check_out_time = ${check_out_timestamp},
+						status = 'CHECKED_OUT',
+						survey_rating = ${survey_rating}
+					WHERE id = ${id}
+				`;
+			} else {
+				await sql`
+					UPDATE ga.visitors
+					SET
+						check_out_time = ${check_out_timestamp},
+						status = 'CHECKED_OUT',
+						survey_rating = ${survey_rating}
+					WHERE id = ${id}
+				`;
+			}
+			return { success: true, message: `Waktu keluar (${check_out_clock || ''} WIB) & survei layanan berhasil disimpan.` };
 		} catch (err) {
 			console.error('Error checking out visitor:', err);
 			return fail(500, { error: 'Gagal memproses Check-Out tamu.' });

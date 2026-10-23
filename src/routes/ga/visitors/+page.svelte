@@ -5,16 +5,56 @@
 	let { data, form } = $props();
 
 	const visitors = $derived(data.visitors || []);
-	const stats = $derived(data.stats || {
-		total_visitors: 0,
-		active_visitors: 0,
-		rating_puas: 0,
-		rating_cukup: 0,
-		rating_kurang: 0,
-		total_rated: 0,
-		avg_rating: 0
-	});
+	const stats = $derived(
+		data.stats || {
+			total_visitors: 0,
+			active_visitors: 0,
+			rating_puas: 0,
+			rating_cukup: 0,
+			rating_kurang: 0,
+			total_rated: 0,
+			avg_rating: 0
+		}
+	);
 	const employees = $derived(data.employees || []);
+
+	// Helper: Jam Indonesia 24 Jam (Asia/Jakarta - WIB)
+	const HOURS_24 = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0'));
+	const MINUTES_60 = Array.from({ length: 60 }, (_, i) => String(i).padStart(2, '0'));
+
+	function getWibNow() {
+		const now = new Date();
+		const parts = new Intl.DateTimeFormat('en-CA', {
+			timeZone: 'Asia/Jakarta',
+			year: 'numeric',
+			month: '2-digit',
+			day: '2-digit',
+			hour: '2-digit',
+			minute: '2-digit',
+			hour12: false
+		}).formatToParts(now);
+		const map: Record<string, string> = {};
+		for (const p of parts) map[p.type] = p.value;
+		const hour = map.hour === '24' ? '00' : map.hour;
+		const minute = map.minute || '00';
+		return {
+			date: `${map.year}-${map.month}-${map.day}`,
+			hour,
+			minute,
+			clock: `${hour}:${minute}`
+		};
+	}
+
+	function formatIndoDate(dateStr: string | null) {
+		if (!dateStr) return '-';
+		const d = new Date(`${dateStr}T00:00:00`);
+		if (isNaN(d.getTime())) return dateStr;
+		return d.toLocaleDateString('id-ID', {
+			day: '2-digit',
+			month: 'short',
+			year: 'numeric'
+		});
+	}
 
 	// Filters & Pagination
 	let searchQuery = $state('');
@@ -53,11 +93,32 @@
 		filteredVisitors.slice((currentPage - 1) * pageSize, currentPage * pageSize)
 	);
 
-	// Check-In Modal State
+	// Check-In Modal State (with 24-hour WIB Date & Clock)
 	let showCheckInModal = $state(false);
 	let selectedEmpNik = $state('');
 	let hostNameInput = $state('');
 	let hostDeptInput = $state('GENERAL AFFAIRS');
+	let checkInDate = $state('');
+	let checkInHour = $state('08');
+	let checkInMinute = $state('00');
+
+	function openCheckInModal() {
+		const wib = getWibNow();
+		checkInDate = wib.date;
+		checkInHour = wib.hour;
+		checkInMinute = wib.minute;
+		selectedEmpNik = '';
+		hostNameInput = '';
+		hostDeptInput = 'GENERAL AFFAIRS';
+		showCheckInModal = true;
+	}
+
+	function setCheckInToNowWib() {
+		const wib = getWibNow();
+		checkInDate = wib.date;
+		checkInHour = wib.hour;
+		checkInMinute = wib.minute;
+	}
 
 	function handleEmployeeChange(nik: string) {
 		selectedEmpNik = nik;
@@ -68,13 +129,43 @@
 		}
 	}
 
-	// Check-Out & Survey Modal State
+	// Check-Out & Edit Waktu/Survei Modal State (with 24-hour WIB Date & Clock)
 	let selectedVisitorForCheckout = $state<any>(null);
 	let selectedSurveyRating = $state(3);
+	let editInDate = $state('');
+	let editInHour = $state('08');
+	let editInMinute = $state('00');
+	let editOutDate = $state('');
+	let editOutHour = $state('17');
+	let editOutMinute = $state('00');
 
 	function openCheckoutModal(v: any) {
+		const wib = getWibNow();
 		selectedVisitorForCheckout = v;
 		selectedSurveyRating = v.survey_rating || 3;
+
+		editInDate = v.check_in_date || wib.date;
+		const inParts = (v.check_in_clock || '08:00').split(':');
+		editInHour = (inParts[0] || '08').padStart(2, '0');
+		editInMinute = (inParts[1] || '00').padStart(2, '0');
+
+		if (v.check_out_date && v.check_out_clock) {
+			editOutDate = v.check_out_date;
+			const outParts = v.check_out_clock.split(':');
+			editOutHour = (outParts[0] || wib.hour).padStart(2, '0');
+			editOutMinute = (outParts[1] || wib.minute).padStart(2, '0');
+		} else {
+			editOutDate = wib.date;
+			editOutHour = wib.hour;
+			editOutMinute = wib.minute;
+		}
+	}
+
+	function setCheckOutToNowWib() {
+		const wib = getWibNow();
+		editOutDate = wib.date;
+		editOutHour = wib.hour;
+		editOutMinute = wib.minute;
 	}
 
 	function getSurveyBadge(rating: number | null) {
@@ -108,7 +199,11 @@
 
 	const satisfactionPercent = $derived(
 		stats.total_rated > 0
-			? Math.round(((stats.rating_puas * 3 + stats.rating_cukup * 2 + stats.rating_kurang * 1) / (stats.total_rated * 3)) * 100)
+			? Math.round(
+					((stats.rating_puas * 3 + stats.rating_cukup * 2 + stats.rating_kurang * 1) /
+						(stats.total_rated * 3)) *
+						100
+				)
 			: 0
 	);
 </script>
@@ -127,14 +222,14 @@
 			</div>
 			<h1 class="text-2xl font-black text-on-surface tracking-tight">Visitor & Guestbook (Buku Tamu)</h1>
 			<p class="text-xs text-on-surface-variant mt-1">
-				Registrasi tamu perusahaan, penukaran kartu identitas tamu (Visitor Badge), karyawan yang ditemui (Host), serta evaluasi kepuasan layanan resepsionis.
+				Registrasi tamu perusahaan, pencatatan jam masuk & keluar (WIB 24 Jam), penukaran kartu identitas tamu (Visitor Badge), serta evaluasi kepuasan layanan resepsionis.
 			</p>
 		</div>
 
 		<div class="flex items-center gap-2.5">
 			<button
 				type="button"
-				onclick={() => (showCheckInModal = true)}
+				onclick={openCheckInModal}
 				class="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-cyan-600 hover:bg-cyan-700 text-white text-xs font-bold shadow-xs transition-all cursor-pointer"
 			>
 				<span class="material-symbols-outlined text-base">person_add</span>
@@ -177,7 +272,7 @@
 				</div>
 			</div>
 			<div class="text-2xl font-black text-on-surface">{stats.active_visitors} <span class="text-xs font-normal text-on-surface-variant">Sedang Berkunjung</span></div>
-			<p class="text-[11px] text-on-surface-variant mt-2">Kartu tamu (Visitor Badge) belum dikembalikan</p>
+			<p class="text-[11px] text-on-surface-variant mt-2">Klik "Catat Keluar & Survei" saat tamu pulang</p>
 		</div>
 
 		<div class="p-4 rounded-2xl bg-surface-container-lowest border border-slate-200/70 dark:border-slate-800/70 flex flex-col justify-between">
@@ -254,7 +349,7 @@
 						<th class="py-3.5 px-4">No. Kartu</th>
 						<th class="py-3.5 px-4">Karyawan Ditemui (Host)</th>
 						<th class="py-3.5 px-4">Keperluan</th>
-						<th class="py-3.5 px-4">Waktu Kunjungan</th>
+						<th class="py-3.5 px-4">Waktu Kunjungan (WIB 24 Jam)</th>
 						<th class="py-3.5 px-4 text-center">Survei Layanan</th>
 						<th class="py-3.5 px-4 text-center">Aksi</th>
 					</tr>
@@ -300,18 +395,28 @@
 								<td class="py-3 px-4 whitespace-nowrap">
 									<div class="flex items-center gap-1.5 text-[11px]">
 										<span class="w-2 h-2 rounded-full bg-emerald-500"></span>
-										<span class="font-mono text-on-surface">Masuk: {v.check_in_str || '-'}</span>
+										<span class="text-on-surface font-medium">
+											Masuk: <strong class="font-mono">{formatIndoDate(v.check_in_date)} • {v.check_in_clock || '00:00'} WIB</strong>
+										</span>
 									</div>
-									{#if v.status === 'CHECKED_OUT' && v.check_out_str}
-										<div class="flex items-center gap-1.5 text-[11px] mt-0.5 text-on-surface-variant">
+									{#if v.status === 'CHECKED_OUT' && v.check_out_date}
+										<div class="flex items-center gap-1.5 text-[11px] mt-1 text-on-surface-variant">
 											<span class="w-2 h-2 rounded-full bg-slate-400"></span>
-											<span class="font-mono">Keluar: {v.check_out_str}</span>
+											<span>
+												Keluar: <strong class="font-mono text-on-surface">{formatIndoDate(v.check_out_date)} • {v.check_out_clock || '00:00'} WIB</strong>
+											</span>
 										</div>
 									{:else}
-										<span class="inline-flex items-center gap-1 mt-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-200">
-											<span class="w-1.5 h-1.5 rounded-full bg-amber-500 animate-ping"></span>
-											Sedang Di Kantor
-										</span>
+										<div class="mt-1">
+											<button
+												type="button"
+												onclick={() => openCheckoutModal(v)}
+												class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-200 hover:bg-amber-100 cursor-pointer"
+											>
+												<span class="w-1.5 h-1.5 rounded-full bg-amber-500 animate-ping"></span>
+												Sedang Di Kantor (Klik Catat Keluar)
+											</button>
+										</div>
 									{/if}
 								</td>
 								<td class="py-3 px-4 text-center whitespace-nowrap">
@@ -326,18 +431,20 @@
 											<button
 												type="button"
 												onclick={() => openCheckoutModal(v)}
-												class="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-bold transition-colors cursor-pointer"
+												class="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-bold transition-colors cursor-pointer flex items-center gap-1"
 											>
-												Check-Out & Survei
+												<span class="material-symbols-outlined text-xs">logout</span>
+												<span>Catat Keluar & Survei</span>
 											</button>
 										{:else}
 											<button
 												type="button"
 												onclick={() => openCheckoutModal(v)}
-												class="p-1.5 rounded-lg bg-surface-container-high hover:bg-surface-container-highest text-on-surface-variant hover:text-cyan-600 transition-colors cursor-pointer"
-												title="Ubah Skor Survei"
+												class="px-2.5 py-1 rounded-lg bg-surface-container-high hover:bg-surface-container-highest text-on-surface text-[11px] font-semibold transition-colors cursor-pointer flex items-center gap-1"
+												title="Edit Jam Masuk/Keluar & Skor Survei"
 											>
-												<span class="material-symbols-outlined text-sm">rate_review</span>
+												<span class="material-symbols-outlined text-xs text-cyan-600">schedule</span>
+												<span>Edit Jam & Survei</span>
 											</button>
 										{/if}
 
@@ -375,8 +482,8 @@
 
 <!-- Modal Check-In Tamu Baru -->
 {#if showCheckInModal}
-	<div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4">
-		<div class="bg-surface-container-lowest rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xl w-full max-w-xl overflow-hidden">
+	<div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4 overflow-y-auto">
+		<div class="bg-surface-container-lowest rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xl w-full max-w-xl overflow-hidden my-8">
 			<div class="px-6 py-4 border-b border-slate-200/60 dark:border-slate-800/60 flex items-center justify-between">
 				<div class="flex items-center gap-2.5">
 					<div class="w-9 h-9 rounded-xl bg-cyan-50 dark:bg-cyan-950/60 text-cyan-600 flex items-center justify-center">
@@ -384,7 +491,7 @@
 					</div>
 					<div>
 						<h3 class="text-sm font-black text-on-surface">Registrasi Check-In Tamu Baru</h3>
-						<p class="text-[11px] text-on-surface-variant">Catat identitas tamu dan kartu visitor yang diberikan</p>
+						<p class="text-[11px] text-on-surface-variant">Catat waktu masuk (WIB 24 Jam), identitas tamu, & kartu visitor</p>
 					</div>
 				</div>
 				<button
@@ -409,6 +516,63 @@
 				}}
 				class="p-6 space-y-4"
 			>
+				<!-- Waktu Kedatangan Tamu (Masuk - Format Indonesia 24 Jam WIB) -->
+				<div class="p-3.5 rounded-xl bg-cyan-50/50 dark:bg-cyan-950/30 border border-cyan-200/70 dark:border-cyan-800/60 space-y-2.5">
+					<div class="flex items-center justify-between">
+						<div class="flex items-center gap-1.5 text-xs font-bold text-cyan-800 dark:text-cyan-300">
+							<span class="material-symbols-outlined text-base">schedule</span>
+							<span>Waktu Masuk Kunjungan (Jam Indonesia 24 Jam - WIB)</span>
+						</div>
+						<button
+							type="button"
+							onclick={setCheckInToNowWib}
+							class="px-2.5 py-1 rounded-lg bg-cyan-600/10 hover:bg-cyan-600/20 text-cyan-700 dark:text-cyan-300 text-[10px] font-bold cursor-pointer"
+						>
+							Reset Jam Sekarang (WIB)
+						</button>
+					</div>
+
+					<input type="hidden" name="check_in_clock" value={`${checkInHour}:${checkInMinute}`} />
+
+					<div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+						<div>
+							<label class="block text-[10px] font-bold text-on-surface-variant uppercase mb-1">Tanggal Masuk *</label>
+							<input
+								type="date"
+								name="check_in_date"
+								bind:value={checkInDate}
+								required
+								class="w-full px-3.5 py-2 rounded-xl bg-surface-container-lowest text-xs font-mono text-on-surface border-0 outline-none focus:ring-2 focus:ring-cyan-500/40"
+							/>
+						</div>
+						<div>
+							<label class="block text-[10px] font-bold text-on-surface-variant uppercase mb-1">Jam Masuk (Format 24 Jam: 00:00 - 23:59 WIB) *</label>
+							<div class="flex items-center gap-1.5">
+								<select
+									bind:value={checkInHour}
+									class="flex-1 px-3 py-2 rounded-xl bg-surface-container-lowest text-xs font-mono font-bold text-on-surface border-0 outline-none focus:ring-2 focus:ring-cyan-500/40 cursor-pointer"
+								>
+									{#each HOURS_24 as h}
+										<option value={h}>{h}</option>
+									{/each}
+								</select>
+								<span class="font-mono font-black text-sm text-on-surface">:</span>
+								<select
+									bind:value={checkInMinute}
+									class="flex-1 px-3 py-2 rounded-xl bg-surface-container-lowest text-xs font-mono font-bold text-on-surface border-0 outline-none focus:ring-2 focus:ring-cyan-500/40 cursor-pointer"
+								>
+									{#each MINUTES_60 as m}
+										<option value={m}>{m}</option>
+									{/each}
+								</select>
+								<span class="px-2.5 py-2 rounded-xl bg-surface-container-high text-[11px] font-mono font-bold text-cyan-700 dark:text-cyan-300">
+									WIB
+								</span>
+							</div>
+						</div>
+					</div>
+				</div>
+
 				<div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
 					<div>
 						<label class="block text-[11px] font-bold text-on-surface-variant uppercase mb-1">Nama Lengkap Tamu *</label>
@@ -526,7 +690,7 @@
 						type="submit"
 						class="px-5 py-2 rounded-xl bg-cyan-600 hover:bg-cyan-700 text-white text-xs font-bold shadow-xs cursor-pointer"
 					>
-						Simpan Check-In
+						Simpan Check-In ({checkInHour}:{checkInMinute} WIB)
 					</button>
 				</div>
 			</form>
@@ -534,17 +698,19 @@
 	</div>
 {/if}
 
-<!-- Modal Check-Out & Survei Kepuasan Tamu -->
+<!-- Modal Check-Out / Edit Waktu Masuk & Keluar (24 Jam WIB) + Survei Kepuasan Tamu -->
 {#if selectedVisitorForCheckout}
-	<div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4">
-		<div class="bg-surface-container-lowest rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xl w-full max-w-md overflow-hidden">
+	<div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4 overflow-y-auto">
+		<div class="bg-surface-container-lowest rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xl w-full max-w-lg overflow-hidden my-8">
 			<div class="px-6 py-4 border-b border-slate-200/60 dark:border-slate-800/60 flex items-center justify-between">
 				<div class="flex items-center gap-2.5">
 					<div class="w-9 h-9 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 flex items-center justify-center">
-						<span class="material-symbols-outlined text-xl">sentiment_satisfied</span>
+						<span class="material-symbols-outlined text-xl">schedule</span>
 					</div>
 					<div>
-						<h3 class="text-sm font-black text-on-surface">Check-Out & Survei Layanan Tamu</h3>
+						<h3 class="text-sm font-black text-on-surface">
+							{selectedVisitorForCheckout.status === 'CHECKED_IN' ? 'Catat Waktu Keluar & Survei Tamu' : 'Edit Waktu Kunjungan & Survei Tamu'}
+						</h3>
 						<p class="text-[11px] text-on-surface-variant">{selectedVisitorForCheckout.visitor_name} ({selectedVisitorForCheckout.company})</p>
 					</div>
 				</div>
@@ -572,11 +738,108 @@
 			>
 				<input type="hidden" name="id" value={selectedVisitorForCheckout.id} />
 				<input type="hidden" name="survey_rating" value={selectedSurveyRating} />
+				<input type="hidden" name="check_in_clock" value={`${editInHour}:${editInMinute}`} />
+				<input type="hidden" name="check_out_clock" value={`${editOutHour}:${editOutMinute}`} />
 
 				<div class="text-xs text-on-surface-variant bg-surface-container-low p-3.5 rounded-xl space-y-1">
 					<div><strong class="text-on-surface">Karyawan Ditemui:</strong> {selectedVisitorForCheckout.host_name} ({selectedVisitorForCheckout.host_department})</div>
 					<div><strong class="text-on-surface">Keperluan:</strong> {selectedVisitorForCheckout.purpose}</div>
 					<div><strong class="text-on-surface">Kartu Tamu:</strong> #{selectedVisitorForCheckout.badge_number}</div>
+				</div>
+
+				<!-- Waktu Masuk (24 Jam WIB) -->
+				<div class="p-3.5 rounded-xl bg-surface-container-low space-y-2">
+					<div class="text-[11px] font-bold text-on-surface uppercase tracking-wider flex items-center gap-1.5">
+						<span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+						<span>Waktu Masuk (Format 24 Jam WIB)</span>
+					</div>
+					<div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+						<div>
+							<label class="block text-[10px] font-bold text-on-surface-variant uppercase mb-1">Tanggal Masuk</label>
+							<input
+								type="date"
+								name="check_in_date"
+								bind:value={editInDate}
+								required
+								class="w-full px-3 py-2 rounded-xl bg-surface-container-lowest text-xs font-mono text-on-surface border-0 outline-none focus:ring-2 focus:ring-cyan-500/40"
+							/>
+						</div>
+						<div>
+							<label class="block text-[10px] font-bold text-on-surface-variant uppercase mb-1">Jam Masuk (00:00 - 23:59 WIB)</label>
+							<div class="flex items-center gap-1">
+								<select
+									bind:value={editInHour}
+									class="flex-1 px-2.5 py-2 rounded-xl bg-surface-container-lowest text-xs font-mono font-bold text-on-surface border-0 outline-none focus:ring-2 focus:ring-cyan-500/40 cursor-pointer"
+								>
+									{#each HOURS_24 as h}
+										<option value={h}>{h}</option>
+									{/each}
+								</select>
+								<span class="font-mono font-black text-xs">:</span>
+								<select
+									bind:value={editInMinute}
+									class="flex-1 px-2.5 py-2 rounded-xl bg-surface-container-lowest text-xs font-mono font-bold text-on-surface border-0 outline-none focus:ring-2 focus:ring-cyan-500/40 cursor-pointer"
+								>
+									{#each MINUTES_60 as m}
+										<option value={m}>{m}</option>
+									{/each}
+								</select>
+								<span class="px-2 py-2 rounded-xl bg-surface-container-high text-[10px] font-mono font-bold text-on-surface-variant">WIB</span>
+							</div>
+						</div>
+					</div>
+				</div>
+
+				<!-- Waktu Keluar (24 Jam WIB) -->
+				<div class="p-3.5 rounded-xl bg-emerald-50/50 dark:bg-emerald-950/30 border border-emerald-200/70 dark:border-emerald-800/60 space-y-2">
+					<div class="flex items-center justify-between">
+						<div class="text-[11px] font-bold text-emerald-800 dark:text-emerald-300 uppercase tracking-wider flex items-center gap-1.5">
+							<span class="w-2 h-2 rounded-full bg-emerald-600"></span>
+							<span>Waktu Keluar / Selesai Kunjungan (24 Jam WIB) *</span>
+						</div>
+						<button
+							type="button"
+							onclick={setCheckOutToNowWib}
+							class="px-2 py-0.5 rounded-lg bg-emerald-600/10 hover:bg-emerald-600/20 text-emerald-700 dark:text-emerald-300 text-[10px] font-bold cursor-pointer"
+						>
+							Set Jam Sekarang (WIB)
+						</button>
+					</div>
+					<div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+						<div>
+							<label class="block text-[10px] font-bold text-on-surface-variant uppercase mb-1">Tanggal Keluar *</label>
+							<input
+								type="date"
+								name="check_out_date"
+								bind:value={editOutDate}
+								required
+								class="w-full px-3 py-2 rounded-xl bg-surface-container-lowest text-xs font-mono text-on-surface border-0 outline-none focus:ring-2 focus:ring-emerald-500/40"
+							/>
+						</div>
+						<div>
+							<label class="block text-[10px] font-bold text-on-surface-variant uppercase mb-1">Jam Keluar (00:00 - 23:59 WIB) *</label>
+							<div class="flex items-center gap-1">
+								<select
+									bind:value={editOutHour}
+									class="flex-1 px-2.5 py-2 rounded-xl bg-surface-container-lowest text-xs font-mono font-bold text-on-surface border-0 outline-none focus:ring-2 focus:ring-emerald-500/40 cursor-pointer"
+								>
+									{#each HOURS_24 as h}
+										<option value={h}>{h}</option>
+									{/each}
+								</select>
+								<span class="font-mono font-black text-xs">:</span>
+								<select
+									bind:value={editOutMinute}
+									class="flex-1 px-2.5 py-2 rounded-xl bg-surface-container-lowest text-xs font-mono font-bold text-on-surface border-0 outline-none focus:ring-2 focus:ring-emerald-500/40 cursor-pointer"
+								>
+									{#each MINUTES_60 as m}
+										<option value={m}>{m}</option>
+									{/each}
+								</select>
+								<span class="px-2 py-2 rounded-xl bg-surface-container-high text-[10px] font-mono font-bold text-emerald-700 dark:text-emerald-300">WIB</span>
+							</div>
+						</div>
+					</div>
 				</div>
 
 				<div>
@@ -631,7 +894,7 @@
 						type="submit"
 						class="px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-xs cursor-pointer"
 					>
-						Konfirmasi Check-Out & Simpan Survei
+						Simpan Waktu Keluar ({editOutHour}:{editOutMinute} WIB) & Survei
 					</button>
 				</div>
 			</form>
