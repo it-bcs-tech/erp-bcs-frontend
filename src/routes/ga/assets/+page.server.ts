@@ -57,10 +57,10 @@ export const load: PageServerLoad = async ({ url }) => {
 				ORDER BY m.mutation_date DESC, m.id DESC
 			`,
 			sql`
-				SELECT id, name as nama_karyawan, title as jabatan, location_code as lokasi
+				SELECT id, nama_karyawan, title as jabatan, lokasi
 				FROM master.m_karyawan
-				WHERE name IS NOT NULL
-				ORDER BY name ASC
+				WHERE aktif = 'Y' AND nama_karyawan IS NOT NULL
+				ORDER BY nama_karyawan ASC
 				LIMIT 250
 			`,
 			sql`

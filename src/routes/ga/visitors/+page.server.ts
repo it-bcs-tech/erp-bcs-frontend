@@ -42,12 +42,12 @@ export const load: PageServerLoad = async () => {
 			sql`
 				SELECT
 					k.payroll_id as nik,
-					k.name,
-					COALESCE(d.name, 'GENERAL AFFAIRS') as department
+					k.nama_karyawan as name,
+					COALESCE(d.dept_name, 'GENERAL AFFAIRS') as department
 				FROM master.m_karyawan k
-				LEFT JOIN master.m_dept d ON d.code = k.dept_code
-				WHERE k.name IS NOT NULL
-				ORDER BY k.name ASC
+				LEFT JOIN master.m_dept d ON d.dept_code = k.dept_id
+				WHERE k.aktif = 'Y' AND k.nama_karyawan IS NOT NULL
+				ORDER BY k.nama_karyawan ASC
 				LIMIT 500
 			`
 		]);
