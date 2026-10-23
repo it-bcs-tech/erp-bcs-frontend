@@ -193,7 +193,7 @@ export const load: PageServerLoad = async () => {
 			};
 		});
 
-		// ── 6. Maintenance alerts (unit overdue) ──────────────────────────────
+		// ── 6. Maintenance alerts (all unit overdue) ──────────────────────────
 		const maintenanceAlerts = await sql<{
 			nomor_unit:              string;
 			nama_tipe:               string;
@@ -213,10 +213,9 @@ export const load: PageServerLoad = async () => {
 			  AND u.deleted_at IS NULL
 			  AND tu.asset_group = 'LOGISTICS_FLEET'
 			ORDER BY hari_overdue DESC
-			LIMIT 5
 		`;
 
-		// ── 6. Asuransi expired alerts ────────────────────────────────────────
+		// ── 6. Asuransi expired alerts (all expired) ──────────────────────────
 		const asuransiAlerts = await sql<{
 			nomor_unit:           string;
 			nama_tipe:            string;
@@ -233,7 +232,6 @@ export const load: PageServerLoad = async () => {
 			  AND u.expire_date_asuransi < now()
 			  AND u.deleted_at IS NULL
 			ORDER BY u.expire_date_asuransi
-			LIMIT 3
 		`;
 
 		// ── 7. Top drivers ────────────────────────────────────────────────────
@@ -270,23 +268,31 @@ export const load: PageServerLoad = async () => {
 		const maintenance = Math.min(maintAlerts, inactive);
 
 		// Build alerts dari data nyata
-		const alerts = [
-			...maintenanceAlerts.slice(0, 2).map((u, i) => ({
+		const allAlerts = [
+			...asuransiAlerts.map((u, i) => ({
 				id:       i + 1,
 				unit:     u.nomor_unit,
-				type:     'Maintenance',
-				message:  `Maintenance preventif overdue ${u.hari_overdue} hari (jadwal: ${u.tgl_maintenance_prevent})`,
-				severity: Number(u.hari_overdue) > 365 ? 'danger' : 'warning',
-				time:     'Jadwal terlewat'
-			})),
-			...asuransiAlerts.slice(0, 2).map((u, i) => ({
-				id:       maintenanceAlerts.length + i + 1,
-				unit:     u.nomor_unit,
+				nama_tipe: u.nama_tipe,
 				type:     'Asuransi',
 				message:  `Asuransi kadaluarsa sejak ${u.expire_date_asuransi?.split('T')[0]}`,
 				severity: 'critical',
 				time:     'Kadaluarsa'
+			})),
+			...maintenanceAlerts.map((u, i) => ({
+				id:       asuransiAlerts.length + i + 1,
+				unit:     u.nomor_unit,
+				nama_tipe: u.nama_tipe,
+				type:     'Maintenance',
+				message:  `Maintenance preventif overdue ${u.hari_overdue} hari (jadwal: ${u.tgl_maintenance_prevent})`,
+				severity: Number(u.hari_overdue) > 365 ? 'danger' : 'warning',
+				time:     'Jadwal terlewat'
 			}))
+		];
+
+		// 4 alert terkritis untuk cuplikan widget samping
+		const topAlerts = [
+			...allAlerts.filter(a => a.type === 'Asuransi').slice(0, 2),
+			...allAlerts.filter(a => a.type === 'Maintenance').slice(0, 2)
 		];
 
 		// ── 8. Active Contracts for Tonnage Tracker ──────────────────────────────
@@ -453,6 +459,7 @@ export const load: PageServerLoad = async () => {
 				criticalMaintenance: Number(metricsRow.asuransi_expired),
 				inMaintenance:       metricMaintenance,
 				availableVehicles:   metricAvailable,
+				totalAlertsCount:    allAlerts.length,
 				dispatchedTrips:     Number(tripMetrics.count_dispatched) || 0,
 				loadingTrips:        Number(tripMetrics.count_loading),
 				onRouteTrips:        Number(tripMetrics.count_on_route),
@@ -487,7 +494,8 @@ export const load: PageServerLoad = async () => {
 			recentUnits,
 			allFleetUnits,
 			openWorkOrders,
-			alerts,
+			alerts: topAlerts,
+			allAlerts,
 			// liveUnits: akan diisi ketika GPS real-time tersedia
 			liveUnits: [] as {
 				id: string; driver: string; status: string;
@@ -515,6 +523,7 @@ export const load: PageServerLoad = async () => {
 			openWorkOrders:  [],
 			activeContracts: [],
 			alerts:          [],
+			allAlerts:       [],
 			liveUnits:       [],
 			error:           'Gagal memuat data dashboard.'
 		};

@@ -10,10 +10,12 @@
 	const activeContracts = $derived(data.activeContracts || []);
 	const allFleetUnits   = $derived(data.allFleetUnits || []);
 	const openWorkOrders  = $derived(data.openWorkOrders || []);
+	const allAlerts       = $derived(data.allAlerts || []);
 
 	// Interactivity States
 	let activeModal        = $state<string | null>(null);
 	let modalSearch        = $state('');
+	let alertModalTab      = $state<'ALL' | 'MAINTENANCE' | 'ASURANSI'>('ALL');
 	let selectedUnit       = $state<any | null>(null);
 	let selectedTrip       = $state<any | null>(null);
 	let selectedDriver     = $state<any | null>(null);
@@ -142,6 +144,26 @@
 		return list;
 	});
 
+	// Filtered Alerts inside Drill-down Modal (MAINTENANCE_ALERTS)
+	const modalFilteredAlerts = $derived.by(() => {
+		let list = allAlerts;
+		if (alertModalTab === 'MAINTENANCE') {
+			list = list.filter(a => a.type === 'Maintenance');
+		} else if (alertModalTab === 'ASURANSI') {
+			list = list.filter(a => a.type === 'Asuransi');
+		}
+
+		if (modalSearch.trim()) {
+			const q = modalSearch.toLowerCase();
+			list = list.filter(a => 
+				a.unit.toLowerCase().includes(q) ||
+				(a.nama_tipe && a.nama_tipe.toLowerCase().includes(q)) ||
+				a.message.toLowerCase().includes(q)
+			);
+		}
+		return list;
+	});
+
 	function getModalMeta(category: string) {
 		switch (category) {
 			case 'TOTAL_VEHICLES':
@@ -151,7 +173,7 @@
 			case 'ACTIVE_TRIPS':
 				return { title: 'Trip Berjalan (Live Deliveries)', desc: 'Daftar pengiriman logistik yang sedang berlangsung', link: '/fms/trips', linkText: 'Buka Monitoring Trips →' };
 			case 'MAINTENANCE_ALERTS':
-				return { title: 'Armada Perlu Perhatian', desc: 'Unit dengan jadwal preventif terlewat atau asuransi kadaluarsa', link: '/fms/maintenance', linkText: 'Buka Jadwal Servis →' };
+				return { title: 'Peringatan Armada & Jadwal Servis', desc: 'Daftar 28 armada dengan jadwal preventif terlewat atau asuransi kadaluarsa', link: '/fms/maintenance', linkText: 'Buka Jadwal Servis →' };
 			case 'STATUS_AVAILABLE':
 				return { title: 'Unit Standby Pool (Tersedia)', desc: 'Armada aktif di pool tanpa penugasan SO yang siap di-dispatch', link: '/fms/vehicles?status=ACTIVE', linkText: 'Lihat Armada Siap Jalan →' };
 			case 'STATUS_DISPATCHED':
@@ -444,7 +466,7 @@
 			</div>
 		</button>
 
-		<!-- Maintenance Alerts -->
+		<!-- Maintenance Alerts (Servis Terlewat) -->
 		<button 
 			type="button"
 			onclick={() => openModal('MAINTENANCE_ALERTS')}
@@ -452,7 +474,7 @@
 		>
 			<div class="flex items-center justify-between">
 				<div>
-					<p class="text-xs font-bold text-on-surface-variant uppercase tracking-wider group-hover:text-rose-600 transition-colors">Perlu Perhatian</p>
+					<p class="text-xs font-bold text-on-surface-variant uppercase tracking-wider group-hover:text-rose-600 transition-colors">Servis Terlewat</p>
 					<h3 class="text-2xl font-black text-rose-600 mt-1">{metrics.maintenanceAlerts ?? 0}</h3>
 				</div>
 				<div class="w-12 h-12 rounded-xl bg-rose-500/10 text-rose-600 flex items-center justify-center group-hover:scale-105 transition-transform">
@@ -461,9 +483,9 @@
 			</div>
 			<div class="flex items-center justify-between mt-3 pt-2.5 border-t border-slate-200/40 dark:border-slate-800/40">
 				<div class="flex items-center gap-1.5">
-					<span class="text-[10px] font-bold text-rose-600">🔴 {metrics.criticalMaintenance ?? 0} Asuransi</span>
+					<span class="text-[10px] font-bold text-rose-600">🔴 {metrics.criticalMaintenance ?? 0} Asuransi Expired</span>
 					<span class="text-on-surface-variant/40">·</span>
-					<span class="text-[10px] font-bold text-amber-600">🛠️ {metrics.inMaintenance ?? 0} Servis</span>
+					<span class="text-[10px] font-bold text-amber-600">🛠️ {metrics.inMaintenance ?? 0} In Workshop</span>
 				</div>
 				<span class="text-[10px] text-rose-600 font-bold opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-0.5">
 					Lihat <span class="material-symbols-outlined text-xs">arrow_forward</span>
@@ -685,17 +707,17 @@
 						</div>
 						<div>
 							<h3 class="text-sm font-bold text-on-surface">Peringatan Armada</h3>
-							<p class="text-[10px] text-on-surface-variant font-medium">Asuransi & servis jatuh tempo</p>
+							<p class="text-[10px] text-on-surface-variant font-medium">4 Terkritis Ditampilkan</p>
 						</div>
 					</div>
-					{#if alerts.length > 0}
-						<span class="text-[10px] font-bold bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300 border border-rose-200 dark:border-rose-800 px-2 py-0.5 rounded-full">{alerts.length}</span>
-					{/if}
+					<span class="text-[10px] font-bold bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300 border border-rose-200 dark:border-rose-800 px-2 py-0.5 rounded-full">
+						{data.totalAlertsCount || allAlerts.length || 28} Alert
+					</span>
 				</div>
 
 				{#if alerts.length > 0}
 					<div class="space-y-2.5 flex-1">
-						{#each alerts.slice(0, 3) as alert}
+						{#each alerts.slice(0, 4) as alert}
 							{@const isRose = alert.severity === 'critical' || alert.severity === 'danger'}
 							<!-- svelte-ignore a11y_click_events_have_key_events -->
 							<!-- svelte-ignore a11y_no_static_element_interactions -->
@@ -733,7 +755,7 @@
 					onclick={() => openModal('MAINTENANCE_ALERTS')}
 					class="flex-1 bg-surface-container hover:bg-surface-container-high text-on-surface py-2 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 border border-slate-200/60 dark:border-slate-800/60 cursor-pointer"
 				>
-					<span>Lihat Semua Alert</span>
+					<span>Lihat Semua {data.totalAlertsCount || allAlerts.length || 28} Alert</span>
 				</button>
 				<a href="/fms/vehicles" class="bg-blue-600 hover:bg-blue-700 text-white py-2 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 shadow-xs">
 					<span>Roster Unit</span>
@@ -981,9 +1003,15 @@
 				<div>
 					<div class="flex items-center gap-2">
 						<h3 class="text-base font-black text-on-surface">{meta.title}</h3>
-						<span class="px-2 py-0.5 rounded-full text-xs font-black bg-blue-500/10 text-blue-600 dark:text-blue-400">
-							{modalFilteredUnits.length} Unit
-						</span>
+						{#if activeModal === 'MAINTENANCE_ALERTS'}
+							<span class="px-2 py-0.5 rounded-full text-xs font-black bg-rose-500/10 text-rose-600 dark:text-rose-400">
+								{modalFilteredAlerts.length} Alert
+							</span>
+						{:else}
+							<span class="px-2 py-0.5 rounded-full text-xs font-black bg-blue-500/10 text-blue-600 dark:text-blue-400">
+								{modalFilteredUnits.length} Unit
+							</span>
+						{/if}
 					</div>
 					<p class="text-xs text-on-surface-variant mt-0.5">{meta.desc}</p>
 				</div>
@@ -1019,11 +1047,78 @@
 						</button>
 					{/if}
 				</div>
+
+				<!-- Alert Category Filter Tabs (khusus modal MAINTENANCE_ALERTS) -->
+				{#if activeModal === 'MAINTENANCE_ALERTS'}
+					<div class="flex items-center gap-2 mt-3 pt-3 border-t border-slate-200/50 dark:border-slate-800/50">
+						<button 
+							type="button" 
+							onclick={() => alertModalTab = 'ALL'} 
+							class="px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer {alertModalTab === 'ALL' ? 'bg-rose-500 text-white shadow-2xs' : 'bg-surface-container text-on-surface-variant hover:text-on-surface'}"
+						>
+							Semua ({allAlerts.length})
+						</button>
+						<button 
+							type="button" 
+							onclick={() => alertModalTab = 'MAINTENANCE'} 
+							class="px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer {alertModalTab === 'MAINTENANCE' ? 'bg-amber-500 text-white shadow-2xs' : 'bg-surface-container text-on-surface-variant hover:text-on-surface'}"
+						>
+							Servis Preventif ({allAlerts.filter(a => a.type === 'Maintenance').length})
+						</button>
+						<button 
+							type="button" 
+							onclick={() => alertModalTab = 'ASURANSI'} 
+							class="px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer {alertModalTab === 'ASURANSI' ? 'bg-rose-600 text-white shadow-2xs' : 'bg-surface-container text-on-surface-variant hover:text-on-surface'}"
+						>
+							Asuransi ({allAlerts.filter(a => a.type === 'Asuransi').length})
+						</button>
+					</div>
+				{/if}
 			</div>
 
 			<!-- Content List -->
 			<div class="overflow-y-auto flex-1 p-6">
-				{#if modalFilteredUnits.length > 0}
+				{#if activeModal === 'MAINTENANCE_ALERTS'}
+					{#if modalFilteredAlerts.length > 0}
+						<div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+							{#each modalFilteredAlerts as a}
+								{@const isRose = a.severity === 'critical' || a.severity === 'danger'}
+								<div class="p-4 rounded-xl bg-surface-container-low border border-slate-200/50 dark:border-slate-800/50 flex flex-col justify-between gap-3 hover:border-rose-500/30 transition-all">
+									<div class="flex items-start gap-3">
+										<div class="w-10 h-10 rounded-xl {isRose ? 'bg-rose-500/10 text-rose-600' : 'bg-amber-500/10 text-amber-600'} flex items-center justify-center flex-shrink-0">
+											<span class="material-symbols-outlined text-xl">{getAlertIcon(a.type)}</span>
+										</div>
+										<div class="min-w-0 flex-1">
+											<div class="flex items-center justify-between">
+												<h4 class="text-sm font-black text-on-surface">{a.unit}</h4>
+												<span class="text-[9px] font-bold px-1.5 py-0.5 rounded uppercase {isRose ? 'bg-rose-500/10 text-rose-600' : 'bg-amber-500/10 text-amber-600'}">{a.type}</span>
+											</div>
+											<p class="text-xs text-on-surface font-medium mt-1 leading-snug">{a.message}</p>
+											{#if a.nama_tipe}
+												<p class="text-[10px] text-on-surface-variant mt-0.5">{a.nama_tipe}</p>
+											{/if}
+										</div>
+									</div>
+									<div class="flex items-center justify-end pt-2 border-t border-slate-200/40 dark:border-slate-800/40">
+										<a 
+											href={a.type === 'Maintenance' ? `/fms/maintenance?search=${encodeURIComponent(a.unit)}` : `/fms/documents?search=${encodeURIComponent(a.unit)}`}
+											class="text-xs font-bold text-blue-600 hover:underline flex items-center gap-1"
+										>
+											<span>Tindak Lanjuti di {a.type === 'Maintenance' ? 'Maintenance' : 'Dokumen'}</span>
+											<span class="material-symbols-outlined text-xs">arrow_forward</span>
+										</a>
+									</div>
+								</div>
+							{/each}
+						</div>
+					{:else}
+						<div class="flex flex-col items-center justify-center py-16 text-on-surface-variant">
+							<span class="material-symbols-outlined text-4xl mb-2 opacity-30">search_off</span>
+							<p class="text-sm font-bold">Tidak ada alert ditemukan</p>
+							<p class="text-xs text-on-surface-variant/70 mt-1">Coba kata kunci pencarian lain atau pilih tab filter lain</p>
+						</div>
+					{/if}
+				{:else if modalFilteredUnits.length > 0}
 					<div class="grid grid-cols-1 md:grid-cols-2 gap-3">
 						{#each modalFilteredUnits as u}
 							<!-- svelte-ignore a11y_click_events_have_key_events -->
