@@ -114,6 +114,39 @@
 				<span class="material-symbols-outlined text-[20px]">meeting_room</span>
 				<span class="text-sm">Room Reservations</span>
 			</a>
+
+			<!-- Carpool & Travel (SPD) -->
+			<a
+				class="flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200 hover:translate-x-1 {isActive('/ga/travel')
+					? 'bg-surface-container-highest text-cyan-700 dark:text-cyan-300 font-bold'
+					: 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container font-medium text-sm'}"
+				href="/ga/travel"
+			>
+				<span class="material-symbols-outlined text-[20px]">commute</span>
+				<span class="text-sm">Carpool & Travel (SPD)</span>
+			</a>
+
+			<!-- Document Archive -->
+			<a
+				class="flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200 hover:translate-x-1 {isActive('/ga/archives')
+					? 'bg-surface-container-highest text-cyan-700 dark:text-cyan-300 font-bold'
+					: 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container font-medium text-sm'}"
+				href="/ga/archives"
+			>
+				<span class="material-symbols-outlined text-[20px]">inventory</span>
+				<span class="text-sm">Document Archive</span>
+			</a>
+
+			<!-- Visitor & Guestbook (Buku Tamu) -->
+			<a
+				class="flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200 hover:translate-x-1 {isActive('/ga/visitors')
+					? 'bg-surface-container-highest text-cyan-700 dark:text-cyan-300 font-bold'
+					: 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container font-medium text-sm'}"
+				href="/ga/visitors"
+			>
+				<span class="material-symbols-outlined text-[20px]">badge</span>
+				<span class="text-sm">Visitor & Guestbook</span>
+			</a>
 		</nav>
 	</aside>
 

@@ -184,6 +184,9 @@ export function resolveActivity(pathname: string): ResolvedActivity {
 		if (path.includes('/room-bookings')) return { ...base, activityLabel: 'Mengelola Peminjaman Ruangan & Fasilitas', icon: 'meeting_room' };
 		if (path.includes('/facilities')) return { ...base, activityLabel: 'Pemeliharaan Fasilitas & Kantor', icon: 'home_repair_service' };
 		if (path.includes('/stationery')) return { ...base, activityLabel: 'Pengadaan & Stok ATK Kantor', icon: 'edit_document' };
+		if (path.includes('/travel')) return { ...base, activityLabel: 'Mengelola Carpool & Perjalanan Dinas (SPD)', icon: 'commute' };
+		if (path.includes('/archives')) return { ...base, activityLabel: 'Mengelola Gudang Arsip Dokumen Fisik', icon: 'inventory' };
+		if (path.includes('/visitors')) return { ...base, activityLabel: 'Mengelola Buku Tamu & Survei Layanan Resepsionis', icon: 'badge' };
 		return { ...base, activityLabel: 'Membuka Modul General Affair', icon: 'domain' };
 	}
 

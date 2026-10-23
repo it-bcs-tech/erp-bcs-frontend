@@ -85,6 +85,9 @@
 
 	function getCategoryLabel(cat: string) {
 		switch (cat) {
+			case 'ATK': return 'ATK (Alat Tulis Kantor)';
+			case 'FORM': return 'Form & Cetakan';
+			case 'TINTA': return 'Tinta & Toner';
 			case 'ALAT_TULIS': return 'Alat Tulis';
 			case 'KERTAS_CETAK': return 'Kertas & Cetak';
 			case 'PERLENGKAPAN_KEBERSIHAN': return 'Perlengkapan Kebersihan';
@@ -290,10 +293,9 @@
 					class="px-3.5 py-2.5 rounded-xl bg-surface-container-low border-0 outline-none focus:ring-2 focus:ring-purple-500/20 text-xs text-on-surface font-medium cursor-pointer transition-all"
 				>
 					<option value="All">Semua Kategori</option>
-					<option value="ALAT_TULIS">Alat Tulis</option>
-					<option value="KERTAS_CETAK">Kertas & Cetak</option>
-					<option value="PERLENGKAPAN_KEBERSIHAN">Perlengkapan Kebersihan</option>
-					<option value="PANTRY_KANTOR">Pantry Kantor</option>
+					<option value="ATK">ATK (Alat Tulis Kantor)</option>
+					<option value="FORM">Form & Cetakan</option>
+					<option value="TINTA">Tinta & Toner</option>
 				</select>
 			</div>
 		</div>
@@ -575,10 +577,9 @@
 							required
 							class="w-full px-4 py-2.5 text-xs rounded-xl bg-surface-container-low border-0 outline-none focus:ring-2 focus:ring-purple-500/20 text-on-surface cursor-pointer transition-all"
 						>
-							<option value="ALAT_TULIS">Alat Tulis</option>
-							<option value="KERTAS_CETAK">Kertas & Cetak</option>
-							<option value="PERLENGKAPAN_KEBERSIHAN">Perlengkapan Kebersihan</option>
-							<option value="PANTRY_KANTOR">Pantry Kantor</option>
+							<option value="ATK">ATK (Alat Tulis Kantor)</option>
+							<option value="FORM">Form & Cetakan</option>
+							<option value="TINTA">Tinta & Toner</option>
 						</select>
 					</div>
 					<div>

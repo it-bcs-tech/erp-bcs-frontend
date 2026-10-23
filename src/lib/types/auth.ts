@@ -121,7 +121,10 @@ export const MODULE_MENUS: Record<string, { id: string; name: string }[]> = {
 		{ id: 'ga.assets', name: 'Master Assets' },
 		{ id: 'ga.facilities', name: 'Facility Maintenance' },
 		{ id: 'ga.stationery', name: 'Stationery & Stock' },
-		{ id: 'ga.room-bookings', name: 'Room Reservations' }
+		{ id: 'ga.room-bookings', name: 'Room Reservations' },
+		{ id: 'ga.travel', name: 'Carpool & Travel (SPD)' },
+		{ id: 'ga.archives', name: 'Document Archive' },
+		{ id: 'ga.visitors', name: 'Visitor & Guestbook' }
 	],
 	ocs: [
 		{ id: 'ocs.dashboard', name: 'Overview' },

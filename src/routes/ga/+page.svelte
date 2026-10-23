@@ -5,6 +5,9 @@
 	const roomBookings = $derived(data.roomBookings);
 	const facilities = $derived(data.facilities);
 	const stationery = $derived(data.stationery);
+	const travel = $derived(data.travel || { total_carpool: 0, pending_carpool: 0, total_spd: 0, pending_spd: 0, total_cars: 0 });
+	const archives = $derived(data.archives || { total_docs: 0, due_destruction_docs: 0, total_racks: 0 });
+	const visitors = $derived(data.visitors || { total_visitors: 0, active_visitors: 0, avg_rating: 0 });
 
 	function formatRupiah(val: number | string | null) {
 		const num = typeof val === 'string' ? parseFloat(val) : (val || 0);
@@ -71,6 +74,13 @@
 
 		<div class="flex flex-wrap items-center gap-2.5">
 			<a
+				href="/ga/visitors"
+				class="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-surface-container-high hover:bg-surface-container-highest text-on-surface text-xs font-bold border border-slate-200 dark:border-slate-800 transition-colors shadow-2xs"
+			>
+				<span class="material-symbols-outlined text-base text-emerald-600">badge</span>
+				<span>Buku Tamu ({visitors.total_visitors})</span>
+			</a>
+			<a
 				href="/ga/assets"
 				class="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-surface-container-high hover:bg-surface-container-highest text-on-surface text-xs font-bold border border-slate-200 dark:border-slate-800 transition-colors shadow-2xs"
 			>
@@ -95,7 +105,7 @@
 	</div>
 
 	<!-- Top Highlights: Bento Grid KPI Cards -->
-	<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+	<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
 		<!-- Card 1: Nilai Aset Kantor -->
 		<div class="p-5 rounded-2xl bg-surface-container-lowest border border-slate-200/70 dark:border-slate-800/70 transition-all hover:border-cyan-500/30 flex flex-col justify-between relative overflow-hidden">
 			<div class="absolute -right-4 -bottom-4 text-cyan-500/5">
@@ -190,6 +200,53 @@
 					{stationery.stats.low_stock_items} Item Stok Menipis
 				</span>
 				<span class="font-bold text-purple-600 hover:underline"><a href="/ga/stationery">Katalog &rarr;</a></span>
+			</div>
+		</div>
+
+		<!-- Card 5: Carpool & Travel (SPD) -->
+		<div class="p-5 rounded-2xl bg-surface-container-lowest border border-slate-200/70 dark:border-slate-800/70 transition-all hover:border-indigo-500/30 flex flex-col justify-between relative overflow-hidden">
+			<div class="absolute -right-4 -bottom-4 text-indigo-500/5">
+				<span class="material-symbols-outlined text-9xl">commute</span>
+			</div>
+			<div>
+				<div class="flex items-center justify-between mb-2">
+					<span class="text-xs font-bold text-on-surface-variant uppercase tracking-wider">Carpool & Travel (SPD)</span>
+					<div class="w-8 h-8 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 flex items-center justify-center border border-indigo-200/50 dark:border-indigo-800/50">
+						<span class="material-symbols-outlined text-[18px]">commute</span>
+					</div>
+				</div>
+				<div class="text-2xl font-black text-on-surface tracking-tight">
+					{(travel.total_carpool || 0).toLocaleString('id-ID')} <span class="text-sm font-normal text-on-surface-variant">Carpool •</span> {(travel.total_spd || 0).toLocaleString('id-ID')} <span class="text-sm font-normal text-on-surface-variant">SPD</span>
+				</div>
+			</div>
+			<div class="mt-3 pt-3 border-t border-slate-100 dark:border-slate-800/60 flex items-center justify-between text-xs text-on-surface-variant">
+				<span>{travel.total_cars} Mobil GA • {travel.pending_carpool + travel.pending_spd} Menunggu Review</span>
+				<span class="font-bold text-indigo-600 hover:underline"><a href="/ga/travel">Kelola &rarr;</a></span>
+			</div>
+		</div>
+
+		<!-- Card 6: Gudang Arsip Dokumen -->
+		<div class="p-5 rounded-2xl bg-surface-container-lowest border border-slate-200/70 dark:border-slate-800/70 transition-all hover:border-teal-500/30 flex flex-col justify-between relative overflow-hidden">
+			<div class="absolute -right-4 -bottom-4 text-teal-500/5">
+				<span class="material-symbols-outlined text-9xl">inventory</span>
+			</div>
+			<div>
+				<div class="flex items-center justify-between mb-2">
+					<span class="text-xs font-bold text-on-surface-variant uppercase tracking-wider">Gudang Arsip Dokumen</span>
+					<div class="w-8 h-8 rounded-xl bg-teal-50 dark:bg-teal-950/60 text-teal-600 dark:text-teal-400 flex items-center justify-center border border-teal-200/50 dark:border-teal-800/50">
+						<span class="material-symbols-outlined text-[18px]">shelves</span>
+					</div>
+				</div>
+				<div class="text-2xl font-black text-on-surface tracking-tight">
+					{archives.total_docs}
+					<span class="text-sm font-normal text-on-surface-variant">Bundel di {archives.total_racks} Rak</span>
+				</div>
+			</div>
+			<div class="mt-3 pt-3 border-t border-slate-100 dark:border-slate-800/60 flex items-center justify-between text-xs text-on-surface-variant">
+				<span class="{archives.due_destruction_docs > 0 ? 'text-amber-600 font-bold' : ''}">
+					{archives.due_destruction_docs} Berkas Jatuh Tempo Retensi
+				</span>
+				<span class="font-bold text-teal-600 hover:underline"><a href="/ga/archives">Arsip &rarr;</a></span>
 			</div>
 		</div>
 	</div>

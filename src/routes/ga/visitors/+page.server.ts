@@ -1,0 +1,160 @@
+import { fail } from '@sveltejs/kit';
+import type { Actions, PageServerLoad } from './$types';
+import sql from '$lib/server/db';
+
+export const load: PageServerLoad = async () => {
+	try {
+		const [visitors, statsRows, employees] = await Promise.all([
+			sql`
+				SELECT
+					id,
+					visitor_name,
+					company,
+					address,
+					phone,
+					purpose,
+					badge_number,
+					host_nik,
+					host_name,
+					host_department,
+					to_char(check_in_time, 'YYYY-MM-DD HH24:MI') as check_in_str,
+					to_char(check_out_time, 'YYYY-MM-DD HH24:MI') as check_out_str,
+					survey_rating,
+					photo_file,
+					status
+				FROM ga.visitors
+				ORDER BY
+					CASE WHEN status = 'CHECKED_IN' THEN 0 ELSE 1 END,
+					check_in_time DESC,
+					id DESC
+			`,
+			sql`
+				SELECT
+					COUNT(*)::int as total_visitors,
+					COUNT(CASE WHEN status = 'CHECKED_IN' THEN 1 END)::int as active_visitors,
+					COUNT(CASE WHEN survey_rating = 3 THEN 1 END)::int as rating_puas,
+					COUNT(CASE WHEN survey_rating = 2 THEN 1 END)::int as rating_cukup,
+					COUNT(CASE WHEN survey_rating = 1 THEN 1 END)::int as rating_kurang,
+					COUNT(CASE WHEN survey_rating IS NOT NULL THEN 1 END)::int as total_rated,
+					ROUND(AVG(survey_rating)::numeric, 2) as avg_rating
+				FROM ga.visitors
+			`,
+			sql`
+				SELECT
+					k.payroll_id as nik,
+					k.name,
+					COALESCE(d.name, 'GENERAL AFFAIRS') as department
+				FROM master.m_karyawan k
+				LEFT JOIN master.m_dept d ON d.code = k.dept_code
+				WHERE k.name IS NOT NULL
+				ORDER BY k.name ASC
+				LIMIT 500
+			`
+		]);
+
+		return {
+			visitors,
+			stats: statsRows[0] || {
+				total_visitors: 0,
+				active_visitors: 0,
+				rating_puas: 0,
+				rating_cukup: 0,
+				rating_kurang: 0,
+				total_rated: 0,
+				avg_rating: 0
+			},
+			employees
+		};
+	} catch (err) {
+		console.error('Error loading GA visitors:', err);
+		return {
+			visitors: [],
+			stats: {
+				total_visitors: 0,
+				active_visitors: 0,
+				rating_puas: 0,
+				rating_cukup: 0,
+				rating_kurang: 0,
+				total_rated: 0,
+				avg_rating: 0
+			},
+			employees: []
+		};
+	}
+};
+
+export const actions: Actions = {
+	checkIn: async ({ request }) => {
+		const fd = await request.formData();
+		const visitor_name = String(fd.get('visitor_name') || '').trim();
+		const company = String(fd.get('company') || '-').trim();
+		const address = String(fd.get('address') || '-').trim();
+		const phone = String(fd.get('phone') || '-').trim();
+		const purpose = String(fd.get('purpose') || '-').trim();
+		const badge_number = String(fd.get('badge_number') || '-').trim();
+		const host_nik = String(fd.get('host_nik') || '').trim() || null;
+		const host_name = String(fd.get('host_name') || '-').trim();
+		const host_department = String(fd.get('host_department') || 'UMUM').trim();
+
+		if (!visitor_name || !purpose) {
+			return fail(400, { error: 'Nama tamu dan keperluan kunjungan wajib diisi.' });
+		}
+
+		try {
+			await sql`
+				INSERT INTO ga.visitors (
+					visitor_name, company, address, phone, purpose,
+					badge_number, host_nik, host_name, host_department,
+					check_in_time, status, act
+				) VALUES (
+					${visitor_name}, ${company}, ${address}, ${phone}, ${purpose},
+					${badge_number}, ${host_nik}, ${host_name}, ${host_department},
+					CURRENT_TIMESTAMP, 'CHECKED_IN', 1
+				)
+			`;
+			return { success: true, message: `Tamu ${visitor_name} berhasil Check-In.` };
+		} catch (err) {
+			console.error('Error checking in visitor:', err);
+			return fail(500, { error: 'Gagal mencatat Check-In tamu.' });
+		}
+	},
+
+	checkOut: async ({ request }) => {
+		const fd = await request.formData();
+		const id = Number(fd.get('id'));
+		const survey_rating = Number(fd.get('survey_rating') || 3);
+
+		if (!id) {
+			return fail(400, { error: 'ID kunjungan tidak valid.' });
+		}
+
+		try {
+			await sql`
+				UPDATE ga.visitors
+				SET
+					check_out_time = COALESCE(check_out_time, CURRENT_TIMESTAMP),
+					status = 'CHECKED_OUT',
+					survey_rating = ${survey_rating}
+				WHERE id = ${id}
+			`;
+			return { success: true, message: 'Tamu berhasil Check-Out & survei layanan disimpan.' };
+		} catch (err) {
+			console.error('Error checking out visitor:', err);
+			return fail(500, { error: 'Gagal memproses Check-Out tamu.' });
+		}
+	},
+
+	deleteVisitor: async ({ request }) => {
+		const fd = await request.formData();
+		const id = Number(fd.get('id'));
+		if (!id) return fail(400, { error: 'ID tidak valid.' });
+
+		try {
+			await sql`DELETE FROM ga.visitors WHERE id = ${id}`;
+			return { success: true, message: 'Data buku tamu berhasil dihapus.' };
+		} catch (err) {
+			console.error('Error deleting visitor:', err);
+			return fail(500, { error: 'Gagal menghapus data buku tamu.' });
+		}
+	}
+};

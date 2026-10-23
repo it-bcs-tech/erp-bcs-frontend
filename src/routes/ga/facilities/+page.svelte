@@ -14,6 +14,7 @@
 	let isCompleteModalOpen = $state(false);
 	let isDetailModalOpen = $state(false);
 	let selectedWo = $state<any>(null);
+	const activeWo = $derived(data.workOrders.find((w: any) => w.id === selectedWo?.id) || selectedWo);
 
 	function openCreateModal() {
 		isCreateModalOpen = true;
@@ -55,6 +56,9 @@
 	function getFacilityLabel(type: string) {
 		switch (type) {
 			case 'AC_HVAC': return 'AC & Pendingin Ruangan';
+			case 'CIVIL_PLUMBING': return 'Sipil, Gedung & Plumbing';
+			case 'LISTRIK_GENSET': return 'Kelistrikan, Lampu & Genset';
+			case 'CCTV_SECURITY': return 'CCTV, Jaringan & Keamanan';
 			case 'PLUMBING_AIR': return 'Plumbing & Saluran Air';
 			case 'KELISTRIKAN': return 'Kelistrikan & Panel Listrik';
 			case 'GENSET': return 'Genset & Power Backup';
@@ -265,13 +269,10 @@
 					class="px-3.5 py-2.5 rounded-xl bg-surface-container-low border-0 outline-none focus:ring-2 focus:ring-blue-500/20 text-xs text-on-surface font-medium cursor-pointer transition-all"
 				>
 					<option value="All">Semua Kategori Fasilitas</option>
+					<option value="CIVIL_PLUMBING">Sipil, Gedung & Plumbing</option>
+					<option value="LISTRIK_GENSET">Kelistrikan, Lampu & Genset</option>
 					<option value="AC_HVAC">AC & Pendingin</option>
-					<option value="PLUMBING_AIR">Plumbing & Air</option>
-					<option value="KELISTRIKAN">Kelistrikan</option>
-					<option value="GENSET">Genset</option>
-					<option value="PENGECATAN_GEDUNG">Pengecatan</option>
-					<option value="PINTU_PAGAR_POOL">Pagar & Gerbang Pool</option>
-					<option value="LAINNYA">Lainnya</option>
+					<option value="CCTV_SECURITY">CCTV & Keamanan</option>
 				</select>
 
 				<select
@@ -348,13 +349,19 @@
 								{/if}
 							</td>
 							<td class="py-3 px-4 text-right font-mono whitespace-nowrap">
-								{#if wo.status === 'COMPLETED'}
+								{#if wo.status === 'COMPLETED' || wo.actual_cost > 0}
 									<div class="font-bold text-emerald-600">{formatRupiah(wo.actual_cost)}</div>
-									<div class="text-[10px] text-on-surface-variant">Est: {formatRupiah(wo.estimated_cost)}</div>
 								{:else}
 									<div class="font-medium text-on-surface">{formatRupiah(wo.estimated_cost)}</div>
-									<div class="text-[10px] text-on-surface-variant">Estimasi</div>
 								{/if}
+								<div class="flex items-center justify-end gap-1.5 mt-1 text-[10px] font-sans">
+									<span class="px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 dark:bg-blue-950/50 dark:text-blue-300 font-bold">
+										{wo.manpower?.length || 0} Tukang
+									</span>
+									<span class="px-1.5 py-0.5 rounded bg-amber-50 text-amber-700 dark:bg-amber-950/50 dark:text-amber-300 font-bold">
+										{wo.materials?.length || 0} Material
+									</span>
+								</div>
 							</td>
 							<td class="py-3 px-4 text-center whitespace-nowrap">
 								<div class="flex items-center justify-center gap-1">
@@ -783,71 +790,227 @@
 	</div>
 {/if}
 
-<!-- MODAL: Detail Lengkap Tiket -->
-{#if isDetailModalOpen && selectedWo}
+<!-- MODAL: Detail Lengkap Tiket & Rincian Manpower / Material -->
+{#if isDetailModalOpen && activeWo}
 	<div class="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
-		<div class="bg-surface-container-lowest rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xl w-full max-w-lg overflow-hidden animate-in fade-in zoom-in-95 duration-200">
-			<div class="p-5 border-b border-slate-200/60 dark:border-slate-800/60 flex items-center justify-between">
+		<div class="bg-surface-container-lowest rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-y-auto animate-in fade-in zoom-in-95 duration-200">
+			<div class="p-5 border-b border-slate-200/60 dark:border-slate-800/60 flex items-center justify-between sticky top-0 bg-surface-container-lowest z-10">
 				<div>
-					<div class="text-[11px] font-mono font-bold text-blue-600 uppercase">{selectedWo.wo_number}</div>
-					<h3 class="font-bold text-base text-on-surface">Detail Tiket Perbaikan Fasilitas</h3>
+					<div class="text-[11px] font-mono font-bold text-blue-600 uppercase">{activeWo.wo_number}</div>
+					<h3 class="font-bold text-base text-on-surface">Detail Tiket & Rincian Biaya (Manpower & Material)</h3>
 				</div>
 				<button onclick={() => isDetailModalOpen = false} class="text-on-surface-variant hover:text-on-surface cursor-pointer">
 					<span class="material-symbols-outlined">close</span>
 				</button>
 			</div>
 
-			<div class="p-6 space-y-4 text-xs">
-				<div class="grid grid-cols-2 gap-3 p-3 rounded-xl bg-surface-container-low">
+			<div class="p-6 space-y-5 text-xs">
+				<div class="grid grid-cols-2 md:grid-cols-4 gap-3 p-3.5 rounded-xl bg-surface-container-low">
 					<div>
 						<span class="text-on-surface-variant text-[10px] uppercase font-bold block">Sarana</span>
-						<span class="font-semibold text-on-surface">{getFacilityLabel(selectedWo.facility_type)}</span>
+						<span class="font-semibold text-on-surface">{getFacilityLabel(activeWo.facility_type)}</span>
 					</div>
 					<div>
 						<span class="text-on-surface-variant text-[10px] uppercase font-bold block">Status</span>
-						<span class="px-2 py-0.5 rounded text-[10px] font-bold {getStatusBadge(selectedWo.status)}">{selectedWo.status}</span>
+						<span class="px-2 py-0.5 rounded text-[10px] font-bold {getStatusBadge(activeWo.status)}">{activeWo.status}</span>
 					</div>
 					<div>
 						<span class="text-on-surface-variant text-[10px] uppercase font-bold block">Lokasi</span>
-						<span class="font-semibold text-on-surface">{selectedWo.location}</span>
+						<span class="font-semibold text-on-surface">{activeWo.location}</span>
 					</div>
 					<div>
-						<span class="text-on-surface-variant text-[10px] uppercase font-bold block">Urgensi</span>
-						<span class="px-2 py-0.5 rounded text-[10px] {getUrgencyBadge(selectedWo.urgency)}">{selectedWo.urgency}</span>
+						<span class="text-on-surface-variant text-[10px] uppercase font-bold block">Total Biaya Aktual</span>
+						<span class="font-mono font-black text-sm text-emerald-600">{formatRupiah(activeWo.actual_cost)}</span>
 					</div>
 				</div>
 
-				<div>
-					<span class="text-on-surface-variant text-[10px] uppercase font-bold block mb-1">Uraian Masalah</span>
-					<p class="p-3 rounded-xl bg-surface-container-low text-on-surface">{selectedWo.description}</p>
-				</div>
-
-				<div class="grid grid-cols-2 gap-3">
+				<div class="grid grid-cols-1 md:grid-cols-2 gap-3">
 					<div class="p-3 rounded-xl bg-surface-container-low">
-						<span class="text-on-surface-variant text-[10px] uppercase font-bold block">Pelapor</span>
-						<span class="font-semibold text-on-surface">{selectedWo.requester_name}</span>
-						<span class="text-on-surface-variant block text-[11px]">{selectedWo.department}</span>
-					</div>
-					<div class="p-3 rounded-xl bg-surface-container-low">
-						<span class="text-on-surface-variant text-[10px] uppercase font-bold block">Teknisi / Vendor</span>
-						<span class="font-semibold text-on-surface">{selectedWo.technician_vendor || 'Belum ditugaskan'}</span>
-						{#if selectedWo.scheduled_date}
-							<span class="text-on-surface-variant block text-[11px]">Jadwal: {formatDate(selectedWo.scheduled_date)}</span>
+						<span class="text-on-surface-variant text-[10px] uppercase font-bold block mb-1">Uraian Perbaikan</span>
+						<p class="font-semibold text-on-surface">{activeWo.description}</p>
+						{#if activeWo.photo_condition}
+							<div class="mt-1.5 text-[10px] text-blue-600 font-mono flex items-center gap-1">
+								<span class="material-symbols-outlined text-[13px]">photo_camera</span>
+								<span>Lampiran Foto: {activeWo.photo_condition}</span>
+							</div>
 						{/if}
 					</div>
-				</div>
-
-				{#if selectedWo.status === 'COMPLETED'}
-					<div class="p-3 rounded-xl bg-emerald-50/50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-800 space-y-1">
-						<span class="text-emerald-800 dark:text-emerald-300 font-bold block text-[11px]">Penyelesaian Pekerjaan:</span>
-						<div class="text-on-surface text-[11px]">
-							Selesai pada: <strong>{formatDate(selectedWo.completion_date)}</strong> • Biaya: <strong class="font-mono text-emerald-600">{formatRupiah(selectedWo.actual_cost)}</strong>
+					<div class="p-3 rounded-xl bg-surface-container-low flex justify-between items-center">
+						<div>
+							<span class="text-on-surface-variant text-[10px] uppercase font-bold block">Pelapor / Pemohon</span>
+							<span class="font-semibold text-on-surface">{activeWo.requester_name}</span>
+							<span class="text-on-surface-variant block text-[11px]">{activeWo.department}</span>
 						</div>
-						{#if selectedWo.completion_notes}
-							<p class="text-on-surface italic pt-1 text-[11px]">"{selectedWo.completion_notes}"</p>
-						{/if}
+						<div class="text-right">
+							<span class="text-on-surface-variant text-[10px] uppercase font-bold block">Jadwal Order</span>
+							<span class="font-semibold text-on-surface">{formatDate(activeWo.scheduled_date)}</span>
+						</div>
 					</div>
-				{/if}
+				</div>
+
+				<!-- SECTION 1: MANPOWER / TUKANG -->
+				<div class="rounded-xl bg-surface-container-low p-4 space-y-3">
+					<div class="flex items-center justify-between">
+						<div class="flex items-center gap-2">
+							<span class="material-symbols-outlined text-blue-600 text-[18px]">engineering</span>
+							<h4 class="font-bold text-xs text-on-surface uppercase tracking-wider">Rincian Tukang / Manpower ({activeWo.manpower?.length || 0})</h4>
+						</div>
+						<span class="font-mono font-bold text-blue-600">Subtotal: {formatRupiah(activeWo.manpower_cost)}</span>
+					</div>
+
+					{#if activeWo.manpower && activeWo.manpower.length > 0}
+						<div class="overflow-x-auto rounded-lg bg-surface-container-lowest">
+							<table class="w-full text-left text-[11px]">
+								<thead class="bg-surface-container text-on-surface-variant uppercase text-[9px] font-bold">
+									<tr>
+										<th class="py-2 px-3">Nama Pekerja / Tukang</th>
+										<th class="py-2 px-3 text-right">Upah Harian</th>
+										<th class="py-2 px-3 text-center">Lama (Hari)</th>
+										<th class="py-2 px-3 text-right">Total Upah</th>
+										<th class="py-2 px-3 text-center">Hapus</th>
+									</tr>
+								</thead>
+								<tbody class="divide-y divide-slate-200/50 dark:divide-slate-800/50">
+									{#each activeWo.manpower as mp (mp.id)}
+										<tr>
+											<td class="py-2 px-3 font-bold text-on-surface">{mp.worker_name}</td>
+											<td class="py-2 px-3 text-right font-mono">{formatRupiah(mp.daily_wage)}</td>
+											<td class="py-2 px-3 text-center font-mono">{mp.duration_days} hr</td>
+											<td class="py-2 px-3 text-right font-mono font-bold text-on-surface">{formatRupiah(mp.total_cost)}</td>
+											<td class="py-2 px-3 text-center">
+												<form method="POST" action="?/deleteManpower" use:enhance class="inline">
+													<input type="hidden" name="id" value={mp.id} />
+													<input type="hidden" name="wo_id" value={activeWo.id} />
+													<button type="submit" class="text-rose-500 hover:text-rose-700 cursor-pointer" title="Hapus Tukang">
+														<span class="material-symbols-outlined text-[15px]">delete</span>
+													</button>
+												</form>
+											</td>
+										</tr>
+									{/each}
+								</tbody>
+							</table>
+						</div>
+					{:else}
+						<p class="text-[11px] text-on-surface-variant italic">Belum ada rincian pekerja/tukang untuk WO ini.</p>
+					{/if}
+
+					<!-- Form Tambah Manpower -->
+					<form method="POST" action="?/addManpower" use:enhance class="grid grid-cols-1 sm:grid-cols-4 gap-2 pt-1">
+						<input type="hidden" name="wo_id" value={activeWo.id} />
+						<input
+							type="text"
+							name="worker_name"
+							required
+							placeholder="Nama Tukang (mis: Ikrom)"
+							class="px-3 py-2 rounded-lg bg-surface-container-lowest border-0 outline-none focus:ring-2 focus:ring-blue-500/20 text-xs text-on-surface"
+						/>
+						<input
+							type="number"
+							name="daily_wage"
+							required
+							min="0"
+							step="5000"
+							placeholder="Upah/Hari (Rp)"
+							class="px-3 py-2 rounded-lg bg-surface-container-lowest border-0 outline-none focus:ring-2 focus:ring-blue-500/20 text-xs font-mono text-on-surface"
+						/>
+						<input
+							type="number"
+							name="duration_days"
+							required
+							min="0.5"
+							step="0.5"
+							value="1"
+							placeholder="Hari"
+							class="px-3 py-2 rounded-lg bg-surface-container-lowest border-0 outline-none focus:ring-2 focus:ring-blue-500/20 text-xs font-mono text-on-surface"
+						/>
+						<button type="submit" class="px-3 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs cursor-pointer transition-colors">
+							+ Tambah Tukang
+						</button>
+					</form>
+				</div>
+
+				<!-- SECTION 2: MATERIAL BANGUNAN -->
+				<div class="rounded-xl bg-surface-container-low p-4 space-y-3">
+					<div class="flex items-center justify-between">
+						<div class="flex items-center gap-2">
+							<span class="material-symbols-outlined text-amber-600 text-[18px]">construction</span>
+							<h4 class="font-bold text-xs text-on-surface uppercase tracking-wider">Rincian Material & Bahan ({activeWo.materials?.length || 0})</h4>
+						</div>
+						<span class="font-mono font-bold text-amber-600">Subtotal: {formatRupiah(activeWo.material_cost)}</span>
+					</div>
+
+					{#if activeWo.materials && activeWo.materials.length > 0}
+						<div class="overflow-x-auto rounded-lg bg-surface-container-lowest">
+							<table class="w-full text-left text-[11px]">
+								<thead class="bg-surface-container text-on-surface-variant uppercase text-[9px] font-bold">
+									<tr>
+										<th class="py-2 px-3">Nama Material</th>
+										<th class="py-2 px-3 text-right">Harga Satuan</th>
+										<th class="py-2 px-3 text-center">Qty</th>
+										<th class="py-2 px-3 text-right">Total Harga</th>
+										<th class="py-2 px-3 text-center">Hapus</th>
+									</tr>
+								</thead>
+								<tbody class="divide-y divide-slate-200/50 dark:divide-slate-800/50">
+									{#each activeWo.materials as mt (mt.id)}
+										<tr>
+											<td class="py-2 px-3 font-bold text-on-surface">{mt.material_name}</td>
+											<td class="py-2 px-3 text-right font-mono">{formatRupiah(mt.unit_price)}</td>
+											<td class="py-2 px-3 text-center font-mono">{mt.quantity}</td>
+											<td class="py-2 px-3 text-right font-mono font-bold text-on-surface">{formatRupiah(mt.total_cost)}</td>
+											<td class="py-2 px-3 text-center">
+												<form method="POST" action="?/deleteMaterial" use:enhance class="inline">
+													<input type="hidden" name="id" value={mt.id} />
+													<input type="hidden" name="wo_id" value={activeWo.id} />
+													<button type="submit" class="text-rose-500 hover:text-rose-700 cursor-pointer" title="Hapus Material">
+														<span class="material-symbols-outlined text-[15px]">delete</span>
+													</button>
+												</form>
+											</td>
+										</tr>
+									{/each}
+								</tbody>
+							</table>
+						</div>
+					{:else}
+						<p class="text-[11px] text-on-surface-variant italic">Belum ada rincian material bangunan untuk WO ini.</p>
+					{/if}
+
+					<!-- Form Tambah Material -->
+					<form method="POST" action="?/addMaterial" use:enhance class="grid grid-cols-1 sm:grid-cols-4 gap-2 pt-1">
+						<input type="hidden" name="wo_id" value={activeWo.id} />
+						<input
+							type="text"
+							name="material_name"
+							required
+							placeholder="Nama Material (mis: Semen)"
+							class="px-3 py-2 rounded-lg bg-surface-container-lowest border-0 outline-none focus:ring-2 focus:ring-amber-500/20 text-xs text-on-surface"
+						/>
+						<input
+							type="number"
+							name="unit_price"
+							required
+							min="0"
+							step="1000"
+							placeholder="Harga Satuan (Rp)"
+							class="px-3 py-2 rounded-lg bg-surface-container-lowest border-0 outline-none focus:ring-2 focus:ring-amber-500/20 text-xs font-mono text-on-surface"
+						/>
+						<input
+							type="number"
+							name="quantity"
+							required
+							min="1"
+							step="1"
+							value="1"
+							placeholder="Jumlah"
+							class="px-3 py-2 rounded-lg bg-surface-container-lowest border-0 outline-none focus:ring-2 focus:ring-amber-500/20 text-xs font-mono text-on-surface"
+						/>
+						<button type="submit" class="px-3 py-2 rounded-lg bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs cursor-pointer transition-colors">
+							+ Tambah Material
+						</button>
+					</form>
+				</div>
 
 				<div class="flex justify-end pt-2">
 					<button

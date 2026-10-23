@@ -13,7 +13,10 @@ export const load: PageServerLoad = async () => {
 			recentWorkOrders,
 			stationeryStats,
 			criticalStockItems,
-			recentStationeryRequests
+			recentStationeryRequests,
+			travelStats,
+			archiveStats,
+			visitorStats
 		] = await Promise.all([
 			// 1. Asset totals
 			sql`
@@ -153,6 +156,30 @@ export const load: PageServerLoad = async () => {
 				FROM ga.stationery_requests
 				ORDER BY request_date DESC, created_at DESC
 				LIMIT 5
+			`,
+			// 11. Carpool & Travel (SPD) Stats
+			sql`
+				SELECT
+					(SELECT COUNT(*)::int FROM ga.carpool_requests) as total_carpool,
+					(SELECT COUNT(*)::int FROM ga.carpool_requests WHERE status IN ('PENDING', 'APPROVED_AP')) as pending_carpool,
+					(SELECT COUNT(*)::int FROM ga.spd_requests) as total_spd,
+					(SELECT COUNT(*)::int FROM ga.spd_requests WHERE status IN ('PENDING', 'APPROVED_AP')) as pending_spd,
+					(SELECT COUNT(*)::int FROM ga.cars WHERE is_active = true) as total_cars
+			`,
+			// 12. Document Archives Stats
+			sql`
+				SELECT
+					(SELECT COUNT(*)::int FROM ga.archives) as total_docs,
+					(SELECT COUNT(*)::int FROM ga.archives WHERE status = 'aktif' AND destruction_date <= CURRENT_DATE) as due_destruction_docs,
+					(SELECT COUNT(*)::int FROM ga.archive_racks) as total_racks
+			`,
+			// 13. Visitor & Guestbook Stats
+			sql`
+				SELECT
+					COUNT(*)::int as total_visitors,
+					COUNT(CASE WHEN status = 'CHECKED_IN' THEN 1 END)::int as active_visitors,
+					ROUND(AVG(survey_rating)::numeric, 2) as avg_rating
+				FROM ga.visitors
 			`
 		]);
 
@@ -174,7 +201,10 @@ export const load: PageServerLoad = async () => {
 				stats: stationeryStats[0] || { total_items: 0, low_stock_items: 0, pending_requests: 0, approved_requests: 0 },
 				lowStockList: criticalStockItems || [],
 				recentRequests: recentStationeryRequests || []
-			}
+			},
+			travel: travelStats[0] || { total_carpool: 0, pending_carpool: 0, total_spd: 0, pending_spd: 0, total_cars: 0 },
+			archives: archiveStats[0] || { total_docs: 0, due_destruction_docs: 0, total_racks: 0 },
+			visitors: visitorStats[0] || { total_visitors: 0, active_visitors: 0, avg_rating: 0 }
 		};
 	} catch (error) {
 		console.error('Error loading GA dashboard data:', error);
@@ -196,7 +226,9 @@ export const load: PageServerLoad = async () => {
 				stats: { total_items: 0, low_stock_items: 0, pending_requests: 0, approved_requests: 0 },
 				lowStockList: [],
 				recentRequests: []
-			}
+			},
+			travel: { total_carpool: 0, pending_carpool: 0, total_spd: 0, pending_spd: 0, total_cars: 0 },
+			archives: { total_docs: 0, due_destruction_docs: 0, total_racks: 0 }
 		};
 	}
 };
