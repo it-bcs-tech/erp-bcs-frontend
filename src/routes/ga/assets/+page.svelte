@@ -20,6 +20,8 @@
 	let formCost = $state<number>(0);
 	let formSalvage = $state<number>(0);
 	let formMonths = $state<number>(60);
+	let formCategory = $state<string>('KENDARAAN_OPERASIONAL');
+	const fuelPrices = $derived(data.fuelPrices || []);
 	const estMonthlyDep = $derived(
 		formMonths > 0 ? Math.max(0, (formCost - formSalvage) / formMonths) : 0
 	);
@@ -28,6 +30,7 @@
 		formCost = 0;
 		formSalvage = 0;
 		formMonths = 60;
+		formCategory = 'KENDARAAN_OPERASIONAL';
 		isAddModalOpen = true;
 	}
 
@@ -36,6 +39,7 @@
 		formCost = asset.acquisition_cost || 0;
 		formSalvage = asset.salvage_value || 0;
 		formMonths = asset.economic_life_months || 60;
+		formCategory = asset.category || 'KENDARAAN_OPERASIONAL';
 		isEditModalOpen = true;
 	}
 
@@ -283,8 +287,20 @@
 							<td class="py-3 px-4">
 								<div class="font-bold text-on-surface">{asset.name}</div>
 								<div class="text-[11px] text-on-surface-variant font-medium">
-									{asset.brand_model || '-'} {#if asset.serial_number}(S/N: {asset.serial_number}){/if}
+									{asset.brand_model || '-'} {#if asset.serial_number}({asset.category === 'KENDARAAN_OPERASIONAL' ? 'Nopol' : 'S/N'}: {asset.serial_number}){/if}
 								</div>
+								{#if asset.category === 'KENDARAAN_OPERASIONAL'}
+									<div class="flex flex-wrap items-center gap-1.5 mt-1">
+										<span class="px-1.5 py-0.5 rounded text-[9px] font-bold bg-indigo-50 text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800">
+											Carpool Sync #{asset.car_id || '-'}
+										</span>
+										{#if asset.fuel_name}
+											<span class="px-1.5 py-0.5 rounded text-[9px] font-semibold bg-surface-container-high text-on-surface-variant">
+												{asset.fuel_name} • {asset.km_per_liter || 0} KM/L
+											</span>
+										{/if}
+									</div>
+								{/if}
 							</td>
 							<td class="py-3 px-4 font-medium text-on-surface">
 								{getCategoryLabel(asset.category)}
@@ -505,13 +521,14 @@
 						<select
 							id="create_category"
 							name="category"
+							bind:value={formCategory}
 							required
 							class="w-full px-4 py-2.5 text-xs rounded-xl bg-surface-container-low border-0 outline-none focus:ring-2 focus:ring-cyan-500/20 text-on-surface cursor-pointer transition-all"
 						>
+							<option value="KENDARAAN_OPERASIONAL">Kendaraan Operasional (Terintegrasi Carpool GA)</option>
 							<option value="ELEKTRONIK_IT">Elektronik & IT</option>
 							<option value="FASILITAS_GEDUNG">Fasilitas Gedung</option>
 							<option value="MESIN_GENSET">Mesin & Genset</option>
-							<option value="KENDARAAN_OPERASIONAL">Kendaraan Operasional</option>
 							<option value="FURNITUR_KANTOR">Furnitur Kantor</option>
 						</select>
 					</div>
@@ -524,21 +541,68 @@
 							id="create_brand"
 							type="text"
 							name="brand_model"
-							placeholder="Misal: Perkins 1104A / Dell PowerEdge"
+							placeholder={formCategory === 'KENDARAAN_OPERASIONAL' ? 'Misal: Toyota Avanza / Honda Vario' : 'Misal: Perkins 1104A / Dell PowerEdge'}
 							class="w-full px-4 py-2.5 text-xs rounded-xl bg-surface-container-low border-0 outline-none focus:ring-2 focus:ring-cyan-500/20 text-on-surface transition-all"
 						/>
 					</div>
 					<div>
-						<label for="create_serial" class="block text-xs font-bold text-on-surface mb-1.5">Nomor Seri / Serial Number</label>
+						<label for="create_serial" class="block text-xs font-bold text-on-surface mb-1.5">
+							{formCategory === 'KENDARAAN_OPERASIONAL' ? 'Nomor Polisi (Nopol) *' : 'Nomor Seri / Serial Number'}
+						</label>
 						<input
 							id="create_serial"
 							type="text"
 							name="serial_number"
-							placeholder="Nomor seri pabrikan"
+							required={formCategory === 'KENDARAAN_OPERASIONAL'}
+							placeholder={formCategory === 'KENDARAAN_OPERASIONAL' ? 'Contoh: A 1301 VH' : 'Nomor seri pabrikan'}
 							class="w-full px-4 py-2.5 text-xs rounded-xl bg-surface-container-low border-0 outline-none focus:ring-2 focus:ring-cyan-500/20 text-on-surface font-mono transition-all"
 						/>
 					</div>
 				</div>
+
+				{#if formCategory === 'KENDARAAN_OPERASIONAL'}
+					<div class="p-4 rounded-xl bg-indigo-50/40 dark:bg-indigo-950/20 border border-indigo-200/60 dark:border-indigo-800/50 space-y-3">
+						<div class="flex items-center justify-between text-xs font-bold text-indigo-800 dark:text-indigo-300">
+							<div class="flex items-center gap-2">
+								<span class="material-symbols-outlined text-sm">commute</span>
+								<span>Spesifikasi Operasional Carpool GA (Otomatis Sinkron ke Menu Carpool)</span>
+							</div>
+						</div>
+						<div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+							<div>
+								<label class="block text-[11px] font-bold text-on-surface mb-1">Kelompok Kendaraan</label>
+								<select
+									name="vehicle_group"
+									class="w-full px-3.5 py-2 text-xs rounded-xl bg-surface-container-lowest border-0 outline-none focus:ring-2 focus:ring-indigo-500/20 text-on-surface"
+								>
+									<option value="R-4">R-4 (Mobil)</option>
+									<option value="R2">R2 (Motor)</option>
+								</select>
+							</div>
+							<div>
+								<label class="block text-[11px] font-bold text-on-surface mb-1">Jenis BBM</label>
+								<select
+									name="fuel_id"
+									class="w-full px-3.5 py-2 text-xs rounded-xl bg-surface-container-lowest border-0 outline-none focus:ring-2 focus:ring-indigo-500/20 text-on-surface"
+								>
+									{#each fuelPrices as fp}
+										<option value={fp.id}>{fp.fuel_name}</option>
+									{/each}
+								</select>
+							</div>
+							<div>
+								<label class="block text-[11px] font-bold text-on-surface mb-1">Rasio Konsumsi (KM/Liter)</label>
+								<input
+									type="number"
+									name="km_per_liter"
+									step="0.01"
+									value="11"
+									class="w-full px-3.5 py-2 text-xs rounded-xl bg-surface-container-lowest border-0 outline-none focus:ring-2 focus:ring-indigo-500/20 text-on-surface font-mono"
+								/>
+							</div>
+						</div>
+					</div>
+				{/if}
 
 				<!-- Financial & Depreciation Settings -->
 				<div class="p-4 rounded-xl bg-cyan-50/40 dark:bg-cyan-950/20 border border-cyan-200/60 dark:border-cyan-800/50 space-y-3">
@@ -731,14 +795,14 @@
 						<select
 							id="edit_category"
 							name="category"
-							value={selectedAsset.category}
+							bind:value={formCategory}
 							required
 							class="w-full px-4 py-2.5 text-xs rounded-xl bg-surface-container-low border-0 outline-none focus:ring-2 focus:ring-cyan-500/20 text-on-surface cursor-pointer"
 						>
+							<option value="KENDARAAN_OPERASIONAL">Kendaraan Operasional (Terintegrasi Carpool GA)</option>
 							<option value="ELEKTRONIK_IT">Elektronik & IT</option>
 							<option value="FASILITAS_GEDUNG">Fasilitas Gedung</option>
 							<option value="MESIN_GENSET">Mesin & Genset</option>
-							<option value="KENDARAAN_OPERASIONAL">Kendaraan Operasional</option>
 							<option value="FURNITUR_KANTOR">Furnitur Kantor</option>
 						</select>
 					</div>
@@ -756,7 +820,9 @@
 						/>
 					</div>
 					<div>
-						<label for="edit_serial" class="block text-xs font-bold text-on-surface mb-1.5">Nomor Seri / Serial Number</label>
+						<label for="edit_serial" class="block text-xs font-bold text-on-surface mb-1.5">
+							{formCategory === 'KENDARAAN_OPERASIONAL' ? 'Nomor Polisi (Nopol)' : 'Nomor Seri / Serial Number'}
+						</label>
 						<input
 							id="edit_serial"
 							type="text"
@@ -766,6 +832,48 @@
 						/>
 					</div>
 				</div>
+
+				{#if formCategory === 'KENDARAAN_OPERASIONAL'}
+					<div class="p-4 rounded-xl bg-indigo-50/40 dark:bg-indigo-950/20 border border-indigo-200/60 dark:border-indigo-800/50 space-y-3">
+						<div class="flex items-center gap-2 text-xs font-bold text-indigo-800 dark:text-indigo-300">
+							<span class="material-symbols-outlined text-sm">commute</span>
+							<span>Spesifikasi Operasional Carpool GA (Sinkron ke Carpool ID #{selectedAsset.car_id || 'Baru'})</span>
+						</div>
+						<div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+							<div>
+								<label class="block text-[11px] font-bold text-on-surface mb-1">Kelompok Kendaraan</label>
+								<input
+									type="text"
+									name="vehicle_group"
+									value={selectedAsset.vehicle_group || 'R4'}
+									class="w-full px-3.5 py-2 text-xs rounded-xl bg-surface-container-lowest border-0 outline-none focus:ring-2 focus:ring-indigo-500/20 text-on-surface"
+								/>
+							</div>
+							<div>
+								<label class="block text-[11px] font-bold text-on-surface mb-1">Jenis BBM</label>
+								<select
+									name="fuel_id"
+									value={selectedAsset.fuel_id || 1}
+									class="w-full px-3.5 py-2 text-xs rounded-xl bg-surface-container-lowest border-0 outline-none focus:ring-2 focus:ring-indigo-500/20 text-on-surface"
+								>
+									{#each fuelPrices as fp}
+										<option value={fp.id}>{fp.fuel_name}</option>
+									{/each}
+								</select>
+							</div>
+							<div>
+								<label class="block text-[11px] font-bold text-on-surface mb-1">Rasio Konsumsi (KM/Liter)</label>
+								<input
+									type="number"
+									name="km_per_liter"
+									step="0.01"
+									value={selectedAsset.km_per_liter || 0}
+									class="w-full px-3.5 py-2 text-xs rounded-xl bg-surface-container-lowest border-0 outline-none focus:ring-2 focus:ring-indigo-500/20 text-on-surface font-mono"
+								/>
+							</div>
+						</div>
+					</div>
+				{/if}
 
 				<div class="grid grid-cols-1 md:grid-cols-3 gap-3 p-4 rounded-xl bg-surface-container-low">
 					<div>

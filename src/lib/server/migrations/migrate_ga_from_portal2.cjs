@@ -947,6 +947,41 @@ async function run() {
 	}
 	await sql`SELECT setval('ga.cars_id_seq', COALESCE((SELECT MAX(id) FROM ga.cars), 1))`;
 
+	// Sync 9 Physical Company Vehicles from car into ga.assets (cleaning dummy rows)
+	await sql`ALTER TABLE ga.assets ADD COLUMN IF NOT EXISTS car_id INTEGER`;
+	await sql`ALTER TABLE ga.assets ADD COLUMN IF NOT EXISTS vehicle_group VARCHAR(50)`;
+	await sql`ALTER TABLE ga.assets ADD COLUMN IF NOT EXISTS fuel_id INTEGER DEFAULT 1`;
+	await sql`ALTER TABLE ga.assets ADD COLUMN IF NOT EXISTS km_per_liter NUMERIC DEFAULT 0`;
+	await sql`TRUNCATE TABLE ga.asset_mutations, ga.assets RESTART IDENTITY CASCADE`;
+
+	const nonAssetNopol = /go\s*-\s*car|go\s*-\s*jeg|go\s*-\s*jek|pribadi/i;
+	const physicalCars = carRows.filter(c => !nonAssetNopol.test(String(c.car_nopol || '')));
+	let assetSeq = 1;
+	for (const c of physicalCars) {
+		const code = `AST-VEH-${String(assetSeq).padStart(3, '0')}`;
+		assetSeq++;
+		const rawName = String(c.car_name || 'Kendaraan Operasional').trim();
+		const cleanName = rawName.toLowerCase() === 'other' ? 'Mobil Operasional GA' : rawName.replace(/Oprasional|Opasional/i, 'Operasional');
+		const nopol = String(c.car_nopol || '').trim();
+		const grp = String(c.car_kelompok || 'R4').trim().replace(/\s+/g, '-');
+		const fullName = `${cleanName} (${nopol})`;
+
+		await sql`
+			INSERT INTO ga.assets (
+				asset_code, name, category, brand_model, serial_number,
+				acquisition_date, acquisition_cost, economic_life_months, salvage_value,
+				location, room, pic_name, condition, status, barcode_qr, notes,
+				car_id, vehicle_group, fuel_id, km_per_liter
+			) VALUES (
+				${code}, ${fullName}, 'KENDARAAN_OPERASIONAL', ${`${cleanName} • ${grp}`}, ${nopol},
+				'2023-01-01', 0, 60, 0,
+				'Head Office Cilegon', 'Pool Operasional GA', ${String(c.car_user || 'GA').trim()},
+				'GOOD', 'ACTIVE', ${code}, ${`Unit Kendaraan Operasional Carpool GA (Nopol: ${nopol}, Rasio BBM: ${c.car_km_liter || 0} KM/L)`},
+				${Number(c.car_id)}, ${grp}, ${Number(c.car_bbm || 1)}, ${Number(c.car_km_liter || 0)}
+			)
+		`;
+	}
+
 	// Master Fuel, Destinations, Tolls, Budgets, Facility Types, Meal Rates, SPD Rates
 	const bbmRows = parseInsertRows('bbm');
 	if (bbmRows.length > 0) {

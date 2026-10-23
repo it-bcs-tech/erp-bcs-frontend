@@ -10,7 +10,7 @@ export const load: PageServerLoad = async ({ url }) => {
 		const condition = url.searchParams.get('condition') || 'All';
 		const status = url.searchParams.get('status') || 'All';
 
-		const [rawAssets, rawMutations, employees] = await Promise.all([
+		const [rawAssets, rawMutations, employees, fuelPrices] = await Promise.all([
 			sql`
 				SELECT 
 					a.id,
@@ -31,9 +31,15 @@ export const load: PageServerLoad = async ({ url }) => {
 					a.status,
 					a.barcode_qr,
 					a.notes,
+					a.car_id,
+					a.vehicle_group,
+					COALESCE(a.fuel_id, 1)::int as fuel_id,
+					COALESCE(a.km_per_liter, 0)::numeric as km_per_liter,
+					fp.fuel_name,
 					to_char(a.created_at, 'YYYY-MM-DD HH24:MI') as created_at
 				FROM ga.assets a
-				ORDER BY a.id DESC
+				LEFT JOIN ga.travel_fuel_prices fp ON fp.id = a.fuel_id
+				ORDER BY a.id ASC
 			`,
 			sql`
 				SELECT 
@@ -51,11 +57,16 @@ export const load: PageServerLoad = async ({ url }) => {
 				ORDER BY m.mutation_date DESC, m.id DESC
 			`,
 			sql`
-				SELECT id, nama_karyawan, jabatan, lokasi
+				SELECT id, name as nama_karyawan, title as jabatan, location_code as lokasi
 				FROM master.m_karyawan
-				WHERE aktif = 'Y'
-				ORDER BY nama_karyawan ASC
-				LIMIT 100
+				WHERE name IS NOT NULL
+				ORDER BY name ASC
+				LIMIT 250
+			`,
+			sql`
+				SELECT id, fuel_name, price_per_liter
+				FROM ga.travel_fuel_prices
+				ORDER BY id ASC
 			`
 		]);
 
@@ -140,7 +151,8 @@ export const load: PageServerLoad = async ({ url }) => {
 				totalBookValue,
 				activeCount: processedAssets.filter(a => a.status === 'ACTIVE').length
 			},
-			employees: employees || []
+			employees: employees || [],
+			fuelPrices: fuelPrices || []
 		};
 	} catch (err) {
 		console.error('Error loading assets data:', err);
@@ -148,7 +160,8 @@ export const load: PageServerLoad = async ({ url }) => {
 			assets: [],
 			allAssetsCount: 0,
 			totals: { totalCost: 0, totalAccumulatedDepreciation: 0, totalBookValue: 0, activeCount: 0 },
-			employees: []
+			employees: [],
+			fuelPrices: []
 		};
 	}
 };
@@ -170,6 +183,9 @@ export const actions: Actions = {
 		const pic_name = data.get('pic_name')?.toString().trim() || null;
 		const condition = data.get('condition')?.toString() || 'GOOD';
 		const notes = data.get('notes')?.toString().trim() || null;
+		const vehicle_group = data.get('vehicle_group')?.toString().trim() || 'R4';
+		const fuel_id = parseInt(data.get('fuel_id')?.toString() || '1', 10);
+		const km_per_liter = parseFloat(data.get('km_per_liter')?.toString() || '0');
 
 		if (!name || !category || !location) {
 			return fail(400, { message: 'Nama aset, kategori, dan lokasi wajib diisi!' });
@@ -180,22 +196,34 @@ export const actions: Actions = {
 			const year = new Date().getFullYear();
 			const [seq] = await sql`SELECT count(*) + 1 as next_seq FROM ga.assets`;
 			const pad = String(seq.next_seq).padStart(3, '0');
-			asset_code = `AST-OFC-${year}-${pad}`;
+			asset_code = category === 'KENDARAAN_OPERASIONAL' ? `AST-VEH-${pad}` : `AST-OFC-${year}-${pad}`;
 		}
 
 		try {
+			let carId: number | null = null;
+			if (category === 'KENDARAAN_OPERASIONAL') {
+				const [newCar] = await sql`
+					INSERT INTO ga.cars (car_group, car_user, car_name, police_number, fuel_id, km_per_liter, is_active)
+					VALUES (${vehicle_group}, ${pic_name || 'Ops GA'}, ${name}, ${serial_number || '-'}, ${fuel_id}, ${km_per_liter}, true)
+					RETURNING id
+				`;
+				carId = newCar?.id || null;
+			}
+
 			await sql`
 				INSERT INTO ga.assets (
 					asset_code, name, category, brand_model, serial_number, acquisition_date,
 					acquisition_cost, economic_life_months, salvage_value, location, room,
-					pic_name, condition, status, barcode_qr, notes
+					pic_name, condition, status, barcode_qr, notes,
+					car_id, vehicle_group, fuel_id, km_per_liter
 				) VALUES (
 					${asset_code}, ${name}, ${category}, ${brand_model}, ${serial_number}, ${acquisition_date},
 					${acquisition_cost}, ${economic_life_months}, ${salvage_value}, ${location}, ${room},
-					${pic_name}, ${condition}, 'ACTIVE', ${asset_code}, ${notes}
+					${pic_name}, ${condition}, 'ACTIVE', ${asset_code}, ${notes},
+					${carId}, ${category === 'KENDARAAN_OPERASIONAL' ? vehicle_group : null}, ${fuel_id}, ${km_per_liter}
 				)
 			`;
-			return { success: true, message: 'Aset baru berhasil ditambahkan' };
+			return { success: true, message: 'Aset baru berhasil ditambahkan & disinkronkan' };
 		} catch (e: any) {
 			console.error('Error creating asset:', e);
 			return fail(500, { message: e.message || 'Gagal menambahkan aset baru' });
@@ -219,12 +247,41 @@ export const actions: Actions = {
 		const condition = data.get('condition')?.toString() || 'GOOD';
 		const status = data.get('status')?.toString() || 'ACTIVE';
 		const notes = data.get('notes')?.toString().trim() || null;
+		const vehicle_group = data.get('vehicle_group')?.toString().trim() || 'R4';
+		const fuel_id = parseInt(data.get('fuel_id')?.toString() || '1', 10);
+		const km_per_liter = parseFloat(data.get('km_per_liter')?.toString() || '0');
 
 		if (!id || !name || !category || !location) {
 			return fail(400, { message: 'Data yang dikirim tidak lengkap!' });
 		}
 
 		try {
+			const [existing] = await sql`SELECT car_id FROM ga.assets WHERE id = ${id}`;
+			let carId = existing?.car_id || null;
+
+			if (category === 'KENDARAAN_OPERASIONAL') {
+				if (carId) {
+					await sql`
+						UPDATE ga.cars SET
+							car_group = ${vehicle_group},
+							car_user = ${pic_name || 'Ops GA'},
+							car_name = ${name},
+							police_number = ${serial_number || '-'},
+							fuel_id = ${fuel_id},
+							km_per_liter = ${km_per_liter},
+							is_active = ${status === 'ACTIVE'}
+						WHERE id = ${carId}
+					`;
+				} else {
+					const [newCar] = await sql`
+						INSERT INTO ga.cars (car_group, car_user, car_name, police_number, fuel_id, km_per_liter, is_active)
+						VALUES (${vehicle_group}, ${pic_name || 'Ops GA'}, ${name}, ${serial_number || '-'}, ${fuel_id}, ${km_per_liter}, ${status === 'ACTIVE'})
+						RETURNING id
+					`;
+					carId = newCar?.id || null;
+				}
+			}
+
 			await sql`
 				UPDATE ga.assets SET
 					name = ${name},
@@ -241,10 +298,14 @@ export const actions: Actions = {
 					condition = ${condition},
 					status = ${status},
 					notes = ${notes},
+					car_id = ${carId},
+					vehicle_group = ${category === 'KENDARAAN_OPERASIONAL' ? vehicle_group : null},
+					fuel_id = ${fuel_id},
+					km_per_liter = ${km_per_liter},
 					updated_at = NOW()
 				WHERE id = ${id}
 			`;
-			return { success: true, message: 'Data aset berhasil diperbarui' };
+			return { success: true, message: 'Data aset berhasil diperbarui & disinkronkan' };
 		} catch (e: any) {
 			console.error('Error updating asset:', e);
 			return fail(500, { message: 'Gagal memperbarui data aset' });
@@ -267,7 +328,7 @@ export const actions: Actions = {
 
 		try {
 			// Get current asset location & PIC
-			const [cur] = await sql`SELECT location, room, pic_name FROM ga.assets WHERE id = ${asset_id}`;
+			const [cur] = await sql`SELECT location, room, pic_name, car_id FROM ga.assets WHERE id = ${asset_id}`;
 			if (!cur) return fail(404, { message: 'Aset tidak ditemukan' });
 
 			const from_location = cur.room ? `${cur.location} (${cur.room})` : cur.location;
@@ -294,6 +355,10 @@ export const actions: Actions = {
 				WHERE id = ${asset_id}
 			`;
 
+			if (cur.car_id && to_pic) {
+				await sql`UPDATE ga.cars SET car_user = ${to_pic} WHERE id = ${cur.car_id}`;
+			}
+
 			return { success: true, message: 'Mutasi aset berhasil dicatat' };
 		} catch (e: any) {
 			console.error('Error recording mutation:', e);
@@ -307,6 +372,10 @@ export const actions: Actions = {
 		if (!id) return fail(400, { message: 'ID aset tidak valid' });
 
 		try {
+			const [cur] = await sql`SELECT car_id FROM ga.assets WHERE id = ${id}`;
+			if (cur?.car_id) {
+				await sql`UPDATE ga.cars SET is_active = false WHERE id = ${cur.car_id}`;
+			}
 			await sql`DELETE FROM ga.assets WHERE id = ${id}`;
 			return { success: true, message: 'Aset berhasil dihapus' };
 		} catch (e: any) {

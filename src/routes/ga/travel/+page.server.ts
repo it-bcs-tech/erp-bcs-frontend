@@ -436,11 +436,33 @@ export const actions: Actions = {
 		}
 
 		try {
-			await sql`
+			const [newCar] = await sql`
 				INSERT INTO ga.cars (car_group, car_user, car_name, police_number, fuel_id, km_per_liter, is_active)
 				VALUES (${car_group}, ${car_user}, ${car_name}, ${police_number}, ${fuel_id}, ${km_per_liter}, true)
+				RETURNING id
 			`;
-			return { success: true, message: `Kendaraan ${car_name} (${police_number}) berhasil ditambahkan` };
+
+			const isNonAsset = /go\s*-\s*car|go\s*-\s*jeg|go\s*-\s*jek|pribadi/i.test(police_number);
+			if (!isNonAsset && newCar?.id) {
+				const [seq] = await sql`SELECT count(*) + 1 as next_seq FROM ga.assets`;
+				const code = `AST-VEH-${String(seq.next_seq).padStart(3, '0')}`;
+				await sql`
+					INSERT INTO ga.assets (
+						asset_code, name, category, brand_model, serial_number,
+						acquisition_date, acquisition_cost, economic_life_months, salvage_value,
+						location, room, pic_name, condition, status, barcode_qr, notes,
+						car_id, vehicle_group, fuel_id, km_per_liter
+					) VALUES (
+						${code}, ${`${car_name} (${police_number})`}, 'KENDARAAN_OPERASIONAL', ${`${car_name} • ${car_group}`}, ${police_number},
+						CURRENT_DATE, 0, 60, 0,
+						'Head Office Cilegon', 'Pool Operasional GA', ${car_user},
+						'GOOD', 'ACTIVE', ${code}, ${`Unit Kendaraan Operasional Carpool GA (Nopol: ${police_number}, Rasio BBM: ${km_per_liter} KM/L)`},
+						${newCar.id}, ${car_group}, ${fuel_id}, ${km_per_liter}
+					)
+				`;
+			}
+
+			return { success: true, message: `Kendaraan ${car_name} (${police_number}) berhasil ditambahkan & disinkronkan ke Master Assets` };
 		} catch (e: any) {
 			console.error('Error creating car:', e);
 			return fail(500, { message: 'Gagal menambahkan kendaraan GA' });

@@ -463,17 +463,25 @@
 		<div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
 			<!-- Card 1: Master Kendaraan Operasional GA (car) -->
 			<div class="rounded-2xl bg-surface-container-lowest border border-slate-200/70 dark:border-slate-800/70 shadow-2xs overflow-hidden flex flex-col">
-				<div class="p-4 border-b border-slate-200/60 dark:border-slate-800/60 flex items-center justify-between">
+				<div class="p-4 border-b border-slate-200/60 dark:border-slate-800/60 flex items-center justify-between gap-2">
 					<div>
-						<h3 class="font-bold text-sm text-on-surface">Master Kendaraan Operasional GA ({data.cars.length})</h3>
-						<p class="text-[11px] text-on-surface-variant">Daftar mobil R4, motor R2, ambulance & moda online Carpool</p>
+						<h3 class="font-bold text-sm text-on-surface">Master Kendaraan & Moda Transportasi Carpool ({data.cars.length})</h3>
+						<p class="text-[11px] text-on-surface-variant">9 Unit Kendaraan Fisik terintegrasi dengan Master Assets + 4 Opsi Moda Online/Pribadi</p>
 					</div>
-					<button
-						onclick={() => (isCreateCarOpen = true)}
-						class="px-3 py-1.5 rounded-xl bg-cyan-600 hover:bg-cyan-700 text-white text-xs font-bold cursor-pointer"
-					>
-						+ Tambah Unit
-					</button>
+					<div class="flex items-center gap-2">
+						<a
+							href="/ga/assets"
+							class="px-3 py-1.5 rounded-xl bg-surface-container-high hover:bg-surface-container-highest text-on-surface text-xs font-bold border border-slate-200 dark:border-slate-800"
+						>
+							Kelola Aset &rarr;
+						</a>
+						<button
+							onclick={() => (isCreateCarOpen = true)}
+							class="px-3 py-1.5 rounded-xl bg-cyan-600 hover:bg-cyan-700 text-white text-xs font-bold cursor-pointer"
+						>
+							+ Tambah Unit
+						</button>
+					</div>
 				</div>
 				<div class="overflow-x-auto">
 					<table class="w-full text-left text-xs">
@@ -482,17 +490,31 @@
 								<th class="py-2.5 px-4">ID</th>
 								<th class="py-2.5 px-4">Nama Kendaraan</th>
 								<th class="py-2.5 px-4">Nopol / Moda</th>
-								<th class="py-2.5 px-4">Kelompok & User</th>
+								<th class="py-2.5 px-4">Tipe</th>
 								<th class="py-2.5 px-4 text-right">Rasio KM/L</th>
 							</tr>
 						</thead>
 						<tbody class="divide-y divide-slate-200/60 dark:divide-slate-800/60">
 							{#each data.cars as c (c.id)}
+								{@const isNonAsset = /go\s*-\s*car|go\s*-\s*jeg|go\s*-\s*jek|pribadi/i.test(String(c.police_number || ''))}
 								<tr>
 									<td class="py-2.5 px-4 font-mono text-on-surface-variant">#{c.id}</td>
-									<td class="py-2.5 px-4 font-bold text-on-surface">{c.car_name}</td>
+									<td class="py-2.5 px-4">
+										<div class="font-bold text-on-surface">{c.car_name}</div>
+										<div class="text-[10px] text-on-surface-variant">{c.car_group || '-'} • {c.car_user || 'GA'}</div>
+									</td>
 									<td class="py-2.5 px-4 font-mono font-bold text-cyan-600">{c.police_number}</td>
-									<td class="py-2.5 px-4 text-on-surface-variant">{c.car_group || '-'} • {c.car_user || 'GA'}</td>
+									<td class="py-2.5 px-4">
+										{#if isNonAsset}
+											<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-50 text-amber-700 dark:bg-amber-950/50 dark:text-amber-300 border border-amber-200">
+												Moda Online/Pribadi
+											</span>
+										{:else}
+											<a href="/ga/assets" class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300 border border-emerald-200 hover:underline">
+												Aset Tetap GA
+											</a>
+										{/if}
+									</td>
 									<td class="py-2.5 px-4 text-right font-mono">{c.km_per_liter} km/L ({c.fuel_name || 'Pertalite'})</td>
 								</tr>
 							{/each}
