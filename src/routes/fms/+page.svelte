@@ -20,6 +20,68 @@
 	let selectedAlert      = $state<any | null>(null);
 	let selectedTrendMonth = $state<string | null>(null);
 
+	// Donut Chart State & Derived Data
+	let donutViewMode     = $state<'READINESS' | 'BU'>('READINESS');
+	let hoveredDonutSlice = $state<{ label: string; count: number; pct: number; color: string } | null>(null);
+
+	const donutData = $derived.by(() => {
+		const total = metrics.totalVehicles || 1;
+		const C = 251.327; // 2 * PI * 40
+
+		if (donutViewMode === 'READINESS') {
+			const standby = fleetSummary.available ?? 0;
+			const onRoute = (fleetSummary.moving ?? 0) + (fleetSummary.loading ?? 0) + (fleetSummary.unloading ?? 0) + (fleetSummary.dispatched ?? 0) + (fleetSummary.returning ?? 0);
+			const workshop = fleetSummary.maintenance ?? 0;
+			const inactive = Math.max(0, (fleetSummary.inactive ?? 0) - workshop);
+
+			const items = [
+				{ key: 'STATUS_AVAILABLE', label: 'Standby Pool', count: standby, color: '#10b981', bgCls: 'bg-emerald-500' },
+				{ key: 'STATUS_MOVING', label: 'On Delivery', count: onRoute, color: '#3b82f6', bgCls: 'bg-blue-500' },
+				{ key: 'STATUS_MAINTENANCE', label: 'In Workshop', count: workshop, color: '#f59e0b', bgCls: 'bg-amber-500' },
+				{ key: 'STATUS_INACTIVE', label: 'Non-Aktif', count: inactive, color: '#64748b', bgCls: 'bg-slate-500' }
+			];
+
+			let offset = 0;
+			return items.map(it => {
+				const pct = Math.round((it.count / total) * 100);
+				const strokeLength = Math.max(0, (it.count / total) * C);
+				const dashArray = `${strokeLength} ${C - strokeLength}`;
+				const dashOffset = -offset;
+				offset += strokeLength;
+				return { ...it, pct, dashArray, dashOffset };
+			});
+		} else {
+			const dt = fleetSummary.dumpTruck ?? 0;
+			const trans = fleetSummary.transportation ?? 0;
+			const other = Math.max(0, total - dt - trans);
+
+			const items = [
+				{ key: 'BU_DUMP_TRUCK', search: 'Dump Truck', label: 'Dump Truck', count: dt, color: '#f59e0b', bgCls: 'bg-amber-500' },
+				{ key: 'BU_TRANSPORTATION', search: 'Transportation', label: 'Transportation', count: trans, color: '#3b82f6', bgCls: 'bg-blue-500' },
+				{ key: 'BU_OTHER', search: 'Outsourcing', label: 'Lainnya', count: other, color: '#8b5cf6', bgCls: 'bg-purple-500' }
+			];
+
+			let offset = 0;
+			return items.map(it => {
+				const pct = Math.round((it.count / total) * 100);
+				const strokeLength = Math.max(0, (it.count / total) * C);
+				const dashArray = `${strokeLength} ${C - strokeLength}`;
+				const dashOffset = -offset;
+				offset += strokeLength;
+				return { ...it, pct, dashArray, dashOffset };
+			});
+		}
+	});
+
+	function handleDonutSliceClick(item: any) {
+		if (donutViewMode === 'READINESS') {
+			openModal(item.key);
+		} else {
+			openModal('TOTAL_VEHICLES');
+			modalSearch = item.search || item.label;
+		}
+	}
+
 	function openModal(category: string) {
 		activeModal = category;
 		modalSearch = '';
@@ -421,9 +483,9 @@
 		</div>
 	</div>
 
-	<!-- Middle Section: Asymmetric Layout (Trend Chart + Action Required) -->
-	<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-		<!-- Fleet Utilization Chart -->
+	<!-- Middle Section: Analytics Command Center (Trend Chart + Donut Composition + Alerts) -->
+	<div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
+		<!-- Fleet Utilization Chart (50% Width) -->
 		<div class="lg:col-span-2 p-6 rounded-2xl bg-surface-container-low border border-slate-200/60 dark:border-slate-800/60 shadow-xs flex flex-col justify-between">
 			<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-6">
 				<div>
@@ -473,6 +535,98 @@
 							</div>
 						</div>
 						<span class="text-[10px] font-bold uppercase tracking-wider transition-colors {isSelected ? 'text-blue-600 font-black underline' : 'text-on-surface-variant group-hover/bar:text-blue-600'}">{item.month}</span>
+					</div>
+				{/each}
+			</div>
+		</div>
+
+		<!-- Donut Chart: Komposisi Armada (25% Width) -->
+		<div class="lg:col-span-1 p-5 rounded-2xl bg-surface-container-low border border-slate-200/60 dark:border-slate-800/60 shadow-xs flex flex-col justify-between">
+			<div class="flex items-center justify-between mb-2">
+				<div class="flex items-center gap-1.5">
+					<span class="material-symbols-outlined text-blue-600 dark:text-blue-400 text-lg">donut_large</span>
+					<h3 class="text-sm font-bold text-on-surface">Komposisi Armada</h3>
+				</div>
+				<!-- Toggle Tabs -->
+				<div class="inline-flex p-0.5 rounded-lg bg-surface-container border border-slate-200/50 dark:border-slate-800/50 text-[10px]">
+					<button 
+						onclick={() => { donutViewMode = 'READINESS'; hoveredDonutSlice = null; }}
+						class="px-2 py-0.5 rounded-md font-bold transition-all cursor-pointer {donutViewMode === 'READINESS' ? 'bg-surface text-blue-600 shadow-2xs' : 'text-on-surface-variant hover:text-on-surface'}"
+					>
+						Status
+					</button>
+					<button 
+						onclick={() => { donutViewMode = 'BU'; hoveredDonutSlice = null; }}
+						class="px-2 py-0.5 rounded-md font-bold transition-all cursor-pointer {donutViewMode === 'BU' ? 'bg-surface text-blue-600 shadow-2xs' : 'text-on-surface-variant hover:text-on-surface'}"
+					>
+						BU
+					</button>
+				</div>
+			</div>
+
+			<!-- SVG Donut Chart -->
+			<div class="relative flex items-center justify-center my-1">
+				<svg class="w-36 h-36 -rotate-90" viewBox="0 0 100 100">
+					<!-- Background Ring -->
+					<circle
+						cx="50"
+						cy="50"
+						r="40"
+						class="stroke-slate-100 dark:stroke-slate-800"
+						stroke-width="12"
+						fill="transparent"
+					/>
+					<!-- Dynamic Segments -->
+					{#each donutData as slice}
+						<!-- svelte-ignore a11y_click_events_have_key_events -->
+						<!-- svelte-ignore a11y_no_static_element_interactions -->
+						<circle
+							cx="50"
+							cy="50"
+							r="40"
+							stroke={slice.color}
+							stroke-width={hoveredDonutSlice?.label === slice.label ? "14" : "12"}
+							stroke-dasharray={slice.dashArray}
+							stroke-dashoffset={slice.dashOffset}
+							stroke-linecap="butt"
+							fill="transparent"
+							class="transition-all duration-300 cursor-pointer hover:opacity-90"
+							onmouseenter={() => hoveredDonutSlice = slice}
+							onmouseleave={() => hoveredDonutSlice = null}
+							onclick={() => handleDonutSliceClick(slice)}
+						/>
+					{/each}
+				</svg>
+
+				<!-- Center Hole Info -->
+				<div class="absolute inset-0 flex flex-col items-center justify-center text-center pointer-events-none px-3">
+					{#if hoveredDonutSlice}
+						<span class="text-xs font-black text-on-surface truncate max-w-[75px]">{hoveredDonutSlice.count} Unit</span>
+						<span class="text-[9px] font-bold text-blue-600 dark:text-blue-400">{hoveredDonutSlice.pct}%</span>
+						<span class="text-[8px] font-medium text-on-surface-variant uppercase tracking-wider truncate max-w-[80px]">{hoveredDonutSlice.label}</span>
+					{:else}
+						<span class="text-sm font-black text-on-surface">{metrics.totalVehicles ?? 0}</span>
+						<span class="text-[9px] font-bold text-on-surface-variant uppercase tracking-wider">Total Armada</span>
+					{/if}
+				</div>
+			</div>
+
+			<!-- Interactive Legend -->
+			<div class="grid grid-cols-2 gap-1.5 pt-2 border-t border-slate-200/40 dark:border-slate-800/40">
+				{#each donutData as slice}
+					<!-- svelte-ignore a11y_click_events_have_key_events -->
+					<!-- svelte-ignore a11y_no_static_element_interactions -->
+					<div 
+						class="flex items-center justify-between p-1 rounded-md hover:bg-surface-container transition-colors cursor-pointer group"
+						onmouseenter={() => hoveredDonutSlice = slice}
+						onmouseleave={() => hoveredDonutSlice = null}
+						onclick={() => handleDonutSliceClick(slice)}
+					>
+						<div class="flex items-center gap-1.5 min-w-0">
+							<span class="w-2 h-2 rounded-full flex-shrink-0" style="background-color: {slice.color}"></span>
+							<span class="text-[10px] font-medium text-on-surface-variant group-hover:text-on-surface truncate">{slice.label}</span>
+						</div>
+						<span class="text-[10px] font-bold text-on-surface ml-1">{slice.count}</span>
 					</div>
 				{/each}
 			</div>
