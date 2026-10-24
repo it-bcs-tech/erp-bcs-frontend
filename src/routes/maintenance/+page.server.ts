@@ -103,6 +103,22 @@ export const load: PageServerLoad = async () => {
 			LIMIT 5
 		`;
 
+		// 8. Breakdown of Work Order Categories for Visual Donut Chart
+		const categoryBreakdownQuery = await sql`
+			SELECT 
+				COALESCE(NULLIF(TRIM(maint_category), ''), 'General Repair') as category,
+				COUNT(*)::int as count
+			FROM fleet.work_orders
+			WHERE status NOT IN ('Cancelled', 'CANCELLED', 'Batal')
+			GROUP BY maint_category
+			ORDER BY count DESC
+			LIMIT 5
+		`;
+
+		const totalInsp = parseInt(inspectionMetrics[0]?.total_inspections || '0');
+		const passedInsp = parseInt(inspectionMetrics[0]?.passed || '0');
+		const passRate = totalInsp > 0 ? Math.round((passedInsp / totalInsp) * 100) : 100;
+
 		return {
 			metrics: {
 				totalActiveWO: parseInt(woMetrics[0]?.total_active || '0'),
@@ -111,12 +127,17 @@ export const load: PageServerLoad = async () => {
 				readyForReinspection: parseInt(woMetrics[0]?.ready_for_reinspection || '0'),
 				closedTotal: parseInt(woMetrics[0]?.closed_total || '0'),
 				unitsInWorkshop: parseInt(unitInWorkshopQuery[0]?.count || '0'),
-				inspectionsToday: parseInt(inspectionMetrics[0]?.total_inspections || '0'),
-				passedInspections: parseInt(inspectionMetrics[0]?.passed || '0'),
+				inspectionsToday: totalInsp,
+				passedInspections: passedInsp,
 				defectedInspections: parseInt(inspectionMetrics[0]?.failed_defect || '0'),
+				passRate,
 				pmDue: parseInt(pmMetrics[0]?.due || '0'),
 				pmOverdue: parseInt(pmMetrics[0]?.overdue || '0')
 			},
+			categoryBreakdown: categoryBreakdownQuery.map(r => ({
+				category: r.category,
+				count: Number(r.count) || 0
+			})),
 			activeWorkOrders: activeWorkOrders.map(r => ({
 				id: r.id,
 				woNo: r.wo_no,
@@ -164,9 +185,11 @@ export const load: PageServerLoad = async () => {
 				inspectionsToday: 0,
 				passedInspections: 0,
 				defectedInspections: 0,
+				passRate: 100,
 				pmDue: 0,
 				pmOverdue: 0
 			},
+			categoryBreakdown: [],
 			activeWorkOrders: [],
 			recentInspections: [],
 			dueSchedules: []
