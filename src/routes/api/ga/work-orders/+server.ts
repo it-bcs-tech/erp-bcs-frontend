@@ -2,6 +2,79 @@ import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import sql from '$lib/server/db';
 
+export const GET: RequestHandler = async ({ locals }) => {
+	try {
+		const user = (locals as any)?.user;
+		const payrollId = user?.payrollId;
+		const userName = user?.name;
+		const userEmail = user?.email;
+		const isGaOrAdmin = user?.role === 'superadmin' || user?.allowedModules?.includes('ga');
+
+		let rows: any[] = [];
+		if (isGaOrAdmin) {
+			rows = await sql`
+				SELECT 
+					id,
+					wo_number,
+					facility_type,
+					location,
+					requester_name,
+					requester_nik,
+					department,
+					description,
+					urgency,
+					status,
+					to_char(scheduled_date, 'YYYY-MM-DD') as scheduled_date,
+					to_char(created_at, 'YYYY-MM-DD HH24:MI') as created_at_str,
+					created_at
+				FROM ga.facility_work_orders
+				ORDER BY id DESC
+				LIMIT 20
+			`;
+		} else {
+			rows = await sql`
+				SELECT 
+					id,
+					wo_number,
+					facility_type,
+					location,
+					requester_name,
+					requester_nik,
+					department,
+					description,
+					urgency,
+					status,
+					to_char(scheduled_date, 'YYYY-MM-DD') as scheduled_date,
+					to_char(created_at, 'YYYY-MM-DD HH24:MI') as created_at_str,
+					created_at
+				FROM ga.facility_work_orders
+				WHERE 
+					(${payrollId || null} IS NOT NULL AND requester_nik = ${payrollId || ''})
+					OR (${userName || null} IS NOT NULL AND requester_name ILIKE ${'%' + (userName || '') + '%'})
+					OR (${userName || null} IS NOT NULL AND created_by = ${userName || ''})
+					OR (${userEmail || null} IS NOT NULL AND created_by = ${userEmail || ''})
+				ORDER BY id DESC
+				LIMIT 20
+			`;
+		}
+
+		return json({
+			success: true,
+			workOrders: rows
+		});
+	} catch (err: any) {
+		console.error('Error in GET /api/ga/work-orders:', err);
+		return json(
+			{
+				success: false,
+				message: err.message || 'Gagal memuat daftar tiket perbaikan.',
+				workOrders: []
+			},
+			{ status: 500 }
+		);
+	}
+};
+
 export const POST: RequestHandler = async ({ request, locals }) => {
 	try {
 		const body = await request.json();

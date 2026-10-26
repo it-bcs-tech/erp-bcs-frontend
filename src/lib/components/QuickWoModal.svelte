@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { clickOutside } from '$lib/utils/clickOutside';
 	import { addToast } from '$lib/stores/notifications';
 
 	let { isOpen = $bindable(false), onClose, user } = $props<{
@@ -7,12 +8,46 @@
 		user?: any;
 	}>();
 
+	// View mode: 'LIST' (daftar tiket terkini) | 'FORM' (form lapor baru)
+	let activeView = $state<'LIST' | 'FORM'>('LIST');
+
+	// Data tickets
+	let tickets = $state<any[]>([]);
+	let isLoading = $state(false);
+	let hasLoaded = $state(false);
+
+	// Form fields
 	let facilityType = $state('AC_HVAC');
 	let location = $state('');
 	let description = $state('');
 	let urgency = $state<'LOW' | 'MEDIUM' | 'HIGH' | 'EMERGENCY'>('MEDIUM');
 	let isSubmitting = $state(false);
 	let errorMessage = $state('');
+
+	// Fetch data saat popover dibuka
+	$effect(() => {
+		if (isOpen && !hasLoaded) {
+			fetchTickets();
+		}
+	});
+
+	async function fetchTickets() {
+		isLoading = true;
+		try {
+			const res = await fetch('/api/ga/work-orders');
+			if (res.ok) {
+				const data = await res.json();
+				if (data.success) {
+					tickets = data.workOrders || [];
+					hasLoaded = true;
+				}
+			}
+		} catch (err) {
+			console.error('Error fetching user tickets:', err);
+		} finally {
+			isLoading = false;
+		}
+	}
 
 	function resetForm() {
 		facilityType = 'AC_HVAC';
@@ -25,23 +60,19 @@
 	function handleClose() {
 		if (isSubmitting) return;
 		resetForm();
-		if (onClose) {
-			onClose();
-		} else {
-			isOpen = false;
-		}
+		isOpen = false;
+		if (onClose) onClose();
 	}
 
-	function handleKeydown(e: KeyboardEvent) {
-		if (e.key === 'Escape' && isOpen && !isSubmitting) {
-			handleClose();
-		}
+	function openForm() {
+		resetForm();
+		activeView = 'FORM';
 	}
 
 	async function handleSubmit(e: Event) {
 		e.preventDefault();
 		if (!facilityType || !location.trim() || !description.trim()) {
-			errorMessage = 'Kategori sarana, lokasi detail, dan deskripsi kerusakan wajib diisi!';
+			errorMessage = 'Kategori sarana, lokasi, dan deskripsi kerusakan wajib diisi!';
 			return;
 		}
 
@@ -67,11 +98,13 @@
 
 			if (res.ok && result.success) {
 				addToast({
-					title: `Tiket ${result.woNumber} Dibuat`,
+					title: `Tiket ${result.woNumber} Berhasil Dibuat`,
 					message: result.message || 'Laporan kerusakan telah diteruskan ke tim General Affair.',
 					type: 'SUCCESS'
 				});
-				handleClose();
+				resetForm();
+				activeView = 'LIST';
+				await fetchTickets();
 			} else {
 				errorMessage = result.message || 'Gagal mengirim laporan perbaikan.';
 			}
@@ -82,186 +115,358 @@
 			isSubmitting = false;
 		}
 	}
-</script>
 
-<svelte:window onkeydown={handleKeydown} />
+	function getFacilityLabel(type: string) {
+		switch (type) {
+			case 'AC_HVAC': return 'AC & Pendingin Ruangan';
+			case 'KELISTRIKAN': return 'Kelistrikan, Panel & Lampu';
+			case 'PLUMBING_AIR': return 'Plumbing & Saluran Air';
+			case 'GENSET': return 'Genset & Power Backup';
+			case 'PINTU_PAGAR_POOL': return 'Pintu Gerbang & Pagar';
+			case 'PENGECATAN_GEDUNG': return 'Pengecatan Gedung';
+			case 'PERABOT_KANTOR': return 'Meja, Kursi & Perabot';
+			case 'CIVIL_PLUMBING': return 'Sipil & Gedung';
+			case 'LISTRIK_GENSET': return 'Kelistrikan & Genset';
+			default: return type || 'Lainnya';
+		}
+	}
+
+	function getFacilityIcon(type: string) {
+		switch (type) {
+			case 'AC_HVAC': return 'ac_unit';
+			case 'KELISTRIKAN': return 'bolt';
+			case 'PLUMBING_AIR': return 'water_drop';
+			case 'GENSET': return 'power';
+			case 'PINTU_PAGAR_POOL': return 'door_front';
+			case 'PENGECATAN_GEDUNG': return 'format_paint';
+			case 'PERABOT_KANTOR': return 'chair';
+			default: return 'build';
+		}
+	}
+
+	function getStatusBadge(status: string) {
+		switch (status) {
+			case 'COMPLETED':
+				return 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300 border-emerald-200';
+			case 'APPROVED':
+				return 'bg-blue-50 text-blue-700 dark:bg-blue-950/50 dark:text-blue-300 border-blue-200';
+			case 'IN_PROGRESS':
+				return 'bg-purple-50 text-purple-700 dark:bg-purple-950/50 dark:text-purple-300 border-purple-200';
+			case 'CANCELLED':
+				return 'bg-rose-50 text-rose-700 dark:bg-rose-950/50 dark:text-rose-300 border-rose-200';
+			default:
+				return 'bg-amber-50 text-amber-700 dark:bg-amber-950/50 dark:text-amber-300 border-amber-200';
+		}
+	}
+
+	function getStatusLabel(status: string) {
+		switch (status) {
+			case 'COMPLETED': return 'Selesai';
+			case 'APPROVED': return 'Disetujui';
+			case 'IN_PROGRESS': return 'Dikerjakan';
+			case 'CANCELLED': return 'Dibatalkan';
+			default: return 'Menunggu GA';
+		}
+	}
+</script>
 
 {#if isOpen}
 	<div
-		class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-xs animate-in fade-in duration-200"
-		role="dialog"
-		aria-modal="true"
+		class="absolute right-0 mt-2 w-96 sm:w-[420px] max-h-[88vh] bg-surface-container-lowest rounded-3xl shadow-2xl border border-slate-200/80 dark:border-slate-800/80 overflow-hidden flex flex-col z-50 animate-in fade-in zoom-in-95 duration-200"
+		use:clickOutside={handleClose}
 	>
-		<!-- Backdrop click to dismiss -->
-		<button
-			type="button"
-			class="absolute inset-0 w-full h-full cursor-default bg-transparent border-0 outline-none"
-			aria-label="Tutup Modal"
-			onclick={handleClose}
-			tabindex="-1"
-		></button>
-
-		<div
-			class="relative w-full max-w-lg bg-surface-container-lowest rounded-3xl border border-slate-200/80 dark:border-slate-800/80 shadow-2xl overflow-hidden z-10 animate-in zoom-in-95 duration-200"
-		>
-			<!-- Modal Header -->
-			<div class="px-6 py-5 border-b border-slate-200/70 dark:border-slate-800/70 flex items-center justify-between bg-surface-container-low/60">
-				<div class="flex items-center gap-3">
-					<div class="w-10 h-10 rounded-2xl bg-amber-500/15 text-amber-600 flex items-center justify-center">
-						<span class="material-symbols-outlined text-[22px]">home_repair_service</span>
-					</div>
-					<div>
-						<h3 class="text-base font-black text-on-surface">Lapor Kerusakan & Fasilitas</h3>
-						<p class="text-xs text-on-surface-variant font-medium">Buat Work Order (WO) cepat untuk General Affair</p>
-					</div>
+		<!-- Popover Header -->
+		<div class="p-4 border-b border-slate-200/60 dark:border-slate-800/60 flex items-center justify-between bg-surface-container-low/70 sticky top-0 z-10 backdrop-blur-xs">
+			<div class="flex items-center gap-2.5">
+				<div class="w-8 h-8 rounded-xl bg-blue-500/15 text-blue-600 flex items-center justify-center">
+					<span class="material-symbols-outlined text-[19px]">home_repair_service</span>
 				</div>
+				<div>
+					<h3 class="text-xs font-black text-on-surface leading-tight">Tiket & Perbaikan</h3>
+					<p class="text-[10px] text-on-surface-variant">Layanan fasilitas & sarana GA</p>
+				</div>
+			</div>
+
+			<div class="flex items-center gap-1.5">
+				{#if activeView === 'LIST'}
+					<button
+						type="button"
+						onclick={openForm}
+						class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-[11px] font-bold transition-all shadow-2xs cursor-pointer"
+						title="Buat Laporan Kerusakan Baru"
+					>
+						<span class="material-symbols-outlined text-[14px]">add</span>
+						<span>Lapor</span>
+					</button>
+				{:else}
+					<button
+						type="button"
+						onclick={() => (activeView = 'LIST')}
+						class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-surface border border-slate-200 dark:border-slate-700 text-on-surface text-[11px] font-bold transition-all hover:bg-surface-container cursor-pointer"
+					>
+						<span class="material-symbols-outlined text-[14px]">arrow_back</span>
+						<span>Tiket Saya</span>
+					</button>
+				{/if}
+
 				<button
 					type="button"
 					onclick={handleClose}
-					disabled={isSubmitting}
-					class="w-8 h-8 rounded-full flex items-center justify-center text-on-surface-variant hover:bg-surface-container transition-all cursor-pointer disabled:opacity-50"
-					title="Tutup (Esc)"
+					class="p-1 rounded-lg text-on-surface-variant hover:bg-surface-container transition-colors cursor-pointer"
+					title="Tutup"
 				>
-					<span class="material-symbols-outlined text-lg">close</span>
+					<span class="material-symbols-outlined text-base">close</span>
 				</button>
 			</div>
+		</div>
 
-			<!-- Form Content -->
-			<form onsubmit={handleSubmit} class="p-6 space-y-4">
-				{#if errorMessage}
-					<div class="p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-600 text-xs font-bold flex items-center gap-2">
-						<span class="material-symbols-outlined text-sm">error</span>
-						<span>{errorMessage}</span>
+		<!-- Popover Body -->
+		<div class="overflow-y-auto flex-1 p-3.5 space-y-3 scrollbar-thin">
+			{#if activeView === 'LIST'}
+				<!-- VIEW 1: DAFTAR TIKET SAYA -->
+				<div class="flex items-center justify-between px-1">
+					<div class="flex items-center gap-1.5">
+						<span class="text-xs font-black text-on-surface font-mono">Riwayat Laporan Saya</span>
+						<span class="px-1.5 py-0.2 rounded-full bg-blue-500/15 text-blue-700 dark:text-blue-300 font-mono text-[10px] font-bold">
+							{tickets.length}
+						</span>
+					</div>
+
+					<button
+						type="button"
+						onclick={fetchTickets}
+						disabled={isLoading}
+						class="p-1 rounded-lg text-on-surface-variant hover:text-on-surface hover:bg-surface-container transition-colors cursor-pointer disabled:opacity-50"
+						title="Segarkan data"
+					>
+						<span class="material-symbols-outlined text-xs {isLoading ? 'animate-spin' : ''}">refresh</span>
+					</button>
+				</div>
+
+				{#if isLoading && tickets.length === 0}
+					<div class="py-8 text-center text-on-surface-variant text-xs flex flex-col items-center gap-2">
+						<span class="w-5 h-5 border-2 border-blue-500/30 border-t-blue-600 rounded-full animate-spin"></span>
+						<span class="text-[11px]">Memuat tiket perbaikan...</span>
+					</div>
+				{:else if tickets.length === 0}
+					<div class="rounded-2xl bg-surface-container-low border border-slate-200/60 dark:border-slate-800/60 p-6 text-center text-on-surface-variant space-y-2.5">
+						<div class="w-10 h-10 rounded-2xl bg-surface-container mx-auto flex items-center justify-center text-on-surface-variant opacity-60">
+							<span class="material-symbols-outlined text-2xl">build_circle</span>
+						</div>
+						<div>
+							<p class="font-bold text-on-surface text-xs">Belum Ada Tiket Laporan</p>
+							<p class="text-[11px] text-on-surface-variant mt-0.5 leading-relaxed">
+								Semua sarana kerja di ruangan Anda dalam kondisi baik. Jika terjadi kendala seperti AC bocor atau lampu mati, laporkan di sini.
+							</p>
+						</div>
+						<button
+							type="button"
+							onclick={openForm}
+							class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold transition-all shadow-xs cursor-pointer"
+						>
+							<span class="material-symbols-outlined text-[15px]">add</span>
+							<span>Buat Laporan Baru</span>
+						</button>
+					</div>
+				{:else}
+					<div class="space-y-2">
+						{#each tickets as t (t.id)}
+							<div class="p-3 rounded-2xl bg-surface border border-slate-200/70 dark:border-slate-800/70 text-xs shadow-2xs hover:border-blue-400/50 transition-all space-y-2">
+								<div class="flex items-start justify-between gap-2">
+									<div class="flex items-center gap-2">
+										<div class="w-7 h-7 rounded-xl bg-surface-container-high text-blue-600 flex items-center justify-center shrink-0">
+											<span class="material-symbols-outlined text-[16px]">{getFacilityIcon(t.facility_type)}</span>
+										</div>
+										<div>
+											<span class="font-mono font-bold text-on-surface text-xs">{t.wo_number}</span>
+											<div class="text-[10px] text-on-surface-variant font-medium">
+												{getFacilityLabel(t.facility_type)}
+											</div>
+										</div>
+									</div>
+
+									<div class="flex flex-col items-end gap-1">
+										<span class="px-2 py-0.5 rounded-md text-[9px] font-bold border {getStatusBadge(t.status)}">
+											{getStatusLabel(t.status)}
+										</span>
+										{#if t.urgency === 'EMERGENCY'}
+											<span class="text-[9px] font-bold text-rose-600 bg-rose-500/10 px-1.5 py-0.2 rounded font-mono">
+												Darurat
+											</span>
+										{:else if t.urgency === 'HIGH'}
+											<span class="text-[9px] font-bold text-orange-600 bg-orange-500/10 px-1.5 py-0.2 rounded font-mono">
+												Mendesak
+											</span>
+										{/if}
+									</div>
+								</div>
+
+								<p class="text-[11px] text-on-surface-variant leading-relaxed line-clamp-2 bg-surface-container-low/50 p-2 rounded-xl">
+									{t.description}
+								</p>
+
+								<div class="flex items-center justify-between text-[10px] text-on-surface-variant pt-1 border-t border-slate-200/50 dark:border-slate-800/50">
+									<div class="flex items-center gap-1 truncate max-w-[200px]" title={t.location}>
+										<span class="material-symbols-outlined text-[12px] text-blue-600 shrink-0">location_on</span>
+										<span class="truncate">{t.location}</span>
+									</div>
+									<div class="font-mono shrink-0">
+										{t.created_at_str || '-'}
+									</div>
+								</div>
+							</div>
+						{/each}
 					</div>
 				{/if}
 
-				<!-- Info Pelapor (Auto-filled & Read-only) -->
-				<div class="p-3.5 rounded-2xl bg-surface-container-low border border-slate-200/50 dark:border-slate-800/50 flex flex-wrap items-center justify-between gap-2 text-xs">
-					<div class="flex items-center gap-2">
-						<div class="w-7 h-7 rounded-lg bg-primary/10 text-primary flex items-center justify-center font-bold text-xs">
-							<span class="material-symbols-outlined text-[15px]">person</span>
-						</div>
-						<div>
-							<div class="text-[10px] uppercase font-bold text-on-surface-variant">Pelapor</div>
-							<div class="font-bold text-on-surface">{user?.name || 'Karyawan BCS'}</div>
-						</div>
-					</div>
-					<div class="text-right">
-						<div class="text-[10px] uppercase font-bold text-on-surface-variant">Divisi / NIK</div>
-						<div class="font-mono text-on-surface text-[11px] font-semibold">
-							{user?.division || user?.department || 'Umum'} {user?.payrollId ? `• ${user?.payrollId}` : ''}
-						</div>
-					</div>
+				<!-- Footer link -->
+				<div class="pt-2 border-t border-slate-200/60 dark:border-slate-800/60">
+					<a
+						href="/ga/facilities"
+						onclick={handleClose}
+						class="w-full inline-flex items-center justify-center gap-1 py-1.5 text-center text-xs font-bold text-blue-600 dark:text-blue-400 hover:bg-surface-container-low rounded-xl transition-colors cursor-pointer"
+					>
+						<span>Buka Modul Pemeliharaan Fasilitas</span>
+						<span class="material-symbols-outlined text-sm">arrow_forward</span>
+					</a>
 				</div>
+			{:else}
+				<!-- VIEW 2: FORM LAPOR KERUSAKAN CEPAT -->
+				<form onsubmit={handleSubmit} class="space-y-3 text-xs">
+					{#if errorMessage}
+						<div class="p-2.5 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-600 text-xs font-bold flex items-center gap-2">
+							<span class="material-symbols-outlined text-sm">error</span>
+							<span>{errorMessage}</span>
+						</div>
+					{/if}
 
-				<!-- Kategori Sarana & Urgensi -->
-				<div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+					<!-- Info Pelapor Badge -->
+					<div class="p-2.5 rounded-2xl bg-surface-container-low border border-slate-200/50 dark:border-slate-800/50 flex items-center justify-between text-xs">
+						<div class="flex items-center gap-2">
+							<div class="w-6 h-6 rounded-lg bg-blue-500/15 text-blue-600 flex items-center justify-center font-bold text-xs">
+								<span class="material-symbols-outlined text-[14px]">person</span>
+							</div>
+							<div>
+								<div class="text-[9px] uppercase font-bold text-on-surface-variant">Pelapor</div>
+								<div class="font-bold text-on-surface text-[11px]">{user?.name || 'Karyawan BCS'}</div>
+							</div>
+						</div>
+						<div class="text-right">
+							<div class="text-[9px] uppercase font-bold text-on-surface-variant">Divisi</div>
+							<div class="font-mono text-on-surface text-[11px] font-semibold">
+								{user?.division || user?.department || 'Umum'}
+							</div>
+						</div>
+					</div>
+
+					<!-- Kategori Sarana -->
 					<div>
-						<label for="fac_type" class="block text-xs font-bold text-on-surface mb-1.5">
-							Kategori Sarana <span class="text-rose-500">*</span>
+						<label for="popover_fac_type" class="block font-bold text-on-surface mb-1">
+							Kategori Sarana / Fasilitas <span class="text-rose-500">*</span>
 						</label>
 						<select
-							id="fac_type"
+							id="popover_fac_type"
 							bind:value={facilityType}
 							required
-							class="w-full px-3.5 py-2.5 text-xs rounded-xl bg-surface-container-low border-0 outline-none focus:ring-2 focus:ring-primary/30 text-on-surface cursor-pointer font-medium transition-all"
+							class="w-full px-3 py-2 text-xs rounded-xl bg-surface-container-low border-0 outline-none focus:ring-2 focus:ring-blue-500/30 text-on-surface cursor-pointer font-medium transition-all"
 						>
 							<option value="AC_HVAC">AC & Pendingin Ruangan</option>
 							<option value="KELISTRIKAN">Kelistrikan, Panel & Lampu</option>
 							<option value="PLUMBING_AIR">Plumbing, Keran & Air</option>
 							<option value="GENSET">Genset & Power Backup</option>
-							<option value="PINTU_PAGAR_POOL">Pintu, Gerbang & Pagar Pool</option>
-							<option value="PENGECATAN_GEDUNG">Pengecatan & Bangunan Fisik</option>
+							<option value="PINTU_PAGAR_POOL">Pintu, Gerbang & Pagar</option>
+							<option value="PENGECATAN_GEDUNG">Pengecatan & Fisik Gedung</option>
 							<option value="PERABOT_KANTOR">Meja, Kursi & Perabot Kantor</option>
 							<option value="LAINNYA">Kerusakan Fasilitas Lainnya</option>
 						</select>
 					</div>
 
+					<!-- Urgensi Segments -->
 					<div>
-						<label for="urgency_select" class="block text-xs font-bold text-on-surface mb-1.5">
+						<label for="popover_urgency_group" class="block font-bold text-on-surface mb-1">
 							Tingkat Urgensi <span class="text-rose-500">*</span>
 						</label>
-						<div class="grid grid-cols-3 gap-1.5" id="urgency_select">
+						<div class="grid grid-cols-3 gap-1.5" id="popover_urgency_group">
 							<button
 								type="button"
 								onclick={() => (urgency = 'LOW')}
-								class="py-2 text-[11px] font-bold rounded-xl transition-all cursor-pointer text-center {urgency === 'LOW' ? 'bg-slate-700 text-white shadow-xs' : 'bg-surface-container-low text-on-surface-variant hover:bg-surface-container'}"
+								class="py-1.5 text-[11px] font-bold rounded-xl transition-all cursor-pointer text-center {urgency === 'LOW' ? 'bg-slate-700 text-white shadow-xs' : 'bg-surface-container-low text-on-surface-variant hover:bg-surface-container'}"
 							>
 								Rendah
 							</button>
 							<button
 								type="button"
 								onclick={() => (urgency = 'MEDIUM')}
-								class="py-2 text-[11px] font-bold rounded-xl transition-all cursor-pointer text-center {urgency === 'MEDIUM' ? 'bg-amber-600 text-white shadow-xs' : 'bg-surface-container-low text-on-surface-variant hover:bg-surface-container'}"
+								class="py-1.5 text-[11px] font-bold rounded-xl transition-all cursor-pointer text-center {urgency === 'MEDIUM' ? 'bg-amber-600 text-white shadow-xs' : 'bg-surface-container-low text-on-surface-variant hover:bg-surface-container'}"
 							>
 								Sedang
 							</button>
 							<button
 								type="button"
 								onclick={() => (urgency = 'EMERGENCY')}
-								class="py-2 text-[11px] font-bold rounded-xl transition-all cursor-pointer text-center {urgency === 'EMERGENCY' ? 'bg-rose-600 text-white shadow-xs' : 'bg-surface-container-low text-on-surface-variant hover:bg-surface-container'}"
+								class="py-1.5 text-[11px] font-bold rounded-xl transition-all cursor-pointer text-center {urgency === 'EMERGENCY' ? 'bg-rose-600 text-white shadow-xs' : 'bg-surface-container-low text-on-surface-variant hover:bg-surface-container'}"
 							>
 								Darurat
 							</button>
 						</div>
 					</div>
-				</div>
 
-				<!-- Lokasi Detail -->
-				<div>
-					<label for="fac_location" class="block text-xs font-bold text-on-surface mb-1.5">
-						Lokasi Detail / Ruangan <span class="text-rose-500">*</span>
-					</label>
-					<input
-						id="fac_location"
-						type="text"
-						bind:value={location}
-						required
-						placeholder="Misal: Gedung A Lt. 2 - Ruang Finance / Pool Cilegon - Pos Satpam"
-						class="w-full px-3.5 py-2.5 text-xs rounded-xl bg-surface-container-low border-0 outline-none focus:ring-2 focus:ring-primary/30 text-on-surface transition-all placeholder:text-on-surface-variant/40"
-					/>
-				</div>
+					<!-- Lokasi Detail -->
+					<div>
+						<label for="popover_fac_location" class="block font-bold text-on-surface mb-1">
+							Lokasi Detail / Ruangan <span class="text-rose-500">*</span>
+						</label>
+						<input
+							id="popover_fac_location"
+							type="text"
+							bind:value={location}
+							required
+							placeholder="Misal: Kantor Lt. 2 - Ruang Finance / Pool Cilegon"
+							class="w-full px-3 py-2 text-xs rounded-xl bg-surface-container-low border-0 outline-none focus:ring-2 focus:ring-blue-500/30 text-on-surface transition-all placeholder:text-on-surface-variant/40"
+						/>
+					</div>
 
-				<!-- Deskripsi Kerusakan -->
-				<div>
-					<label for="fac_desc" class="block text-xs font-bold text-on-surface mb-1.5">
-						Deskripsi Kerusakan / Kendala <span class="text-rose-500">*</span>
-					</label>
-					<textarea
-						id="fac_desc"
-						bind:value={description}
-						required
-						rows="3"
-						placeholder="Jelaskan kondisi kerusakan secara detail, misal: AC bocor menetes ke meja, lampu neon kedap-kedip mati, atau handle pintu rusak..."
-						class="w-full px-3.5 py-2.5 text-xs rounded-xl bg-surface-container-low border-0 outline-none focus:ring-2 focus:ring-primary/30 text-on-surface transition-all placeholder:text-on-surface-variant/40 resize-none"
-					></textarea>
-				</div>
+					<!-- Deskripsi Kerusakan -->
+					<div>
+						<label for="popover_fac_desc" class="block font-bold text-on-surface mb-1">
+							Deskripsi Kerusakan <span class="text-rose-500">*</span>
+						</label>
+						<textarea
+							id="popover_fac_desc"
+							bind:value={description}
+							required
+							rows="3"
+							placeholder="Jelaskan kondisi kerusakan (misal: AC bocor air menetes, lampu neon padam, atau handel pintu macet)..."
+							class="w-full px-3 py-2 text-xs rounded-xl bg-surface-container-low border-0 outline-none focus:ring-2 focus:ring-blue-500/30 text-on-surface transition-all placeholder:text-on-surface-variant/40 resize-none"
+						></textarea>
+					</div>
 
-				<!-- Footer Actions -->
-				<div class="pt-2 flex items-center justify-end gap-2.5 border-t border-slate-200/50 dark:border-slate-800/50">
-					<button
-						type="button"
-						onclick={handleClose}
-						disabled={isSubmitting}
-						class="px-4 py-2.5 rounded-xl bg-surface-container hover:bg-surface-container-high text-on-surface text-xs font-bold transition-all cursor-pointer disabled:opacity-50"
-					>
-						Batal
-					</button>
-					<button
-						type="submit"
-						disabled={isSubmitting}
-						class="px-5 py-2.5 rounded-xl bg-primary hover:bg-primary-hover text-on-primary text-xs font-bold transition-all shadow-xs cursor-pointer flex items-center gap-2 disabled:opacity-50"
-					>
-						{#if isSubmitting}
-							<span class="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
-							<span>Mengirim Laporan...</span>
-						{:else}
-							<span class="material-symbols-outlined text-[16px]">send</span>
-							<span>Kirim Laporan WO</span>
-						{/if}
-					</button>
-				</div>
-			</form>
+					<!-- Form Footer Actions -->
+					<div class="pt-2 flex items-center justify-end gap-2 border-t border-slate-200/50 dark:border-slate-800/50">
+						<button
+							type="button"
+							onclick={() => (activeView = 'LIST')}
+							disabled={isSubmitting}
+							class="px-3.5 py-2 rounded-xl bg-surface-container hover:bg-surface-container-high text-on-surface text-xs font-bold transition-all cursor-pointer disabled:opacity-50"
+						>
+							Batal
+						</button>
+						<button
+							type="submit"
+							disabled={isSubmitting}
+							class="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold transition-all shadow-xs cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
+						>
+							{#if isSubmitting}
+								<span class="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
+								<span>Mengirim...</span>
+							{:else}
+								<span class="material-symbols-outlined text-[15px]">send</span>
+								<span>Kirim Laporan</span>
+							{/if}
+						</button>
+					</div>
+				</form>
+			{/if}
 		</div>
 	</div>
 {/if}
