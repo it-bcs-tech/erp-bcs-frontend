@@ -7,7 +7,7 @@
 	let isOpen = $state(false);
 	let isExpanded = $state(false);
 	let currentView = $state<'menu' | 'chat'>('chat');
-	let chatContainer: HTMLElement;
+	let chatContainer = $state<HTMLElement | null>(null);
 	let inputValue = $state('');
 	let isLoading = $state(false);
 	
