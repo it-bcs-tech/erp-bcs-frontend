@@ -16,7 +16,14 @@ export const load: PageServerLoad = async () => {
 			recentStationeryRequests,
 			travelStats,
 			archiveStats,
-			visitorStats
+			visitorStats,
+			[cpStats],
+			[spdStats],
+			[woStats],
+			[atkStats],
+			trendRows,
+			deptRows,
+			recentCarpool
 		] = await Promise.all([
 			// 1. Asset totals
 			sql`
@@ -180,10 +187,165 @@ export const load: PageServerLoad = async () => {
 					COUNT(CASE WHEN status = 'CHECKED_IN' THEN 1 END)::int as active_visitors,
 					ROUND(AVG(survey_rating)::numeric, 2) as avg_rating
 				FROM ga.visitors
+			`,
+			// 14. Carpool requests status
+			sql`
+				SELECT 
+					count(*)::int as total,
+					count(*) FILTER (WHERE status IN ('PENDING', 'SUBMITTED'))::int as pending,
+					count(*) FILTER (WHERE status IN ('APPROVED', 'APPROVED_AP', 'IN_PROGRESS'))::int as in_progress,
+					count(*) FILTER (WHERE status IN ('COMPLETED', 'FINISHED', 'CLOSED'))::int as closed
+				FROM ga.carpool_requests
+			`,
+			// 15. SPD requests status
+			sql`
+				SELECT 
+					count(*)::int as total,
+					count(*) FILTER (WHERE status IN ('PENDING', 'SUBMITTED'))::int as pending,
+					count(*) FILTER (WHERE status IN ('APPROVED', 'APPROVED_AP', 'IN_PROGRESS'))::int as in_progress,
+					count(*) FILTER (WHERE status IN ('COMPLETED', 'FINISHED', 'CLOSED'))::int as closed
+				FROM ga.spd_requests
+			`,
+			// 16. Facility WO status
+			sql`
+				SELECT 
+					count(*)::int as total,
+					count(*) FILTER (WHERE status = 'PENDING')::int as pending,
+					count(*) FILTER (WHERE status IN ('APPROVED', 'IN_PROGRESS'))::int as in_progress,
+					count(*) FILTER (WHERE status = 'COMPLETED')::int as closed
+				FROM ga.facility_work_orders
+			`,
+			// 17. Stationery requests status
+			sql`
+				SELECT 
+					count(*)::int as total,
+					count(*) FILTER (WHERE status = 'SUBMITTED')::int as pending,
+					count(*) FILTER (WHERE status = 'APPROVED')::int as in_progress,
+					count(*) FILTER (WHERE status IN ('DISTRIBUTED', 'CLOSED'))::int as closed
+				FROM ga.stationery_requests
+			`,
+			// 18. 6-Month Service Requests Trend (Carpool vs SPD)
+			sql`
+				WITH months AS (
+					SELECT 
+						date_trunc('month', d) as m_date,
+						TO_CHAR(d, 'Mon') as month_label,
+						TO_CHAR(d, 'YYYY-MM') as period_key
+					FROM generate_series(
+						date_trunc('month', CURRENT_DATE) - INTERVAL '5 months',
+						date_trunc('month', CURRENT_DATE),
+						INTERVAL '1 month'
+					) d
+				),
+				cp AS (
+					SELECT 
+						date_trunc('month', created_at) as m_date,
+						count(*)::int as total_carpool
+					FROM ga.carpool_requests
+					GROUP BY date_trunc('month', created_at)
+				),
+				spd AS (
+					SELECT 
+						date_trunc('month', created_at) as m_date,
+						count(*)::int as total_spd
+					FROM ga.spd_requests
+					GROUP BY date_trunc('month', created_at)
+				)
+				SELECT 
+					m.month_label,
+					m.period_key,
+					COALESCE(c.total_carpool, 0)::int as carpool,
+					COALESCE(s.total_spd, 0)::int as spd
+				FROM months m
+				LEFT JOIN cp c ON c.m_date = m.m_date
+				LEFT JOIN spd s ON s.m_date = m.m_date
+				ORDER BY m.m_date ASC
+			`,
+			// 19. Department Request Distribution (Top 5)
+			sql`
+				SELECT department, count(*)::int as count
+				FROM (
+					SELECT department FROM ga.carpool_requests WHERE department IS NOT NULL AND department != ''
+					UNION ALL
+					SELECT department FROM ga.spd_requests WHERE department IS NOT NULL AND department != ''
+				) t
+				GROUP BY department
+				ORDER BY count DESC
+				LIMIT 5
+			`,
+			// 20. Recent Carpool Requests
+			sql`
+				SELECT 
+					id, carpool_number, destination, requester_name, department, status,
+					to_char(use_date, 'YYYY-MM-DD') as use_date_str
+				FROM ga.carpool_requests
+				ORDER BY created_at DESC
+				LIMIT 5
 			`
 		]);
 
+		const totalServices = (cpStats?.total || 0) + (spdStats?.total || 0) + (atkStats?.total || 0) + (woStats?.total || 0);
+		const pendingServices = (cpStats?.pending || 0) + (spdStats?.pending || 0) + (atkStats?.pending || 0) + (woStats?.pending || 0);
+		const inProgressServices = (cpStats?.in_progress || 0) + (spdStats?.in_progress || 0) + (atkStats?.in_progress || 0) + (woStats?.in_progress || 0);
+		const closedServices = (cpStats?.closed || 0) + (spdStats?.closed || 0) + (atkStats?.closed || 0) + (woStats?.closed || 0);
+
+		// Monthly Trend Normalization
+		const maxMonthlyVal = Math.max(
+			...trendRows.map((r: any) => Math.max(r.carpool || 0, r.spd || 0)),
+			1
+		);
+
+		const monthlyTrend = trendRows.map((r: any) => ({
+			month: r.month_label,
+			period: r.period_key,
+			carpool: r.carpool || 0,
+			carpoolPct: Math.min(100, Math.round(((r.carpool || 0) / maxMonthlyVal) * 100)),
+			spd: r.spd || 0,
+			spdPct: Math.min(100, Math.round(((r.spd || 0) / maxMonthlyVal) * 100))
+		}));
+
+		// Department Breakdown Calculation
+		const totalDeptCount = deptRows.reduce((acc: number, cur: any) => acc + (cur.count || 0), 0) || 1;
+		const deptBreakdown = deptRows.map((d: any) => ({
+			department: d.department,
+			count: d.count || 0,
+			pct: Math.round(((d.count || 0) / totalDeptCount) * 100)
+		}));
+
+		// 4-Stage Continuous Internal Service Lifecycle Pipeline
+		const pipeline = {
+			stage1_intake: {
+				count: totalServices,
+				label: 'Permohonan Layanan Masuk'
+			},
+			stage2_approval: {
+				count: pendingServices,
+				label: 'Menunggu Review & Approval'
+			},
+			stage3_assigned: {
+				count: inProgressServices,
+				label: 'Penugasan & Pengerjaan'
+			},
+			stage4_completed: {
+				count: closedServices,
+				label: 'Selesai & Terarsip'
+			}
+		};
+
 		return {
+			serviceStats: {
+				totalServices,
+				pendingServices,
+				inProgressServices,
+				closedServices,
+				carpoolCount: cpStats?.total || 0,
+				spdCount: spdStats?.total || 0,
+				atkCount: atkStats?.total || 0,
+				woCount: woStats?.total || 0
+			},
+			pipeline,
+			monthlyTrend,
+			deptBreakdown,
 			assets: {
 				totals: assetStats[0] || { total_assets: 0, active_assets: 0, total_asset_value: 0, damaged_assets: 0 },
 				categories: assetCategories || []
@@ -202,6 +364,7 @@ export const load: PageServerLoad = async () => {
 				lowStockList: criticalStockItems || [],
 				recentRequests: recentStationeryRequests || []
 			},
+			recentCarpool,
 			travel: travelStats[0] || { total_carpool: 0, pending_carpool: 0, total_spd: 0, pending_spd: 0, total_cars: 0 },
 			archives: archiveStats[0] || { total_docs: 0, due_destruction_docs: 0, total_racks: 0 },
 			visitors: visitorStats[0] || { total_visitors: 0, active_visitors: 0, avg_rating: 0 }
@@ -209,6 +372,24 @@ export const load: PageServerLoad = async () => {
 	} catch (error) {
 		console.error('Error loading GA dashboard data:', error);
 		return {
+			serviceStats: {
+				totalServices: 0,
+				pendingServices: 0,
+				inProgressServices: 0,
+				closedServices: 0,
+				carpoolCount: 0,
+				spdCount: 0,
+				atkCount: 0,
+				woCount: 0
+			},
+			pipeline: {
+				stage1_intake: { count: 0, label: 'Permohonan Masuk' },
+				stage2_approval: { count: 0, label: 'Menunggu Approval' },
+				stage3_assigned: { count: 0, label: 'Pengerjaan' },
+				stage4_completed: { count: 0, label: 'Selesai' }
+			},
+			monthlyTrend: [],
+			deptBreakdown: [],
 			assets: {
 				totals: { total_assets: 0, active_assets: 0, total_asset_value: 0, damaged_assets: 0 },
 				categories: []
@@ -227,8 +408,10 @@ export const load: PageServerLoad = async () => {
 				lowStockList: [],
 				recentRequests: []
 			},
+			recentCarpool: [],
 			travel: { total_carpool: 0, pending_carpool: 0, total_spd: 0, pending_spd: 0, total_cars: 0 },
-			archives: { total_docs: 0, due_destruction_docs: 0, total_racks: 0 }
+			archives: { total_docs: 0, due_destruction_docs: 0, total_racks: 0 },
+			visitors: { total_visitors: 0, active_visitors: 0, avg_rating: 0 }
 		};
 	}
 };
