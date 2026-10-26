@@ -64,6 +64,8 @@
 			case 'GENSET': return 'Genset & Power Backup';
 			case 'PENGECATAN_GEDUNG': return 'Pengecatan Gedung';
 			case 'PINTU_PAGAR_POOL': return 'Pintu Gerbang & Pagar Pool';
+			case 'PERABOT_KANTOR': return 'Meja, Kursi & Perabot Kantor';
+			case 'LAINNYA': return 'Kerusakan Fasilitas Lainnya';
 			default: return type;
 		}
 	}
@@ -269,10 +271,17 @@
 					class="px-3.5 py-2.5 rounded-xl bg-surface-container-low border-0 outline-none focus:ring-2 focus:ring-blue-500/20 text-xs text-on-surface font-medium cursor-pointer transition-all"
 				>
 					<option value="All">Semua Kategori Fasilitas</option>
+					<option value="AC_HVAC">AC & Pendingin Ruangan</option>
+					<option value="KELISTRIKAN">Kelistrikan & Panel Listrik</option>
+					<option value="PLUMBING_AIR">Plumbing & Saluran Air</option>
+					<option value="GENSET">Genset & Power Backup</option>
+					<option value="PINTU_PAGAR_POOL">Pintu Gerbang & Pagar Pool</option>
+					<option value="PENGECATAN_GEDUNG">Pengecatan Gedung</option>
+					<option value="PERABOT_KANTOR">Meja, Kursi & Perabot Kantor</option>
 					<option value="CIVIL_PLUMBING">Sipil, Gedung & Plumbing</option>
 					<option value="LISTRIK_GENSET">Kelistrikan, Lampu & Genset</option>
-					<option value="AC_HVAC">AC & Pendingin</option>
 					<option value="CCTV_SECURITY">CCTV & Keamanan</option>
+					<option value="LAINNYA">Lainnya</option>
 				</select>
 
 				<select
@@ -493,7 +502,8 @@
 							<option value="GENSET">Genset & Power Backup</option>
 							<option value="PENGECATAN_GEDUNG">Pengecatan Gedung</option>
 							<option value="PINTU_PAGAR_POOL">Pintu Gerbang & Pagar Pool</option>
-							<option value="LAINNYA">Lainnya</option>
+							<option value="PERABOT_KANTOR">Meja, Kursi & Perabot Kantor</option>
+							<option value="LAINNYA">Kerusakan Fasilitas Lainnya</option>
 						</select>
 					</div>
 					<div>

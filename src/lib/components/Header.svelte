@@ -7,10 +7,12 @@
 	import { page } from '$app/stores';
 
 	import CalendarPopover from '$lib/components/CalendarPopover.svelte';
+	import QuickWoModal from '$lib/components/QuickWoModal.svelte';
 
 	let isNotifOpen = $state(false);
 	let isProfileOpen = $state(false);
 	let isCalendarOpen = $state(false);
+	let isQuickWoOpen = $state(false);
 
 	onMount(() => {
 		initNotificationPolling();
@@ -24,12 +26,21 @@
 		isCalendarOpen = !isCalendarOpen;
 		isNotifOpen = false;
 		isProfileOpen = false;
+		isQuickWoOpen = false;
+	}
+
+	function toggleQuickWo() {
+		isQuickWoOpen = !isQuickWoOpen;
+		isCalendarOpen = false;
+		isNotifOpen = false;
+		isProfileOpen = false;
 	}
 
 	function toggleNotifications() {
 		isNotifOpen = !isNotifOpen;
 		isProfileOpen = false;
 		isCalendarOpen = false;
+		isQuickWoOpen = false;
 		if (isNotifOpen) {
 			markAllAsRead();
 		}
@@ -39,6 +50,7 @@
 		isProfileOpen = !isProfileOpen;
 		isNotifOpen = false;
 		isCalendarOpen = false;
+		isQuickWoOpen = false;
 	}
 
 	async function handleLogout() {
@@ -105,6 +117,20 @@
 			</button>
 
 			<CalendarPopover bind:isOpen={isCalendarOpen} onClose={() => isCalendarOpen = false} {user} />
+		</div>
+
+		<!-- Quick Action: Lapor Kerusakan Fasilitas (Work Order) -->
+		<div class="relative">
+			<button
+				type="button"
+				onclick={toggleQuickWo}
+				class="p-2 text-slate-500 hover:text-blue-600 hover:bg-slate-200/50 dark:hover:bg-slate-800/50 rounded-lg transition-all relative cursor-pointer {isQuickWoOpen ? 'text-blue-600 bg-blue-500/10' : ''}"
+				title="Lapor Kerusakan / Buat WO Fasilitas"
+			>
+				<span class="material-symbols-outlined">build</span>
+			</button>
+
+			<QuickWoModal bind:isOpen={isQuickWoOpen} onClose={() => isQuickWoOpen = false} {user} />
 		</div>
 
 		<div class="relative" use:clickOutside={() => isNotifOpen = false}>
