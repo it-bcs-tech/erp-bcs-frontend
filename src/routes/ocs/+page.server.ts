@@ -136,8 +136,51 @@ export const load: PageServerLoad = async () => {
 			LIMIT 4
 		`;
 
+		// 5. Delivery Volume & Trips Trend (Last 6 Months)
+		const trendRows = await sql<{
+			month: string;
+			total_trips: string;
+			total_tonnage: string;
+		}[]>`
+			WITH months AS (
+				SELECT generate_series(
+					date_trunc('month', CURRENT_DATE) - INTERVAL '5 months',
+					date_trunc('month', CURRENT_DATE),
+					'1 month'
+				)::date AS month_start
+			)
+			SELECT 
+				to_char(m.month_start, 'Mon') as month,
+				COUNT(t.id) as total_trips,
+				COALESCE(SUM(so.berat_muatan), 0) as total_tonnage
+			FROM months m
+			LEFT JOIN fleet.trip t ON date_trunc('month', t.tgl_trip) = m.month_start AND t.deleted_at IS NULL
+			LEFT JOIN marketing.sales_order so ON so.assigned_unit_id = t.unit_id AND so.tgl_muat::date = t.tgl_trip::date
+			GROUP BY m.month_start
+			ORDER BY m.month_start;
+		`;
+
+		const maxTrips = Math.max(1, ...trendRows.map(r => Number(r.total_trips)));
+		const maxTonnage = Math.max(1, ...trendRows.map(r => Number(r.total_tonnage)));
+
+		const trendData = trendRows.map(r => {
+			const trips = Number(r.total_trips);
+			const tonnage = Math.round(Number(r.total_tonnage));
+			const tripsPct = Math.min(100, Math.max(trips > 0 ? 12 : 4, Math.round((trips / maxTrips) * 100)));
+			const tonnagePct = Math.min(100, Math.max(tonnage > 0 ? 12 : 4, Math.round((tonnage / maxTonnage) * 100)));
+
+			return {
+				month: r.month,
+				tripsPct: `${tripsPct}%`,
+				tonnagePct: `${tonnagePct}%`,
+				rawTrips: trips,
+				rawTonnage: tonnage
+			};
+		});
+
 		return {
 			summary,
+			trendData,
 			pendingDOs: pendingDOs as any[],
 			activeJourneys: activeJourneys as any[],
 			recentCompletions: recentCompletions as any[],
@@ -147,6 +190,7 @@ export const load: PageServerLoad = async () => {
 		console.error("Error loading OCS dashboard:", error);
 		return {
 			summary: { pendingDispatch: 0, activeJourneys: 0, completedToday: 0, totalUJO: 0 },
+			trendData: [],
 			pendingDOs: [],
 			activeJourneys: [],
 			recentCompletions: [],

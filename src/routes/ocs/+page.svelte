@@ -3,12 +3,14 @@
 
 	let { data }: { data: PageData } = $props();
 	let summary = $derived(data.summary);
+	let trendData = $derived(data.trendData || []);
 	let pendingDOs = $derived(data.pendingDOs || []);
 	let activeJourneys = $derived(data.activeJourneys || []);
 	let recentCompletions = $derived(data.recentCompletions || []);
 	let dailyTargets = $derived(data.dailyTargets || []);
 
 	let journeyTab = $state<'active' | 'completed'>('active');
+	let selectedTrendMonth = $state<string | null>(null);
 
 	const formatCurrency = (amount: number) =>
 		new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(amount);
@@ -241,66 +243,162 @@
 		</div>
 	</div>
 
-	<!-- Zona 3: Target Pengiriman & Ritase Proyek Harian -->
-	{#if dailyTargets.length > 0}
-		<div class="rounded-2xl bg-surface-container-low border border-slate-200/60 dark:border-slate-800/60 shadow-xs overflow-hidden p-5 sm:p-6 flex flex-col gap-4">
-			<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-				<div>
-					<div class="flex items-center gap-2">
-						<span class="material-symbols-outlined text-blue-600 dark:text-blue-400 text-xl">track_changes</span>
-						<h2 class="text-base font-bold text-on-surface tracking-tight">Target Pengiriman & Ritase Proyek Harian</h2>
+	<!-- Zona 3: Executive Analytics & Project Targets (12 Kolom Seimbang) -->
+	<div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+		<!-- Left: Delivery Volume & Trips Trend Bar Chart (7 Cols) -->
+		<div class="lg:col-span-7 p-5 sm:p-6 rounded-2xl bg-surface-container-low border border-slate-200/60 dark:border-slate-800/60 shadow-xs flex flex-col justify-between">
+			<div>
+				<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4">
+					<div>
+						<div class="flex items-center gap-2">
+							<span class="material-symbols-outlined text-blue-600 dark:text-blue-400 text-xl">bar_chart</span>
+							<h3 class="text-base font-bold text-on-surface tracking-tight">Tren Pengiriman & Ritase Armada (6 Bulan)</h3>
+						</div>
+						<p class="text-xs text-on-surface-variant mt-0.5">
+							{#if selectedTrendMonth}
+								{@const selected = trendData.find(d => d.month === selectedTrendMonth)}
+								<span class="text-blue-600 dark:text-blue-400 font-bold">
+									Bulan {selectedTrendMonth}: {selected?.rawTrips ?? 0} Ritase Selesai · {selected?.rawTonnage?.toLocaleString('id-ID') ?? 0} Ton Terkirim
+								</span>
+							{:else}
+								Perbandingan volume tonase vs jumlah ritase pengiriman (Klik bar untuk detail)
+							{/if}
+						</p>
 					</div>
-					<p class="text-xs text-on-surface-variant mt-0.5">Pemantauan realisasi volume tonase dan ritase armada terhadap target operasional hari ini</p>
+
+					<!-- Legend -->
+					<div class="flex items-center gap-3">
+						<div class="flex items-center gap-1.5">
+							<span class="w-3 h-3 rounded-md bg-blue-500"></span>
+							<span class="text-[10px] font-bold text-on-surface-variant uppercase">Ritase (Trip)</span>
+						</div>
+						<div class="flex items-center gap-1.5">
+							<span class="w-3 h-3 rounded-md bg-emerald-500"></span>
+							<span class="text-[10px] font-bold text-on-surface-variant uppercase">Volume (Ton)</span>
+						</div>
+					</div>
 				</div>
-				<a href="/ocs/daily-targets" class="text-xs font-bold text-blue-600 hover:underline flex items-center gap-1 self-start sm:self-auto">
-					<span>Kelola Target Proyek</span>
+
+				<!-- Interactive Bar Chart -->
+				<div class="relative h-56 w-full flex items-end justify-between px-2 pt-6 gap-3">
+					{#each trendData as item}
+						{@const isSelected = selectedTrendMonth === item.month}
+						<!-- svelte-ignore a11y_click_events_have_key_events -->
+						<!-- svelte-ignore a11y_no_static_element_interactions -->
+						<div 
+							class="flex flex-col items-center flex-1 gap-2.5 h-full group/bar cursor-pointer"
+							onclick={() => selectedTrendMonth = selectedTrendMonth === item.month ? null : item.month}
+						>
+							<div class="w-full flex items-end justify-center gap-1.5 h-full relative">
+								<!-- Trip Bar -->
+								<div 
+									class="w-4 sm:w-5 bg-blue-500/40 rounded-t-md transition-all duration-300 group-hover/bar:bg-blue-500 {isSelected ? 'bg-blue-600 ring-2 ring-blue-500/50' : ''}" 
+									style="height: {item.tripsPct}"
+								></div>
+								<!-- Tonnage Bar -->
+								<div 
+									class="w-4 sm:w-5 bg-emerald-500/40 rounded-t-md transition-all duration-300 group-hover/bar:bg-emerald-500 {isSelected ? 'bg-emerald-600 ring-2 ring-emerald-500/50' : ''}" 
+									style="height: {item.tonnagePct}"
+								></div>
+
+								<!-- Floating Tooltip -->
+								<div class="absolute -top-12 bg-surface-container-highest text-on-surface px-2.5 py-1.5 rounded-lg text-[10px] font-bold opacity-0 group-hover/bar:opacity-100 transition-opacity whitespace-nowrap shadow-lg border border-slate-200/60 dark:border-slate-800/60 z-20 pointer-events-none text-left">
+									<div class="font-black text-on-surface">{item.month} 2026</div>
+									<div class="text-blue-600 dark:text-blue-400">Ritase: {item.rawTrips} trip</div>
+									<div class="text-emerald-600 dark:text-emerald-400">Volume: {item.rawTonnage?.toLocaleString('id-ID')} ton</div>
+								</div>
+							</div>
+							<span class="text-[10px] font-bold uppercase tracking-wider transition-colors {isSelected ? 'text-blue-600 font-black underline' : 'text-on-surface-variant group-hover/bar:text-blue-600'}">
+								{item.month}
+							</span>
+						</div>
+					{/each}
+				</div>
+			</div>
+
+			<div class="mt-4 pt-3 border-t border-slate-200/50 dark:border-slate-800/50 flex items-center justify-between text-xs text-on-surface-variant">
+				<span>Kapasitas logistik bulanan</span>
+				<span class="font-semibold text-blue-600">Realisasi Armada BCS</span>
+			</div>
+		</div>
+
+		<!-- Right: Daily Targets Tracker (5 Cols) -->
+		<div class="lg:col-span-5 p-5 sm:p-6 rounded-2xl bg-surface-container-low border border-slate-200/60 dark:border-slate-800/60 shadow-xs flex flex-col justify-between">
+			<div>
+				<div class="flex items-center justify-between mb-3">
+					<div>
+						<div class="flex items-center gap-2">
+							<span class="material-symbols-outlined text-emerald-600 dark:text-emerald-400 text-xl">track_changes</span>
+							<h3 class="text-base font-bold text-on-surface tracking-tight">Target Proyek Harian</h3>
+						</div>
+						<p class="text-xs text-on-surface-variant mt-0.5">Pemenuhan kuota tonase & ritase per kontrak klien</p>
+					</div>
+					<a href="/ocs/daily-targets" class="text-xs font-bold text-blue-600 hover:underline flex items-center gap-0.5">
+						<span>Kelola</span>
+						<span class="material-symbols-outlined text-sm">arrow_forward</span>
+					</a>
+				</div>
+
+				<div class="space-y-3 mt-3">
+					{#if dailyTargets.length === 0}
+						<div class="py-10 text-center text-on-surface-variant">
+							<span class="material-symbols-outlined text-3xl text-slate-300 dark:text-slate-700 mb-1">track_changes</span>
+							<p class="text-xs font-bold text-on-surface">Tidak Ada Target Hari Ini</p>
+							<p class="text-[10px] text-on-surface-variant/70 mt-0.5">Seluruh kontrak beroperasi sesuai kuota ritase reguler.</p>
+						</div>
+					{:else}
+						{#each dailyTargets.slice(0, 3) as t}
+							{@const pctTonnage = t.targetTonnage > 0 ? Math.min(100, Math.round((t.achievedTonnage / t.targetTonnage) * 100)) : 0}
+							{@const pctRitase = t.targetRitase > 0 ? Math.min(100, Math.round((t.achievedRitase / t.targetRitase) * 100)) : 0}
+							<div class="p-3.5 rounded-xl bg-surface border border-slate-200/50 dark:border-slate-800/50 hover:border-blue-500/30 transition-all flex flex-col gap-2">
+								<div class="flex items-start justify-between gap-2">
+									<div class="min-w-0">
+										<h4 class="text-xs font-black text-on-surface truncate" title={t.project}>{t.project}</h4>
+										<p class="text-[10px] text-on-surface-variant font-medium truncate mt-0.5">{t.customer}</p>
+									</div>
+									<span class="px-1.5 py-0.5 rounded text-[9px] font-bold uppercase {pctTonnage >= 100 ? 'bg-emerald-500/10 text-emerald-600' : 'bg-blue-500/10 text-blue-600'}">
+										{pctTonnage}% Capai
+									</span>
+								</div>
+
+								<div class="space-y-2">
+									<!-- Tonnage Progress -->
+									<div>
+										<div class="flex justify-between text-[10px] font-bold mb-1">
+											<span class="text-emerald-600">{new Intl.NumberFormat('id-ID').format(t.achievedTonnage)} Ton</span>
+											<span class="text-on-surface-variant">Target {new Intl.NumberFormat('id-ID').format(t.targetTonnage)} Ton</span>
+										</div>
+										<div class="h-1.5 w-full bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+											<div class="h-full bg-emerald-500 rounded-full transition-all duration-500" style="width: {pctTonnage}%"></div>
+										</div>
+									</div>
+
+									<!-- Ritase Progress -->
+									<div>
+										<div class="flex justify-between text-[10px] font-bold mb-1">
+											<span class="text-blue-600">{t.achievedRitase} Rit</span>
+											<span class="text-on-surface-variant">Target {t.targetRitase} Rit</span>
+										</div>
+										<div class="h-1.5 w-full bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+											<div class="h-full bg-blue-500 rounded-full transition-all duration-500" style="width: {pctRitase}%"></div>
+										</div>
+									</div>
+								</div>
+							</div>
+						{/each}
+					{/if}
+				</div>
+			</div>
+
+			<div class="mt-4 pt-3 border-t border-slate-200/50 dark:border-slate-800/50 flex items-center justify-between text-xs text-on-surface-variant">
+				<span>Komitmen kontrak korporat</span>
+				<a href="/marketing/contracts" class="font-bold text-blue-600 hover:underline flex items-center gap-0.5">
+					<span>Detail Kontrak</span>
 					<span class="material-symbols-outlined text-sm">arrow_forward</span>
 				</a>
 			</div>
-
-			<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-				{#each dailyTargets as t}
-					{@const pctTonnage = t.targetTonnage > 0 ? Math.min(100, Math.round((t.achievedTonnage / t.targetTonnage) * 100)) : 0}
-					{@const pctRitase = t.targetRitase > 0 ? Math.min(100, Math.round((t.achievedRitase / t.targetRitase) * 100)) : 0}
-					<div class="p-4 rounded-xl bg-surface border border-slate-200/50 dark:border-slate-800/50 hover:border-blue-500/30 transition-all flex flex-col justify-between gap-3">
-						<div class="flex items-start justify-between gap-2">
-							<div class="min-w-0">
-								<h3 class="text-xs font-black text-on-surface truncate" title={t.project}>{t.project}</h3>
-								<p class="text-[10px] text-on-surface-variant font-medium truncate mt-0.5">{t.customer}</p>
-							</div>
-							<span class="px-1.5 py-0.5 rounded text-[9px] font-bold uppercase {pctTonnage >= 100 ? 'bg-emerald-500/10 text-emerald-600' : 'bg-blue-500/10 text-blue-600'}">
-								{pctTonnage}% Capaian
-							</span>
-						</div>
-
-						<div class="space-y-3">
-							<!-- Tonnage Progress -->
-							<div>
-								<div class="flex justify-between text-[10px] font-bold mb-1">
-									<span class="text-emerald-600">{new Intl.NumberFormat('id-ID').format(t.achievedTonnage)} Ton</span>
-									<span class="text-on-surface-variant">Target {new Intl.NumberFormat('id-ID').format(t.targetTonnage)} Ton</span>
-								</div>
-								<div class="h-2 w-full bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
-									<div class="h-full bg-emerald-500 rounded-full transition-all duration-500" style="width: {pctTonnage}%"></div>
-								</div>
-							</div>
-
-							<!-- Ritase Progress -->
-							<div>
-								<div class="flex justify-between text-[10px] font-bold mb-1">
-									<span class="text-blue-600">{t.achievedRitase} Rit</span>
-									<span class="text-on-surface-variant">Target {t.targetRitase} Rit</span>
-								</div>
-								<div class="h-2 w-full bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
-									<div class="h-full bg-blue-500 rounded-full transition-all duration-500" style="width: {pctRitase}%"></div>
-								</div>
-							</div>
-						</div>
-					</div>
-				{/each}
-			</div>
 		</div>
-	{/if}
+	</div>
 
 	<!-- Zona 4: 2 Kolom Seimbang (Antrean Dispatch vs Monitoring Perjalanan) -->
 	<div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
