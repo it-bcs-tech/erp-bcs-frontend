@@ -23,7 +23,7 @@
 		{
 			id: 'init-1',
 			role: 'assistant',
-			content: 'Halo! Saya AI Assistant BCS Logistics Anda. Apa yang dapat saya bantu hari ini?'
+			content: 'Halo! Saya ORIS, Asisten Operasional (OCS) BCS Logistics. Saya siap membantu info dispatching armada, rencana harian (daily plan), ketersediaan unit & maintenance bengkel, hingga POD.'
 		}
 	]);
 
@@ -50,7 +50,7 @@
 			{
 				id: 'init-1',
 				role: 'assistant',
-				content: 'Halo! Saya AI Assistant BCS Logistics Anda. Apa yang dapat saya bantu hari ini?'
+				content: 'Halo! Saya ORIS, Asisten Operasional (OCS) BCS Logistics. Saya siap membantu info dispatching armada, rencana harian (daily plan), ketersediaan unit & maintenance bengkel, hingga POD.'
 			}
 		];
 		currentView = 'chat';
@@ -299,7 +299,7 @@
 							type="text"
 							bind:value={inputValue}
 							onkeydown={handleKeydown}
-							placeholder="Tanyakan tentang karyawan, kehadiran..."
+							placeholder="Tanyakan tentang dispatch, target harian, status armada & maintenance..."
 							class="flex-1 bg-transparent px-4 py-2 text-sm text-on-surface focus:outline-none placeholder:text-on-surface-variant/60"
 							disabled={isLoading}
 						/>

@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { page } from '$app/stores';
-	import Chatbot from '$lib/components/Chatbot.svelte';
+	import DimasChat from '$lib/components/DimasChat.svelte';
 
 	import { authUser, hasMenuAccess } from '$lib/stores/auth';
 
@@ -191,5 +191,5 @@
 	</main>
 
 	<!-- Chatbot AI Assistant -->
-	<Chatbot />
+	<DimasChat />
 </div>
