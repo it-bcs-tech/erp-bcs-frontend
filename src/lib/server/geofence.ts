@@ -522,6 +522,6 @@ export async function runGeofenceEngine() {
 		return { success: true, message: `Geofence check completed. Updated ${updatedCount} trips.`, logs };
 	} catch (error: any) {
 		console.error("Geofence Engine Error:", error);
-		throw error;
+		return { success: false, message: error?.message, logs: [] };
 	}
 }
