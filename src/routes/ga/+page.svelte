@@ -97,7 +97,7 @@
 				<div>
 					<span class="text-[11px] font-bold text-on-surface-variant uppercase tracking-wider">Layanan Internal GA</span>
 					<h2 class="text-2xl font-black text-cyan-600 mt-1 font-mono tracking-tight">
-						{data.serviceStats.totalServices.toLocaleString('id-ID')} <span class="text-sm font-bold">Request</span>
+						{(data.serviceStats?.totalServices ?? 0).toLocaleString('id-ID')} <span class="text-sm font-bold">Request</span>
 					</h2>
 				</div>
 				<div class="w-10 h-10 rounded-xl bg-cyan-500/10 text-cyan-600 flex items-center justify-center font-bold">
@@ -106,10 +106,10 @@
 			</div>
 			<div class="mt-3 pt-2.5 border-t border-slate-200/50 dark:border-slate-800/50 flex items-center justify-between text-[11px]">
 				<span class="text-slate-400">
-					<strong class="text-on-surface">{data.serviceStats.inProgressRequests.toLocaleString('id-ID')}</strong> Berjalan
+					<strong class="text-on-surface">{(data.serviceStats?.inProgressServices ?? data.serviceStats?.inProgressRequests ?? 0).toLocaleString('id-ID')}</strong> Berjalan
 				</span>
 				<span class="px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-600 font-bold font-mono text-[10px]">
-					{data.serviceStats.pendingRequests.toLocaleString('id-ID')} Review
+					{(data.serviceStats?.pendingServices ?? data.serviceStats?.pendingRequests ?? 0).toLocaleString('id-ID')} Review
 				</span>
 			</div>
 		</div>
@@ -123,7 +123,7 @@
 				<div>
 					<span class="text-[11px] font-bold text-on-surface-variant uppercase tracking-wider">Ruang Pertemuan</span>
 					<h2 class="text-2xl font-black text-amber-600 mt-1 font-mono tracking-tight">
-						{data.roomBookings.stats.active_rooms} <span class="text-sm font-bold">Ruangan</span>
+						{data.roomBookings?.stats?.active_rooms ?? 0} <span class="text-sm font-bold">Ruangan</span>
 					</h2>
 				</div>
 				<div class="w-10 h-10 rounded-xl bg-amber-500/10 text-amber-600 flex items-center justify-center font-bold">
@@ -132,10 +132,10 @@
 			</div>
 			<div class="mt-3 pt-2.5 border-t border-slate-200/50 dark:border-slate-800/50 flex items-center justify-between text-[11px]">
 				<span class="text-slate-400">
-					<strong class="text-emerald-600 font-bold">{Math.max(0, (data.roomBookings.stats.active_rooms || 0) - (data.roomBookings.stats.in_use_now || 0))}/{data.roomBookings.stats.active_rooms || 0}</strong> Tersedia Hari Ini
+					<strong class="text-emerald-600 font-bold">{Math.max(0, (data.roomBookings?.stats?.active_rooms || 0) - (data.roomBookings?.stats?.in_use_now || 0))}/{data.roomBookings?.stats?.active_rooms || 0}</strong> Tersedia Hari Ini
 				</span>
 				<span class="px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 font-bold font-mono text-[10px]">
-					{data.roomBookings.stats.pending_bookings} Pending
+					{data.roomBookings?.stats?.pending_bookings ?? 0} Pending
 				</span>
 			</div>
 		</a>
@@ -149,7 +149,7 @@
 				<div>
 					<span class="text-[11px] font-bold text-on-surface-variant uppercase tracking-wider">Work Order Gedung</span>
 					<h2 class="text-2xl font-black text-blue-600 mt-1 font-mono tracking-tight">
-						{data.facilities.stats.total_wo} <span class="text-sm font-bold">Tiket WO</span>
+						{data.facilities?.stats?.total_wo ?? 0} <span class="text-sm font-bold">Tiket WO</span>
 					</h2>
 				</div>
 				<div class="w-10 h-10 rounded-xl bg-blue-500/10 text-blue-600 flex items-center justify-center font-bold">
@@ -158,10 +158,10 @@
 			</div>
 			<div class="mt-3 pt-2.5 border-t border-slate-200/50 dark:border-slate-800/50 flex items-center justify-between text-[11px]">
 				<span class="text-slate-400">
-					<strong class="text-emerald-600 font-bold">{data.facilities.stats.completed_wo}</strong> Selesai
+					<strong class="text-emerald-600 font-bold">{data.facilities?.stats?.completed_wo ?? 0}</strong> Selesai
 				</span>
 				<span class="px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-600 font-bold font-mono text-[10px]">
-					{data.facilities.stats.in_progress_wo} Dikerjakan
+					{data.facilities?.stats?.in_progress_wo ?? 0} Dikerjakan
 				</span>
 			</div>
 		</a>
@@ -175,7 +175,7 @@
 				<div>
 					<span class="text-[11px] font-bold text-on-surface-variant uppercase tracking-wider">Perlengkapan &amp; Arsip</span>
 					<h2 class="text-2xl font-black text-purple-600 mt-1 font-mono tracking-tight">
-						{data.archives.total_docs} <span class="text-sm font-bold">Arsip</span>
+						{data.archives?.total_docs ?? 0} <span class="text-sm font-bold">Arsip</span>
 					</h2>
 				</div>
 				<div class="w-10 h-10 rounded-xl bg-purple-500/10 text-purple-600 flex items-center justify-center font-bold">
@@ -184,10 +184,10 @@
 			</div>
 			<div class="mt-3 pt-2.5 border-t border-slate-200/50 dark:border-slate-800/50 flex items-center justify-between text-[11px]">
 				<span class="text-slate-400">
-					<strong class="text-on-surface">{data.stationery.stats.total_items}</strong> Katalog ATK
+					<strong class="text-on-surface">{data.stationery?.stats?.total_items ?? 0}</strong> Katalog ATK
 				</span>
-				<span class="px-2 py-0.5 rounded-full {data.stationery.stats.low_stock_items > 0 ? 'bg-amber-500/10 text-amber-600' : 'bg-emerald-500/10 text-emerald-600'} font-bold font-mono text-[10px]">
-					{data.stationery.stats.low_stock_items} Stok Menipis
+				<span class="px-2 py-0.5 rounded-full {(data.stationery?.stats?.low_stock_items ?? 0) > 0 ? 'bg-amber-500/10 text-amber-600' : 'bg-emerald-500/10 text-emerald-600'} font-bold font-mono text-[10px]">
+					{data.stationery?.stats?.low_stock_items ?? 0} Stok Menipis
 				</span>
 			</div>
 		</a>
@@ -211,7 +211,7 @@
 					<span class="material-symbols-outlined text-blue-500 text-base">assignment</span>
 				</div>
 				<p class="text-base font-black text-on-surface mt-1 font-mono">
-					{data.pipeline.stage1_intake.count.toLocaleString('id-ID')} Pengajuan
+					{(data.pipeline?.stage1_intake?.count ?? 0).toLocaleString('id-ID')} Pengajuan
 				</p>
 				<p class="text-[11px] font-bold text-blue-600 mt-0.5 font-mono">100% Tercatat</p>
 				<p class="text-[10px] text-slate-400 mt-1">Carpool, SPD, ATK &amp; WO Gedung</p>
@@ -224,7 +224,7 @@
 					<span class="material-symbols-outlined text-amber-500 text-base">pending_actions</span>
 				</div>
 				<p class="text-base font-black text-on-surface mt-1 font-mono">
-					{data.pipeline.stage2_approval.count.toLocaleString('id-ID')} Menunggu
+					{(data.pipeline?.stage2_approval?.count ?? 0).toLocaleString('id-ID')} Menunggu
 				</p>
 				<p class="text-[11px] font-bold text-amber-600 mt-0.5 font-mono">Review Atasan &amp; GA</p>
 				<p class="text-[10px] text-slate-400 mt-1">Validasi kebutuhan operasional</p>
@@ -237,7 +237,7 @@
 					<span class="material-symbols-outlined text-purple-500 text-base">commute</span>
 				</div>
 				<p class="text-base font-black text-on-surface mt-1 font-mono">
-					{data.pipeline.stage3_assigned.count.toLocaleString('id-ID')} Berjalan
+					{(data.pipeline?.stage3_assigned?.count ?? 0).toLocaleString('id-ID')} Berjalan
 				</p>
 				<p class="text-[11px] font-bold text-purple-600 mt-0.5 font-mono">Aktif Terdisposisi</p>
 				<p class="text-[10px] text-slate-400 mt-1">Mobil dinas jalan &amp; teknisi bertugas</p>
@@ -250,7 +250,7 @@
 					<span class="material-symbols-outlined text-emerald-500 text-base">task_alt</span>
 				</div>
 				<p class="text-base font-black text-on-surface mt-1 font-mono">
-					{data.facilities.stats.completed_wo} WO Selesai
+					{(data.pipeline?.stage4_completed?.count ?? data.facilities?.stats?.completed_wo ?? 0).toLocaleString('id-ID')} WO Selesai
 				</p>
 				<p class="text-[11px] font-bold text-emerald-600 mt-0.5 font-mono">Layanan Tuntas</p>
 				<p class="text-[10px] text-slate-400 mt-1">Fasilitas terpelihara &amp; terarsip</p>
@@ -271,11 +271,11 @@
 					<div class="flex items-center gap-3 text-[11px]">
 						<div class="flex items-center gap-1.5">
 							<span class="w-2.5 h-2.5 rounded-sm bg-cyan-500 inline-block"></span>
-							<span class="text-slate-400 font-medium">Carpool ({data.serviceStats.carpoolCount})</span>
+							<span class="text-slate-400 font-medium">Carpool ({data.serviceStats?.carpoolCount ?? 0})</span>
 						</div>
 						<div class="flex items-center gap-1.5">
 							<span class="w-2.5 h-2.5 rounded-sm bg-indigo-500 inline-block"></span>
-							<span class="text-slate-400 font-medium">SPD ({data.serviceStats.spdCount})</span>
+							<span class="text-slate-400 font-medium">SPD ({data.serviceStats?.spdCount ?? 0})</span>
 						</div>
 					</div>
 				</div>
@@ -285,7 +285,7 @@
 
 				<!-- Grafik Batang CSS/SVG -->
 				<div class="h-44 flex items-end justify-between gap-3 pt-6 pb-2 border-b border-slate-200/60 dark:border-slate-800/60">
-					{#each data.monthlyTrend as item, idx}
+					{#each (data.monthlyTrend || []) as item, idx}
 						{@const isSelected = selectedMonthIdx === idx}
 						<button
 							type="button"
@@ -352,12 +352,12 @@
 
 				<!-- Department Progress List -->
 				<div class="space-y-3">
-					{#each data.deptBreakdown as d}
+					{#each (data.deptBreakdown || []) as d}
 						<div class="p-2.5 rounded-xl bg-surface border border-slate-200/50 dark:border-slate-800/50 space-y-1.5">
 							<div class="flex items-center justify-between text-xs">
 								<span class="font-bold text-on-surface truncate">{d.department}</span>
 								<div class="flex items-center gap-2 shrink-0">
-									<span class="font-mono text-[11px] text-slate-400">{d.count.toLocaleString('id-ID')} req</span>
+									<span class="font-mono text-[11px] text-slate-400">{(d.count ?? 0).toLocaleString('id-ID')} req</span>
 									<span class="px-1.5 py-0.2 rounded text-[10px] font-black font-mono bg-cyan-500/10 text-cyan-600">
 										{d.pct}%
 									</span>
@@ -406,7 +406,7 @@
 								? 'bg-blue-600 text-white shadow-xs'
 								: 'text-on-surface-variant hover:text-on-surface'}"
 						>
-							WO ({data.facilities.recentList.length})
+							WO ({data.facilities?.recentList?.length || 0})
 						</button>
 						<button
 							type="button"
@@ -415,7 +415,7 @@
 								? 'bg-purple-600 text-white shadow-xs'
 								: 'text-on-surface-variant hover:text-on-surface'}"
 						>
-							ATK ({data.stationery.recentRequests.length})
+							ATK ({data.stationery?.recentRequests?.length || 0})
 						</button>
 					</div>
 				</div>
@@ -423,7 +423,7 @@
 				<!-- TAB 1: WORK ORDERS -->
 				{#if activeLeftTab === 'wo'}
 					<div class="space-y-2.5">
-						{#each data.facilities.recentList as wo}
+						{#each (data.facilities?.recentList || []) as wo}
 							<div class="flex items-center justify-between p-3 rounded-2xl bg-surface hover:bg-surface-container transition-colors">
 								<div class="flex items-center gap-3 min-w-0">
 									<div class="w-9 h-9 rounded-xl flex items-center justify-center font-bold text-xs shrink-0 bg-blue-500/10 text-blue-600">
@@ -450,7 +450,7 @@
 							</div>
 						{/each}
 
-						{#if data.facilities.recentList.length === 0}
+						{#if (data.facilities?.recentList || []).length === 0}
 							<p class="text-xs text-slate-400 italic py-6 text-center">Tidak ada tiket pemeliharaan fasilitas aktif.</p>
 						{/if}
 					</div>
@@ -458,7 +458,7 @@
 				<!-- TAB 2: ATK REQUESTS -->
 				{:else}
 					<div class="space-y-2.5">
-						{#each data.stationery.recentRequests as req}
+						{#each (data.stationery?.recentRequests || []) as req}
 							<div class="flex items-center justify-between p-3 rounded-2xl bg-surface hover:bg-surface-container transition-colors">
 								<div class="flex items-center gap-3 min-w-0">
 									<div class="w-9 h-9 rounded-xl flex items-center justify-center font-bold text-xs shrink-0 bg-purple-500/10 text-purple-600">
@@ -483,7 +483,7 @@
 							</div>
 						{/each}
 
-						{#if data.stationery.recentRequests.length === 0}
+						{#if (data.stationery?.recentRequests || []).length === 0}
 							<p class="text-xs text-slate-400 italic py-6 text-center">Belum ada pengajuan ATK baru.</p>
 						{/if}
 					</div>
@@ -524,7 +524,7 @@
 								? 'bg-amber-600 text-white shadow-xs'
 								: 'text-on-surface-variant hover:text-on-surface'}"
 						>
-							Ruangan ({data.roomBookings.rooms.length})
+							Ruangan ({data.roomBookings?.rooms?.length || 0})
 						</button>
 						<button
 							type="button"
@@ -533,7 +533,7 @@
 								? 'bg-cyan-600 text-white shadow-xs'
 								: 'text-on-surface-variant hover:text-on-surface'}"
 						>
-							Mobil ({data.recentCarpool.length})
+							Mobil ({data.recentCarpool?.length || 0})
 						</button>
 					</div>
 				</div>
@@ -541,7 +541,7 @@
 				<!-- TAB 1: ROOMS STATUS -->
 				{#if activeRightTab === 'rooms'}
 					<div class="space-y-2.5">
-						{#each data.roomBookings.rooms as rm}
+						{#each (data.roomBookings?.rooms || []) as rm}
 							<div class="flex items-center justify-between p-3 rounded-2xl bg-surface hover:bg-surface-container transition-colors">
 								<div class="flex items-center gap-3 min-w-0">
 									<div class="w-9 h-9 rounded-xl flex items-center justify-center font-bold text-xs shrink-0 {rm.currentBookingNumber ? 'bg-rose-500/10 text-rose-600' : 'bg-emerald-500/10 text-emerald-600'}">
@@ -583,7 +583,7 @@
 				<!-- TAB 2: CARPOOL -->
 				{:else}
 					<div class="space-y-2.5">
-						{#each data.recentCarpool as cp}
+						{#each (data.recentCarpool || []) as cp}
 							<div class="flex items-center justify-between p-3 rounded-2xl bg-surface hover:bg-surface-container transition-colors">
 								<div class="flex items-center gap-3 min-w-0">
 									<div class="w-9 h-9 rounded-xl flex items-center justify-center font-bold text-xs shrink-0 bg-cyan-500/10 text-cyan-600">
@@ -607,7 +607,7 @@
 							</div>
 						{/each}
 
-						{#if data.recentCarpool.length === 0}
+						{#if (data.recentCarpool || []).length === 0}
 							<p class="text-xs text-slate-400 italic py-6 text-center">Belum ada permohonan carpool.</p>
 						{/if}
 					</div>
