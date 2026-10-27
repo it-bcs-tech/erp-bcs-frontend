@@ -2,10 +2,11 @@
 	import { clickOutside } from '$lib/utils/clickOutside';
 	import { addToast } from '$lib/stores/notifications';
 
-	let { isOpen = $bindable(false), onClose, user } = $props<{
+	let { isOpen = $bindable(false), onClose, user, initialView = 'VIEW' } = $props<{
 		isOpen: boolean;
 		onClose?: () => void;
 		user?: any;
+		initialView?: 'VIEW' | 'FORM';
 	}>();
 
 	// Loading state
@@ -25,6 +26,12 @@
 
 	// Popover View Mode: 'VIEW' (calendar) | 'FORM' (booking form)
 	let activeView = $state<'VIEW' | 'FORM'>('VIEW');
+
+	$effect(() => {
+		if (isOpen && initialView) {
+			activeView = initialView;
+		}
+	});
 
 	// Booking form state
 	let formRoomId = $state<string>('');

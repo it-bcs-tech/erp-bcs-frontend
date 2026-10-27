@@ -2,14 +2,21 @@
 	import { clickOutside } from '$lib/utils/clickOutside';
 	import { addToast } from '$lib/stores/notifications';
 
-	let { isOpen = $bindable(false), onClose, user } = $props<{
+	let { isOpen = $bindable(false), onClose, user, initialView = 'LIST' } = $props<{
 		isOpen: boolean;
 		onClose?: () => void;
 		user?: any;
+		initialView?: 'LIST' | 'FORM';
 	}>();
 
 	// View mode: 'LIST' (daftar tiket terkini) | 'FORM' (form lapor baru)
 	let activeView = $state<'LIST' | 'FORM'>('LIST');
+
+	$effect(() => {
+		if (isOpen && initialView) {
+			activeView = initialView;
+		}
+	});
 
 	// Data tickets & Switcher Scope
 	let tickets = $state<any[]>([]);

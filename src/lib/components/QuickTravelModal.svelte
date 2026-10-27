@@ -2,10 +2,12 @@
 	import { clickOutside } from '$lib/utils/clickOutside';
 	import { addToast } from '$lib/stores/notifications';
 
-	let { isOpen = $bindable(false), onClose, user } = $props<{
+	let { isOpen = $bindable(false), onClose, user, initialView = 'LIST', initialType = 'CARPOOL' } = $props<{
 		isOpen: boolean;
 		onClose?: () => void;
 		user?: any;
+		initialView?: 'LIST' | 'FORM';
+		initialType?: 'CARPOOL' | 'SPD';
 	}>();
 
 	// View mode: 'LIST' (daftar pengajuan terkini) | 'FORM' (form ajukan baru)
@@ -13,6 +15,13 @@
 
 	// Sub-type form: 'CARPOOL' | 'SPD'
 	let formType = $state<'CARPOOL' | 'SPD'>('CARPOOL');
+
+	$effect(() => {
+		if (isOpen) {
+			if (initialView) activeView = initialView;
+			if (initialType) formType = initialType;
+		}
+	});
 
 	// Filter tab di tampilan LIST: 'ALL' | 'CARPOOL' | 'SPD'
 	let listFilterType = $state<'ALL' | 'CARPOOL' | 'SPD'>('ALL');
