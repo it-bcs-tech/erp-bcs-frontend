@@ -1,6 +1,8 @@
 import type { PageServerLoad, Actions } from './$types';
 import sql from '$lib/server/db';
 import { fail } from '@sveltejs/kit';
+import { writeFile, mkdir } from 'fs/promises';
+import { join } from 'path';
 
 async function recalculateWoCosts(woId: number) {
 	const [mp] = await sql`
@@ -50,6 +52,7 @@ export const load: PageServerLoad = async ({ url }) => {
 					raw_status,
 					technician_vendor,
 					photo_condition,
+					photo_completion,
 					COALESCE(estimated_cost, 0)::numeric as estimated_cost,
 					COALESCE(actual_cost, 0)::numeric as actual_cost,
 					COALESCE(manpower_cost, 0)::numeric as manpower_cost,
@@ -206,6 +209,19 @@ export const actions: Actions = {
 		}
 
 		try {
+			// Handle upload foto kondisi awal (Before) - Opsional
+			let photo_condition: string | null = null;
+			const photo = data.get('photo') as File | null;
+			if (photo && photo.size > 0 && photo.name !== 'undefined') {
+				const uploadDir = join(process.cwd(), 'uploads');
+				await mkdir(uploadDir, { recursive: true });
+				const buffer = Buffer.from(await photo.arrayBuffer());
+				const ext = photo.name.split('.').pop()?.toLowerCase() || 'jpg';
+				const filename = `WO_BEFORE_${Date.now()}_${Math.random().toString(36).substring(2, 7)}.${ext}`;
+				await writeFile(join(uploadDir, filename), buffer);
+				photo_condition = filename;
+			}
+
 			const [seq] = await sql`SELECT COALESCE(MAX(id), 0) + 1 as next_seq FROM ga.facility_work_orders`;
 			const pad = String(seq.next_seq).padStart(7, '0');
 			const wo_number = `WO${pad}`;
@@ -213,10 +229,10 @@ export const actions: Actions = {
 			await sql`
 				INSERT INTO ga.facility_work_orders (
 					wo_number, facility_type, location, requester_name, department,
-					description, urgency, status, raw_status, estimated_cost, scheduled_date
+					description, urgency, status, raw_status, photo_condition, estimated_cost, scheduled_date
 				) VALUES (
 					${wo_number}, ${facility_type}, ${location}, ${requester_name}, ${department},
-					${description}, ${urgency}, 'PENDING', '1', ${estimated_cost}, CURRENT_DATE
+					${description}, ${urgency}, 'PENDING', '1', ${photo_condition}, ${estimated_cost}, CURRENT_DATE
 				)
 			`;
 			return { success: true, message: `Tiket perbaikan ${wo_number} berhasil dibuat` };
@@ -363,10 +379,24 @@ export const actions: Actions = {
 		const actual_cost = parseFloat(data.get('actual_cost')?.toString() || '0');
 		const completion_date = data.get('completion_date')?.toString() || new Date().toISOString().split('T')[0];
 		const completion_notes = data.get('completion_notes')?.toString().trim() || null;
+		const photo = data.get('photo_completion') as File | null;
 
 		if (!id) return fail(400, { message: 'ID tiket tidak valid' });
 
+		// Foto hasil perbaikan (After) wajib dilampirkan saat menutup tiket
+		if (!photo || photo.size === 0 || photo.name === 'undefined') {
+			return fail(400, { message: 'Foto hasil perbaikan (After) wajib diunggah untuk menutup tiket!' });
+		}
+
 		try {
+			const uploadDir = join(process.cwd(), 'uploads');
+			await mkdir(uploadDir, { recursive: true });
+			const buffer = Buffer.from(await photo.arrayBuffer());
+			const ext = photo.name.split('.').pop()?.toLowerCase() || 'jpg';
+			const filename = `WO_AFTER_${Date.now()}_${Math.random().toString(36).substring(2, 7)}.${ext}`;
+			await writeFile(join(uploadDir, filename), buffer);
+			const photo_completion = filename;
+
 			await sql`
 				UPDATE ga.facility_work_orders SET
 					status = 'COMPLETED',
@@ -374,6 +404,7 @@ export const actions: Actions = {
 					actual_cost = ${actual_cost},
 					completion_date = ${completion_date},
 					completion_notes = ${completion_notes},
+					photo_completion = ${photo_completion},
 					updated_at = NOW()
 				WHERE id = ${id}
 			`;

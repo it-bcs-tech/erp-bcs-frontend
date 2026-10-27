@@ -25,6 +25,9 @@
 	let location = $state('');
 	let description = $state('');
 	let urgency = $state<'LOW' | 'MEDIUM' | 'HIGH' | 'EMERGENCY'>('MEDIUM');
+	let photoFile = $state<File | null>(null);
+	let photoPreview = $state<string | null>(null);
+	let lightboxPhoto = $state<{ url: string; title: string } | null>(null);
 	let isSubmitting = $state(false);
 	let errorMessage = $state('');
 
@@ -63,11 +66,33 @@
 		fetchTickets(newScope);
 	}
 
+	function handlePhotoSelect(e: Event) {
+		const target = e.target as HTMLInputElement;
+		if (target.files && target.files[0]) {
+			const file = target.files[0];
+			if (file.size > 10 * 1024 * 1024) {
+				errorMessage = 'Ukuran berkas foto maksimal 10MB';
+				return;
+			}
+			photoFile = file;
+			photoPreview = URL.createObjectURL(file);
+		}
+	}
+
+	function removePhoto() {
+		photoFile = null;
+		if (photoPreview) {
+			URL.revokeObjectURL(photoPreview);
+			photoPreview = null;
+		}
+	}
+
 	function resetForm() {
 		facilityType = 'AC_HVAC';
 		location = '';
 		description = '';
 		urgency = 'MEDIUM';
+		removePhoto();
 		errorMessage = '';
 	}
 
@@ -94,18 +119,19 @@
 		errorMessage = '';
 
 		try {
+			const formData = new FormData();
+			formData.append('facility_type', facilityType);
+			formData.append('location', location.trim());
+			formData.append('description', description.trim());
+			formData.append('urgency', urgency);
+			if (user?.name) formData.append('requester_name', user.name);
+			if (user?.division || user?.department) formData.append('department', user.division || user.department);
+			if (user?.payrollId) formData.append('requester_nik', user.payrollId);
+			if (photoFile) formData.append('photo', photoFile);
+
 			const res = await fetch('/api/ga/work-orders', {
 				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({
-					facility_type: facilityType,
-					location: location.trim(),
-					description: description.trim(),
-					urgency,
-					requester_name: user?.name,
-					department: user?.division || user?.department,
-					requester_nik: user?.payrollId
-				})
+				body: formData
 			});
 
 			const result = await res.json();
@@ -354,6 +380,44 @@
 									{t.description}
 								</p>
 
+								{#if t.photo_condition || t.photo_completion}
+									<div class="grid grid-cols-2 gap-2 pt-1 border-t border-slate-200/50 dark:border-slate-800/50">
+										{#if t.photo_condition}
+											<button
+												type="button"
+												onclick={() => lightboxPhoto = { url: `/api/uploads/${t.photo_condition}`, title: `Kondisi Sebelum (Before) • ${t.wo_number}` }}
+												class="relative rounded-xl overflow-hidden border border-slate-200/80 dark:border-slate-700 h-14 group cursor-pointer text-left block"
+											>
+												<img src={`/api/uploads/${t.photo_condition}`} alt="Before" class="w-full h-full object-cover group-hover:scale-105 transition-transform" />
+												<span class="absolute bottom-1 left-1 px-1.5 py-0.5 rounded bg-slate-950/70 text-white text-[9px] font-bold">
+													Sebelum
+												</span>
+											</button>
+										{:else}
+											<div class="h-14 rounded-xl border border-dashed border-slate-200 dark:border-slate-800 flex items-center justify-center text-[10px] text-slate-400">
+												Tanpa Foto Sebelum
+											</div>
+										{/if}
+
+										{#if t.photo_completion}
+											<button
+												type="button"
+												onclick={() => lightboxPhoto = { url: `/api/uploads/${t.photo_completion}`, title: `Hasil Pekerjaan (After) • ${t.wo_number}` }}
+												class="relative rounded-xl overflow-hidden border border-emerald-500/50 h-14 group cursor-pointer text-left block"
+											>
+												<img src={`/api/uploads/${t.photo_completion}`} alt="After" class="w-full h-full object-cover group-hover:scale-105 transition-transform" />
+												<span class="absolute bottom-1 left-1 px-1.5 py-0.5 rounded bg-emerald-700/80 text-white text-[9px] font-bold">
+													Sesudah
+												</span>
+											</button>
+										{:else}
+											<div class="h-14 rounded-xl border border-dashed border-slate-200 dark:border-slate-800 flex items-center justify-center text-[10px] text-slate-400">
+												Menunggu Selesai
+											</div>
+										{/if}
+									</div>
+								{/if}
+
 								<div class="flex items-center justify-between text-[10px] text-on-surface-variant pt-1 border-t border-slate-200/50 dark:border-slate-800/50">
 									<div class="flex items-center gap-1 truncate max-w-[200px]" title={t.location}>
 										<span class="material-symbols-outlined text-[12px] text-blue-600 shrink-0">location_on</span>
@@ -493,6 +557,39 @@
 						></textarea>
 					</div>
 
+					<!-- Foto Kondisi Kerusakan (Before) - Opsional -->
+					<div>
+						<span class="block font-bold text-on-surface mb-1">
+							Foto Kerusakan <span class="text-on-surface-variant font-normal text-[10px]">(Opsional - Before)</span>
+						</span>
+						{#if photoPreview}
+							<div class="relative rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-700 bg-surface-container-low max-h-36 flex items-center justify-center group">
+								<img src={photoPreview} alt="Pratinjau Foto" class="w-full h-32 object-cover" />
+								<button
+									type="button"
+									onclick={removePhoto}
+									class="absolute top-2 right-2 p-1 rounded-full bg-slate-900/70 text-white hover:bg-rose-600 transition-colors cursor-pointer"
+									title="Hapus Foto"
+								>
+									<span class="material-symbols-outlined text-sm">close</span>
+								</button>
+							</div>
+						{:else}
+							<label
+								class="flex items-center justify-center gap-2 p-2.5 rounded-2xl bg-surface-container-low border border-dashed border-slate-300 dark:border-slate-700 hover:border-blue-500 text-on-surface-variant hover:text-blue-600 text-xs font-semibold cursor-pointer transition-all"
+							>
+								<span class="material-symbols-outlined text-base">add_a_photo</span>
+								<span>Lampirkan Foto Kerusakan (JPG, PNG)</span>
+								<input
+									type="file"
+									accept="image/*"
+									onchange={handlePhotoSelect}
+									class="hidden"
+								/>
+							</label>
+						{/if}
+					</div>
+
 					<!-- Form Footer Actions -->
 					<div class="pt-2 flex items-center justify-end gap-2 border-t border-slate-200/50 dark:border-slate-800/50">
 						<button
@@ -519,6 +616,38 @@
 					</div>
 				</form>
 			{/if}
+		</div>
+	</div>
+{/if}
+
+<!-- Lightbox Modal untuk Pratinjau Foto Penuh -->
+{#if lightboxPhoto}
+	<div
+		class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-xs animate-in fade-in duration-150"
+		role="dialog"
+	>
+		<button
+			type="button"
+			class="absolute inset-0 w-full h-full cursor-default bg-transparent border-0 outline-none"
+			aria-label="Tutup Pratinjau"
+			onclick={() => (lightboxPhoto = null)}
+		></button>
+
+		<div class="relative max-w-2xl max-h-[85vh] bg-surface-container-lowest rounded-3xl overflow-hidden shadow-2xl z-10 border border-slate-200 dark:border-slate-800 flex flex-col">
+			<div class="p-3.5 bg-surface-container-low flex items-center justify-between border-b border-slate-200/50 dark:border-slate-800/50">
+				<span class="text-xs font-bold text-on-surface truncate">{lightboxPhoto.title}</span>
+				<button
+					type="button"
+					onclick={() => (lightboxPhoto = null)}
+					class="p-1 rounded-xl text-on-surface-variant hover:bg-surface-container cursor-pointer"
+					title="Tutup"
+				>
+					<span class="material-symbols-outlined text-base">close</span>
+				</button>
+			</div>
+			<div class="p-3 flex items-center justify-center bg-black/40 overflow-auto">
+				<img src={lightboxPhoto.url} alt={lightboxPhoto.title} class="max-h-[70vh] w-auto object-contain rounded-xl shadow-lg" />
+			</div>
 		</div>
 	</div>
 {/if}

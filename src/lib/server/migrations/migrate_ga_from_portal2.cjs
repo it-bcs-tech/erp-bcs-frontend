@@ -621,6 +621,7 @@ async function run() {
 	await sql`ALTER TABLE ga.facility_work_orders ADD COLUMN IF NOT EXISTS requester_nik VARCHAR(50)`;
 	await sql`ALTER TABLE ga.facility_work_orders ADD COLUMN IF NOT EXISTS location_code VARCHAR(50)`;
 	await sql`ALTER TABLE ga.facility_work_orders ADD COLUMN IF NOT EXISTS photo_condition VARCHAR(255)`;
+	await sql`ALTER TABLE ga.facility_work_orders ADD COLUMN IF NOT EXISTS photo_completion VARCHAR(255)`;
 	await sql`ALTER TABLE ga.facility_work_orders ADD COLUMN IF NOT EXISTS raw_status VARCHAR(20)`;
 	await sql`ALTER TABLE ga.facility_work_orders ADD COLUMN IF NOT EXISTS manpower_cost NUMERIC DEFAULT 0`;
 	await sql`ALTER TABLE ga.facility_work_orders ADD COLUMN IF NOT EXISTS material_cost NUMERIC DEFAULT 0`;

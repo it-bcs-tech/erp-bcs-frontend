@@ -13,6 +13,7 @@
 	let isApproveModalOpen = $state(false);
 	let isCompleteModalOpen = $state(false);
 	let isDetailModalOpen = $state(false);
+	let lightboxImage = $state<{ url: string; title: string } | null>(null);
 	let selectedWo = $state<any>(null);
 	const activeWo = $derived(data.workOrders.find((w: any) => w.id === selectedWo?.id) || selectedWo);
 
@@ -477,6 +478,7 @@
 			<form
 				method="POST"
 				action="?/createWorkOrder"
+				enctype="multipart/form-data"
 				use:enhance={() => {
 					return async ({ result, update }) => {
 						await update();
@@ -589,6 +591,19 @@
 						placeholder="Jelaskan secara detail gejala kerusakan atau kebutuhan perbaikan fasilitas..."
 						class="w-full px-4 py-2.5 text-xs rounded-xl bg-surface-container-low border-0 outline-none focus:ring-2 focus:ring-blue-500/20 text-on-surface transition-all"
 					></textarea>
+				</div>
+
+				<div>
+					<label for="create_photo" class="block text-xs font-bold text-on-surface mb-1.5">
+						Foto Kondisi Kerusakan <span class="text-on-surface-variant font-normal text-[10px]">(Opsional - Before)</span>
+					</label>
+					<input
+						id="create_photo"
+						type="file"
+						name="photo"
+						accept="image/*"
+						class="w-full px-4 py-2 text-xs rounded-xl bg-surface-container-low border-0 outline-none text-on-surface file:mr-3 file:py-1 file:px-3 file:rounded-lg file:border-0 file:bg-blue-600 file:text-white file:text-xs file:font-bold cursor-pointer transition-all"
+					/>
 				</div>
 
 				<div class="flex items-center justify-end gap-3 pt-4 border-t border-slate-200/60 dark:border-slate-800/60">
@@ -722,6 +737,7 @@
 			<form
 				method="POST"
 				action="?/completeWorkOrder"
+				enctype="multipart/form-data"
 				use:enhance={() => {
 					return async ({ result, update }) => {
 						await update();
@@ -778,6 +794,21 @@
 						placeholder="Uraikan part yang diganti, hasil tes fungsi, garansi pengerjaan..."
 						class="w-full px-4 py-2.5 text-xs rounded-xl bg-surface-container-low border-0 outline-none focus:ring-2 focus:ring-emerald-500/20 text-on-surface transition-all"
 					></textarea>
+				</div>
+
+				<div>
+					<label for="comp_photo" class="block text-xs font-bold text-on-surface mb-1.5">
+						Foto Bukti Hasil Pekerjaan (After) <span class="text-rose-500">*</span>
+					</label>
+					<input
+						id="comp_photo"
+						type="file"
+						name="photo_completion"
+						accept="image/*"
+						required
+						class="w-full px-4 py-2 text-xs rounded-xl bg-surface-container-low border-0 outline-none text-on-surface file:mr-3 file:py-1 file:px-3 file:rounded-lg file:border-0 file:bg-emerald-600 file:text-white file:text-xs file:font-bold cursor-pointer transition-all"
+					/>
+					<p class="text-[10px] text-on-surface-variant mt-1">Wajib melampirkan foto fisik fasilitas/ruangan setelah selesai diperbaiki.</p>
 				</div>
 
 				<div class="flex items-center justify-end gap-3 pt-4 border-t border-slate-200/60 dark:border-slate-800/60">
@@ -838,12 +869,6 @@
 					<div class="p-3 rounded-xl bg-surface-container-low">
 						<span class="text-on-surface-variant text-[10px] uppercase font-bold block mb-1">Uraian Perbaikan</span>
 						<p class="font-semibold text-on-surface">{activeWo.description}</p>
-						{#if activeWo.photo_condition}
-							<div class="mt-1.5 text-[10px] text-blue-600 font-mono flex items-center gap-1">
-								<span class="material-symbols-outlined text-[13px]">photo_camera</span>
-								<span>Lampiran Foto: {activeWo.photo_condition}</span>
-							</div>
-						{/if}
 					</div>
 					<div class="p-3 rounded-xl bg-surface-container-low flex justify-between items-center">
 						<div>
@@ -854,6 +879,96 @@
 						<div class="text-right">
 							<span class="text-on-surface-variant text-[10px] uppercase font-bold block">Jadwal Order</span>
 							<span class="font-semibold text-on-surface">{formatDate(activeWo.scheduled_date)}</span>
+						</div>
+					</div>
+				</div>
+
+				<!-- DOKUMENTASI FOTO FISIK (BEFORE & AFTER) -->
+				<div class="rounded-2xl bg-surface-container-low p-4 space-y-3">
+					<div class="flex items-center justify-between">
+						<div class="flex items-center gap-2">
+							<span class="material-symbols-outlined text-purple-600 text-[18px]">compare</span>
+							<h4 class="font-bold text-xs text-on-surface uppercase tracking-wider">Dokumentasi Foto Fisik (Before & After)</h4>
+						</div>
+						<span class="text-[10px] text-on-surface-variant font-mono">Klik foto untuk melihat ukuran penuh</span>
+					</div>
+
+					<div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+						<!-- Foto Sebelum (Before) -->
+						<div class="p-3 rounded-xl bg-surface border border-slate-200/80 dark:border-slate-800 space-y-2">
+							<div class="flex items-center justify-between">
+								<span class="text-[11px] font-bold text-on-surface flex items-center gap-1.5">
+									<span class="w-2 h-2 rounded-full bg-slate-500"></span>
+									<span>Kondisi Awal (Before)</span>
+								</span>
+								<span class="px-1.5 py-0.5 rounded text-[9px] font-bold {activeWo.photo_condition ? 'bg-blue-50 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300' : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400'}">
+									{activeWo.photo_condition ? 'Tersedia' : 'Tanpa Foto'}
+								</span>
+							</div>
+
+							{#if activeWo.photo_condition}
+								<button
+									type="button"
+									onclick={() => lightboxImage = { url: `/api/uploads/${activeWo.photo_condition}`, title: `Kondisi Awal (Before) • ${activeWo.wo_number}` }}
+									class="w-full h-44 rounded-lg overflow-hidden relative group cursor-pointer border border-slate-200/60 dark:border-slate-700 block"
+								>
+									<img
+										src={`/api/uploads/${activeWo.photo_condition}`}
+										alt="Kondisi Awal"
+										class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
+									/>
+									<div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-xs font-bold gap-1">
+										<span class="material-symbols-outlined text-base">zoom_in</span>
+										<span>Perbesar</span>
+									</div>
+								</button>
+							{:else}
+								<div class="h-44 rounded-lg border border-dashed border-slate-300 dark:border-slate-700 flex flex-col items-center justify-center text-on-surface-variant/60 gap-1 bg-surface-container-lowest/50">
+									<span class="material-symbols-outlined text-2xl">no_photography</span>
+									<span class="text-[11px]">Foto sebelum tidak dilampirkan</span>
+								</div>
+							{/if}
+						</div>
+
+						<!-- Foto Sesudah (After) -->
+						<div class="p-3 rounded-xl bg-surface border border-emerald-500/30 space-y-2">
+							<div class="flex items-center justify-between">
+								<span class="text-[11px] font-bold text-emerald-700 dark:text-emerald-400 flex items-center gap-1.5">
+									<span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+									<span>Hasil Perbaikan (After)</span>
+								</span>
+								<span class="px-1.5 py-0.5 rounded text-[9px] font-bold {activeWo.photo_completion ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300' : 'bg-amber-50 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300'}">
+									{activeWo.photo_completion ? 'Selesai & Terverifikasi' : 'Menunggu Selesai'}
+								</span>
+							</div>
+
+							{#if activeWo.photo_completion}
+								<button
+									type="button"
+									onclick={() => lightboxImage = { url: `/api/uploads/${activeWo.photo_completion}`, title: `Hasil Perbaikan (After) • ${activeWo.wo_number}` }}
+									class="w-full h-44 rounded-lg overflow-hidden relative group cursor-pointer border border-emerald-500/40 block"
+								>
+									<img
+										src={`/api/uploads/${activeWo.photo_completion}`}
+										alt="Hasil Perbaikan"
+										class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
+									/>
+									<div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-xs font-bold gap-1">
+										<span class="material-symbols-outlined text-base">zoom_in</span>
+										<span>Perbesar</span>
+									</div>
+								</button>
+								{#if activeWo.completion_notes}
+									<p class="text-[11px] text-on-surface-variant italic bg-surface-container-lowest/70 p-2 rounded-lg">
+										Catatan Teknisi: "{activeWo.completion_notes}"
+									</p>
+								{/if}
+							{:else}
+								<div class="h-44 rounded-lg border border-dashed border-slate-300 dark:border-slate-700 flex flex-col items-center justify-center text-on-surface-variant/60 gap-1 bg-surface-container-lowest/50">
+									<span class="material-symbols-outlined text-2xl">construction</span>
+									<span class="text-[11px]">Foto hasil akan diunggah saat penutupan tiket</span>
+								</div>
+							{/if}
 						</div>
 					</div>
 				</div>
@@ -1031,6 +1146,38 @@
 						Tutup
 					</button>
 				</div>
+			</div>
+		</div>
+	</div>
+{/if}
+
+<!-- Lightbox Modal untuk Pratinjau Foto Penuh -->
+{#if lightboxImage}
+	<div
+		class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-xs animate-in fade-in duration-150"
+		role="dialog"
+	>
+		<button
+			type="button"
+			class="absolute inset-0 w-full h-full cursor-default bg-transparent border-0 outline-none"
+			aria-label="Tutup Pratinjau"
+			onclick={() => (lightboxImage = null)}
+		></button>
+
+		<div class="relative max-w-3xl max-h-[90vh] bg-surface-container-lowest rounded-3xl overflow-hidden shadow-2xl z-10 border border-slate-200 dark:border-slate-800 flex flex-col">
+			<div class="p-4 bg-surface-container-low flex items-center justify-between border-b border-slate-200/50 dark:border-slate-800/50">
+				<span class="text-xs font-bold text-on-surface truncate">{lightboxImage.title}</span>
+				<button
+					type="button"
+					onclick={() => (lightboxImage = null)}
+					class="p-1 rounded-xl text-on-surface-variant hover:bg-surface-container cursor-pointer"
+					title="Tutup (Esc)"
+				>
+					<span class="material-symbols-outlined text-base">close</span>
+				</button>
+			</div>
+			<div class="p-4 flex items-center justify-center bg-black/40 overflow-auto">
+				<img src={lightboxImage.url} alt={lightboxImage.title} class="max-h-[75vh] w-auto object-contain rounded-xl shadow-xl" />
 			</div>
 		</div>
 	</div>
