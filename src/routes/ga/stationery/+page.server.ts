@@ -11,20 +11,25 @@ export const load: PageServerLoad = async ({ url }) => {
 		const [rawItems, rawRequests, rawRequestItems, rawGaPrs, rawGaPrLines] = await Promise.all([
 			sql`
 				SELECT 
-					id,
-					item_code,
-					name,
-					category,
-					category_id,
-					unit,
-					stock_quantity,
-					minimum_stock,
-					material_id,
-					COALESCE(unit_price_estimate, 0)::numeric as unit_price_estimate,
-					(stock_quantity * COALESCE(unit_price_estimate, 0))::numeric as total_value,
-					to_char(created_at, 'YYYY-MM-DD') as created_at
-				FROM ga.stationery_items
-				ORDER BY id ASC
+					g.id,
+					g.item_code,
+					g.name,
+					g.category,
+					g.category_id,
+					g.unit,
+					g.stock_quantity,
+					g.minimum_stock,
+					g.material_id,
+					COALESCE(g.unit_price_estimate, 0)::numeric as unit_price_estimate,
+					(g.stock_quantity * COALESCE(g.unit_price_estimate, 0))::numeric as total_value,
+					to_char(g.created_at, 'YYYY-MM-DD') as created_at,
+					m.material_code as pms_code,
+					m.spec as pms_spec,
+					COALESCE(m.stock, 0)::numeric as pms_stock,
+					COALESCE(m.standard_price, 0)::numeric as pms_price
+				FROM ga.stationery_items g
+				LEFT JOIN master.m_materials m ON m.id = g.material_id
+				ORDER BY g.id ASC
 			`,
 			sql`
 				SELECT 
@@ -323,8 +328,16 @@ export const actions: Actions = {
 				UPDATE ga.stationery_items SET
 					stock_quantity = stock_quantity + ${added_quantity}
 				WHERE id = ${id}
-				RETURNING name
+				RETURNING name, material_id
 			`;
+			if (item && item.material_id) {
+				await sql`
+					UPDATE master.m_materials SET
+						stock = COALESCE(stock, 0) + ${added_quantity},
+						updated_at = NOW()
+					WHERE id = ${item.material_id}
+				`;
+			}
 			await sql`
 				INSERT INTO ga.stationery_stock_in (
 					item_id, item_name, qty, created_by, created_at
@@ -469,6 +482,15 @@ export const actions: Actions = {
 						    updated_at = NOW()
 						WHERE id = ${line.ga_item_id}
 					`;
+					// Sinkronkan stok ke master.m_materials di PMS
+					if (line.item_id) {
+						await sql`
+							UPDATE master.m_materials 
+							SET stock = COALESCE(stock, 0) + ${qty},
+							    updated_at = NOW()
+							WHERE id = ${line.item_id}
+						`;
+					}
 					// Catat log barang masuk di ga.stationery_stock_in
 					await sql`
 						INSERT INTO ga.stationery_stock_in (
@@ -586,18 +608,33 @@ export const actions: Actions = {
 
 		try {
 			const items = await sql`
-				SELECT item_id, quantity_approved 
-				FROM ga.stationery_request_items 
-				WHERE request_id = ${id}
+				SELECT 
+					ri.item_id, 
+					ri.quantity_approved,
+					gsi.material_id 
+				FROM ga.stationery_request_items ri
+				LEFT JOIN ga.stationery_items gsi ON gsi.id = ri.item_id
+				WHERE ri.request_id = ${id}
 			`;
 
 			for (const it of items) {
 				if (it.item_id && it.quantity_approved > 0) {
+					// Potong stok di GA
 					await sql`
 						UPDATE ga.stationery_items SET
-							stock_quantity = GREATEST(0, stock_quantity - ${it.quantity_approved})
+							stock_quantity = GREATEST(0, stock_quantity - ${it.quantity_approved}),
+							updated_at = NOW()
 						WHERE id = ${it.item_id}
 					`;
+					// Potong stok di PMS
+					if (it.material_id) {
+						await sql`
+							UPDATE master.m_materials SET
+								stock = GREATEST(0, COALESCE(stock, 0) - ${it.quantity_approved}),
+								updated_at = NOW()
+							WHERE id = ${it.material_id}
+						`;
+					}
 				}
 			}
 
@@ -608,7 +645,7 @@ export const actions: Actions = {
 				WHERE id = ${id}
 			`;
 
-			return { success: true, message: 'Barang ATK telah diserahkan & stok fisik gudang otomatis terpotong' };
+			return { success: true, message: 'Barang ATK telah diserahkan & stok fisik gudang GA serta PMS otomatis terpotong' };
 		} catch (e: any) {
 			console.error('Error distributing request:', e);
 			return fail(500, { message: 'Gagal mencatat penyerahan barang ATK' });

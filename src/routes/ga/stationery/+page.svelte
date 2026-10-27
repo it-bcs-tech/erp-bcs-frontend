@@ -529,7 +529,12 @@
 									</td>
 									<td class="py-3 px-4">
 										<div class="font-bold text-on-surface">{item.name}</div>
-										<div class="text-[10px] text-on-surface-variant">Satuan: {item.unit}</div>
+										<div class="text-[10px] text-on-surface-variant flex flex-wrap items-center gap-x-2 gap-y-0.5 mt-0.5">
+											<span>Satuan: <strong>{item.unit}</strong></span>
+											{#if item.pms_spec && item.pms_spec !== item.name}
+												<span class="text-purple-600 dark:text-purple-400 font-medium">Spec: {item.pms_spec}</span>
+											{/if}
+										</div>
 									</td>
 									<td class="py-3 px-4">
 										<span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-surface-container-high text-on-surface">
@@ -555,9 +560,9 @@
 									</td>
 									<td class="py-3 px-4 text-center">
 										{#if item.material_id}
-											<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300">
+											<span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300 border border-blue-200 dark:border-blue-800" title="Terhubung ke Material PMS">
 												<span class="material-symbols-outlined text-[12px]">link</span>
-												<span>ID: {item.material_id}</span>
+												<span>{item.pms_code || `ID: ${item.material_id}`}</span>
 											</span>
 										{:else}
 											<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400">
