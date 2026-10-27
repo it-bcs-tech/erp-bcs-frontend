@@ -34,9 +34,11 @@
 	let formEndTime = $state<string>('10:00');
 	let formAttendees = $state<number>(4);
 	let formPhone = $state<string>('');
-	let formDepartment = $state<string>(user?.department || '');
 	let formDescription = $state<string>('');
 	let isSubmitting = $state(false);
+
+	let userName = $derived(user?.name || 'Karyawan BCS');
+	let userDivision = $derived(user?.division || user?.department || 'Umum');
 
 	const monthNamesId = [
 		'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
@@ -218,9 +220,9 @@
 					endTime: formEndTime,
 					attendeesCount: formAttendees,
 					phone: formPhone,
-					department: formDepartment,
+					department: userDivision,
 					description: formDescription,
-					requesterName: user?.name || 'Karyawan BCS'
+					requesterName: userName
 				})
 			});
 
@@ -443,6 +445,25 @@
 			{:else}
 				<!-- VIEW 2: QUICK BOOKING FORM -->
 				<form onsubmit={submitBooking} class="space-y-3 text-xs">
+					<!-- Info Peminjam & Divisi (Auto-filled dari login, persis seperti form WO) -->
+					<div class="p-2.5 rounded-2xl bg-surface-container-low border border-slate-200/50 dark:border-slate-800/50 flex items-center justify-between text-xs">
+						<div class="flex items-center gap-2">
+							<div class="w-6 h-6 rounded-lg bg-amber-500/15 text-amber-600 flex items-center justify-center font-bold text-xs">
+								<span class="material-symbols-outlined text-[14px]">person</span>
+							</div>
+							<div>
+								<div class="text-[9px] uppercase font-bold text-on-surface-variant">Peminjam</div>
+								<div class="font-bold text-on-surface text-[11px]">{userName}</div>
+							</div>
+						</div>
+						<div class="text-right">
+							<div class="text-[9px] uppercase font-bold text-on-surface-variant">Divisi</div>
+							<div class="font-mono text-on-surface text-[11px] font-semibold">
+								{userDivision}
+							</div>
+						</div>
+					</div>
+
 					<div>
 						<label for="popoverRoomId" class="block font-bold text-on-surface mb-1">Ruangan *</label>
 						<select
@@ -504,13 +525,14 @@
 
 					<div class="grid grid-cols-2 gap-2">
 						<div>
-							<label for="popoverDept" class="block font-bold text-on-surface mb-1">Departemen</label>
+							<label for="popoverAttendees" class="block font-bold text-on-surface mb-1">Estimasi Peserta</label>
 							<input
-								type="text"
-								id="popoverDept"
-								bind:value={formDepartment}
-								placeholder="Misal: Operasional"
-								class="w-full px-3 py-1.5 rounded-xl bg-surface border border-slate-200 dark:border-slate-700 text-on-surface text-xs focus:ring-2 focus:ring-amber-500/20 outline-none"
+								type="number"
+								id="popoverAttendees"
+								bind:value={formAttendees}
+								min="1"
+								max="100"
+								class="w-full px-3 py-1.5 rounded-xl bg-surface border border-slate-200 dark:border-slate-700 text-on-surface text-xs focus:ring-2 focus:ring-amber-500/20 outline-none font-mono"
 							/>
 						</div>
 						<div>

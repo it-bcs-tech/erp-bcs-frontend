@@ -12,10 +12,11 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		const endTimeStr = (body.endTime || '').trim();
 		const description = (body.description || '').trim();
 		const attendeesCount = parseInt(body.attendeesCount || '1', 10);
-		const department = (body.department || 'Umum').trim();
+		const user = (locals as any)?.user;
+		const department = (body.department || user?.division || user?.department || 'Umum').trim();
 		const phone = (body.phone || '').trim();
-		const requesterName = (body.requesterName || 'Karyawan BCS').trim();
-		const requesterId = (locals as any)?.user?.payroll_id || (locals as any)?.user?.email || 'EMP-GUEST';
+		const requesterName = (body.requesterName || user?.name || 'Karyawan BCS').trim();
+		const requesterId = user?.payrollId || (locals as any)?.user?.payroll_id || (locals as any)?.user?.email || 'EMP-GUEST';
 
 		if (!roomId || isNaN(roomId)) {
 			return json({ success: false, message: 'Ruangan wajib dipilih!' }, { status: 400 });

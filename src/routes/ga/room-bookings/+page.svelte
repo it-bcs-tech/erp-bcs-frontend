@@ -653,6 +653,28 @@
 			</div>
 
 			<form method="POST" action="?/createBooking" use:enhance class="p-5 overflow-y-auto space-y-4 text-xs">
+				<!-- Info Peminjam & Divisi (Auto-filled dari login, persis seperti form WO) -->
+				<div class="p-3.5 rounded-2xl bg-surface-container-low border border-slate-200/50 dark:border-slate-800/50 flex flex-wrap items-center justify-between gap-2 text-xs">
+					<div class="flex items-center gap-2">
+						<div class="w-7 h-7 rounded-lg bg-cyan-500/15 text-cyan-600 flex items-center justify-center font-bold text-xs">
+							<span class="material-symbols-outlined text-[15px]">person</span>
+						</div>
+						<div>
+							<div class="text-[10px] uppercase font-bold text-on-surface-variant">Peminjam</div>
+							<div class="font-bold text-on-surface">{data.user?.name || 'Karyawan BCS'}</div>
+						</div>
+					</div>
+					<div class="text-right">
+						<div class="text-[10px] uppercase font-bold text-on-surface-variant">Divisi</div>
+						<div class="font-mono text-on-surface text-[11px] font-semibold">
+							{data.user?.division || data.user?.department || 'General Affair'}
+						</div>
+					</div>
+				</div>
+
+				<input type="hidden" name="requesterName" value={data.user?.name || 'Karyawan BCS'} />
+				<input type="hidden" name="department" value={data.user?.division || data.user?.department || 'General Affair'} />
+
 				<div>
 					<label for="ga_roomId" class="block font-bold text-on-surface mb-1.5">Pilih Ruangan Rapat <span class="text-rose-500">*</span></label>
 					<select
@@ -719,30 +741,6 @@
 					</div>
 				</div>
 
-				<div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-					<div>
-						<label for="ga_requesterName" class="block font-bold text-on-surface mb-1.5">Nama Pemohon / PIC</label>
-						<input
-							type="text"
-							id="ga_requesterName"
-							name="requesterName"
-							bind:value={newBookingRequesterName}
-							placeholder="Nama penanggung jawab rapat"
-							class="w-full px-4 py-2.5 rounded-xl bg-surface-container-low border-0 outline-none focus:ring-2 focus:ring-cyan-500/20 text-on-surface"
-						/>
-					</div>
-					<div>
-						<label for="ga_department" class="block font-bold text-on-surface mb-1.5">Departemen / Divisi</label>
-						<input
-							type="text"
-							id="ga_department"
-							name="department"
-							bind:value={newBookingDepartment}
-							placeholder="Misal: General Affair / Direksi"
-							class="w-full px-4 py-2.5 rounded-xl bg-surface-container-low border-0 outline-none focus:ring-2 focus:ring-cyan-500/20 text-on-surface"
-						/>
-					</div>
-				</div>
 
 				<div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
 					<div>

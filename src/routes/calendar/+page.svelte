@@ -49,7 +49,7 @@
 	let newBookingEndTime = $state('10:00');
 	let newBookingAttendees = $state(4);
 	let newBookingPhone = $state('');
-	let newBookingDepartment = $state(data.user?.department || '');
+	let newBookingDepartment = $state(data.user?.division || data.user?.department || 'Umum');
 	let newBookingDescription = $state('');
 
 	// Month names in Indonesian
@@ -652,6 +652,31 @@
 				}}
 				class="p-5 overflow-y-auto space-y-4 text-xs"
 			>
+				<!-- Info Peminjam & Divisi (Auto-filled dari login, persis seperti form WO) -->
+				<div class="p-3.5 rounded-2xl bg-surface-container-low border border-slate-200/50 dark:border-slate-800/50 flex flex-wrap items-center justify-between gap-2 text-xs">
+					<div class="flex items-center gap-2">
+						<div class="w-7 h-7 rounded-lg bg-amber-500/15 text-amber-600 flex items-center justify-center font-bold text-xs">
+							<span class="material-symbols-outlined text-[15px]">person</span>
+						</div>
+						<div>
+							<div class="text-[10px] uppercase font-bold text-on-surface-variant">Peminjam</div>
+							<div class="font-bold text-on-surface">{data.user?.name || 'Karyawan BCS'}</div>
+						</div>
+					</div>
+					<div class="text-right">
+						<div class="text-[10px] uppercase font-bold text-on-surface-variant">Divisi</div>
+						<div class="font-mono text-on-surface text-[11px] font-semibold">
+							{data.user?.division || data.user?.department || 'Umum'}
+						</div>
+					</div>
+				</div>
+
+				<input
+					type="hidden"
+					name="department"
+					value={data.user?.division || data.user?.department || newBookingDepartment || 'Umum'}
+				/>
+
 				<!-- Pilih Ruangan -->
 				<div>
 					<label for="roomId" class="block font-bold text-on-surface mb-1.5">Ruangan / Fasilitas Rapat <span class="text-rose-500">*</span></label>
@@ -748,18 +773,6 @@
 					</div>
 				</div>
 
-				<!-- Departemen -->
-				<div>
-					<label for="department" class="block font-bold text-on-surface mb-1.5">Departemen / Unit Pemohon</label>
-					<input
-						type="text"
-						id="department"
-						name="department"
-						bind:value={newBookingDepartment}
-						placeholder="Misal: Procurement / Operasional"
-						class="w-full px-4 py-2.5 rounded-xl bg-surface-container-low border-0 outline-none text-on-surface font-medium focus:ring-2 focus:ring-amber-500/20"
-					/>
-				</div>
 
 				<!-- Deskripsi / Catatan Fasilitas Tambahan -->
 				<div>
