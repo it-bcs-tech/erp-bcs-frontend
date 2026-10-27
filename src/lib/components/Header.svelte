@@ -8,11 +8,13 @@
 
 	import CalendarPopover from '$lib/components/CalendarPopover.svelte';
 	import QuickWoModal from '$lib/components/QuickWoModal.svelte';
+	import QuickTravelModal from '$lib/components/QuickTravelModal.svelte';
 
 	let isNotifOpen = $state(false);
 	let isProfileOpen = $state(false);
 	let isCalendarOpen = $state(false);
 	let isQuickWoOpen = $state(false);
+	let isTravelOpen = $state(false);
 
 	onMount(() => {
 		initNotificationPolling();
@@ -27,11 +29,21 @@
 		isNotifOpen = false;
 		isProfileOpen = false;
 		isQuickWoOpen = false;
+		isTravelOpen = false;
 	}
 
 	function toggleQuickWo() {
 		isQuickWoOpen = !isQuickWoOpen;
 		isCalendarOpen = false;
+		isNotifOpen = false;
+		isProfileOpen = false;
+		isTravelOpen = false;
+	}
+
+	function toggleTravel() {
+		isTravelOpen = !isTravelOpen;
+		isCalendarOpen = false;
+		isQuickWoOpen = false;
 		isNotifOpen = false;
 		isProfileOpen = false;
 	}
@@ -41,6 +53,7 @@
 		isProfileOpen = false;
 		isCalendarOpen = false;
 		isQuickWoOpen = false;
+		isTravelOpen = false;
 		if (isNotifOpen) {
 			markAllAsRead();
 		}
@@ -51,6 +64,7 @@
 		isNotifOpen = false;
 		isCalendarOpen = false;
 		isQuickWoOpen = false;
+		isTravelOpen = false;
 	}
 
 	async function handleLogout() {
@@ -131,6 +145,20 @@
 			</button>
 
 			<QuickWoModal bind:isOpen={isQuickWoOpen} onClose={() => isQuickWoOpen = false} {user} />
+		</div>
+
+		<!-- Quick Action: Perjalanan Dinas & Carpool -->
+		<div class="relative">
+			<button
+				type="button"
+				onclick={toggleTravel}
+				class="p-2 text-slate-500 hover:text-cyan-600 hover:bg-slate-200/50 dark:hover:bg-slate-800/50 rounded-lg transition-all relative cursor-pointer {isTravelOpen ? 'text-cyan-600 bg-cyan-500/10' : ''}"
+				title="Perjalanan Dinas (SPD) & Mobil Operasional (Carpool)"
+			>
+				<span class="material-symbols-outlined">commute</span>
+			</button>
+
+			<QuickTravelModal bind:isOpen={isTravelOpen} onClose={() => isTravelOpen = false} {user} />
 		</div>
 
 		<div class="relative" use:clickOutside={() => isNotifOpen = false}>
