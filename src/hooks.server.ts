@@ -21,6 +21,7 @@ export const handle: Handle = async ({ event, resolve }) => {
 	const isLogoutEndpoint  = pathname.startsWith('/logout');
 	const isApiRoute        = pathname.startsWith('/api');
 	const isAdminRoute      = pathname.startsWith('/admin');
+	const isScanRoute       = pathname.startsWith('/scan');
 
 	// Populate event.locals.user dari cookie yang terverifikasi
 	let currentUser: AuthUser | null = null;
@@ -34,8 +35,8 @@ export const handle: Handle = async ({ event, resolve }) => {
 	}
 	event.locals.user = currentUser;
 
-	// Biarkan logout dan API berjalan tanpa guard
-	if (isLogoutEndpoint || isApiRoute) {
+	// Biarkan logout, API, dan Scan publik berjalan tanpa guard
+	if (isLogoutEndpoint || isApiRoute || isScanRoute) {
 		return resolve(event);
 	}
 
@@ -47,7 +48,7 @@ export const handle: Handle = async ({ event, resolve }) => {
 	}
 
 	// Jika pengguna belum login, arahkan ke halaman login
-	if (!authToken && !isLoginPage) {
+	if (!authToken && !isLoginPage && !isScanRoute) {
 		return redirect(303, '/login');
 	}
 

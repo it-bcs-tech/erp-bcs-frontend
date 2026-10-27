@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
 	import Pagination from '$lib/components/Pagination.svelte';
+	import QRCode from 'qrcode';
 
 	let { data } = $props();
 
@@ -15,6 +16,18 @@
 	let isQrModalOpen = $state(false);
 	let isDetailModalOpen = $state(false);
 	let selectedAsset = $state<any>(null);
+
+	// QR Code On-Screen & Print State
+	let qrDataUrl = $state('');
+	let isGeneratingQr = $state(false);
+	let copiedQrLink = $state(false);
+	let qrModalTab = $state<'SCREEN' | 'STICKER'>('SCREEN');
+
+	// Batch Selection & Print State
+	let selectedAssetIds = $state<number[]>([]);
+	let isBatchModalOpen = $state(false);
+	let batchQrMap = $state<Record<string, string>>({});
+	let isGeneratingBatch = $state(false);
 
 	// Depreciation calculator state for form
 	let formCost = $state<number>(0);
@@ -48,9 +61,87 @@
 		isMutateModalOpen = true;
 	}
 
-	function openQrModal(asset: any) {
+	async function openQrModal(asset: any) {
 		selectedAsset = asset;
+		qrModalTab = 'SCREEN';
 		isQrModalOpen = true;
+		isGeneratingQr = true;
+		copiedQrLink = false;
+		qrDataUrl = '';
+		try {
+			const origin = typeof window !== 'undefined' ? window.location.origin : '';
+			const scanUrl = `${origin}/scan/asset/${asset.asset_code}`;
+			qrDataUrl = await QRCode.toDataURL(scanUrl, {
+				width: 320,
+				margin: 2,
+				errorCorrectionLevel: 'H',
+				color: { dark: '#0f172a', light: '#ffffff' }
+			});
+		} catch (e) {
+			console.error('Failed to generate QR:', e);
+		} finally {
+			isGeneratingQr = false;
+		}
+	}
+
+	function copyScanUrl(assetCode: string) {
+		if (typeof window !== 'undefined') {
+			const url = `${window.location.origin}/scan/asset/${assetCode}`;
+			navigator.clipboard.writeText(url);
+			copiedQrLink = true;
+			setTimeout(() => (copiedQrLink = false), 2000);
+		}
+	}
+
+	function downloadQrImage(assetCode: string) {
+		if (!qrDataUrl) return;
+		const a = document.createElement('a');
+		a.href = qrDataUrl;
+		a.download = `QR_${assetCode}.png`;
+		a.click();
+	}
+
+	function toggleSelectAsset(id: number) {
+		if (selectedAssetIds.includes(id)) {
+			selectedAssetIds = selectedAssetIds.filter(x => x !== id);
+		} else {
+			selectedAssetIds = [...selectedAssetIds, id];
+		}
+	}
+
+	function toggleSelectAllOnPage() {
+		const pageIds = paginatedAssets.map((a: any) => a.id);
+		const allSelected = pageIds.length > 0 && pageIds.every((id: number) => selectedAssetIds.includes(id));
+		if (allSelected) {
+			selectedAssetIds = selectedAssetIds.filter((id: number) => !pageIds.includes(id));
+		} else {
+			selectedAssetIds = Array.from(new Set([...selectedAssetIds, ...pageIds]));
+		}
+	}
+
+	async function openBatchPrintModal() {
+		if (selectedAssetIds.length === 0) return;
+		isBatchModalOpen = true;
+		isGeneratingBatch = true;
+		try {
+			const origin = typeof window !== 'undefined' ? window.location.origin : '';
+			const selectedItems = data.assets.filter((a: any) => selectedAssetIds.includes(a.id));
+			for (const a of selectedItems) {
+				if (!batchQrMap[a.asset_code]) {
+					const url = `${origin}/scan/asset/${a.asset_code}`;
+					batchQrMap[a.asset_code] = await QRCode.toDataURL(url, {
+						width: 180,
+						margin: 1,
+						errorCorrectionLevel: 'M',
+						color: { dark: '#0f172a', light: '#ffffff' }
+					});
+				}
+			}
+		} catch (e) {
+			console.error('Batch QR error:', e);
+		} finally {
+			isGeneratingBatch = false;
+		}
 	}
 
 	function openDetailModal(asset: any) {
@@ -217,6 +308,17 @@
 		</div>
 
 		<div class="flex flex-wrap items-center gap-2 w-full md:w-auto">
+			{#if selectedAssetIds.length > 0}
+				<button
+					type="button"
+					onclick={openBatchPrintModal}
+					class="px-3.5 py-2.5 rounded-xl bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold flex items-center gap-2 shadow-xs transition-colors cursor-pointer"
+				>
+					<span class="material-symbols-outlined text-[17px]">print</span>
+					<span>Cetak Massal ({selectedAssetIds.length} Label)</span>
+				</button>
+			{/if}
+
 			<select
 				bind:value={categoryFilter}
 				class="px-3.5 py-2.5 rounded-xl bg-surface-container-low border-0 outline-none focus:ring-2 focus:ring-cyan-500/20 text-xs text-on-surface font-medium cursor-pointer transition-all"
@@ -258,6 +360,15 @@
 			<table class="w-full text-left text-xs">
 				<thead class="bg-surface-container-low text-on-surface-variant uppercase text-[10px] font-bold tracking-wider border-b border-slate-200/60 dark:border-slate-800/60">
 					<tr>
+						<th class="py-3 px-3 text-center w-10">
+							<input
+								type="checkbox"
+								checked={paginatedAssets.length > 0 && paginatedAssets.every((a: any) => selectedAssetIds.includes(a.id))}
+								onchange={toggleSelectAllOnPage}
+								class="rounded text-teal-600 focus:ring-teal-500 cursor-pointer"
+								title="Pilih Semua di Halaman Ini"
+							/>
+						</th>
 						<th class="py-3 px-4">Kode & QR</th>
 						<th class="py-3 px-4">Nama Aset & Brand</th>
 						<th class="py-3 px-4">Kategori</th>
@@ -271,13 +382,21 @@
 				</thead>
 				<tbody class="divide-y divide-slate-200/60 dark:divide-slate-800/60">
 					{#each paginatedAssets as asset (asset.id)}
-						<tr class="hover:bg-surface-container transition-colors">
+						<tr class="hover:bg-surface-container transition-colors {selectedAssetIds.includes(asset.id) ? 'bg-teal-50/30 dark:bg-teal-950/20' : ''}">
+							<td class="py-3 px-3 text-center">
+								<input
+									type="checkbox"
+									checked={selectedAssetIds.includes(asset.id)}
+									onchange={() => toggleSelectAsset(asset.id)}
+									class="rounded text-teal-600 focus:ring-teal-500 cursor-pointer"
+								/>
+							</td>
 							<td class="py-3 px-4">
 								<div class="flex items-center gap-2">
 									<button
 										onclick={() => openQrModal(asset)}
-										title="Tampilkan QR Code Stiker Tagging"
-										class="p-1 rounded-md bg-surface-container hover:bg-cyan-100 dark:hover:bg-cyan-950 text-cyan-600 transition-colors cursor-pointer"
+										title="Tampilkan QR Code di Layar / Cetak Stiker"
+										class="p-1 rounded-md bg-surface-container hover:bg-teal-100 dark:hover:bg-teal-950 text-teal-600 transition-colors cursor-pointer"
 									>
 										<span class="material-symbols-outlined text-base">qr_code_2</span>
 									</button>
@@ -398,80 +517,279 @@
 	</div>
 </div>
 
-<!-- MODAL: Tagging QR Code & Barcode Resmi PT BCS -->
+<!-- MODAL: Tagging QR Code & Barcode Resmi PT BCS (Layar & Stiker) -->
 {#if isQrModalOpen && selectedAsset}
-	<div class="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
-		<div class="bg-surface-container-lowest rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+	<div class="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
+		<div class="bg-surface-container-lowest rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xl w-full max-w-lg overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+			<!-- Header Modal -->
 			<div class="p-4 border-b border-slate-200/60 dark:border-slate-800/60 flex items-center justify-between">
 				<div class="flex items-center gap-2">
-					<span class="material-symbols-outlined text-cyan-600 text-xl">qr_code_scanner</span>
-					<h3 class="font-bold text-sm text-on-surface">Label Stiker Inventaris Aset</h3>
+					<span class="material-symbols-outlined text-teal-600 text-xl">qr_code_scanner</span>
+					<div>
+						<h3 class="font-bold text-sm text-on-surface">QR Code & Label Inventaris Aset</h3>
+						<p class="text-[10px] text-on-surface-variant font-mono">{selectedAsset.asset_code} • {selectedAsset.name}</p>
+					</div>
 				</div>
-				<button onclick={() => isQrModalOpen = false} class="text-on-surface-variant hover:text-on-surface cursor-pointer">
+				<button onclick={() => (isQrModalOpen = false)} class="text-on-surface-variant hover:text-on-surface cursor-pointer p-1 rounded-lg">
 					<span class="material-symbols-outlined text-lg">close</span>
 				</button>
 			</div>
 
-			<div class="p-6 flex flex-col items-center">
-				<!-- Label Stiker Mockup (Printable Format) -->
-				<div id="printable-qr-tag" class="w-full max-w-sm p-4 rounded-xl border-2 border-slate-800 bg-white text-slate-900 shadow-md">
-					<!-- Kop Stiker -->
-					<div class="flex items-center justify-between border-b-2 border-slate-800 pb-2 mb-3">
-						<div>
-							<h4 class="font-black text-xs tracking-wider uppercase text-[#57344f]">PT BUMI CITRA SAHIDA</h4>
-							<p class="text-[9px] font-bold text-slate-600 uppercase">Fixed Asset Management</p>
-						</div>
-						<span class="text-[9px] font-mono font-bold bg-slate-100 px-2 py-0.5 rounded border border-slate-300">
-							{selectedAsset.asset_code}
-						</span>
-					</div>
+			<!-- Tab Switcher: Scan di Layar vs Format Stiker Fisik -->
+			<div class="flex items-center border-b border-slate-200/60 dark:border-slate-800/60 px-4 pt-2 gap-2 bg-surface-container-low">
+				<button
+					type="button"
+					onclick={() => (qrModalTab = 'SCREEN')}
+					class="pb-2.5 px-3 text-xs font-bold border-b-2 transition-all flex items-center gap-1.5 cursor-pointer {qrModalTab === 'SCREEN'
+						? 'border-teal-600 text-teal-600 dark:text-teal-400'
+						: 'border-transparent text-on-surface-variant hover:text-on-surface'}"
+				>
+					<span class="material-symbols-outlined text-[17px]">screen_rotation</span>
+					<span>Scan dari Monitor (Layar)</span>
+				</button>
+				<button
+					type="button"
+					onclick={() => (qrModalTab = 'STICKER')}
+					class="pb-2.5 px-3 text-xs font-bold border-b-2 transition-all flex items-center gap-1.5 cursor-pointer {qrModalTab === 'STICKER'
+						? 'border-teal-600 text-teal-600 dark:text-teal-400'
+						: 'border-transparent text-on-surface-variant hover:text-on-surface'}"
+				>
+					<span class="material-symbols-outlined text-[17px]">label</span>
+					<span>Format Cetak Stiker (Fisik)</span>
+				</button>
+			</div>
 
-					<!-- QR Code + Data Aset -->
-					<div class="flex items-center gap-4">
-						<div class="p-2 border border-slate-300 rounded-lg bg-white flex-shrink-0">
-							<img
-								src="https://api.qrserver.com/v1/create-qr-code/?size=140x140&data={encodeURIComponent(selectedAsset.barcode_qr || selectedAsset.asset_code)}"
-								alt="Asset QR Code"
-								class="w-24 h-24"
-							/>
+			<div class="p-6">
+				{#if qrModalTab === 'SCREEN'}
+					<!-- TAB 1: SCAN LANGSUNG DARI LAYAR MONITOR -->
+					<div class="flex flex-col items-center text-center space-y-4">
+						<div class="p-3 bg-white rounded-2xl shadow-inner border border-slate-200 dark:border-slate-700 inline-block">
+							{#if isGeneratingQr || !qrDataUrl}
+								<div class="w-64 h-64 flex items-center justify-center text-slate-400">
+									<span class="material-symbols-outlined text-4xl animate-spin">progress_activity</span>
+								</div>
+							{:else}
+								<img
+									src={qrDataUrl}
+									alt="QR Code Aset"
+									class="w-64 h-64 object-contain rounded-xl"
+								/>
+							{/if}
 						</div>
-						<div class="space-y-1 text-[11px] leading-tight flex-1">
-							<p class="font-black text-xs text-slate-950">{selectedAsset.name}</p>
-							<p class="text-slate-600 font-medium">{selectedAsset.brand_model || '-'}</p>
-							<div class="pt-1 border-t border-slate-200">
-								<p><strong class="font-bold">Lokasi:</strong> {selectedAsset.location}</p>
-								<p><strong class="font-bold">Ruang:</strong> {selectedAsset.room || '-'}</p>
-								<p><strong class="font-bold">PIC:</strong> {selectedAsset.pic_name || 'Umum'}</p>
+
+						<div>
+							<span class="inline-block px-3 py-1 rounded-lg bg-teal-50 dark:bg-teal-950/60 text-teal-700 dark:text-teal-300 font-mono text-xs font-black border border-teal-200 dark:border-teal-800">
+								{selectedAsset.asset_code}
+							</span>
+							<h4 class="font-bold text-sm text-on-surface mt-1">{selectedAsset.name}</h4>
+							<p class="text-xs text-on-surface-variant mt-0.5">
+								Lokasi: <span class="font-semibold text-on-surface">{selectedAsset.location}</span> ({selectedAsset.room || 'Umum'})
+								• PIC: <span class="font-semibold text-on-surface">{selectedAsset.pic_name || 'GA Pool'}</span>
+							</p>
+							<p class="text-[11px] text-teal-600 dark:text-teal-400 font-medium mt-2 flex items-center justify-center gap-1">
+								<span class="material-symbols-outlined text-sm">photo_camera</span>
+								Arahkan kamera smartphone langsung ke QR code di monitor ini.
+							</p>
+						</div>
+
+						<!-- Quick Actions -->
+						<div class="grid grid-cols-3 gap-2 w-full pt-2">
+							<a
+								href="/scan/asset/{selectedAsset.asset_code}"
+								target="_blank"
+								class="py-2.5 px-2 rounded-xl bg-surface-container-high hover:bg-surface-container-highest text-on-surface font-bold text-xs flex flex-col items-center justify-center gap-1 transition-colors"
+								title="Buka Halaman Scan di Tab Baru"
+							>
+								<span class="material-symbols-outlined text-lg text-teal-600">open_in_new</span>
+								<span>Buka Halaman</span>
+							</a>
+
+							<button
+								type="button"
+								onclick={() => copyScanUrl(selectedAsset.asset_code)}
+								class="py-2.5 px-2 rounded-xl bg-surface-container-high hover:bg-surface-container-highest text-on-surface font-bold text-xs flex flex-col items-center justify-center gap-1 transition-colors cursor-pointer"
+								title="Salin Tautan Scan ke Clipboard"
+							>
+								<span class="material-symbols-outlined text-lg {copiedQrLink ? 'text-emerald-500' : 'text-indigo-600'}">
+									{copiedQrLink ? 'check' : 'content_copy'}
+								</span>
+								<span>{copiedQrLink ? 'Tersalin!' : 'Salin Link'}</span>
+							</button>
+
+							<button
+								type="button"
+								onclick={() => downloadQrImage(selectedAsset.asset_code)}
+								class="py-2.5 px-2 rounded-xl bg-surface-container-high hover:bg-surface-container-highest text-on-surface font-bold text-xs flex flex-col items-center justify-center gap-1 transition-colors cursor-pointer"
+								title="Unduh Gambar QR Format PNG Resolusi Tinggi"
+							>
+								<span class="material-symbols-outlined text-lg text-cyan-600">download</span>
+								<span>Unduh PNG</span>
+							</button>
+						</div>
+					</div>
+				{:else}
+					<!-- TAB 2: FORMAT CETAK STIKER LABEL FISIK (7 x 4 cm) -->
+					<div class="flex flex-col items-center space-y-4">
+						<div
+							id="printable-single-sticker"
+							class="w-full max-w-sm p-3.5 rounded-xl border-2 border-slate-900 bg-white text-slate-900 shadow-md font-sans"
+						>
+							<!-- Header Stiker -->
+							<div class="flex items-center justify-between border-b-2 border-slate-900 pb-2 mb-2.5">
+								<div class="flex items-center gap-2">
+									<div class="w-6 h-6 rounded bg-[#57344f] text-white font-black text-[10px] flex items-center justify-center">
+										BCS
+									</div>
+									<div>
+										<h4 class="font-black text-[11px] tracking-wider uppercase text-[#57344f] leading-none">
+											PT BANGUN CAKRAWALA SARI
+										</h4>
+										<p class="text-[8px] font-bold text-slate-600 uppercase tracking-widest mt-0.5">
+											Inventaris Aset Tetap
+										</p>
+									</div>
+								</div>
+								<span class="text-[9px] font-mono font-black bg-slate-100 px-1.5 py-0.5 rounded border border-slate-300">
+									{selectedAsset.asset_code}
+								</span>
+							</div>
+
+							<!-- Isi Stiker: QR + Info -->
+							<div class="flex items-center gap-3">
+								<div class="p-1 border border-slate-300 rounded bg-white flex-shrink-0">
+									{#if qrDataUrl}
+										<img src={qrDataUrl} alt="QR" class="w-20 h-20" />
+									{:else}
+										<div class="w-20 h-20 bg-slate-100 flex items-center justify-center text-[10px]">Loading</div>
+									{/if}
+								</div>
+								<div class="space-y-0.5 text-[10px] leading-tight flex-1">
+									<p class="font-black text-xs text-slate-950 line-clamp-1">{selectedAsset.name}</p>
+									<p class="text-slate-600 font-semibold">{selectedAsset.brand_model || '-'}</p>
+									{#if selectedAsset.serial_number}
+										<p class="text-[9px] font-mono text-slate-500">S/N: {selectedAsset.serial_number}</p>
+									{/if}
+									<div class="pt-1 mt-1 border-t border-slate-200 text-[9px] text-slate-700">
+										<p><strong>Lok:</strong> {selectedAsset.location} ({selectedAsset.room || '-'})</p>
+										<p><strong>PIC:</strong> {selectedAsset.pic_name || 'GA Pool'}</p>
+									</div>
+								</div>
+							</div>
+
+							<!-- Footer Stiker -->
+							<div class="mt-2.5 pt-1.5 border-t border-dashed border-slate-400 text-center text-[7px] text-slate-500 font-bold uppercase tracking-wider">
+								Dilarang memindahkan / merusak label tanpa izin resmi General Affair
 							</div>
 						</div>
+
+						<p class="text-[11px] text-on-surface-variant text-center">
+							Format siap cetak stiker label ukuran 7 x 4 cm / Tom & Jerry.
+						</p>
+
+						<button
+							type="button"
+							onclick={() => window.print()}
+							class="w-full py-2.5 px-4 rounded-xl bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-xs transition-colors cursor-pointer"
+						>
+							<span class="material-symbols-outlined text-base">print</span>
+							<span>Cetak Stiker Ini Sekarang</span>
+						</button>
 					</div>
+				{/if}
 
-					<div class="mt-3 pt-2 border-t border-dashed border-slate-400 text-center text-[8px] text-slate-500 font-semibold tracking-wider uppercase">
-						Dilarang memindahkan / melepas stiker tanpa izin General Affair
-					</div>
-				</div>
-
-				<p class="text-xs text-on-surface-variant mt-4 text-center">
-					Scan QR code di atas menggunakan smartphone/PDA scanner untuk melihat detail aset langsung di lapangan.
-				</p>
-
-				<div class="flex items-center gap-3 w-full mt-6">
+				<div class="mt-4 pt-3 border-t border-slate-200/60 dark:border-slate-800/60 flex justify-end">
 					<button
 						type="button"
-						onclick={() => window.print()}
-						class="flex-1 py-2.5 px-4 rounded-xl bg-cyan-600 hover:bg-cyan-700 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-xs cursor-pointer"
-					>
-						<span class="material-symbols-outlined text-base">print</span>
-						<span>Cetak Stiker Label</span>
-					</button>
-					<button
-						type="button"
-						onclick={() => isQrModalOpen = false}
-						class="py-2.5 px-4 rounded-xl bg-surface-container-low text-xs font-bold text-on-surface hover:bg-surface-container cursor-pointer"
+						onclick={() => (isQrModalOpen = false)}
+						class="py-2 px-4 rounded-xl bg-surface-container-low text-xs font-bold text-on-surface hover:bg-surface-container cursor-pointer"
 					>
 						Tutup
 					</button>
 				</div>
+			</div>
+		</div>
+	</div>
+{/if}
+
+<!-- MODAL: CETAK MASSAL (BATCH PRINT STICKER SHEET A4) -->
+{#if isBatchModalOpen}
+	{@const selectedItems = data.assets.filter((a: any) => selectedAssetIds.includes(a.id))}
+	<div class="fixed inset-0 z-50 bg-black/70 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
+		<div class="bg-surface-container-lowest rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+			<!-- Header -->
+			<div class="p-4 border-b border-slate-200/60 dark:border-slate-800/60 flex items-center justify-between">
+				<div class="flex items-center gap-2">
+					<span class="material-symbols-outlined text-teal-600 text-xl">batch_prediction</span>
+					<div>
+						<h3 class="font-bold text-sm text-on-surface">Cetak Massal Stiker Label Aset ({selectedItems.length} Label)</h3>
+						<p class="text-[11px] text-on-surface-variant">Pratinjau lembar stiker A4 (Grid 2 Kolom x 5 Baris)</p>
+					</div>
+				</div>
+				<div class="flex items-center gap-2">
+					<button
+						type="button"
+						onclick={() => window.print()}
+						disabled={isGeneratingBatch}
+						class="px-4 py-2 rounded-xl bg-teal-600 hover:bg-teal-700 disabled:opacity-50 text-white font-bold text-xs flex items-center gap-2 shadow-xs cursor-pointer"
+					>
+						<span class="material-symbols-outlined text-sm">print</span>
+						<span>{isGeneratingBatch ? 'Menyiapkan...' : 'Cetak Lembar Stiker'}</span>
+					</button>
+					<button onclick={() => (isBatchModalOpen = false)} class="p-2 rounded-xl text-on-surface-variant hover:text-on-surface">
+						<span class="material-symbols-outlined text-base">close</span>
+					</button>
+				</div>
+			</div>
+
+			<!-- Sheet Preview -->
+			<div class="flex-1 overflow-y-auto p-6 bg-slate-100 dark:bg-slate-950 flex justify-center">
+				{#if isGeneratingBatch}
+					<div class="py-16 text-center text-slate-500">
+						<span class="material-symbols-outlined text-4xl animate-spin mb-2">progress_activity</span>
+						<p class="text-xs font-bold">Membuat QR Code untuk {selectedItems.length} aset terpilih...</p>
+					</div>
+				{:else}
+					<div
+						id="printable-batch-stickers"
+						class="w-full max-w-3xl bg-white text-slate-900 p-6 rounded-2xl shadow border border-slate-300 grid grid-cols-1 md:grid-cols-2 gap-4"
+					>
+						{#each selectedItems as item (item.id)}
+							<div class="p-3 rounded-xl border border-slate-800 bg-white space-y-2">
+								<div class="flex items-center justify-between border-b border-slate-800 pb-1.5">
+									<div class="flex items-center gap-1.5">
+										<div class="w-5 h-5 rounded bg-[#57344f] text-white font-black text-[9px] flex items-center justify-center">
+											BCS
+										</div>
+										<span class="font-black text-[10px] uppercase text-[#57344f]">PT BANGUN CAKRAWALA SARI</span>
+									</div>
+									<span class="text-[9px] font-mono font-black bg-slate-100 px-1 py-0.5 rounded border border-slate-300">
+										{item.asset_code}
+									</span>
+								</div>
+
+								<div class="flex items-center gap-3">
+									<div class="p-1 border border-slate-300 rounded bg-white flex-shrink-0">
+										{#if batchQrMap[item.asset_code]}
+											<img src={batchQrMap[item.asset_code]} alt="QR" class="w-16 h-16" />
+										{:else}
+											<div class="w-16 h-16 bg-slate-100 flex items-center justify-center text-[9px]">Loading</div>
+										{/if}
+									</div>
+									<div class="space-y-0.5 text-[10px] leading-tight flex-1">
+										<p class="font-black text-slate-950 truncate">{item.name}</p>
+										<p class="text-slate-600 font-semibold">{item.brand_model || '-'}</p>
+										<p class="text-slate-500 text-[9px]">Lokasi: {item.location} ({item.room || '-'})</p>
+										<p class="text-slate-500 text-[9px]">PIC: {item.pic_name || 'GA Pool'}</p>
+									</div>
+								</div>
+
+								<div class="border-t border-dashed border-slate-300 pt-1 text-center text-[7px] text-slate-400 font-bold uppercase">
+									Dilarang memindahkan stiker tanpa izin GA
+								</div>
+							</div>
+						{/each}
+					</div>
+				{/if}
 			</div>
 		</div>
 	</div>
@@ -1219,3 +1537,35 @@
 		</div>
 	</div>
 {/if}
+
+<style>
+	@media print {
+		:global(body *) {
+			visibility: hidden !important;
+		}
+		:global(#printable-single-sticker),
+		:global(#printable-single-sticker *),
+		:global(#printable-batch-stickers),
+		:global(#printable-batch-stickers *) {
+			visibility: visible !important;
+		}
+		:global(#printable-single-sticker) {
+			position: fixed !important;
+			left: 50% !important;
+			top: 50% !important;
+			transform: translate(-50%, -50%) !important;
+			width: 80mm !important;
+			max-width: 80mm !important;
+			border: 2px solid #000 !important;
+			box-shadow: none !important;
+		}
+		:global(#printable-batch-stickers) {
+			position: absolute !important;
+			left: 0 !important;
+			top: 0 !important;
+			width: 100% !important;
+			box-shadow: none !important;
+			border: none !important;
+		}
+	}
+</style>

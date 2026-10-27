@@ -36,7 +36,8 @@
 	const isStandaloneRoute = $derived(
 		$page.url.pathname.startsWith('/login') || 
 		isPrintRoute || 
-		$page.url.pathname.startsWith('/p2h')
+		$page.url.pathname.startsWith('/p2h') ||
+		$page.url.pathname.startsWith('/scan')
 	);
 </script>
 
