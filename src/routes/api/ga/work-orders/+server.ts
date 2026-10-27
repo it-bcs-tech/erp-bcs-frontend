@@ -2,35 +2,84 @@ import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import sql from '$lib/server/db';
 
-export const GET: RequestHandler = async ({ locals }) => {
+export const GET: RequestHandler = async ({ url, locals }) => {
 	try {
 		const user = (locals as any)?.user;
 		const payrollId = user?.payrollId;
 		const userName = user?.name;
 		const userEmail = user?.email;
-		const isGaOrAdmin = user?.role === 'superadmin' || user?.allowedModules?.includes('ga');
+		const isGaOrAdmin = user?.role === 'superadmin' || 
+			user?.allowedModules?.includes('ga') || 
+			user?.allowedModules?.includes('*');
+
+		const requestedScope = url.searchParams.get('scope') || 'my';
+		const scope = (requestedScope === 'all' && isGaOrAdmin) ? 'all' : 'my';
 
 		let rows: any[] = [];
+		let myCount = 0;
+		let allCount = 0;
+
 		if (isGaOrAdmin) {
-			rows = await sql`
-				SELECT 
-					id,
-					wo_number,
-					facility_type,
-					location,
-					requester_name,
-					requester_nik,
-					department,
-					description,
-					urgency,
-					status,
-					to_char(scheduled_date, 'YYYY-MM-DD') as scheduled_date,
-					to_char(created_at, 'YYYY-MM-DD HH24:MI') as created_at_str,
-					created_at
-				FROM ga.facility_work_orders
-				ORDER BY id DESC
-				LIMIT 20
+			// Hitung ringkasan count untuk switcher tab admin
+			const [counts] = await sql`
+				SELECT
+					(SELECT COUNT(*)::int FROM ga.facility_work_orders) as all_count,
+					(SELECT COUNT(*)::int FROM ga.facility_work_orders 
+					 WHERE 
+						(${payrollId || null} IS NOT NULL AND requester_nik = ${payrollId || ''})
+						OR (${userName || null} IS NOT NULL AND requester_name ILIKE ${'%' + (userName || '') + '%'})
+						OR (${userName || null} IS NOT NULL AND created_by = ${userName || ''})
+						OR (${userEmail || null} IS NOT NULL AND created_by = ${userEmail || ''})) as my_count
 			`;
+			allCount = counts?.all_count || 0;
+			myCount = counts?.my_count || 0;
+
+			if (scope === 'all') {
+				rows = await sql`
+					SELECT 
+						id,
+						wo_number,
+						facility_type,
+						location,
+						requester_name,
+						requester_nik,
+						department,
+						description,
+						urgency,
+						status,
+						to_char(scheduled_date, 'YYYY-MM-DD') as scheduled_date,
+						to_char(created_at, 'YYYY-MM-DD HH24:MI') as created_at_str,
+						created_at
+					FROM ga.facility_work_orders
+					ORDER BY id DESC
+					LIMIT 20
+				`;
+			} else {
+				rows = await sql`
+					SELECT 
+						id,
+						wo_number,
+						facility_type,
+						location,
+						requester_name,
+						requester_nik,
+						department,
+						description,
+						urgency,
+						status,
+						to_char(scheduled_date, 'YYYY-MM-DD') as scheduled_date,
+						to_char(created_at, 'YYYY-MM-DD HH24:MI') as created_at_str,
+						created_at
+					FROM ga.facility_work_orders
+					WHERE 
+						(${payrollId || null} IS NOT NULL AND requester_nik = ${payrollId || ''})
+						OR (${userName || null} IS NOT NULL AND requester_name ILIKE ${'%' + (userName || '') + '%'})
+						OR (${userName || null} IS NOT NULL AND created_by = ${userName || ''})
+						OR (${userEmail || null} IS NOT NULL AND created_by = ${userEmail || ''})
+					ORDER BY id DESC
+					LIMIT 20
+				`;
+			}
 		} else {
 			rows = await sql`
 				SELECT 
@@ -56,11 +105,17 @@ export const GET: RequestHandler = async ({ locals }) => {
 				ORDER BY id DESC
 				LIMIT 20
 			`;
+			myCount = rows.length;
+			allCount = rows.length;
 		}
 
 		return json({
 			success: true,
-			workOrders: rows
+			workOrders: rows,
+			scope,
+			isGaOrAdmin,
+			myCount,
+			allCount
 		});
 	} catch (err: any) {
 		console.error('Error in GET /api/ga/work-orders:', err);
@@ -68,7 +123,11 @@ export const GET: RequestHandler = async ({ locals }) => {
 			{
 				success: false,
 				message: err.message || 'Gagal memuat daftar tiket perbaikan.',
-				workOrders: []
+				workOrders: [],
+				scope: 'my',
+				isGaOrAdmin: false,
+				myCount: 0,
+				allCount: 0
 			},
 			{ status: 500 }
 		);

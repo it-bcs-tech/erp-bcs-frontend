@@ -11,8 +11,12 @@
 	// View mode: 'LIST' (daftar tiket terkini) | 'FORM' (form lapor baru)
 	let activeView = $state<'LIST' | 'FORM'>('LIST');
 
-	// Data tickets
+	// Data tickets & Switcher Scope
 	let tickets = $state<any[]>([]);
+	let activeScope = $state<'my' | 'all'>('my');
+	let myCount = $state<number>(0);
+	let allCount = $state<number>(0);
+	let isGaOrAdmin = $state(false);
 	let isLoading = $state(false);
 	let hasLoaded = $state(false);
 
@@ -27,18 +31,22 @@
 	// Fetch data saat popover dibuka
 	$effect(() => {
 		if (isOpen && !hasLoaded) {
-			fetchTickets();
+			fetchTickets('my');
 		}
 	});
 
-	async function fetchTickets() {
+	async function fetchTickets(scope: 'my' | 'all' = activeScope) {
 		isLoading = true;
 		try {
-			const res = await fetch('/api/ga/work-orders');
+			const res = await fetch(`/api/ga/work-orders?scope=${scope}`);
 			if (res.ok) {
 				const data = await res.json();
 				if (data.success) {
 					tickets = data.workOrders || [];
+					activeScope = data.scope || scope;
+					isGaOrAdmin = !!data.isGaOrAdmin;
+					if (typeof data.myCount === 'number') myCount = data.myCount;
+					if (typeof data.allCount === 'number') allCount = data.allCount;
 					hasLoaded = true;
 				}
 			}
@@ -47,6 +55,12 @@
 		} finally {
 			isLoading = false;
 		}
+	}
+
+	function switchScope(newScope: 'my' | 'all') {
+		if (activeScope === newScope && hasLoaded) return;
+		activeScope = newScope;
+		fetchTickets(newScope);
 	}
 
 	function resetForm() {
@@ -104,7 +118,8 @@
 				});
 				resetForm();
 				activeView = 'LIST';
-				await fetchTickets();
+				activeScope = 'my';
+				await fetchTickets('my');
 			} else {
 				errorMessage = result.message || 'Gagal mengirim laporan perbaikan.';
 			}
@@ -223,18 +238,48 @@
 		<!-- Popover Body -->
 		<div class="overflow-y-auto flex-1 p-3.5 space-y-3 scrollbar-thin">
 			{#if activeView === 'LIST'}
-				<!-- VIEW 1: DAFTAR TIKET SAYA -->
-				<div class="flex items-center justify-between px-1">
-					<div class="flex items-center gap-1.5">
-						<span class="text-xs font-black text-on-surface font-mono">Riwayat Laporan Saya</span>
-						<span class="px-1.5 py-0.2 rounded-full bg-blue-500/15 text-blue-700 dark:text-blue-300 font-mono text-[10px] font-bold">
-							{tickets.length}
-						</span>
-					</div>
+				<!-- VIEW 1: DAFTAR TIKET (DENGAN SWITCHER UNTUK ADMIN/GA) -->
+				<div class="flex items-center justify-between px-1 gap-2">
+					{#if isGaOrAdmin}
+						<!-- Admin Segmented Switcher -->
+						<div class="inline-flex items-center p-0.5 rounded-xl bg-surface-container border border-slate-200/80 dark:border-slate-800/80 text-[11px] font-bold">
+							<button
+								type="button"
+								onclick={() => switchScope('my')}
+								class="px-2.5 py-1 rounded-lg transition-all cursor-pointer flex items-center gap-1.5 {activeScope === 'my'
+									? 'bg-surface text-blue-600 font-extrabold shadow-2xs'
+									: 'text-on-surface-variant hover:text-on-surface'}"
+							>
+								<span>Tiket Saya</span>
+								<span class="px-1.5 py-0.2 rounded-full {activeScope === 'my' ? 'bg-blue-500/15 text-blue-600' : 'bg-surface-container-high text-on-surface-variant'} text-[10px] font-mono font-bold">
+									{myCount}
+								</span>
+							</button>
+							<button
+								type="button"
+								onclick={() => switchScope('all')}
+								class="px-2.5 py-1 rounded-lg transition-all cursor-pointer flex items-center gap-1.5 {activeScope === 'all'
+									? 'bg-surface text-blue-600 font-extrabold shadow-2xs'
+									: 'text-on-surface-variant hover:text-on-surface'}"
+							>
+								<span>Semua Tiket GA</span>
+								<span class="px-1.5 py-0.2 rounded-full {activeScope === 'all' ? 'bg-blue-500/15 text-blue-600' : 'bg-surface-container-high text-on-surface-variant'} text-[10px] font-mono font-bold">
+									{allCount}
+								</span>
+							</button>
+						</div>
+					{:else}
+						<div class="flex items-center gap-1.5">
+							<span class="text-xs font-black text-on-surface font-mono">Riwayat Laporan Saya</span>
+							<span class="px-1.5 py-0.2 rounded-full bg-blue-500/15 text-blue-700 dark:text-blue-300 font-mono text-[10px] font-bold">
+								{tickets.length}
+							</span>
+						</div>
+					{/if}
 
 					<button
 						type="button"
-						onclick={fetchTickets}
+						onclick={() => fetchTickets(activeScope)}
 						disabled={isLoading}
 						class="p-1 rounded-lg text-on-surface-variant hover:text-on-surface hover:bg-surface-container transition-colors cursor-pointer disabled:opacity-50"
 						title="Segarkan data"
@@ -254,9 +299,13 @@
 							<span class="material-symbols-outlined text-2xl">build_circle</span>
 						</div>
 						<div>
-							<p class="font-bold text-on-surface text-xs">Belum Ada Tiket Laporan</p>
+							<p class="font-bold text-on-surface text-xs">
+								{activeScope === 'my' ? 'Belum Ada Tiket Laporan Anda' : 'Belum Ada Tiket Masuk GA'}
+							</p>
 							<p class="text-[11px] text-on-surface-variant mt-0.5 leading-relaxed">
-								Semua sarana kerja di ruangan Anda dalam kondisi baik. Jika terjadi kendala seperti AC bocor atau lampu mati, laporkan di sini.
+								{activeScope === 'my'
+									? 'Semua sarana kerja di ruangan Anda dalam kondisi baik. Jika terjadi kendala seperti AC bocor atau lampu mati, laporkan di sini.'
+									: 'Seluruh sarana dan fasilitas kantor sedang dalam kondisi baik tanpa tiket perbaikan yang tertunda.'}
 							</p>
 						</div>
 						<button
@@ -310,8 +359,11 @@
 										<span class="material-symbols-outlined text-[12px] text-blue-600 shrink-0">location_on</span>
 										<span class="truncate">{t.location}</span>
 									</div>
-									<div class="font-mono shrink-0">
-										{t.created_at_str || '-'}
+									<div class="font-mono shrink-0 text-right">
+										{#if activeScope === 'all' && t.requester_name}
+											<span class="text-blue-600 dark:text-blue-400 font-semibold truncate max-w-[110px] inline-block align-bottom">{t.requester_name}</span> · 
+										{/if}
+										<span>{t.created_at_str || '-'}</span>
 									</div>
 								</div>
 							</div>
