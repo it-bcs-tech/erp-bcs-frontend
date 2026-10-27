@@ -13,7 +13,6 @@
 	let isNotifOpen = $state(false);
 	let isProfileOpen = $state(false);
 	let isCalendarOpen = $state(false);
-	let isQuickActionOpen = $state(false);
 	let isQuickWoOpen = $state(false);
 	let isTravelOpen = $state(false);
 
@@ -30,19 +29,9 @@
 		stopNotificationPolling();
 	});
 
-	function toggleQuickAction() {
-		isQuickActionOpen = !isQuickActionOpen;
-		isCalendarOpen = false;
-		isQuickWoOpen = false;
-		isTravelOpen = false;
-		isNotifOpen = false;
-		isProfileOpen = false;
-	}
-
 	function toggleCalendar() {
 		calendarInitialView = 'VIEW';
 		isCalendarOpen = !isCalendarOpen;
-		isQuickActionOpen = false;
 		isNotifOpen = false;
 		isProfileOpen = false;
 		isQuickWoOpen = false;
@@ -51,38 +40,34 @@
 
 	function openQuickWo(view: 'FORM' | 'LIST' = 'FORM') {
 		woInitialView = view;
-		isQuickActionOpen = false;
+		isProfileOpen = false;
 		isQuickWoOpen = true;
 		isTravelOpen = false;
 		isCalendarOpen = false;
 		isNotifOpen = false;
-		isProfileOpen = false;
 	}
 
 	function openQuickTravel(view: 'FORM' | 'LIST' = 'FORM', type: 'CARPOOL' | 'SPD' = 'CARPOOL') {
 		travelInitialView = view;
 		travelInitialType = type;
-		isQuickActionOpen = false;
+		isProfileOpen = false;
 		isTravelOpen = true;
 		isQuickWoOpen = false;
 		isCalendarOpen = false;
 		isNotifOpen = false;
-		isProfileOpen = false;
 	}
 
 	function openQuickBooking() {
 		calendarInitialView = 'FORM';
-		isQuickActionOpen = false;
+		isProfileOpen = false;
 		isCalendarOpen = true;
 		isQuickWoOpen = false;
 		isTravelOpen = false;
 		isNotifOpen = false;
-		isProfileOpen = false;
 	}
 
 	function toggleNotifications() {
 		isNotifOpen = !isNotifOpen;
-		isQuickActionOpen = false;
 		isProfileOpen = false;
 		isCalendarOpen = false;
 		isQuickWoOpen = false;
@@ -94,7 +79,6 @@
 
 	function toggleProfile() {
 		isProfileOpen = !isProfileOpen;
-		isQuickActionOpen = false;
 		isNotifOpen = false;
 		isCalendarOpen = false;
 		isQuickWoOpen = false;
@@ -151,139 +135,6 @@
 		<div class="relative mr-2 hidden md:block">
 			<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant text-sm">search</span>
 			<input class="bg-surface-container-low border border-slate-200 dark:border-slate-700 rounded-full py-1.5 pl-10 pr-4 text-sm w-64 focus:ring-2 focus:ring-primary/20 placeholder:text-on-surface-variant" placeholder="Search modules..." type="text"/>
-		</div>
-
-		<!-- Unified Quick Action: [+ Ajukan] Dropdown -->
-		<div class="relative" use:clickOutside={() => isQuickActionOpen = false}>
-			<button
-				type="button"
-				onclick={toggleQuickAction}
-				class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#57344f] hover:bg-[#6e4264] text-white text-xs font-bold transition-all shadow-xs cursor-pointer active:scale-95 {isQuickActionOpen ? 'ring-2 ring-[#57344f]/40 ring-offset-1' : ''}"
-				title="Buat Pengajuan / Layanan Karyawan"
-			>
-				<span class="material-symbols-outlined text-[17px]">add</span>
-				<span>Ajukan</span>
-				<span class="material-symbols-outlined text-[15px] transition-transform duration-200 {isQuickActionOpen ? 'rotate-180' : ''}">expand_more</span>
-			</button>
-
-			{#if isQuickActionOpen}
-				<div class="absolute right-0 mt-2 w-80 sm:w-88 bg-surface-container-lowest rounded-2xl shadow-2xl border border-slate-200/80 dark:border-slate-800/80 overflow-hidden flex flex-col z-50 animate-in fade-in zoom-in-95 duration-150">
-					<!-- Header Dropdown -->
-					<div class="p-3.5 border-b border-slate-200/60 dark:border-slate-800/60 bg-surface-container-low/60 flex items-center justify-between">
-						<div>
-							<h3 class="text-xs font-black text-on-surface">Layanan Karyawan Mandiri</h3>
-							<p class="text-[10px] text-on-surface-variant">Pilih jenis pengajuan yang ingin Anda buat</p>
-						</div>
-						<span class="px-2 py-0.5 rounded-full bg-[#57344f]/10 text-[#57344f] dark:text-[#d1c3ca] text-[10px] font-bold">
-							Self-Service
-						</span>
-					</div>
-
-					<!-- 4 Aksi Utama -->
-					<div class="p-2 space-y-1">
-						<!-- 1. WO Fasilitas -->
-						<button
-							type="button"
-							onclick={() => openQuickWo('FORM')}
-							class="w-full p-2.5 rounded-xl hover:bg-surface-container-low transition-all flex items-start gap-3 text-left group cursor-pointer border border-transparent hover:border-blue-400/30"
-						>
-							<div class="w-8 h-8 rounded-xl bg-blue-500/15 text-blue-600 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
-								<span class="material-symbols-outlined text-[19px]">build</span>
-							</div>
-							<div class="flex-1 min-w-0">
-								<div class="text-xs font-bold text-on-surface group-hover:text-blue-600 transition-colors">
-									Lapor Kerusakan Fasilitas (WO)
-								</div>
-								<div class="text-[10px] text-on-surface-variant line-clamp-1">
-									AC, lampu penerangan, plumbing, & sarana kerja
-								</div>
-							</div>
-						</button>
-
-						<!-- 2. Carpool Mobil -->
-						<button
-							type="button"
-							onclick={() => openQuickTravel('FORM', 'CARPOOL')}
-							class="w-full p-2.5 rounded-xl hover:bg-surface-container-low transition-all flex items-start gap-3 text-left group cursor-pointer border border-transparent hover:border-cyan-400/30"
-						>
-							<div class="w-8 h-8 rounded-xl bg-cyan-500/15 text-cyan-600 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
-								<span class="material-symbols-outlined text-[19px]">directions_car</span>
-							</div>
-							<div class="flex-1 min-w-0">
-								<div class="text-xs font-bold text-on-surface group-hover:text-cyan-600 transition-colors">
-									Peminjaman Mobil Kantor (Carpool)
-								</div>
-								<div class="text-[10px] text-on-surface-variant line-clamp-1">
-									Pemesanan armada operasional GA & driver
-								</div>
-							</div>
-						</button>
-
-						<!-- 3. SPD Perjalanan Dinas -->
-						<button
-							type="button"
-							onclick={() => openQuickTravel('FORM', 'SPD')}
-							class="w-full p-2.5 rounded-xl hover:bg-surface-container-low transition-all flex items-start gap-3 text-left group cursor-pointer border border-transparent hover:border-indigo-400/30"
-						>
-							<div class="w-8 h-8 rounded-xl bg-indigo-500/15 text-indigo-600 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
-								<span class="material-symbols-outlined text-[19px]">flight_takeoff</span>
-							</div>
-							<div class="flex-1 min-w-0">
-								<div class="text-xs font-bold text-on-surface group-hover:text-indigo-600 transition-colors">
-									Surat Perjalanan Dinas (SPD)
-								</div>
-								<div class="text-[10px] text-on-surface-variant line-clamp-1">
-									Penugasan luar kota, tiket perjalanan, & uang saku
-								</div>
-							</div>
-						</button>
-
-						<!-- 4. Booking Ruang Rapat -->
-						<button
-							type="button"
-							onclick={openQuickBooking}
-							class="w-full p-2.5 rounded-xl hover:bg-surface-container-low transition-all flex items-start gap-3 text-left group cursor-pointer border border-transparent hover:border-amber-400/30"
-						>
-							<div class="w-8 h-8 rounded-xl bg-amber-500/15 text-amber-600 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
-								<span class="material-symbols-outlined text-[19px]">meeting_room</span>
-							</div>
-							<div class="flex-1 min-w-0">
-								<div class="text-xs font-bold text-on-surface group-hover:text-amber-600 transition-colors">
-									Booking Ruang Rapat
-								</div>
-								<div class="text-[10px] text-on-surface-variant line-clamp-1">
-									Reservasi ruang meeting & sarana presentasi
-								</div>
-							</div>
-						</button>
-					</div>
-
-					<!-- Footer: Tautan Cepat Riwayat Pengajuan -->
-					<div class="p-2.5 border-t border-slate-200/60 dark:border-slate-800/60 bg-surface-container-low/40 flex flex-col gap-1 text-[11px]">
-						<div class="text-[9px] font-bold text-on-surface-variant uppercase tracking-wider px-1 mb-0.5">
-							Pantau Riwayat Pengajuan
-						</div>
-						<div class="grid grid-cols-2 gap-1.5">
-							<button
-								type="button"
-								onclick={() => openQuickWo('LIST')}
-								class="px-2 py-1.5 rounded-lg bg-surface hover:bg-surface-container text-left flex items-center justify-between text-on-surface transition-colors cursor-pointer border border-slate-200/60 dark:border-slate-800/60"
-							>
-								<span class="font-bold text-[10px]">Tiket WO Saya</span>
-								<span class="material-symbols-outlined text-[13px] text-on-surface-variant">arrow_forward</span>
-							</button>
-							<button
-								type="button"
-								onclick={() => openQuickTravel('LIST', 'CARPOOL')}
-								class="px-2 py-1.5 rounded-lg bg-surface hover:bg-surface-container text-left flex items-center justify-between text-on-surface transition-colors cursor-pointer border border-slate-200/60 dark:border-slate-800/60"
-							>
-								<span class="font-bold text-[10px]">Carpool & SPD</span>
-								<span class="material-symbols-outlined text-[13px] text-on-surface-variant">arrow_forward</span>
-							</button>
-						</div>
-					</div>
-				</div>
-			{/if}
 		</div>
 
 		<!-- Quick Access Calendar Dropdown Popover (Menggantung) -->
@@ -383,7 +234,7 @@
 
 			<!-- Profile Dropdown -->
 			{#if isProfileOpen}
-				<div class="absolute right-0 mt-2 w-72 bg-surface-container-lowest rounded-2xl shadow-xl border border-surface-container overflow-hidden z-50 animate-in fade-in zoom-in-95 duration-200">
+				<div class="absolute right-0 mt-2 w-80 bg-surface-container-lowest rounded-2xl shadow-xl border border-surface-container overflow-hidden z-50 animate-in fade-in zoom-in-95 duration-200">
 					<!-- User Card -->
 					<div class="p-5 bg-gradient-to-br from-[#57344f] to-[#2f1029] text-white">
 						<div class="flex items-center gap-4">
@@ -399,6 +250,109 @@
 									</span>
 								{/if}
 							</div>
+						</div>
+					</div>
+
+					<!-- Seksi Layanan Mandiri Karyawan (Grid 2x2) -->
+					<div class="p-3 border-b border-surface-container bg-surface-container-low/40 space-y-2">
+						<div class="flex items-center justify-between px-1">
+							<span class="text-[10px] font-black text-on-surface uppercase tracking-wider flex items-center gap-1.5">
+								<span class="material-symbols-outlined text-[14px] text-[#57344f] dark:text-[#d1c3ca]">hub</span>
+								<span>Layanan Mandiri</span>
+							</span>
+							<span class="text-[9px] font-bold text-[#57344f] dark:text-[#d1c3ca] bg-[#57344f]/10 dark:bg-[#57344f]/25 px-2 py-0.5 rounded-full">
+								Self-Service
+							</span>
+						</div>
+
+						<div class="grid grid-cols-2 gap-2">
+							<!-- 1. WO Fasilitas -->
+							<button
+								type="button"
+								onclick={() => openQuickWo('FORM')}
+								class="p-2.5 rounded-xl bg-surface hover:bg-blue-500/10 border border-slate-200/70 dark:border-slate-800 text-left transition-all group cursor-pointer hover:border-blue-500/40 shadow-2xs"
+							>
+								<div class="w-7 h-7 rounded-lg bg-blue-500/15 text-blue-600 flex items-center justify-center mb-1.5 group-hover:scale-105 transition-transform">
+									<span class="material-symbols-outlined text-[16px]">build</span>
+								</div>
+								<div class="text-[11px] font-bold text-on-surface group-hover:text-blue-600 transition-colors leading-tight">
+									WO Fasilitas
+								</div>
+								<div class="text-[9px] text-on-surface-variant truncate">
+									Lapor Kerusakan
+								</div>
+							</button>
+
+							<!-- 2. Pesan Mobil (Carpool) -->
+							<button
+								type="button"
+								onclick={() => openQuickTravel('FORM', 'CARPOOL')}
+								class="p-2.5 rounded-xl bg-surface hover:bg-cyan-500/10 border border-slate-200/70 dark:border-slate-800 text-left transition-all group cursor-pointer hover:border-cyan-500/40 shadow-2xs"
+							>
+								<div class="w-7 h-7 rounded-lg bg-cyan-500/15 text-cyan-600 flex items-center justify-center mb-1.5 group-hover:scale-105 transition-transform">
+									<span class="material-symbols-outlined text-[16px]">directions_car</span>
+								</div>
+								<div class="text-[11px] font-bold text-on-surface group-hover:text-cyan-600 transition-colors leading-tight">
+									Pesan Mobil
+								</div>
+								<div class="text-[9px] text-on-surface-variant truncate">
+									Carpool & Supir
+								</div>
+							</button>
+
+							<!-- 3. Surat SPD -->
+							<button
+								type="button"
+								onclick={() => openQuickTravel('FORM', 'SPD')}
+								class="p-2.5 rounded-xl bg-surface hover:bg-indigo-500/10 border border-slate-200/70 dark:border-slate-800 text-left transition-all group cursor-pointer hover:border-indigo-500/40 shadow-2xs"
+							>
+								<div class="w-7 h-7 rounded-lg bg-indigo-500/15 text-indigo-600 flex items-center justify-center mb-1.5 group-hover:scale-105 transition-transform">
+									<span class="material-symbols-outlined text-[16px]">flight_takeoff</span>
+								</div>
+								<div class="text-[11px] font-bold text-on-surface group-hover:text-indigo-600 transition-colors leading-tight">
+									Surat SPD
+								</div>
+								<div class="text-[9px] text-on-surface-variant truncate">
+									Perjalanan Dinas
+								</div>
+							</button>
+
+							<!-- 4. Booking Ruangan -->
+							<button
+								type="button"
+								onclick={openQuickBooking}
+								class="p-2.5 rounded-xl bg-surface hover:bg-amber-500/10 border border-slate-200/70 dark:border-slate-800 text-left transition-all group cursor-pointer hover:border-amber-500/40 shadow-2xs"
+							>
+								<div class="w-7 h-7 rounded-lg bg-amber-500/15 text-amber-600 flex items-center justify-center mb-1.5 group-hover:scale-105 transition-transform">
+									<span class="material-symbols-outlined text-[16px]">meeting_room</span>
+								</div>
+								<div class="text-[11px] font-bold text-on-surface group-hover:text-amber-600 transition-colors leading-tight">
+									Ruang Rapat
+								</div>
+								<div class="text-[9px] text-on-surface-variant truncate">
+									Reservasi Jadwal
+								</div>
+							</button>
+						</div>
+
+						<!-- Tautan Riwayat Cepat -->
+						<div class="grid grid-cols-2 gap-1.5 pt-1 text-[10px]">
+							<button
+								type="button"
+								onclick={() => openQuickWo('LIST')}
+								class="px-2.5 py-1.5 rounded-lg bg-surface hover:bg-surface-container text-left flex items-center justify-between text-on-surface-variant hover:text-on-surface transition-colors cursor-pointer border border-slate-200/60 dark:border-slate-800/60"
+							>
+								<span class="font-bold text-[10px] truncate">Riwayat WO</span>
+								<span class="material-symbols-outlined text-[13px]">arrow_forward</span>
+							</button>
+							<button
+								type="button"
+								onclick={() => openQuickTravel('LIST', 'CARPOOL')}
+								class="px-2.5 py-1.5 rounded-lg bg-surface hover:bg-surface-container text-left flex items-center justify-between text-on-surface-variant hover:text-on-surface transition-colors cursor-pointer border border-slate-200/60 dark:border-slate-800/60"
+							>
+								<span class="font-bold text-[10px] truncate">Riwayat Dinas</span>
+								<span class="material-symbols-outlined text-[13px]">arrow_forward</span>
+							</button>
 						</div>
 					</div>
 
