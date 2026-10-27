@@ -126,7 +126,14 @@ export const handle: Handle = async ({ event, resolve }) => {
 import { runGeofenceEngine } from '$lib/server/geofence';
 
 const globalStore = globalThis as any;
-if (!globalStore.__geofenceCronStarted) {
+if (typeof process !== 'undefined' && !process.env.__unhandledRejectionHandled) {
+	process.env.__unhandledRejectionHandled = 'true';
+	process.on('unhandledRejection', (reason: any) => {
+		console.warn('[Server Network/DB Warning]:', reason?.message || reason);
+	});
+}
+
+if (!dev && !globalStore.__geofenceCronStarted) {
 	globalStore.__geofenceCronStarted = true;
 	console.log('[CRON] Geofence Auto-Pilot initialized.');
 
@@ -134,10 +141,10 @@ if (!globalStore.__geofenceCronStarted) {
 		try {
 			await runGeofenceEngine();
 		} catch (e) {
-			console.error('[CRON] Geofence Auto-Pilot Error:', e);
+			console.warn('[CRON] Geofence Auto-Pilot Skipped:', (e as any)?.message || e);
 		}
 	};
 
-	// Run every 2 minutes
+	// Run every 2 minutes (Production only)
 	setInterval(runCron, 2 * 60 * 1000);
 }

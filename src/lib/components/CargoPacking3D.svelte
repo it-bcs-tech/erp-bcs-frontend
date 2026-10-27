@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
-	import * as THREE from 'three';
+	import { browser } from '$app/environment';
+	let THREE: any;
 
 	// Props
 	let {
@@ -16,9 +17,9 @@
 
 	let containerEl = $state<HTMLDivElement | null>(null);
 
-	let scene: THREE.Scene;
-	let camera: THREE.PerspectiveCamera;
-	let renderer: THREE.WebGLRenderer;
+	let scene: any;
+	let camera: any;
+	let renderer: any;
 	let animationFrameId: number;
 
 	// Orbit controls manual drag
@@ -207,7 +208,9 @@
 		cameraDistance = Math.max(8, Math.min(30, cameraDistance));
 	}
 
-	onMount(() => {
+	onMount(async () => {
+		if (!browser) return;
+		THREE = await import('three');
 		init3D();
 	});
 
