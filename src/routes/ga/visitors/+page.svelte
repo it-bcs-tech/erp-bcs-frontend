@@ -1639,15 +1639,24 @@
 
 <!-- ==================== MODAL: CATAT DOKUMEN / PAKET BARU ==================== -->
 {#if isCreateDocOpen}
-	<div class="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
-		<div class="bg-surface-container-lowest rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xl w-full max-w-xl overflow-hidden my-8 animate-in fade-in zoom-in-95 duration-200">
-			<div class="p-5 border-b border-slate-200/60 dark:border-slate-800/60 flex items-center justify-between">
-				<div class="flex items-center gap-2">
-					<span class="material-symbols-outlined text-teal-600">markunread_mailbox</span>
-					<h3 class="font-bold text-base text-on-surface">Pencatatan Dokumen & Paket</h3>
+	<div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4 overflow-y-auto">
+		<div class="bg-surface-container-lowest rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xl w-full max-w-xl overflow-hidden my-8 animate-in fade-in zoom-in-95 duration-200">
+			<div class="px-6 py-4 border-b border-slate-200/60 dark:border-slate-800/60 flex items-center justify-between">
+				<div class="flex items-center gap-2.5">
+					<div class="w-9 h-9 rounded-xl bg-teal-50 dark:bg-teal-950/60 text-teal-600 flex items-center justify-center">
+						<span class="material-symbols-outlined text-xl">markunread_mailbox</span>
+					</div>
+					<div>
+						<h3 class="text-sm font-black text-on-surface">Pencatatan Dokumen & Paket</h3>
+						<p class="text-[11px] text-on-surface-variant">Catat paket ekspedisi, surat dinas, dan berkas logistik masuk/keluar</p>
+					</div>
 				</div>
-				<button onclick={() => (isCreateDocOpen = false)} class="text-on-surface-variant hover:text-on-surface">
-					<span class="material-symbols-outlined">close</span>
+				<button
+					type="button"
+					onclick={() => (isCreateDocOpen = false)}
+					class="p-1.5 rounded-lg text-on-surface-variant hover:bg-surface-container cursor-pointer"
+				>
+					<span class="material-symbols-outlined text-lg">close</span>
 				</button>
 			</div>
 
@@ -1661,19 +1670,19 @@
 						if (result.type === 'success') isCreateDocOpen = false;
 					};
 				}}
-				class="p-6 space-y-3.5 text-xs"
+				class="p-6 space-y-4"
 			>
-				<div class="grid grid-cols-2 gap-3">
+				<div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
 					<div>
-						<label for="doc_dir" class="block font-bold mb-1">Arah Distribusi *</label>
-						<select id="doc_dir" name="direction" class="w-full px-3.5 py-2.5 rounded-xl bg-surface-container-low border-0 outline-none">
+						<label for="doc_dir" class="block text-[11px] font-bold text-on-surface-variant uppercase mb-1">Arah Distribusi *</label>
+						<select id="doc_dir" name="direction" class="w-full px-3.5 py-2.5 rounded-xl bg-surface-container-low text-xs text-on-surface border-0 outline-none focus:ring-2 focus:ring-teal-500/40">
 							<option value="INCOMING">📥 Masuk (Dari Luar)</option>
 							<option value="OUTGOING">📤 Keluar (Ke Luar)</option>
 						</select>
 					</div>
 					<div>
-						<label for="doc_tp" class="block font-bold mb-1">Jenis Dokumen / Paket</label>
-						<select id="doc_tp" name="doc_type" class="w-full px-3.5 py-2.5 rounded-xl bg-surface-container-low border-0 outline-none">
+						<label for="doc_tp" class="block text-[11px] font-bold text-on-surface-variant uppercase mb-1">Jenis Dokumen / Paket</label>
+						<select id="doc_tp" name="doc_type" class="w-full px-3.5 py-2.5 rounded-xl bg-surface-container-low text-xs text-on-surface border-0 outline-none focus:ring-2 focus:ring-teal-500/40">
 							<option value="SURAT_DINAS">Surat Dinas / Resmi</option>
 							<option value="PAKET_BARANG">Paket Barang / Logistik</option>
 							<option value="BERKAS_KONTRAK">Berkas Perjanjian / Kontrak</option>
@@ -1683,47 +1692,58 @@
 					</div>
 				</div>
 
-				<div class="grid grid-cols-2 gap-3">
+				<div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
 					<div>
-						<label for="doc_track" class="block font-bold mb-1">Nomor Resi / Nomor Surat</label>
-						<input id="doc_track" type="text" name="tracking_number" placeholder="JNE12345678 / NO: 042/BCS/2026" class="w-full px-3.5 py-2.5 rounded-xl bg-surface-container-low border-0 outline-none font-mono" />
+						<label for="doc_track" class="block text-[11px] font-bold text-on-surface-variant uppercase mb-1">Nomor Resi / Nomor Surat</label>
+						<input id="doc_track" type="text" name="tracking_number" placeholder="JNE12345678 / NO: 042/BCS/2026" class="w-full px-3.5 py-2.5 rounded-xl bg-surface-container-low text-xs text-on-surface border-0 outline-none focus:ring-2 focus:ring-teal-500/40 font-mono" />
 					</div>
 					<div>
-						<label for="doc_cour" class="block font-bold mb-1">Ekspedisi / Kurir Pengantar</label>
-						<input id="doc_cour" type="text" name="courier_name" placeholder="JNE / J&T / SiCepat / Kurir Internal" class="w-full px-3.5 py-2.5 rounded-xl bg-surface-container-low border-0 outline-none" />
-					</div>
-				</div>
-
-				<div class="grid grid-cols-2 gap-3">
-					<div>
-						<label for="doc_sndr" class="block font-bold mb-1">Nama Pengirim *</label>
-						<input id="doc_sndr" type="text" name="sender_name" required placeholder="Nama pengirim" class="w-full px-3.5 py-2.5 rounded-xl bg-surface-container-low border-0 outline-none" />
-					</div>
-					<div>
-						<label for="doc_scomp" class="block font-bold mb-1">Instansi / Perusahaan Pengirim</label>
-						<input id="doc_scomp" type="text" name="sender_company" placeholder="Nama perusahaan asal" class="w-full px-3.5 py-2.5 rounded-xl bg-surface-container-low border-0 outline-none" />
+						<label for="doc_cour" class="block text-[11px] font-bold text-on-surface-variant uppercase mb-1">Ekspedisi / Kurir Pengantar</label>
+						<input id="doc_cour" type="text" name="courier_name" placeholder="JNE / J&T / SiCepat / Kurir Internal" class="w-full px-3.5 py-2.5 rounded-xl bg-surface-container-low text-xs text-on-surface border-0 outline-none focus:ring-2 focus:ring-teal-500/40" />
 					</div>
 				</div>
 
-				<div class="grid grid-cols-2 gap-3">
+				<div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
 					<div>
-						<label for="doc_rcpt" class="block font-bold mb-1">Nama Penerima Tujuan *</label>
-						<input id="doc_rcpt" type="text" name="recipient_name" required placeholder="Karyawan yang dituju" class="w-full px-3.5 py-2.5 rounded-xl bg-surface-container-low border-0 outline-none" />
+						<label for="doc_sndr" class="block text-[11px] font-bold text-on-surface-variant uppercase mb-1">Nama Pengirim *</label>
+						<input id="doc_sndr" type="text" name="sender_name" required placeholder="Nama pengirim" class="w-full px-3.5 py-2.5 rounded-xl bg-surface-container-low text-xs text-on-surface border-0 outline-none focus:ring-2 focus:ring-teal-500/40" />
 					</div>
 					<div>
-						<label for="doc_rdept" class="block font-bold mb-1">Departemen Penerima</label>
-						<input id="doc_rdept" type="text" name="recipient_department" placeholder="FINANCE / HRD / OPS" class="w-full px-3.5 py-2.5 rounded-xl bg-surface-container-low border-0 outline-none" />
+						<label for="doc_scomp" class="block text-[11px] font-bold text-on-surface-variant uppercase mb-1">Instansi / Perusahaan Pengirim</label>
+						<input id="doc_scomp" type="text" name="sender_company" placeholder="Nama perusahaan asal" class="w-full px-3.5 py-2.5 rounded-xl bg-surface-container-low text-xs text-on-surface border-0 outline-none focus:ring-2 focus:ring-teal-500/40" />
+					</div>
+				</div>
+
+				<div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+					<div>
+						<label for="doc_rcpt" class="block text-[11px] font-bold text-on-surface-variant uppercase mb-1">Nama Penerima Tujuan *</label>
+						<input id="doc_rcpt" type="text" name="recipient_name" required placeholder="Karyawan yang dituju" class="w-full px-3.5 py-2.5 rounded-xl bg-surface-container-low text-xs text-on-surface border-0 outline-none focus:ring-2 focus:ring-teal-500/40" />
+					</div>
+					<div>
+						<label for="doc_rdept" class="block text-[11px] font-bold text-on-surface-variant uppercase mb-1">Departemen Penerima</label>
+						<input id="doc_rdept" type="text" name="recipient_department" placeholder="FINANCE / HRD / OPS" class="w-full px-3.5 py-2.5 rounded-xl bg-surface-container-low text-xs text-on-surface border-0 outline-none focus:ring-2 focus:ring-teal-500/40" />
 					</div>
 				</div>
 
 				<div>
-					<label for="doc_file" class="block font-bold mb-1">Upload Foto Fisik / Resi (Opsional)</label>
-					<input id="doc_file" type="file" name="file" accept=".pdf,image/*" class="w-full text-xs p-2 rounded-xl bg-surface-container-low border border-dashed border-slate-300 dark:border-slate-700" />
+					<label for="doc_file" class="block text-[11px] font-bold text-on-surface-variant uppercase mb-1">Upload Foto Fisik / Resi (Opsional)</label>
+					<input id="doc_file" type="file" name="file" accept=".pdf,image/*" class="w-full text-xs p-2 rounded-xl bg-surface-container-low text-on-surface border border-dashed border-slate-300 dark:border-slate-700" />
 				</div>
 
-				<div class="flex justify-end gap-2 pt-2">
-					<button type="button" onclick={() => (isCreateDocOpen = false)} class="px-4 py-2 rounded-xl bg-surface-container-low font-bold cursor-pointer">Batal</button>
-					<button type="submit" class="px-5 py-2 rounded-xl bg-teal-600 hover:bg-teal-700 text-white font-bold cursor-pointer">Simpan Dokumen</button>
+				<div class="flex items-center justify-end gap-2 pt-3 border-t border-slate-200/60 dark:border-slate-800/60">
+					<button
+						type="button"
+						onclick={() => (isCreateDocOpen = false)}
+						class="px-4 py-2 rounded-xl bg-surface-container-high text-xs font-bold text-on-surface-variant hover:text-on-surface cursor-pointer"
+					>
+						Batal
+					</button>
+					<button
+						type="submit"
+						class="px-5 py-2 rounded-xl bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold shadow-xs cursor-pointer"
+					>
+						Simpan Dokumen
+					</button>
 				</div>
 			</form>
 		</div>
@@ -1732,60 +1752,95 @@
 
 <!-- ==================== MODAL: SERAH TERIMA DOKUMEN ==================== -->
 {#if isHandoverDocOpen && selectedDocForHandover}
-	<div class="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
-		<div class="bg-surface-container-lowest rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xl w-full max-w-md overflow-hidden p-6 space-y-4 text-xs">
-			<div class="flex items-center justify-between pb-2 border-b border-slate-200/60 dark:border-slate-800/60">
-				<h3 class="font-bold text-sm text-on-surface">Serah Terima Fisik Dokumen</h3>
-				<button onclick={() => (isHandoverDocOpen = false)} class="text-on-surface-variant hover:text-on-surface">
-					<span class="material-symbols-outlined">close</span>
+	<div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4 overflow-y-auto">
+		<div class="bg-surface-container-lowest rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xl w-full max-w-md overflow-hidden my-8 animate-in fade-in zoom-in-95 duration-200">
+			<div class="px-6 py-4 border-b border-slate-200/60 dark:border-slate-800/60 flex items-center justify-between">
+				<div class="flex items-center gap-2.5">
+					<div class="w-9 h-9 rounded-xl bg-teal-50 dark:bg-teal-950/60 text-teal-600 flex items-center justify-center">
+						<span class="material-symbols-outlined text-xl">how_to_reg</span>
+					</div>
+					<div>
+						<h3 class="text-sm font-black text-on-surface">Serah Terima Fisik Dokumen</h3>
+						<p class="text-[11px] text-on-surface-variant">Konfirmasi dokumen telah diserahkan ke staf internal</p>
+					</div>
+				</div>
+				<button
+					type="button"
+					onclick={() => (isHandoverDocOpen = false)}
+					class="p-1.5 rounded-lg text-on-surface-variant hover:bg-surface-container cursor-pointer"
+				>
+					<span class="material-symbols-outlined text-lg">close</span>
 				</button>
 			</div>
 
-			<div class="p-3 rounded-2xl bg-surface-container-low">
-				<p class="font-bold text-on-surface">Resi: {selectedDocForHandover.tracking_number || '-'}</p>
-				<p class="text-[11px] text-on-surface-variant">Dari: {selectedDocForHandover.sender_name} ➔ Untuk: {selectedDocForHandover.recipient_name} ({selectedDocForHandover.recipient_department})</p>
-			</div>
+			<div class="p-6 space-y-4">
+				<div class="text-xs text-on-surface-variant bg-surface-container-low p-3.5 rounded-xl space-y-1">
+					<div><strong class="text-on-surface">No. Resi / Surat:</strong> {selectedDocForHandover.tracking_number || '-'}</div>
+					<div><strong class="text-on-surface">Pengirim:</strong> {selectedDocForHandover.sender_name} ({selectedDocForHandover.sender_company || '-'})</div>
+					<div><strong class="text-on-surface">Penerima Tujuan:</strong> {selectedDocForHandover.recipient_name} ({selectedDocForHandover.recipient_department})</div>
+				</div>
 
-			<form
-				method="POST"
-				action="?/handoverDocument"
-				use:enhance={() => {
-					return async ({ result, update }) => {
-						await update();
-						if (result.type === 'success') isHandoverDocOpen = false;
-					};
-				}}
-				class="space-y-3"
-			>
-				<input type="hidden" name="id" value={selectedDocForHandover.id} />
-				<div>
-					<label for="hand_doc_to" class="block font-bold mb-1">Nama Staf Penerima Fisik *</label>
-					<input id="hand_doc_to" type="text" name="handed_over_to" required value={selectedDocForHandover.recipient_name} placeholder="Nama yang mengambil berkas" class="w-full px-3.5 py-2.5 rounded-xl bg-surface-container-low border-0 outline-none" />
-				</div>
-				<div>
-					<label for="hand_doc_note" class="block font-bold mb-1">Catatan Tambahan (Opsional)</label>
-					<input id="hand_doc_note" type="text" name="notes" placeholder="Diterima oleh sekretaris / staf..." class="w-full px-3.5 py-2.5 rounded-xl bg-surface-container-low border-0 outline-none" />
-				</div>
-				<div class="flex justify-end gap-2 pt-2">
-					<button type="button" onclick={() => (isHandoverDocOpen = false)} class="px-4 py-2 rounded-xl bg-surface-container-low font-bold cursor-pointer">Batal</button>
-					<button type="submit" class="px-5 py-2 rounded-xl bg-teal-600 hover:bg-teal-700 text-white font-bold cursor-pointer">Konfirmasi Serah Terima</button>
-				</div>
-			</form>
+				<form
+					method="POST"
+					action="?/handoverDocument"
+					use:enhance={() => {
+						return async ({ result, update }) => {
+							await update();
+							if (result.type === 'success') isHandoverDocOpen = false;
+						};
+					}}
+					class="space-y-4"
+				>
+					<input type="hidden" name="id" value={selectedDocForHandover.id} />
+					<div>
+						<label for="hand_doc_to" class="block text-[11px] font-bold text-on-surface-variant uppercase mb-1">Nama Staf Penerima Fisik *</label>
+						<input id="hand_doc_to" type="text" name="handed_over_to" required value={selectedDocForHandover.recipient_name} placeholder="Nama yang mengambil berkas" class="w-full px-3.5 py-2.5 rounded-xl bg-surface-container-low text-xs text-on-surface border-0 outline-none focus:ring-2 focus:ring-teal-500/40" />
+					</div>
+					<div>
+						<label for="hand_doc_note" class="block text-[11px] font-bold text-on-surface-variant uppercase mb-1">Catatan Tambahan (Opsional)</label>
+						<input id="hand_doc_note" type="text" name="notes" placeholder="Diterima oleh sekretaris / staf..." class="w-full px-3.5 py-2.5 rounded-xl bg-surface-container-low text-xs text-on-surface border-0 outline-none focus:ring-2 focus:ring-teal-500/40" />
+					</div>
+					<div class="flex items-center justify-end gap-2 pt-3 border-t border-slate-200/60 dark:border-slate-800/60">
+						<button
+							type="button"
+							onclick={() => (isHandoverDocOpen = false)}
+							class="px-4 py-2 rounded-xl bg-surface-container-high text-xs font-bold text-on-surface-variant hover:text-on-surface cursor-pointer"
+						>
+							Batal
+						</button>
+						<button
+							type="submit"
+							class="px-5 py-2 rounded-xl bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold shadow-xs cursor-pointer"
+						>
+							Konfirmasi Serah Terima
+						</button>
+					</div>
+				</form>
+			</div>
 		</div>
 	</div>
 {/if}
 
 <!-- ==================== MODAL: TERIMA INVOICE VENDOR BARU ==================== -->
 {#if isCreateInvOpen}
-	<div class="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
-		<div class="bg-surface-container-lowest rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xl w-full max-w-xl overflow-hidden my-8 animate-in fade-in zoom-in-95 duration-200">
-			<div class="p-5 border-b border-slate-200/60 dark:border-slate-800/60 flex items-center justify-between">
-				<div class="flex items-center gap-2">
-					<span class="material-symbols-outlined text-teal-600">receipt_long</span>
-					<h3 class="font-bold text-base text-on-surface">Penerimaan Invoice Tagihan Vendor</h3>
+	<div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4 overflow-y-auto">
+		<div class="bg-surface-container-lowest rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xl w-full max-w-xl overflow-hidden my-8 animate-in fade-in zoom-in-95 duration-200">
+			<div class="px-6 py-4 border-b border-slate-200/60 dark:border-slate-800/60 flex items-center justify-between">
+				<div class="flex items-center gap-2.5">
+					<div class="w-9 h-9 rounded-xl bg-teal-50 dark:bg-teal-950/60 text-teal-600 flex items-center justify-center">
+						<span class="material-symbols-outlined text-xl">receipt_long</span>
+					</div>
+					<div>
+						<h3 class="text-sm font-black text-on-surface">Penerimaan Invoice Tagihan Vendor</h3>
+						<p class="text-[11px] text-on-surface-variant">Catat invoice fisik vendor dan terbitkan lembar tanda terima resmi</p>
+					</div>
 				</div>
-				<button onclick={() => (isCreateInvOpen = false)} class="text-on-surface-variant hover:text-on-surface">
-					<span class="material-symbols-outlined">close</span>
+				<button
+					type="button"
+					onclick={() => (isCreateInvOpen = false)}
+					class="p-1.5 rounded-lg text-on-surface-variant hover:bg-surface-container cursor-pointer"
+				>
+					<span class="material-symbols-outlined text-lg">close</span>
 				</button>
 			</div>
 
@@ -1799,60 +1854,71 @@
 						if (result.type === 'success') isCreateInvOpen = false;
 					};
 				}}
-				class="p-6 space-y-3.5 text-xs"
+				class="p-6 space-y-4"
 			>
-				<div class="grid grid-cols-2 gap-3">
+				<div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
 					<div>
-						<label for="inv_vnd" class="block font-bold mb-1">Nama Vendor / Supplier *</label>
-						<input id="inv_vnd" type="text" name="vendor_name" required placeholder="PT Sumber Berkat Abadi" class="w-full px-3.5 py-2.5 rounded-xl bg-surface-container-low border-0 outline-none" />
+						<label for="inv_vnd" class="block text-[11px] font-bold text-on-surface-variant uppercase mb-1">Nama Vendor / Supplier *</label>
+						<input id="inv_vnd" type="text" name="vendor_name" required placeholder="PT Sumber Berkat Abadi" class="w-full px-3.5 py-2.5 rounded-xl bg-surface-container-low text-xs text-on-surface border-0 outline-none focus:ring-2 focus:ring-teal-500/40" />
 					</div>
 					<div>
-						<label for="inv_no" class="block font-bold mb-1">Nomor Invoice Vendor *</label>
-						<input id="inv_no" type="text" name="invoice_number" required placeholder="INV/2026/0991" class="w-full px-3.5 py-2.5 rounded-xl bg-surface-container-low border-0 outline-none font-mono" />
-					</div>
-				</div>
-
-				<div class="grid grid-cols-2 gap-3">
-					<div>
-						<label for="inv_po" class="block font-bold mb-1">Nomor PO / SPK Terkait</label>
-						<input id="inv_po" type="text" name="po_number" placeholder="PO-2026-0012" class="w-full px-3.5 py-2.5 rounded-xl bg-surface-container-low border-0 outline-none font-mono" />
-					</div>
-					<div>
-						<label for="inv_amt" class="block font-bold mb-1">Nominal Tagihan (Rp) *</label>
-						<input id="inv_amt" type="number" step="1000" name="amount" required placeholder="15000000" class="w-full px-3.5 py-2.5 rounded-xl bg-surface-container-low border-0 outline-none font-mono" />
+						<label for="inv_no" class="block text-[11px] font-bold text-on-surface-variant uppercase mb-1">Nomor Invoice Vendor *</label>
+						<input id="inv_no" type="text" name="invoice_number" required placeholder="INV/2026/0991" class="w-full px-3.5 py-2.5 rounded-xl bg-surface-container-low text-xs text-on-surface border-0 outline-none focus:ring-2 focus:ring-teal-500/40 font-mono" />
 					</div>
 				</div>
 
-				<div class="grid grid-cols-2 gap-3">
+				<div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
 					<div>
-						<label for="inv_rcv_dt" class="block font-bold mb-1">Tanggal Terima Fisik *</label>
-						<input id="inv_rcv_dt" type="date" name="received_date" value={new Date().toISOString().split('T')[0]} required class="w-full px-3.5 py-2.5 rounded-xl bg-surface-container-low border-0 outline-none" />
+						<label for="inv_po" class="block text-[11px] font-bold text-on-surface-variant uppercase mb-1">Nomor PO / SPK Terkait</label>
+						<input id="inv_po" type="text" name="po_number" placeholder="PO-2026-0012" class="w-full px-3.5 py-2.5 rounded-xl bg-surface-container-low text-xs text-on-surface border-0 outline-none focus:ring-2 focus:ring-teal-500/40 font-mono" />
 					</div>
 					<div>
-						<label for="inv_due_dt" class="block font-bold mb-1">Tanggal Jatuh Tempo (Jika Ada)</label>
-						<input id="inv_due_dt" type="date" name="due_date" class="w-full px-3.5 py-2.5 rounded-xl bg-surface-container-low border-0 outline-none" />
+						<label for="inv_amt" class="block text-[11px] font-bold text-on-surface-variant uppercase mb-1">Nominal Tagihan (Rp) *</label>
+						<input id="inv_amt" type="number" step="1000" name="amount" required placeholder="15000000" class="w-full px-3.5 py-2.5 rounded-xl bg-surface-container-low text-xs text-on-surface border-0 outline-none focus:ring-2 focus:ring-teal-500/40 font-mono" />
 					</div>
 				</div>
 
-				<div class="grid grid-cols-2 gap-3">
+				<div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
 					<div>
-						<label for="inv_cour" class="block font-bold mb-1">Nama Pengantar / Kurir</label>
-						<input id="inv_cour" type="text" name="courier_sender" placeholder="Diantar langsung oleh sales / kurir" class="w-full px-3.5 py-2.5 rounded-xl bg-surface-container-low border-0 outline-none" />
+						<label for="inv_rcv_dt" class="block text-[11px] font-bold text-on-surface-variant uppercase mb-1">Tanggal Terima Fisik *</label>
+						<input id="inv_rcv_dt" type="date" name="received_date" value={new Date().toISOString().split('T')[0]} required class="w-full px-3.5 py-2.5 rounded-xl bg-surface-container-low text-xs text-on-surface border-0 outline-none focus:ring-2 focus:ring-teal-500/40" />
 					</div>
 					<div>
-						<label for="inv_rcp_name" class="block font-bold mb-1">Resepsionis Penerima</label>
-						<input id="inv_rcp_name" type="text" name="received_by_receptionist" value="Resepsionis GA" class="w-full px-3.5 py-2.5 rounded-xl bg-surface-container-low border-0 outline-none" />
+						<label for="inv_due_dt" class="block text-[11px] font-bold text-on-surface-variant uppercase mb-1">Tanggal Jatuh Tempo (Jika Ada)</label>
+						<input id="inv_due_dt" type="date" name="due_date" class="w-full px-3.5 py-2.5 rounded-xl bg-surface-container-low text-xs text-on-surface border-0 outline-none focus:ring-2 focus:ring-teal-500/40" />
+					</div>
+				</div>
+
+				<div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+					<div>
+						<label for="inv_cour" class="block text-[11px] font-bold text-on-surface-variant uppercase mb-1">Nama Pengantar / Kurir</label>
+						<input id="inv_cour" type="text" name="courier_sender" placeholder="Diantar langsung oleh sales / kurir" class="w-full px-3.5 py-2.5 rounded-xl bg-surface-container-low text-xs text-on-surface border-0 outline-none focus:ring-2 focus:ring-teal-500/40" />
+					</div>
+					<div>
+						<label for="inv_rcp_name" class="block text-[11px] font-bold text-on-surface-variant uppercase mb-1">Resepsionis Penerima</label>
+						<input id="inv_rcp_name" type="text" name="received_by_receptionist" value="Resepsionis GA" class="w-full px-3.5 py-2.5 rounded-xl bg-surface-container-low text-xs text-on-surface border-0 outline-none focus:ring-2 focus:ring-teal-500/40" />
 					</div>
 				</div>
 
 				<div>
-					<label for="inv_file" class="block font-bold mb-1">Upload Scan Cover Invoice / Berkas (PDF / Gambar)</label>
-					<input id="inv_file" type="file" name="file" accept=".pdf,image/*" class="w-full text-xs p-2 rounded-xl bg-surface-container-low border border-dashed border-slate-300 dark:border-slate-700" />
+					<label for="inv_file" class="block text-[11px] font-bold text-on-surface-variant uppercase mb-1">Upload Scan Cover Invoice / Berkas (PDF / Gambar)</label>
+					<input id="inv_file" type="file" name="file" accept=".pdf,image/*" class="w-full text-xs p-2 rounded-xl bg-surface-container-low text-on-surface border border-dashed border-slate-300 dark:border-slate-700" />
 				</div>
 
-				<div class="flex justify-end gap-2 pt-2">
-					<button type="button" onclick={() => (isCreateInvOpen = false)} class="px-4 py-2 rounded-xl bg-surface-container-low font-bold cursor-pointer">Batal</button>
-					<button type="submit" class="px-5 py-2 rounded-xl bg-teal-600 hover:bg-teal-700 text-white font-bold cursor-pointer">Simpan & Terbitkan Tanda Terima</button>
+				<div class="flex items-center justify-end gap-2 pt-3 border-t border-slate-200/60 dark:border-slate-800/60">
+					<button
+						type="button"
+						onclick={() => (isCreateInvOpen = false)}
+						class="px-4 py-2 rounded-xl bg-surface-container-high text-xs font-bold text-on-surface-variant hover:text-on-surface cursor-pointer"
+					>
+						Batal
+					</button>
+					<button
+						type="submit"
+						class="px-5 py-2 rounded-xl bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold shadow-xs cursor-pointer"
+					>
+						Simpan & Terbitkan Tanda Terima
+					</button>
 				</div>
 			</form>
 		</div>
@@ -1861,61 +1927,95 @@
 
 <!-- ==================== MODAL: SERAH TERIMA INVOICE KE FINANCE ==================== -->
 {#if isHandoverInvOpen && selectedInvForHandover}
-	<div class="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
-		<div class="bg-surface-container-lowest rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xl w-full max-w-md overflow-hidden p-6 space-y-4 text-xs">
-			<div class="flex items-center justify-between pb-2 border-b border-slate-200/60 dark:border-slate-800/60">
-				<h3 class="font-bold text-sm text-on-surface">Serah Terima Invoice ke Finance</h3>
-				<button onclick={() => (isHandoverInvOpen = false)} class="text-on-surface-variant hover:text-on-surface">
-					<span class="material-symbols-outlined">close</span>
+	<div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4 overflow-y-auto">
+		<div class="bg-surface-container-lowest rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xl w-full max-w-md overflow-hidden my-8 animate-in fade-in zoom-in-95 duration-200">
+			<div class="px-6 py-4 border-b border-slate-200/60 dark:border-slate-800/60 flex items-center justify-between">
+				<div class="flex items-center gap-2.5">
+					<div class="w-9 h-9 rounded-xl bg-teal-50 dark:bg-teal-950/60 text-teal-600 flex items-center justify-center">
+						<span class="material-symbols-outlined text-xl">payments</span>
+					</div>
+					<div>
+						<h3 class="text-sm font-black text-on-surface">Serah Terima Invoice ke Finance</h3>
+						<p class="text-[11px] text-on-surface-variant">Konfirmasi serah terima berkas invoice asli ke departemen keuangan</p>
+					</div>
+				</div>
+				<button
+					type="button"
+					onclick={() => (isHandoverInvOpen = false)}
+					class="p-1.5 rounded-lg text-on-surface-variant hover:bg-surface-container cursor-pointer"
+				>
+					<span class="material-symbols-outlined text-lg">close</span>
 				</button>
 			</div>
 
-			<div class="p-3 rounded-2xl bg-surface-container-low">
-				<p class="font-mono text-teal-700 dark:text-teal-400 font-black">{selectedInvForHandover.receipt_number}</p>
-				<p class="font-bold text-on-surface mt-0.5">{selectedInvForHandover.vendor_name} • Inv: {selectedInvForHandover.invoice_number}</p>
-				<p class="text-cyan-700 dark:text-cyan-400 font-mono font-bold mt-1">{formatRupiah(selectedInvForHandover.amount)}</p>
-			</div>
+			<div class="p-6 space-y-4">
+				<div class="text-xs text-on-surface-variant bg-surface-container-low p-3.5 rounded-xl space-y-1">
+					<div class="font-mono text-teal-700 dark:text-teal-400 font-black">{selectedInvForHandover.receipt_number}</div>
+					<div><strong class="text-on-surface">Vendor:</strong> {selectedInvForHandover.vendor_name} (Inv: {selectedInvForHandover.invoice_number})</div>
+					<div class="text-teal-700 dark:text-teal-400 font-mono font-bold">{formatRupiah(selectedInvForHandover.amount)}</div>
+				</div>
 
-			<form
-				method="POST"
-				action="?/handoverInvoiceToFinance"
-				use:enhance={() => {
-					return async ({ result, update }) => {
-						await update();
-						if (result.type === 'success') isHandoverInvOpen = false;
-					};
-				}}
-				class="space-y-3"
-			>
-				<input type="hidden" name="id" value={selectedInvForHandover.id} />
-				<div>
-					<label for="fin_rec_name" class="block font-bold mb-1">Nama Staf Finance Penerima *</label>
-					<input id="fin_rec_name" type="text" name="finance_recipient_name" required placeholder="Staf AP / Finance Officer" class="w-full px-3.5 py-2.5 rounded-xl bg-surface-container-low border-0 outline-none" />
-				</div>
-				<div>
-					<label for="fin_snd_name" class="block font-bold mb-1">Diserahkan Oleh</label>
-					<input id="fin_snd_name" type="text" name="handed_to_finance_by" value="Resepsionis GA" class="w-full px-3.5 py-2.5 rounded-xl bg-surface-container-low border-0 outline-none" />
-				</div>
-				<div class="flex justify-end gap-2 pt-2">
-					<button type="button" onclick={() => (isHandoverInvOpen = false)} class="px-4 py-2 rounded-xl bg-surface-container-low font-bold cursor-pointer">Batal</button>
-					<button type="submit" class="px-5 py-2 rounded-xl bg-cyan-600 hover:bg-cyan-700 text-white font-bold cursor-pointer">Serahkan ke Finance</button>
-				</div>
-			</form>
+				<form
+					method="POST"
+					action="?/handoverInvoiceToFinance"
+					use:enhance={() => {
+						return async ({ result, update }) => {
+							await update();
+							if (result.type === 'success') isHandoverInvOpen = false;
+						};
+					}}
+					class="space-y-4"
+				>
+					<input type="hidden" name="id" value={selectedInvForHandover.id} />
+					<div>
+						<label for="fin_rec_name" class="block text-[11px] font-bold text-on-surface-variant uppercase mb-1">Nama Staf Finance Penerima *</label>
+						<input id="fin_rec_name" type="text" name="finance_recipient_name" required placeholder="Staf AP / Finance Officer" class="w-full px-3.5 py-2.5 rounded-xl bg-surface-container-low text-xs text-on-surface border-0 outline-none focus:ring-2 focus:ring-teal-500/40" />
+					</div>
+					<div>
+						<label for="fin_snd_name" class="block text-[11px] font-bold text-on-surface-variant uppercase mb-1">Diserahkan Oleh</label>
+						<input id="fin_snd_name" type="text" name="handed_to_finance_by" value="Resepsionis GA" class="w-full px-3.5 py-2.5 rounded-xl bg-surface-container-low text-xs text-on-surface border-0 outline-none focus:ring-2 focus:ring-teal-500/40" />
+					</div>
+					<div class="flex items-center justify-end gap-2 pt-3 border-t border-slate-200/60 dark:border-slate-800/60">
+						<button
+							type="button"
+							onclick={() => (isHandoverInvOpen = false)}
+							class="px-4 py-2 rounded-xl bg-surface-container-high text-xs font-bold text-on-surface-variant hover:text-on-surface cursor-pointer"
+						>
+							Batal
+						</button>
+						<button
+							type="submit"
+							class="px-5 py-2 rounded-xl bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold shadow-xs cursor-pointer"
+						>
+							Serahkan ke Finance
+						</button>
+					</div>
+				</form>
+			</div>
 		</div>
 	</div>
 {/if}
 
 <!-- ==================== MODAL: REGISTRASI PROPOSAL MASUK ==================== -->
 {#if isCreatePropOpen}
-	<div class="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
-		<div class="bg-surface-container-lowest rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xl w-full max-w-xl overflow-hidden my-8 animate-in fade-in zoom-in-95 duration-200">
-			<div class="p-5 border-b border-slate-200/60 dark:border-slate-800/60 flex items-center justify-between">
-				<div class="flex items-center gap-2">
-					<span class="material-symbols-outlined text-teal-600">post_add</span>
-					<h3 class="font-bold text-base text-on-surface">Pencatatan Proposal & Penawaran Masuk</h3>
+	<div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4 overflow-y-auto">
+		<div class="bg-surface-container-lowest rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xl w-full max-w-xl overflow-hidden my-8 animate-in fade-in zoom-in-95 duration-200">
+			<div class="px-6 py-4 border-b border-slate-200/60 dark:border-slate-800/60 flex items-center justify-between">
+				<div class="flex items-center gap-2.5">
+					<div class="w-9 h-9 rounded-xl bg-teal-50 dark:bg-teal-950/60 text-teal-600 flex items-center justify-center">
+						<span class="material-symbols-outlined text-xl">post_add</span>
+					</div>
+					<div>
+						<h3 class="text-sm font-black text-on-surface">Pencatatan Proposal & Penawaran Masuk</h3>
+						<p class="text-[11px] text-on-surface-variant">Catat berkas kerjasama, penawaran harga vendor, dan sponsorship</p>
+					</div>
 				</div>
-				<button onclick={() => (isCreatePropOpen = false)} class="text-on-surface-variant hover:text-on-surface">
-					<span class="material-symbols-outlined">close</span>
+				<button
+					type="button"
+					onclick={() => (isCreatePropOpen = false)}
+					class="p-1.5 rounded-lg text-on-surface-variant hover:bg-surface-container cursor-pointer"
+				>
+					<span class="material-symbols-outlined text-lg">close</span>
 				</button>
 			</div>
 
@@ -1929,16 +2029,16 @@
 						if (result.type === 'success') isCreatePropOpen = false;
 					};
 				}}
-				class="p-6 space-y-3.5 text-xs"
+				class="p-6 space-y-4"
 			>
-				<div class="grid grid-cols-2 gap-3">
+				<div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
 					<div>
-						<label for="prop_org" class="block font-bold mb-1">Instansi / Organisasi Pengirim *</label>
-						<input id="prop_org" type="text" name="sender_organization" required placeholder="Universitas / Mitra Bisnis / Panitia" class="w-full px-3.5 py-2.5 rounded-xl bg-surface-container-low border-0 outline-none" />
+						<label for="prop_org" class="block text-[11px] font-bold text-on-surface-variant uppercase mb-1">Instansi / Organisasi Pengirim *</label>
+						<input id="prop_org" type="text" name="sender_organization" required placeholder="Universitas / Mitra Bisnis / Panitia" class="w-full px-3.5 py-2.5 rounded-xl bg-surface-container-low text-xs text-on-surface border-0 outline-none focus:ring-2 focus:ring-teal-500/40" />
 					</div>
 					<div>
-						<label for="prop_cat" class="block font-bold mb-1">Kategori Proposal *</label>
-						<select id="prop_cat" name="category" class="w-full px-3.5 py-2.5 rounded-xl bg-surface-container-low border-0 outline-none">
+						<label for="prop_cat" class="block text-[11px] font-bold text-on-surface-variant uppercase mb-1">Kategori Proposal *</label>
+						<select id="prop_cat" name="category" class="w-full px-3.5 py-2.5 rounded-xl bg-surface-container-low text-xs text-on-surface border-0 outline-none focus:ring-2 focus:ring-teal-500/40">
 							<option value="PENAWARAN_HARGA">Penawaran Harga / Bisnis</option>
 							<option value="SPONSORSHIP">Sponsorship / Event</option>
 							<option value="CSR_SOSIAL">Bantuan Sosial / CSR</option>
@@ -1949,40 +2049,51 @@
 				</div>
 
 				<div>
-					<label for="prop_ttl" class="block font-bold mb-1">Judul / Perihal Proposal *</label>
-					<input id="prop_ttl" type="text" name="title" required placeholder="Misal: Proposal Kerjasama Pengiriman Logistik Cilegon 2026" class="w-full px-3.5 py-2.5 rounded-xl bg-surface-container-low border-0 outline-none" />
+					<label for="prop_ttl" class="block text-[11px] font-bold text-on-surface-variant uppercase mb-1">Judul / Perihal Proposal *</label>
+					<input id="prop_ttl" type="text" name="title" required placeholder="Misal: Proposal Kerjasama Pengiriman Logistik Cilegon 2026" class="w-full px-3.5 py-2.5 rounded-xl bg-surface-container-low text-xs text-on-surface border-0 outline-none focus:ring-2 focus:ring-teal-500/40" />
 				</div>
 
-				<div class="grid grid-cols-2 gap-3">
+				<div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
 					<div>
-						<label for="prop_pic" class="block font-bold mb-1">Nama Kontak PIC Pengirim</label>
-						<input id="prop_pic" type="text" name="contact_person" placeholder="Bpk. Hendra" class="w-full px-3.5 py-2.5 rounded-xl bg-surface-container-low border-0 outline-none" />
+						<label for="prop_pic" class="block text-[11px] font-bold text-on-surface-variant uppercase mb-1">Nama Kontak PIC Pengirim</label>
+						<input id="prop_pic" type="text" name="contact_person" placeholder="Bpk. Hendra" class="w-full px-3.5 py-2.5 rounded-xl bg-surface-container-low text-xs text-on-surface border-0 outline-none focus:ring-2 focus:ring-teal-500/40" />
 					</div>
 					<div>
-						<label for="prop_phn" class="block font-bold mb-1">No. HP / Kontak Pengirim</label>
-						<input id="prop_phn" type="text" name="contact_phone" placeholder="08xxxxxxxx" class="w-full px-3.5 py-2.5 rounded-xl bg-surface-container-low border-0 outline-none" />
+						<label for="prop_phn" class="block text-[11px] font-bold text-on-surface-variant uppercase mb-1">No. HP / Kontak Pengirim</label>
+						<input id="prop_phn" type="text" name="contact_phone" placeholder="08xxxxxxxx" class="w-full px-3.5 py-2.5 rounded-xl bg-surface-container-low text-xs text-on-surface border-0 outline-none focus:ring-2 focus:ring-teal-500/40" />
 					</div>
 				</div>
 
-				<div class="grid grid-cols-2 gap-3">
+				<div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
 					<div>
-						<label for="prop_rcpt" class="block font-bold mb-1">Ditujukan Kepada *</label>
-						<input id="prop_rcpt" type="text" name="target_recipient" required value="Direktur Utama" placeholder="Direksi / GM / Marketing Head" class="w-full px-3.5 py-2.5 rounded-xl bg-surface-container-low border-0 outline-none" />
+						<label for="prop_rcpt" class="block text-[11px] font-bold text-on-surface-variant uppercase mb-1">Ditujukan Kepada *</label>
+						<input id="prop_rcpt" type="text" name="target_recipient" required value="Direktur Utama" placeholder="Direksi / GM / Marketing Head" class="w-full px-3.5 py-2.5 rounded-xl bg-surface-container-low text-xs text-on-surface border-0 outline-none focus:ring-2 focus:ring-teal-500/40" />
 					</div>
 					<div>
-						<label for="prop_dt" class="block font-bold mb-1">Tanggal Terima *</label>
-						<input id="prop_dt" type="date" name="received_date" value={new Date().toISOString().split('T')[0]} required class="w-full px-3.5 py-2.5 rounded-xl bg-surface-container-low border-0 outline-none" />
+						<label for="prop_dt" class="block text-[11px] font-bold text-on-surface-variant uppercase mb-1">Tanggal Terima *</label>
+						<input id="prop_dt" type="date" name="received_date" value={new Date().toISOString().split('T')[0]} required class="w-full px-3.5 py-2.5 rounded-xl bg-surface-container-low text-xs text-on-surface border-0 outline-none focus:ring-2 focus:ring-teal-500/40" />
 					</div>
 				</div>
 
 				<div>
-					<label for="prop_file" class="block font-bold mb-1">Lampirkan File Proposal (PDF / Scan)</label>
-					<input id="prop_file" type="file" name="file" accept=".pdf,image/*" class="w-full text-xs p-2 rounded-xl bg-surface-container-low border border-dashed border-slate-300 dark:border-slate-700" />
+					<label for="prop_file" class="block text-[11px] font-bold text-on-surface-variant uppercase mb-1">Lampirkan File Proposal (PDF / Scan)</label>
+					<input id="prop_file" type="file" name="file" accept=".pdf,image/*" class="w-full text-xs p-2 rounded-xl bg-surface-container-low text-on-surface border border-dashed border-slate-300 dark:border-slate-700" />
 				</div>
 
-				<div class="flex justify-end gap-2 pt-2">
-					<button type="button" onclick={() => (isCreatePropOpen = false)} class="px-4 py-2 rounded-xl bg-surface-container-low font-bold cursor-pointer">Batal</button>
-					<button type="submit" class="px-5 py-2 rounded-xl bg-teal-600 hover:bg-teal-700 text-white font-bold cursor-pointer">Simpan Proposal</button>
+				<div class="flex items-center justify-end gap-2 pt-3 border-t border-slate-200/60 dark:border-slate-800/60">
+					<button
+						type="button"
+						onclick={() => (isCreatePropOpen = false)}
+						class="px-4 py-2 rounded-xl bg-surface-container-high text-xs font-bold text-on-surface-variant hover:text-on-surface cursor-pointer"
+					>
+						Batal
+					</button>
+					<button
+						type="submit"
+						class="px-5 py-2 rounded-xl bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold shadow-xs cursor-pointer"
+					>
+						Simpan Proposal
+					</button>
 				</div>
 			</form>
 		</div>
@@ -1991,69 +2102,104 @@
 
 <!-- ==================== MODAL: DISPOSISI PROPOSAL ==================== -->
 {#if isDisposisiPropOpen && selectedPropForDisposisi}
-	<div class="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
-		<div class="bg-surface-container-lowest rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xl w-full max-w-md overflow-hidden p-6 space-y-4 text-xs">
-			<div class="flex items-center justify-between pb-2 border-b border-slate-200/60 dark:border-slate-800/60">
-				<h3 class="font-bold text-sm text-on-surface">Update Disposisi Proposal</h3>
-				<button onclick={() => (isDisposisiPropOpen = false)} class="text-on-surface-variant hover:text-on-surface">
-					<span class="material-symbols-outlined">close</span>
+	<div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4 overflow-y-auto">
+		<div class="bg-surface-container-lowest rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xl w-full max-w-md overflow-hidden my-8 animate-in fade-in zoom-in-95 duration-200">
+			<div class="px-6 py-4 border-b border-slate-200/60 dark:border-slate-800/60 flex items-center justify-between">
+				<div class="flex items-center gap-2.5">
+					<div class="w-9 h-9 rounded-xl bg-teal-50 dark:bg-teal-950/60 text-teal-600 flex items-center justify-center">
+						<span class="material-symbols-outlined text-xl">assignment_turned_in</span>
+					</div>
+					<div>
+						<h3 class="text-sm font-black text-on-surface">Update Disposisi Proposal</h3>
+						<p class="text-[11px] text-on-surface-variant">Arahan tindak lanjut dan keputusan manajemen</p>
+					</div>
+				</div>
+				<button
+					type="button"
+					onclick={() => (isDisposisiPropOpen = false)}
+					class="p-1.5 rounded-lg text-on-surface-variant hover:bg-surface-container cursor-pointer"
+				>
+					<span class="material-symbols-outlined text-lg">close</span>
 				</button>
 			</div>
 
-			<div class="p-3 rounded-2xl bg-surface-container-low">
-				<p class="font-bold text-on-surface">{selectedPropForDisposisi.title}</p>
-				<p class="text-[11px] text-on-surface-variant">{selectedPropForDisposisi.sender_organization} • Ditujukan: {selectedPropForDisposisi.target_recipient}</p>
-			</div>
+			<div class="p-6 space-y-4">
+				<div class="text-xs text-on-surface-variant bg-surface-container-low p-3.5 rounded-xl space-y-1">
+					<div class="font-bold text-on-surface">{selectedPropForDisposisi.title}</div>
+					<div><strong class="text-on-surface">Pengirim:</strong> {selectedPropForDisposisi.sender_organization}</div>
+					<div><strong class="text-on-surface">Ditujukan:</strong> {selectedPropForDisposisi.target_recipient}</div>
+				</div>
 
-			<form
-				method="POST"
-				action="?/updateProposalDisposition"
-				use:enhance={() => {
-					return async ({ result, update }) => {
-						await update();
-						if (result.type === 'success') isDisposisiPropOpen = false;
-					};
-				}}
-				class="space-y-3"
-			>
-				<input type="hidden" name="id" value={selectedPropForDisposisi.id} />
-				<div>
-					<label for="disp_st" class="block font-bold mb-1">Status Disposisi *</label>
-					<select id="disp_st" name="status" value={selectedPropForDisposisi.status} class="w-full px-3.5 py-2.5 rounded-xl bg-surface-container-low border-0 outline-none">
-						<option value="MENUNGGU_REVIEW">Menunggu Review</option>
-						<option value="DITERUSKAN">Diteruskan ke Manajemen Terkait</option>
-						<option value="DISETUJUI">Disetujui</option>
-						<option value="DITOLAK">Ditolak</option>
-					</select>
-				</div>
-				<div>
-					<label for="disp_note" class="block font-bold mb-1">Catatan Arahan Disposisi</label>
-					<textarea id="disp_note" name="disposition_notes" rows="3" placeholder="Arahan tindak lanjut dari direksi / manajer..." class="w-full p-3 rounded-xl bg-surface-container-low border-0 outline-none resize-none"></textarea>
-				</div>
-				<div>
-					<label for="disp_by" class="block font-bold mb-1">Disposisi Oleh</label>
-					<input id="disp_by" type="text" name="disposition_by" value="Manajemen GA" class="w-full px-3.5 py-2.5 rounded-xl bg-surface-container-low border-0 outline-none" />
-				</div>
-				<div class="flex justify-end gap-2 pt-2">
-					<button type="button" onclick={() => (isDisposisiPropOpen = false)} class="px-4 py-2 rounded-xl bg-surface-container-low font-bold cursor-pointer">Batal</button>
-					<button type="submit" class="px-5 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-bold cursor-pointer">Simpan Disposisi</button>
-				</div>
-			</form>
+				<form
+					method="POST"
+					action="?/updateProposalDisposition"
+					use:enhance={() => {
+						return async ({ result, update }) => {
+							await update();
+							if (result.type === 'success') isDisposisiPropOpen = false;
+						};
+					}}
+					class="space-y-4"
+				>
+					<input type="hidden" name="id" value={selectedPropForDisposisi.id} />
+					<div>
+						<label for="disp_st" class="block text-[11px] font-bold text-on-surface-variant uppercase mb-1">Status Disposisi *</label>
+						<select id="disp_st" name="status" value={selectedPropForDisposisi.status} class="w-full px-3.5 py-2.5 rounded-xl bg-surface-container-low text-xs text-on-surface border-0 outline-none focus:ring-2 focus:ring-teal-500/40">
+							<option value="MENUNGGU_REVIEW">Menunggu Review</option>
+							<option value="DITERUSKAN">Diteruskan ke Manajemen Terkait</option>
+							<option value="DISETUJUI">Disetujui</option>
+							<option value="DITOLAK">Ditolak</option>
+						</select>
+					</div>
+					<div>
+						<label for="disp_note" class="block text-[11px] font-bold text-on-surface-variant uppercase mb-1">Catatan Arahan Disposisi</label>
+						<textarea id="disp_note" name="disposition_notes" rows="3" placeholder="Arahan tindak lanjut dari direksi / manajer..." class="w-full px-3.5 py-2.5 rounded-xl bg-surface-container-low text-xs text-on-surface border-0 outline-none focus:ring-2 focus:ring-teal-500/40 resize-none"></textarea>
+					</div>
+					<div>
+						<label for="disp_by" class="block text-[11px] font-bold text-on-surface-variant uppercase mb-1">Disposisi Oleh</label>
+						<input id="disp_by" type="text" name="disposition_by" value="Manajemen GA" class="w-full px-3.5 py-2.5 rounded-xl bg-surface-container-low text-xs text-on-surface border-0 outline-none focus:ring-2 focus:ring-teal-500/40" />
+					</div>
+					<div class="flex items-center justify-end gap-2 pt-3 border-t border-slate-200/60 dark:border-slate-800/60">
+						<button
+							type="button"
+							onclick={() => (isDisposisiPropOpen = false)}
+							class="px-4 py-2 rounded-xl bg-surface-container-high text-xs font-bold text-on-surface-variant hover:text-on-surface cursor-pointer"
+						>
+							Batal
+						</button>
+						<button
+							type="submit"
+							class="px-5 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold shadow-xs cursor-pointer"
+						>
+							Simpan Disposisi
+						</button>
+					</div>
+				</form>
+			</div>
 		</div>
 	</div>
 {/if}
 
 <!-- ==================== MODAL: CATAT PANGGILAN TELEPON ==================== -->
 {#if isCreateCallOpen}
-	<div class="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
-		<div class="bg-surface-container-lowest rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xl w-full max-w-xl overflow-hidden my-8 animate-in fade-in zoom-in-95 duration-200">
-			<div class="p-5 border-b border-slate-200/60 dark:border-slate-800/60 flex items-center justify-between">
-				<div class="flex items-center gap-2">
-					<span class="material-symbols-outlined text-teal-600">add_call</span>
-					<h3 class="font-bold text-base text-on-surface">Pencatatan Panggilan Telepon Meja Depan</h3>
+	<div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4 overflow-y-auto">
+		<div class="bg-surface-container-lowest rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xl w-full max-w-xl overflow-hidden my-8 animate-in fade-in zoom-in-95 duration-200">
+			<div class="px-6 py-4 border-b border-slate-200/60 dark:border-slate-800/60 flex items-center justify-between">
+				<div class="flex items-center gap-2.5">
+					<div class="w-9 h-9 rounded-xl bg-teal-50 dark:bg-teal-950/60 text-teal-600 flex items-center justify-center">
+						<span class="material-symbols-outlined text-xl">add_call</span>
+					</div>
+					<div>
+						<h3 class="text-sm font-black text-on-surface">Pencatatan Panggilan Telepon Meja Depan</h3>
+						<p class="text-[11px] text-on-surface-variant">Catat panggilan masuk, pesan memo, atau panggilan keluar</p>
+					</div>
 				</div>
-				<button onclick={() => (isCreateCallOpen = false)} class="text-on-surface-variant hover:text-on-surface">
-					<span class="material-symbols-outlined">close</span>
+				<button
+					type="button"
+					onclick={() => (isCreateCallOpen = false)}
+					class="p-1.5 rounded-lg text-on-surface-variant hover:bg-surface-container cursor-pointer"
+				>
+					<span class="material-symbols-outlined text-lg">close</span>
 				</button>
 			</div>
 
@@ -2066,27 +2212,27 @@
 						if (result.type === 'success') isCreateCallOpen = false;
 					};
 				}}
-				class="p-6 space-y-3.5 text-xs"
+				class="p-6 space-y-4"
 			>
-				<div class="grid grid-cols-2 gap-3">
+				<div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
 					<div>
-						<label for="call_name" class="block font-bold mb-1">Nama Penelepon *</label>
-						<input id="call_name" type="text" name="caller_name" required placeholder="Bpk. Rahmat" class="w-full px-3.5 py-2.5 rounded-xl bg-surface-container-low border-0 outline-none" />
+						<label for="call_name" class="block text-[11px] font-bold text-on-surface-variant uppercase mb-1">Nama Penelepon *</label>
+						<input id="call_name" type="text" name="caller_name" required placeholder="Bpk. Rahmat" class="w-full px-3.5 py-2.5 rounded-xl bg-surface-container-low text-xs text-on-surface border-0 outline-none focus:ring-2 focus:ring-teal-500/40" />
 					</div>
 					<div>
-						<label for="call_comp" class="block font-bold mb-1">Perusahaan / Instansi</label>
-						<input id="call_comp" type="text" name="caller_company" placeholder="Kementerian Perhubungan" class="w-full px-3.5 py-2.5 rounded-xl bg-surface-container-low border-0 outline-none" />
+						<label for="call_comp" class="block text-[11px] font-bold text-on-surface-variant uppercase mb-1">Perusahaan / Instansi</label>
+						<input id="call_comp" type="text" name="caller_company" placeholder="Kementerian Perhubungan" class="w-full px-3.5 py-2.5 rounded-xl bg-surface-container-low text-xs text-on-surface border-0 outline-none focus:ring-2 focus:ring-teal-500/40" />
 					</div>
 				</div>
 
-				<div class="grid grid-cols-2 gap-3">
+				<div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
 					<div>
-						<label for="call_phn" class="block font-bold mb-1">Nomor Telepon Penelepon</label>
-						<input id="call_phn" type="text" name="caller_phone" placeholder="021-xxxxxx / 08xxxx" class="w-full px-3.5 py-2.5 rounded-xl bg-surface-container-low border-0 outline-none font-mono" />
+						<label for="call_phn" class="block text-[11px] font-bold text-on-surface-variant uppercase mb-1">Nomor Telepon Penelepon</label>
+						<input id="call_phn" type="text" name="caller_phone" placeholder="021-xxxxxx / 08xxxx" class="w-full px-3.5 py-2.5 rounded-xl bg-surface-container-low text-xs text-on-surface border-0 outline-none focus:ring-2 focus:ring-teal-500/40 font-mono" />
 					</div>
 					<div>
-						<label for="call_urg" class="block font-bold mb-1">Tingkat Urgensi *</label>
-						<select id="call_urg" name="urgency" class="w-full px-3.5 py-2.5 rounded-xl bg-surface-container-low border-0 outline-none font-bold">
+						<label for="call_urg" class="block text-[11px] font-bold text-on-surface-variant uppercase mb-1">Tingkat Urgensi *</label>
+						<select id="call_urg" name="urgency" class="w-full px-3.5 py-2.5 rounded-xl bg-surface-container-low text-xs text-on-surface font-bold border-0 outline-none focus:ring-2 focus:ring-teal-500/40">
 							<option value="NORMAL">Normal</option>
 							<option value="PENTING">⚠️ Penting</option>
 							<option value="MENDESAK">🚨 Mendesak (Segera Tangani)</option>
@@ -2094,28 +2240,28 @@
 					</div>
 				</div>
 
-				<div class="grid grid-cols-2 gap-3">
+				<div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
 					<div>
-						<label for="call_target" class="block font-bold mb-1">Ditujukan Kepada Karyawan *</label>
-						<input id="call_target" type="text" name="target_employee_name" required placeholder="Nama Karyawan" class="w-full px-3.5 py-2.5 rounded-xl bg-surface-container-low border-0 outline-none" />
+						<label for="call_target" class="block text-[11px] font-bold text-on-surface-variant uppercase mb-1">Ditujukan Kepada Karyawan *</label>
+						<input id="call_target" type="text" name="target_employee_name" required placeholder="Nama Karyawan" class="w-full px-3.5 py-2.5 rounded-xl bg-surface-container-low text-xs text-on-surface border-0 outline-none focus:ring-2 focus:ring-teal-500/40" />
 					</div>
 					<div>
-						<label for="call_dept" class="block font-bold mb-1">Departemen Tujuan</label>
-						<input id="call_dept" type="text" name="target_department" placeholder="FINANCE / OPS / HRD" class="w-full px-3.5 py-2.5 rounded-xl bg-surface-container-low border-0 outline-none" />
+						<label for="call_dept" class="block text-[11px] font-bold text-on-surface-variant uppercase mb-1">Departemen Tujuan</label>
+						<input id="call_dept" type="text" name="target_department" placeholder="FINANCE / OPS / HRD" class="w-full px-3.5 py-2.5 rounded-xl bg-surface-container-low text-xs text-on-surface border-0 outline-none focus:ring-2 focus:ring-teal-500/40" />
 					</div>
 				</div>
 
-				<div class="grid grid-cols-2 gap-3">
+				<div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
 					<div>
-						<label for="call_tp" class="block font-bold mb-1">Jenis Panggilan</label>
-						<select id="call_tp" name="call_type" class="w-full px-3.5 py-2.5 rounded-xl bg-surface-container-low border-0 outline-none">
+						<label for="call_tp" class="block text-[11px] font-bold text-on-surface-variant uppercase mb-1">Jenis Panggilan</label>
+						<select id="call_tp" name="call_type" class="w-full px-3.5 py-2.5 rounded-xl bg-surface-container-low text-xs text-on-surface border-0 outline-none focus:ring-2 focus:ring-teal-500/40">
 							<option value="INCOMING">📞 Panggilan Masuk</option>
 							<option value="OUTGOING">📱 Panggilan Keluar</option>
 						</select>
 					</div>
 					<div>
-						<label for="call_act" class="block font-bold mb-1">Tindakan Resepsionis</label>
-						<select id="call_act" name="action_taken" class="w-full px-3.5 py-2.5 rounded-xl bg-surface-container-low border-0 outline-none">
+						<label for="call_act" class="block text-[11px] font-bold text-on-surface-variant uppercase mb-1">Tindakan Resepsionis</label>
+						<select id="call_act" name="action_taken" class="w-full px-3.5 py-2.5 rounded-xl bg-surface-container-low text-xs text-on-surface border-0 outline-none focus:ring-2 focus:ring-teal-500/40">
 							<option value="TITIP_PESAN">Titip Pesan / Memo</option>
 							<option value="TERHUBUNG_LANGSUNG">Terhubung Langsung</option>
 							<option value="TIDAK_TERJAWAB">Tidak Terjawab / Line Sibuk</option>
@@ -2125,13 +2271,24 @@
 				</div>
 
 				<div>
-					<label for="call_msg" class="block font-bold mb-1">Isi Pesan / Memo Panggilan</label>
-					<textarea id="call_msg" name="message_content" rows="3" placeholder="Rincian pesan yang ditinggalkan oleh penelepon..." class="w-full p-3 rounded-xl bg-surface-container-low border-0 outline-none resize-none"></textarea>
+					<label for="call_msg" class="block text-[11px] font-bold text-on-surface-variant uppercase mb-1">Isi Pesan / Memo Panggilan</label>
+					<textarea id="call_msg" name="message_content" rows="3" placeholder="Rincian pesan yang ditinggalkan oleh penelepon..." class="w-full px-3.5 py-2.5 rounded-xl bg-surface-container-low text-xs text-on-surface border-0 outline-none focus:ring-2 focus:ring-teal-500/40 resize-none"></textarea>
 				</div>
 
-				<div class="flex justify-end gap-2 pt-2">
-					<button type="button" onclick={() => (isCreateCallOpen = false)} class="px-4 py-2 rounded-xl bg-surface-container-low font-bold cursor-pointer">Batal</button>
-					<button type="submit" class="px-5 py-2 rounded-xl bg-teal-600 hover:bg-teal-700 text-white font-bold cursor-pointer">Simpan Panggilan</button>
+				<div class="flex items-center justify-end gap-2 pt-3 border-t border-slate-200/60 dark:border-slate-800/60">
+					<button
+						type="button"
+						onclick={() => (isCreateCallOpen = false)}
+						class="px-4 py-2 rounded-xl bg-surface-container-high text-xs font-bold text-on-surface-variant hover:text-on-surface cursor-pointer"
+					>
+						Batal
+					</button>
+					<button
+						type="submit"
+						class="px-5 py-2 rounded-xl bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold shadow-xs cursor-pointer"
+					>
+						Simpan Panggilan
+					</button>
 				</div>
 			</form>
 		</div>
@@ -2140,15 +2297,24 @@
 
 <!-- ==================== MODAL: CETAK BUKTI TANDA TERIMA (RECEIPT SLIP) ==================== -->
 {#if isReceiptModalOpen && receiptData}
-	<div class="fixed inset-0 z-50 bg-black/70 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
-		<div class="bg-surface-container-lowest rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xl w-full max-w-lg overflow-hidden animate-in fade-in zoom-in-95 duration-200">
-			<div class="p-4 border-b border-slate-200/60 dark:border-slate-800/60 flex items-center justify-between">
-				<div class="flex items-center gap-2">
-					<span class="material-symbols-outlined text-teal-600">receipt</span>
-					<h3 class="font-bold text-sm text-on-surface">Pratinjau Lembar Bukti Tanda Terima</h3>
+	<div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4 overflow-y-auto">
+		<div class="bg-surface-container-lowest rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xl w-full max-w-lg overflow-hidden my-8 animate-in fade-in zoom-in-95 duration-200">
+			<div class="px-6 py-4 border-b border-slate-200/60 dark:border-slate-800/60 flex items-center justify-between">
+				<div class="flex items-center gap-2.5">
+					<div class="w-9 h-9 rounded-xl bg-teal-50 dark:bg-teal-950/60 text-teal-600 flex items-center justify-center">
+						<span class="material-symbols-outlined text-xl">receipt</span>
+					</div>
+					<div>
+						<h3 class="text-sm font-black text-on-surface">Pratinjau Lembar Bukti Tanda Terima</h3>
+						<p class="text-[11px] text-on-surface-variant">Struk resmi tanda terima berkas meja depan untuk kurir / vendor</p>
+					</div>
 				</div>
-				<button onclick={() => (isReceiptModalOpen = false)} class="text-on-surface-variant hover:text-on-surface">
-					<span class="material-symbols-outlined">close</span>
+				<button
+					type="button"
+					onclick={() => (isReceiptModalOpen = false)}
+					class="p-1.5 rounded-lg text-on-surface-variant hover:bg-surface-container cursor-pointer"
+				>
+					<span class="material-symbols-outlined text-lg">close</span>
 				</button>
 			</div>
 
