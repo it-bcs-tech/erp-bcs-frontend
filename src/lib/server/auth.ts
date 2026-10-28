@@ -37,6 +37,8 @@ interface ErpUserRow {
 	level_sequence: string | null;
 	div_id: string | null;
 	div_name: string | null;
+	dept_id: string | null;
+	dept_name: string | null;
 	karyawan_aktif: string | null;
 }
 
@@ -105,12 +107,15 @@ export async function getAuthUserByEmail(email: string): Promise<AuthUser | null
 			ml.level_sequence,
 			md.div_name,
 			mk.div_id,
+			mdp.dept_name,
+			mk.dept_id,
 			mt.title as title_name
 		FROM master.erp_users eu
-		LEFT JOIN master.m_karyawan  mk ON mk.id = eu.karyawan_id
-		LEFT JOIN master.m_level     ml ON ml.level_code = mk.level
-		LEFT JOIN master.m_division  md ON md.div_code   = mk.div_id
-		LEFT JOIN master.m_title     mt ON mt.title_code = mk.title
+		LEFT JOIN master.m_karyawan  mk  ON mk.id = eu.karyawan_id
+		LEFT JOIN master.m_level     ml  ON ml.level_code = mk.level
+		LEFT JOIN master.m_division  md  ON md.div_code   = mk.div_id
+		LEFT JOIN master.m_dept      mdp ON mdp.dept_code = mk.dept_id
+		LEFT JOIN master.m_title     mt  ON mt.title_code = mk.title
 		WHERE LOWER(eu.email) = LOWER(${email})
 		LIMIT 1
 	`;
@@ -143,6 +148,8 @@ export async function getAuthUserByEmail(email: string): Promise<AuthUser | null
 		levelSequence,
 		division: user.div_name || 'Unknown',
 		divisionCode,
+		department: user.dept_name || 'General Affair',
+		departmentCode: user.dept_id || '',
 		titleName: user.title_name || '',
 		payrollId: user.payroll_id || null,
 		allowedModules

@@ -97,7 +97,7 @@
 		newBookingEndTime = '10:30';
 		newBookingAttendees = 6;
 		newBookingRequesterName = data.user?.name || '';
-		newBookingDepartment = data.user?.division || data.user?.department || 'General Affair';
+		newBookingDepartment = data.user?.department || data.user?.division || 'General Affair';
 		newBookingPhone = '';
 		newBookingDescription = '';
 		newBookingAutoApprove = true;
@@ -653,7 +653,7 @@
 			</div>
 
 			<form method="POST" action="?/createBooking" use:enhance class="p-5 overflow-y-auto space-y-4 text-xs">
-				<!-- Info Peminjam & Divisi (Auto-filled dari login, persis seperti form WO) -->
+				<!-- Info Peminjam & Departemen (Auto-filled dari login, persis seperti form WO) -->
 				<div class="p-3.5 rounded-2xl bg-surface-container-low border border-slate-200/50 dark:border-slate-800/50 flex flex-wrap items-center justify-between gap-2 text-xs">
 					<div class="flex items-center gap-2">
 						<div class="w-7 h-7 rounded-lg bg-cyan-500/15 text-cyan-600 flex items-center justify-center font-bold text-xs">
@@ -665,15 +665,15 @@
 						</div>
 					</div>
 					<div class="text-right">
-						<div class="text-[10px] uppercase font-bold text-on-surface-variant">Divisi</div>
+						<div class="text-[10px] uppercase font-bold text-on-surface-variant">Departemen</div>
 						<div class="font-mono text-on-surface text-[11px] font-semibold">
-							{data.user?.division || data.user?.department || 'General Affair'}
+							{data.user?.department || data.user?.division || 'General Affair'}
 						</div>
 					</div>
 				</div>
 
 				<input type="hidden" name="requesterName" value={data.user?.name || 'Karyawan BCS'} />
-				<input type="hidden" name="department" value={data.user?.division || data.user?.department || 'General Affair'} />
+				<input type="hidden" name="department" value={data.user?.department || data.user?.division || 'General Affair'} />
 
 				<div>
 					<label for="ga_roomId" class="block font-bold text-on-surface mb-1.5">Pilih Ruangan Rapat <span class="text-rose-500">*</span></label>

@@ -16,6 +16,8 @@ export interface AuthUser {
 	levelSequence: number;   // urutan hierarki (0=unclassified, 1=Operator, 2=Staff, 3=Officer, 4=Spv, 5=Mgr, 6=GM)
 	division: string;        // nama divisi dari m_division
 	divisionCode: string;    // kode divisi (DV_41, DV_37, dll)
+	department?: string;     // nama departemen dari m_dept
+	departmentCode?: string; // kode departemen (D_61, D_54, dll)
 	titleName: string;       // nama jabatan dari m_karyawan.title atau API
 	payrollId?: string | null; // NIK / Payroll ID karyawan dari m_karyawan
 	allowedModules: ModuleId[];  // daftar modul yang bisa diakses

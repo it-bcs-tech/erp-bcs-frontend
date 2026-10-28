@@ -334,13 +334,13 @@
 			</div>
 		</div>
 
-		<!-- 5 Kolom Kanan: Distribusi Permohonan per Divisi (Top 5 Departments) -->
+		<!-- 5 Kolom Kanan: Distribusi Permohonan per Departemen (Top 5 Departments) -->
 		<div class="lg:col-span-5 p-5 rounded-2xl bg-surface-container-low border border-slate-200/60 dark:border-slate-800/60 shadow-xs flex flex-col justify-between">
 			<div>
 				<div class="flex items-center justify-between mb-2">
 					<div class="flex items-center gap-2">
 						<span class="material-symbols-outlined text-indigo-600">pie_chart</span>
-						<h3 class="text-sm font-extrabold text-on-surface tracking-tight">Distribusi Permohonan Divisi</h3>
+						<h3 class="text-sm font-extrabold text-on-surface tracking-tight">Distribusi Permohonan Departemen</h3>
 					</div>
 					<span class="px-2 py-0.5 rounded-full bg-cyan-500/10 text-cyan-600 font-mono font-bold text-[10px]">
 						Top 5 Departemen
@@ -382,7 +382,7 @@
 
 	<!-- ZONA 4: OPERATIONAL LOG & REQUESTS (2-COLUMN BALANCED GRID WITH TAB SWITCHERS) -->
 	<div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-		<!-- Kolom Kiri: Pemeliharaan Fasilitas (WO) vs Pengajuan ATK Divisi -->
+		<!-- Kolom Kiri: Pemeliharaan Fasilitas (WO) vs Pengajuan ATK Departemen -->
 		<div class="p-5 rounded-2xl bg-surface-container-low border border-slate-200/60 dark:border-slate-800/60 shadow-xs flex flex-col justify-between">
 			<div>
 				<!-- Header with Segmented Switcher -->

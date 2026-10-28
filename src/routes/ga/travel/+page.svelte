@@ -275,7 +275,7 @@
 					<thead class="bg-surface-container-low text-on-surface-variant uppercase text-[10px] font-bold tracking-wider border-b border-slate-200/60 dark:border-slate-800/60">
 						<tr>
 							<th class="py-3 px-4">No. Transaksi & Tanggal</th>
-							<th class="py-3 px-4">Pemohon & Divisi</th>
+							<th class="py-3 px-4">Pemohon & Departemen</th>
 							<th class="py-3 px-4">Tujuan & Keperluan</th>
 							<th class="py-3 px-4">Kendaraan GA</th>
 							<th class="py-3 px-4 text-center">Jam & KM</th>
@@ -389,7 +389,7 @@
 					<thead class="bg-surface-container-low text-on-surface-variant uppercase text-[10px] font-bold tracking-wider border-b border-slate-200/60 dark:border-slate-800/60">
 						<tr>
 							<th class="py-3 px-4">No. SPD & Tanggal</th>
-							<th class="py-3 px-4">Pemohon & Divisi</th>
+							<th class="py-3 px-4">Pemohon & Departemen</th>
 							<th class="py-3 px-4">Kota Tujuan & Keperluan</th>
 							<th class="py-3 px-4">Fasilitas & Menginap</th>
 							<th class="py-3 px-4 text-center">Peserta</th>

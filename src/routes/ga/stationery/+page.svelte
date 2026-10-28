@@ -346,7 +346,7 @@
 			</div>
 			<h1 class="text-3xl font-black text-on-surface tracking-tight">Katalog ATK & Pengadaan PMS</h1>
 			<p class="text-xs text-on-surface-variant mt-1">
-				Kontrol stok habis pakai (COMS: ATK, Formulir, Toner, Materai & Sanitasi), pengajuan divisi internal, serta pengadaan terintegrasi ke PMS.
+				Kontrol stok habis pakai (COMS: ATK, Formulir, Toner, Materai & Sanitasi), pengajuan departemen internal, serta pengadaan terintegrasi ke PMS.
 			</p>
 		</div>
 
@@ -363,7 +363,7 @@
 				class="inline-flex items-center gap-2 px-3.5 py-2.5 rounded-xl bg-surface-container-high hover:bg-surface-container-highest text-on-surface text-xs font-bold border border-slate-200 dark:border-slate-800 transition-colors shadow-2xs cursor-pointer"
 			>
 				<span class="material-symbols-outlined text-base text-purple-600">post_add</span>
-				<span>+ Form Permintaan Divisi</span>
+				<span>+ Form Permintaan Departemen</span>
 			</button>
 			<button
 				onclick={() => (isAddItemModalOpen = true)}
@@ -442,7 +442,7 @@
 				: 'bg-surface-container-low text-on-surface-variant hover:text-on-surface'}"
 		>
 			<span class="material-symbols-outlined text-[17px]">assignment_turned_in</span>
-			<span>Permintaan Divisi Internal ({data.requests.length})</span>
+			<span>Permintaan Departemen Internal ({data.requests.length})</span>
 			{#if data.stats.pendingRequestCount > 0}
 				<span class="px-1.5 py-0.2 rounded-full text-[10px] bg-amber-400 text-amber-950 font-black">{data.stats.pendingRequestCount}</span>
 			{/if}
@@ -598,7 +598,7 @@
 			</div>
 		</div>
 
-	<!-- TAB 2: Permintaan Divisi Internal -->
+	<!-- TAB 2: Permintaan Departemen Internal -->
 	{:else if activeMainTab === 'REQUESTS'}
 		<!-- Filter & Search Bar -->
 		<div class="flex flex-col md:flex-row gap-3 items-center justify-between p-4 rounded-2xl bg-surface-container-lowest border border-slate-200/70 dark:border-slate-800/70 shadow-2xs">
@@ -607,7 +607,7 @@
 				<input
 					type="text"
 					bind:value={searchQuery}
-					placeholder="Cari nomor permohonan, divisi, nama..."
+					placeholder="Cari nomor permohonan, departemen, nama..."
 					class="bg-transparent text-xs w-full outline-none text-on-surface placeholder:text-on-surface-variant/50"
 				/>
 				{#if searchQuery}
@@ -1522,14 +1522,14 @@
 	</div>
 {/if}
 
-<!-- Modal 6: Form Pengajuan Kebutuhan ATK Divisi Internal -->
+<!-- Modal 6: Form Pengajuan Kebutuhan ATK Departemen Internal -->
 {#if isCreateRequestModalOpen}
 	<div class="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
 		<div class="bg-surface-container-lowest rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xl w-full max-w-2xl overflow-hidden my-8 animate-in fade-in zoom-in-95 duration-200">
 			<div class="p-5 border-b border-slate-200/60 dark:border-slate-800/60 flex items-center justify-between">
 				<div class="flex items-center gap-2">
 					<span class="material-symbols-outlined text-purple-600">post_add</span>
-					<h3 class="font-bold text-base text-on-surface">Form Pengajuan Kebutuhan ATK Divisi</h3>
+					<h3 class="font-bold text-base text-on-surface">Form Pengajuan Kebutuhan ATK Departemen</h3>
 				</div>
 				<button onclick={() => (isCreateRequestModalOpen = false)} class="text-on-surface-variant hover:text-on-surface cursor-pointer">
 					<span class="material-symbols-outlined">close</span>
@@ -1554,7 +1554,7 @@
 
 				<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
 					<div>
-						<label for="req_dept" class="block text-xs font-bold text-on-surface mb-1.5">Departemen / Divisi Pemohon <span class="text-rose-500">*</span></label>
+						<label for="req_dept" class="block text-xs font-bold text-on-surface mb-1.5">Departemen Pemohon <span class="text-rose-500">*</span></label>
 						<select
 							id="req_dept"
 							name="department"
@@ -1685,7 +1685,7 @@
 	</div>
 {/if}
 
-<!-- Modal 7: Detail & Approval Permintaan ATK Divisi -->
+<!-- Modal 7: Detail & Approval Permintaan ATK Departemen -->
 {#if isDetailRequestModalOpen && selectedRequest}
 	<div class="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
 		<div class="bg-surface-container-lowest rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xl w-full max-w-xl overflow-hidden my-8 animate-in fade-in zoom-in-95 duration-200">

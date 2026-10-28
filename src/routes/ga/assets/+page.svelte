@@ -1432,7 +1432,7 @@
 						name="reason"
 						required
 						rows="2"
-						placeholder="Misal: Penyesuaian workstation divisi OCS, rotasi fasilitas pool..."
+						placeholder="Misal: Penyesuaian workstation departemen OCS, rotasi fasilitas pool..."
 						class="w-full px-4 py-2.5 text-xs rounded-xl bg-surface-container-low border-0 outline-none focus:ring-2 focus:ring-amber-500/20 text-on-surface"
 					></textarea>
 				</div>

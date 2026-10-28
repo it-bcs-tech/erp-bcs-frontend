@@ -146,7 +146,7 @@ export const actions: Actions = {
 		const description = ((formData.get('description') as string) || '').trim();
 		const attendeesCount = parseInt((formData.get('attendeesCount') as string) || '1', 10);
 		const phone = ((formData.get('phone') as string) || '').trim();
-		const department = ((formData.get('department') as string) || (user?.division || (user as any)?.department || 'General Affair')).trim();
+		const department = ((formData.get('department') as string) || (user?.department || user?.division || 'General Affair')).trim();
 		const requesterName = ((formData.get('requesterName') as string) || (user?.name || 'Staf GA')).trim();
 		const requesterId = user?.payrollId || (user as any)?.payroll_id || user?.email || 'EMP-GA';
 		const autoApprove = formData.get('autoApprove') === 'on' || formData.get('autoApprove') === 'true';

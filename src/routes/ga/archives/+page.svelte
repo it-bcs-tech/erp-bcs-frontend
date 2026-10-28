@@ -217,7 +217,7 @@
 		<div class="p-5 rounded-2xl bg-surface-container-lowest border border-slate-200/70 dark:border-slate-800/70">
 			<span class="text-xs font-bold text-on-surface-variant uppercase tracking-wider">Departemen Pemilik Arsip</span>
 			<div class="text-2xl font-black text-indigo-600 mt-1">
-				{data.departments.length} <span class="text-sm font-normal text-on-surface-variant">divisi/dept</span>
+				{data.departments.length} <span class="text-sm font-normal text-on-surface-variant">Departemen</span>
 			</div>
 			<p class="text-[11px] text-on-surface-variant mt-1 truncate">
 				Finance, Procurement, HRD, Transport, dll.

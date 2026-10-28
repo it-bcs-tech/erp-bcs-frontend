@@ -308,7 +308,7 @@
 					<tr>
 						<th class="py-3 px-4">No. WO & Tanggal</th>
 						<th class="py-3 px-4">Sarana & Lokasi</th>
-						<th class="py-3 px-4">Pemohon & Divisi</th>
+						<th class="py-3 px-4">Pemohon & Departemen</th>
 						<th class="py-3 px-4">Deskripsi Masalah</th>
 						<th class="py-3 px-4 text-center">Urgensi</th>
 						<th class="py-3 px-4 text-center">Status</th>
@@ -534,7 +534,7 @@
 						/>
 					</div>
 					<div>
-						<label for="create_dept" class="block text-xs font-bold text-on-surface mb-1.5">Departemen / Divisi <span class="text-rose-500">*</span></label>
+						<label for="create_dept" class="block text-xs font-bold text-on-surface mb-1.5">Departemen <span class="text-rose-500">*</span></label>
 						<select
 							id="create_dept"
 							name="department"
