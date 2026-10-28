@@ -8,7 +8,7 @@ export const load: PageServerLoad = async ({ url }) => {
 		const categoryFilter = url.searchParams.get('category') || 'All';
 		const statusFilter = url.searchParams.get('status') || 'All';
 
-		const [rawItems, rawRequests, rawRequestItems, rawGaPrs, rawGaPrLines] = await Promise.all([
+		const [rawItems, rawRequests, rawRequestItems, rawGaPrs, rawGaPrLines, rawDepts] = await Promise.all([
 			sql`
 				SELECT 
 					g.id,
@@ -111,6 +111,12 @@ export const load: PageServerLoad = async ({ url }) => {
 				LEFT JOIN ga.stationery_items gsi ON gsi.material_id = m.id
 				WHERE pr.department ILIKE '%GA%' OR pr.department ILIKE '%UMUM%' OR pr.pr_number ILIKE '%-GA/%'
 				ORDER BY prl.id ASC
+			`,
+			sql`
+				SELECT dept_code, dept_name, alias
+				FROM master.m_dept
+				WHERE active = 'Y'
+				ORDER BY dept_name ASC
 			`
 		]);
 
@@ -232,6 +238,7 @@ export const load: PageServerLoad = async ({ url }) => {
 			allItems: processedItems,
 			requests: filteredRequests,
 			gaPrs: processedGaPrs,
+			departments: rawDepts,
 			budgetComs,
 			stats: {
 				totalItemCount,
@@ -249,6 +256,7 @@ export const load: PageServerLoad = async ({ url }) => {
 			allItems: [],
 			requests: [],
 			gaPrs: [],
+			departments: [],
 			budgetComs: {
 				monthName: '',
 				year: new Date().getFullYear(),
@@ -353,9 +361,12 @@ export const actions: Actions = {
 	},
 
 	// GA PR Generator: Diajukan langsung dari GA ke modul PMS
-	createGaPr: async ({ request }) => {
+	createGaPr: async ({ request, locals }) => {
+		const user = locals.user;
 		const data = await request.formData();
-		const requestedBy = data.get('requested_by')?.toString().trim() || 'General Affair Team';
+		const requestedBy = data.get('requested_by')?.toString().trim() || user?.name || 'Staff GA';
+		const department = data.get('department')?.toString().trim() || user?.department || 'GENERAL AFFAIRS';
+		const createdBy = user?.payrollId || user?.name || 'SYSTEM';
 		const orderType = data.get('order_type')?.toString().trim() || 'RO';
 		const requiredDate = data.get('required_date')?.toString().trim() || null;
 		const notes = data.get('notes')?.toString().trim() || 'Pengadaan Rutin Kebutuhan Kantor GA (COMS)';
@@ -397,9 +408,9 @@ export const actions: Actions = {
 					pr_number, date, department, requested_by, status, notes,
 					required_date, order_type, category, created_by, created_at, updated_at
 				) VALUES (
-					${prNumber}, CURRENT_DATE, 'GENERAL AFFAIR & LEGAL', ${requestedBy}, 'PENDING',
+					${prNumber}, CURRENT_DATE, ${department}, ${requestedBy}, 'PENDING',
 					${notes}, ${requiredDate ? requiredDate : null}, ${orderType}, 'SUPPORTING',
-					${requestedBy}, NOW(), NOW()
+					${createdBy}, NOW(), NOW()
 				)
 				RETURNING id
 			`;

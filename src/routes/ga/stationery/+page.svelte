@@ -32,6 +32,7 @@
 
 	// GA PR Builder state (Pengadaan ke PMS)
 	let prRequestedBy = $state('General Affair Team');
+	let prDepartment = $state('GENERAL AFFAIRS');
 	let prOrderType = $state('RO');
 	let prRequiredDate = $state('');
 	let prNotes = $state('Pengadaan Rutin Kebutuhan Kantor GA (COMS)');
@@ -91,7 +92,8 @@
 
 	// PR to PMS functions
 	function openCreatePrModal() {
-		prRequestedBy = 'General Affair Team';
+		prRequestedBy = data.user?.name || '';
+		prDepartment = data.user?.department || 'GENERAL AFFAIRS';
 		prOrderType = 'RO';
 		const nextWeek = new Date();
 		nextWeek.setDate(nextWeek.getDate() + 7);
@@ -949,9 +951,34 @@
 				class="p-6 space-y-5"
 			>
 				<input type="hidden" name="items_json" value={JSON.stringify(prLines)} />
+				<input type="hidden" name="created_by" value={data.user?.payrollId || data.user?.name || 'SYSTEM'} />
+
+				<!-- Info Pembuat PR (Audit Info dari Akun Login) -->
+				<div class="p-3.5 rounded-2xl bg-surface-container-low border border-slate-200/50 dark:border-slate-800/50 flex flex-wrap items-center justify-between gap-2 text-xs">
+					<div class="flex items-center gap-2">
+						<div class="w-7 h-7 rounded-lg bg-purple-500/15 text-purple-600 flex items-center justify-center font-bold text-xs">
+							<span class="material-symbols-outlined text-[15px]">badge</span>
+						</div>
+						<div>
+							<div class="text-[10px] uppercase font-bold text-on-surface-variant">Dibuat Oleh (Akun Login)</div>
+							<div class="font-bold text-on-surface">
+								{data.user?.name || 'Karyawan BCS'}
+								{#if data.user?.payrollId}
+									<span class="font-mono text-purple-600 font-semibold text-[11px]">({data.user.payrollId})</span>
+								{/if}
+							</div>
+						</div>
+					</div>
+					<div class="text-right">
+						<div class="text-[10px] uppercase font-bold text-on-surface-variant">Departemen Akun</div>
+						<div class="font-mono text-on-surface text-[11px] font-semibold">
+							{data.user?.department || 'GENERAL AFFAIRS'}
+						</div>
+					</div>
+				</div>
 
 				<!-- Header Form Details -->
-				<div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+				<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
 					<div>
 						<label for="pr_req_by" class="block text-xs font-bold text-on-surface mb-1.5">Pemohon Pengadaan <span class="text-rose-500">*</span></label>
 						<input
@@ -960,8 +987,31 @@
 							name="requested_by"
 							bind:value={prRequestedBy}
 							required
+							placeholder="Nama staf pemohon"
 							class="w-full px-4 py-2.5 text-xs rounded-xl bg-surface-container-low border-0 outline-none focus:ring-2 focus:ring-purple-500/20 text-on-surface transition-all"
 						/>
+					</div>
+
+					<div>
+						<label for="pr_dept" class="block text-xs font-bold text-on-surface mb-1.5">Departemen Pemohon <span class="text-rose-500">*</span></label>
+						<select
+							id="pr_dept"
+							name="department"
+							bind:value={prDepartment}
+							required
+							class="w-full px-4 py-2.5 text-xs rounded-xl bg-surface-container-low border-0 outline-none focus:ring-2 focus:ring-purple-500/20 text-on-surface cursor-pointer transition-all"
+						>
+							{#if data.departments && data.departments.length > 0}
+								{#each data.departments as dept}
+									<option value={dept.dept_name}>{dept.dept_name}</option>
+								{/each}
+							{:else}
+								<option value="GENERAL AFFAIRS">GENERAL AFFAIRS</option>
+								<option value="IT SOFTWARE DEV & NETWORK">IT SOFTWARE DEV & NETWORK</option>
+								<option value="HUMAN CAPITAL">HUMAN CAPITAL</option>
+								<option value="FINANCE & TREASURY">FINANCE & TREASURY</option>
+							{/if}
+						</select>
 					</div>
 
 					<div>
@@ -973,15 +1023,15 @@
 							required
 							class="w-full px-4 py-2.5 text-xs rounded-xl bg-surface-container-low border-0 outline-none focus:ring-2 focus:ring-purple-500/20 text-on-surface cursor-pointer transition-all"
 						>
-							<option value="RO">RO - Reguler Order (Rutin Operasional COMS)</option>
-							<option value="BO">BO - By Order (Kebutuhan Khusus / Proyek)</option>
-							<option value="ES">ES - Emergency Stock (Kebutuhan Sangat Mendesak)</option>
+							<option value="RO">RO - Reguler Order</option>
+							<option value="BO">BO - By Order</option>
+							<option value="ES">ES - Emergency Stock</option>
 							<option value="IO">IO - Internal Order</option>
 						</select>
 					</div>
 
 					<div>
-						<label for="pr_req_date" class="block text-xs font-bold text-on-surface mb-1.5">Tanggal Kebutuhan (Tiba)</label>
+						<label for="pr_req_date" class="block text-xs font-bold text-on-surface mb-1.5">Tanggal Kebutuhan</label>
 						<input
 							id="pr_req_date"
 							type="date"

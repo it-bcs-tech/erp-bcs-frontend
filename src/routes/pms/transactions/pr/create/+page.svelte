@@ -10,8 +10,8 @@
 	let date = $state(new Date().toISOString().split('T')[0]);
 	let requiredDate = $state('');
 	let orderType = $state('RO');
-	let department = $state(data.prefill?.department || 'Workshop / Maintenance');
-	let requestedBy = $state(data.prefill?.requestedBy || 'Staff Gudang');
+	let department = $state(data.prefill?.department || data.user?.department || 'Workshop / Maintenance');
+	let requestedBy = $state(data.prefill?.requestedBy || data.user?.name || '');
 	let projectId = $state(data.prefill?.projectId ? String(data.prefill.projectId) : '');
 	let siteId = $state('');
 	let notes = $state(data.prefill?.notes || '');
