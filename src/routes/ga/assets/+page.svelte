@@ -642,7 +642,7 @@
 									</div>
 									<div>
 										<h4 class="font-black text-[11px] tracking-wider uppercase text-[#57344f] leading-none">
-											PT BANGUN CAKRAWALA SARI
+											PT BUANA CENTRA SWAKARSA
 										</h4>
 										<p class="text-[8px] font-bold text-slate-600 uppercase tracking-widest mt-0.5">
 											Inventaris Aset Tetap
@@ -760,7 +760,7 @@
 										<div class="w-5 h-5 rounded bg-[#57344f] text-white font-black text-[9px] flex items-center justify-center">
 											BCS
 										</div>
-										<span class="font-black text-[10px] uppercase text-[#57344f]">PT BANGUN CAKRAWALA SARI</span>
+										<span class="font-black text-[10px] uppercase text-[#57344f]">PT BUANA CENTRA SWAKARSA</span>
 									</div>
 									<span class="text-[9px] font-mono font-black bg-slate-100 px-1 py-0.5 rounded border border-slate-300">
 										{item.asset_code}

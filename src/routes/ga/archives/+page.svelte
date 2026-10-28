@@ -937,7 +937,7 @@
 									</div>
 									<div>
 										<h4 class="font-black text-xs tracking-wider uppercase text-[#57344f] leading-none">
-											PT BANGUN CAKRAWALA SARI
+											PT BUANA CENTRA SWAKARSA
 										</h4>
 										<p class="text-[8px] font-bold text-slate-600 uppercase tracking-widest mt-0.5">
 											Label Box / Ordner Gudang Arsip

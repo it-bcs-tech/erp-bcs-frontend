@@ -2329,7 +2329,7 @@
 							</div>
 							<div>
 								<h4 class="font-black text-xs tracking-wider uppercase text-[#57344f] leading-none">
-									PT BANGUN CAKRAWALA SARI
+									PT BUANA CENTRA SWAKARSA
 								</h4>
 								<p class="text-[9px] font-bold text-slate-600 uppercase tracking-widest mt-0.5">
 									Bukti Tanda Terima Meja Depan (Front Desk)
@@ -2417,7 +2417,7 @@
 					</div>
 
 					<div class="mt-4 pt-2 border-t border-dashed border-slate-200 text-center text-[8px] text-slate-400 font-bold uppercase tracking-wider">
-						Bukti tanda terima sah PT Bangun Cakrawala Sari • Meja Resepsionis Kantor Pusat
+						Bukti tanda terima sah PT Buana Centra Swakarsa • Meja Resepsionis Kantor Pusat
 					</div>
 				</div>
 

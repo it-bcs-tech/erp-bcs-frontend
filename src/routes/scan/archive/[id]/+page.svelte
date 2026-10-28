@@ -32,7 +32,7 @@
 				</div>
 				<div>
 					<h1 class="text-xs font-black tracking-tight uppercase text-slate-900 dark:text-white leading-tight">
-						PT Bangun Cakrawala Sari
+						PT Buana Centra Swakarsa
 					</h1>
 					<p class="text-[10px] font-bold text-teal-600 dark:text-teal-400 uppercase tracking-widest">
 						Gudang Arsip & Dokumen Fisik
