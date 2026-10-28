@@ -137,15 +137,15 @@
 				<span class="text-sm">Document Archive</span>
 			</a>
 
-			<!-- Front Desk & Visitors -->
+			<!-- Visitor & Front Desk -->
 			<a
 				class="flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200 hover:translate-x-1 {isActive('/ga/visitors')
 					? 'bg-surface-container-highest text-cyan-700 dark:text-cyan-300 font-bold'
 					: 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container font-medium text-sm'}"
 				href="/ga/visitors"
 			>
-				<span class="material-symbols-outlined text-[20px]">desk</span>
-				<span class="text-sm">Front Desk & Visitors</span>
+				<span class="material-symbols-outlined text-[20px]">badge</span>
+				<span class="text-sm">Visitor & Front Desk</span>
 			</a>
 		</nav>
 	</aside>

@@ -140,6 +140,16 @@
 		};
 	}
 
+	const satisfactionPercent = $derived(
+		stats?.total_rated > 0
+			? Math.round(
+					(((stats.rating_puas || 0) * 3 + (stats.rating_cukup || 0) * 2 + (stats.rating_kurang || 0) * 1) /
+						(stats.total_rated * 3)) *
+						100
+				)
+			: 0
+	);
+
 	const filteredVisitors = $derived(
 		visitors.filter((v: any) => {
 			if (visitorStatusFilter !== 'ALL' && v.status !== visitorStatusFilter) return false;
@@ -150,12 +160,23 @@
 					(v.visitor_name || '').toLowerCase().includes(q) ||
 					(v.company || '').toLowerCase().includes(q) ||
 					(v.purpose || '').toLowerCase().includes(q) ||
-					(v.host_name || '').toLowerCase().includes(q)
+					(v.host_name || '').toLowerCase().includes(q) ||
+					(v.host_department || '').toLowerCase().includes(q) ||
+					(v.badge_number || '').toLowerCase().includes(q) ||
+					(v.address || '').toLowerCase().includes(q) ||
+					(v.phone || '').toLowerCase().includes(q)
 				);
 			}
 			return true;
 		})
 	);
+
+	$effect(() => {
+		visitorSearch;
+		visitorStatusFilter;
+		visitorRatingFilter;
+		visitorPage = 1;
+	});
 
 	const paginatedVisitors = $derived(
 		filteredVisitors.slice((visitorPage - 1) * visitorPerPage, visitorPage * visitorPerPage)
@@ -313,12 +334,12 @@
 	<div class="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-200/60 dark:border-slate-800/60 pb-5">
 		<div>
 			<div class="flex items-center gap-2 text-xs font-bold text-teal-600 dark:text-teal-400 uppercase tracking-widest mb-1">
-				<span class="material-symbols-outlined text-sm">desk</span>
-				<span>General Affair • Front Desk & Reception Hub</span>
+				<span class="material-symbols-outlined text-sm">badge</span>
+				<span>General Affair • Front Desk & Receptionist</span>
 			</div>
-			<h1 class="text-3xl font-black text-on-surface tracking-tight">Front Desk & Layanan Meja Depan</h1>
+			<h1 class="text-2xl sm:text-3xl font-black text-on-surface tracking-tight">Visitor & Front Desk Hub</h1>
 			<p class="text-xs text-on-surface-variant mt-1">
-				Pusat pencatatan terpadu resepsionis: Buku Tamu, Dokumen & Paket Masuk/Keluar, Tanda Terima Invoice Vendor, Proposal Masuk, dan Log Telepon.
+				Registrasi tamu perusahaan, penukaran kartu identitas tamu (Visitor Badge), karyawan yang ditemui, serta pencatatan terpadu meja depan (dokumen, invoice, proposal, dan panggilan telepon).
 			</p>
 		</div>
 
@@ -326,14 +347,16 @@
 		<div class="flex items-center gap-2 self-start md:self-auto">
 			{#if activeMainTab === 'VISITORS'}
 				<button
+					type="button"
 					onclick={openCheckInModal}
 					class="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold shadow-xs transition-colors cursor-pointer"
 				>
 					<span class="material-symbols-outlined text-base">person_add</span>
-					<span>+ Registrasi Tamu Baru</span>
+					<span>+ Check-In Tamu Baru</span>
 				</button>
 			{:else if activeMainTab === 'DOCUMENTS'}
 				<button
+					type="button"
 					onclick={() => (isCreateDocOpen = true)}
 					class="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold shadow-xs transition-colors cursor-pointer"
 				>
@@ -342,6 +365,7 @@
 				</button>
 			{:else if activeMainTab === 'INVOICES'}
 				<button
+					type="button"
 					onclick={() => (isCreateInvOpen = true)}
 					class="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold shadow-xs transition-colors cursor-pointer"
 				>
@@ -350,6 +374,7 @@
 				</button>
 			{:else if activeMainTab === 'PROPOSALS'}
 				<button
+					type="button"
 					onclick={() => (isCreatePropOpen = true)}
 					class="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold shadow-xs transition-colors cursor-pointer"
 				>
@@ -358,6 +383,7 @@
 				</button>
 			{:else if activeMainTab === 'CALLS'}
 				<button
+					type="button"
 					onclick={() => (isCreateCallOpen = true)}
 					class="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold shadow-xs transition-colors cursor-pointer"
 				>
@@ -368,74 +394,150 @@
 		</div>
 	</div>
 
-	<!-- KPI OVERVIEW CARDS (5 METRIK UTAMA) -->
-	<div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3.5">
-		<!-- 1: Tamu Aktif -->
-		<div class="p-4 rounded-2xl bg-surface-container-lowest border border-slate-200/70 dark:border-slate-800/70 flex flex-col justify-between">
-			<div class="flex items-center justify-between">
-				<span class="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Tamu di Kantor</span>
-				<span class="material-symbols-outlined text-teal-600 text-lg">badge</span>
+	<!-- KPI OVERVIEW CARDS (DINAMIS SESUAI TAB AKTIF) -->
+	{#if activeMainTab === 'VISITORS'}
+		<!-- KPI BUKU TAMU & SURVEI KEPUASAN RESEPSIONIS -->
+		<div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3.5">
+			<!-- 1: Total Kunjungan -->
+			<div class="p-4 rounded-2xl bg-surface-container-lowest border border-slate-200/70 dark:border-slate-800/70 flex flex-col justify-between shadow-2xs">
+				<div class="flex items-center justify-between">
+					<span class="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Total Kunjungan</span>
+					<div class="w-8 h-8 rounded-xl bg-teal-50 dark:bg-teal-950/60 text-teal-600 flex items-center justify-center">
+						<span class="material-symbols-outlined text-base">group</span>
+					</div>
+				</div>
+				<div class="text-2xl font-black text-on-surface mt-2">
+					{stats.total_visitors} <span class="text-xs font-normal text-on-surface-variant">tamu</span>
+				</div>
+				<p class="text-[10px] text-teal-600 font-semibold mt-1">Buku tamu terdaftar</p>
 			</div>
-			<div class="text-2xl font-black text-on-surface mt-2">
-				{stats.active_visitors} <span class="text-xs font-normal text-on-surface-variant">orang</span>
-			</div>
-			<p class="text-[10px] text-teal-600 font-semibold mt-1">Total {stats.total_visitors} kunjungan</p>
-		</div>
 
-		<!-- 2: Dokumen Pending -->
-		<div class="p-4 rounded-2xl bg-surface-container-lowest border border-slate-200/70 dark:border-slate-800/70 flex flex-col justify-between">
-			<div class="flex items-center justify-between">
-				<span class="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Dokumen Belum Diambil</span>
-				<span class="material-symbols-outlined text-indigo-600 text-lg">mail</span>
+			<!-- 2: Sedang Di Kantor -->
+			<div class="p-4 rounded-2xl bg-surface-container-lowest border border-slate-200/70 dark:border-slate-800/70 flex flex-col justify-between shadow-2xs">
+				<div class="flex items-center justify-between">
+					<span class="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Sedang Di Kantor</span>
+					<div class="w-8 h-8 rounded-xl bg-amber-50 dark:bg-amber-950/60 text-amber-600 flex items-center justify-center">
+						<span class="material-symbols-outlined text-base">person_pin_circle</span>
+					</div>
+				</div>
+				<div class="text-2xl font-black text-amber-600 mt-2">
+					{stats.active_visitors} <span class="text-xs font-normal text-on-surface-variant">tamu aktif</span>
+				</div>
+				<p class="text-[10px] text-on-surface-variant font-medium mt-1">Belum melakukan check-out</p>
 			</div>
-			<div class="text-2xl font-black text-indigo-600 mt-2">
-				{frontdeskStats.pending_docs} <span class="text-xs font-normal text-on-surface-variant">paket</span>
-			</div>
-			<p class="text-[10px] text-on-surface-variant font-medium mt-1">Menunggu serah terima</p>
-		</div>
 
-		<!-- 3: Invoice Pending Finance -->
-		<div class="p-4 rounded-2xl bg-surface-container-lowest border border-slate-200/70 dark:border-slate-800/70 flex flex-col justify-between">
-			<div class="flex items-center justify-between">
-				<span class="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Invoice Belum ke Finance</span>
-				<span class="material-symbols-outlined text-cyan-600 text-lg">receipt</span>
+			<!-- 3: Indeks Kepuasan -->
+			<div class="p-4 rounded-2xl bg-surface-container-lowest border border-slate-200/70 dark:border-slate-800/70 flex flex-col justify-between shadow-2xs">
+				<div class="flex items-center justify-between">
+					<span class="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Indeks Kepuasan</span>
+					<div class="w-8 h-8 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 flex items-center justify-center">
+						<span class="material-symbols-outlined text-base">sentiment_very_satisfied</span>
+					</div>
+				</div>
+				<div class="text-2xl font-black text-emerald-600 mt-2">
+					{satisfactionPercent}%
+				</div>
+				<p class="text-[10px] text-on-surface-variant font-medium mt-1">Rata-rata: {stats.avg_rating || '3.0'}/3.0</p>
 			</div>
-			<div class="text-2xl font-black text-cyan-600 mt-2">
-				{frontdeskStats.pending_invoices} <span class="text-xs font-normal text-on-surface-variant">tagihan</span>
-			</div>
-			<p class="text-[10px] text-on-surface-variant font-medium mt-1">Siap diserahkan ke Finance</p>
-		</div>
 
-		<!-- 4: Proposal Menunggu Review -->
-		<div class="p-4 rounded-2xl bg-surface-container-lowest border border-slate-200/70 dark:border-slate-800/70 flex flex-col justify-between">
-			<div class="flex items-center justify-between">
-				<span class="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Proposal Review</span>
-				<span class="material-symbols-outlined text-amber-600 text-lg">assignment</span>
+			<!-- 4: Layanan Puas -->
+			<div class="p-4 rounded-2xl bg-surface-container-lowest border border-slate-200/70 dark:border-slate-800/70 flex flex-col justify-between shadow-2xs">
+				<div class="flex items-center justify-between">
+					<span class="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Layanan Puas (3)</span>
+					<div class="w-8 h-8 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 flex items-center justify-center">
+						<span class="material-symbols-outlined text-base">thumb_up</span>
+					</div>
+				</div>
+				<div class="text-2xl font-black text-on-surface mt-2">
+					{stats.rating_puas} <span class="text-xs font-normal text-on-surface-variant">responden</span>
+				</div>
+				<p class="text-[10px] text-emerald-600 font-semibold mt-1">Penilaian bintang 3</p>
 			</div>
-			<div class="text-2xl font-black text-amber-600 mt-2">
-				{frontdeskStats.pending_proposals} <span class="text-xs font-normal text-on-surface-variant">proposal</span>
-			</div>
-			<p class="text-[10px] text-on-surface-variant font-medium mt-1">Menunggu disposisi</p>
-		</div>
 
-		<!-- 5: Panggilan Telepon Pending -->
-		<div class="p-4 rounded-2xl bg-surface-container-lowest border border-slate-200/70 dark:border-slate-800/70 flex flex-col justify-between">
-			<div class="flex items-center justify-between">
-				<span class="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Panggilan / Memo</span>
-				{#if frontdeskStats.urgent_calls > 0}
-					<span class="w-2.5 h-2.5 rounded-full bg-rose-500 animate-ping" title="Ada panggilan mendesak!"></span>
-				{:else}
-					<span class="material-symbols-outlined text-slate-400 text-lg">call</span>
-				{/if}
+			<!-- 5: Cukup / Kurang -->
+			<div class="p-4 rounded-2xl bg-surface-container-lowest border border-slate-200/70 dark:border-slate-800/70 flex flex-col justify-between shadow-2xs">
+				<div class="flex items-center justify-between">
+					<span class="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Cukup / Kurang</span>
+					<div class="w-8 h-8 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 flex items-center justify-center">
+						<span class="material-symbols-outlined text-base">rate_review</span>
+					</div>
+				</div>
+				<div class="text-2xl font-black text-on-surface mt-2">
+					{(stats.rating_cukup || 0) + (stats.rating_kurang || 0)} <span class="text-xs font-normal text-on-surface-variant">responden</span>
+				</div>
+				<p class="text-[10px] text-on-surface-variant font-medium mt-1">Cukup: {stats.rating_cukup || 0} • Kurang: {stats.rating_kurang || 0}</p>
 			</div>
-			<div class="text-2xl font-black {frontdeskStats.urgent_calls > 0 ? 'text-rose-600' : 'text-on-surface'} mt-2">
-				{frontdeskStats.pending_calls} <span class="text-xs font-normal text-on-surface-variant">memo</span>
-			</div>
-			<p class="text-[10px] {frontdeskStats.urgent_calls > 0 ? 'text-rose-600 font-bold' : 'text-on-surface-variant'} mt-1 truncate">
-				{frontdeskStats.urgent_calls > 0 ? `⚠️ ${frontdeskStats.urgent_calls} Panggilan Mendesak` : 'Tindak lanjut staf'}
-			</p>
 		</div>
-	</div>
+	{:else}
+		<!-- KPI OPERASIONAL FRONT DESK LAINNYA -->
+		<div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3.5">
+			<!-- 1: Tamu Aktif -->
+			<div class="p-4 rounded-2xl bg-surface-container-lowest border border-slate-200/70 dark:border-slate-800/70 flex flex-col justify-between shadow-2xs">
+				<div class="flex items-center justify-between">
+					<span class="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Tamu di Kantor</span>
+					<span class="material-symbols-outlined text-teal-600 text-lg">badge</span>
+				</div>
+				<div class="text-2xl font-black text-on-surface mt-2">
+					{stats.active_visitors} <span class="text-xs font-normal text-on-surface-variant">orang</span>
+				</div>
+				<p class="text-[10px] text-teal-600 font-semibold mt-1">Total {stats.total_visitors} kunjungan</p>
+			</div>
+
+			<!-- 2: Dokumen Pending -->
+			<div class="p-4 rounded-2xl bg-surface-container-lowest border border-slate-200/70 dark:border-slate-800/70 flex flex-col justify-between shadow-2xs">
+				<div class="flex items-center justify-between">
+					<span class="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Dokumen Belum Diambil</span>
+					<span class="material-symbols-outlined text-indigo-600 text-lg">mail</span>
+				</div>
+				<div class="text-2xl font-black text-indigo-600 mt-2">
+					{frontdeskStats.pending_docs} <span class="text-xs font-normal text-on-surface-variant">paket</span>
+				</div>
+				<p class="text-[10px] text-on-surface-variant font-medium mt-1">Menunggu serah terima</p>
+			</div>
+
+			<!-- 3: Invoice Pending Finance -->
+			<div class="p-4 rounded-2xl bg-surface-container-lowest border border-slate-200/70 dark:border-slate-800/70 flex flex-col justify-between shadow-2xs">
+				<div class="flex items-center justify-between">
+					<span class="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Invoice Belum ke Finance</span>
+					<span class="material-symbols-outlined text-cyan-600 text-lg">receipt</span>
+				</div>
+				<div class="text-2xl font-black text-cyan-600 mt-2">
+					{frontdeskStats.pending_invoices} <span class="text-xs font-normal text-on-surface-variant">tagihan</span>
+				</div>
+				<p class="text-[10px] text-on-surface-variant font-medium mt-1">Siap diserahkan ke Finance</p>
+			</div>
+
+			<!-- 4: Proposal Menunggu Review -->
+			<div class="p-4 rounded-2xl bg-surface-container-lowest border border-slate-200/70 dark:border-slate-800/70 flex flex-col justify-between shadow-2xs">
+				<div class="flex items-center justify-between">
+					<span class="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Proposal Review</span>
+					<span class="material-symbols-outlined text-amber-600 text-lg">assignment</span>
+				</div>
+				<div class="text-2xl font-black text-amber-600 mt-2">
+					{frontdeskStats.pending_proposals} <span class="text-xs font-normal text-on-surface-variant">proposal</span>
+				</div>
+				<p class="text-[10px] text-on-surface-variant font-medium mt-1">Menunggu disposisi</p>
+			</div>
+
+			<!-- 5: Panggilan Telepon Pending -->
+			<div class="p-4 rounded-2xl bg-surface-container-lowest border border-slate-200/70 dark:border-slate-800/70 flex flex-col justify-between shadow-2xs">
+				<div class="flex items-center justify-between">
+					<span class="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Panggilan / Memo</span>
+					{#if frontdeskStats.urgent_calls > 0}
+						<span class="w-2.5 h-2.5 rounded-full bg-rose-500 animate-ping" title="Ada panggilan mendesak!"></span>
+					{:else}
+						<span class="material-symbols-outlined text-slate-400 text-lg">call</span>
+					{/if}
+				</div>
+				<div class="text-2xl font-black {frontdeskStats.urgent_calls > 0 ? 'text-rose-600' : 'text-on-surface'} mt-2">
+					{frontdeskStats.pending_calls} <span class="text-xs font-normal text-on-surface-variant">memo</span>
+				</div>
+				<p class="text-[10px] {frontdeskStats.urgent_calls > 0 ? 'text-rose-600 font-bold' : 'text-on-surface-variant'} mt-1 truncate">
+					{frontdeskStats.urgent_calls > 0 ? `⚠️ ${frontdeskStats.urgent_calls} Panggilan Mendesak` : 'Tindak lanjut staf'}
+				</p>
+			</div>
+		</div>
+	{/if}
 
 	<!-- TAB SWITCHER NAVIGASI MEJA DEPAN (5 TABS) -->
 	<div class="flex flex-wrap items-center gap-2 border-b border-slate-200/60 dark:border-slate-800/60 pb-2">
@@ -538,89 +640,137 @@
 				</div>
 			</div>
 
-			<!-- Visitor Table -->
-			<div class="rounded-2xl bg-surface-container-lowest border border-slate-200/70 dark:border-slate-800/70 shadow-2xs overflow-hidden">
+			<!-- Visitor Table (Original 8 Kolom Lengkap) -->
+			<div class="rounded-2xl bg-surface-container-lowest border border-slate-200/70 dark:border-slate-800/70 overflow-hidden shadow-2xs">
 				<div class="overflow-x-auto">
 					<table class="w-full text-left text-xs">
 						<thead class="bg-surface-container-low text-on-surface-variant uppercase text-[10px] font-bold tracking-wider border-b border-slate-200/60 dark:border-slate-800/60">
 							<tr>
-								<th class="py-3 px-4">Nama Tamu & Instansi</th>
-								<th class="py-3 px-4">No. Badge</th>
-								<th class="py-3 px-4">Keperluan Bertemu</th>
-								<th class="py-3 px-4">Host Internal & Dept</th>
-								<th class="py-3 px-4 text-center">Waktu Masuk</th>
-								<th class="py-3 px-4 text-center">Waktu Keluar</th>
-								<th class="py-3 px-4 text-center">Status</th>
-								<th class="py-3 px-4 text-center">Survei Layanan</th>
-								<th class="py-3 px-4 text-center">Aksi</th>
+								<th class="py-3.5 px-4">Tamu & Instansi</th>
+								<th class="py-3.5 px-4">Kontak & Alamat</th>
+								<th class="py-3.5 px-4">No. Kartu</th>
+								<th class="py-3.5 px-4">Karyawan Ditemui (Host)</th>
+								<th class="py-3.5 px-4">Keperluan</th>
+								<th class="py-3.5 px-4">Waktu Kunjungan</th>
+								<th class="py-3.5 px-4 text-center">Survei Layanan</th>
+								<th class="py-3.5 px-4 text-center">Aksi</th>
 							</tr>
 						</thead>
 						<tbody class="divide-y divide-slate-200/60 dark:divide-slate-800/60">
-							{#each paginatedVisitors as v (v.id)}
-								{@const badge = getSurveyBadge(v.survey_rating)}
-								<tr class="hover:bg-surface-container transition-colors">
-									<td class="py-3 px-4">
-										<div class="font-bold text-on-surface">{v.visitor_name}</div>
-										<div class="text-[11px] text-on-surface-variant">{v.company || '-'}</div>
-									</td>
-									<td class="py-3 px-4 font-mono font-bold text-teal-700 dark:text-teal-400">
-										{v.badge_number || '-'}
-									</td>
-									<td class="py-3 px-4 max-w-xs truncate text-on-surface">
-										{v.purpose}
-									</td>
-									<td class="py-3 px-4">
-										<div class="font-semibold text-on-surface">{v.host_name || '-'}</div>
-										<div class="text-[10px] text-on-surface-variant">{v.host_department}</div>
-									</td>
-									<td class="py-3 px-4 text-center whitespace-nowrap font-mono text-[11px]">
-										{v.check_in_clock || '-'}
-										<div class="text-[10px] text-on-surface-variant">{formatIndoDate(v.check_in_date)}</div>
-									</td>
-									<td class="py-3 px-4 text-center whitespace-nowrap font-mono text-[11px]">
-										{v.check_out_clock || '-'}
-										{#if v.check_out_date}
-											<div class="text-[10px] text-on-surface-variant">{formatIndoDate(v.check_out_date)}</div>
-										{/if}
-									</td>
-									<td class="py-3 px-4 text-center whitespace-nowrap">
-										<span class="px-2 py-0.5 rounded text-[10px] font-bold {v.status === 'CHECKED_IN' ? 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 border border-amber-300' : 'bg-emerald-50 text-emerald-700 border border-emerald-200'}">
-											{v.status === 'CHECKED_IN' ? 'DI DALAM' : 'SELESAI'}
-										</span>
-									</td>
-									<td class="py-3 px-4 text-center whitespace-nowrap">
-										<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold {badge.cls}">
-											<span class="material-symbols-outlined text-[13px]">{badge.icon}</span>
-											<span>{badge.label}</span>
-										</span>
-									</td>
-									<td class="py-3 px-4 text-center whitespace-nowrap">
-										<div class="flex items-center justify-center gap-1">
-											{#if v.status === 'CHECKED_IN'}
-												<button
-													onclick={() => openCheckoutModal(v)}
-													class="px-2.5 py-1 rounded-lg bg-teal-600 hover:bg-teal-700 text-white font-bold text-[11px] cursor-pointer"
-												>
-													Check-Out
-												</button>
-											{/if}
-											<form
-												method="POST"
-												action="?/deleteVisitor"
-												use:enhance={() => {
-													if (!confirm(`Hapus catatan kunjungan ${v.visitor_name}?`)) return ({ cancel }: any) => cancel();
-												}}
-												class="inline"
-											>
-												<input type="hidden" name="id" value={v.id} />
-												<button type="submit" class="p-1 rounded text-rose-500 hover:bg-rose-50 cursor-pointer">
-													<span class="material-symbols-outlined text-base">delete</span>
-												</button>
-											</form>
-										</div>
+							{#if paginatedVisitors.length === 0}
+								<tr>
+									<td colspan="8" class="py-12 text-center text-on-surface-variant">
+										<span class="material-symbols-outlined text-4xl text-slate-400 mb-2 block">menu_book</span>
+										<p class="font-bold text-on-surface">Tidak ada data buku tamu yang sesuai filter</p>
 									</td>
 								</tr>
-							{/each}
+							{:else}
+								{#each paginatedVisitors as v (v.id)}
+									{@const survey = getSurveyBadge(v.survey_rating)}
+									<tr class="hover:bg-surface-container/60 transition-colors">
+										<td class="py-3 px-4">
+											<div class="font-bold text-on-surface">{v.visitor_name}</div>
+											<div class="text-[11px] font-semibold text-teal-700 dark:text-teal-400">{v.company || '-'}</div>
+										</td>
+										<td class="py-3 px-4">
+											<div class="font-mono text-[11px] text-on-surface">{v.phone || '-'}</div>
+											<div class="text-[10px] text-on-surface-variant max-w-[180px] truncate" title={v.address}>{v.address || '-'}</div>
+										</td>
+										<td class="py-3 px-4">
+											<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg font-mono text-xs font-bold bg-surface-container-high text-on-surface border border-slate-200 dark:border-slate-700">
+												<span class="material-symbols-outlined text-xs text-teal-600">badge</span>
+												#{v.badge_number || '-'}
+											</span>
+										</td>
+										<td class="py-3 px-4">
+											<div class="font-semibold text-on-surface">{v.host_name || '-'}</div>
+											<div class="text-[10px] text-on-surface-variant">
+												{v.host_department || 'UMUM'}
+												{#if v.host_nik}
+													<span class="font-mono">({v.host_nik})</span>
+												{/if}
+											</div>
+										</td>
+										<td class="py-3 px-4 max-w-xs">
+											<div class="font-medium text-on-surface line-clamp-2">{v.purpose || '-'}</div>
+										</td>
+										<td class="py-3 px-4 whitespace-nowrap">
+											<div class="flex items-center gap-1.5 text-[11px]">
+												<span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+												<span class="text-on-surface font-medium">
+													Masuk: <strong class="font-mono">{formatIndoDate(v.check_in_date)} • {v.check_in_clock || '00:00'} WIB</strong>
+												</span>
+											</div>
+											{#if v.status === 'CHECKED_OUT' && v.check_out_date}
+												<div class="flex items-center gap-1.5 text-[11px] mt-1 text-on-surface-variant">
+													<span class="w-2 h-2 rounded-full bg-slate-400"></span>
+													<span>
+														Keluar: <strong class="font-mono text-on-surface">{formatIndoDate(v.check_out_date)} • {v.check_out_clock || '00:00'} WIB</strong>
+													</span>
+												</div>
+											{:else}
+												<div class="mt-1">
+													<button
+														type="button"
+														onclick={() => openCheckoutModal(v)}
+														class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-200 hover:bg-amber-100 cursor-pointer"
+													>
+														<span class="w-1.5 h-1.5 rounded-full bg-amber-500 animate-ping"></span>
+														Sedang Di Kantor (Klik Catat Keluar)
+													</button>
+												</div>
+											{/if}
+										</td>
+										<td class="py-3 px-4 text-center whitespace-nowrap">
+											<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold {survey.cls}">
+												<span class="material-symbols-outlined text-sm">{survey.icon}</span>
+												<span>{survey.label}</span>
+											</span>
+										</td>
+										<td class="py-3 px-4 text-center whitespace-nowrap">
+											<div class="inline-flex items-center gap-1.5">
+												{#if v.status === 'CHECKED_IN'}
+													<button
+														type="button"
+														onclick={() => openCheckoutModal(v)}
+														class="px-2.5 py-1 rounded-lg bg-teal-600 hover:bg-teal-700 text-white text-[11px] font-bold transition-colors cursor-pointer flex items-center gap-1"
+													>
+														<span class="material-symbols-outlined text-xs">logout</span>
+														<span>Check-Out & Survei</span>
+													</button>
+												{:else}
+													<button
+														type="button"
+														onclick={() => openCheckoutModal(v)}
+														class="p-1.5 rounded-lg bg-surface-container-high hover:bg-surface-container-highest text-on-surface-variant hover:text-teal-600 transition-colors cursor-pointer"
+														title="Ubah Skor Survei"
+													>
+														<span class="material-symbols-outlined text-sm">rate_review</span>
+													</button>
+												{/if}
+
+												<form
+													method="POST"
+													action="?/deleteVisitor"
+													use:enhance={() => {
+														if (!confirm(`Hapus catatan kunjungan tamu ${v.visitor_name}?`)) return ({ cancel }: any) => cancel();
+													}}
+													class="inline"
+												>
+													<input type="hidden" name="id" value={v.id} />
+													<button
+														type="submit"
+														class="p-1.5 rounded-lg bg-surface-container-high hover:bg-rose-50 text-on-surface-variant hover:text-rose-600 transition-colors cursor-pointer"
+														title="Hapus"
+													>
+														<span class="material-symbols-outlined text-sm">delete</span>
+													</button>
+												</form>
+											</div>
+										</td>
+									</tr>
+								{/each}
+							{/if}
 						</tbody>
 					</table>
 				</div>
@@ -1223,15 +1373,24 @@
 
 <!-- ==================== MODAL: CHECK-IN BUKU TAMU ==================== -->
 {#if showCheckInModal}
-	<div class="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
-		<div class="bg-surface-container-lowest rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xl w-full max-w-xl overflow-hidden my-8 animate-in fade-in zoom-in-95 duration-200">
-			<div class="p-5 border-b border-slate-200/60 dark:border-slate-800/60 flex items-center justify-between">
-				<div class="flex items-center gap-2">
-					<span class="material-symbols-outlined text-teal-600">person_add</span>
-					<h3 class="font-bold text-base text-on-surface">Registrasi Buku Tamu Baru</h3>
+	<div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4 overflow-y-auto">
+		<div class="bg-surface-container-lowest rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xl w-full max-w-xl overflow-hidden my-8 animate-in fade-in zoom-in-95 duration-200">
+			<div class="px-6 py-4 border-b border-slate-200/60 dark:border-slate-800/60 flex items-center justify-between">
+				<div class="flex items-center gap-2.5">
+					<div class="w-9 h-9 rounded-xl bg-teal-50 dark:bg-teal-950/60 text-teal-600 flex items-center justify-center">
+						<span class="material-symbols-outlined text-xl">person_add</span>
+					</div>
+					<div>
+						<h3 class="text-sm font-black text-on-surface">Registrasi Check-In Tamu Baru</h3>
+						<p class="text-[11px] text-on-surface-variant">Catat identitas tamu dan kartu visitor yang diberikan</p>
+					</div>
 				</div>
-				<button onclick={() => (showCheckInModal = false)} class="text-on-surface-variant hover:text-on-surface">
-					<span class="material-symbols-outlined">close</span>
+				<button
+					type="button"
+					onclick={() => (showCheckInModal = false)}
+					class="p-1.5 rounded-lg text-on-surface-variant hover:bg-surface-container cursor-pointer"
+				>
+					<span class="material-symbols-outlined text-lg">close</span>
 				</button>
 			</div>
 
@@ -1241,64 +1400,132 @@
 				use:enhance={() => {
 					return async ({ result, update }) => {
 						await update();
-						if (result.type === 'success') showCheckInModal = false;
+						if (result.type === 'success') {
+							showCheckInModal = false;
+						}
 					};
 				}}
-				class="p-6 space-y-4 text-xs"
+				class="p-6 space-y-4"
 			>
-				<div class="grid grid-cols-2 gap-3">
+				<div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
 					<div>
-						<label for="v_name" class="block font-bold mb-1">Nama Lengkap Tamu *</label>
-						<input id="v_name" type="text" name="visitor_name" required placeholder="Contoh: Budi Santoso" class="w-full px-3.5 py-2.5 rounded-xl bg-surface-container-low border-0 outline-none focus:ring-2 focus:ring-teal-500/20" />
+						<label class="block text-[11px] font-bold text-on-surface-variant uppercase mb-1">Nama Lengkap Tamu *</label>
+						<input
+							type="text"
+							name="visitor_name"
+							required
+							placeholder="Contoh: Budi Santoso"
+							class="w-full px-3.5 py-2.5 rounded-xl bg-surface-container-low text-xs text-on-surface border-0 outline-none focus:ring-2 focus:ring-teal-500/40"
+						/>
 					</div>
 					<div>
-						<label for="v_comp" class="block font-bold mb-1">Perusahaan / Instansi</label>
-						<input id="v_comp" type="text" name="company" placeholder="Contoh: PT Krakatau Steel" class="w-full px-3.5 py-2.5 rounded-xl bg-surface-container-low border-0 outline-none focus:ring-2 focus:ring-teal-500/20" />
+						<label class="block text-[11px] font-bold text-on-surface-variant uppercase mb-1">Perusahaan / Instansi *</label>
+						<input
+							type="text"
+							name="company"
+							required
+							placeholder="Contoh: PT Krakatau Posco"
+							class="w-full px-3.5 py-2.5 rounded-xl bg-surface-container-low text-xs text-on-surface border-0 outline-none focus:ring-2 focus:ring-teal-500/40"
+						/>
 					</div>
 				</div>
 
-				<div class="grid grid-cols-2 gap-3">
+				<div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
 					<div>
-						<label for="v_phone" class="block font-bold mb-1">No. Kontak / HP</label>
-						<input id="v_phone" type="text" name="phone" placeholder="08xxxxxxxx" class="w-full px-3.5 py-2.5 rounded-xl bg-surface-container-low border-0 outline-none focus:ring-2 focus:ring-teal-500/20" />
+						<label class="block text-[11px] font-bold text-on-surface-variant uppercase mb-1">No. Telepon / HP</label>
+						<input
+							type="text"
+							name="phone"
+							placeholder="0812xxxx"
+							class="w-full px-3.5 py-2.5 rounded-xl bg-surface-container-low text-xs text-on-surface border-0 outline-none focus:ring-2 focus:ring-teal-500/40"
+						/>
 					</div>
 					<div>
-						<label for="v_badge" class="block font-bold mb-1">Nomor Kartu / Badge Tamu</label>
-						<input id="v_badge" type="text" name="badge_number" placeholder="VIS-01" class="w-full px-3.5 py-2.5 rounded-xl bg-surface-container-low border-0 outline-none focus:ring-2 focus:ring-teal-500/20 font-mono" />
+						<label class="block text-[11px] font-bold text-on-surface-variant uppercase mb-1">No. Kartu Tamu (Badge)</label>
+						<input
+							type="text"
+							name="badge_number"
+							placeholder="Contoh: 05"
+							class="w-full px-3.5 py-2.5 rounded-xl bg-surface-container-low text-xs text-on-surface border-0 outline-none focus:ring-2 focus:ring-teal-500/40 font-mono"
+						/>
+					</div>
+					<div>
+						<label class="block text-[11px] font-bold text-on-surface-variant uppercase mb-1">Kota / Alamat</label>
+						<input
+							type="text"
+							name="address"
+							placeholder="Cilegon / Jakarta"
+							class="w-full px-3.5 py-2.5 rounded-xl bg-surface-container-low text-xs text-on-surface border-0 outline-none focus:ring-2 focus:ring-teal-500/40"
+						/>
+					</div>
+				</div>
+
+				<div class="pt-2 border-t border-slate-200/60 dark:border-slate-800/60">
+					<label class="block text-[11px] font-bold text-on-surface-variant uppercase mb-1">Pilih Karyawan yang Ditemui (Opsional - Auto Fill)</label>
+					<select
+						value={selectedEmpNik}
+						onchange={(e) => handleEmployeeChange((e.currentTarget as HTMLSelectElement).value)}
+						class="w-full px-3.5 py-2.5 rounded-xl bg-surface-container-low text-xs text-on-surface border-0 outline-none focus:ring-2 focus:ring-teal-500/40 mb-3"
+					>
+						<option value="">-- Pilih dari Master Karyawan atau ketik manual di bawah --</option>
+						{#each employees as emp}
+							<option value={emp.nik}>{emp.name} ({emp.nik}) — {emp.department}</option>
+						{/each}
+					</select>
+
+					<input type="hidden" name="host_nik" value={selectedEmpNik} />
+
+					<div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+						<div>
+							<label class="block text-[11px] font-bold text-on-surface-variant uppercase mb-1">Nama Karyawan (Host) *</label>
+							<input
+								type="text"
+								name="host_name"
+								bind:value={hostNameInput}
+								required
+								placeholder="Nama pegawai yang ditemui"
+								class="w-full px-3.5 py-2.5 rounded-xl bg-surface-container-low text-xs text-on-surface border-0 outline-none focus:ring-2 focus:ring-teal-500/40"
+							/>
+						</div>
+						<div>
+							<label class="block text-[11px] font-bold text-on-surface-variant uppercase mb-1">Departemen Tujuan *</label>
+							<input
+								type="text"
+								name="host_department"
+								bind:value={hostDeptInput}
+								required
+								placeholder="Contoh: PROCUREMENT / HR & GA"
+								class="w-full px-3.5 py-2.5 rounded-xl bg-surface-container-low text-xs text-on-surface border-0 outline-none focus:ring-2 focus:ring-teal-500/40"
+							/>
+						</div>
 					</div>
 				</div>
 
 				<div>
-					<label for="v_purp" class="block font-bold mb-1">Keperluan Kunjungan *</label>
-					<input id="v_purp" type="text" name="purpose" required placeholder="Contoh: Diskusi Kontrak Transportasi" class="w-full px-3.5 py-2.5 rounded-xl bg-surface-container-low border-0 outline-none focus:ring-2 focus:ring-teal-500/20" />
+					<label class="block text-[11px] font-bold text-on-surface-variant uppercase mb-1">Keperluan Kunjungan *</label>
+					<textarea
+						name="purpose"
+						rows="2"
+						required
+						placeholder="Contoh: Meeting penawaran vendor / pengiriman dokumen invoice"
+						class="w-full px-3.5 py-2.5 rounded-xl bg-surface-container-low text-xs text-on-surface border-0 outline-none focus:ring-2 focus:ring-teal-500/40"
+					></textarea>
 				</div>
 
-				<div class="grid grid-cols-2 gap-3">
-					<div>
-						<label for="v_host_sel" class="block font-bold mb-1">Karyawan yang Ditemui (Host)</label>
-						<select
-							id="v_host_sel"
-							bind:value={selectedEmpNik}
-							onchange={(e) => handleEmployeeChange((e.target as HTMLSelectElement).value)}
-							class="w-full px-3.5 py-2.5 rounded-xl bg-surface-container-low border-0 outline-none focus:ring-2 focus:ring-teal-500/20"
-						>
-							<option value="">-- Pilih Karyawan --</option>
-							{#each employees as emp}
-								<option value={emp.nik}>{emp.name} ({emp.department})</option>
-							{/each}
-						</select>
-						<input type="hidden" name="host_nik" value={selectedEmpNik} />
-					</div>
-					<div>
-						<label for="v_host_name" class="block font-bold mb-1">Nama Host / Divisi</label>
-						<input id="v_host_name" type="text" name="host_name" bind:value={hostNameInput} placeholder="Nama Karyawan" class="w-full px-3.5 py-2.5 rounded-xl bg-surface-container-low border-0 outline-none focus:ring-2 focus:ring-teal-500/20 mb-1" />
-						<input type="hidden" name="host_department" bind:value={hostDeptInput} />
-					</div>
-				</div>
-
-				<div class="flex justify-end gap-2 pt-2">
-					<button type="button" onclick={() => (showCheckInModal = false)} class="px-4 py-2 rounded-xl bg-surface-container-low font-bold cursor-pointer">Batal</button>
-					<button type="submit" class="px-5 py-2 rounded-xl bg-teal-600 hover:bg-teal-700 text-white font-bold cursor-pointer">Check-In Tamu</button>
+				<div class="flex items-center justify-end gap-2 pt-3 border-t border-slate-200/60 dark:border-slate-800/60">
+					<button
+						type="button"
+						onclick={() => (showCheckInModal = false)}
+						class="px-4 py-2 rounded-xl bg-surface-container-high text-xs font-bold text-on-surface-variant hover:text-on-surface cursor-pointer"
+					>
+						Batal
+					</button>
+					<button
+						type="submit"
+						class="px-5 py-2 rounded-xl bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold shadow-xs cursor-pointer"
+					>
+						Simpan Check-In
+					</button>
 				</div>
 			</form>
 		</div>
@@ -1307,51 +1534,25 @@
 
 <!-- ==================== MODAL: CHECKOUT & SURVEI TAMU ==================== -->
 {#if selectedVisitorForCheckout}
-	<div class="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
-		<div class="bg-surface-container-lowest rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xl w-full max-w-md overflow-hidden p-6 space-y-4 text-xs">
-			<div class="flex items-center justify-between pb-2 border-b border-slate-200/60 dark:border-slate-800/60">
-				<h3 class="font-bold text-sm text-on-surface">Konfirmasi Check-Out & Survei</h3>
-				<button onclick={() => (selectedVisitorForCheckout = null)} class="text-on-surface-variant hover:text-on-surface">
-					<span class="material-symbols-outlined">close</span>
-				</button>
-			</div>
-
-			<div class="p-3 rounded-2xl bg-surface-container-low">
-				<p class="font-bold text-sm text-on-surface">{selectedVisitorForCheckout.visitor_name}</p>
-				<p class="text-on-surface-variant text-[11px]">{selectedVisitorForCheckout.company || '-'}</p>
-				<p class="text-teal-600 font-mono text-[11px] mt-1">Badge: {selectedVisitorForCheckout.badge_number || '-'}</p>
-			</div>
-
-			<div>
-				<label class="block font-bold mb-2 text-center text-on-surface">Bagaimana Kepuasan Layanan Meja Depan?</label>
-				<div class="grid grid-cols-3 gap-2">
-					<button
-						type="button"
-						onclick={() => (selectedSurveyRating = 3)}
-						class="p-3 rounded-2xl border text-center transition-all cursor-pointer {selectedSurveyRating === 3 ? 'bg-emerald-500 text-white border-emerald-600 shadow-sm' : 'bg-surface-container-low border-slate-200 text-on-surface'}"
-					>
-						<span class="material-symbols-outlined text-2xl">sentiment_very_satisfied</span>
-						<p class="font-bold text-[10px] mt-1">Puas (3)</p>
-					</button>
-
-					<button
-						type="button"
-						onclick={() => (selectedSurveyRating = 2)}
-						class="p-3 rounded-2xl border text-center transition-all cursor-pointer {selectedSurveyRating === 2 ? 'bg-amber-500 text-white border-amber-600 shadow-sm' : 'bg-surface-container-low border-slate-200 text-on-surface'}"
-					>
-						<span class="material-symbols-outlined text-2xl">sentiment_neutral</span>
-						<p class="font-bold text-[10px] mt-1">Cukup (2)</p>
-					</button>
-
-					<button
-						type="button"
-						onclick={() => (selectedSurveyRating = 1)}
-						class="p-3 rounded-2xl border text-center transition-all cursor-pointer {selectedSurveyRating === 1 ? 'bg-rose-500 text-white border-rose-600 shadow-sm' : 'bg-surface-container-low border-slate-200 text-on-surface'}"
-					>
-						<span class="material-symbols-outlined text-2xl">sentiment_dissatisfied</span>
-						<p class="font-bold text-[10px] mt-1">Kurang (1)</p>
-					</button>
+	<div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4 overflow-y-auto">
+		<div class="bg-surface-container-lowest rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xl w-full max-w-md overflow-hidden my-8 animate-in fade-in zoom-in-95 duration-200">
+			<div class="px-6 py-4 border-b border-slate-200/60 dark:border-slate-800/60 flex items-center justify-between">
+				<div class="flex items-center gap-2.5">
+					<div class="w-9 h-9 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 flex items-center justify-center">
+						<span class="material-symbols-outlined text-xl">sentiment_satisfied</span>
+					</div>
+					<div>
+						<h3 class="text-sm font-black text-on-surface">Check-Out & Survei Layanan Tamu</h3>
+						<p class="text-[11px] text-on-surface-variant">{selectedVisitorForCheckout.visitor_name} ({selectedVisitorForCheckout.company})</p>
+					</div>
 				</div>
+				<button
+					type="button"
+					onclick={() => (selectedVisitorForCheckout = null)}
+					class="p-1.5 rounded-lg text-on-surface-variant hover:bg-surface-container cursor-pointer"
+				>
+					<span class="material-symbols-outlined text-lg">close</span>
+				</button>
 			</div>
 
 			<form
@@ -1360,15 +1561,77 @@
 				use:enhance={() => {
 					return async ({ result, update }) => {
 						await update();
-						if (result.type === 'success') selectedVisitorForCheckout = null;
+						if (result.type === 'success') {
+							selectedVisitorForCheckout = null;
+						}
 					};
 				}}
-				class="pt-2 flex justify-end gap-2"
+				class="p-6 space-y-4"
 			>
 				<input type="hidden" name="id" value={selectedVisitorForCheckout.id} />
 				<input type="hidden" name="survey_rating" value={selectedSurveyRating} />
-				<button type="button" onclick={() => (selectedVisitorForCheckout = null)} class="px-4 py-2 rounded-xl bg-surface-container-low font-bold cursor-pointer">Batal</button>
-				<button type="submit" class="px-5 py-2 rounded-xl bg-teal-600 hover:bg-teal-700 text-white font-bold cursor-pointer">Simpan & Check-Out</button>
+
+				<div class="text-xs text-on-surface-variant bg-surface-container-low p-3.5 rounded-xl space-y-1">
+					<div><strong class="text-on-surface">Karyawan Ditemui:</strong> {selectedVisitorForCheckout.host_name} ({selectedVisitorForCheckout.host_department})</div>
+					<div><strong class="text-on-surface">Keperluan:</strong> {selectedVisitorForCheckout.purpose}</div>
+					<div><strong class="text-on-surface">Kartu Tamu:</strong> #{selectedVisitorForCheckout.badge_number}</div>
+				</div>
+
+				<div>
+					<label class="block text-[11px] font-bold text-on-surface-variant uppercase mb-2 text-center">
+						Penilaian Kepuasan Layanan Resepsionis (Survei Tamu)
+					</label>
+					<div class="grid grid-cols-3 gap-3">
+						<button
+							type="button"
+							onclick={() => (selectedSurveyRating = 3)}
+							class="p-3 rounded-xl border text-center transition-all cursor-pointer flex flex-col items-center gap-1 {selectedSurveyRating === 3
+								? 'bg-emerald-50 border-emerald-500 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 font-black ring-2 ring-emerald-500/30'
+								: 'bg-surface-container-low border-slate-200 dark:border-slate-800 text-on-surface-variant'}"
+						>
+							<span class="material-symbols-outlined text-2xl">sentiment_very_satisfied</span>
+							<span class="text-xs">Puas (3)</span>
+						</button>
+
+						<button
+							type="button"
+							onclick={() => (selectedSurveyRating = 2)}
+							class="p-3 rounded-xl border text-center transition-all cursor-pointer flex flex-col items-center gap-1 {selectedSurveyRating === 2
+								? 'bg-amber-50 border-amber-500 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300 font-black ring-2 ring-amber-500/30'
+								: 'bg-surface-container-low border-slate-200 dark:border-slate-800 text-on-surface-variant'}"
+						>
+							<span class="material-symbols-outlined text-2xl">sentiment_neutral</span>
+							<span class="text-xs">Cukup (2)</span>
+						</button>
+
+						<button
+							type="button"
+							onclick={() => (selectedSurveyRating = 1)}
+							class="p-3 rounded-xl border text-center transition-all cursor-pointer flex flex-col items-center gap-1 {selectedSurveyRating === 1
+								? 'bg-rose-50 border-rose-500 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300 font-black ring-2 ring-rose-500/30'
+								: 'bg-surface-container-low border-slate-200 dark:border-slate-800 text-on-surface-variant'}"
+						>
+							<span class="material-symbols-outlined text-2xl">sentiment_dissatisfied</span>
+							<span class="text-xs">Kurang (1)</span>
+						</button>
+					</div>
+				</div>
+
+				<div class="flex items-center justify-end gap-2 pt-3 border-t border-slate-200/60 dark:border-slate-800/60">
+					<button
+						type="button"
+						onclick={() => (selectedVisitorForCheckout = null)}
+						class="px-4 py-2 rounded-xl bg-surface-container-high text-xs font-bold text-on-surface-variant cursor-pointer"
+					>
+						Batal
+					</button>
+					<button
+						type="submit"
+						class="px-5 py-2 rounded-xl bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold shadow-xs cursor-pointer"
+					>
+						Simpan & Selesai
+					</button>
+				</div>
 			</form>
 		</div>
 	</div>

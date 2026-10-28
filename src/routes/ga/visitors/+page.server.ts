@@ -99,7 +99,7 @@ export const load: PageServerLoad = async () => {
 					k.payroll_id as nik,
 					k.nama_karyawan as name,
 					COALESCE(d.dept_name, 'GENERAL AFFAIRS') as department,
-					k.telp_hp as phone
+					COALESCE(k.telp1, k.telp2) as phone
 				FROM master.m_karyawan k
 				LEFT JOIN master.m_dept d ON d.dept_code = k.dept_id
 				WHERE k.aktif = 'Y' AND k.nama_karyawan IS NOT NULL
