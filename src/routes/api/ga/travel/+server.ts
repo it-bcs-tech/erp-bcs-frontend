@@ -292,7 +292,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
 		const requestType = (payload.type || 'carpool').toLowerCase();
 		const requester_name = (user?.name || payload.requester_name || 'Karyawan BCS').trim();
-		const department = (user?.division || user?.department || payload.department || 'Umum').trim();
+		const department = (user?.department || user?.division || payload.department || 'Umum').trim();
 		const requester_nik = user?.payrollId || payload.requester_nik || null;
 		const created_by = user?.name || user?.email || requester_name;
 

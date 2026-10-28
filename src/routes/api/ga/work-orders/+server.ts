@@ -157,7 +157,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		let description = '';
 		let urgency = 'MEDIUM';
 		let requester_name = (user?.name || 'Karyawan BCS').trim();
-		let department = (user?.division || 'Umum').trim();
+		let department = (user?.department || user?.division || 'Umum').trim();
 		let requester_nik = user?.payrollId || null;
 		let photo_condition: string | null = null;
 

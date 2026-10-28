@@ -362,8 +362,11 @@
 							<div class="flex items-center gap-3 px-3 py-2 rounded-lg">
 								<span class="material-symbols-outlined text-on-surface-variant text-[18px]">business</span>
 								<div>
-									<p class="text-[10px] text-on-surface-variant uppercase tracking-wider font-bold">Divisi</p>
-									<p class="text-xs font-semibold text-on-surface">{user.division}</p>
+									<p class="text-[10px] text-on-surface-variant uppercase tracking-wider font-bold">Departemen</p>
+									<p class="text-xs font-semibold text-on-surface">{user.department || user.division}</p>
+									{#if user.department && user.division && user.department !== user.division}
+										<p class="text-[10px] text-on-surface-variant font-medium">{user.division}</p>
+									{/if}
 								</div>
 							</div>
 							<div class="flex items-center gap-3 px-3 py-2 rounded-lg">

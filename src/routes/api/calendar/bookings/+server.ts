@@ -13,7 +13,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		const description = (body.description || '').trim();
 		const attendeesCount = parseInt(body.attendeesCount || '1', 10);
 		const user = (locals as any)?.user;
-		const department = (body.department || user?.division || user?.department || 'Umum').trim();
+		const department = (body.department || user?.department || user?.division || 'Umum').trim();
 		const phone = (body.phone || '').trim();
 		const requesterName = (body.requesterName || user?.name || 'Karyawan BCS').trim();
 		const requesterId = user?.payrollId || (locals as any)?.user?.payroll_id || (locals as any)?.user?.email || 'EMP-GUEST';

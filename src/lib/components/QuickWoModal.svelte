@@ -132,7 +132,7 @@
 			formData.append('description', description.trim());
 			formData.append('urgency', urgency);
 			if (user?.name) formData.append('requester_name', user.name);
-			if (user?.division || user?.department) formData.append('department', user.division || user.department);
+			if (user?.department || user?.division) formData.append('department', user.department || user.division);
 			if (user?.payrollId) formData.append('requester_nik', user.payrollId);
 			if (photoFile) formData.append('photo', photoFile);
 
@@ -475,9 +475,9 @@
 							</div>
 						</div>
 						<div class="text-right">
-							<div class="text-[9px] uppercase font-bold text-on-surface-variant">Divisi</div>
+							<div class="text-[9px] uppercase font-bold text-on-surface-variant">Departemen</div>
 							<div class="font-mono text-on-surface text-[11px] font-semibold">
-								{user?.division || user?.department || 'Umum'}
+								{user?.department || user?.division || 'Umum'}
 							</div>
 						</div>
 					</div>

@@ -115,7 +115,7 @@
 				</div>
 				<div class="space-y-5">
 					<div>
-						<label class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-1">Departemen / Divisi</label>
+						<label class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-1">Departemen</label>
 						<input type="text" bind:value={formState.department} class="w-full bg-surface-container rounded-xl px-4 py-2.5 text-sm font-medium border-none focus:ring-2 focus:ring-primary outline-none" placeholder="Misal: Workshop, Finance, dll" />
 					</div>
 					<div>

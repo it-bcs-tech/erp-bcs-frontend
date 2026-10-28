@@ -45,7 +45,7 @@
 	let isSubmitting = $state(false);
 
 	let userName = $derived(user?.name || 'Karyawan BCS');
-	let userDivision = $derived(user?.division || user?.department || 'Umum');
+	let userDepartment = $derived(user?.department || user?.division || 'Umum');
 
 	const monthNamesId = [
 		'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
@@ -227,7 +227,7 @@
 					endTime: formEndTime,
 					attendeesCount: formAttendees,
 					phone: formPhone,
-					department: userDivision,
+					department: userDepartment,
 					description: formDescription,
 					requesterName: userName
 				})
@@ -452,7 +452,7 @@
 			{:else}
 				<!-- VIEW 2: QUICK BOOKING FORM -->
 				<form onsubmit={submitBooking} class="space-y-3 text-xs">
-					<!-- Info Peminjam & Divisi (Auto-filled dari login, persis seperti form WO) -->
+					<!-- Info Peminjam & Departemen (Auto-filled dari login, persis seperti form WO) -->
 					<div class="p-2.5 rounded-2xl bg-surface-container-low border border-slate-200/50 dark:border-slate-800/50 flex items-center justify-between text-xs">
 						<div class="flex items-center gap-2">
 							<div class="w-6 h-6 rounded-lg bg-amber-500/15 text-amber-600 flex items-center justify-center font-bold text-xs">
@@ -464,9 +464,9 @@
 							</div>
 						</div>
 						<div class="text-right">
-							<div class="text-[9px] uppercase font-bold text-on-surface-variant">Divisi</div>
+							<div class="text-[9px] uppercase font-bold text-on-surface-variant">Departemen</div>
 							<div class="font-mono text-on-surface text-[11px] font-semibold">
-								{userDivision}
+								{userDepartment}
 							</div>
 						</div>
 					</div>

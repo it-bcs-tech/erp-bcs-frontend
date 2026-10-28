@@ -77,7 +77,7 @@
 
 	// User derived info
 	const userName = $derived(user?.name || 'Karyawan BCS');
-	const userDivision = $derived(user?.division || user?.department || 'Umum');
+	const userDepartment = $derived(user?.department || user?.division || 'Umum');
 	const userNik = $derived(user?.payrollId || '-');
 
 	// Fetch data saat popover dibuka
@@ -204,7 +204,7 @@
 					passengers: cpPassengers.trim(),
 					description: cpDescription.trim(),
 					requester_name: userName,
-					department: userDivision,
+					department: userDepartment,
 					requester_nik: userNik !== '-' ? userNik : null
 				};
 			} else {
@@ -218,7 +218,7 @@
 					participants: spdParticipants.trim(),
 					description: spdDescription.trim(),
 					requester_name: userName,
-					department: userDivision,
+					department: userDepartment,
 					requester_nik: userNik !== '-' ? userNik : null
 				};
 			}
@@ -520,7 +520,7 @@
 									{userName}
 								</div>
 								<div class="text-[10px] text-on-surface-variant">
-									NIK: <span class="font-mono">{userNik}</span> • Divisi: <span class="font-semibold text-cyan-700 dark:text-cyan-300">{userDivision}</span>
+									NIK: <span class="font-mono">{userNik}</span> • Departemen: <span class="font-semibold text-cyan-700 dark:text-cyan-300">{userDepartment}</span>
 								</div>
 							</div>
 						</div>

@@ -49,7 +49,7 @@
 	let newBookingEndTime = $state('10:00');
 	let newBookingAttendees = $state(4);
 	let newBookingPhone = $state('');
-	let newBookingDepartment = $state(data.user?.division || data.user?.department || 'Umum');
+	let newBookingDepartment = $state(data.user?.department || data.user?.division || 'Umum');
 	let newBookingDescription = $state('');
 
 	// Month names in Indonesian
@@ -652,7 +652,7 @@
 				}}
 				class="p-5 overflow-y-auto space-y-4 text-xs"
 			>
-				<!-- Info Peminjam & Divisi (Auto-filled dari login, persis seperti form WO) -->
+				<!-- Info Peminjam & Departemen (Auto-filled dari login, persis seperti form WO) -->
 				<div class="p-3.5 rounded-2xl bg-surface-container-low border border-slate-200/50 dark:border-slate-800/50 flex flex-wrap items-center justify-between gap-2 text-xs">
 					<div class="flex items-center gap-2">
 						<div class="w-7 h-7 rounded-lg bg-amber-500/15 text-amber-600 flex items-center justify-center font-bold text-xs">
@@ -664,9 +664,9 @@
 						</div>
 					</div>
 					<div class="text-right">
-						<div class="text-[10px] uppercase font-bold text-on-surface-variant">Divisi</div>
+						<div class="text-[10px] uppercase font-bold text-on-surface-variant">Departemen</div>
 						<div class="font-mono text-on-surface text-[11px] font-semibold">
-							{data.user?.division || data.user?.department || 'Umum'}
+							{data.user?.department || data.user?.division || 'Umum'}
 						</div>
 					</div>
 				</div>
@@ -674,7 +674,7 @@
 				<input
 					type="hidden"
 					name="department"
-					value={data.user?.division || data.user?.department || newBookingDepartment || 'Umum'}
+					value={data.user?.department || data.user?.division || newBookingDepartment || 'Umum'}
 				/>
 
 				<!-- Pilih Ruangan -->
