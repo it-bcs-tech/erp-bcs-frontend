@@ -58,6 +58,7 @@
   --font-headline: Manrope, sans-serif;
   --font-body: Inter, sans-serif;
   --font-label: Inter, sans-serif;
+  --font-sans: Inter, sans-serif;
 }
 
 /* Base styling imported from Stitch */
@@ -72,7 +73,7 @@
   body {
     font-family: var(--font-body);
   }
-  h1, h2, h3 {
+  h1, h2, h3, h4 {
     font-family: var(--font-headline);
   }
 

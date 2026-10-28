@@ -478,7 +478,7 @@
 
 				const marker = L.marker([unit.lat, unit.lng], { icon }).addTo(map);
 				marker.bindPopup(`
-					<div style="font-family:system-ui;min-width:200px;padding:6px;">
+					<div style="font-family:Inter,sans-serif;min-width:200px;padding:6px;">
 						<div style="font-weight:800;font-size:13px;color:#1e293b;">${unit.id}</div>
 						<div style="font-size:10px;color:#64748b;margin-bottom:6px;">${unit.driver}</div>
 						${unit.origin !== '-' ? `<div style="font-size:11px;color:#64748b;"><b>${unit.origin}</b> → <b>${unit.destination}</b></div>` : '<div style="font-size:11px;color:#64748b;">Standby at Pool</div>'}
@@ -563,7 +563,7 @@
 					const originM = L.circleMarker([selectedUnit.originLat, selectedUnit.originLng], {
 						radius: 7, fillColor: '#fff', color: getStatusColor(selectedUnit.status), weight: 3, fillOpacity: 1
 					}).addTo(map);
-					originM.bindPopup("<div style='font-family:system-ui;font-size:11px;font-weight:700;'>📍 Titik Berangkat (Origin)</div>");
+					originM.bindPopup("<div style='font-family:Inter,sans-serif;font-size:11px;font-weight:700;'>📍 Titik Berangkat (Origin)</div>");
 					mapLayers.push(originM);
 
 					// Draw Origin Geofence
@@ -594,7 +594,7 @@
 					const destM = L.circleMarker([selectedUnit.destLat, selectedUnit.destLng], {
 						radius: 7, fillColor: '#fff', color: '#ef4444', weight: 3, fillOpacity: 1
 					}).addTo(map);
-					destM.bindPopup("<div style='font-family:system-ui;font-size:11px;font-weight:700;'>🎯 Titik Tujuan (Destination)</div>");
+					destM.bindPopup("<div style='font-family:Inter,sans-serif;font-size:11px;font-weight:700;'>🎯 Titik Tujuan (Destination)</div>");
 					mapLayers.push(destM);
 
 					// Draw Destination Geofence
@@ -901,7 +901,7 @@
 						{@const xt = 85 + 45 * Math.cos(angle)}
 						{@const yt = 85 + 45 * Math.sin(angle)}
 						<text x={xt} y={yt} text-anchor="middle" dominant-baseline="middle"
-							fill="#475569" font-size="7" font-family="system-ui" font-weight="700">{tick}</text>
+							fill="#475569" font-size="7" font-family="Inter, sans-serif" font-weight="700">{tick}</text>
 					{/each}
 					<!-- Needle -->
 					<g transform={needleAngle(displaySpeed)}>
@@ -909,8 +909,8 @@
 						<circle cx="85" cy="90" r="4" fill="#1e293b" stroke={speedArcColor(displaySpeed)} stroke-width="2" style="transition:stroke 0.4s"/>
 					</g>
 					<!-- Center speed text -->
-					<text x="85" y="100" text-anchor="middle" fill={speedArcColor(displaySpeed)} font-size="20" font-weight="900" font-family="system-ui" style="transition:fill 0.4s">{displaySpeed}</text>
-					<text x="85" y="113" text-anchor="middle" fill="#475569" font-size="8" font-family="system-ui">km/h</text>
+					<text x="85" y="100" text-anchor="middle" fill={speedArcColor(displaySpeed)} font-size="20" font-weight="900" font-family="Inter, sans-serif" style="transition:fill 0.4s">{displaySpeed}</text>
+					<text x="85" y="113" text-anchor="middle" fill="#475569" font-size="8" font-family="Inter, sans-serif">km/h</text>
 				</svg>
 			</div>
 		</div>

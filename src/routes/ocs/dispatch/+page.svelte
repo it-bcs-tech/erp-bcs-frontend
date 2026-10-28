@@ -293,11 +293,12 @@
 			<html>
 			<head>
 				<title>Batch Surat Tugas</title>
-				<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+				<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 				<script src="https://cdn.tailwindcss.com"><\/script>
 				<style>
 					@page { size: A4 portrait; margin: 0; }
-					body { font-family: 'Plus Jakarta Sans', sans-serif; background: white; color: black; padding: 10mm 15mm; margin: 0; box-sizing: border-box; }
+					body { font-family: 'Inter', sans-serif; background: white; color: black; padding: 10mm 15mm; margin: 0; box-sizing: border-box; }
+					h1, h2, h3, h4 { font-family: 'Manrope', sans-serif; }
 					.page-break { page-break-after: always; }
 					.break-inside-avoid { break-inside: avoid !important; page-break-inside: avoid !important; }
 				</style>
