@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { page } from '$app/stores';
 	import { authUser, hasMenuAccess } from '$lib/stores/auth';
+	import MarisChat from '$lib/components/MarisChat.svelte';
 
 	let { children } = $props();
 
@@ -240,4 +241,7 @@
 			{@render children?.()}
 		</div>
 	</main>
+
+	<!-- MARIS AI Assistant Floating Widget -->
+	<MarisChat />
 </div>
