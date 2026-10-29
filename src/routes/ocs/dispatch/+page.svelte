@@ -182,9 +182,10 @@
 	let showNgepokModal = $state(false);
 	let ngepokCustomerId = $state('');
 	let ngepokContractId = $state('');
-	let ngepokUnitAssignment = $state('');
+	let ngepokUnitIds = $state<string[]>([]);
 	let ngepokOriginId = $state('');
 	let ngepokDestId = $state('');
+	let ngepokRuteUjoId = $state('');
 	let ngepokCargo = $state('');
 	let ngepokDate = $state(new Date().toISOString().split('T')[0]);
 	let ngepokPlanRit = $state(1);
@@ -200,9 +201,10 @@
 	function openNgepokModal() {
 		ngepokCustomerId = '';
 		ngepokContractId = '';
-		ngepokUnitAssignment = '';
+		ngepokUnitIds = [];
 		ngepokOriginId = '';
 		ngepokDestId = '';
+		ngepokRuteUjoId = '';
 		ngepokCargo = 'Muatan Shuttle / Ngepok';
 		ngepokDate = new Date().toISOString().split('T')[0];
 		ngepokPlanRit = 1;
@@ -318,34 +320,119 @@
 
 	// Mode 3: Dedicated On-Site State
 	let showDedicatedModal = $state(false);
-	let dedSpkInduk = $state('');
 	let dedShift = $state('Shift 1 (08:00 - 16:00)');
 	let dedCustomerId = $state('');
-	let dedUnitAssignment = $state('');
+	let dedUnitIds = $state<string[]>([]);
 	let dedOriginId = $state('');
 	let dedDestId = $state('');
-	let dedCargo = $state('');
+	let dedCargo = $state('Muatan On-Site Pelabuhan / Stevedoring');
 	let dedDate = $state(new Date().toISOString().split('T')[0]);
+	let dedUangHarian = $state(100000);
 	let expandedDedicated: Record<number, boolean> = $state({});
+
+	// Closing Shift Dedicated State
+	let showCloseDedicatedModal = $state(false);
+	let closeDedicatedItem = $state<any>(null);
+	let closeNoSuratTugas = $state('');
+	let closeUangHarian = $state(100000);
+	let closeInsentifPerRit = $state(25000);
+	let closeCatatan = $state('');
+
+	// Print Dedicated State
+	let showPrintDedicatedModal = $state(false);
+	let printDedicatedItem = $state<any>(null);
 
 	function toggleDedicated(tripId: number) {
 		expandedDedicated[tripId] = !expandedDedicated[tripId];
 	}
 
 	function openDedicatedModal() {
-		dedSpkInduk = 'SPK-DED-' + Date.now().toString().slice(-6);
 		dedShift = 'Shift 1 (08:00 - 16:00)';
 		dedCustomerId = '';
-		dedUnitAssignment = '';
+		dedUnitIds = [];
 		dedOriginId = '';
 		dedDestId = '';
 		dedCargo = 'Muatan On-Site Pelabuhan / Stevedoring';
 		dedDate = new Date().toISOString().split('T')[0];
+		dedUangHarian = 100000;
 		showDedicatedModal = true;
 	}
 
 	function closeDedicatedModal() {
 		showDedicatedModal = false;
+	}
+
+	function openCloseDedicatedModal(item: any) {
+		closeDedicatedItem = item;
+		const dateSuffix = new Date().toISOString().slice(2, 10).replace(/-/g, '');
+		const rand = Math.floor(100 + Math.random() * 900);
+		closeNoSuratTugas = `ST-DED-${dateSuffix}-${rand}`;
+		closeUangHarian = Number(item.uang_harian) > 0 ? Number(item.uang_harian) : 100000;
+		closeInsentifPerRit = Number(item.insentif_per_rit) > 0 ? Number(item.insentif_per_rit) : 25000;
+		closeCatatan = '';
+		showCloseDedicatedModal = true;
+	}
+
+	function closeCloseDedicatedModal() {
+		showCloseDedicatedModal = false;
+		closeDedicatedItem = null;
+	}
+
+	function openPrintDedicatedModal(item: any) {
+		printDedicatedItem = item;
+		showPrintDedicatedModal = true;
+	}
+
+	function closePrintDedicatedModal() {
+		showPrintDedicatedModal = false;
+		printDedicatedItem = null;
+	}
+
+	function executeDedicatedPrint() {
+		const printContent = document.getElementById('dedicated-print-area');
+		if (!printContent) return;
+
+		let printIframe = document.getElementById('print-iframe') as HTMLIFrameElement;
+		if (!printIframe) {
+			printIframe = document.createElement('iframe');
+			printIframe.id = 'print-iframe';
+			printIframe.style.position = 'fixed';
+			printIframe.style.right = '0';
+			printIframe.style.bottom = '0';
+			printIframe.style.width = '0';
+			printIframe.style.height = '0';
+			printIframe.style.border = '0';
+			document.body.appendChild(printIframe);
+		}
+
+		const doc = printIframe.contentWindow?.document;
+		if (!doc) return;
+
+		doc.open();
+		doc.write(`
+			<!DOCTYPE html>
+			<html>
+			<head>
+				<title>Cetak Surat Tugas Dedicated</title>
+				<script src="https://cdn.tailwindcss.com"><\/script>
+				<style>
+					@page { size: A4 portrait; margin: 12mm; }
+					body { font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; background: white; color: black; margin: 0; padding: 0; }
+					.page-break { page-break-after: always; }
+					.break-inside-avoid { break-inside: avoid !important; page-break-inside: avoid !important; }
+				</style>
+			</head>
+			<body>
+				${printContent.innerHTML}
+			</body>
+			</html>
+		`);
+		doc.close();
+
+		setTimeout(() => {
+			printIframe.contentWindow?.focus();
+			printIframe.contentWindow?.print();
+		}, 500);
 	}
 
 	// Add Logsheet State
@@ -599,8 +686,8 @@
 				</button>
 			{:else if activeMode === 'dedicated'}
 				<button onclick={openDedicatedModal} class="bg-amber-600 text-white px-4 py-2.5 rounded-xl text-sm font-bold shadow-xs flex items-center gap-2 hover:bg-amber-700 transition-colors cursor-pointer">
-					<span class="material-symbols-outlined text-lg">add_circle</span>
-					<span>Penugasan Dedicated Baru</span>
+					<span class="material-symbols-outlined text-lg">login</span>
+					<span>Buka Shift Dedicated On-Site</span>
 				</button>
 			{:else}
 				<button class="bg-blue-600 text-white px-4 py-2.5 rounded-xl text-sm font-bold shadow-xs flex items-center gap-2 hover:bg-blue-700 transition-colors">
@@ -1639,29 +1726,34 @@
 								</button>
 								<div>
 									<div class="flex items-center gap-2">
-										<span class="font-mono text-sm font-black text-amber-600 dark:text-amber-400 tracking-tight">{item.spk_induk_nomor || item.no_surat_tugas}</span>
-										<span class="px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wider bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300">
-											Dedicated On-Site
-										</span>
-										<span class="px-2 py-0.5 rounded-md text-[10px] font-bold bg-surface-container text-on-surface-variant">
-											{item.periode_shift || 'Shift Harian'}
-										</span>
 										{#if item.status === 'COMPLETED'}
-											<span class="px-2 py-0.5 rounded-md text-[10px] font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-300">
+											<span class="font-mono text-sm font-black text-emerald-600 dark:text-emerald-400 tracking-tight">{item.no_surat_tugas}</span>
+											<span class="px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wider bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300">
 												Selesai / Closed
 											</span>
 										{:else}
-											<span class="px-2 py-0.5 rounded-md text-[10px] font-bold bg-blue-100 text-blue-800 dark:bg-blue-950/50 dark:text-blue-300">
+											<span class="font-mono text-sm font-black text-amber-600 dark:text-amber-400 tracking-tight">Sesi: {item.spk_induk_nomor}</span>
+											<span class="px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wider bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300">
 												Aktif On-Site
 											</span>
+											<span class="px-2 py-0.5 rounded-md text-[10px] font-semibold bg-amber-500/10 text-amber-700 dark:text-amber-300">
+												Surat Tugas Diterbitkan Di Akhir Shift
+											</span>
 										{/if}
+										<span class="px-2 py-0.5 rounded-md text-[10px] font-bold bg-surface-container text-on-surface-variant">
+											{item.periode_shift || 'Shift Harian'}
+										</span>
 									</div>
-									<div class="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-on-surface-variant mt-1 font-medium">
+									<div class="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-on-surface-variant mt-1.5 font-medium">
 										<span class="font-bold text-on-surface">Unit: {item.nomor_unit || '-'}</span>
 										<span>Supir: <strong class="text-on-surface">{item.driver_nama || '-'}</strong></span>
 										<span>Customer: <strong class="text-on-surface">{item.customer || '-'}</strong></span>
 										<span>Area: <strong class="text-on-surface">{item.origin || 'Gudang'} ↔ {item.destination || 'Dermaga'}</strong></span>
 										<span>Muatan: <strong class="text-on-surface">{item.cargo || '-'}</strong></span>
+										<span class="text-amber-600 font-bold">Uang Harian: {formatCurrency(item.uang_harian || 100000)}</span>
+										{#if item.status === 'COMPLETED'}
+											<span class="text-emerald-600 font-black">Total UJO: {formatCurrency(item.total_ujo || 0)}</span>
+										{/if}
 									</div>
 								</div>
 							</div>
@@ -1684,17 +1776,24 @@
 										<span>+ Input Logsheet</span>
 									</button>
 
-									<form method="POST" action="?/closeDedicatedDispatch" use:enhance>
-										<input type="hidden" name="tripId" value={item.trip_id}>
-										<button 
-											type="submit" 
-											onclick={(e) => { if (!confirm('Yakin ingin menutup penugasan dedicated ini? Unit akan kembali ke status AT_POOL.')) e.preventDefault(); }}
-											class="px-3.5 py-2 bg-surface-container hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-950/50 text-xs font-bold rounded-xl transition-colors flex items-center gap-1.5 border border-surface-container cursor-pointer"
-										>
-											<span class="material-symbols-outlined text-[16px]">task_alt</span>
-											<span>Selesai Shift</span>
-										</button>
-									</form>
+									<button 
+										type="button" 
+										onclick={() => openCloseDedicatedModal(item)}
+										class="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl transition-colors flex items-center gap-1.5 shadow-xs cursor-pointer"
+									>
+										<span class="material-symbols-outlined text-[16px]">task_alt</span>
+										<span>Tutup Shift & Terbitkan Surat Tugas</span>
+									</button>
+								{:else}
+									<button 
+										type="button" 
+										onclick={() => openPrintDedicatedModal(item)}
+										class="px-3.5 py-2 bg-surface-container hover:bg-blue-50 hover:text-blue-600 dark:hover:bg-blue-950/50 text-xs font-bold rounded-xl transition-colors flex items-center gap-1.5 border border-surface-container cursor-pointer"
+										title="Cetak Surat Tugas & Rekapitulasi Logsheet"
+									>
+										<span class="material-symbols-outlined text-[16px]">print</span>
+										<span>Cetak Surat Tugas & Rekap</span>
+									</button>
 								{/if}
 							</div>
 						</div>
@@ -2124,6 +2223,28 @@
 							<input type="hidden" name="customerId" value={ngepokCustomerId}>
 						</div>
 
+						<!-- Pilih Rute OCS (Full PP) -->
+						<div>
+							<label class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-2">Pilih Rute OCS (Full PP - Opsional)</label>
+							<SearchableSelect 
+								options={ruteOpts} 
+								bind:value={ngepokRuteUjoId} 
+								placeholder="-- Cari & Pilih Rute OCS --" 
+								onchange={(val) => {
+									ngepokRuteUjoId = String(val || '');
+									const r = masterRutes.find((mr: any) => String(mr.id) === String(val));
+									if (r) {
+										if (r.origin_id) ngepokOriginId = String(r.origin_id);
+										if (r.destination_id) ngepokDestId = String(r.destination_id);
+										if (r.uang_makan) ngepokUjoMakan = Number(r.uang_makan);
+										if (r.biaya_tol) ngepokUjoTol = Number(r.biaya_tol);
+										if (r.total_ujo) ngepokUjoPerRit = Math.max(0, Number(r.total_ujo) - Number(r.uang_makan || 0) - Number(r.biaya_tol || 0));
+									}
+								}}
+							/>
+							<input type="hidden" name="ruteUjoId" value={ngepokRuteUjoId}>
+						</div>
+
 						<div class="grid grid-cols-2 gap-4">
 							<div>
 								<label class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-2">Origin / Lokasi Muat <span class="text-error">*</span></label>
@@ -2146,20 +2267,15 @@
 						</div>
 					{/if}
 
-					<!-- Armada & Sopir -->
+					<!-- Armada & Sopir (Multi Pilihan) -->
 					<div>
 						<label class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-2">Pilih Armada & Sopir <span class="text-error">*</span></label>
-						<SearchableSelect 
+						<MultiSearchableSelect 
 							options={unitOpts} 
-							bind:value={ngepokUnitAssignment} 
-							placeholder="-- Pilih Unit Armada --" 
-							required={true}
+							bind:value={ngepokUnitIds} 
+							placeholder="-- Ketik untuk Mencari & Pilih Armada (Bisa lebih dari 1) --"
 						/>
-						{#if ngepokUnitAssignment}
-							{@const parts = ngepokUnitAssignment.split('|')}
-							<input type="hidden" name="unitId" value={parts[0]}>
-							<input type="hidden" name="driverId" value={parts[1] || ''}>
-						{/if}
+						<input type="hidden" name="unitIds" value={JSON.stringify(ngepokUnitIds)}>
 					</div>
 
 					<!-- Muatan & Tanggal -->
@@ -2258,13 +2374,13 @@
 					<button type="button" onclick={closeNgepokModal} class="px-5 py-2.5 rounded-xl text-sm font-bold text-on-surface-variant hover:bg-surface-container transition-colors cursor-pointer">
 						Batal
 					</button>
-					<button type="submit" disabled={isSubmitting || !ngepokUnitAssignment || (!ngepokContractId && !ngepokCustomerId)} class="px-5 py-2.5 bg-indigo-600 text-white rounded-xl text-sm font-bold shadow-sm hover:bg-indigo-700 transition-colors flex items-center gap-2 disabled:opacity-50 cursor-pointer">
+					<button type="submit" disabled={isSubmitting || ngepokUnitIds.length === 0 || (!ngepokContractId && !ngepokCustomerId)} class="px-5 py-2.5 bg-indigo-600 text-white rounded-xl text-sm font-bold shadow-sm hover:bg-indigo-700 transition-colors flex items-center gap-2 disabled:opacity-50 cursor-pointer">
 						{#if isSubmitting}
 							<span class="material-symbols-outlined text-[18px] animate-spin">sync</span>
 							<span>Membuat Batch...</span>
 						{:else}
 							<span class="material-symbols-outlined text-[18px]">task_alt</span>
-							<span>Terbitkan Batch ({ngepokPlanRit} Rit)</span>
+							<span>Terbitkan Batch ({ngepokUnitIds.length} Armada • @{ngepokPlanRit} Rit)</span>
 						{/if}
 					</button>
 				</div>
@@ -2580,7 +2696,7 @@
 	</div>
 {/if}
 
-<!-- Modal Penugasan Dedicated On-Site -->
+<!-- Modal Penugasan Dedicated On-Site (Buka Shift) -->
 {#if showDedicatedModal}
 	<div class="fixed inset-0 z-50 flex items-center justify-center p-4">
 		<div class="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onclick={closeDedicatedModal}></div>
@@ -2592,8 +2708,8 @@
 							<span class="material-symbols-outlined text-2xl">warehouse</span>
 						</div>
 						<div>
-							<h3 class="text-xl font-bold text-on-surface">Penugasan Dedicated On-Site & Stevedoring</h3>
-							<p class="text-xs text-on-surface-variant mt-0.5">Penugasan armada standby di area customer/pelabuhan tanpa Surat Tugas per rit</p>
+							<h3 class="text-xl font-bold text-on-surface">Buka Shift Dedicated On-Site & Stevedoring</h3>
+							<p class="text-xs text-on-surface-variant mt-0.5">Check-in armada standby di site (Surat Tugas resmi diterbitkan saat closing shift)</p>
 						</div>
 					</div>
 					<button type="button" onclick={closeDedicatedModal} class="w-8 h-8 rounded-full bg-surface-container hover:bg-surface-container-high flex items-center justify-center text-on-surface-variant transition-colors cursor-pointer">
@@ -2602,17 +2718,22 @@
 				</div>
 			</div>
 
-			<form method="POST" action="?/createDedicatedDispatch" use:enhance={() => { isSubmitting = true; return async ({ update }) => { await update(); isSubmitting = false; }; }} class="flex flex-col flex-1 overflow-hidden">
+			<form method="POST" action="?/createDedicatedDispatch" use:enhance={() => { isSubmitting = true; return async ({ update }) => { await update(); isSubmitting = false; closeDedicatedModal(); }; }} class="flex flex-col flex-1 overflow-hidden">
 				<div class="p-6 overflow-y-auto space-y-4">
 					<div class="grid grid-cols-2 gap-4">
-						<div>
-							<label class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-2">No. SPK Induk <span class="text-error">*</span></label>
-							<input type="text" name="spkIndukNomor" bind:value={dedSpkInduk} required placeholder="Contoh: SPK-DED-260901" class="w-full bg-surface-container rounded-xl px-4 py-2.5 text-sm font-bold border-none outline-none focus:ring-2 focus:ring-amber-500 text-on-surface font-mono" />
-						</div>
 						<div>
 							<label class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-2">Periode / Shift Penugasan <span class="text-error">*</span></label>
 							<input type="text" name="periodeShift" bind:value={dedShift} required placeholder="Contoh: Shift 1 (08:00 - 16:00)" class="w-full bg-surface-container rounded-xl px-4 py-2.5 text-sm font-medium border-none outline-none focus:ring-2 focus:ring-amber-500 text-on-surface" />
 						</div>
+						<div>
+							<label class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-2">Uang Harian Supir (Rp) <span class="text-error">*</span></label>
+							<input type="number" name="uangHarian" bind:value={dedUangHarian} min="0" step="5000" required placeholder="100000" class="w-full bg-surface-container rounded-xl px-4 py-2.5 text-sm font-bold border-none outline-none focus:ring-2 focus:ring-amber-500 text-amber-600 font-mono" />
+						</div>
+					</div>
+
+					<div class="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-xs text-amber-800 dark:text-amber-300 flex items-center gap-2.5">
+						<span class="material-symbols-outlined text-amber-600 text-base">info</span>
+						<span>Surat Tugas resmi BCS akan diterbitkan di akhir pengerjaan membundel seluruh surat jalan hasil tarikan.</span>
 					</div>
 
 					<div>
@@ -2628,17 +2749,12 @@
 
 					<div>
 						<label class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-2">Pilih Armada & Sopir <span class="text-error">*</span></label>
-						<SearchableSelect 
+						<MultiSearchableSelect 
 							options={unitOpts} 
-							bind:value={dedUnitAssignment} 
-							placeholder="-- Pilih Unit Armada --" 
-							required={true}
+							bind:value={dedUnitIds} 
+							placeholder="-- Ketik untuk Mencari & Pilih Armada (Bisa lebih dari 1) --"
 						/>
-						{#if dedUnitAssignment}
-							{@const parts = dedUnitAssignment.split('|')}
-							<input type="hidden" name="unitId" value={parts[0]}>
-							<input type="hidden" name="driverId" value={parts[1] || ''}>
-						{/if}
+						<input type="hidden" name="unitIds" value={JSON.stringify(dedUnitIds)}>
 					</div>
 
 					<div class="grid grid-cols-2 gap-4">
@@ -2678,13 +2794,13 @@
 					<button type="button" onclick={closeDedicatedModal} class="px-5 py-2.5 rounded-xl text-sm font-bold text-on-surface-variant hover:bg-surface-container transition-colors cursor-pointer">
 						Batal
 					</button>
-					<button type="submit" disabled={isSubmitting || !dedUnitAssignment || !dedSpkInduk.trim()} class="px-5 py-2.5 bg-amber-600 text-white rounded-xl text-sm font-bold shadow-sm hover:bg-amber-700 transition-colors flex items-center gap-2 disabled:opacity-50 cursor-pointer">
+					<button type="submit" disabled={isSubmitting || dedUnitIds.length === 0} class="px-5 py-2.5 bg-amber-600 text-white rounded-xl text-sm font-bold shadow-sm hover:bg-amber-700 transition-colors flex items-center gap-2 disabled:opacity-50 cursor-pointer">
 						{#if isSubmitting}
 							<span class="material-symbols-outlined text-[18px] animate-spin">sync</span>
 							<span>Menyimpan...</span>
 						{:else}
-							<span class="material-symbols-outlined text-[18px]">task_alt</span>
-							<span>Terbitkan Penugasan Dedicated</span>
+							<span class="material-symbols-outlined text-[18px]">login</span>
+							<span>Buka Shift ({dedUnitIds.length} Unit Standby On-Site)</span>
 						{/if}
 					</button>
 				</div>
@@ -2755,6 +2871,349 @@
 					</button>
 				</div>
 			</form>
+		</div>
+	</div>
+{/if}
+
+<!-- Modal Closing Shift Dedicated & Penerbitan Surat Tugas Resmi -->
+{#if showCloseDedicatedModal && closeDedicatedItem}
+	{@const totalRit = closeDedicatedItem.totalRitase || 0}
+	{@const totalInsentif = totalRit * (Number(closeInsentifPerRit) || 0)}
+	{@const totalHakSupir = (Number(closeUangHarian) || 0) + totalInsentif}
+
+	<div class="fixed inset-0 z-50 flex items-center justify-center p-4">
+		<div class="absolute inset-0 bg-slate-950/70 backdrop-blur-sm" onclick={closeCloseDedicatedModal}></div>
+		<div class="relative w-full max-w-xl bg-surface-container-lowest rounded-[24px] shadow-2xl flex flex-col overflow-hidden max-h-[92vh]">
+			<div class="p-6 border-b border-surface-container bg-emerald-50/50 dark:bg-emerald-950/20">
+				<div class="flex items-start justify-between">
+					<div class="flex items-center gap-3">
+						<div class="w-10 h-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center">
+							<span class="material-symbols-outlined text-2xl">verified</span>
+						</div>
+						<div>
+							<h3 class="text-xl font-bold text-on-surface">Tutup Shift & Terbitkan Surat Tugas</h3>
+							<p class="text-xs text-on-surface-variant mt-0.5">Membundel seluruh surat jalan hasil tarikan dan menetapkan hak kompensasi supir</p>
+						</div>
+					</div>
+					<button type="button" onclick={closeCloseDedicatedModal} class="w-8 h-8 rounded-full bg-surface-container hover:bg-surface-container-high flex items-center justify-center text-on-surface-variant transition-colors cursor-pointer">
+						<span class="material-symbols-outlined text-lg">close</span>
+					</button>
+				</div>
+			</div>
+
+			<form method="POST" action="?/closeDedicatedDispatch" use:enhance={() => { isSubmitting = true; return async ({ update }) => { await update(); isSubmitting = false; closeCloseDedicatedModal(); }; }} class="flex flex-col flex-1 overflow-hidden">
+				<input type="hidden" name="tripId" value={closeDedicatedItem.trip_id}>
+				
+				<div class="p-6 overflow-y-auto space-y-4">
+					<!-- Ringkasan Hasil Pengerjaan -->
+					<div class="p-4 rounded-xl bg-surface-container-low border border-slate-200/80 dark:border-slate-800/80 space-y-3">
+						<div class="flex items-center justify-between text-xs font-bold">
+							<span class="text-on-surface-variant uppercase tracking-wider">Hasil Pengerjaan Shift</span>
+							<span class="text-emerald-600 font-mono">Sesi: {closeDedicatedItem.spk_induk_nomor}</span>
+						</div>
+
+						<div class="grid grid-cols-2 gap-3 text-xs">
+							<div>
+								<span class="text-on-surface-variant text-[10px] uppercase font-bold">Armada & Supir</span>
+								<p class="font-bold text-on-surface mt-0.5">{closeDedicatedItem.nomor_unit} • {closeDedicatedItem.driver_nama || '-'}</p>
+							</div>
+							<div>
+								<span class="text-on-surface-variant text-[10px] uppercase font-bold">Kustomer & Rute</span>
+								<p class="font-bold text-on-surface mt-0.5 truncate">{closeDedicatedItem.customer} ({closeDedicatedItem.origin} ↔ {closeDedicatedItem.destination})</p>
+							</div>
+						</div>
+
+						<div class="pt-2 border-t border-slate-200/50 dark:border-slate-800/50 flex items-center justify-between">
+							<div class="flex items-center gap-2">
+								<span class="px-2.5 py-1 rounded-lg text-xs font-black bg-blue-500/10 text-blue-600">
+									{totalRit} Tarikan Ritase
+								</span>
+								<span class="px-2.5 py-1 rounded-lg text-xs font-black bg-emerald-500/10 text-emerald-600">
+									{closeDedicatedItem.totalTonase.toLocaleString('id-ID')} Ton Terpindah
+								</span>
+							</div>
+						</div>
+
+						{#if closeDedicatedItem.logsheets && closeDedicatedItem.logsheets.length > 0}
+							<div class="pt-2 border-t border-slate-200/50 dark:border-slate-800/50">
+								<span class="text-[10px] uppercase font-bold text-on-surface-variant block mb-1.5">Surat Jalan Kustomer yang Dibundel:</span>
+								<div class="flex flex-wrap gap-1.5 max-h-20 overflow-y-auto">
+									{#each closeDedicatedItem.logsheets as ls}
+										<span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-surface-container text-on-surface border border-surface-container-high">
+											{ls.no_surat_jalan_customer} ({ls.tonase} T)
+										</span>
+									{/each}
+								</div>
+							</div>
+						{/if}
+					</div>
+
+					<!-- Form Input Surat Tugas Resmi -->
+					<div>
+						<label class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-2">
+							Nomor Surat Tugas Resmi BCS <span class="text-error">*</span>
+						</label>
+						<input 
+							type="text" 
+							name="noSuratTugas" 
+							bind:value={closeNoSuratTugas} 
+							required 
+							placeholder="Contoh: ST-DED-261029-001" 
+							class="w-full bg-surface-container rounded-xl px-4 py-2.5 text-sm font-black border-none outline-none focus:ring-2 focus:ring-emerald-500 text-emerald-600 font-mono" 
+						/>
+						<p class="text-[10px] text-on-surface-variant mt-1">Nomor otomatis ter-generate, sesuaikan jika Anda memiliki nomor blangko fisik.</p>
+					</div>
+
+					<!-- Hak Kompensasi Supir -->
+					<div class="grid grid-cols-2 gap-4">
+						<div>
+							<label class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-2">
+								Uang Harian Supir (Rp) <span class="text-error">*</span>
+							</label>
+							<input 
+								type="number" 
+								name="uangHarian" 
+								bind:value={closeUangHarian} 
+								min="0" 
+								step="5000" 
+								required 
+								class="w-full bg-surface-container rounded-xl px-4 py-2.5 text-sm font-bold border-none outline-none focus:ring-2 focus:ring-emerald-500 text-on-surface font-mono" 
+							/>
+						</div>
+						<div>
+							<label class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-2">
+								Insentif per Tarikan / Rit (Rp)
+							</label>
+							<input 
+								type="number" 
+								name="insentifPerRit" 
+								bind:value={closeInsentifPerRit} 
+								min="0" 
+								step="5000" 
+								placeholder="25000" 
+								class="w-full bg-surface-container rounded-xl px-4 py-2.5 text-sm font-bold border-none outline-none focus:ring-2 focus:ring-emerald-500 text-on-surface font-mono" 
+							/>
+						</div>
+					</div>
+
+					<!-- Rincian Akumulasi UJO -->
+					<div class="p-3.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 space-y-1.5 text-xs text-emerald-800 dark:text-emerald-300">
+						<div class="flex justify-between items-center">
+							<span>Uang Harian Shift:</span>
+							<span class="font-mono font-bold">{formatCurrency(closeUangHarian)}</span>
+						</div>
+						<div class="flex justify-between items-center">
+							<span>Insentif Ritase ({totalRit} tarikan × {formatCurrency(closeInsentifPerRit)}):</span>
+							<span class="font-mono font-bold">{formatCurrency(totalInsentif)}</span>
+						</div>
+						<div class="pt-1.5 border-t border-emerald-500/20 flex justify-between items-center font-black text-sm text-emerald-700 dark:text-emerald-200">
+							<span>Total Hak Supir (UJO):</span>
+							<span class="font-mono">{formatCurrency(totalHakSupir)}</span>
+						</div>
+					</div>
+
+					<div>
+						<label class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-2">Catatan Evaluasi Closing</label>
+						<input 
+							type="text" 
+							name="catatanClosing" 
+							bind:value={closeCatatan} 
+							placeholder="Opsional: Keterangan shift selesai lancar / palka tuntas" 
+							class="w-full bg-surface-container rounded-xl px-4 py-2.5 text-sm font-medium border-none outline-none focus:ring-2 focus:ring-emerald-500 text-on-surface" 
+						/>
+					</div>
+				</div>
+
+				<div class="p-6 border-t border-surface-container bg-surface-container-low/40 flex justify-end gap-3">
+					<button type="button" onclick={closeCloseDedicatedModal} class="px-5 py-2.5 rounded-xl text-sm font-bold text-on-surface-variant hover:bg-surface-container transition-colors cursor-pointer">
+						Batal
+					</button>
+					<button type="submit" disabled={isSubmitting || !closeNoSuratTugas.trim()} class="px-5 py-2.5 bg-emerald-600 text-white rounded-xl text-sm font-bold shadow-sm hover:bg-emerald-700 transition-colors flex items-center gap-2 disabled:opacity-50 cursor-pointer">
+						{#if isSubmitting}
+							<span class="material-symbols-outlined text-[18px] animate-spin">sync</span>
+							<span>Menyimpan...</span>
+						{:else}
+							<span class="material-symbols-outlined text-[18px]">verified</span>
+							<span>Selesaikan Shift & Terbitkan Surat Tugas</span>
+						{/if}
+					</button>
+				</div>
+			</form>
+		</div>
+	</div>
+{/if}
+
+<!-- Modal Cetak Resmi Surat Tugas & Rekap Logsheet Dedicated -->
+{#if showPrintDedicatedModal && printDedicatedItem}
+	{@const pList = printDedicatedItem.logsheets || []}
+	<div class="fixed inset-0 z-50 flex items-center justify-center p-4">
+		<div class="absolute inset-0 bg-slate-950/70 backdrop-blur-sm" onclick={closePrintDedicatedModal}></div>
+		<div class="relative w-full max-w-4xl bg-surface-container-lowest rounded-[24px] shadow-2xl flex flex-col overflow-hidden max-h-[95vh] z-10">
+			<!-- Header Modal -->
+			<div class="p-5 border-b border-surface-container bg-surface-container-low/60 flex items-center justify-between gap-4">
+				<div class="flex items-center gap-3">
+					<div class="w-10 h-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center">
+						<span class="material-symbols-outlined text-2xl">print</span>
+					</div>
+					<div>
+						<h3 class="text-lg font-bold text-on-surface">Cetak Surat Tugas & Rekapitulasi Dedicated</h3>
+						<p class="text-xs text-on-surface-variant font-mono">No. Surat Tugas: {printDedicatedItem.no_surat_tugas} • {printDedicatedItem.nomor_unit} ({printDedicatedItem.driver_nama || '-'})</p>
+					</div>
+				</div>
+
+				<div class="flex items-center gap-2">
+					<button type="button" onclick={executeDedicatedPrint} class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl transition-colors flex items-center gap-1.5 shadow-sm cursor-pointer">
+						<span class="material-symbols-outlined text-[16px]">print</span>
+						<span>Cetak Sekarang</span>
+					</button>
+					<button type="button" onclick={closePrintDedicatedModal} class="w-8 h-8 rounded-full bg-surface-container hover:bg-surface-container-high flex items-center justify-center text-on-surface-variant transition-colors cursor-pointer">
+						<span class="material-symbols-outlined text-lg">close</span>
+					</button>
+				</div>
+			</div>
+
+			<!-- Print Preview Area -->
+			<div class="flex-1 overflow-y-auto p-6 bg-slate-900/40 flex justify-center">
+				<div id="dedicated-print-area" class="w-full max-w-[210mm] space-y-6">
+					<div class="bg-white text-black p-8 rounded-sm shadow-xl page-break text-xs leading-normal border border-slate-300">
+						<!-- Kop Perusahaan -->
+						<div class="flex justify-between items-center border-b-2 border-slate-900 pb-3 mb-4">
+							<div class="flex items-center gap-3">
+								<div class="w-12 h-12 bg-slate-900 text-white rounded flex items-center justify-center font-black text-lg">
+									BCS
+								</div>
+								<div>
+									<h2 class="text-base font-black tracking-wider text-slate-900">PT BUMI CITRA SULTRA (BCS)</h2>
+									<p class="text-[10px] text-slate-500 uppercase tracking-tight">Integrated Logistics & Stevedoring Solutions</p>
+								</div>
+							</div>
+							<div class="text-right">
+								<h3 class="text-sm font-black uppercase text-slate-900">SURAT TUGAS DEDICATED ON-SITE</h3>
+								<p class="text-[12px] font-mono font-bold text-emerald-700">{printDedicatedItem.no_surat_tugas}</p>
+								<p class="text-[10px] text-slate-500">Mode: DEDICATED ON-SITE / REKAPITULASI SURAT JALAN</p>
+							</div>
+						</div>
+
+						<!-- Metadata Penugasan -->
+						<div class="grid grid-cols-2 gap-4 mb-4 bg-slate-50 p-3 rounded border border-slate-200">
+							<div>
+								<div class="text-[10px] uppercase text-slate-500 font-bold">Nomor Surat Tugas Resmi</div>
+								<div class="font-mono font-bold text-sm text-slate-900">{printDedicatedItem.no_surat_tugas}</div>
+								<div class="text-[10px] uppercase text-slate-500 font-bold mt-2">Periode / Shift Penugasan</div>
+								<div class="font-bold text-xs text-slate-900">{printDedicatedItem.periode_shift || 'Shift Harian'}</div>
+							</div>
+							<div>
+								<div class="text-[10px] uppercase text-slate-500 font-bold">Tanggal Penugasan</div>
+								<div class="font-bold text-slate-900">{printDedicatedItem.tgl_trip ? new Date(printDedicatedItem.tgl_trip).toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }) : '-'}</div>
+								<div class="text-[10px] uppercase text-slate-500 font-bold mt-2">Pelanggan / Customer</div>
+								<div class="font-bold text-slate-900">{printDedicatedItem.customer || '-'}</div>
+							</div>
+						</div>
+
+						<!-- Informasi Armada & Rute -->
+						<table class="w-full text-xs border border-slate-300 mb-4">
+							<tbody class="divide-y divide-slate-200">
+								<tr>
+									<td class="py-1.5 px-3 font-bold bg-slate-100 w-1/4">Nomor Polisi / Unit</td>
+									<td class="py-1.5 px-3 font-black text-slate-900">{printDedicatedItem.nomor_unit || '-'}</td>
+									<td class="py-1.5 px-3 font-bold bg-slate-100 w-1/4">Nama Pengemudi</td>
+									<td class="py-1.5 px-3 font-black text-slate-900">{printDedicatedItem.driver_nama || '-'}</td>
+								</tr>
+								<tr>
+									<td class="py-1.5 px-3 font-bold bg-slate-100">Area Asal (Origin)</td>
+									<td class="py-1.5 px-3 text-slate-900">{printDedicatedItem.origin || '-'}</td>
+									<td class="py-1.5 px-3 font-bold bg-slate-100">Area Tujuan (Destination)</td>
+									<td class="py-1.5 px-3 text-slate-900">{printDedicatedItem.destination || '-'}</td>
+								</tr>
+								<tr>
+									<td class="py-1.5 px-3 font-bold bg-slate-100">Jenis Muatan</td>
+									<td class="py-1.5 px-3 font-bold text-slate-900" colspan="3">{printDedicatedItem.cargo || 'Muatan On-Site'}</td>
+								</tr>
+							</tbody>
+						</table>
+
+						<!-- Tabel Rekapitulasi Seluruh Surat Jalan Kustomer / Tally -->
+						<div class="mb-4">
+							<div class="text-[11px] font-bold uppercase text-slate-800 mb-1 flex items-center justify-between">
+								<span>LAMPIRAN REKAPITULASI SURAT JALAN KUSTOMER / TALLY LAPANGAN</span>
+								<span class="text-slate-500">Total: {pList.length} Tarikan</span>
+							</div>
+							<table class="w-full text-xs border border-slate-300 text-left">
+								<thead class="bg-slate-100 text-slate-700 font-bold border-b border-slate-300 uppercase text-[10px]">
+									<tr>
+										<th class="py-1.5 px-2.5 w-8">#</th>
+										<th class="py-1.5 px-3">Jam Muat</th>
+										<th class="py-1.5 px-3">Jam Bongkar</th>
+										<th class="py-1.5 px-3">No. Surat Jalan Customer / Tally</th>
+										<th class="py-1.5 px-3 text-right">Tonase (Ton)</th>
+										<th class="py-1.5 px-3">Catatan</th>
+									</tr>
+								</thead>
+								<tbody class="divide-y divide-slate-200">
+									{#if pList.length === 0}
+										<tr>
+											<td colspan="6" class="py-4 text-center text-slate-500 italic">Belum ada baris logsheet yang tercatat.</td>
+										</tr>
+									{:else}
+										{#each pList as ls, idx}
+											<tr>
+												<td class="py-1.5 px-2.5 font-bold text-slate-500">{idx + 1}</td>
+												<td class="py-1.5 px-3 font-mono">{ls.jam_muat ? ls.jam_muat.slice(0, 5) : '-'}</td>
+												<td class="py-1.5 px-3 font-mono">{ls.jam_bongkar ? ls.jam_bongkar.slice(0, 5) : '-'}</td>
+												<td class="py-1.5 px-3 font-mono font-bold text-slate-900">{ls.no_surat_jalan_customer}</td>
+												<td class="py-1.5 px-3 text-right font-mono font-bold text-slate-900">{Number(ls.tonase).toLocaleString('id-ID')}</td>
+												<td class="py-1.5 px-3 text-slate-600">{ls.catatan || '-'}</td>
+											</tr>
+										{/each}
+									{/if}
+								</tbody>
+								<tfoot class="bg-slate-100 font-black border-t-2 border-slate-400">
+									<tr>
+										<td colspan="4" class="py-2 px-3 text-right uppercase">Total Akumulasi:</td>
+										<td class="py-2 px-3 text-right font-mono text-emerald-800">{printDedicatedItem.totalTonase.toLocaleString('id-ID')} Ton</td>
+										<td class="py-2 px-3 font-mono">{printDedicatedItem.totalRitase} Tarikan Rit</td>
+									</tr>
+								</tfoot>
+							</table>
+						</div>
+
+						<!-- Ringkasan Kompensasi / UJO Supir -->
+						<div class="grid grid-cols-3 gap-3 mb-6 p-3 bg-slate-50 rounded border border-slate-200 text-xs">
+							<div>
+								<span class="text-[10px] uppercase text-slate-500 font-bold block">Uang Harian Shift:</span>
+								<span class="font-mono font-bold text-slate-900">{formatCurrency(printDedicatedItem.uang_harian || 100000)}</span>
+							</div>
+							<div>
+								<span class="text-[10px] uppercase text-slate-500 font-bold block">Insentif Ritase:</span>
+								<span class="font-mono font-bold text-slate-900">{printDedicatedItem.totalRitase} Rit × {formatCurrency(printDedicatedItem.insentif_per_rit || 0)}</span>
+							</div>
+							<div class="border-l border-slate-300 pl-3">
+								<span class="text-[10px] uppercase text-slate-500 font-bold block">Total Hak Supir (UJO):</span>
+								<span class="font-mono font-black text-sm text-emerald-700">{formatCurrency(printDedicatedItem.total_ujo || 0)}</span>
+							</div>
+						</div>
+
+						<!-- Kolom Tanda Tangan -->
+						<div class="grid grid-cols-3 gap-4 text-center pt-2">
+							<div class="border-t border-slate-400 pt-1">
+								<p class="text-[10px] text-slate-500 uppercase font-bold">Dispatcher Kantor BCS</p>
+								<div class="h-14"></div>
+								<p class="font-bold text-xs text-slate-900">( ____________________ )</p>
+							</div>
+							<div class="border-t border-slate-400 pt-1">
+								<p class="text-[10px] text-slate-500 uppercase font-bold">Pengemudi / Driver</p>
+								<div class="h-14"></div>
+								<p class="font-bold text-xs text-slate-900">( {printDedicatedItem.driver_nama || '____________________'} )</p>
+							</div>
+							<div class="border-t border-slate-400 pt-1">
+								<p class="text-[10px] text-slate-500 uppercase font-bold">Petugas Customer / Site</p>
+								<div class="h-14"></div>
+								<p class="font-bold text-xs text-slate-900">( ____________________ )</p>
+							</div>
+						</div>
+					</div>
+				</div>
+			</div>
 		</div>
 	</div>
 {/if}
