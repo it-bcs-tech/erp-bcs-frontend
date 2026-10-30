@@ -378,26 +378,14 @@
 					</select>
 				</div>
 			</div>
-			<div class="flex items-center gap-1">
-				<!-- First Page Button -->
+			<div class="flex gap-1">
 				<button 
-					class="w-8 h-8 rounded-lg flex items-center justify-center text-on-surface-variant hover:bg-surface-container-high disabled:opacity-30 disabled:hover:bg-transparent transition-colors cursor-pointer disabled:cursor-not-allowed" 
-					disabled={currentPage <= 1}
-					onclick={() => goToPage(1)}
-					title="Halaman Pertama">
-					<span class="material-symbols-outlined text-lg">first_page</span>
-				</button>
-
-				<!-- Previous Page Button -->
-				<button 
-					class="w-8 h-8 rounded-lg flex items-center justify-center text-on-surface-variant hover:bg-surface-container-high disabled:opacity-30 disabled:hover:bg-transparent transition-colors cursor-pointer disabled:cursor-not-allowed" 
+					class="w-8 h-8 rounded-lg flex items-center justify-center text-on-surface-variant hover:bg-surface-container-high disabled:opacity-40 transition-colors cursor-pointer disabled:cursor-not-allowed" 
 					disabled={currentPage <= 1}
 					onclick={() => goToPage(currentPage - 1)}
 					title="Halaman Sebelumnya">
 					<span class="material-symbols-outlined text-lg">chevron_left</span>
 				</button>
-
-				<!-- Page Numbers Window (Max 5 items) -->
 				{#each pageNumbers as p}
 					<button 
 						class="w-8 h-8 rounded-lg flex items-center justify-center font-bold text-xs shadow-xs transition-colors cursor-pointer {currentPage === p ? 'bg-blue-600 text-white' : 'text-on-surface hover:bg-surface-container-high'}"
@@ -405,23 +393,12 @@
 						{p}
 					</button>
 				{/each}
-
-				<!-- Next Page Button -->
 				<button 
-					class="w-8 h-8 rounded-lg flex items-center justify-center text-on-surface-variant hover:bg-surface-container-high disabled:opacity-30 disabled:hover:bg-transparent transition-colors cursor-pointer disabled:cursor-not-allowed" 
+					class="w-8 h-8 rounded-lg flex items-center justify-center text-on-surface-variant hover:bg-surface-container-high disabled:opacity-40 transition-colors cursor-pointer disabled:cursor-not-allowed" 
 					disabled={currentPage >= totalPages}
 					onclick={() => goToPage(currentPage + 1)}
 					title="Halaman Berikutnya">
 					<span class="material-symbols-outlined text-lg">chevron_right</span>
-				</button>
-
-				<!-- Last Page Button -->
-				<button 
-					class="w-8 h-8 rounded-lg flex items-center justify-center text-on-surface-variant hover:bg-surface-container-high disabled:opacity-30 disabled:hover:bg-transparent transition-colors cursor-pointer disabled:cursor-not-allowed" 
-					disabled={currentPage >= totalPages}
-					onclick={() => goToPage(totalPages)}
-					title="Halaman Terakhir">
-					<span class="material-symbols-outlined text-lg">last_page</span>
 				</button>
 			</div>
 		</div>
