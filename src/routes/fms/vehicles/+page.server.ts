@@ -1,6 +1,5 @@
 import type { PageServerLoad } from './$types';
 import sql from '$lib/server/db';
-import { createScopedDocToken } from '$lib/server/dmsToken';
 
 // ─────────────────────────────────────────────────────────────
 // vehicles/+page.server.ts
@@ -139,17 +138,8 @@ export const load: PageServerLoad = async ({ url }) => {
 		  WHERE u.deleted_at IS NULL
 		  AND (${assetGroup !== 'All' ? `tu.asset_group = '${assetGroup}'` : '1=1'})`);
 
-		const mappedVehicles = (vehicles as any[]).map((v) => ({
-			...v,
-			dms_bpkb_token: v.dms_bpkb_id ? createScopedDocToken({ type: 'single', docId: v.dms_bpkb_id }) : null,
-			dms_kir_token: v.dms_kir_id ? createScopedDocToken({ type: 'single', docId: v.dms_kir_id }) : null,
-			dms_stnk_token: v.dms_stnk_id ? createScopedDocToken({ type: 'single', docId: v.dms_stnk_id }) : null,
-			dms_b3_token: v.dms_b3_id ? createScopedDocToken({ type: 'single', docId: v.dms_b3_id }) : null,
-			dms_fleet_token: createScopedDocToken({ type: 'fleet', unitId: v.id, nomorUnit: v.nomor_unit })
-		}));
-
 		return {
-			vehicles: mappedVehicles as unknown[],
+			vehicles: vehicles as unknown[],
 			metrics: {
 				total:       Number(metrics.totalAll),
 				active:      Number(metrics.active),
