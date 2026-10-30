@@ -9,7 +9,7 @@ export const load: PageServerLoad = async ({ url }) => {
 		const typeFilter = url.searchParams.get('type') || 'All';
 		const statusFilter = url.searchParams.get('status') || 'All';
 		const page = Math.max(1, parseInt(url.searchParams.get('page') || '1'));
-		const perPage = 10;
+		const perPage = Math.min(100, Math.max(5, parseInt(url.searchParams.get('limit') || url.searchParams.get('per_page') || '10')));
 		const offset = (page - 1) * perPage;
 
 		// Ambil dokumen armada & sopir dari DMS (BPKB, Izin B3, Faktur, STNK, KIR, SIM, Sertifikat B3, SIO Operator)

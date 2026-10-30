@@ -14,6 +14,7 @@
 	let categoryFilter = $state($page.url.searchParams.get('category') || 'All');
 	let typeFilter = $state($page.url.searchParams.get('type') || 'All');
 	let statusFilter = $state($page.url.searchParams.get('status') || 'All');
+	let perPage = $state(Number($page.url.searchParams.get('limit')) || 10);
 	
 	let searchTimer: ReturnType<typeof setTimeout>;
 
@@ -31,6 +32,9 @@
 		if (statusFilter && statusFilter !== 'All') url.searchParams.set('status', statusFilter);
 		else url.searchParams.delete('status');
 		
+		if (perPage && perPage !== 10) url.searchParams.set('limit', perPage.toString());
+		else url.searchParams.delete('limit');
+
 		url.searchParams.set('page', '1');
 		goto(url.toString(), { keepFocus: true, noScroll: true });
 	}
@@ -50,10 +54,24 @@
 		updateQueryParams();
 	}
 
-	let totalPages = $derived(Math.max(1, Math.ceil((meta?.total || 0) / (meta?.per_page || 10))));
+	function handlePerPageChange(e: Event) {
+		const val = Number((e.target as HTMLSelectElement).value);
+		perPage = val;
+		updateQueryParams();
+	}
+
+	let totalPages = $derived(Math.max(1, Math.ceil((meta?.total || 0) / (meta?.per_page || perPage || 10))));
 	let currentPage = $derived(meta?.current_page || 1);
-	let startItem = $derived(meta?.total === 0 ? 0 : ((currentPage - 1) * (meta?.per_page || 10)) + 1);
-	let endItem = $derived(Math.min(currentPage * (meta?.per_page || 10), meta?.total || 0));
+	let startItem = $derived(meta?.total === 0 ? 0 : ((currentPage - 1) * (meta?.per_page || perPage || 10)) + 1);
+	let endItem = $derived(Math.min(currentPage * (meta?.per_page || perPage || 10), meta?.total || 0));
+
+	let pageNumbers = $derived.by(() => {
+		const pages: number[] = [];
+		const start = Math.max(1, currentPage - 2);
+		const end = Math.min(totalPages, Math.max(1, start + 4));
+		for (let i = start; i <= end; i++) pages.push(i);
+		return pages;
+	});
 
 	function goToPage(p: number) {
 		if (p < 1 || p > totalPages) return;
@@ -340,29 +358,70 @@
 		</div>
 		
 		<!-- Pagination Footer -->
-		<div class="px-5 py-3.5 border-t border-slate-200/60 dark:border-slate-800/60 flex items-center justify-between bg-surface-container-low">
-			<p class="text-xs text-on-surface-variant font-medium">
-				Menampilkan <span class="font-bold text-on-surface">{startItem}–{endItem}</span> dari <span class="font-bold text-on-surface">{meta?.total || 0}</span> dokumen
-			</p>
-			<div class="flex gap-1">
+		<div class="px-5 py-3.5 border-t border-slate-200/60 dark:border-slate-800/60 flex flex-col sm:flex-row items-center justify-between gap-3 bg-surface-container-low">
+			<div class="flex items-center gap-4 text-xs text-on-surface-variant font-medium">
+				<p>
+					Menampilkan <span class="font-bold text-on-surface">{startItem}–{endItem}</span> dari <span class="font-bold text-on-surface">{meta?.total || 0}</span> dokumen
+				</p>
+				<div class="flex items-center gap-1.5 border-l border-slate-200 dark:border-slate-700 pl-4">
+					<label for="limitSelect" class="text-[11px] text-on-surface-variant">Baris:</label>
+					<select 
+						id="limitSelect"
+						value={perPage} 
+						onchange={handlePerPageChange}
+						class="bg-surface-container-high border border-slate-200 dark:border-slate-700 rounded-lg px-2 py-1 text-xs font-bold text-on-surface focus:outline-none focus:ring-1 focus:ring-blue-500 cursor-pointer"
+					>
+						<option value={10}>10</option>
+						<option value={25}>25</option>
+						<option value={50}>50</option>
+						<option value={100}>100</option>
+					</select>
+				</div>
+			</div>
+			<div class="flex items-center gap-1">
+				<!-- First Page Button -->
 				<button 
-					class="w-8 h-8 rounded-lg flex items-center justify-center text-on-surface-variant hover:bg-surface-container-high disabled:opacity-40 transition-colors" 
+					class="w-8 h-8 rounded-lg flex items-center justify-center text-on-surface-variant hover:bg-surface-container-high disabled:opacity-30 disabled:hover:bg-transparent transition-colors cursor-pointer disabled:cursor-not-allowed" 
 					disabled={currentPage <= 1}
-					onclick={() => goToPage(currentPage - 1)}>
+					onclick={() => goToPage(1)}
+					title="Halaman Pertama">
+					<span class="material-symbols-outlined text-lg">first_page</span>
+				</button>
+
+				<!-- Previous Page Button -->
+				<button 
+					class="w-8 h-8 rounded-lg flex items-center justify-center text-on-surface-variant hover:bg-surface-container-high disabled:opacity-30 disabled:hover:bg-transparent transition-colors cursor-pointer disabled:cursor-not-allowed" 
+					disabled={currentPage <= 1}
+					onclick={() => goToPage(currentPage - 1)}
+					title="Halaman Sebelumnya">
 					<span class="material-symbols-outlined text-lg">chevron_left</span>
 				</button>
-				{#each Array(totalPages) as _, i}
+
+				<!-- Page Numbers Window (Max 5 items) -->
+				{#each pageNumbers as p}
 					<button 
-						class="w-8 h-8 rounded-lg flex items-center justify-center font-bold text-xs shadow-xs transition-colors {currentPage === i + 1 ? 'bg-blue-600 text-white' : 'text-on-surface hover:bg-surface-container-high'}"
-						onclick={() => goToPage(i + 1)}>
-						{i + 1}
+						class="w-8 h-8 rounded-lg flex items-center justify-center font-bold text-xs shadow-xs transition-colors cursor-pointer {currentPage === p ? 'bg-blue-600 text-white' : 'text-on-surface hover:bg-surface-container-high'}"
+						onclick={() => goToPage(p)}>
+						{p}
 					</button>
 				{/each}
+
+				<!-- Next Page Button -->
 				<button 
-					class="w-8 h-8 rounded-lg flex items-center justify-center text-on-surface-variant hover:bg-surface-container-high disabled:opacity-40 transition-colors" 
+					class="w-8 h-8 rounded-lg flex items-center justify-center text-on-surface-variant hover:bg-surface-container-high disabled:opacity-30 disabled:hover:bg-transparent transition-colors cursor-pointer disabled:cursor-not-allowed" 
 					disabled={currentPage >= totalPages}
-					onclick={() => goToPage(currentPage + 1)}>
+					onclick={() => goToPage(currentPage + 1)}
+					title="Halaman Berikutnya">
 					<span class="material-symbols-outlined text-lg">chevron_right</span>
+				</button>
+
+				<!-- Last Page Button -->
+				<button 
+					class="w-8 h-8 rounded-lg flex items-center justify-center text-on-surface-variant hover:bg-surface-container-high disabled:opacity-30 disabled:hover:bg-transparent transition-colors cursor-pointer disabled:cursor-not-allowed" 
+					disabled={currentPage >= totalPages}
+					onclick={() => goToPage(totalPages)}
+					title="Halaman Terakhir">
+					<span class="material-symbols-outlined text-lg">last_page</span>
 				</button>
 			</div>
 		</div>
