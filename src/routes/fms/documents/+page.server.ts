@@ -1,6 +1,7 @@
 import type { PageServerLoad } from './$types';
 import sql from '$lib/server/db';
 import { calculateExpiryGate } from '$lib/server/dms';
+import { createScopedDocToken } from '$lib/server/dmsToken';
 
 export const load: PageServerLoad = async ({ url }) => {
 	try {
@@ -61,7 +62,8 @@ export const load: PageServerLoad = async ({ url }) => {
 				status: displayStatus,
 				computedStatus,
 				gateLevel,
-				daysRemaining
+				daysRemaining,
+				view_token: createScopedDocToken({ type: 'single', docId: r.id })
 			};
 		});
 

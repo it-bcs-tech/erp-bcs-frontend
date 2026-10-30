@@ -830,9 +830,9 @@
 							<div>
 								<div class="flex items-center justify-between">
 									<p class="text-[10px] text-on-surface-variant font-medium uppercase">No. BPKB</p>
-									{#if selectedVehicle.dms_bpkb_id}
-										<a href="/dms/transactions/documents/{selectedVehicle.dms_bpkb_id}" target="_blank" class="text-[10px] font-bold text-blue-600 hover:underline flex items-center gap-0.5">
-											<span>DMS</span>
+									{#if selectedVehicle.dms_bpkb_token || selectedVehicle.dms_bpkb_id}
+										<a href={`/view-doc?token=${selectedVehicle.dms_bpkb_token}`} target="_blank" class="text-[10px] font-bold text-blue-600 hover:underline flex items-center gap-0.5" title="Lihat Dossier BPKB">
+											<span>Dossier</span>
 											<span class="material-symbols-outlined text-[10px]">open_in_new</span>
 										</a>
 									{/if}
@@ -842,9 +842,9 @@
 							<div>
 								<div class="flex items-center justify-between">
 									<p class="text-[10px] text-on-surface-variant font-medium uppercase">No. Uji KIR</p>
-									{#if selectedVehicle.dms_kir_id}
-										<a href="/dms/transactions/documents/{selectedVehicle.dms_kir_id}" target="_blank" class="text-[10px] font-bold text-teal-600 hover:underline flex items-center gap-0.5">
-											<span>DMS</span>
+									{#if selectedVehicle.dms_kir_token || selectedVehicle.dms_kir_id}
+										<a href={`/view-doc?token=${selectedVehicle.dms_kir_token}`} target="_blank" class="text-[10px] font-bold text-teal-600 hover:underline flex items-center gap-0.5" title="Lihat Dossier KIR">
+											<span>Dossier</span>
 											<span class="material-symbols-outlined text-[10px]">open_in_new</span>
 										</a>
 									{/if}
@@ -854,21 +854,21 @@
 							<div>
 								<div class="flex items-center justify-between">
 									<p class="text-[10px] text-on-surface-variant font-medium uppercase">STNK Kendaraan</p>
-									{#if selectedVehicle.dms_stnk_id}
-										<a href="/dms/transactions/documents/{selectedVehicle.dms_stnk_id}" target="_blank" class="text-[10px] font-bold text-indigo-600 hover:underline flex items-center gap-0.5">
-											<span>DMS</span>
+									{#if selectedVehicle.dms_stnk_token || selectedVehicle.dms_stnk_id}
+										<a href={`/view-doc?token=${selectedVehicle.dms_stnk_token}`} target="_blank" class="text-[10px] font-bold text-indigo-600 hover:underline flex items-center gap-0.5" title="Lihat Dossier STNK">
+											<span>Dossier</span>
 											<span class="material-symbols-outlined text-[10px]">open_in_new</span>
 										</a>
 									{/if}
 								</div>
-								<p class="font-bold text-on-surface font-mono mt-0.5">{selectedVehicle.dms_stnk_id ? 'Tersedia di DMS' : '—'}</p>
+								<p class="font-bold text-on-surface font-mono mt-0.5">{selectedVehicle.dms_stnk_id ? 'Tersedia di Vault' : '—'}</p>
 							</div>
 							<div>
 								<div class="flex items-center justify-between">
 									<p class="text-[10px] text-on-surface-variant font-medium uppercase">Izin Limbah B3</p>
-									{#if selectedVehicle.dms_b3_id}
-										<a href="/dms/transactions/documents/{selectedVehicle.dms_b3_id}" target="_blank" class="text-[10px] font-bold text-amber-600 hover:underline flex items-center gap-0.5">
-											<span>DMS</span>
+									{#if selectedVehicle.dms_b3_token || selectedVehicle.dms_b3_id}
+										<a href={`/view-doc?token=${selectedVehicle.dms_b3_token}`} target="_blank" class="text-[10px] font-bold text-amber-600 hover:underline flex items-center gap-0.5" title="Lihat Dossier Izin B3">
+											<span>Dossier</span>
 											<span class="material-symbols-outlined text-[10px]">open_in_new</span>
 										</a>
 									{/if}
@@ -885,10 +885,10 @@
 							<div class="p-3 rounded-xl bg-blue-500/5 border border-blue-500/20 flex items-center justify-between text-xs mt-2">
 								<div class="flex items-center gap-2">
 									<span class="material-symbols-outlined text-blue-600 text-base">folder_special</span>
-									<span class="font-semibold text-on-surface">Unit ini memiliki <strong>{selectedVehicle.dms_docs_count} dokumen</strong> tersimpan di DMS</span>
+									<span class="font-semibold text-on-surface">Unit ini memiliki <strong>{selectedVehicle.dms_docs_count} berkas</strong> tersimpan</span>
 								</div>
-								<a href="/dms/transactions/documents?q={encodeURIComponent(selectedVehicle.nomor_unit)}" target="_blank" class="px-2.5 py-1 rounded-lg bg-blue-600 text-white text-[11px] font-bold hover:bg-blue-700 transition-colors inline-flex items-center gap-1">
-									<span>Buka DMS</span>
+								<a href={`/view-doc/fleet?token=${selectedVehicle.dms_fleet_token}`} target="_blank" class="px-2.5 py-1 rounded-lg bg-blue-600 text-white text-[11px] font-bold hover:bg-blue-700 transition-colors inline-flex items-center gap-1 shadow-xs">
+									<span>Dossier Armada</span>
 									<span class="material-symbols-outlined text-[12px]">open_in_new</span>
 								</a>
 							</div>

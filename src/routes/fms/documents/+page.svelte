@@ -2,8 +2,10 @@
 	import type { PageData } from './$types';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/stores';
+	import { authUser, hasMenuAccess } from '$lib/stores/auth';
 	
 	let { data }: { data: PageData } = $props();
+	const user = $derived($page.data?.user || $authUser);
 	
 	let documents = $derived(data.documents || []);
 	let metrics = $derived(data.metrics);
@@ -79,15 +81,17 @@
 				Status legalitas BPKB, Izin Limbah B3, Faktur Unit, STNK, KIR, SIO Operator & Sertifikat Driver B3 terhubung langsung dengan DMS BCS
 			</p>
 		</div>
-		<div class="flex items-center gap-2.5">
-			<a 
-				href="/dms/transactions/documents/create" 
-				class="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold px-4 py-2.5 rounded-xl shadow-xs transition-colors"
-			>
-				<span class="material-symbols-outlined text-[18px]">add</span>
-				<span>Unggah Dokumen Baru</span>
-			</a>
-		</div>
+		{#if hasMenuAccess(user, 'dms', 'dms.register')}
+			<div class="flex items-center gap-2.5">
+				<a 
+					href="/dms/transactions/documents/create" 
+					class="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold px-4 py-2.5 rounded-xl shadow-xs transition-colors"
+				>
+					<span class="material-symbols-outlined text-[18px]">add</span>
+					<span>Unggah Dokumen Baru</span>
+				</a>
+			</div>
+		{/if}
 	</header>
 
 	<!-- Metric Bento Cards -->
@@ -315,13 +319,13 @@
 							</td>
 							<td class="py-3.5 px-5 text-right">
 								<a
-									href="/dms/transactions/documents/{doc.id}"
+									href={doc.view_token ? `/view-doc?token=${doc.view_token}` : `/dms/transactions/documents/${doc.id}`}
 									target="_blank"
 									class="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/50 transition-colors"
-									title="Buka Dokumen Asli di DMS"
+									title="Buka Dossier Dokumen"
 								>
 									<span class="material-symbols-outlined text-[18px]">visibility</span>
-									<span>Detail DMS</span>
+									<span>Lihat Dossier</span>
 								</a>
 							</td>
 						</tr>

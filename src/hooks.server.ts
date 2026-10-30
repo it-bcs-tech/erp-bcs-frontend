@@ -1,6 +1,6 @@
 import { redirect, type Handle } from '@sveltejs/kit';
 import { dev } from '$app/environment';
-import { hasModuleAccess, hasMenuAccess } from '$lib/stores/auth';
+import { hasModuleAccess, hasMenuAccess, resolveMenuFromPathname } from '$lib/stores/auth';
 import type { AuthUser } from '$lib/types/auth';
 import { ADMIN_ROLES } from '$lib/types/auth';
 import { verifyUserData } from '$lib/server/auth';
@@ -86,34 +86,21 @@ export const handle: Handle = async ({ event, resolve }) => {
 		const requestedModule = MODULE_ROUTES.find((m) => pathname.startsWith('/' + m));
 
 		if (requestedModule) {
-			const userDataCookie = event.cookies.get('user_data');
-			if (userDataCookie) {
-				try {
-					const user: AuthUser | null = verifyUserData(userDataCookie);
-					if (!user) {
-						event.cookies.delete('auth_token', { path: '/' });
-						event.cookies.delete('user_data', { path: '/' });
-						return redirect(303, '/login');
-					}
-					if (!hasModuleAccess(user, requestedModule)) {
-						return redirect(303, '/?access_denied=' + requestedModule);
-					}
+			if (!currentUser) {
+				event.cookies.delete('auth_token', { path: '/' });
+				event.cookies.delete('user_data', { path: '/' });
+				return redirect(303, '/login');
+			}
 
-					// Validasi Sub-menu
-					const pathParts = pathname.split('/').filter(Boolean);
-					if (pathParts.length > 1) {
-						const submenuPart = pathParts[1];
-						// Abaikan validasi SvelteKit internal route
-						if (submenuPart !== '__data.json') {
-							const requestedMenu = `${requestedModule}.${submenuPart}`;
-							if (!hasMenuAccess(user, requestedModule, requestedMenu)) {
-								return redirect(303, `/?access_denied=${requestedMenu}`);
-							}
-						}
-					}
-				} catch {
-					// Cookie corrupt
-				}
+			// 1. Cek hak akses modul dasar
+			if (!hasModuleAccess(currentUser, requestedModule)) {
+				return redirect(303, '/?access_denied=' + requestedModule);
+			}
+
+			// 2. Validasi Sub-menu / Menu-Level RBAC
+			const targetMenu = resolveMenuFromPathname(requestedModule, pathname);
+			if (targetMenu && !hasMenuAccess(currentUser, requestedModule, targetMenu)) {
+				return redirect(303, `/?access_denied=${targetMenu}`);
 			}
 		}
 	}

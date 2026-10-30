@@ -1,8 +1,11 @@
 <script lang="ts">
+	import { page } from '$app/stores';
+	import { authUser, hasMenuAccess } from '$lib/stores/auth';
 	import { formatDateId, getStatusInfo, getEntityTypeInfo } from '$lib/utils/dms';
 	import DmsSecureViewer from '$lib/components/DmsSecureViewer.svelte';
 
 	let { data } = $props();
+	const user = $derived($page.data?.user || $authUser);
 	let stats = $derived(data.stats);
 	let pipeline = $derived(data.pipeline);
 	let upcomingExpiringDocs = $derived(data.upcomingExpiringDocs || []);
@@ -56,27 +59,33 @@
 
 		<!-- Action CTAs -->
 		<div class="flex flex-wrap items-center gap-2.5">
-			<a
-				href="/dms/transactions/documents"
-				class="px-3.5 py-2 rounded-xl bg-surface border border-slate-200/80 dark:border-slate-800 text-xs font-bold text-on-surface hover:bg-surface-container transition-all flex items-center gap-1.5 shadow-xs"
-			>
-				<span class="material-symbols-outlined text-base text-indigo-600">folder_shared</span>
-				<span>Direktori Dokumen</span>
-			</a>
-			<a
-				href="/dms/master/types"
-				class="px-3.5 py-2 rounded-xl bg-surface border border-slate-200/80 dark:border-slate-800 text-xs font-bold text-on-surface hover:bg-surface-container transition-all flex items-center gap-1.5 shadow-xs"
-			>
-				<span class="material-symbols-outlined text-base text-amber-600">category</span>
-				<span>Tipe Dokumen</span>
-			</a>
-			<a
-				href="/dms/transactions/documents/create"
-				class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-xl text-xs font-bold shadow-xs flex items-center gap-1.5 transition-colors cursor-pointer"
-			>
-				<span class="material-symbols-outlined text-base">upload_file</span>
-				<span>Upload Dokumen</span>
-			</a>
+			{#if hasMenuAccess(user, 'dms', 'dms.documents')}
+				<a
+					href="/dms/transactions/documents"
+					class="px-3.5 py-2 rounded-xl bg-surface border border-slate-200/80 dark:border-slate-800 text-xs font-bold text-on-surface hover:bg-surface-container transition-all flex items-center gap-1.5 shadow-xs"
+				>
+					<span class="material-symbols-outlined text-base text-indigo-600">folder_shared</span>
+					<span>Direktori Dokumen</span>
+				</a>
+			{/if}
+			{#if hasMenuAccess(user, 'dms', 'dms.master-types')}
+				<a
+					href="/dms/master/types"
+					class="px-3.5 py-2 rounded-xl bg-surface border border-slate-200/80 dark:border-slate-800 text-xs font-bold text-on-surface hover:bg-surface-container transition-all flex items-center gap-1.5 shadow-xs"
+				>
+					<span class="material-symbols-outlined text-base text-amber-600">category</span>
+					<span>Tipe Dokumen</span>
+				</a>
+			{/if}
+			{#if hasMenuAccess(user, 'dms', 'dms.register')}
+				<a
+					href="/dms/transactions/documents/create"
+					class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-xl text-xs font-bold shadow-xs flex items-center gap-1.5 transition-colors cursor-pointer"
+				>
+					<span class="material-symbols-outlined text-base">upload_file</span>
+					<span>Upload Dokumen</span>
+				</a>
+			{/if}
 		</div>
 	</header>
 
