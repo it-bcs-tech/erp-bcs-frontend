@@ -45,8 +45,13 @@ export const load: PageServerLoad = async () => {
 			SELECT 
 				u.id as "unitId",
 				u.nomor_unit as id,
+				u.no_lambung as "noLambung",
+				u.tahun,
 				mu.nama_produk as brand,
+				mu.nama_model as "modelName",
+				mu.axle_config as "axleConfig",
 				tu.nama_tipe as type,
+				COALESCE(tu.kapasitas_tonase, 35) as capacity,
 				COALESCE(k.nama_karyawan, 'Sopir Libur (Habis 14 Hari)') as driver,
 				d.id as "driverId",
 				eligible_driver.days_worked,
