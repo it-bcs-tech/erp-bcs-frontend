@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { page } from '$app/stores';
-	import Chatbot from '$lib/components/Chatbot.svelte';
+	import QishaChat from '$lib/components/QishaChat.svelte';
 
 	import { authUser, hasMenuAccess } from '$lib/stores/auth';
 
@@ -144,6 +144,6 @@
 		</div>
 	</main>
 
-	<!-- AI Assistant Chatbot -->
-	<Chatbot />
+	<!-- QISHA Safety & QHSE AI Assistant -->
+	<QishaChat />
 </div>

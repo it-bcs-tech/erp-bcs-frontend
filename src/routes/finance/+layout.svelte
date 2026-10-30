@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { page } from '$app/stores';
-	import Chatbot from '$lib/components/Chatbot.svelte';
+	import FinaChat from '$lib/components/FinaChat.svelte';
 
 	import { authUser, hasMenuAccess } from '$lib/stores/auth';
 
@@ -148,7 +148,7 @@
 		</div>
 	</main>
 
-	<!-- Chatbot AI Assistant -->
-	<Chatbot />
+	<!-- FINA Financial AI Assistant -->
+	<FinaChat />
 </div>
 {/if}

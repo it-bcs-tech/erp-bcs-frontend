@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { page } from '$app/stores';
-	import Chatbot from '$lib/components/Chatbot.svelte';
+	import MarkoChat from '$lib/components/MarkoChat.svelte';
 
 	import { authUser, hasMenuAccess } from '$lib/stores/auth';
 
@@ -126,6 +126,6 @@
 		</div>
 	</main>
 
-	<!-- AI Assistant Chatbot -->
-	<Chatbot />
+	<!-- MARKO Commercial & Marketing AI Assistant -->
+	<MarkoChat />
 </div>
