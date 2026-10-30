@@ -2,8 +2,20 @@
 	import type { PageData } from './$types';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/stores';
+	import { authUser, hasModuleAccess } from '$lib/stores/auth';
+	import AccessDeniedModal from '$lib/components/AccessDeniedModal.svelte';
 	
 	let { data }: { data: PageData } = $props();
+	const user = $derived($page.data?.user || $authUser);
+	const hasDmsAccess = $derived(hasModuleAccess(user, 'dms'));
+	let showDmsAccessDeniedModal = $state(false);
+
+	function handleDmsClick(e: MouseEvent) {
+		if (!hasDmsAccess) {
+			e.preventDefault();
+			showDmsAccessDeniedModal = true;
+		}
+	}
 	
 	let documents = $derived(data.documents || []);
 	let metrics = $derived(data.metrics);
@@ -82,7 +94,9 @@
 		<div class="flex items-center gap-2.5">
 			<a 
 				href="/dms/transactions/documents/create" 
-				class="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold px-4 py-2.5 rounded-xl shadow-xs transition-colors"
+				target="_blank"
+				onclick={handleDmsClick}
+				class="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold px-4 py-2.5 rounded-xl shadow-xs transition-colors cursor-pointer"
 			>
 				<span class="material-symbols-outlined text-[18px]">add</span>
 				<span>Unggah Dokumen Baru</span>
@@ -317,7 +331,8 @@
 								<a
 									href="/dms/transactions/documents/{doc.id}"
 									target="_blank"
-									class="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/50 transition-colors"
+									onclick={handleDmsClick}
+									class="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/50 transition-colors cursor-pointer"
 									title="Buka Dokumen Asli di DMS"
 								>
 									<span class="material-symbols-outlined text-[18px]">visibility</span>
@@ -367,3 +382,6 @@
 		</div>
 	</div>
 </div>
+
+<!-- Modal Notifikasi Hak Akses DMS -->
+<AccessDeniedModal bind:isOpen={showDmsAccessDeniedModal} moduleName="Document Management System (DMS)" />

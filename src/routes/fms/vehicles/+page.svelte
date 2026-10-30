@@ -3,8 +3,20 @@
 	import { goto } from '$app/navigation';
 	import { page } from '$app/stores';
 	import TruckTwin3D from '$lib/components/TruckTwin3D.svelte';
+	import AccessDeniedModal from '$lib/components/AccessDeniedModal.svelte';
+	import { authUser, hasModuleAccess } from '$lib/stores/auth';
 	
 	let { data }: { data: PageData } = $props();
+	const user = $derived($page.data?.user || $authUser);
+	const hasDmsAccess = $derived(hasModuleAccess(user, 'dms'));
+	let showDmsAccessDeniedModal = $state(false);
+
+	function handleDmsClick(e: MouseEvent) {
+		if (!hasDmsAccess) {
+			e.preventDefault();
+			showDmsAccessDeniedModal = true;
+		}
+	}
 	
 	let vehicles = $derived(data.vehicles || []);
 	let metrics  = $derived(data.metrics || { total: 0, active: 0, inactive: 0, maintenance: 0 });
@@ -831,7 +843,12 @@
 								<div class="flex items-center justify-between">
 									<p class="text-[10px] text-on-surface-variant font-medium uppercase">No. BPKB</p>
 									{#if selectedVehicle.dms_bpkb_id}
-										<a href="/dms/transactions/documents/{selectedVehicle.dms_bpkb_id}" target="_blank" class="text-[10px] font-bold text-blue-600 hover:underline flex items-center gap-0.5">
+										<a
+											href="/dms/transactions/documents/{selectedVehicle.dms_bpkb_id}"
+											target="_blank"
+											onclick={handleDmsClick}
+											class="text-[10px] font-bold text-blue-600 hover:underline flex items-center gap-0.5 cursor-pointer"
+										>
 											<span>DMS</span>
 											<span class="material-symbols-outlined text-[10px]">open_in_new</span>
 										</a>
@@ -843,7 +860,12 @@
 								<div class="flex items-center justify-between">
 									<p class="text-[10px] text-on-surface-variant font-medium uppercase">No. Uji KIR</p>
 									{#if selectedVehicle.dms_kir_id}
-										<a href="/dms/transactions/documents/{selectedVehicle.dms_kir_id}" target="_blank" class="text-[10px] font-bold text-teal-600 hover:underline flex items-center gap-0.5">
+										<a
+											href="/dms/transactions/documents/{selectedVehicle.dms_kir_id}"
+											target="_blank"
+											onclick={handleDmsClick}
+											class="text-[10px] font-bold text-teal-600 hover:underline flex items-center gap-0.5 cursor-pointer"
+										>
 											<span>DMS</span>
 											<span class="material-symbols-outlined text-[10px]">open_in_new</span>
 										</a>
@@ -855,7 +877,12 @@
 								<div class="flex items-center justify-between">
 									<p class="text-[10px] text-on-surface-variant font-medium uppercase">STNK Kendaraan</p>
 									{#if selectedVehicle.dms_stnk_id}
-										<a href="/dms/transactions/documents/{selectedVehicle.dms_stnk_id}" target="_blank" class="text-[10px] font-bold text-indigo-600 hover:underline flex items-center gap-0.5">
+										<a
+											href="/dms/transactions/documents/{selectedVehicle.dms_stnk_id}"
+											target="_blank"
+											onclick={handleDmsClick}
+											class="text-[10px] font-bold text-indigo-600 hover:underline flex items-center gap-0.5 cursor-pointer"
+										>
 											<span>DMS</span>
 											<span class="material-symbols-outlined text-[10px]">open_in_new</span>
 										</a>
@@ -867,7 +894,12 @@
 								<div class="flex items-center justify-between">
 									<p class="text-[10px] text-on-surface-variant font-medium uppercase">Izin Limbah B3</p>
 									{#if selectedVehicle.dms_b3_id}
-										<a href="/dms/transactions/documents/{selectedVehicle.dms_b3_id}" target="_blank" class="text-[10px] font-bold text-amber-600 hover:underline flex items-center gap-0.5">
+										<a
+											href="/dms/transactions/documents/{selectedVehicle.dms_b3_id}"
+											target="_blank"
+											onclick={handleDmsClick}
+											class="text-[10px] font-bold text-amber-600 hover:underline flex items-center gap-0.5 cursor-pointer"
+										>
 											<span>DMS</span>
 											<span class="material-symbols-outlined text-[10px]">open_in_new</span>
 										</a>
@@ -887,7 +919,12 @@
 									<span class="material-symbols-outlined text-blue-600 text-base">folder_special</span>
 									<span class="font-semibold text-on-surface">Unit ini memiliki <strong>{selectedVehicle.dms_docs_count} dokumen</strong> tersimpan di DMS</span>
 								</div>
-								<a href="/dms/transactions/documents?q={encodeURIComponent(selectedVehicle.nomor_unit)}" target="_blank" class="px-2.5 py-1 rounded-lg bg-blue-600 text-white text-[11px] font-bold hover:bg-blue-700 transition-colors inline-flex items-center gap-1">
+								<a
+									href="/dms/transactions/documents?q={encodeURIComponent(selectedVehicle.nomor_unit)}"
+									target="_blank"
+									onclick={handleDmsClick}
+									class="px-2.5 py-1 rounded-lg bg-blue-600 text-white text-[11px] font-bold hover:bg-blue-700 transition-colors inline-flex items-center gap-1 cursor-pointer"
+								>
 									<span>Buka DMS</span>
 									<span class="material-symbols-outlined text-[12px]">open_in_new</span>
 								</a>
@@ -935,6 +972,9 @@
 		</div>
 	</div>
 {/if}
+
+<!-- Modal Notifikasi Hak Akses DMS -->
+<AccessDeniedModal bind:isOpen={showDmsAccessDeniedModal} moduleName="Document Management System (DMS)" />
 
 <style>
 	.hide-scrollbar::-webkit-scrollbar { display: none; }
