@@ -3,6 +3,8 @@
 	import { goto } from '$app/navigation';
 	import { page } from '$app/stores';
 	
+	let { data }: { data: PageData } = $props();
+	
 	let drivers = $derived(data.drivers || []);
 	let metrics = $derived(data.metrics);
 	let meta = $derived(data.meta);

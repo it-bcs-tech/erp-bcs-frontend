@@ -67,6 +67,17 @@ export const load: PageServerLoad = async ({ cookies, url }) => {
 		if (error.message?.includes('401') || error.message?.includes('Unauthorized')) {
 			throw redirect(307, '/login');
 		}
-		throw error;
+		// Graceful fallback agar server-side load tidak memicu HTTP 500
+		return {
+			drivers: [],
+			metrics: {
+				totalDrivers: 0,
+				onDuty: 0,
+				available: 0,
+				onLeave: 0
+			},
+			meta: { current_page: page, total: 0, per_page: perPage },
+			error: 'Gagal memuat data pengemudi dari backend API.'
+		};
 	}
 };
