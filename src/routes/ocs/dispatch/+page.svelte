@@ -65,18 +65,25 @@
 
 	// Panel Armada Filter State
 	let unitPanelSearch = $state('');
+	let unitPanelStatus = $state<'ALL' | 'READY' | 'ON_TRIP' | 'WORK_ORDER'>('ALL');
 	let filteredAvailableUnits = $derived(
-		unitPanelSearch.trim() === ''
-			? availableUnits
-			: availableUnits.filter((u: any) => {
+		availableUnits
+			.filter((u: any) => {
+				if (unitPanelStatus !== 'ALL' && (u.operational_group || 'READY') !== unitPanelStatus) return false;
+				if (unitPanelSearch.trim() === '') return true;
 				const q = unitPanelSearch.toLowerCase();
 				return (
 					(u.id && u.id.toLowerCase().includes(q)) ||
 					(u.driver && u.driver.toLowerCase().includes(q)) ||
 					(u.type && u.type.toLowerCase().includes(q)) ||
 					(u.brand && u.brand.toLowerCase().includes(q)) ||
-					(u.location && u.location.toLowerCase().includes(q))
+					(u.wo_no && u.wo_no.toLowerCase().includes(q)) ||
+					(u.trip_route && u.trip_route.toLowerCase().includes(q))
 				);
+			})
+			.sort((a: any, b: any) => {
+				const order: Record<string, number> = { READY: 1, ON_TRIP: 2, WORK_ORDER: 3, EXPIRED: 4 };
+				return (order[a.operational_group || 'READY'] || 5) - (order[b.operational_group || 'READY'] || 5);
 			})
 	);
 
@@ -554,7 +561,7 @@
 			newOrder: all.filter(o => o.status === 'WAITING_UJO').length,
 			ready: all.filter(o => o.status === 'READY_TO_DISPATCH').length,
 			closing: all.filter(o => o.status === 'CLOSING').length,
-			availableUnits: availableUnits.length
+			availableUnits: availableUnits.filter((u: any) => !u.operational_group || u.operational_group === 'READY').length
 		};
 	});
 
@@ -1286,12 +1293,28 @@
 		<div class="rounded-2xl bg-surface-container-low p-5 shadow-xs border border-slate-200/60 dark:border-slate-800/60 h-fit sticky top-8">
 			<div class="flex items-center justify-between mb-3">
 				<h3 class="text-sm font-bold text-on-surface uppercase tracking-wider flex items-center gap-2">
-					<span class="material-symbols-outlined text-emerald-500 text-lg">check_circle</span>
-					<span>Armada Siap</span>
+					<span class="material-symbols-outlined text-emerald-500 text-lg">local_shipping</span>
+					<span>Status Armada</span>
 				</h3>
 				<span class="text-xs font-mono font-bold px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300">
-					{filteredAvailableUnits.length}/{availableUnits.length}
+					{summary.availableUnits} Ready / {availableUnits.length}
 				</span>
+			</div>
+
+			<!-- Quick Status Pills -->
+			<div class="flex items-center gap-1 overflow-x-auto pb-2 mb-2 no-scrollbar">
+				<button type="button" onclick={() => unitPanelStatus = 'ALL'} class="px-2 py-1 rounded-lg text-[10px] font-bold whitespace-nowrap cursor-pointer {unitPanelStatus === 'ALL' ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900' : 'bg-surface text-on-surface-variant'}">
+					Semua ({availableUnits.length})
+				</button>
+				<button type="button" onclick={() => unitPanelStatus = 'READY'} class="px-2 py-1 rounded-lg text-[10px] font-bold whitespace-nowrap cursor-pointer {unitPanelStatus === 'READY' ? 'bg-emerald-600 text-white' : 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300'}">
+					Ready ({summary.availableUnits})
+				</button>
+				<button type="button" onclick={() => unitPanelStatus = 'ON_TRIP'} class="px-2 py-1 rounded-lg text-[10px] font-bold whitespace-nowrap cursor-pointer {unitPanelStatus === 'ON_TRIP' ? 'bg-sky-600 text-white' : 'bg-sky-50 text-sky-700 dark:bg-sky-950/40 dark:text-sky-300'}">
+					On-Trip ({availableUnits.filter((u: any) => u.operational_group === 'ON_TRIP').length})
+				</button>
+				<button type="button" onclick={() => unitPanelStatus = 'WORK_ORDER'} class="px-2 py-1 rounded-lg text-[10px] font-bold whitespace-nowrap cursor-pointer {unitPanelStatus === 'WORK_ORDER' ? 'bg-amber-600 text-white' : 'bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300'}">
+					WO ({availableUnits.filter((u: any) => u.operational_group === 'WORK_ORDER').length})
+				</button>
 			</div>
 
 			<!-- Quick Filter Search Input -->
@@ -1301,7 +1324,7 @@
 					<input 
 						type="text" 
 						bind:value={unitPanelSearch} 
-						placeholder="Cari unit / supir..." 
+						placeholder="Cari unit / supir / WO..." 
 						class="bg-transparent text-xs text-on-surface outline-none w-full placeholder:text-on-surface-variant/50"
 					/>
 					{#if unitPanelSearch}
@@ -1314,20 +1337,28 @@
 
 			<div class="space-y-3 max-h-[600px] overflow-y-auto pr-1">
 				{#each filteredAvailableUnits as unit}
-					<div class="p-3.5 rounded-xl bg-surface hover:bg-surface-container-high transition-colors cursor-pointer group border border-slate-200/60 dark:border-slate-800/60">
+					<div class="p-3.5 rounded-xl bg-surface hover:bg-surface-container-high transition-colors group border border-slate-200/60 dark:border-slate-800/60">
 						<div class="flex items-center justify-between mb-2">
 							<div class="flex items-center gap-3">
-								<div class="w-9 h-9 rounded-xl bg-emerald-500/10 text-emerald-600 flex items-center justify-center font-bold">
-									<span class="material-symbols-outlined text-lg">local_shipping</span>
+								<div class="w-9 h-9 rounded-xl {unit.operational_group === 'WORK_ORDER' ? 'bg-amber-500/10 text-amber-600' : unit.operational_group === 'ON_TRIP' ? 'bg-sky-500/10 text-sky-600' : 'bg-emerald-500/10 text-emerald-600'} flex items-center justify-center font-bold">
+									<span class="material-symbols-outlined text-lg">{unit.operational_group === 'WORK_ORDER' ? 'build_circle' : 'local_shipping'}</span>
 								</div>
 								<div>
 									<p class="text-sm font-bold text-on-surface">{unit.id}</p>
 									<p class="text-[11px] text-on-surface-variant font-medium">{unit.brand}</p>
 								</div>
 							</div>
-							{#if unit.current_state !== 'STANDBY'}
-								<span class="px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-blue-500/10 text-blue-600 border border-blue-500/20">
-									{unit.current_state}
+							{#if unit.operational_group === 'WORK_ORDER'}
+								<span class="px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-amber-500/10 text-amber-700 dark:text-amber-300 border border-amber-500/20">
+									WO {unit.wo_status}
+								</span>
+							{:else if unit.operational_group === 'ON_TRIP'}
+								<span class="px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-sky-500/10 text-sky-700 dark:text-sky-300 border border-sky-500/20">
+									ON-TRIP
+								</span>
+							{:else}
+								<span class="px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-emerald-500/10 text-emerald-600 border border-emerald-500/20">
+									READY
 								</span>
 							{/if}
 						</div>
@@ -1338,9 +1369,32 @@
 							</span>
 							<span class="flex items-center gap-1">
 								<span class="material-symbols-outlined text-[12px]">location_on</span>
-								{unit.location || 'Pool'}
+								{unit.operational_group === 'WORK_ORDER' ? 'Bengkel' : unit.operational_group === 'ON_TRIP' ? (unit.trip_stage_label || 'On-Trip') : (unit.location || 'Pool')}
 							</span>
 						</div>
+
+						{#if unit.operational_group === 'WORK_ORDER'}
+							<div class="mt-2 pt-2 border-t border-surface-container">
+								<div class="flex justify-between text-[10px] font-bold text-amber-700 dark:text-amber-300 mb-1">
+									<span class="truncate">{unit.wo_no} • {unit.wo_total_items > 0 ? `${unit.wo_resolved_items}/${unit.wo_total_items} Item` : unit.wo_category}</span>
+									<span>{unit.wo_progress_pct}%</span>
+								</div>
+								<div class="w-full h-1.5 rounded-full bg-amber-100 dark:bg-amber-950 overflow-hidden">
+									<div class="h-full rounded-full bg-amber-500" style="width: {unit.wo_progress_pct}%"></div>
+								</div>
+							</div>
+						{:else if unit.operational_group === 'ON_TRIP'}
+							<div class="mt-2 pt-2 border-t border-surface-container">
+								<div class="flex justify-between text-[10px] font-bold text-sky-700 dark:text-sky-300 mb-1">
+									<span class="truncate">{unit.trip_route || unit.trip_stage_label}</span>
+									<span>{unit.trip_progress_pct}%</span>
+								</div>
+								<div class="w-full h-1.5 rounded-full bg-sky-100 dark:bg-sky-950 overflow-hidden">
+									<div class="h-full rounded-full bg-sky-500" style="width: {unit.trip_progress_pct}%"></div>
+								</div>
+							</div>
+						{/if}
+
 						<div class="mt-2 flex flex-wrap gap-1.5 items-center">
 							<span class="text-[9px] font-bold text-on-surface-variant bg-surface-container px-2 py-0.5 rounded uppercase tracking-wider">{unit.type}</span>
 							{#if unit.has_expired_doc}

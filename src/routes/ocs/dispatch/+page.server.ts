@@ -40,8 +40,8 @@ export const load: PageServerLoad = async () => {
 			ORDER BY o.created_at DESC
 		`;
 
-		// Get Available Units (In Pool, AT_DESTINATION, or RETURNING for continuous cargo bypass)
-		const unitsResult = await sql`
+		// Get All Active Units (including Ready at Pool, Active On-Trip, and Open/Proses Work Orders in Maintenance)
+		const rawUnitsResult = await sql`
 			SELECT 
 				u.id as "unitId",
 				u.nomor_unit as id,
@@ -60,7 +60,30 @@ export const load: PageServerLoad = async () => {
 				unit_compliance.has_expired_doc,
 				unit_compliance.expired_doc_details,
 				driver_compliance.has_expired_sim,
-				driver_compliance.expired_sim_details
+				driver_compliance.expired_sim_details,
+				active_wo.wo_no,
+				active_wo.wo_status,
+				active_wo.wo_category,
+				active_wo.wo_complaint,
+				active_wo.wo_mechanic,
+				active_wo.repaired_items as wo_repaired_items,
+				active_wo.checklist_items as wo_checklist_items,
+				active_trip.no_surat_tugas as trip_no_st,
+				active_trip.dispatch_mode as trip_dispatch_mode,
+				active_trip.trip_status,
+				active_trip.customer as trip_customer,
+				active_trip.origin as trip_origin,
+				active_trip.destination as trip_destination,
+				active_trip.cargo as trip_cargo,
+				active_trip.ritase_ke as trip_ritase_ke,
+				active_trip.total_ritase_plan as trip_total_plan,
+				active_trip.completed_rit_count as trip_completed_rit,
+				active_so.so_id,
+				active_so.so_status,
+				active_so.so_customer,
+				active_so.so_origin,
+				active_so.so_destination,
+				active_so.so_cargo
 			FROM fleet.unit u
 			LEFT JOIN master.m_model_unit mu ON mu.id = u.model_unit_id
 			LEFT JOIN master.m_tipe_unit tu ON tu.id = mu.tipe_unit_id
@@ -119,16 +142,191 @@ export const load: PageServerLoad = async () => {
 						) sub
 					) as expired_sim_details
 			) driver_compliance ON true
-			WHERE u.is_active = true 
-			  AND u.current_state IN ('AT_POOL')
-			  AND u.id NOT IN (
-			      SELECT assigned_unit_id FROM marketing.sales_order WHERE status NOT IN ('COMPLETED', 'CANCELED') AND assigned_unit_id IS NOT NULL
-			  )
-			  AND REPLACE(u.nomor_unit, ' ', '') NOT IN (
-			      SELECT REPLACE(unit_id, ' ', '') FROM fleet.work_orders WHERE status IN ('Open', 'Proses') AND unit_id IS NOT NULL
-			  )
-			ORDER BY u.current_state ASC, u.nomor_unit ASC
+			LEFT JOIN LATERAL (
+				SELECT 
+					w.wo_no,
+					w.status as wo_status,
+					COALESCE(w.maint_category, 'Perbaikan Reguler') as wo_category,
+					COALESCE(w.keluhan_driver, '-') as wo_complaint,
+					COALESCE(mk.nama_karyawan, w.mechanic_id, 'Tim Mekanik') as wo_mechanic,
+					w.repaired_items,
+					w.checklist_items
+				FROM fleet.work_orders w
+				LEFT JOIN master.m_karyawan mk ON mk.payroll_id = w.mechanic_id
+				WHERE REPLACE(w.unit_id, ' ', '') = REPLACE(u.nomor_unit, ' ', '')
+				  AND w.status NOT IN ('Closed', 'CLOSED', 'Cancelled', 'CANCELLED')
+				ORDER BY w.wo_date DESC, w.id DESC
+				LIMIT 1
+			) active_wo ON true
+			LEFT JOIN LATERAL (
+				SELECT 
+					t.no_surat_tugas,
+					COALESCE(t.dispatch_mode, 'REGULER') as dispatch_mode,
+					t.status as trip_status,
+					t.customer,
+					t.origin,
+					t.destination,
+					t.cargo,
+					COALESCE(t.ritase_ke, 1) as ritase_ke,
+					COALESCE(t.total_ritase_plan, 1) as total_ritase_plan,
+					(
+						SELECT COUNT(*)::int FROM fleet.trip t2
+						WHERE t2.group_id IS NOT NULL AND t2.group_id = t.group_id AND t2.status = 'COMPLETED'
+					) as completed_rit_count
+				FROM fleet.trip t
+				WHERE t.unit_id = u.id
+				  AND t.status NOT IN ('COMPLETED', 'CANCELED', 'VOID')
+				ORDER BY 
+					CASE WHEN t.status IN ('IN_TRANSIT', 'LOADING', 'DISPATCHED', 'ACTIVE_ONSITE') THEN 1 ELSE 2 END ASC,
+					t.id DESC
+				LIMIT 1
+			) active_trip ON true
+			LEFT JOIN LATERAL (
+				SELECT 
+					so.id as so_id,
+					so.status as so_status,
+					c.nama_kustomer as so_customer,
+					ori.nama_kustomer as so_origin,
+					dest.nama_kustomer as so_destination,
+					so.jenis_muatan as so_cargo
+				FROM marketing.sales_order so
+				LEFT JOIN master.m_customer c ON c.id = so.customer_id
+				LEFT JOIN master.m_customer ori ON ori.id = so.origin_id
+				LEFT JOIN master.m_customer dest ON dest.id = so.destination_id
+				WHERE so.assigned_unit_id = u.id
+				  AND so.status NOT IN ('COMPLETED', 'CANCELED')
+				ORDER BY so.created_at DESC
+				LIMIT 1
+			) active_so ON true
+			WHERE u.is_active = true
+			ORDER BY u.nomor_unit ASC
 		`;
+
+		function parseJsonArraySafe(val: any): any[] {
+			if (!val) return [];
+			let curr = val;
+			while (typeof curr === 'string') {
+				try {
+					curr = JSON.parse(curr);
+				} catch {
+					break;
+				}
+			}
+			return Array.isArray(curr) ? curr : [];
+		}
+
+		const unitsResult = (rawUnitsResult as any[]).map((u) => {
+			// 1. Check Active Work Order (Open / Proses / etc.)
+			const hasActiveWo = Boolean(u.wo_no);
+			let woTotalItems = 0;
+			let woResolvedItems = 0;
+			let woProgressPct = 0;
+
+			if (hasActiveWo) {
+				const repaired = parseJsonArraySafe(u.wo_repaired_items);
+				const checklist = parseJsonArraySafe(u.wo_checklist_items);
+				const items = repaired.length > 0 ? repaired : checklist;
+				woTotalItems = items.length;
+				woResolvedItems = items.filter((i: any) => i?.status === 'RESOLVED' || i?.status === 'OK').length;
+
+				if (woTotalItems > 0) {
+					woProgressPct = Math.round((woResolvedItems / woTotalItems) * 100);
+					// Ensure Open/Proses still shows a visible minimum bar if 0 resolved
+					if (woProgressPct === 0 && String(u.wo_status).toLowerCase().includes('proses')) {
+						woProgressPct = 25;
+					} else if (woProgressPct === 0) {
+						woProgressPct = 10;
+					}
+				} else {
+					const st = String(u.wo_status || 'Open').toUpperCase();
+					if (st.includes('REINSPECT')) woProgressPct = 90;
+					else if (st.includes('PROSES') || st.includes('PROGRESS')) woProgressPct = 55;
+					else if (st.includes('DISPENSATION')) woProgressPct = 75;
+					else woProgressPct = 15; // Open
+				}
+			}
+
+			// 2. Check Active Trip / Sales Order / Non-Pool State
+			const isNonPoolState = u.current_state && !['AT_POOL', 'STANDBY'].includes(u.current_state);
+			const hasActiveTrip = !hasActiveWo && Boolean(u.trip_status || u.so_status || isNonPoolState);
+
+			let tripProgressPct = 0;
+			let tripStageLabel = '';
+			let tripRoute = '';
+			let tripCustomer = '';
+			let tripDetailText = '';
+
+			if (hasActiveTrip) {
+				tripCustomer = u.trip_customer || u.so_customer || 'Pelanggan';
+				const ori = u.trip_origin || u.so_origin || 'Origin';
+				const dest = u.trip_destination || u.so_destination || 'Destination';
+				tripRoute = `${ori} → ${dest}`;
+
+				const mode = String(u.trip_dispatch_mode || 'REGULER').toUpperCase();
+				const rawStatus = String(u.trip_status || u.so_status || u.current_state || 'ON_TRIP').toUpperCase();
+
+				if (mode === 'NGEPOK') {
+					const totalPlan = Math.max(1, Number(u.trip_total_plan) || 1);
+					const completed = Number(u.trip_completed_rit) || 0;
+					const currentRit = Math.min(totalPlan, completed + 1);
+					tripProgressPct = Math.min(95, Math.max(15, Math.round(((completed + 0.5) / totalPlan) * 100)));
+					tripStageLabel = `Ngepok Rit ${currentRit}/${totalPlan}`;
+					tripDetailText = `${completed} dari ${totalPlan} Rit Selesai • ${u.trip_cargo || '-'}`;
+				} else if (mode === 'DEDICATED_ONSITE' || rawStatus === 'ACTIVE_ONSITE') {
+					tripProgressPct = 60;
+					tripStageLabel = 'Dedicated On-Site';
+					tripDetailText = `Aktif Standby On-Site • ${u.trip_cargo || '-'}`;
+				} else {
+					if (rawStatus.includes('RETURN')) {
+						tripProgressPct = 90;
+						tripStageLabel = 'Perjalanan Pulang Pool';
+					} else if (rawStatus.includes('DESTINATION') || rawStatus.includes('UNLOAD') || rawStatus.includes('CLOSING')) {
+						tripProgressPct = 80;
+						tripStageLabel = 'Bongkar Muatan (Tujuan)';
+					} else if (rawStatus.includes('TRANSIT') || rawStatus.includes('ON_TRIP') || rawStatus.includes('DISPATCHED')) {
+						tripProgressPct = 60;
+						tripStageLabel = 'Dalam Perjalanan (In Transit)';
+					} else if (rawStatus.includes('LOAD')) {
+						tripProgressPct = 35;
+						tripStageLabel = 'Proses Muat (Loading)';
+					} else {
+						tripProgressPct = 20;
+						tripStageLabel = `Order Aktif (${rawStatus.replace(/_/g, ' ')})`;
+					}
+					tripDetailText = `${u.trip_no_st || (u.so_id ? 'SO #' + u.so_id : 'Trip Aktif')} • ${u.trip_cargo || u.so_cargo || '-'}`;
+				}
+			}
+
+			// 3. Determine Operational Group
+			const hasNoDriver = !u.driverId || String(u.driver).includes('Libur');
+			const isNonCompliant = Boolean(u.has_expired_doc || u.has_expired_sim || hasNoDriver);
+
+			let operationalGroup: 'READY' | 'ON_TRIP' | 'WORK_ORDER' | 'EXPIRED' = 'READY';
+			if (hasActiveWo) {
+				operationalGroup = 'WORK_ORDER';
+			} else if (hasActiveTrip) {
+				operationalGroup = 'ON_TRIP';
+			} else if (isNonCompliant) {
+				operationalGroup = 'EXPIRED';
+			} else {
+				operationalGroup = 'READY';
+			}
+
+			return {
+				...u,
+				has_active_wo: hasActiveWo,
+				wo_total_items: woTotalItems,
+				wo_resolved_items: woResolvedItems,
+				wo_progress_pct: woProgressPct,
+				has_active_trip: hasActiveTrip,
+				trip_progress_pct: tripProgressPct,
+				trip_stage_label: tripStageLabel,
+				trip_route: tripRoute,
+				trip_customer_name: tripCustomer,
+				trip_detail_text: tripDetailText,
+				operational_group: operationalGroup
+			};
+		});
 
 		// Fetch actual Active Contracts
 		const activeContracts = await sql`
@@ -161,7 +359,7 @@ export const load: PageServerLoad = async () => {
 		`;
 
 		const contractOrders = [];
-		let availableUnitsPool = [...unitsResult]; // copy to keep track of assigned units in this session
+		let availableUnitsPool = unitsResult.filter((u: any) => u.operational_group === 'READY'); // copy to keep track of assigned READY units in this session
 
 		console.log("Active Contracts found:", activeContracts.length);
 		if (activeContracts.length > 0) {
