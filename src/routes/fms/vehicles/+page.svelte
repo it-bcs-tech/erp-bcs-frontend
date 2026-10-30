@@ -3,8 +3,11 @@
 	import { goto } from '$app/navigation';
 	import { page } from '$app/stores';
 	import TruckTwin3D from '$lib/components/TruckTwin3D.svelte';
+	import DmsSecureViewer from '$lib/components/DmsSecureViewer.svelte';
+	import { authUser } from '$lib/stores/auth';
 	
 	let { data }: { data: PageData } = $props();
+	const user = $derived($page.data?.user || $authUser);
 	
 	let vehicles = $derived(data.vehicles || []);
 	let metrics  = $derived(data.metrics || { total: 0, active: 0, inactive: 0, maintenance: 0 });
@@ -17,6 +20,49 @@
 	function open3DTwin(vhc: any) {
 		selectedVehicleFor3D = vhc;
 		show3DTwinModal = true;
+	}
+
+	// DMS Document Viewer & List Modal states
+	let isSecureViewerOpen = $state(false);
+	let previewDoc = $state<any>(null);
+	let isVehicleDocsModalOpen = $state(false);
+	let vehicleDocsList = $state<any[]>([]);
+	let isLoadingVehicleDocs = $state(false);
+	let isLoadingSingleDoc = $state(false);
+
+	async function openDocViewer(docId: string | number) {
+		if (!docId) return;
+		isLoadingSingleDoc = true;
+		try {
+			const res = await fetch(`/api/fms/documents/${docId}`);
+			const json = await res.json();
+			if (json.success && json.data) {
+				previewDoc = json.data;
+				isSecureViewerOpen = true;
+			}
+		} catch (err) {
+			console.error('Failed to load document for preview:', err);
+		} finally {
+			isLoadingSingleDoc = false;
+		}
+	}
+
+	async function openVehicleDocsList(vhc: any) {
+		selectedVehicle = vhc;
+		isVehicleDocsModalOpen = true;
+		isLoadingVehicleDocs = true;
+		vehicleDocsList = [];
+		try {
+			const res = await fetch(`/api/fms/vehicles/${vhc.id}/documents`);
+			const json = await res.json();
+			if (json.success && Array.isArray(json.data)) {
+				vehicleDocsList = json.data;
+			}
+		} catch (err) {
+			console.error('Failed to load vehicle documents:', err);
+		} finally {
+			isLoadingVehicleDocs = false;
+		}
 	}
 
 	// Slide-over Vehicle Detail Drawer state
@@ -831,10 +877,16 @@
 								<div class="flex items-center justify-between">
 									<p class="text-[10px] text-on-surface-variant font-medium uppercase">No. BPKB</p>
 									{#if selectedVehicle.dms_bpkb_id}
-										<a href="/dms/transactions/documents/{selectedVehicle.dms_bpkb_id}" target="_blank" class="text-[10px] font-bold text-blue-600 hover:underline flex items-center gap-0.5">
-											<span>DMS</span>
-											<span class="material-symbols-outlined text-[10px]">open_in_new</span>
-										</a>
+										<button
+											type="button"
+											onclick={() => openDocViewer(selectedVehicle.dms_bpkb_id)}
+											disabled={isLoadingSingleDoc}
+											class="text-[10px] font-bold text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-0.5 cursor-pointer disabled:opacity-50"
+											title="Lihat Pratinjau BPKB"
+										>
+											<span class="material-symbols-outlined text-[13px]">visibility</span>
+											<span>Pratinjau</span>
+										</button>
 									{/if}
 								</div>
 								<p class="font-bold text-on-surface font-mono mt-0.5">{selectedVehicle.no_bpkb || '—'}</p>
@@ -843,10 +895,16 @@
 								<div class="flex items-center justify-between">
 									<p class="text-[10px] text-on-surface-variant font-medium uppercase">No. Uji KIR</p>
 									{#if selectedVehicle.dms_kir_id}
-										<a href="/dms/transactions/documents/{selectedVehicle.dms_kir_id}" target="_blank" class="text-[10px] font-bold text-teal-600 hover:underline flex items-center gap-0.5">
-											<span>DMS</span>
-											<span class="material-symbols-outlined text-[10px]">open_in_new</span>
-										</a>
+										<button
+											type="button"
+											onclick={() => openDocViewer(selectedVehicle.dms_kir_id)}
+											disabled={isLoadingSingleDoc}
+											class="text-[10px] font-bold text-teal-600 dark:text-teal-400 hover:underline flex items-center gap-0.5 cursor-pointer disabled:opacity-50"
+											title="Lihat Pratinjau KIR"
+										>
+											<span class="material-symbols-outlined text-[13px]">visibility</span>
+											<span>Pratinjau</span>
+										</button>
 									{/if}
 								</div>
 								<p class="font-bold text-on-surface font-mono mt-0.5">{selectedVehicle.no_uji || selectedVehicle.no_kir || '—'}</p>
@@ -855,10 +913,16 @@
 								<div class="flex items-center justify-between">
 									<p class="text-[10px] text-on-surface-variant font-medium uppercase">STNK Kendaraan</p>
 									{#if selectedVehicle.dms_stnk_id}
-										<a href="/dms/transactions/documents/{selectedVehicle.dms_stnk_id}" target="_blank" class="text-[10px] font-bold text-indigo-600 hover:underline flex items-center gap-0.5">
-											<span>DMS</span>
-											<span class="material-symbols-outlined text-[10px]">open_in_new</span>
-										</a>
+										<button
+											type="button"
+											onclick={() => openDocViewer(selectedVehicle.dms_stnk_id)}
+											disabled={isLoadingSingleDoc}
+											class="text-[10px] font-bold text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-0.5 cursor-pointer disabled:opacity-50"
+											title="Lihat Pratinjau STNK"
+										>
+											<span class="material-symbols-outlined text-[13px]">visibility</span>
+											<span>Pratinjau</span>
+										</button>
 									{/if}
 								</div>
 								<p class="font-bold text-on-surface font-mono mt-0.5">{selectedVehicle.dms_stnk_id ? 'Tersedia di DMS' : '—'}</p>
@@ -867,10 +931,16 @@
 								<div class="flex items-center justify-between">
 									<p class="text-[10px] text-on-surface-variant font-medium uppercase">Izin Limbah B3</p>
 									{#if selectedVehicle.dms_b3_id}
-										<a href="/dms/transactions/documents/{selectedVehicle.dms_b3_id}" target="_blank" class="text-[10px] font-bold text-amber-600 hover:underline flex items-center gap-0.5">
-											<span>DMS</span>
-											<span class="material-symbols-outlined text-[10px]">open_in_new</span>
-										</a>
+										<button
+											type="button"
+											onclick={() => openDocViewer(selectedVehicle.dms_b3_id)}
+											disabled={isLoadingSingleDoc}
+											class="text-[10px] font-bold text-amber-600 dark:text-amber-400 hover:underline flex items-center gap-0.5 cursor-pointer disabled:opacity-50"
+											title="Lihat Pratinjau Izin B3"
+										>
+											<span class="material-symbols-outlined text-[13px]">visibility</span>
+											<span>Pratinjau</span>
+										</button>
 									{/if}
 								</div>
 								<p class="font-bold text-on-surface mt-0.5 font-mono">{selectedVehicle.dms_b3_expiry ? `Exp: ${selectedVehicle.dms_b3_expiry}` : '—'}</p>
@@ -885,12 +955,16 @@
 							<div class="p-3 rounded-xl bg-blue-500/5 border border-blue-500/20 flex items-center justify-between text-xs mt-2">
 								<div class="flex items-center gap-2">
 									<span class="material-symbols-outlined text-blue-600 text-base">folder_special</span>
-									<span class="font-semibold text-on-surface">Unit ini memiliki <strong>{selectedVehicle.dms_docs_count} dokumen</strong> tersimpan di DMS</span>
+									<span class="font-semibold text-on-surface">Unit ini memiliki <strong>{selectedVehicle.dms_docs_count} berkas</strong> arsip</span>
 								</div>
-								<a href="/dms/transactions/documents?q={encodeURIComponent(selectedVehicle.nomor_unit)}" target="_blank" class="px-2.5 py-1 rounded-lg bg-blue-600 text-white text-[11px] font-bold hover:bg-blue-700 transition-colors inline-flex items-center gap-1">
-									<span>Buka DMS</span>
-									<span class="material-symbols-outlined text-[12px]">open_in_new</span>
-								</a>
+								<button
+									type="button"
+									onclick={() => openVehicleDocsList(selectedVehicle)}
+									class="px-2.5 py-1 rounded-lg bg-blue-600 text-white text-[11px] font-bold hover:bg-blue-700 transition-colors inline-flex items-center gap-1 cursor-pointer"
+								>
+									<span class="material-symbols-outlined text-[14px]">visibility</span>
+									<span>Lihat Semua Berkas</span>
+								</button>
 							</div>
 						{/if}
 					</div>
@@ -935,6 +1009,109 @@
 		</div>
 	</div>
 {/if}
+
+<!-- MODAL: Vehicle Documents List (In-Module Scoped Viewer) -->
+{#if isVehicleDocsModalOpen && selectedVehicle}
+	<div class="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
+		<div class="bg-surface-container-lowest dark:bg-surface-container-low rounded-3xl w-full max-w-2xl max-h-[85vh] flex flex-col shadow-2xl overflow-hidden border border-slate-200 dark:border-slate-800">
+			<!-- Header -->
+			<div class="px-6 py-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between bg-surface-container-low dark:bg-surface-container">
+				<div class="flex items-center gap-3">
+					<div class="w-10 h-10 rounded-xl bg-blue-100 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 flex items-center justify-center font-bold">
+						<span class="material-symbols-outlined text-xl">folder_shared</span>
+					</div>
+					<div>
+						<h3 class="text-base font-extrabold text-on-surface">Dokumen Terarsip Armada</h3>
+						<p class="text-xs text-on-surface-variant font-medium">
+							Unit: <span class="font-bold text-on-surface">{selectedVehicle.nomor_unit}</span> &bull; {selectedVehicle.business_unit || 'Truck'}
+						</p>
+					</div>
+				</div>
+				<button
+					type="button"
+					onclick={() => isVehicleDocsModalOpen = false}
+					class="w-8 h-8 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-700 text-on-surface-variant flex items-center justify-center transition-colors cursor-pointer"
+					aria-label="Tutup"
+				>
+					<span class="material-symbols-outlined text-lg">close</span>
+				</button>
+			</div>
+
+			<!-- Body -->
+			<div class="p-6 overflow-y-auto flex-1 space-y-3">
+				{#if isLoadingVehicleDocs}
+					<div class="py-12 text-center text-on-surface-variant">
+						<span class="material-symbols-outlined animate-spin text-3xl text-blue-600 mb-2">progress_activity</span>
+						<p class="text-xs font-semibold">Memuat berkas unit...</p>
+					</div>
+				{:else if vehicleDocsList.length === 0}
+					<div class="py-12 text-center text-on-surface-variant">
+						<span class="material-symbols-outlined text-4xl text-slate-400 mb-2">folder_open</span>
+						<p class="text-sm font-semibold">Belum ada dokumen yang terarsip untuk unit ini.</p>
+					</div>
+				{:else}
+					<div class="space-y-2.5">
+						{#each vehicleDocsList as doc}
+							<div class="p-3.5 rounded-2xl bg-surface-container border border-slate-200/80 dark:border-slate-800 flex items-center justify-between gap-3">
+								<div class="flex items-center gap-3 min-w-0">
+									<div class="w-9 h-9 rounded-xl bg-surface-container-highest flex items-center justify-center text-blue-600 dark:text-blue-400 shrink-0">
+										<span class="material-symbols-outlined text-lg">description</span>
+									</div>
+									<div class="min-w-0">
+										<div class="flex items-center gap-2">
+											<span class="px-2 py-0.5 rounded text-[10px] font-black uppercase bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300">
+												{doc.type_code || doc.type_name || 'DOC'}
+											</span>
+											<p class="text-xs font-bold text-on-surface truncate">{doc.title || doc.type_name}</p>
+										</div>
+										<p class="text-[11px] text-on-surface-variant mt-0.5">
+											No: <span class="font-mono font-semibold">{doc.doc_number || '—'}</span>
+											{#if doc.expiry_date_str}
+												&bull; Berlaku s/d: <span class="font-semibold text-on-surface">{doc.expiry_date_str}</span>
+											{/if}
+										</p>
+									</div>
+								</div>
+								<button
+									type="button"
+									onclick={() => {
+										previewDoc = doc;
+										isSecureViewerOpen = true;
+									}}
+									class="px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold transition-colors flex items-center gap-1 shrink-0 cursor-pointer shadow-xs"
+								>
+									<span class="material-symbols-outlined text-sm">visibility</span>
+									<span>Pratinjau</span>
+								</button>
+							</div>
+						{/each}
+					</div>
+				{/if}
+			</div>
+
+			<!-- Footer -->
+			<div class="px-6 py-3 border-t border-slate-200 dark:border-slate-800 bg-surface-container-low dark:bg-surface-container flex items-center justify-between text-xs text-on-surface-variant">
+				<span>Terhubung dengan arsip digital DMS (Secure Read-Only)</span>
+				<button
+					type="button"
+					onclick={() => isVehicleDocsModalOpen = false}
+					class="px-4 py-1.5 rounded-xl border border-slate-300 dark:border-slate-700 font-bold hover:bg-surface-container-high cursor-pointer"
+				>
+					Tutup
+				</button>
+			</div>
+		</div>
+	</div>
+{/if}
+
+<!-- MODAL: Secure Watermarked Viewer -->
+<DmsSecureViewer
+	bind:isOpen={isSecureViewerOpen}
+	filePath={previewDoc?.file_path || ''}
+	docTitle={previewDoc?.title || previewDoc?.type_name || 'Dokumen Armada'}
+	docNumber={previewDoc?.doc_number || ''}
+	userName={user?.name || 'Staff FMS'}
+/>
 
 <style>
 	.hide-scrollbar::-webkit-scrollbar { display: none; }
