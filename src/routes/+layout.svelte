@@ -1,12 +1,16 @@
 <script lang="ts">
 	import '../app.css';
+	import { onMount } from 'svelte';
+	import { beforeNavigate } from '$app/navigation';
 	import Header from '$lib/components/Header.svelte';
 	import Footer from '$lib/components/Footer.svelte';
 	import PresenceTracker from '$lib/components/PresenceTracker.svelte';
+	import AccessDeniedModal from '$lib/components/AccessDeniedModal.svelte';
 	import { page } from '$app/stores';
 	import { activeToasts, removeToast } from '$lib/stores/notifications';
 	import { authUser } from '$lib/stores/auth';
 	import { systemSettings } from '$lib/stores/settings';
+	import { checkUrlAccess } from '$lib/utils/rbacNavigation';
 	import { fade, fly } from 'svelte/transition';
 	
 	let { data, children } = $props();
@@ -24,6 +28,74 @@
 	$effect(() => {
 		if (data.privacySettings) {
 			systemSettings.updateSettings(data.privacySettings);
+		}
+	});
+
+	const currentUser = $derived(data.user || $authUser);
+
+	// State Modal Hak Akses Global
+	let isAccessDeniedModalOpen = $state(false);
+	let deniedTargetName = $state('Modul');
+	let deniedDescription = $state('');
+	let deniedTitle = $state('Akses Terbatas');
+
+	function triggerAccessDenied(targetName: string, reason: string) {
+		deniedTargetName = targetName || 'Modul';
+		deniedDescription = reason || '';
+		deniedTitle = 'Akses Terbatas';
+		isAccessDeniedModalOpen = true;
+	}
+
+	// Tangkap klik link <a> secara global (capture-phase) untuk mencegah tab baru / navigasi tidak berizin
+	function handleGlobalLinkClick(event: MouseEvent) {
+		const target = event.target as HTMLElement | null;
+		if (!target) return;
+		const anchor = target.closest('a') as HTMLAnchorElement | null;
+		if (!anchor) return;
+
+		const href = anchor.getAttribute('href');
+		if (!href || href.startsWith('#') || href.startsWith('javascript:') || href.startsWith('mailto:') || href.startsWith('tel:')) {
+			return;
+		}
+
+		// Periksa jika link mengarah ke path internal
+		let targetPath = href;
+		if (href.startsWith('http://') || href.startsWith('https://')) {
+			try {
+				const parsed = new URL(href);
+				if (parsed.origin !== window.location.origin) {
+					return; // Tautan ke domain eksternal tidak dicegat
+				}
+				targetPath = parsed.pathname + parsed.search + parsed.hash;
+			} catch {
+				return;
+			}
+		}
+
+		const accessResult = checkUrlAccess(targetPath, currentUser);
+		if (!accessResult.allowed) {
+			event.preventDefault();
+			event.stopPropagation();
+			event.stopImmediatePropagation();
+			triggerAccessDenied(accessResult.targetName || 'Modul', accessResult.reason || '');
+		}
+	}
+
+	onMount(() => {
+		window.addEventListener('click', handleGlobalLinkClick, true);
+		return () => {
+			window.removeEventListener('click', handleGlobalLinkClick, true);
+		};
+	});
+
+	// Tangkap navigasi terprogram (misal goto())
+	beforeNavigate(({ to, cancel }) => {
+		if (!to) return;
+		const targetPath = to.url.pathname + to.url.search + to.url.hash;
+		const accessResult = checkUrlAccess(targetPath, currentUser);
+		if (!accessResult.allowed) {
+			cancel();
+			triggerAccessDenied(accessResult.targetName || 'Modul', accessResult.reason || '');
 		}
 	});
 
@@ -51,6 +123,14 @@
 {#if !isStandaloneRoute}
 	<Footer />
 {/if}
+
+<!-- Global Access Denied Modal -->
+<AccessDeniedModal
+	bind:isOpen={isAccessDeniedModalOpen}
+	title={deniedTitle}
+	targetName={deniedTargetName}
+	description={deniedDescription}
+/>
 
 <!-- Global Toast Container -->
 {#if !isPrintRoute}

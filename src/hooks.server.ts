@@ -1,9 +1,8 @@
 import { redirect, type Handle } from '@sveltejs/kit';
 import { dev } from '$app/environment';
-import { hasModuleAccess, hasMenuAccess } from '$lib/stores/auth';
-import type { AuthUser } from '$lib/types/auth';
 import { ADMIN_ROLES } from '$lib/types/auth';
 import { verifyUserData } from '$lib/server/auth';
+import { checkUrlAccess } from '$lib/utils/rbacNavigation';
 
 // ─────────────────────────────────────────────────────────────────
 // DEV_BYPASS: set true untuk skip auth check di development mode
@@ -11,8 +10,6 @@ import { verifyUserData } from '$lib/server/auth';
 // ─────────────────────────────────────────────────────────────────
 const DEV_BYPASS = dev;
 
-// Daftar route modul yang perlu dicek hak akses
-const MODULE_ROUTES = ['fms', 'maintenance', 'ocs', 'hris', 'marketing', 'pms', 'kasir', 'finance', 'dms', 'qhse', 'ga'];
 
 export const handle: Handle = async ({ event, resolve }) => {
 	const authToken = event.cookies.get('auth_token');
@@ -81,34 +78,17 @@ export const handle: Handle = async ({ event, resolve }) => {
 		}
 	}
 
-	// ── Cek hak akses modul ──
+	// ── Cek hak akses modul & sub-menu secara terpadu ──
 	if (authToken && !DEV_BYPASS) {
-		const requestedModule = MODULE_ROUTES.find((m) => pathname.startsWith('/' + m));
-
-		if (requestedModule) {
+		const accessResult = checkUrlAccess(pathname, currentUser);
+		if (!accessResult.allowed) {
 			if (!currentUser) {
 				event.cookies.delete('auth_token', { path: '/' });
 				event.cookies.delete('user_data', { path: '/' });
 				return redirect(303, '/login');
 			}
-
-			// 1. Cek hak akses modul dasar
-			if (!hasModuleAccess(currentUser, requestedModule)) {
-				return redirect(303, '/?access_denied=' + requestedModule);
-			}
-
-			// 2. Validasi Sub-menu
-			const pathParts = pathname.split('/').filter(Boolean);
-			if (pathParts.length > 1) {
-				const submenuPart = pathParts[1];
-				// Abaikan validasi SvelteKit internal route
-				if (submenuPart !== '__data.json') {
-					const requestedMenu = `${requestedModule}.${submenuPart}`;
-					if (!hasMenuAccess(currentUser, requestedModule, requestedMenu)) {
-						return redirect(303, `/?access_denied=${requestedMenu}`);
-					}
-				}
-			}
+			const deniedCode = accessResult.menuId || accessResult.moduleCode || 'module';
+			return redirect(303, `/?access_denied=${deniedCode}`);
 		}
 	}
 

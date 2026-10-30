@@ -3,20 +3,8 @@
 	import { goto } from '$app/navigation';
 	import { page } from '$app/stores';
 	import TruckTwin3D from '$lib/components/TruckTwin3D.svelte';
-	import AccessDeniedModal from '$lib/components/AccessDeniedModal.svelte';
-	import { authUser, hasModuleAccess } from '$lib/stores/auth';
 	
 	let { data }: { data: PageData } = $props();
-	const user = $derived($page.data?.user || $authUser);
-	const hasDmsAccess = $derived(hasModuleAccess(user, 'dms'));
-	let showDmsAccessDeniedModal = $state(false);
-
-	function handleDmsClick(e: MouseEvent) {
-		if (!hasDmsAccess) {
-			e.preventDefault();
-			showDmsAccessDeniedModal = true;
-		}
-	}
 	
 	let vehicles = $derived(data.vehicles || []);
 	let metrics  = $derived(data.metrics || { total: 0, active: 0, inactive: 0, maintenance: 0 });
@@ -846,7 +834,6 @@
 										<a
 											href="/dms/transactions/documents/{selectedVehicle.dms_bpkb_id}"
 											target="_blank"
-											onclick={handleDmsClick}
 											class="text-[10px] font-bold text-blue-600 hover:underline flex items-center gap-0.5 cursor-pointer"
 										>
 											<span>DMS</span>
@@ -863,7 +850,6 @@
 										<a
 											href="/dms/transactions/documents/{selectedVehicle.dms_kir_id}"
 											target="_blank"
-											onclick={handleDmsClick}
 											class="text-[10px] font-bold text-teal-600 hover:underline flex items-center gap-0.5 cursor-pointer"
 										>
 											<span>DMS</span>
@@ -880,7 +866,6 @@
 										<a
 											href="/dms/transactions/documents/{selectedVehicle.dms_stnk_id}"
 											target="_blank"
-											onclick={handleDmsClick}
 											class="text-[10px] font-bold text-indigo-600 hover:underline flex items-center gap-0.5 cursor-pointer"
 										>
 											<span>DMS</span>
@@ -897,7 +882,6 @@
 										<a
 											href="/dms/transactions/documents/{selectedVehicle.dms_b3_id}"
 											target="_blank"
-											onclick={handleDmsClick}
 											class="text-[10px] font-bold text-amber-600 hover:underline flex items-center gap-0.5 cursor-pointer"
 										>
 											<span>DMS</span>
@@ -922,7 +906,6 @@
 								<a
 									href="/dms/transactions/documents?q={encodeURIComponent(selectedVehicle.nomor_unit)}"
 									target="_blank"
-									onclick={handleDmsClick}
 									class="px-2.5 py-1 rounded-lg bg-blue-600 text-white text-[11px] font-bold hover:bg-blue-700 transition-colors inline-flex items-center gap-1 cursor-pointer"
 								>
 									<span>Buka DMS</span>
@@ -973,8 +956,6 @@
 	</div>
 {/if}
 
-<!-- Modal Notifikasi Hak Akses DMS -->
-<AccessDeniedModal bind:isOpen={showDmsAccessDeniedModal} moduleName="Document Management System (DMS)" />
 
 <style>
 	.hide-scrollbar::-webkit-scrollbar { display: none; }

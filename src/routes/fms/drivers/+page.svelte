@@ -2,20 +2,6 @@
 	import type { PageData } from './$types';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/stores';
-	import { authUser, hasModuleAccess } from '$lib/stores/auth';
-	import AccessDeniedModal from '$lib/components/AccessDeniedModal.svelte';
-	
-	let { data }: { data: PageData } = $props();
-	const user = $derived($page.data?.user || $authUser);
-	const hasDmsAccess = $derived(hasModuleAccess(user, 'dms'));
-	let showDmsAccessDeniedModal = $state(false);
-
-	function handleDmsClick(e: MouseEvent) {
-		if (!hasDmsAccess) {
-			e.preventDefault();
-			showDmsAccessDeniedModal = true;
-		}
-	}
 	
 	let drivers = $derived(data.drivers || []);
 	let metrics = $derived(data.metrics);
@@ -312,7 +298,6 @@
 									<a
 										href="/dms/transactions/documents?q={encodeURIComponent(drv.name)}"
 										target="_blank"
-										onclick={handleDmsClick}
 										class="p-2 rounded-lg text-on-surface-variant hover:text-blue-600 hover:bg-surface-container-high transition-colors cursor-pointer"
 										title="Buka Dokumen DMS"
 									>
@@ -443,5 +428,3 @@
 	</div>
 {/if}
 
-<!-- Modal Notifikasi Hak Akses DMS -->
-<AccessDeniedModal bind:isOpen={showDmsAccessDeniedModal} moduleName="Document Management System (DMS)" />
