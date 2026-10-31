@@ -28,7 +28,7 @@ export const load: PageServerLoad = async () => {
 				t.last_lon,
 				t.pool_tujuan_id
 			FROM marketing.sales_order o
-			LEFT JOIN fleet.trip t ON t.unit_id = o.assigned_unit_id AND t.tgl_trip::date = o.tgl_muat::date AND t.status NOT IN ('COMPLETED', 'CANCELED')
+			LEFT JOIN fleet.trip t ON t.unit_id = o.assigned_unit_id AND t.tgl_trip::date = o.tgl_muat::date AND t.status::text NOT IN ('COMPLETED', 'CANCELED')
 			LEFT JOIN master.m_customer c ON c.id = o.customer_id
 			LEFT JOIN master.m_customer ori ON ori.id = o.origin_id
 			LEFT JOIN master.m_customer dest ON dest.id = o.destination_id
@@ -171,13 +171,13 @@ export const load: PageServerLoad = async () => {
 					COALESCE(t.total_ritase_plan, 1) as total_ritase_plan,
 					(
 						SELECT COUNT(*)::int FROM fleet.trip t2
-						WHERE t2.group_id IS NOT NULL AND t2.group_id = t.group_id AND t2.status = 'COMPLETED'
+						WHERE t2.group_id IS NOT NULL AND t2.group_id = t.group_id AND t2.status::text = 'COMPLETED'
 					) as completed_rit_count
 				FROM fleet.trip t
 				WHERE t.unit_id = u.id
-				  AND t.status NOT IN ('COMPLETED', 'CANCELED', 'VOID')
+				  AND t.status::text NOT IN ('COMPLETED', 'CANCELED', 'VOID')
 				ORDER BY 
-					CASE WHEN t.status IN ('IN_TRANSIT', 'LOADING', 'DISPATCHED', 'ACTIVE_ONSITE') THEN 1 ELSE 2 END ASC,
+					CASE WHEN t.status::text IN ('IN_TRANSIT', 'LOADING', 'DISPATCHED', 'ACTIVE_ONSITE') THEN 1 ELSE 2 END ASC,
 					t.id DESC
 				LIMIT 1
 			) active_trip ON true
