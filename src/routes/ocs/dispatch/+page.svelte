@@ -173,6 +173,45 @@
 		searchTerms: `${r.origin_name} ${r.destination_name}`
 	})));
 	let activeMode = $state($page.url.searchParams.get('mode') || 'reguler');
+	let regulerSubTab = $state<'orders' | 'contracts'>('orders');
+	let showFleetDrawer = $state(false);
+
+	let fleetSummary = $derived.by(() => {
+		const all = availableUnits;
+		return {
+			total: all.length,
+			ready: all.filter((u: any) => (u.operational_group || 'READY') === 'READY').length,
+			onTrip: all.filter((u: any) => u.operational_group === 'ON_TRIP').length,
+			wo: all.filter((u: any) => u.operational_group === 'WORK_ORDER').length,
+			expired: all.filter((u: any) => u.operational_group === 'EXPIRED').length
+		};
+	});
+
+	// Drawer state
+	let drawerSearch = $state('');
+	let drawerStatusFilter = $state<'ALL' | 'READY' | 'ON_TRIP' | 'WORK_ORDER' | 'EXPIRED'>('ALL');
+	let drawerFilteredUnits = $derived(
+		availableUnits.filter((u: any) => {
+			const grp = u.operational_group || 'READY';
+			if (drawerStatusFilter !== 'ALL' && grp !== drawerStatusFilter) return false;
+			if (!drawerSearch.trim()) return true;
+			const q = drawerSearch.toLowerCase().trim();
+			return (
+				(u.id && u.id.toLowerCase().includes(q)) ||
+				(u.noLambung && u.noLambung.toLowerCase().includes(q)) ||
+				(u.driver && u.driver.toLowerCase().includes(q)) ||
+				(u.brand && u.brand.toLowerCase().includes(q)) ||
+				(u.type && u.type.toLowerCase().includes(q)) ||
+				(u.wo_no && u.wo_no.toLowerCase().includes(q)) ||
+				(u.trip_route && u.trip_route.toLowerCase().includes(q))
+			);
+		})
+	);
+
+	function openFleetDrawerWithStatus(st: 'ALL' | 'READY' | 'ON_TRIP' | 'WORK_ORDER' | 'EXPIRED' = 'ALL') {
+		drawerStatusFilter = st;
+		showFleetDrawer = true;
+	}
 	let ngepokBatches = $derived(data.ngepokBatches || []);
 	let dedicatedDispatches = $derived(data.dedicatedDispatches || []);
 	let customers = $derived(data.customers || []);
@@ -745,6 +784,65 @@
 		</button>
 	</div>
 
+	<!-- Global Fleet Status Bar -->
+	<div class="flex flex-wrap items-center justify-between gap-3 p-3.5 rounded-2xl bg-surface-container-low border border-slate-200/60 dark:border-slate-800/60 shadow-xs">
+		<div class="flex flex-wrap items-center gap-2">
+			<span class="text-xs font-black uppercase tracking-wider text-on-surface-variant flex items-center gap-1.5 mr-1">
+				<span class="material-symbols-outlined text-blue-600 dark:text-blue-400 text-base">analytics</span>
+				Armada Dump Truck ({fleetSummary.total}):
+			</span>
+			<button 
+				type="button" 
+				onclick={() => openFleetDrawerWithStatus('READY')} 
+				class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/20 text-xs font-bold transition-all cursor-pointer border border-emerald-500/20"
+				title="Klik untuk melihat unit Ready di Pool"
+			>
+				<span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+				<span>Ready:</span>
+				<span class="font-black text-sm">{fleetSummary.ready}</span>
+			</button>
+			<button 
+				type="button" 
+				onclick={() => openFleetDrawerWithStatus('ON_TRIP')} 
+				class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-sky-500/10 text-sky-700 dark:text-sky-300 hover:bg-sky-500/20 text-xs font-bold transition-all cursor-pointer border border-sky-500/20"
+				title="Klik untuk melihat unit On-Trip / Operasi"
+			>
+				<span class="w-2 h-2 rounded-full bg-sky-500 animate-pulse"></span>
+				<span>On-Trip:</span>
+				<span class="font-black text-sm">{fleetSummary.onTrip}</span>
+			</button>
+			<button 
+				type="button" 
+				onclick={() => openFleetDrawerWithStatus('WORK_ORDER')} 
+				class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-500/10 text-amber-700 dark:text-amber-300 hover:bg-amber-500/20 text-xs font-bold transition-all cursor-pointer border border-amber-500/20"
+				title="Klik untuk melihat unit di Bengkel / Work Order"
+			>
+				<span class="w-2 h-2 rounded-full bg-amber-500"></span>
+				<span>Bengkel:</span>
+				<span class="font-black text-sm">{fleetSummary.wo}</span>
+			</button>
+			<button 
+				type="button" 
+				onclick={() => openFleetDrawerWithStatus('EXPIRED')} 
+				class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-rose-500/10 text-rose-700 dark:text-rose-300 hover:bg-rose-500/20 text-xs font-bold transition-all cursor-pointer border border-rose-500/20"
+				title="Klik untuk melihat unit Terkunci / Dokumen Expired"
+			>
+				<span class="w-2 h-2 rounded-full bg-rose-500"></span>
+				<span>Terkunci:</span>
+				<span class="font-black text-sm">{fleetSummary.expired}</span>
+			</button>
+		</div>
+
+		<button 
+			type="button" 
+			onclick={() => openFleetDrawerWithStatus('ALL')} 
+			class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-primary text-on-primary hover:bg-primary/90 text-xs font-bold transition-all shadow-xs cursor-pointer ml-auto"
+		>
+			<span class="material-symbols-outlined text-[16px]">visibility</span>
+			<span>Buka Armada Center ({fleetSummary.total})</span>
+		</button>
+	</div>
+
 	{#if activeMode === 'reguler'}
 		<!-- Summary Cards (Bento) -->
 		<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -801,13 +899,62 @@
 		</div>
 	</div>
 
-	<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-		<!-- Orders List -->
-		<div class="lg:col-span-2 space-y-4">
-			<!-- AI Contract Auto-Dispatch Section -->
-			{#if localContractOrders && localContractOrders.length > 0}
-				<div class="mb-6 bg-gradient-to-r from-blue-600 via-indigo-600 to-sky-600 rounded-2xl p-[1px] shadow-md transition-all">
-					<div class="bg-surface-container-lowest rounded-2xl p-5 h-full">
+	<!-- Sub-Tabs for Reguler: Pipeline Sales Order vs Kontrak Marketing Aktif -->
+	<div class="flex flex-wrap items-center justify-between gap-3 border-b border-surface-container pb-3">
+		<div class="inline-flex p-1 rounded-2xl bg-surface-container border border-slate-200/80 dark:border-slate-800">
+			<button
+				type="button"
+				onclick={() => regulerSubTab = 'orders'}
+				class="px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-2 {regulerSubTab === 'orders' ? 'bg-primary text-on-primary shadow-xs' : 'text-on-surface-variant hover:text-on-surface'}"
+			>
+				<span class="material-symbols-outlined text-[16px]">receipt_long</span>
+				<span>Pipeline Sales Order & DO</span>
+				<span class="px-2 py-0.5 rounded-full text-[10px] font-black {regulerSubTab === 'orders' ? 'bg-white/20 text-white' : 'bg-surface-container-high text-on-surface-variant'}">
+					{orders.length}
+				</span>
+			</button>
+			<button
+				type="button"
+				onclick={() => regulerSubTab = 'contracts'}
+				class="px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-2 {regulerSubTab === 'contracts' ? 'bg-blue-600 text-white shadow-xs' : 'text-on-surface-variant hover:text-on-surface'}"
+			>
+				<span class="material-symbols-outlined text-[16px]">robot_2</span>
+				<span>Kontrak Marketing Aktif (AI Dispatch)</span>
+				<span class="px-2 py-0.5 rounded-full text-[10px] font-black {regulerSubTab === 'contracts' ? 'bg-white/20 text-white' : 'bg-surface-container-high text-on-surface-variant'}">
+					{localContractOrders.length}
+				</span>
+			</button>
+		</div>
+
+		{#if regulerSubTab === 'orders'}
+			<div class="inline-flex p-1 rounded-xl bg-surface-container border border-slate-200/80 dark:border-slate-800 shrink-0">
+				<button 
+					type="button" 
+					onclick={() => viewMode = 'table'} 
+					class="px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer {viewMode === 'table' ? 'bg-surface-container-lowest text-blue-600 shadow-2xs font-black' : 'text-on-surface-variant hover:text-on-surface'}"
+					title="Tampilan Tabel Ringkas"
+				>
+					<span class="material-symbols-outlined text-[16px]">view_list</span>
+					<span>Tabel</span>
+				</button>
+				<button 
+					type="button" 
+					onclick={() => viewMode = 'cards'} 
+					class="px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer {viewMode === 'cards' ? 'bg-surface-container-lowest text-blue-600 shadow-2xs font-black' : 'text-on-surface-variant hover:text-on-surface'}"
+					title="Tampilan Kartu Visual"
+				>
+					<span class="material-symbols-outlined text-[16px]">grid_view</span>
+					<span>Kartu</span>
+				</button>
+			</div>
+		{/if}
+	</div>
+
+	{#if regulerSubTab === 'contracts'}
+		<!-- AI Contract Auto-Dispatch Section (Full-Width) -->
+		{#if localContractOrders && localContractOrders.length > 0}
+			<div class="mb-6 bg-gradient-to-r from-blue-600 via-indigo-600 to-sky-600 rounded-2xl p-[1px] shadow-md transition-all">
+				<div class="bg-surface-container-lowest rounded-2xl p-5 h-full">
 						<!-- Collapsible Card Header -->
 						<div class="flex items-center justify-between gap-3 {isAiSectionOpen ? 'mb-4 pb-3 border-b border-slate-100 dark:border-slate-800' : ''}">
 							<div class="flex items-center gap-3">
@@ -1016,7 +1163,39 @@
 						{/if}
 					</div>
 				</div>
+			{:else}
+				<div class="p-12 text-center rounded-2xl bg-surface-container-low border border-dashed border-surface-container">
+					<span class="material-symbols-outlined text-4xl text-on-surface-variant/40 mb-2">check_circle</span>
+					<p class="text-sm font-bold text-on-surface">Tidak Ada Kontrak Marketing Aktif</p>
+					<p class="text-xs text-on-surface-variant mt-1">Semua alokasi kontrak telah terpenuhi atau belum ada PO kontrak aktif hari ini.</p>
+				</div>
 			{/if}
+	{:else}
+		<!-- Orders Workspace (Full-Width) -->
+		<div class="space-y-4">
+			{#if localContractOrders && localContractOrders.length > 0}
+				<!-- Notice banner leading to contracts -->
+				<div class="flex items-center justify-between p-3.5 rounded-2xl bg-blue-50/70 dark:bg-blue-950/20 border border-blue-200/80 dark:border-blue-800/80">
+					<div class="flex items-center gap-3">
+						<div class="w-8 h-8 rounded-lg bg-blue-600 text-white flex items-center justify-center shrink-0">
+							<span class="material-symbols-outlined text-lg">robot_2</span>
+						</div>
+						<div>
+							<p class="text-xs font-bold text-on-surface">Ada {localContractOrders.length} Kontrak Marketing Aktif Menunggu Penugasan Armada</p>
+							<p class="text-[11px] text-on-surface-variant">Sistem AI merekomendasikan unit dump truck idle di pool untuk auto-dispatch.</p>
+						</div>
+					</div>
+					<button 
+						type="button" 
+						onclick={() => regulerSubTab = 'contracts'} 
+						class="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold transition-colors flex items-center gap-1.5 cursor-pointer shrink-0 shadow-xs"
+					>
+						<span>Buka Rekomendasi Kontrak</span>
+						<span class="material-symbols-outlined text-sm">arrow_forward</span>
+					</button>
+				</div>
+			{/if}
+
 			<!-- Filter & View Mode Bar -->
 			<div class="flex flex-wrap items-center justify-between gap-3">
 				<!-- Status Filter Segmented Control Tabs -->
@@ -1287,138 +1466,8 @@
 				{/each}
 			</div>
 		{/if}
-	</div>
-
-		<!-- Available Units Panel -->
-		<div class="rounded-2xl bg-surface-container-low p-5 shadow-xs border border-slate-200/60 dark:border-slate-800/60 h-fit sticky top-8">
-			<div class="flex items-center justify-between mb-3">
-				<h3 class="text-sm font-bold text-on-surface uppercase tracking-wider flex items-center gap-2">
-					<span class="material-symbols-outlined text-emerald-500 text-lg">local_shipping</span>
-					<span>Status Armada</span>
-				</h3>
-				<span class="text-xs font-mono font-bold px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300">
-					{summary.availableUnits} Ready / {availableUnits.length}
-				</span>
-			</div>
-
-			<!-- Quick Status Pills -->
-			<div class="flex items-center gap-1 overflow-x-auto pb-2 mb-2 no-scrollbar">
-				<button type="button" onclick={() => unitPanelStatus = 'ALL'} class="px-2 py-1 rounded-lg text-[10px] font-bold whitespace-nowrap cursor-pointer {unitPanelStatus === 'ALL' ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900' : 'bg-surface text-on-surface-variant'}">
-					Semua ({availableUnits.length})
-				</button>
-				<button type="button" onclick={() => unitPanelStatus = 'READY'} class="px-2 py-1 rounded-lg text-[10px] font-bold whitespace-nowrap cursor-pointer {unitPanelStatus === 'READY' ? 'bg-emerald-600 text-white' : 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300'}">
-					Ready ({summary.availableUnits})
-				</button>
-				<button type="button" onclick={() => unitPanelStatus = 'ON_TRIP'} class="px-2 py-1 rounded-lg text-[10px] font-bold whitespace-nowrap cursor-pointer {unitPanelStatus === 'ON_TRIP' ? 'bg-sky-600 text-white' : 'bg-sky-50 text-sky-700 dark:bg-sky-950/40 dark:text-sky-300'}">
-					On-Trip ({availableUnits.filter((u: any) => u.operational_group === 'ON_TRIP').length})
-				</button>
-				<button type="button" onclick={() => unitPanelStatus = 'WORK_ORDER'} class="px-2 py-1 rounded-lg text-[10px] font-bold whitespace-nowrap cursor-pointer {unitPanelStatus === 'WORK_ORDER' ? 'bg-amber-600 text-white' : 'bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300'}">
-					WO ({availableUnits.filter((u: any) => u.operational_group === 'WORK_ORDER').length})
-				</button>
-			</div>
-
-			<!-- Quick Filter Search Input -->
-			<div class="mb-3">
-				<div class="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-surface border border-slate-200/80 dark:border-slate-800 text-xs">
-					<span class="material-symbols-outlined text-on-surface-variant text-[16px]">search</span>
-					<input 
-						type="text" 
-						bind:value={unitPanelSearch} 
-						placeholder="Cari unit / supir / WO..." 
-						class="bg-transparent text-xs text-on-surface outline-none w-full placeholder:text-on-surface-variant/50"
-					/>
-					{#if unitPanelSearch}
-						<button type="button" onclick={() => unitPanelSearch = ''} class="text-on-surface-variant hover:text-rose-500 cursor-pointer">
-							<span class="material-symbols-outlined text-[14px]">close</span>
-						</button>
-					{/if}
-				</div>
-			</div>
-
-			<div class="space-y-3 max-h-[600px] overflow-y-auto pr-1">
-				{#each filteredAvailableUnits as unit}
-					<div class="p-3.5 rounded-xl bg-surface hover:bg-surface-container-high transition-colors group border border-slate-200/60 dark:border-slate-800/60">
-						<div class="flex items-center justify-between mb-2">
-							<div class="flex items-center gap-3">
-								<div class="w-9 h-9 rounded-xl {unit.operational_group === 'WORK_ORDER' ? 'bg-amber-500/10 text-amber-600' : unit.operational_group === 'ON_TRIP' ? 'bg-sky-500/10 text-sky-600' : 'bg-emerald-500/10 text-emerald-600'} flex items-center justify-center font-bold">
-									<span class="material-symbols-outlined text-lg">{unit.operational_group === 'WORK_ORDER' ? 'build_circle' : 'local_shipping'}</span>
-								</div>
-								<div>
-									<p class="text-sm font-bold text-on-surface">{unit.id}</p>
-									<p class="text-[11px] text-on-surface-variant font-medium">{unit.brand}</p>
-								</div>
-							</div>
-							{#if unit.operational_group === 'WORK_ORDER'}
-								<span class="px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-amber-500/10 text-amber-700 dark:text-amber-300 border border-amber-500/20">
-									WO {unit.wo_status}
-								</span>
-							{:else if unit.operational_group === 'ON_TRIP'}
-								<span class="px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-sky-500/10 text-sky-700 dark:text-sky-300 border border-sky-500/20">
-									ON-TRIP
-								</span>
-							{:else}
-								<span class="px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-emerald-500/10 text-emerald-600 border border-emerald-500/20">
-									READY
-								</span>
-							{/if}
-						</div>
-						<div class="flex items-center gap-4 text-[11px] text-on-surface-variant mt-2">
-							<span class="flex items-center gap-1">
-								<span class="material-symbols-outlined text-[12px]">person</span>
-								{unit.driver}
-							</span>
-							<span class="flex items-center gap-1">
-								<span class="material-symbols-outlined text-[12px]">location_on</span>
-								{unit.operational_group === 'WORK_ORDER' ? 'Bengkel' : unit.operational_group === 'ON_TRIP' ? (unit.trip_stage_label || 'On-Trip') : (unit.location || 'Pool')}
-							</span>
-						</div>
-
-						{#if unit.operational_group === 'WORK_ORDER'}
-							<div class="mt-2 pt-2 border-t border-surface-container">
-								<div class="flex justify-between text-[10px] font-bold text-amber-700 dark:text-amber-300 mb-1">
-									<span class="truncate">{unit.wo_no} • {unit.wo_total_items > 0 ? `${unit.wo_resolved_items}/${unit.wo_total_items} Item` : unit.wo_category}</span>
-									<span>{unit.wo_progress_pct}%</span>
-								</div>
-								<div class="w-full h-1.5 rounded-full bg-amber-100 dark:bg-amber-950 overflow-hidden">
-									<div class="h-full rounded-full bg-amber-500" style="width: {unit.wo_progress_pct}%"></div>
-								</div>
-							</div>
-						{:else if unit.operational_group === 'ON_TRIP'}
-							<div class="mt-2 pt-2 border-t border-surface-container">
-								<div class="flex justify-between text-[10px] font-bold text-sky-700 dark:text-sky-300 mb-1">
-									<span class="truncate">{unit.trip_route || unit.trip_stage_label}</span>
-									<span>{unit.trip_progress_pct}%</span>
-								</div>
-								<div class="w-full h-1.5 rounded-full bg-sky-100 dark:bg-sky-950 overflow-hidden">
-									<div class="h-full rounded-full bg-sky-500" style="width: {unit.trip_progress_pct}%"></div>
-								</div>
-							</div>
-						{/if}
-
-						<div class="mt-2 flex flex-wrap gap-1.5 items-center">
-							<span class="text-[9px] font-bold text-on-surface-variant bg-surface-container px-2 py-0.5 rounded uppercase tracking-wider">{unit.type}</span>
-							{#if unit.has_expired_doc}
-								<span class="text-[9px] font-black text-rose-600 bg-rose-50 dark:bg-rose-950/40 px-2 py-0.5 rounded border border-rose-200" title={unit.expired_doc_details}>
-									⚠️ Dokumen Unit Expired
-								</span>
-							{/if}
-							{#if unit.has_expired_sim}
-								<span class="text-[9px] font-black text-amber-600 bg-amber-50 dark:bg-amber-950/40 px-2 py-0.5 rounded border border-amber-200" title={unit.expired_sim_details}>
-									⚠️ SIM Driver Expired
-								</span>
-							{/if}
-						</div>
-					</div>
-				{:else}
-					<div class="p-6 text-center rounded-xl bg-surface-container/40 border border-dashed border-surface-container">
-						<span class="material-symbols-outlined text-2xl text-on-surface-variant/40 mb-1">search_off</span>
-						<p class="text-xs font-bold text-on-surface">Tidak ada armada</p>
-						<p class="text-[10px] text-on-surface-variant mt-0.5">Tidak ditemukan armada yang cocok dengan "{unitPanelSearch}"</p>
-					</div>
-				{/each}
-			</div>
 		</div>
-	</div>
+	{/if}
 	{:else if activeMode === 'ngepok'}
 		<!-- Summary Bento Cards for Ngepok -->
 		{@const totalPlan = ngepokBatches.reduce((acc, b) => acc + (b.totalPlan || 0), 0)}
@@ -1504,6 +1553,7 @@
 					{@const bVoid = bTrips.filter((t: any) => t.status === 'VOID').length}
 					{@const bScheduled = bTrips.filter((t: any) => t.status === 'SCHEDULED').length}
 					{@const isExpanded = expandedBatches[batch.groupId] ?? true}
+					{@const pctProgress = batch.totalPlan > 0 ? Math.min(100, Math.round((bCompleted / batch.totalPlan) * 100)) : 0}
 
 					<div class="rounded-2xl bg-surface-container-lowest border border-slate-200/80 dark:border-slate-800/80 shadow-xs overflow-hidden transition-all">
 						<!-- Batch Header -->
@@ -1588,16 +1638,24 @@
 							</div>
 						</div>
 
-						<!-- Rute banner -->
-						<div class="px-5 py-2.5 bg-surface-container/30 border-b border-surface-container flex items-center justify-between text-xs text-on-surface-variant font-medium">
-							<div class="flex items-center gap-2">
+						<!-- Progress & Rute banner -->
+						<div class="px-5 py-2.5 bg-surface-container/30 border-b border-surface-container flex flex-wrap items-center justify-between gap-3 text-xs text-on-surface-variant font-medium">
+							<div class="flex items-center gap-2 flex-wrap">
 								<span class="material-symbols-outlined text-[15px] text-blue-500">pin_drop</span>
 								<span>Origin: <strong class="text-on-surface">{batch.origin || '-'}</strong></span>
 								<span class="material-symbols-outlined text-[14px]">arrow_right_alt</span>
 								<span>Destination: <strong class="text-on-surface">{batch.destination || '-'}</strong></span>
+								<span class="text-slate-300 dark:text-slate-700">•</span>
+								<span>Tanggal: <strong class="text-on-surface">{batch.tglTrip ? new Date(batch.tglTrip).toLocaleDateString('id-ID') : '-'}</strong></span>
 							</div>
-							<div>
-								Tanggal: <strong class="text-on-surface">{batch.tglTrip ? new Date(batch.tglTrip).toLocaleDateString('id-ID') : '-'}</strong>
+							
+							<div class="flex items-center gap-3 min-w-[200px]">
+								<div class="text-[11px] font-bold text-on-surface whitespace-nowrap">
+									<span>{pctProgress}% Terpenuhi</span>
+								</div>
+								<div class="w-32 bg-slate-200 dark:bg-slate-700 h-2 rounded-full overflow-hidden">
+									<div class="bg-indigo-600 h-full rounded-full transition-all duration-300" style="width: {pctProgress}%"></div>
+								</div>
 							</div>
 						</div>
 
@@ -1704,19 +1762,33 @@
 		{@const totalDedicatedRitase = dedicatedDispatches.reduce((acc, d) => acc + (d.totalRitase || 0), 0)}
 		{@const totalDedicatedTonnage = dedicatedDispatches.reduce((acc, d) => acc + (d.totalTonase || 0), 0)}
 		{@const activeDedicatedCount = dedicatedDispatches.filter(d => d.status !== 'COMPLETED').length}
+		{@const closedDedicatedCount = dedicatedDispatches.filter(d => d.status === 'COMPLETED').length}
 
-		<div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+		<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
 			<div class="p-5 rounded-2xl bg-surface-container-low border border-slate-200/60 dark:border-slate-800/60 shadow-xs">
 				<div class="flex items-center justify-between">
 					<div>
-						<p class="text-xs font-bold text-on-surface-variant uppercase tracking-wider">Unit Dedicated Aktif</p>
-						<h3 class="text-2xl font-black text-amber-600 mt-1">{activeDedicatedCount} <span class="text-xs text-on-surface-variant font-normal">Armada Standby</span></h3>
+						<p class="text-xs font-bold text-on-surface-variant uppercase tracking-wider">Shift Aktif</p>
+						<h3 class="text-2xl font-black text-amber-600 mt-1">{activeDedicatedCount} <span class="text-xs text-on-surface-variant font-normal">Armada On-Site</span></h3>
 					</div>
 					<div class="w-12 h-12 rounded-xl bg-amber-500/10 text-amber-600 flex items-center justify-center">
 						<span class="material-symbols-outlined text-2xl">warehouse</span>
 					</div>
 				</div>
 				<p class="text-xs text-on-surface-variant mt-2">Standby di Pelabuhan / Dermaga / Pabrik</p>
+			</div>
+
+			<div class="p-5 rounded-2xl bg-surface-container-low border border-slate-200/60 dark:border-slate-800/60 shadow-xs">
+				<div class="flex items-center justify-between">
+					<div>
+						<p class="text-xs font-bold text-on-surface-variant uppercase tracking-wider">Shift Selesai (Closed)</p>
+						<h3 class="text-2xl font-black text-emerald-600 mt-1">{closedDedicatedCount} <span class="text-xs text-on-surface-variant font-normal">Sesi</span></h3>
+					</div>
+					<div class="w-12 h-12 rounded-xl bg-emerald-500/10 text-emerald-600 flex items-center justify-center">
+						<span class="material-symbols-outlined text-2xl">task_alt</span>
+					</div>
+				</div>
+				<p class="text-xs text-emerald-600 font-medium mt-2">Surat Tugas diterbitkan & ditutup</p>
 			</div>
 
 			<div class="p-5 rounded-2xl bg-surface-container-low border border-slate-200/60 dark:border-slate-800/60 shadow-xs">
@@ -1736,13 +1808,13 @@
 				<div class="flex items-center justify-between">
 					<div>
 						<p class="text-xs font-bold text-on-surface-variant uppercase tracking-wider">Total Tonase Terpindah</p>
-						<h3 class="text-2xl font-black text-emerald-600 mt-1">{totalDedicatedTonnage.toLocaleString('id-ID')} <span class="text-xs text-on-surface-variant font-normal">Ton</span></h3>
+						<h3 class="text-2xl font-black text-indigo-600 mt-1">{totalDedicatedTonnage.toLocaleString('id-ID')} <span class="text-xs text-on-surface-variant font-normal">Ton</span></h3>
 					</div>
-					<div class="w-12 h-12 rounded-xl bg-emerald-500/10 text-emerald-600 flex items-center justify-center">
+					<div class="w-12 h-12 rounded-xl bg-indigo-500/10 text-indigo-600 flex items-center justify-center">
 						<span class="material-symbols-outlined text-2xl">scale</span>
 					</div>
 				</div>
-				<p class="text-xs text-emerald-600 font-medium mt-2">Siap untuk rekonsiliasi & invoice</p>
+				<p class="text-xs text-on-surface-variant mt-2">Siap untuk rekonsiliasi & invoice</p>
 			</div>
 		</div>
 
@@ -1923,6 +1995,211 @@
 		{/if}
 	{/if}
 </div>
+
+<!-- Slide-Over Drawer: Armada Center -->
+{#if showFleetDrawer}
+	<div class="fixed inset-0 z-50 overflow-hidden" role="dialog" aria-modal="true">
+		<!-- Backdrop overlay -->
+		<div 
+			class="fixed inset-0 bg-slate-900/50 backdrop-blur-xs transition-opacity" 
+			onclick={() => showFleetDrawer = false}
+			aria-hidden="true"
+		></div>
+
+		<div class="fixed inset-y-0 right-0 max-w-full flex pl-10 z-50 pointer-events-none">
+			<div class="w-screen max-w-xl bg-surface-container-lowest shadow-2xl flex flex-col border-l border-slate-200/80 dark:border-slate-800 pointer-events-auto">
+				<!-- Drawer Header -->
+				<div class="p-5 border-b border-surface-container flex items-center justify-between gap-4 bg-surface-container-low/50">
+					<div class="flex items-center gap-3">
+						<div class="w-10 h-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center font-bold">
+							<span class="material-symbols-outlined text-2xl">local_shipping</span>
+						</div>
+						<div>
+							<div class="flex items-center gap-2">
+								<h2 class="text-base font-black text-on-surface">Armada Center</h2>
+								<span class="px-2 py-0.5 rounded-full text-xs font-mono font-bold bg-primary/10 text-primary">
+									{fleetSummary.total} Unit DT
+								</span>
+							</div>
+							<p class="text-xs text-on-surface-variant font-medium mt-0.5">Monitoring live ketersediaan pool, perjalanan, dan bengkel</p>
+						</div>
+					</div>
+
+					<button 
+						type="button" 
+						onclick={() => showFleetDrawer = false} 
+						class="w-9 h-9 rounded-xl hover:bg-surface-container text-on-surface-variant hover:text-on-surface flex items-center justify-center transition-colors cursor-pointer"
+						title="Tutup Panel"
+					>
+						<span class="material-symbols-outlined text-xl">close</span>
+					</button>
+				</div>
+
+				<!-- Quick Search & Status Filters -->
+				<div class="p-4 border-b border-surface-container bg-surface-container-lowest space-y-3">
+					<!-- Search Box -->
+					<div class="flex items-center gap-2 px-3 py-2 rounded-xl bg-surface-container border border-slate-200/80 dark:border-slate-800 text-xs">
+						<span class="material-symbols-outlined text-on-surface-variant text-base">search</span>
+						<input 
+							type="text" 
+							bind:value={drawerSearch} 
+							placeholder="Cari nomor polisi / supir / WO / rute..." 
+							class="bg-transparent text-xs text-on-surface outline-none w-full placeholder:text-on-surface-variant/50"
+						/>
+						{#if drawerSearch}
+							<button type="button" onclick={() => drawerSearch = ''} class="text-on-surface-variant hover:text-rose-500 cursor-pointer">
+								<span class="material-symbols-outlined text-sm">close</span>
+							</button>
+						{/if}
+					</div>
+
+					<!-- Filter Pills -->
+					<div class="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar text-xs">
+						<button 
+							type="button" 
+							onclick={() => drawerStatusFilter = 'ALL'} 
+							class="px-2.5 py-1.5 rounded-xl font-bold whitespace-nowrap cursor-pointer transition-all {drawerStatusFilter === 'ALL' ? 'bg-primary text-on-primary shadow-xs' : 'bg-surface-container text-on-surface-variant hover:bg-surface-container-high'}"
+						>
+							Semua ({fleetSummary.total})
+						</button>
+						<button 
+							type="button" 
+							onclick={() => drawerStatusFilter = 'READY'} 
+							class="px-2.5 py-1.5 rounded-xl font-bold whitespace-nowrap cursor-pointer transition-all {drawerStatusFilter === 'READY' ? 'bg-emerald-600 text-white shadow-xs' : 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/20'}"
+						>
+							Ready ({fleetSummary.ready})
+						</button>
+						<button 
+							type="button" 
+							onclick={() => drawerStatusFilter = 'ON_TRIP'} 
+							class="px-2.5 py-1.5 rounded-xl font-bold whitespace-nowrap cursor-pointer transition-all {drawerStatusFilter === 'ON_TRIP' ? 'bg-sky-600 text-white shadow-xs' : 'bg-sky-500/10 text-sky-700 dark:text-sky-300 hover:bg-sky-500/20'}"
+						>
+							On-Trip ({fleetSummary.onTrip})
+						</button>
+						<button 
+							type="button" 
+							onclick={() => drawerStatusFilter = 'WORK_ORDER'} 
+							class="px-2.5 py-1.5 rounded-xl font-bold whitespace-nowrap cursor-pointer transition-all {drawerStatusFilter === 'WORK_ORDER' ? 'bg-amber-600 text-white shadow-xs' : 'bg-amber-500/10 text-amber-700 dark:text-amber-300 hover:bg-amber-500/20'}"
+						>
+							Bengkel / WO ({fleetSummary.wo})
+						</button>
+						<button 
+							type="button" 
+							onclick={() => drawerStatusFilter = 'EXPIRED'} 
+							class="px-2.5 py-1.5 rounded-xl font-bold whitespace-nowrap cursor-pointer transition-all {drawerStatusFilter === 'EXPIRED' ? 'bg-rose-600 text-white shadow-xs' : 'bg-rose-500/10 text-rose-700 dark:text-rose-300 hover:bg-rose-500/20'}"
+						>
+							Terkunci ({fleetSummary.expired})
+						</button>
+					</div>
+				</div>
+
+				<!-- Unit List -->
+				<div class="flex-1 overflow-y-auto p-4 space-y-3">
+					{#each drawerFilteredUnits as unit}
+						<div class="p-4 rounded-2xl bg-surface-container-low hover:bg-surface-container border border-slate-200/70 dark:border-slate-800/70 transition-all shadow-xs">
+							<!-- Top Line: Unit ID & Status Pill -->
+							<div class="flex items-center justify-between gap-2 mb-2.5">
+								<div class="flex items-center gap-3">
+									<div class="w-10 h-10 rounded-xl {unit.operational_group === 'WORK_ORDER' ? 'bg-amber-500/10 text-amber-600' : unit.operational_group === 'ON_TRIP' ? 'bg-sky-500/10 text-sky-600' : unit.operational_group === 'EXPIRED' ? 'bg-rose-500/10 text-rose-600' : 'bg-emerald-500/10 text-emerald-600'} flex items-center justify-center font-bold shrink-0">
+										<span class="material-symbols-outlined text-xl">
+											{unit.operational_group === 'WORK_ORDER' ? 'build_circle' : unit.operational_group === 'ON_TRIP' ? 'local_shipping' : unit.operational_group === 'EXPIRED' ? 'lock' : 'check_circle'}
+										</span>
+									</div>
+									<div>
+										<div class="flex items-center gap-2">
+											<p class="text-sm font-black text-on-surface font-mono">{unit.id}</p>
+											{#if unit.noLambung}
+												<span class="text-[10px] font-bold px-1.5 py-0.5 rounded bg-surface-container-highest text-on-surface-variant font-mono">
+													#{unit.noLambung}
+												</span>
+											{/if}
+										</div>
+										<p class="text-xs text-on-surface-variant font-medium">{unit.brand} • {unit.type}</p>
+									</div>
+								</div>
+
+								{#if unit.operational_group === 'WORK_ORDER'}
+									<span class="px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/30">
+										WO {unit.wo_status || 'IN_PROGRESS'}
+									</span>
+								{:else if unit.operational_group === 'ON_TRIP'}
+									<span class="px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider bg-sky-500/15 text-sky-700 dark:text-sky-300 border border-sky-500/30">
+										ON-TRIP
+									</span>
+								{:else if unit.operational_group === 'EXPIRED'}
+									<span class="px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider bg-rose-500/15 text-rose-700 dark:text-rose-300 border border-rose-500/30">
+										TERKUNCI
+									</span>
+								{:else}
+									<span class="px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30">
+										READY POOL
+									</span>
+								{/if}
+							</div>
+
+							<!-- Driver & Location -->
+							<div class="grid grid-cols-2 gap-2 text-xs text-on-surface-variant pt-2 border-t border-surface-container">
+								<div class="flex items-center gap-1.5 truncate">
+									<span class="material-symbols-outlined text-[15px] text-slate-400">person</span>
+									<span class="truncate font-semibold text-on-surface">{unit.driver || 'Belum Ada Supir'}</span>
+								</div>
+								<div class="flex items-center gap-1.5 truncate">
+									<span class="material-symbols-outlined text-[15px] text-slate-400">location_on</span>
+									<span class="truncate">{unit.operational_group === 'WORK_ORDER' ? 'Bengkel' : unit.operational_group === 'ON_TRIP' ? (unit.trip_stage_label || 'On-Trip') : (unit.location || 'Pool BCS')}</span>
+								</div>
+							</div>
+
+							<!-- Progress Bar for WO / Trip -->
+							{#if unit.operational_group === 'WORK_ORDER'}
+								<div class="mt-2.5 pt-2 border-t border-surface-container">
+									<div class="flex justify-between text-[11px] font-bold text-amber-700 dark:text-amber-300 mb-1">
+										<span class="truncate">{unit.wo_no} • {unit.wo_total_items > 0 ? `${unit.wo_resolved_items}/${unit.wo_total_items} Item` : unit.wo_category}</span>
+										<span>{unit.wo_progress_pct}%</span>
+									</div>
+									<div class="w-full h-2 rounded-full bg-amber-100 dark:bg-amber-950 overflow-hidden">
+										<div class="h-full rounded-full bg-amber-500 transition-all" style="width: {unit.wo_progress_pct}%"></div>
+									</div>
+								</div>
+							{:else if unit.operational_group === 'ON_TRIP'}
+								<div class="mt-2.5 pt-2 border-t border-surface-container">
+									<div class="flex justify-between text-[11px] font-bold text-sky-700 dark:text-sky-300 mb-1">
+										<span class="truncate">{unit.trip_route || unit.trip_stage_label || 'Perjalanan Pengiriman'}</span>
+										<span>{unit.trip_progress_pct}%</span>
+									</div>
+									<div class="w-full h-2 rounded-full bg-sky-100 dark:bg-sky-950 overflow-hidden">
+										<div class="h-full rounded-full bg-sky-500 transition-all" style="width: {unit.trip_progress_pct}%"></div>
+									</div>
+								</div>
+							{/if}
+
+							<!-- Expired Badges -->
+							{#if unit.has_expired_doc || unit.has_expired_sim}
+								<div class="mt-2.5 flex flex-wrap gap-1.5 pt-2 border-t border-surface-container">
+									{#if unit.has_expired_doc}
+										<span class="text-[10px] font-bold text-rose-700 dark:text-rose-300 bg-rose-50 dark:bg-rose-950/40 px-2 py-0.5 rounded border border-rose-200 dark:border-rose-900" title={unit.expired_doc_details}>
+											⚠️ Dokumen Unit Expired: {unit.expired_doc_details || 'STNK/KIR/Pajak'}
+										</span>
+									{/if}
+									{#if unit.has_expired_sim}
+										<span class="text-[10px] font-bold text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/40 px-2 py-0.5 rounded border border-amber-200 dark:border-amber-900" title={unit.expired_sim_details}>
+											⚠️ SIM Sopir Expired: {unit.expired_sim_details || 'Masa Berlaku Habis'}
+										</span>
+									{/if}
+								</div>
+							{/if}
+						</div>
+					{:else}
+						<div class="p-12 text-center rounded-2xl bg-surface-container-low border border-dashed border-surface-container">
+							<span class="material-symbols-outlined text-4xl text-on-surface-variant/40 mb-2">search_off</span>
+							<p class="text-sm font-bold text-on-surface">Tidak Ada Armada Ditemukan</p>
+							<p class="text-xs text-on-surface-variant mt-1">Tidak ada armada yang cocok dengan kata kunci atau filter saat ini.</p>
+						</div>
+					{/each}
+				</div>
+			</div>
+		</div>
+	</div>
+{/if}
 
 <!-- Modal Manual Dispatch (Split-View 2-Column) -->
 {#if showManualDispatchModal && manualDispatchOrder}
