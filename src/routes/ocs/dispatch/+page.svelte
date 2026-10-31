@@ -226,7 +226,9 @@
 	}
 
 	// Mode 2: Ngepok State
+	let ngepokSubTab = $state<'batches' | 'contracts'>('batches');
 	let showNgepokModal = $state(false);
+	let selectedContractForNgepok = $state<any>(null);
 	let ngepokCustomerId = $state('');
 	let ngepokContractId = $state('');
 	let ngepokUnitIds = $state<string[]>([]);
@@ -245,7 +247,25 @@
 		expandedBatches[gid] = !expandedBatches[gid];
 	}
 
+	function openNgepokModalFromContract(contract: any) {
+		selectedContractForNgepok = contract;
+		ngepokContractId = String(contract.contract_id || contract.id || '');
+		ngepokCustomerId = contract.customer_id ? String(contract.customer_id) : '';
+		ngepokOriginId = contract.origin_id ? String(contract.origin_id) : '';
+		ngepokDestId = contract.destination_id ? String(contract.destination_id) : '';
+		ngepokRuteUjoId = contract.master_rute_id ? String(contract.master_rute_id) : '';
+		ngepokCargo = contract.cargo && contract.cargo !== 'Menunggu Input Muatan' ? contract.cargo : 'Muatan Shuttle / Ngepok';
+		ngepokDate = new Date().toISOString().split('T')[0];
+		ngepokPlanRit = contract.daily_target_ritase ? Number(contract.daily_target_ritase) : 1;
+		ngepokUnitIds = [];
+		ngepokUjoPerRit = contract.fixedUjo ? Number(contract.fixedUjo) : 250000;
+		ngepokUjoMakan = 50000;
+		ngepokUjoTol = 0;
+		showNgepokModal = true;
+	}
+
 	function openNgepokModal() {
+		selectedContractForNgepok = null;
 		ngepokCustomerId = '';
 		ngepokContractId = '';
 		ngepokUnitIds = [];
@@ -366,7 +386,10 @@
 	}
 
 	// Mode 3: Dedicated On-Site State
+	let dedicatedSubTab = $state<'shifts' | 'contracts'>('shifts');
 	let showDedicatedModal = $state(false);
+	let selectedContractForDedicated = $state<any>(null);
+	let dedContractId = $state('');
 	let dedShift = $state('Shift 1 (08:00 - 16:00)');
 	let dedCustomerId = $state('');
 	let dedUnitIds = $state<string[]>([]);
@@ -393,7 +416,23 @@
 		expandedDedicated[tripId] = !expandedDedicated[tripId];
 	}
 
+	function openDedicatedModalFromContract(contract: any) {
+		selectedContractForDedicated = contract;
+		dedContractId = String(contract.contract_id || contract.id || '');
+		dedCustomerId = contract.customer_id ? String(contract.customer_id) : '';
+		dedOriginId = contract.origin_id ? String(contract.origin_id) : '';
+		dedDestId = contract.destination_id ? String(contract.destination_id) : '';
+		dedCargo = contract.cargo && contract.cargo !== 'Menunggu Input Muatan' ? contract.cargo : 'Muatan Dedicated On-Site';
+		dedDate = new Date().toISOString().split('T')[0];
+		dedShift = 'Shift 1 (08:00 - 16:00)';
+		dedUangHarian = 100000;
+		dedUnitIds = [];
+		showDedicatedModal = true;
+	}
+
 	function openDedicatedModal() {
+		selectedContractForDedicated = null;
+		dedContractId = '';
 		dedShift = 'Shift 1 (08:00 - 16:00)';
 		dedCustomerId = '';
 		dedUnitIds = [];
@@ -727,14 +766,14 @@
 		</div>
 		<div class="flex items-center gap-3">
 			{#if activeMode === 'ngepok'}
-				<button onclick={openNgepokModal} class="bg-indigo-600 text-white px-4 py-2.5 rounded-xl text-sm font-bold shadow-xs flex items-center gap-2 hover:bg-indigo-700 transition-colors cursor-pointer">
+				<button onclick={openNgepokModal} class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2.5 rounded-xl text-sm font-bold shadow-xs flex items-center gap-2 transition-colors cursor-pointer">
 					<span class="material-symbols-outlined text-lg">add_circle</span>
-					<span>Buat Penugasan Ngepok</span>
+					<span>+ Penugasan Manual (Spot)</span>
 				</button>
 			{:else if activeMode === 'dedicated'}
-				<button onclick={openDedicatedModal} class="bg-amber-600 text-white px-4 py-2.5 rounded-xl text-sm font-bold shadow-xs flex items-center gap-2 hover:bg-amber-700 transition-colors cursor-pointer">
+				<button onclick={openDedicatedModal} class="bg-amber-600 hover:bg-amber-700 text-white px-4 py-2.5 rounded-xl text-sm font-bold shadow-xs flex items-center gap-2 transition-colors cursor-pointer">
 					<span class="material-symbols-outlined text-lg">login</span>
-					<span>Buka Shift Dedicated On-Site</span>
+					<span>+ Buka Shift Manual (Spot)</span>
 				</button>
 			{:else}
 				<button class="bg-blue-600 text-white px-4 py-2.5 rounded-xl text-sm font-bold shadow-xs flex items-center gap-2 hover:bg-blue-700 transition-colors">
@@ -1530,7 +1569,139 @@
 			</div>
 		</div>
 
-		<!-- Batch List Container -->
+		<!-- Sub-Tabs for Ngepok: Batch Shuttle Berjalan vs Kontrak Siap Ditugaskan -->
+		<div class="flex flex-wrap items-center justify-between gap-3 border-b border-surface-container pb-3">
+			<div class="inline-flex p-1 rounded-2xl bg-surface-container border border-slate-200/80 dark:border-slate-800">
+				<button
+					type="button"
+					onclick={() => ngepokSubTab = 'batches'}
+					class="px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-2 {ngepokSubTab === 'batches' ? 'bg-indigo-600 text-white shadow-xs' : 'text-on-surface-variant hover:text-on-surface'}"
+				>
+					<span class="material-symbols-outlined text-[16px]">sync_alt</span>
+					<span>Batch Shuttle Berjalan</span>
+					<span class="px-2 py-0.5 rounded-full text-[10px] font-black {ngepokSubTab === 'batches' ? 'bg-white/20 text-white' : 'bg-surface-container-high text-on-surface-variant'}">
+						{ngepokBatches.length}
+					</span>
+				</button>
+				<button
+					type="button"
+					onclick={() => ngepokSubTab = 'contracts'}
+					class="px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-2 {ngepokSubTab === 'contracts' ? 'bg-indigo-600 text-white shadow-xs' : 'text-on-surface-variant hover:text-on-surface'}"
+				>
+					<span class="material-symbols-outlined text-[16px]">description</span>
+					<span>Kontrak Siap Ditugaskan</span>
+					<span class="px-2 py-0.5 rounded-full text-[10px] font-black {ngepokSubTab === 'contracts' ? 'bg-white/20 text-white' : 'bg-surface-container-high text-on-surface-variant'}">
+						{localContractOrders.length}
+					</span>
+				</button>
+			</div>
+
+			<button 
+				type="button" 
+				onclick={openNgepokModal}
+				class="px-3.5 py-2 bg-surface-container hover:bg-surface-container-high text-on-surface text-xs font-bold rounded-xl transition-all flex items-center gap-1.5 border border-surface-container cursor-pointer"
+			>
+				<span class="material-symbols-outlined text-[16px]">add</span>
+				<span>+ Buat Manual (Non-Kontrak)</span>
+			</button>
+		</div>
+
+		{#if ngepokSubTab === 'contracts'}
+			<!-- Kontrak Marketing Aktif untuk Ngepok -->
+			{#if localContractOrders.length === 0}
+				<div class="p-12 text-center rounded-2xl bg-surface-container-low border border-dashed border-surface-container">
+					<span class="material-symbols-outlined text-4xl text-on-surface-variant/40 mb-2">assignment_late</span>
+					<p class="text-sm font-bold text-on-surface">Tidak Ada Kontrak Marketing Aktif</p>
+					<p class="text-xs text-on-surface-variant mt-1">Semua alokasi kontrak telah terpenuhi atau gunakan tombol '+ Buat Manual' di atas untuk penugasan spot.</p>
+				</div>
+			{:else}
+				<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+					{#each localContractOrders as contract}
+						{@const targetTon = parseFloat(contract.targetTonnage || '0')}
+						{@const deliveredTon = parseFloat(contract.deliveredTonnage || '0')}
+						{@const tonPct = targetTon > 0 ? Math.min(100, Math.round((deliveredTon / targetTon) * 100)) : 0}
+
+						<div class="rounded-2xl bg-surface-container-lowest border border-slate-200/80 dark:border-slate-800/80 p-5 shadow-xs hover:border-indigo-500/40 transition-all flex flex-col justify-between gap-4">
+							<div>
+								<div class="flex items-center justify-between gap-2 mb-2">
+									<div class="flex items-center gap-2">
+										<span class="font-mono text-xs font-black text-indigo-600 dark:text-indigo-400">{contract.contract_id}</span>
+										<span class="px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wider bg-indigo-100 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300">
+											Kontrak Marketing
+										</span>
+									</div>
+									<span class="text-xs font-bold text-on-surface">{contract.customer}</span>
+								</div>
+
+								<div class="space-y-1.5 text-xs text-on-surface-variant mt-3">
+									<div class="flex items-center gap-1.5 font-medium text-on-surface">
+										<span class="material-symbols-outlined text-[15px] text-indigo-600">route</span>
+										<span class="font-bold">{contract.origin}</span>
+										<span class="material-symbols-outlined text-[13px] text-slate-400">arrow_forward</span>
+										<span class="font-bold">{contract.destination}</span>
+									</div>
+									<div class="flex items-center gap-2 text-xs">
+										<span class="text-on-surface font-semibold">Muatan: {contract.cargo}</span>
+										{#if contract.tariff}
+											<span class="text-slate-300 dark:text-slate-700">•</span>
+											<span>Tarif: Rp {Number(contract.tariff).toLocaleString('id-ID')}/Ton</span>
+										{/if}
+									</div>
+								</div>
+
+								{#if targetTon > 0}
+									<div class="mt-4 pt-3 border-t border-surface-container">
+										<div class="flex justify-between text-[11px] font-bold text-on-surface mb-1">
+											<span class="text-on-surface-variant font-normal">Realisasi Tonase:</span>
+											<span>{deliveredTon.toFixed(1)} / {targetTon.toFixed(1)} Ton ({tonPct}%)</span>
+										</div>
+										<div class="w-full bg-slate-200 dark:bg-slate-700 h-2 rounded-full overflow-hidden">
+											<div class="bg-indigo-600 h-full rounded-full transition-all duration-500" style="width: {tonPct}%"></div>
+										</div>
+									</div>
+								{/if}
+							</div>
+
+							<div class="pt-3 border-t border-surface-container flex items-center justify-between gap-3">
+								<span class="text-[11px] text-on-surface-variant">Klik untuk mulai penugasan shuttle multi-rit</span>
+								<button 
+									type="button" 
+									onclick={() => openNgepokModalFromContract(contract)} 
+									class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold shadow-xs flex items-center gap-1.5 transition-colors cursor-pointer shrink-0"
+								>
+									<span class="material-symbols-outlined text-base">sync_alt</span>
+									<span>Mulai Ngepok</span>
+								</button>
+							</div>
+						</div>
+					{/each}
+				</div>
+			{/if}
+		{:else}
+			{#if localContractOrders && localContractOrders.length > 0}
+				<!-- Notice banner leading to contracts -->
+				<div class="flex items-center justify-between p-3.5 rounded-2xl bg-indigo-50/70 dark:bg-indigo-950/20 border border-indigo-200/80 dark:border-indigo-800/80">
+					<div class="flex items-center gap-3">
+						<div class="w-8 h-8 rounded-lg bg-indigo-600 text-white flex items-center justify-center shrink-0">
+							<span class="material-symbols-outlined text-lg">description</span>
+						</div>
+						<div>
+							<p class="text-xs font-bold text-on-surface">Ada {localContractOrders.length} Kontrak Marketing Aktif Siap Dijalankan Shuttle / Ngepok</p>
+							<p class="text-[11px] text-on-surface-variant">Pilih kontrak untuk otomatis mengunci customer, rute, dan muatan tanpa perlu input manual.</p>
+						</div>
+					</div>
+					<button 
+						type="button" 
+						onclick={() => ngepokSubTab = 'contracts'} 
+						class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-colors flex items-center gap-1.5 cursor-pointer shrink-0 shadow-xs"
+					>
+						<span>Buka Kontrak Ngepok</span>
+						<span class="material-symbols-outlined text-sm">arrow_forward</span>
+					</button>
+				</div>
+			{/if}
+
+			<!-- Batch List Container -->
 		{#if ngepokBatches.length === 0}
 			<div class="p-12 text-center rounded-2xl bg-surface-container-low border border-dashed border-surface-container">
 				<div class="w-16 h-16 rounded-full bg-indigo-500/10 text-indigo-600 flex items-center justify-center mx-auto mb-4">
@@ -1756,6 +1927,7 @@
 				{/each}
 			</div>
 		{/if}
+		{/if}
 
 	{:else if activeMode === 'dedicated'}
 		<!-- Summary Bento Cards for Dedicated -->
@@ -1818,7 +1990,140 @@
 			</div>
 		</div>
 
-		<!-- Dedicated List Container -->
+		<!-- Sub-Tabs for Dedicated: Shift On-Site Berjalan vs Kontrak Siap Ditugaskan -->
+		<div class="flex flex-wrap items-center justify-between gap-3 border-b border-surface-container pb-3">
+			<div class="inline-flex p-1 rounded-2xl bg-surface-container border border-slate-200/80 dark:border-slate-800">
+				<button
+					type="button"
+					onclick={() => dedicatedSubTab = 'shifts'}
+					class="px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-2 {dedicatedSubTab === 'shifts' ? 'bg-amber-600 text-white shadow-xs' : 'text-on-surface-variant hover:text-on-surface'}"
+				>
+					<span class="material-symbols-outlined text-[16px]">warehouse</span>
+					<span>Shift On-Site Berjalan</span>
+					<span class="px-2 py-0.5 rounded-full text-[10px] font-black {dedicatedSubTab === 'shifts' ? 'bg-white/20 text-white' : 'bg-surface-container-high text-on-surface-variant'}">
+						{dedicatedDispatches.length}
+					</span>
+				</button>
+				<button
+					type="button"
+					onclick={() => dedicatedSubTab = 'contracts'}
+					class="px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-2 {dedicatedSubTab === 'contracts' ? 'bg-amber-600 text-white shadow-xs' : 'text-on-surface-variant hover:text-on-surface'}"
+				>
+					<span class="material-symbols-outlined text-[16px]">description</span>
+					<span>Kontrak Siap Ditugaskan</span>
+					<span class="px-2 py-0.5 rounded-full text-[10px] font-black {dedicatedSubTab === 'contracts' ? 'bg-white/20 text-white' : 'bg-surface-container-high text-on-surface-variant'}">
+						{localContractOrders.length}
+					</span>
+				</button>
+			</div>
+
+			<button 
+				type="button" 
+				onclick={openDedicatedModal}
+				class="px-3.5 py-2 bg-surface-container hover:bg-surface-container-high text-on-surface text-xs font-bold rounded-xl transition-all flex items-center gap-1.5 border border-surface-container cursor-pointer"
+			>
+				<span class="material-symbols-outlined text-[16px]">add</span>
+				<span>+ Buka Shift Manual (Non-Kontrak)</span>
+			</button>
+		</div>
+
+		{#if dedicatedSubTab === 'contracts'}
+			<!-- Kontrak Marketing Aktif untuk Dedicated On-Site -->
+			{#if localContractOrders.length === 0}
+				<div class="p-12 text-center rounded-2xl bg-surface-container-low border border-dashed border-surface-container">
+					<span class="material-symbols-outlined text-4xl text-on-surface-variant/40 mb-2">assignment_late</span>
+					<p class="text-sm font-bold text-on-surface">Tidak Ada Kontrak Marketing Aktif</p>
+					<p class="text-xs text-on-surface-variant mt-1">Semua alokasi kontrak telah terpenuhi atau gunakan tombol '+ Buka Shift Manual' di atas untuk penugasan spot.</p>
+				</div>
+			{:else}
+				<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+					{#each localContractOrders as contract}
+						{@const targetTon = parseFloat(contract.targetTonnage || '0')}
+						{@const deliveredTon = parseFloat(contract.deliveredTonnage || '0')}
+						{@const tonPct = targetTon > 0 ? Math.min(100, Math.round((deliveredTon / targetTon) * 100)) : 0}
+
+						<div class="rounded-2xl bg-surface-container-lowest border border-slate-200/80 dark:border-slate-800/80 p-5 shadow-xs hover:border-amber-500/40 transition-all flex flex-col justify-between gap-4">
+							<div>
+								<div class="flex items-center justify-between gap-2 mb-2">
+									<div class="flex items-center gap-2">
+										<span class="font-mono text-xs font-black text-amber-600 dark:text-amber-400">{contract.contract_id}</span>
+										<span class="px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wider bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300">
+											Kontrak On-Site
+										</span>
+									</div>
+									<span class="text-xs font-bold text-on-surface">{contract.customer}</span>
+								</div>
+
+								<div class="space-y-1.5 text-xs text-on-surface-variant mt-3">
+									<div class="flex items-center gap-1.5 font-medium text-on-surface">
+										<span class="material-symbols-outlined text-[15px] text-amber-600">warehouse</span>
+										<span>Area:</span>
+										<span class="font-bold">{contract.origin}</span>
+										<span class="material-symbols-outlined text-[13px] text-slate-400">sync_alt</span>
+										<span class="font-bold">{contract.destination}</span>
+									</div>
+									<div class="flex items-center gap-2 text-xs">
+										<span class="text-on-surface font-semibold">Muatan: {contract.cargo}</span>
+										{#if contract.tariff}
+											<span class="text-slate-300 dark:text-slate-700">•</span>
+											<span>Tarif: Rp {Number(contract.tariff).toLocaleString('id-ID')}/Ton</span>
+										{/if}
+									</div>
+								</div>
+
+								{#if targetTon > 0}
+									<div class="mt-4 pt-3 border-t border-surface-container">
+										<div class="flex justify-between text-[11px] font-bold text-on-surface mb-1">
+											<span class="text-on-surface-variant font-normal">Realisasi Tonase:</span>
+											<span>{deliveredTon.toFixed(1)} / {targetTon.toFixed(1)} Ton ({tonPct}%)</span>
+										</div>
+										<div class="w-full bg-slate-200 dark:bg-slate-700 h-2 rounded-full overflow-hidden">
+											<div class="bg-amber-500 h-full rounded-full transition-all duration-500" style="width: {tonPct}%"></div>
+										</div>
+									</div>
+								{/if}
+							</div>
+
+							<div class="pt-3 border-t border-surface-container flex items-center justify-between gap-3">
+								<span class="text-[11px] text-on-surface-variant">Buka shift dedicated standby pelabuhan/pabrik</span>
+								<button 
+									type="button" 
+									onclick={() => openDedicatedModalFromContract(contract)} 
+									class="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-bold shadow-xs flex items-center gap-1.5 transition-colors cursor-pointer shrink-0"
+								>
+									<span class="material-symbols-outlined text-base">login</span>
+									<span>Buka Shift On-Site</span>
+								</button>
+							</div>
+						</div>
+					{/each}
+				</div>
+			{/if}
+		{:else}
+			{#if localContractOrders && localContractOrders.length > 0}
+				<!-- Notice banner leading to contracts -->
+				<div class="flex items-center justify-between p-3.5 rounded-2xl bg-amber-50/70 dark:bg-amber-950/20 border border-amber-200/80 dark:border-amber-800/80">
+					<div class="flex items-center gap-3">
+						<div class="w-8 h-8 rounded-lg bg-amber-600 text-white flex items-center justify-center shrink-0">
+							<span class="material-symbols-outlined text-lg">description</span>
+						</div>
+						<div>
+							<p class="text-xs font-bold text-on-surface">Ada {localContractOrders.length} Kontrak Marketing Aktif Siap Dijalankan Dedicated On-Site</p>
+							<p class="text-[11px] text-on-surface-variant">Pilih kontrak untuk otomatis mengunci customer, area dermaga/pabrik, dan muatan tanpa input manual.</p>
+						</div>
+					</div>
+					<button 
+						type="button" 
+						onclick={() => dedicatedSubTab = 'contracts'} 
+						class="px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-bold transition-colors flex items-center gap-1.5 cursor-pointer shrink-0 shadow-xs"
+					>
+						<span>Buka Kontrak Dedicated</span>
+						<span class="material-symbols-outlined text-sm">arrow_forward</span>
+					</button>
+				</div>
+			{/if}
+
+			<!-- Dedicated List Container -->
 		{#if dedicatedDispatches.length === 0}
 			<div class="p-12 text-center rounded-2xl bg-surface-container-low border border-dashed border-surface-container">
 				<div class="w-16 h-16 rounded-full bg-amber-500/10 text-amber-600 flex items-center justify-center mx-auto mb-4">
@@ -1992,6 +2297,7 @@
 					</div>
 				{/each}
 			</div>
+		{/if}
 		{/if}
 	{/if}
 </div>
@@ -2640,71 +2946,97 @@
 					<div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
 						<!-- Kolom Kiri (Parameter Kontrak, Rute, Muatan & Plan Ritase) -->
 						<div class="lg:col-span-5 space-y-4">
-							<!-- Pilih Kontrak / Pelanggan -->
-							<div>
-								<label class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-1.5">Pilih Kontrak Marketing (Opsional)</label>
-								<SearchableSelect 
-									options={contractOpts} 
-									bind:value={ngepokContractId} 
-									placeholder="-- Pilih dari Kontrak Aktif --" 
-								/>
+							{#if selectedContractForNgepok}
+								<div class="p-4 rounded-2xl bg-indigo-50/70 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-900 space-y-2.5">
+									<div class="flex items-center justify-between">
+										<div class="flex items-center gap-2">
+											<span class="font-mono text-xs font-black text-indigo-600 dark:text-indigo-400">{selectedContractForNgepok.contract_id}</span>
+											<span class="text-xs font-bold text-on-surface">• {selectedContractForNgepok.customer}</span>
+										</div>
+										<span class="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-indigo-600 text-white">
+											Kontrak Terkunci
+										</span>
+									</div>
+									<div class="flex items-center gap-2 text-xs text-on-surface-variant font-medium">
+										<span class="font-bold text-on-surface">{selectedContractForNgepok.origin}</span>
+										<span class="material-symbols-outlined text-[14px]">arrow_forward</span>
+										<span class="font-bold text-on-surface">{selectedContractForNgepok.destination}</span>
+										<span class="text-slate-300 dark:text-slate-700">•</span>
+										<span class="text-indigo-700 dark:text-indigo-300 font-bold">{selectedContractForNgepok.cargo}</span>
+									</div>
+								</div>
 								<input type="hidden" name="contractId" value={ngepokContractId}>
-							</div>
-
-							{#if !ngepokContractId}
+								<input type="hidden" name="customerId" value={ngepokCustomerId}>
+								<input type="hidden" name="originId" value={ngepokOriginId}>
+								<input type="hidden" name="destinationId" value={ngepokDestId}>
+								<input type="hidden" name="ruteUjoId" value={ngepokRuteUjoId}>
+							{:else}
+								<!-- Pilih Kontrak / Pelanggan -->
 								<div>
-									<label class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-1.5">Pelanggan / Customer <span class="text-error">*</span></label>
+									<label class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-1.5">Pilih Kontrak Marketing (Opsional)</label>
 									<SearchableSelect 
-										options={customerOpts} 
-										bind:value={ngepokCustomerId} 
-										placeholder="-- Pilih Customer --" 
-										required={true}
+										options={contractOpts} 
+										bind:value={ngepokContractId} 
+										placeholder="-- Pilih dari Kontrak Aktif --" 
 									/>
-									<input type="hidden" name="customerId" value={ngepokCustomerId}>
+									<input type="hidden" name="contractId" value={ngepokContractId}>
 								</div>
 
-								<!-- Pilih Rute OCS (Full PP) -->
-								<div>
-									<label class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-1.5">Pilih Rute OCS (Full PP - Opsional)</label>
-									<SearchableSelect 
-										options={ruteOpts} 
-										bind:value={ngepokRuteUjoId} 
-										placeholder="-- Cari & Pilih Rute OCS --" 
-										onchange={(val) => {
-											ngepokRuteUjoId = String(val || '');
-											const r = masterRutes.find((mr: any) => String(mr.id) === String(val));
-											if (r) {
-												if (r.origin_id) ngepokOriginId = String(r.origin_id);
-												if (r.destination_id) ngepokDestId = String(r.destination_id);
-												if (r.uang_makan) ngepokUjoMakan = Number(r.uang_makan);
-												if (r.biaya_tol) ngepokUjoTol = Number(r.biaya_tol);
-												if (r.total_ujo) ngepokUjoPerRit = Math.max(0, Number(r.total_ujo) - Number(r.uang_makan || 0) - Number(r.biaya_tol || 0));
-											}
-										}}
-									/>
-									<input type="hidden" name="ruteUjoId" value={ngepokRuteUjoId}>
-								</div>
-
-								<div class="grid grid-cols-2 gap-3.5">
+								{#if !ngepokContractId}
 									<div>
-										<label class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-1.5">Origin / Lokasi Muat <span class="text-error">*</span></label>
+										<label class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-1.5">Pelanggan / Customer <span class="text-error">*</span></label>
 										<SearchableSelect 
 											options={customerOpts} 
-											bind:value={ngepokOriginId} 
-											placeholder="-- Pilih Origin --" 
+											bind:value={ngepokCustomerId} 
+											placeholder="-- Pilih Customer --" 
+											required={true}
 										/>
-										<input type="hidden" name="originId" value={ngepokOriginId}>
+										<input type="hidden" name="customerId" value={ngepokCustomerId}>
 									</div>
+
+									<!-- Pilih Rute OCS (Full PP) -->
 									<div>
-										<label class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-1.5">Destination / Bongkar <span class="text-error">*</span></label>
+										<label class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-1.5">Pilih Rute OCS (Full PP - Opsional)</label>
 										<SearchableSelect 
-											options={customerOpts} 
-											bind:value={ngepokDestId} 
-											placeholder="-- Pilih Destination --" 
+											options={ruteOpts} 
+											bind:value={ngepokRuteUjoId} 
+											placeholder="-- Cari & Pilih Rute OCS --" 
+											onchange={(val) => {
+												ngepokRuteUjoId = String(val || '');
+												const r = masterRutes.find((mr: any) => String(mr.id) === String(val));
+												if (r) {
+													if (r.origin_id) ngepokOriginId = String(r.origin_id);
+													if (r.destination_id) ngepokDestId = String(r.destination_id);
+													if (r.uang_makan) ngepokUjoMakan = Number(r.uang_makan);
+													if (r.biaya_tol) ngepokUjoTol = Number(r.biaya_tol);
+													if (r.total_ujo) ngepokUjoPerRit = Math.max(0, Number(r.total_ujo) - Number(r.uang_makan || 0) - Number(r.biaya_tol || 0));
+												}
+											}}
 										/>
-										<input type="hidden" name="destinationId" value={ngepokDestId}>
+										<input type="hidden" name="ruteUjoId" value={ngepokRuteUjoId}>
 									</div>
-								</div>
+
+									<div class="grid grid-cols-2 gap-3.5">
+										<div>
+											<label class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-1.5">Origin / Lokasi Muat <span class="text-error">*</span></label>
+											<SearchableSelect 
+												options={customerOpts} 
+												bind:value={ngepokOriginId} 
+												placeholder="-- Pilih Origin --" 
+											/>
+											<input type="hidden" name="originId" value={ngepokOriginId}>
+										</div>
+										<div>
+											<label class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-1.5">Destination / Bongkar <span class="text-error">*</span></label>
+											<SearchableSelect 
+												options={customerOpts} 
+												bind:value={ngepokDestId} 
+												placeholder="-- Pilih Destination --" 
+											/>
+											<input type="hidden" name="destinationId" value={ngepokDestId}>
+										</div>
+									</div>
+								{/if}
 							{/if}
 
 							<!-- Muatan & Tanggal -->
@@ -3193,37 +3525,60 @@
 								</div>
 							</div>
 
-							<div>
-								<label class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-1.5">Pelanggan / Perusahaan Customer <span class="text-error">*</span></label>
-								<SearchableSelect 
-									options={customerOpts} 
-									bind:value={dedCustomerId} 
-									placeholder="-- Pilih Customer --" 
-									required={true}
-								/>
+							{#if selectedContractForDedicated}
+								<div class="p-4 rounded-2xl bg-amber-50/70 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900 space-y-2.5">
+									<div class="flex items-center justify-between">
+										<div class="flex items-center gap-2">
+											<span class="font-mono text-xs font-black text-amber-600 dark:text-amber-400">{selectedContractForDedicated.contract_id}</span>
+											<span class="text-xs font-bold text-on-surface">• {selectedContractForDedicated.customer}</span>
+										</div>
+										<span class="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-amber-600 text-white">
+											Kontrak Terkunci
+										</span>
+									</div>
+									<div class="flex items-center gap-2 text-xs text-on-surface-variant font-medium">
+										<span>Area: <strong class="text-on-surface">{selectedContractForDedicated.origin} ↔ {selectedContractForDedicated.destination}</strong></span>
+										<span class="text-slate-300 dark:text-slate-700">•</span>
+										<span class="text-amber-700 dark:text-amber-300 font-bold">{selectedContractForDedicated.cargo}</span>
+									</div>
+								</div>
+								<input type="hidden" name="contractId" value={dedContractId}>
 								<input type="hidden" name="customerId" value={dedCustomerId}>
-							</div>
+								<input type="hidden" name="originId" value={dedOriginId}>
+								<input type="hidden" name="destinationId" value={dedDestId}>
+							{:else}
+								<div>
+									<label class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-1.5">Pelanggan / Perusahaan Customer <span class="text-error">*</span></label>
+									<SearchableSelect 
+										options={customerOpts} 
+										bind:value={dedCustomerId} 
+										placeholder="-- Pilih Customer --" 
+										required={true}
+									/>
+									<input type="hidden" name="customerId" value={dedCustomerId}>
+								</div>
 
-							<div class="grid grid-cols-2 gap-3.5">
-								<div>
-									<label class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-1.5">Area Asal (Gudang/Kapal)</label>
-									<SearchableSelect 
-										options={customerOpts} 
-										bind:value={dedOriginId} 
-										placeholder="-- Pilih Lokasi Asal --" 
-									/>
-									<input type="hidden" name="originId" value={dedOriginId}>
+								<div class="grid grid-cols-2 gap-3.5">
+									<div>
+										<label class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-1.5">Area Asal (Gudang/Kapal)</label>
+										<SearchableSelect 
+											options={customerOpts} 
+											bind:value={dedOriginId} 
+											placeholder="-- Pilih Lokasi Asal --" 
+										/>
+										<input type="hidden" name="originId" value={dedOriginId}>
+									</div>
+									<div>
+										<label class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-1.5">Area Tujuan (Bongkar)</label>
+										<SearchableSelect 
+											options={customerOpts} 
+											bind:value={dedDestId} 
+											placeholder="-- Pilih Lokasi Tujuan --" 
+										/>
+										<input type="hidden" name="destinationId" value={dedDestId}>
+									</div>
 								</div>
-								<div>
-									<label class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-1.5">Area Tujuan (Bongkar)</label>
-									<SearchableSelect 
-										options={customerOpts} 
-										bind:value={dedDestId} 
-										placeholder="-- Pilih Lokasi Tujuan --" 
-									/>
-									<input type="hidden" name="destinationId" value={dedDestId}>
-								</div>
-							</div>
+							{/if}
 
 							<div class="grid grid-cols-2 gap-3.5">
 								<div>

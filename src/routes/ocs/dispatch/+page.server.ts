@@ -332,6 +332,7 @@ export const load: PageServerLoad = async () => {
 		const activeContracts = await sql`
 			SELECT 
 				c.id as contract_id,
+				c.customer_id,
 				c.target_tonnage,
 				c.delivered_tonnage,
 				(c.contract_value / NULLIF(c.target_tonnage, 0)) as tariff_per_ton,
@@ -391,6 +392,7 @@ export const load: PageServerLoad = async () => {
 			contractOrders.push({
 				id: `PO-${contract.contract_id}`, // Just a display label
 				contract_id: contract.contract_id,
+				customer_id: contract.customer_id,
 				customer: contract.customer,
 				origin: contract.origin,
 				origin_id: contract.origin_id,
@@ -1392,6 +1394,7 @@ export const actions: Actions = {
 
 	createDedicatedDispatch: async ({ request }) => {
 		const data = await request.formData();
+		const contractId = data.get('contractId') as string || null;
 		const customerIdRaw = data.get('customerId') as string;
 		const unitIdRaw = data.get('unitId') as string;
 		const driverIdRaw = data.get('driverId') as string;
@@ -1469,12 +1472,12 @@ export const actions: Actions = {
 							id, customer_id, origin_id, destination_id,
 							jenis_muatan, berat_muatan, tgl_muat, tariff,
 							assigned_unit_id, assigned_driver_id, status,
-							dispatch_mode
+							dispatch_mode, contract_id
 						) VALUES (
 							${sessionId}, ${customerId}, ${originId}, ${destId},
 							${cargoName}, 0, ${tglTrip ? new Date(tglTrip) : sql`NOW()`}, 0,
 							${unitId}, ${driverId}, 'DISPATCHED',
-							'DEDICATED_ONSITE'
+							'DEDICATED_ONSITE', ${contractId}
 						)
 					`;
 
