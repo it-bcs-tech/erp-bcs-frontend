@@ -202,6 +202,17 @@ export const actions: Actions = {
 				WHERE id = ${id}
 			`;
 
+			// Sinkronkan berkas fisik ke riwayat versi aktif jika ada berkas baru yang diunggah
+			if (file_path) {
+				await sql`
+					UPDATE dms.document_versions SET
+						file_path = ${file_path}
+					WHERE document_id = ${id} AND version_number = (
+						SELECT current_version FROM dms.documents WHERE id = ${id}
+					)
+				`;
+			}
+
 			// Catat log audit (ISO 27001)
 			await logDocumentAudit({
 				documentId: id,
