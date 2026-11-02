@@ -694,6 +694,6 @@
 		docTitle={selectedDoc.title}
 		docNumber={selectedDoc.doc_number || ''}
 		docId={selectedDoc.id || ''}
-		userName="Staff ERP BCS"
+		userName={user?.name ? `${user.name}${user.department ? ` (${user.department})` : user.role ? ` (${user.role})` : ''}` : 'Staff ERP BCS'}
 	/>
 {/if}

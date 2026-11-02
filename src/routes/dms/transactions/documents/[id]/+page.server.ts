@@ -7,10 +7,22 @@ import { randomUUID } from 'crypto';
 import { calculateExpiryGate, logDocumentAudit } from '$lib/server/dms';
 import type { DocumentItem, DocumentVersion, DocumentCustodyLog, DocumentAuditLog } from '$lib/types/dms';
 
-export const load: PageServerLoad = async ({ params }) => {
+export const load: PageServerLoad = async ({ params, locals, getClientAddress }) => {
 	const { id } = params;
 
 	try {
+		const currentUser = locals.user;
+		let clientIp = '127.0.0.1';
+		try {
+			clientIp = getClientAddress();
+		} catch {
+			clientIp = '127.0.0.1';
+		}
+
+		const userDisplayName = currentUser?.name
+			? `${currentUser.name}${currentUser.department ? ` (${currentUser.department})` : currentUser.role ? ` (${currentUser.role})` : ''}`
+			: 'Staff ERP';
+
 		const [doc] = await sql`
 			SELECT 
 				d.*,
@@ -90,7 +102,9 @@ export const load: PageServerLoad = async ({ params }) => {
 		await logDocumentAudit({
 			documentId: id,
 			action: 'VIEW',
-			userName: 'Staff ERP',
+			userId: currentUser?.id ? String(currentUser.id) : 'system',
+			userName: userDisplayName,
+			ipAddress: clientIp,
 			details: {
 				title: doc.title,
 				current_version: doc.current_version
@@ -101,7 +115,8 @@ export const load: PageServerLoad = async ({ params }) => {
 			document: documentData,
 			versions,
 			custodyLogs,
-			auditLogs
+			auditLogs,
+			currentUser
 		};
 	} catch (err: any) {
 		console.error('Error loading DMS document detail:', err);
@@ -111,8 +126,19 @@ export const load: PageServerLoad = async ({ params }) => {
 
 export const actions: Actions = {
 	// Aksi 1: Perpanjangan Dokumen & Snapshot Versi Baru (Renewal Hub)
-	renewDoc: async ({ request, params }) => {
+	renewDoc: async ({ request, params, locals, getClientAddress }) => {
 		const { id } = params;
+		const currentUser = locals.user;
+		let clientIp = '127.0.0.1';
+		try {
+			clientIp = getClientAddress();
+		} catch {
+			clientIp = '127.0.0.1';
+		}
+		const userDisplayName = currentUser?.name
+			? `${currentUser.name}${currentUser.department ? ` (${currentUser.department})` : currentUser.role ? ` (${currentUser.role})` : ''}`
+			: 'Staff ERP';
+
 		const data = await request.formData();
 
 		const doc_number = data.get('doc_number') as string;
@@ -173,7 +199,7 @@ export const actions: Actions = {
 					${effectiveFilePath},
 					${change_summary || 'Perpanjangan Masa Berlaku Dokumen'},
 					${currentDoc.metadata ? sql.json(currentDoc.metadata) : null},
-					'Staff ERP'
+					${userDisplayName}
 				)
 			`;
 
@@ -195,7 +221,9 @@ export const actions: Actions = {
 			await logDocumentAudit({
 				documentId: id,
 				action: 'RENEW',
-				userName: 'Staff ERP',
+				userId: currentUser?.id ? String(currentUser.id) : 'system',
+				userName: userDisplayName,
+				ipAddress: clientIp,
 				details: {
 					previous_version: currentDoc.current_version,
 					new_version: newVersionNumber,
@@ -215,8 +243,19 @@ export const actions: Actions = {
 	},
 
 	// Aksi 2: Peminjaman Fisik (Check-Out)
-	checkoutCustody: async ({ request, params }) => {
+	checkoutCustody: async ({ request, params, locals, getClientAddress }) => {
 		const { id } = params;
+		const currentUser = locals.user;
+		let clientIp = '127.0.0.1';
+		try {
+			clientIp = getClientAddress();
+		} catch {
+			clientIp = '127.0.0.1';
+		}
+		const userDisplayName = currentUser?.name
+			? `${currentUser.name}${currentUser.department ? ` (${currentUser.department})` : currentUser.role ? ` (${currentUser.role})` : ''}`
+			: 'Staff ERP';
+
 		const data = await request.formData();
 
 		const borrower_name = data.get('borrower_name') as string;
@@ -252,7 +291,7 @@ export const actions: Actions = {
 					${expected_return_date || null},
 					${purpose},
 					${notes || null},
-					'Staff ERP'
+					${userDisplayName}
 				)
 			`;
 
@@ -268,7 +307,9 @@ export const actions: Actions = {
 			await logDocumentAudit({
 				documentId: id,
 				action: 'CUSTODY_CHECKOUT',
-				userName: 'Staff ERP',
+				userId: currentUser?.id ? String(currentUser.id) : 'system',
+				userName: userDisplayName,
+				ipAddress: clientIp,
 				details: {
 					borrower_name,
 					borrower_role,
@@ -285,8 +326,19 @@ export const actions: Actions = {
 	},
 
 	// Aksi 3: Pengembalian Fisik (Check-In)
-	checkinCustody: async ({ request, params }) => {
+	checkinCustody: async ({ request, params, locals, getClientAddress }) => {
 		const { id } = params;
+		const currentUser = locals.user;
+		let clientIp = '127.0.0.1';
+		try {
+			clientIp = getClientAddress();
+		} catch {
+			clientIp = '127.0.0.1';
+		}
+		const userDisplayName = currentUser?.name
+			? `${currentUser.name}${currentUser.department ? ` (${currentUser.department})` : currentUser.role ? ` (${currentUser.role})` : ''}`
+			: 'Staff ERP';
+
 		const data = await request.formData();
 
 		const borrower_name = data.get('borrower_name') as string;
@@ -313,7 +365,7 @@ export const actions: Actions = {
 					${actual_return_date},
 					'Pengembalian Berkas Fisik ke Lemari Arsip',
 					${notes || null},
-					'Staff ERP'
+					${userDisplayName}
 				)
 			`;
 
@@ -329,7 +381,9 @@ export const actions: Actions = {
 			await logDocumentAudit({
 				documentId: id,
 				action: 'CUSTODY_CHECKIN',
-				userName: 'Staff ERP',
+				userId: currentUser?.id ? String(currentUser.id) : 'system',
+				userName: userDisplayName,
+				ipAddress: clientIp,
 				details: {
 					borrower_name,
 					actual_return_date

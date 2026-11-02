@@ -5,6 +5,7 @@
 	import DmsSecureViewer from '$lib/components/DmsSecureViewer.svelte';
 
 	let { data } = $props();
+	const user = $derived($page.data?.user);
 
 	let q = $derived($page.url.searchParams.get('q') || '');
 	let entityType = $derived($page.url.searchParams.get('entity_type') || '');
@@ -829,6 +830,6 @@
 		docTitle={selectedDoc.title}
 		docNumber={selectedDoc.doc_number || ''}
 		docId={selectedDoc.id || ''}
-		userName="Staff ERP BCS"
+		userName={user?.name ? `${user.name}${user.department ? ` (${user.department})` : user.role ? ` (${user.role})` : ''}` : 'Staff ERP BCS'}
 	/>
 {/if}

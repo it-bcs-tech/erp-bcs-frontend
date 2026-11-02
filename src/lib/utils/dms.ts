@@ -170,3 +170,60 @@ export function resolveUploadUrl(filePath: string | null | undefined): string {
 	return `/api/uploads/${cleaned}`;
 }
 
+/**
+ * Format rincian aktivitas audit log (ISO 27001) menjadi ringkasan yang ramah pengguna
+ */
+export function formatAuditDetails(action: string, details: any): { summary: string; badge?: string } {
+	if (!details || typeof details !== 'object') {
+		return { summary: '-' };
+	}
+
+	switch (action) {
+		case 'VIEW':
+			return {
+				summary: `Membuka pratinjau / detail dokumen v${details.current_version || 1}`,
+				badge: 'Akses Baca'
+			};
+		case 'RENEW':
+			return {
+				summary: `Perpanjangan masa berlaku v${details.previous_version || 1} → v${details.new_version || 2} hingga ${formatDateId(details.new_expiry)}${details.change_summary ? ` (${details.change_summary})` : ''}`,
+				badge: 'Revisi Versi'
+			};
+		case 'CUSTODY_CHECKOUT':
+			return {
+				summary: `Peminjaman fisik oleh ${details.borrower_name || '-'}${details.borrower_role ? ` [${details.borrower_role}]` : ''} untuk: ${details.purpose || '-'}${details.expected_return_date ? ` (Est. Kembali: ${formatDateId(details.expected_return_date)})` : ''}`,
+				badge: 'Peminjaman Fisik'
+			};
+		case 'CUSTODY_CHECKIN':
+			return {
+				summary: `Pengembalian fisik oleh ${details.borrower_name || '-'} pada ${formatDateId(details.actual_return_date)}`,
+				badge: 'Pengembalian'
+			};
+		case 'CREATE':
+			return {
+				summary: `Pendaftaran berkas baru: ${details.title || '-'}${details.doc_number ? ` (No: ${details.doc_number})` : ''}`,
+				badge: 'Registrasi Baru'
+			};
+		case 'UPDATE':
+			return {
+				summary: `Pembaruan data dokumen: ${details.title || '-'}`,
+				badge: 'Update Metadata'
+			};
+		case 'DOWNLOAD':
+			return {
+				summary: `Mengunduh berkas fisik: ${details.file_name || 'Dokumen PDF'}`,
+				badge: 'Unduh File'
+			};
+		case 'DELETE':
+			return {
+				summary: `Penghapusan / pencabutan dokumen: ${details.title || '-'}`,
+				badge: 'Hapus Dokumen'
+			};
+		default:
+			return {
+				summary: typeof details === 'string' ? details : JSON.stringify(details)
+			};
+	}
+}
+
+

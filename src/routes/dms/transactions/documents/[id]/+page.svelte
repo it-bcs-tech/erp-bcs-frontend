@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
-	import { formatDateId, formatDateTimeId, getStatusInfo, getPhysicalStatusInfo, getEntityTypeInfo, resolveUploadUrl } from '$lib/utils/dms';
+	import { formatDateId, formatDateTimeId, getStatusInfo, getPhysicalStatusInfo, getEntityTypeInfo, resolveUploadUrl, formatAuditDetails } from '$lib/utils/dms';
 	import DmsSecureViewer from '$lib/components/DmsSecureViewer.svelte';
 	import DmsQrLabelModal from '$lib/components/DmsQrLabelModal.svelte';
 
@@ -19,6 +19,7 @@
 	let isRenewModalOpen = $state(false);
 	let isCheckoutModalOpen = $state(false);
 	let isCheckinModalOpen = $state(false);
+	let activeJsonLog = $state<any>(null);
 
 	let isSubmitting = $state(false);
 
@@ -632,6 +633,7 @@
 					</thead>
 					<tbody class="divide-y divide-slate-100 dark:divide-slate-800/60 font-medium">
 						{#each auditLogs as log}
+							{@const detailInfo = formatAuditDetails(log.action, log.details)}
 							<tr class="hover:bg-surface-container-high/40 transition-colors">
 								<td class="py-3 px-4 font-mono text-on-surface-variant">{formatDateTimeId(log.created_at)}</td>
 								<td class="py-3 px-4 font-bold">
@@ -640,8 +642,26 @@
 									</span>
 								</td>
 								<td class="py-3 px-4 font-bold text-on-surface">{log.user_name || 'Staff ERP'}</td>
-								<td class="py-3 px-4 text-on-surface-variant font-mono text-[11px] max-w-sm truncate">
-									{log.details ? JSON.stringify(log.details) : '-'}
+								<td class="py-3 px-4 text-on-surface text-xs max-w-md">
+									<div class="flex items-start justify-between gap-2">
+										<div class="flex flex-col gap-0.5">
+											{#if detailInfo.badge}
+												<span class="text-[10px] font-bold text-indigo-600 dark:text-indigo-400 uppercase tracking-wider">{detailInfo.badge}</span>
+											{/if}
+											<span class="text-on-surface font-medium leading-relaxed">{detailInfo.summary}</span>
+										</div>
+										{#if log.details && Object.keys(log.details).length > 0}
+											<button
+												type="button"
+												onclick={() => activeJsonLog = log}
+												title="Lihat Data Forensik JSON"
+												class="px-2 py-1 rounded-lg bg-surface-container-high hover:bg-slate-200 dark:hover:bg-slate-700 text-on-surface-variant text-[11px] font-mono flex items-center gap-1 flex-shrink-0 cursor-pointer transition-colors"
+											>
+												<span class="material-symbols-outlined text-xs">code</span>
+												<span>JSON</span>
+											</button>
+										{/if}
+									</div>
 								</td>
 								<td class="py-3 px-4 text-on-surface-variant font-mono">{log.ip_address || '127.0.0.1'}</td>
 							</tr>
@@ -660,8 +680,37 @@
 	docTitle={doc.title}
 	docNumber={doc.doc_number || ''}
 	docId={doc.id || ''}
-	userName="Staff ERP BCS"
+	userName={data.currentUser?.name || data.user?.name || 'Staff ERP BCS'}
 />
+
+<!-- MODAL: Forensik JSON Audit ISO 27001 -->
+{#if activeJsonLog}
+	<div class="fixed inset-0 z-50 bg-black/70 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-150">
+		<div class="bg-surface-container-lowest dark:bg-surface-container-low rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-slate-200 dark:border-slate-800">
+			<div class="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800 mb-4">
+				<div class="flex items-center gap-2">
+					<span class="material-symbols-outlined text-indigo-600 dark:text-indigo-400">terminal</span>
+					<h3 class="text-sm font-bold text-on-surface">Data Forensik Audit (ISO 27001)</h3>
+				</div>
+				<button type="button" onclick={() => activeJsonLog = null} class="text-on-surface-variant hover:text-on-surface">
+					<span class="material-symbols-outlined text-xl">close</span>
+				</button>
+			</div>
+			<div class="space-y-3">
+				<div class="flex items-center justify-between text-xs text-on-surface-variant">
+					<span>Aksi: <strong class="text-on-surface">{activeJsonLog.action}</strong></span>
+					<span>User: <strong class="text-on-surface">{activeJsonLog.user_name}</strong></span>
+				</div>
+				<pre class="bg-slate-900 text-emerald-400 p-4 rounded-xl text-xs font-mono overflow-x-auto max-h-60 border border-slate-800">{JSON.stringify(activeJsonLog.details, null, 2)}</pre>
+			</div>
+			<div class="mt-4 flex justify-end">
+				<button type="button" onclick={() => activeJsonLog = null} class="px-4 py-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-on-surface text-xs font-bold rounded-xl transition-colors">
+					Tutup
+				</button>
+			</div>
+		</div>
+	</div>
+{/if}
 
 <!-- MODAL 2: Printable QR Label -->
 <DmsQrLabelModal

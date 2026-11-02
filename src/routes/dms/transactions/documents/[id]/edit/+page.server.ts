@@ -106,7 +106,18 @@ export const load: PageServerLoad = async ({ params }) => {
 };
 
 export const actions: Actions = {
-	default: async ({ request, params }) => {
+	default: async ({ request, params, locals, getClientAddress }) => {
+		const currentUser = locals.user;
+		let clientIp = '127.0.0.1';
+		try {
+			clientIp = getClientAddress();
+		} catch {
+			clientIp = '127.0.0.1';
+		}
+		const userDisplayName = currentUser?.name
+			? `${currentUser.name}${currentUser.department ? ` (${currentUser.department})` : currentUser.role ? ` (${currentUser.role})` : ''}`
+			: 'Staff ERP';
+
 		const { id } = params;
 		const data = await request.formData();
 		const payloadStr = data.get('payload');
@@ -195,7 +206,9 @@ export const actions: Actions = {
 			await logDocumentAudit({
 				documentId: id,
 				action: 'UPDATE',
-				userName: 'Staff ERP',
+				userId: currentUser?.id ? String(currentUser.id) : 'system',
+				userName: userDisplayName,
+				ipAddress: clientIp,
 				details: {
 					title,
 					doc_number,
