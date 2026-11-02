@@ -2507,12 +2507,13 @@
 	</div>
 {/if}
 
-<!-- Modal Manual Dispatch (Split-View 2-Column) -->
+<!-- Modal Manual Dispatch (Food Menu & Cart Layout) -->
 {#if showManualDispatchModal && manualDispatchOrder}
 	<div class="fixed inset-0 z-50 flex items-center justify-center p-4">
 		<div class="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onclick={closeManualDispatchModal}></div>
 		
-		<div class="relative w-full max-w-5xl bg-surface-container-lowest rounded-[24px] shadow-2xl flex flex-col overflow-hidden max-h-[92vh]">
+		<div class="relative w-full max-w-6xl bg-surface-container-lowest rounded-[28px] shadow-2xl flex flex-col overflow-hidden max-h-[92vh]">
+			<!-- Header Modal -->
 			<div class="px-6 py-4 border-b border-surface-container bg-blue-50/40 dark:bg-blue-950/20">
 				<div class="flex items-center justify-between">
 					<div class="flex items-center gap-3">
@@ -2530,151 +2531,201 @@
 				</div>
 			</div>
 			
-			<div class="p-6 overflow-y-auto custom-scrollbar flex-1">
-				<form id="formManualDispatch" method="POST" action="?/createDoFromPo" use:enhance={() => { isSubmitting = true; return async ({ update }) => { await update(); isSubmitting = false; closeManualDispatchModal(); } }}>
-					<input type="hidden" name="contractId" value={manualDispatchOrder.contract_id}>
-					<input type="hidden" name="unitIds" value={JSON.stringify(manualDispatchUnitIds)}>
+			<form id="formManualDispatch" method="POST" action="?/createDoFromPo" use:enhance={() => { isSubmitting = true; return async ({ update }) => { await update(); isSubmitting = false; closeManualDispatchModal(); } }} class="flex flex-col flex-1 overflow-hidden">
+				<input type="hidden" name="contractId" value={manualDispatchOrder.contract_id}>
+				<input type="hidden" name="unitIds" value={JSON.stringify(manualDispatchUnitIds)}>
 
-					<div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-						<!-- Kolom Kiri (Parameter Order, Jadwal & Rute) -->
-						<div class="lg:col-span-5 space-y-4">
-							<!-- Info Ringkasan Order -->
-							<div class="p-4 rounded-2xl bg-blue-50/60 dark:bg-blue-950/20 border border-blue-200/70 dark:border-blue-900/50 space-y-2">
-								<div class="flex items-center justify-between">
-									<span class="text-[11px] font-bold uppercase tracking-wider text-blue-700 dark:text-blue-400 flex items-center gap-1.5">
-										<span class="material-symbols-outlined text-[15px]">inventory_2</span>
-										Informasi Kontrak / PO
-									</span>
-									{#if manualDispatchOrder.cargo && manualDispatchOrder.cargo !== '-'}
-										<span class="text-[10px] font-extrabold px-2 py-0.5 rounded-md bg-white dark:bg-slate-900 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
-											{manualDispatchOrder.cargo}
-										</span>
-									{/if}
-								</div>
-								<div class="text-xs font-bold text-on-surface">
-									{manualDispatchOrder.origin || 'Origin'} → {manualDispatchOrder.destination || 'Destination'}
-								</div>
-								{#if manualDispatchOrder.target_ritase || manualDispatchOrder.weight}
-									<div class="text-[11px] text-on-surface-variant">
-										Target: <span class="font-semibold text-on-surface">{manualDispatchOrder.target_ritase || 1} Rit</span> • Tonase: <span class="font-semibold text-on-surface">{manualDispatchOrder.weight || 0} Ton</span>
-									</div>
-								{/if}
+				<div class="p-6 overflow-y-auto custom-scrollbar flex-1 space-y-5">
+					<!-- 1. Bagian Atas: Header Parameter Rute, Muatan & Jadwal -->
+					<div class="p-4 rounded-2xl bg-blue-50/60 dark:bg-blue-950/20 border border-blue-200/70 dark:border-blue-900/50 space-y-3">
+						<!-- Info Ringkasan Kontrak / PO -->
+						<div class="flex flex-wrap items-center justify-between gap-2">
+							<div class="flex items-center gap-2">
+								<span class="text-xs font-black uppercase tracking-wider text-blue-700 dark:text-blue-400 flex items-center gap-1.5">
+									<span class="material-symbols-outlined text-[16px]">inventory_2</span>
+									Kontrak / PO: <span class="font-mono">{manualDispatchOrder.id}</span>
+								</span>
+								<span class="text-xs text-on-surface-variant font-semibold">• {manualDispatchOrder.customer}</span>
 							</div>
+							<div class="flex items-center gap-2 text-xs">
+								{#if manualDispatchOrder.cargo && manualDispatchOrder.cargo !== '-'}
+									<span class="text-[11px] font-extrabold px-2.5 py-0.5 rounded-lg bg-white dark:bg-slate-900 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
+										{manualDispatchOrder.cargo}
+									</span>
+								{/if}
+								<span class="text-[11px] font-bold text-on-surface-variant">
+									Target: <strong class="text-on-surface">{manualDispatchOrder.target_ritase || 1} Rit</strong> • <strong class="text-on-surface">{manualDispatchOrder.weight || 0} Ton</strong>
+								</span>
+							</div>
+						</div>
 
-							{#if !manualDispatchOrder.produk_id}
-								<div>
-									<label class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-2">Pilih Muatan <span class="text-error">*</span></label>
+						<!-- Grid 2-Kolom: Pilih Rute OCS Full PP ↔ Pilih Muatan -->
+						<div class="grid grid-cols-1 md:grid-cols-2 gap-3.5 pt-2 border-t border-blue-200/50 dark:border-blue-900/40">
+							<div>
+								<label class="block text-[11px] font-bold text-on-surface-variant uppercase tracking-wider mb-1.5 flex items-center gap-1">
+									<span class="material-symbols-outlined text-sky-600 text-[15px]">route</span>
+									Pilih Rute OCS (Full PP) <span class="text-error">*</span>
+								</label>
+								<SearchableSelect
+									options={ruteOpts}
+									bind:value={manualDispatchRuteUjoId}
+									placeholder="-- Cari & Pilih Rute OCS --"
+									onchange={(val) => handleRuteUjoChange(String(val || ''))}
+								/>
+								<input type="hidden" name="ruteUjoId" value={manualDispatchRuteUjoId || ''} />
+							</div>
+							<div>
+								<label class="block text-[11px] font-bold text-on-surface-variant uppercase tracking-wider mb-1.5 flex items-center gap-1">
+									<span class="material-symbols-outlined text-blue-600 text-[15px]">category</span>
+									Jenis Muatan <span class="text-error">*</span>
+								</label>
+								{#if manualDispatchOrder.produk_id}
+									<div class="px-4 py-2.5 bg-surface-container rounded-xl text-sm font-bold text-on-surface">
+										{manualDispatchOrder.cargo || 'Muatan Kontrak'}
+									</div>
+								{:else}
 									<SearchableSelect 
 										options={productOpts} 
 										bind:value={manualDispatchCargoName} 
-										placeholder="-- Cari Muatan --" 
+										placeholder="-- Cari & Pilih Muatan --" 
 										required={true}
 									/>
 									<input type="hidden" name="cargoName" value={manualDispatchCargoName}>
-								</div>
-							{/if}
-
-							<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-3.5">
-								<div>
-									<label class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-1.5">Waktu Muat (Loading) <span class="text-error">*</span></label>
-									<input type="datetime-local" name="loadingDate" required bind:value={manualDispatchLoadingDate} class="w-full bg-surface-container-low rounded-xl px-4 py-2.5 text-sm font-medium border-0 focus:ring-2 focus:ring-blue-500/20 outline-none text-on-surface" />
-								</div>
-								<div>
-									<label class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-1.5">Waktu Bongkar (Unloading)</label>
-									<input type="datetime-local" name="unloadingDate" bind:value={manualDispatchUnloadingDate} class="w-full bg-surface-container-low rounded-xl px-4 py-2.5 text-sm font-medium border-0 focus:ring-2 focus:ring-blue-500/20 outline-none text-on-surface" />
-								</div>
+								{/if}
 							</div>
-
-							<!-- Pemilihan Rute UJO OCS (Full PP) -->
-							<div class="p-4 rounded-2xl bg-surface-container-low border border-slate-200/70 dark:border-slate-800/70 space-y-3">
-								<div class="flex items-center justify-between">
-									<span class="text-xs font-bold text-on-surface-variant uppercase tracking-wider flex items-center gap-1.5">
-										<span class="material-symbols-outlined text-sky-600 text-sm">route</span>
-										<span>Pilih Rute OCS (Full PP)</span>
-									</span>
-									<span class="text-[10px] font-bold px-2 py-0.5 rounded-md bg-sky-50 text-sky-700 dark:bg-sky-950/50 dark:text-sky-300 border border-sky-200 dark:border-sky-800">
-										Penentuan OCS
-									</span>
-								</div>
-
-								<div>
-									<SearchableSelect
-										options={ruteOpts}
-										bind:value={manualDispatchRuteUjoId}
-										placeholder="-- Cari & Pilih Rute OCS --"
-										onchange={(val) => handleRuteUjoChange(String(val || ''))}
-									/>
-									<input type="hidden" name="ruteUjoId" value={manualDispatchRuteUjoId || ''} />
-								</div>
-							</div>
-
-							<!-- Ringkasan Armada Terpilih -->
-							{#if manualDispatchUnitIds.length > 0}
-								<div class="p-3.5 rounded-2xl bg-blue-600/5 border border-blue-500/20 space-y-2">
-									<div class="flex items-center justify-between">
-										<span class="text-[11px] font-extrabold uppercase tracking-wider text-blue-700 dark:text-blue-400">
-											Armada Terpilih ({manualDispatchUnitIds.length} Unit)
-										</span>
-										<button type="button" onclick={() => manualDispatchUnitIds = []} class="text-[10px] font-bold text-rose-600 hover:underline cursor-pointer">
-											Reset Pilihan
-										</button>
-									</div>
-									<div class="flex flex-wrap gap-1.5">
-										{#each manualDispatchUnitIds as val}
-											{@const uId = val.split('|')[0]}
-											{@const found = availableUnits.find((u: any) => String(u.unitId) === uId)}
-											<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold bg-blue-600 text-white shadow-xs">
-												<span class="font-mono">{found?.id || uId}</span>
-												{#if found?.driver}
-													<span class="opacity-80 font-normal">• {found.driver}</span>
-												{/if}
-											</span>
-										{/each}
-									</div>
-								</div>
-							{/if}
 						</div>
 
-						<!-- Kolom Kanan (Katalog Visual Dump Truck & Sopir) -->
-						<div class="lg:col-span-7">
-							<div class="flex items-center justify-between mb-2">
-								<label class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider">
-									Katalog Armada Dump Truck & Sopir <span class="text-error">*</span>
+						<!-- Grid 2-Kolom: Waktu Muat (Loading) ↔ Waktu Bongkar (Unloading) -->
+						<div class="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+							<div>
+								<label class="block text-[11px] font-bold text-on-surface-variant uppercase tracking-wider mb-1.5 flex items-center gap-1">
+									<span class="material-symbols-outlined text-blue-600 text-[15px]">schedule</span>
+									Waktu Muat (Loading) <span class="text-error">*</span>
 								</label>
-								<span class="text-[11px] text-on-surface-variant">Klik kartu untuk memilih (bisa lebih dari 1)</span>
+								<input type="datetime-local" name="loadingDate" required bind:value={manualDispatchLoadingDate} class="w-full bg-surface-container-lowest border border-surface-container rounded-xl px-4 py-2 text-sm font-medium focus:ring-2 focus:ring-blue-500/20 outline-none text-on-surface" />
 							</div>
-							<FleetUnitSelector
-								units={availableUnits}
-								multiple={true}
-								bind:value={manualDispatchUnitIds}
-								accentColor="blue"
-								recommendedUnitId={manualDispatchOrder.ai_recommended_unit_id || ''}
-								maxHeight="420px"
-							/>
+							<div>
+								<label class="block text-[11px] font-bold text-on-surface-variant uppercase tracking-wider mb-1.5 flex items-center gap-1">
+									<span class="material-symbols-outlined text-blue-600 text-[15px]">update</span>
+									Waktu Bongkar (Unloading)
+								</label>
+								<input type="datetime-local" name="unloadingDate" bind:value={manualDispatchUnloadingDate} class="w-full bg-surface-container-lowest border border-surface-container rounded-xl px-4 py-2 text-sm font-medium focus:ring-2 focus:ring-blue-500/20 outline-none text-on-surface" />
+							</div>
 						</div>
 					</div>
-				</form>
-			</div>
-			
-			<div class="px-6 py-4 border-t border-surface-container bg-surface-container-lowest flex items-center justify-between gap-3">
-				<div class="text-xs text-on-surface-variant">
-					Status Kesiapan: <strong class="text-on-surface">{manualDispatchUnitIds.length} Armada</strong> siap diterbitkan Surat Tugas
+
+					<!-- 2. Bagian Tengah (Mendominasi Layar): Katalog Armada Dump Truck & Sopir (Grid 2-Kolom) -->
+					<div class="space-y-2.5">
+						<div class="flex items-center justify-between">
+							<div class="flex items-center gap-2">
+								<span class="material-symbols-outlined text-blue-600 text-lg">view_cozy</span>
+								<label class="block text-xs font-black text-on-surface uppercase tracking-wider">
+									Pilih Armada Dump Truck & Sopir <span class="text-error">*</span>
+								</label>
+							</div>
+							<span class="text-xs text-on-surface-variant">Klik kartu armada untuk menambahkan ke keranjang dispatch</span>
+						</div>
+
+						<FleetUnitSelector
+							units={availableUnits}
+							multiple={true}
+							bind:value={manualDispatchUnitIds}
+							accentColor="blue"
+							gridCols={2}
+							recommendedUnitId={manualDispatchOrder.ai_recommended_unit_id || ''}
+							maxHeight="480px"
+						/>
+					</div>
 				</div>
-				<div class="flex items-center gap-3">
-					<button type="button" onclick={closeManualDispatchModal} class="px-5 py-2.5 rounded-xl text-sm font-bold text-on-surface-variant hover:bg-surface-container transition-colors cursor-pointer">
-						Batal
-					</button>
-					<button type="submit" form="formManualDispatch" disabled={isSubmitting || manualDispatchUnitIds.length === 0 || (!manualDispatchOrder.produk_id && !manualDispatchCargoName) || !manualDispatchLoadingDate} class="px-5 py-2.5 rounded-xl text-sm font-bold bg-blue-600 text-white hover:bg-blue-700 transition-colors disabled:opacity-50 flex items-center gap-2 shadow-sm cursor-pointer">
-						{#if isSubmitting}
-							<span class="material-symbols-outlined text-[18px] animate-spin">sync</span>
-							Memproses...
-						{:else}
-							<span class="material-symbols-outlined text-[18px]">task_alt</span>
-							Proses Dispatch ({manualDispatchUnitIds.length} Unit)
-						{/if}
-					</button>
+
+				<!-- 3. Bagian Bawah: Keranjang Armada Sticky (Food Menu Cart Style) -->
+				<div class="px-6 py-3.5 border-t border-surface-container bg-surface-container-lowest shadow-lg">
+					{#if manualDispatchUnitIds.length === 0}
+						<!-- Empty State Guide -->
+						<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+							<div class="flex items-center gap-2.5 text-on-surface-variant">
+								<div class="w-8 h-8 rounded-full bg-surface-container flex items-center justify-center shrink-0">
+									<span class="material-symbols-outlined text-[18px]">shopping_cart</span>
+								</div>
+								<div>
+									<p class="text-xs font-bold text-on-surface">Keranjang Armada Masih Kosong</p>
+									<p class="text-[11px] text-on-surface-variant">Pilih Dump Truck dari katalog di atas untuk menambahkan armada ke penugasan ini.</p>
+								</div>
+							</div>
+							<div class="flex items-center gap-3 self-end sm:self-auto">
+								<button type="button" onclick={closeManualDispatchModal} class="px-4 py-2 rounded-xl text-xs font-bold text-on-surface-variant hover:bg-surface-container transition-colors cursor-pointer">
+									Batal
+								</button>
+								<button type="button" disabled class="px-5 py-2.5 rounded-xl text-xs font-bold bg-surface-container text-on-surface-variant/50 cursor-not-allowed flex items-center gap-2">
+									<span class="material-symbols-outlined text-[16px]">task_alt</span>
+									Proses Dispatch (0 Unit)
+								</button>
+							</div>
+						</div>
+					{:else}
+						<!-- Active Selected State -->
+						{@const totalSelectedTons = manualDispatchUnitIds.reduce((acc, val) => {
+							const uId = val.split('|')[0];
+							const found = availableUnits.find((u: any) => String(u.unitId) === uId);
+							return acc + (Number(found?.capacity) || 35);
+						}, 0)}
+						<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+							<div class="flex-1 min-w-0 space-y-1.5">
+								<div class="flex items-center justify-between gap-2">
+									<div class="flex items-center gap-2">
+										<span class="px-2 py-0.5 rounded-md bg-blue-600 text-white text-[11px] font-black uppercase tracking-wider">
+											{manualDispatchUnitIds.length} Unit Terpilih
+										</span>
+										<span class="text-xs font-bold text-on-surface">
+											Est. Kapasitas: <span class="font-extrabold text-blue-600">{totalSelectedTons} Ton</span>
+										</span>
+									</div>
+									<button type="button" onclick={() => manualDispatchUnitIds = []} class="text-[11px] font-bold text-rose-600 hover:underline cursor-pointer">
+										Kosongkan Keranjang
+									</button>
+								</div>
+
+								<!-- Horizontal Scrollable Chips with Remove (x) -->
+								<div class="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar">
+									{#each manualDispatchUnitIds as val}
+										{@const uId = val.split('|')[0]}
+										{@const found = availableUnits.find((u: any) => String(u.unitId) === uId)}
+										<span class="inline-flex items-center gap-1.5 pl-2.5 pr-1.5 py-1 rounded-lg text-xs font-bold bg-blue-50 dark:bg-blue-950/50 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800 shrink-0">
+											<span class="font-mono">{found?.id || uId}</span>
+											{#if found?.driver}
+												<span class="text-[10px] font-normal opacity-85 truncate max-w-[90px]">• {found.driver}</span>
+											{/if}
+											<button
+												type="button"
+												onclick={() => manualDispatchUnitIds = manualDispatchUnitIds.filter(v => v !== val)}
+												class="w-4 h-4 rounded-full hover:bg-blue-200 dark:hover:bg-blue-800 flex items-center justify-center text-blue-700 dark:text-blue-300 cursor-pointer"
+												title="Hapus unit ini"
+											>
+												<span class="material-symbols-outlined text-[13px]">close</span>
+											</button>
+										</span>
+									{/each}
+								</div>
+							</div>
+
+							<div class="flex items-center gap-3 shrink-0 self-end sm:self-center">
+								<button type="button" onclick={closeManualDispatchModal} class="px-4 py-2.5 rounded-xl text-xs font-bold text-on-surface-variant hover:bg-surface-container transition-colors cursor-pointer">
+									Batal
+								</button>
+								<button type="submit" disabled={isSubmitting || (!manualDispatchOrder.produk_id && !manualDispatchCargoName) || !manualDispatchLoadingDate} class="px-5 py-2.5 rounded-xl text-xs font-bold bg-blue-600 text-white hover:bg-blue-700 transition-colors disabled:opacity-50 flex items-center gap-2 shadow-sm cursor-pointer">
+									{#if isSubmitting}
+										<span class="material-symbols-outlined text-[18px] animate-spin">sync</span>
+										Memproses...
+									{:else}
+										<span class="material-symbols-outlined text-[18px]">task_alt</span>
+										Proses Dispatch ({manualDispatchUnitIds.length} Unit)
+									{/if}
+								</button>
+							</div>
+						</div>
+					{/if}
 				</div>
-			</div>
+			</form>
 		</div>
 	</div>
 {/if}
@@ -2918,11 +2969,12 @@
 	</div>
 {/if}
 
-<!-- Modal Buat Penugasan Ngepok (Split-View 2-Column) -->
+<!-- Modal Buat Penugasan Ngepok (Food Menu & Cart Layout) -->
 {#if showNgepokModal}
 	<div class="fixed inset-0 z-50 flex items-center justify-center p-4">
 		<div class="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onclick={closeNgepokModal}></div>
-		<div class="relative w-full max-w-5xl bg-surface-container-lowest rounded-[24px] shadow-2xl flex flex-col overflow-hidden max-h-[92vh]">
+		<div class="relative w-full max-w-6xl bg-surface-container-lowest rounded-[28px] shadow-2xl flex flex-col overflow-hidden max-h-[92vh]">
+			<!-- Header Modal -->
 			<div class="px-6 py-4 border-b border-surface-container bg-indigo-50/50 dark:bg-indigo-950/20">
 				<div class="flex items-center justify-between">
 					<div class="flex items-center gap-3">
@@ -2942,38 +2994,51 @@
 
 			<form method="POST" action="?/createNgepokDispatch" use:enhance={() => { isSubmitting = true; return async ({ update }) => { await update(); isSubmitting = false; }; }} class="flex flex-col flex-1 overflow-hidden">
 				<input type="hidden" name="unitIds" value={JSON.stringify(ngepokUnitIds)}>
-				<div class="p-6 overflow-y-auto custom-scrollbar flex-1">
-					<div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-						<!-- Kolom Kiri (Parameter Kontrak, Rute, Muatan & Plan Ritase) -->
-						<div class="lg:col-span-5 space-y-4">
-							{#if selectedContractForNgepok}
-								<div class="p-4 rounded-2xl bg-indigo-50/70 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-900 space-y-2.5">
-									<div class="flex items-center justify-between">
-										<div class="flex items-center gap-2">
-											<span class="font-mono text-xs font-black text-indigo-600 dark:text-indigo-400">{selectedContractForNgepok.contract_id}</span>
-											<span class="text-xs font-bold text-on-surface">• {selectedContractForNgepok.customer}</span>
-										</div>
-										<span class="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-indigo-600 text-white">
-											Kontrak Terkunci
-										</span>
+				
+				<div class="p-6 overflow-y-auto custom-scrollbar flex-1 space-y-5">
+					<!-- 1. Bagian Atas: Header Parameter Rute, Muatan, Target Ritase & UJO -->
+					<div class="p-4 rounded-2xl bg-indigo-50/60 dark:bg-indigo-950/20 border border-indigo-200/70 dark:border-indigo-900/50 space-y-3.5">
+						{#if selectedContractForNgepok}
+							<div class="p-3.5 rounded-xl bg-white dark:bg-slate-900 border border-indigo-200 dark:border-indigo-800 space-y-2">
+								<div class="flex items-center justify-between">
+									<div class="flex items-center gap-2">
+										<span class="font-mono text-xs font-black text-indigo-600 dark:text-indigo-400">{selectedContractForNgepok.contract_id}</span>
+										<span class="text-xs font-bold text-on-surface">• {selectedContractForNgepok.customer}</span>
 									</div>
-									<div class="flex items-center gap-2 text-xs text-on-surface-variant font-medium">
-										<span class="font-bold text-on-surface">{selectedContractForNgepok.origin}</span>
-										<span class="material-symbols-outlined text-[14px]">arrow_forward</span>
-										<span class="font-bold text-on-surface">{selectedContractForNgepok.destination}</span>
-										<span class="text-slate-300 dark:text-slate-700">•</span>
-										<span class="text-indigo-700 dark:text-indigo-300 font-bold">{selectedContractForNgepok.cargo}</span>
-									</div>
+									<span class="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-indigo-600 text-white">
+										Kontrak Terkunci
+									</span>
 								</div>
-								<input type="hidden" name="contractId" value={ngepokContractId}>
-								<input type="hidden" name="customerId" value={ngepokCustomerId}>
-								<input type="hidden" name="originId" value={ngepokOriginId}>
-								<input type="hidden" name="destinationId" value={ngepokDestId}>
-								<input type="hidden" name="ruteUjoId" value={ngepokRuteUjoId}>
-							{:else}
-								<!-- Pilih Kontrak / Pelanggan -->
+								<div class="flex flex-wrap items-center gap-2 text-xs text-on-surface-variant font-medium">
+									<span class="font-bold text-on-surface">{selectedContractForNgepok.origin}</span>
+									<span class="material-symbols-outlined text-[14px]">arrow_forward</span>
+									<span class="font-bold text-on-surface">{selectedContractForNgepok.destination}</span>
+									<span class="text-slate-300 dark:text-slate-700">•</span>
+									<span class="text-indigo-700 dark:text-indigo-300 font-bold">{selectedContractForNgepok.cargo}</span>
+								</div>
+							</div>
+							<input type="hidden" name="contractId" value={ngepokContractId}>
+							<input type="hidden" name="customerId" value={ngepokCustomerId}>
+							<input type="hidden" name="originId" value={ngepokOriginId}>
+							<input type="hidden" name="destinationId" value={ngepokDestId}>
+							<input type="hidden" name="ruteUjoId" value={ngepokRuteUjoId}>
+
+							<!-- Muatan & Tanggal Mulai -->
+							<div class="grid grid-cols-1 md:grid-cols-2 gap-3.5 pt-1 border-t border-indigo-200/50 dark:border-indigo-900/40">
 								<div>
-									<label class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-1.5">Pilih Kontrak Marketing (Opsional)</label>
+									<label class="block text-[11px] font-bold text-on-surface-variant uppercase tracking-wider mb-1.5">Jenis Muatan</label>
+									<input type="text" name="cargoName" bind:value={ngepokCargo} readonly class="w-full bg-surface-container rounded-xl px-4 py-2 text-sm font-bold border-0 outline-none text-on-surface" />
+								</div>
+								<div>
+									<label class="block text-[11px] font-bold text-on-surface-variant uppercase tracking-wider mb-1.5">Tanggal Mulai <span class="text-error">*</span></label>
+									<input type="date" name="loadingDate" bind:value={ngepokDate} required class="w-full bg-surface-container-lowest border border-surface-container rounded-xl px-4 py-2 text-sm font-medium border-0 outline-none focus:ring-2 focus:ring-indigo-500/20 text-on-surface" />
+								</div>
+							</div>
+						{:else}
+							<!-- Non-Kontrak: Parameter Lengkap -->
+							<div class="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+								<div>
+									<label class="block text-[11px] font-bold text-on-surface-variant uppercase tracking-wider mb-1.5">Pilih Kontrak Marketing (Opsional)</label>
 									<SearchableSelect 
 										options={contractOpts} 
 										bind:value={ngepokContractId} 
@@ -2984,7 +3049,7 @@
 
 								{#if !ngepokContractId}
 									<div>
-										<label class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-1.5">Pelanggan / Customer <span class="text-error">*</span></label>
+										<label class="block text-[11px] font-bold text-on-surface-variant uppercase tracking-wider mb-1.5">Pelanggan / Customer <span class="text-error">*</span></label>
 										<SearchableSelect 
 											options={customerOpts} 
 											bind:value={ngepokCustomerId} 
@@ -2993,10 +3058,13 @@
 										/>
 										<input type="hidden" name="customerId" value={ngepokCustomerId}>
 									</div>
+								{/if}
+							</div>
 
-									<!-- Pilih Rute OCS (Full PP) -->
+							{#if !ngepokContractId}
+								<div class="grid grid-cols-1 md:grid-cols-2 gap-3.5 pt-1 border-t border-indigo-200/50 dark:border-indigo-900/40">
 									<div>
-										<label class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-1.5">Pilih Rute OCS (Full PP - Opsional)</label>
+										<label class="block text-[11px] font-bold text-on-surface-variant uppercase tracking-wider mb-1.5">Pilih Rute OCS (Full PP - Opsional)</label>
 										<SearchableSelect 
 											options={ruteOpts} 
 											bind:value={ngepokRuteUjoId} 
@@ -3016,158 +3084,220 @@
 										<input type="hidden" name="ruteUjoId" value={ngepokRuteUjoId}>
 									</div>
 
-									<div class="grid grid-cols-2 gap-3.5">
+									<div class="grid grid-cols-2 gap-3">
 										<div>
-											<label class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-1.5">Origin / Lokasi Muat <span class="text-error">*</span></label>
+											<label class="block text-[11px] font-bold text-on-surface-variant uppercase tracking-wider mb-1.5">Origin <span class="text-error">*</span></label>
 											<SearchableSelect 
 												options={customerOpts} 
 												bind:value={ngepokOriginId} 
-												placeholder="-- Pilih Origin --" 
+												placeholder="-- Asal --" 
 											/>
 											<input type="hidden" name="originId" value={ngepokOriginId}>
 										</div>
 										<div>
-											<label class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-1.5">Destination / Bongkar <span class="text-error">*</span></label>
+											<label class="block text-[11px] font-bold text-on-surface-variant uppercase tracking-wider mb-1.5">Destination <span class="text-error">*</span></label>
 											<SearchableSelect 
 												options={customerOpts} 
 												bind:value={ngepokDestId} 
-												placeholder="-- Pilih Destination --" 
+												placeholder="-- Tujuan --" 
 											/>
 											<input type="hidden" name="destinationId" value={ngepokDestId}>
 										</div>
 									</div>
-								{/if}
-							{/if}
-
-							<!-- Muatan & Tanggal -->
-							<div class="grid grid-cols-2 gap-3.5">
-								<div>
-									<label class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-1.5">Jenis Muatan <span class="text-error">*</span></label>
-									<input type="text" name="cargoName" bind:value={ngepokCargo} required placeholder="Batubara / Semen" class="w-full bg-surface-container-low rounded-xl px-4 py-2.5 text-sm font-medium border-0 outline-none focus:ring-2 focus:ring-indigo-500/20 text-on-surface" />
 								</div>
-								<div>
-									<label class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-1.5">Tanggal Mulai <span class="text-error">*</span></label>
-									<input type="date" name="loadingDate" bind:value={ngepokDate} required class="w-full bg-surface-container-low rounded-xl px-4 py-2.5 text-sm font-medium border-0 outline-none focus:ring-2 focus:ring-indigo-500/20 text-on-surface" />
+
+								<div class="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+									<div>
+										<label class="block text-[11px] font-bold text-on-surface-variant uppercase tracking-wider mb-1.5">Jenis Muatan <span class="text-error">*</span></label>
+										<input type="text" name="cargoName" bind:value={ngepokCargo} required placeholder="Batubara / Semen / Pasir" class="w-full bg-surface-container-lowest border border-surface-container rounded-xl px-4 py-2 text-sm font-medium outline-none focus:ring-2 focus:ring-indigo-500/20 text-on-surface" />
+									</div>
+									<div>
+										<label class="block text-[11px] font-bold text-on-surface-variant uppercase tracking-wider mb-1.5">Tanggal Mulai <span class="text-error">*</span></label>
+										<input type="date" name="loadingDate" bind:value={ngepokDate} required class="w-full bg-surface-container-lowest border border-surface-container rounded-xl px-4 py-2 text-sm font-medium outline-none focus:ring-2 focus:ring-indigo-500/20 text-on-surface" />
+									</div>
+								</div>
+							{/if}
+						{/if}
+
+						<!-- Plan Ritase & UJO Component Strip -->
+						<div class="grid grid-cols-1 md:grid-cols-12 gap-3.5 pt-2 border-t border-indigo-200/50 dark:border-indigo-900/40 items-center">
+							<!-- Target Ritase Stepper -->
+							<div class="md:col-span-5 space-y-1.5">
+								<div class="flex items-center justify-between">
+									<label class="block text-[11px] font-bold text-on-surface-variant uppercase tracking-wider">Target Ritase (Batch Size)</label>
+									<span class="text-xs font-black text-indigo-600 dark:text-indigo-400">{ngepokPlanRit} Rit / Armada</span>
+								</div>
+								<div class="flex items-center gap-2">
+									<div class="flex items-center gap-1">
+										<button 
+											type="button" 
+											onclick={() => { if (ngepokPlanRit > 1) ngepokPlanRit--; }} 
+											class="w-8 h-8 flex items-center justify-center rounded-lg bg-surface-container hover:bg-surface-container-high text-on-surface font-black text-sm transition-colors border border-surface-container cursor-pointer"
+										>-</button>
+										<input 
+											type="number" 
+											name="planRitase" 
+											min="1" 
+											max="50" 
+											bind:value={ngepokPlanRit} 
+											required 
+											class="w-14 bg-surface-container-lowest border border-surface-container rounded-lg px-2 py-1.5 text-center text-sm font-bold text-on-surface outline-none focus:ring-2 focus:ring-indigo-500/20" 
+										/>
+										<button 
+											type="button" 
+											onclick={() => ngepokPlanRit++} 
+											class="w-8 h-8 flex items-center justify-center rounded-lg bg-surface-container hover:bg-surface-container-high text-on-surface font-black text-sm transition-colors border border-surface-container cursor-pointer"
+										>+</button>
+									</div>
+									<div class="flex items-center gap-1 flex-wrap">
+										{#each [1, 2, 3, 5, 8] as preset}
+											<button 
+												type="button" 
+												onclick={() => ngepokPlanRit = preset} 
+												class="px-2 py-1 text-[10px] font-bold rounded-lg transition-colors cursor-pointer {ngepokPlanRit === preset ? 'bg-indigo-600 text-white shadow-xs' : 'bg-surface-container hover:bg-surface-container-high text-on-surface-variant'}"
+											>
+												{preset}R
+											</button>
+										{/each}
+									</div>
 								</div>
 							</div>
 
-							<!-- Plan Ritase & UJO -->
-							<div class="p-4 rounded-2xl bg-indigo-500/5 border border-indigo-500/20 space-y-3">
-								<div class="flex items-center justify-between">
-									<span class="text-xs font-bold uppercase tracking-wider text-indigo-700 dark:text-indigo-400">Rencana Ritase (Batch Size)</span>
-									<span class="text-xs font-extrabold text-indigo-700 dark:text-indigo-400">{ngepokPlanRit} Surat Tugas / Unit</span>
-								</div>
-								<div class="grid grid-cols-2 gap-3.5">
-									<div>
-										<label class="block text-[11px] font-bold text-on-surface-variant mb-1">Target Ritase (Plan)</label>
-										<div class="flex items-center gap-1.5">
-											<button 
-												type="button" 
-												onclick={() => { if (ngepokPlanRit > 1) ngepokPlanRit--; }} 
-												class="w-9 h-9 flex items-center justify-center rounded-xl bg-surface-container hover:bg-surface-container-high text-on-surface font-black text-sm transition-colors border border-surface-container cursor-pointer"
-											>-</button>
-											<div class="relative flex-1">
-												<input 
-													type="number" 
-													name="planRitase" 
-													min="1" 
-													max="50" 
-													bind:value={ngepokPlanRit} 
-													required 
-													class="w-full bg-surface-container-lowest border border-surface-container rounded-xl px-2 py-2 text-center text-sm font-bold text-on-surface outline-none focus:ring-2 focus:ring-indigo-500/20" 
-												/>
-											</div>
-											<button 
-												type="button" 
-												onclick={() => ngepokPlanRit++} 
-												class="w-9 h-9 flex items-center justify-center rounded-xl bg-surface-container hover:bg-surface-container-high text-on-surface font-black text-sm transition-colors border border-surface-container cursor-pointer"
-											>+</button>
-										</div>
-										<!-- Quick Preset Pills -->
-										<div class="flex items-center gap-1 mt-1.5 flex-wrap">
-											{#each [1, 2, 3, 5, 8] as preset}
-												<button 
-													type="button" 
-													onclick={() => ngepokPlanRit = preset}
-													class="px-2 py-0.5 text-[10px] font-bold rounded-lg transition-colors cursor-pointer {ngepokPlanRit === preset ? 'bg-indigo-600 text-white' : 'bg-surface-container hover:bg-surface-container-high text-on-surface-variant'}"
-												>
-													{preset} Rit
-												</button>
-											{/each}
-										</div>
-									</div>
-									<div>
-										<label class="block text-[11px] font-bold text-on-surface-variant mb-1">UJO per Rit</label>
-										<div class="relative">
-											<span class="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-on-surface-variant">Rp</span>
-											<input type="number" name="ujoPerRit" bind:value={ngepokUjoPerRit} placeholder="0" class="w-full bg-surface-container-lowest border border-surface-container rounded-xl pl-9 pr-3 py-2 text-sm font-bold text-on-surface outline-none focus:ring-2 focus:ring-indigo-500/20" />
-										</div>
+							<!-- Komponen UJO Singkat -->
+							<div class="md:col-span-7 grid grid-cols-3 gap-2">
+								<div>
+									<label class="block text-[10px] font-bold text-on-surface-variant uppercase tracking-wider mb-1">UJO / Rit</label>
+									<div class="relative">
+										<input type="number" name="ujoPerRit" bind:value={ngepokUjoPerRit} placeholder="0" class="w-full bg-surface-container-lowest border border-surface-container rounded-lg px-2.5 py-1.5 text-xs font-bold text-on-surface outline-none focus:ring-2 focus:ring-indigo-500/20" />
 									</div>
 								</div>
-
-								<div class="grid grid-cols-2 gap-3.5">
-									<div>
-										<label class="block text-[11px] font-bold text-on-surface-variant mb-1">Uang Makan / Rit</label>
-										<div class="relative">
-											<span class="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-on-surface-variant">Rp</span>
-											<input type="number" name="ujoMakan" bind:value={ngepokUjoMakan} placeholder="0" class="w-full bg-surface-container-lowest border border-surface-container rounded-xl pl-9 pr-3 py-2 text-sm font-bold text-on-surface outline-none focus:ring-2 focus:ring-indigo-500/20" />
-										</div>
-									</div>
-									<div>
-										<label class="block text-[11px] font-bold text-on-surface-variant mb-1">Uang Tol / Rit</label>
-										<div class="relative">
-											<span class="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-on-surface-variant">Rp</span>
-											<input type="number" name="ujoTol" bind:value={ngepokUjoTol} placeholder="0" class="w-full bg-surface-container-lowest border border-surface-container rounded-xl pl-9 pr-3 py-2 text-sm font-bold text-on-surface outline-none focus:ring-2 focus:ring-indigo-500/20" />
-										</div>
+								<div>
+									<label class="block text-[10px] font-bold text-on-surface-variant uppercase tracking-wider mb-1">U. Makan</label>
+									<div class="relative">
+										<input type="number" name="ujoMakan" bind:value={ngepokUjoMakan} placeholder="0" class="w-full bg-surface-container-lowest border border-surface-container rounded-lg px-2.5 py-1.5 text-xs font-bold text-on-surface outline-none focus:ring-2 focus:ring-indigo-500/20" />
 									</div>
 								</div>
-
-								<div class="pt-2 border-t border-indigo-200 dark:border-indigo-900/40 flex items-center justify-between text-xs">
-									<span class="font-bold text-on-surface">Total Estimasi UJO Batch / Armada:</span>
-									<span class="font-black text-indigo-600 dark:text-indigo-400 font-mono text-sm">
-										Rp {((ngepokUjoPerRit + ngepokUjoMakan + ngepokUjoTol) * (ngepokPlanRit || 1)).toLocaleString('id-ID')}
-									</span>
+								<div>
+									<label class="block text-[10px] font-bold text-on-surface-variant uppercase tracking-wider mb-1">U. Tol</label>
+									<div class="relative">
+										<input type="number" name="ujoTol" bind:value={ngepokUjoTol} placeholder="0" class="w-full bg-surface-container-lowest border border-surface-container rounded-lg px-2.5 py-1.5 text-xs font-bold text-on-surface outline-none focus:ring-2 focus:ring-indigo-500/20" />
+									</div>
 								</div>
 							</div>
 						</div>
+					</div>
 
-						<!-- Kolom Kanan (Katalog Visual Dump Truck & Sopir) -->
-						<div class="lg:col-span-7">
-							<div class="flex items-center justify-between mb-2">
-								<label class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider">
+					<!-- 2. Bagian Tengah (Mendominasi Layar): Katalog Armada Dump Truck & Sopir (Grid 2-Kolom) -->
+					<div class="space-y-2.5">
+						<div class="flex items-center justify-between">
+							<div class="flex items-center gap-2">
+								<span class="material-symbols-outlined text-indigo-600 text-lg">view_cozy</span>
+								<label class="block text-xs font-black text-on-surface uppercase tracking-wider">
 									Pilih Armada & Sopir Ngepok <span class="text-error">*</span>
 								</label>
-								<span class="text-[11px] text-on-surface-variant">Klik kartu untuk memilih (bisa multi-unit)</span>
 							</div>
-							<FleetUnitSelector
-								units={availableUnits}
-								multiple={true}
-								bind:value={ngepokUnitIds}
-								accentColor="indigo"
-								maxHeight="440px"
-							/>
+							<span class="text-xs text-on-surface-variant">Klik kartu armada untuk memasukkan ke batch penugasan</span>
 						</div>
+
+						<FleetUnitSelector
+							units={availableUnits}
+							multiple={true}
+							bind:value={ngepokUnitIds}
+							accentColor="indigo"
+							gridCols={2}
+							maxHeight="480px"
+						/>
 					</div>
 				</div>
 
-				<div class="px-6 py-4 border-t border-surface-container bg-surface-container-low/40 flex items-center justify-between gap-3">
-					<div class="text-xs text-on-surface-variant">
-						Batch siap diterbitkan: <strong class="text-on-surface">{ngepokUnitIds.length} Armada × {ngepokPlanRit} Rit</strong>
-					</div>
-					<div class="flex items-center gap-3">
-						<button type="button" onclick={closeNgepokModal} class="px-5 py-2.5 rounded-xl text-sm font-bold text-on-surface-variant hover:bg-surface-container transition-colors cursor-pointer">
-							Batal
-						</button>
-						<button type="submit" disabled={isSubmitting || ngepokUnitIds.length === 0 || (!ngepokContractId && !ngepokCustomerId)} class="px-5 py-2.5 bg-indigo-600 text-white rounded-xl text-sm font-bold shadow-sm hover:bg-indigo-700 transition-colors flex items-center gap-2 disabled:opacity-50 cursor-pointer">
-							{#if isSubmitting}
-								<span class="material-symbols-outlined text-[18px] animate-spin">sync</span>
-								<span>Membuat Batch...</span>
-							{:else}
-								<span class="material-symbols-outlined text-[18px]">task_alt</span>
-								<span>Terbitkan Batch ({ngepokUnitIds.length} Armada • @{ngepokPlanRit} Rit)</span>
-							{/if}
-						</button>
-					</div>
+				<!-- 3. Bagian Bawah: Keranjang Armada Sticky (Food Menu Cart Style) -->
+				<div class="px-6 py-3.5 border-t border-surface-container bg-surface-container-lowest shadow-lg">
+					{#if ngepokUnitIds.length === 0}
+						<!-- Empty State Guide -->
+						<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+							<div class="flex items-center gap-2.5 text-on-surface-variant">
+								<div class="w-8 h-8 rounded-full bg-surface-container flex items-center justify-center shrink-0">
+									<span class="material-symbols-outlined text-[18px]">shopping_cart</span>
+								</div>
+								<div>
+									<p class="text-xs font-bold text-on-surface">Keranjang Armada Masih Kosong</p>
+									<p class="text-[11px] text-on-surface-variant">Pilih armada Dump Truck di atas untuk dimasukkan ke dalam Batch Penugasan Ngepok.</p>
+								</div>
+							</div>
+							<div class="flex items-center gap-3 self-end sm:self-auto">
+								<button type="button" onclick={closeNgepokModal} class="px-4 py-2 rounded-xl text-xs font-bold text-on-surface-variant hover:bg-surface-container transition-colors cursor-pointer">
+									Batal
+								</button>
+								<button type="button" disabled class="px-5 py-2.5 rounded-xl text-xs font-bold bg-surface-container text-on-surface-variant/50 cursor-not-allowed flex items-center gap-2">
+									<span class="material-symbols-outlined text-[16px]">task_alt</span>
+									Terbitkan Batch (0 Armada)
+								</button>
+							</div>
+						</div>
+					{:else}
+						<!-- Active Selected State -->
+						{@const totalBatchRit = ngepokUnitIds.length * (ngepokPlanRit || 1)}
+						{@const estTotalUjoBatch = (ngepokUjoPerRit + ngepokUjoMakan + ngepokUjoTol) * totalBatchRit}
+						<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+							<div class="flex-1 min-w-0 space-y-1.5">
+								<div class="flex items-center justify-between gap-2">
+									<div class="flex items-center gap-2">
+										<span class="px-2 py-0.5 rounded-md bg-indigo-600 text-white text-[11px] font-black uppercase tracking-wider">
+											{ngepokUnitIds.length} Armada Terpilih
+										</span>
+										<span class="text-xs font-bold text-on-surface">
+											Total Target: <span class="font-extrabold text-indigo-600">{totalBatchRit} Rit</span> (@{ngepokPlanRit} Rit)
+										</span>
+										{#if estTotalUjoBatch > 0}
+											<span class="text-[11px] font-medium text-on-surface-variant hidden sm:inline">
+												• Est. UJO: Rp {estTotalUjoBatch.toLocaleString('id-ID')}
+											</span>
+										{/if}
+									</div>
+									<button type="button" onclick={() => ngepokUnitIds = []} class="text-[11px] font-bold text-rose-600 hover:underline cursor-pointer">
+										Kosongkan Keranjang
+									</button>
+								</div>
+
+								<!-- Horizontal Scrollable Chips with Remove (x) -->
+								<div class="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar">
+									{#each ngepokUnitIds as val}
+										{@const uId = val.split('|')[0]}
+										{@const found = availableUnits.find((u: any) => String(u.unitId) === uId)}
+										<span class="inline-flex items-center gap-1.5 pl-2.5 pr-1.5 py-1 rounded-lg text-xs font-bold bg-indigo-50 dark:bg-indigo-950/50 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 shrink-0">
+											<span class="font-mono">{found?.id || uId}</span>
+											{#if found?.driver}
+												<span class="text-[10px] font-normal opacity-85 truncate max-w-[90px]">• {found.driver}</span>
+											{/if}
+											<button
+												type="button"
+												onclick={() => ngepokUnitIds = ngepokUnitIds.filter(v => v !== val)}
+												class="w-4 h-4 rounded-full hover:bg-indigo-200 dark:hover:bg-indigo-800 flex items-center justify-center text-indigo-700 dark:text-indigo-300 cursor-pointer"
+												title="Hapus unit ini"
+											>
+												<span class="material-symbols-outlined text-[13px]">close</span>
+											</button>
+										</span>
+									{/each}
+								</div>
+							</div>
+
+							<div class="flex items-center gap-3 shrink-0 self-end sm:self-center">
+								<button type="button" onclick={closeNgepokModal} class="px-4 py-2.5 rounded-xl text-xs font-bold text-on-surface-variant hover:bg-surface-container transition-colors cursor-pointer">
+									Batal
+								</button>
+								<button type="submit" disabled={isSubmitting || (!ngepokContractId && !ngepokCustomerId)} class="px-5 py-2.5 bg-indigo-600 text-white rounded-xl text-xs font-bold shadow-sm hover:bg-indigo-700 transition-colors flex items-center gap-2 disabled:opacity-50 cursor-pointer">
+									{#if isSubmitting}
+										<span class="material-symbols-outlined text-[18px] animate-spin">sync</span>
+										<span>Membuat Batch...</span>
+									{:else}
+										<span class="material-symbols-outlined text-[18px]">task_alt</span>
+										<span>Terbitkan Batch ({ngepokUnitIds.length} Armada • {totalBatchRit} Rit)</span>
+									{/if}
+								</button>
+							</div>
+						</div>
+					{/if}
 				</div>
 			</form>
 		</div>
@@ -3481,11 +3611,12 @@
 	</div>
 {/if}
 
-<!-- Modal Penugasan Dedicated On-Site (Buka Shift - Split-View 2-Column) -->
+<!-- Modal Penugasan Dedicated On-Site (Food Menu & Cart Layout) -->
 {#if showDedicatedModal}
 	<div class="fixed inset-0 z-50 flex items-center justify-center p-4">
 		<div class="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onclick={closeDedicatedModal}></div>
-		<div class="relative w-full max-w-5xl bg-surface-container-lowest rounded-[24px] shadow-2xl flex flex-col overflow-hidden max-h-[92vh]">
+		<div class="relative w-full max-w-6xl bg-surface-container-lowest rounded-[28px] shadow-2xl flex flex-col overflow-hidden max-h-[92vh]">
+			<!-- Header Modal -->
 			<div class="px-6 py-4 border-b border-surface-container bg-amber-50/50 dark:bg-amber-950/20">
 				<div class="flex items-center justify-between">
 					<div class="flex items-center gap-3">
@@ -3505,130 +3636,227 @@
 
 			<form method="POST" action="?/createDedicatedDispatch" use:enhance={() => { isSubmitting = true; return async ({ update }) => { await update(); isSubmitting = false; closeDedicatedModal(); }; }} class="flex flex-col flex-1 overflow-hidden">
 				<input type="hidden" name="unitIds" value={JSON.stringify(dedUnitIds)}>
-				<div class="p-6 overflow-y-auto custom-scrollbar flex-1">
-					<div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-						<!-- Kolom Kiri (Parameter Shift, Customer, Area, & Muatan) -->
-						<div class="lg:col-span-5 space-y-4">
-							<div class="p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-xs text-amber-800 dark:text-amber-300 flex items-center gap-2.5">
-								<span class="material-symbols-outlined text-amber-600 text-base">info</span>
-								<span>Surat Tugas resmi BCS akan diterbitkan di akhir pengerjaan membundel seluruh surat jalan hasil tarikan.</span>
+				
+				<div class="p-6 overflow-y-auto custom-scrollbar flex-1 space-y-5">
+					<!-- 1. Bagian Atas: Header Parameter Shift, Customer, Area Kerja & Uang Harian -->
+					<div class="p-4 rounded-2xl bg-amber-50/60 dark:bg-amber-950/20 border border-amber-200/70 dark:border-amber-900/50 space-y-3.5">
+						{#if selectedContractForDedicated}
+							<div class="p-3.5 rounded-xl bg-white dark:bg-slate-900 border border-amber-200 dark:border-amber-800 space-y-2">
+								<div class="flex items-center justify-between">
+									<div class="flex items-center gap-2">
+										<span class="font-mono text-xs font-black text-amber-600 dark:text-amber-400">{selectedContractForDedicated.contract_id}</span>
+										<span class="text-xs font-bold text-on-surface">• {selectedContractForDedicated.customer}</span>
+									</div>
+									<span class="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-amber-600 text-white">
+										Kontrak Terkunci
+									</span>
+								</div>
+								<div class="flex flex-wrap items-center gap-2 text-xs text-on-surface-variant font-medium">
+									<span>Area: <strong class="text-on-surface">{selectedContractForDedicated.origin} ↔ {selectedContractForDedicated.destination}</strong></span>
+									<span class="text-slate-300 dark:text-slate-700">•</span>
+									<span class="text-amber-700 dark:text-amber-300 font-bold">{selectedContractForDedicated.cargo}</span>
+								</div>
+							</div>
+							<input type="hidden" name="contractId" value={dedContractId}>
+							<input type="hidden" name="customerId" value={dedCustomerId}>
+							<input type="hidden" name="originId" value={dedOriginId}>
+							<input type="hidden" name="destinationId" value={dedDestId}>
+
+							<!-- Grid 2-Kolom: Periode Shift ↔ Uang Harian -->
+							<div class="grid grid-cols-1 md:grid-cols-2 gap-3.5 pt-1 border-t border-amber-200/50 dark:border-amber-900/40">
+								<div>
+									<label class="block text-[11px] font-bold text-on-surface-variant uppercase tracking-wider mb-1.5">Periode / Shift <span class="text-error">*</span></label>
+									<input type="text" name="periodeShift" bind:value={dedShift} required placeholder="Shift 1 (08:00 - 16:00)" class="w-full bg-surface-container-lowest border border-surface-container rounded-xl px-4 py-2 text-sm font-medium border-0 outline-none focus:ring-2 focus:ring-amber-500/20 text-on-surface" />
+								</div>
+								<div>
+									<label class="block text-[11px] font-bold text-on-surface-variant uppercase tracking-wider mb-1.5">Uang Harian Supir <span class="text-error">*</span></label>
+									<input type="number" name="uangHarian" bind:value={dedUangHarian} min="0" step="5000" required placeholder="100000" class="w-full bg-surface-container-lowest border border-surface-container rounded-xl px-4 py-2 text-sm font-bold border-0 outline-none focus:ring-2 focus:ring-amber-500/20 text-amber-600 font-mono" />
+								</div>
 							</div>
 
-							<div class="grid grid-cols-2 gap-3.5">
+							<!-- Grid 2-Kolom: Jenis Muatan ↔ Tanggal Mulai -->
+							<div class="grid grid-cols-1 md:grid-cols-2 gap-3.5">
 								<div>
-									<label class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-1.5">Periode / Shift <span class="text-error">*</span></label>
-									<input type="text" name="periodeShift" bind:value={dedShift} required placeholder="Shift 1 (08:00 - 16:00)" class="w-full bg-surface-container-low rounded-xl px-4 py-2.5 text-sm font-medium border-0 outline-none focus:ring-2 focus:ring-amber-500/20 text-on-surface" />
+									<label class="block text-[11px] font-bold text-on-surface-variant uppercase tracking-wider mb-1.5">Jenis Muatan</label>
+									<input type="text" name="cargoName" bind:value={dedCargo} placeholder="Muatan On-Site" class="w-full bg-surface-container rounded-xl px-4 py-2 text-sm font-medium border-0 outline-none text-on-surface" />
 								</div>
 								<div>
-									<label class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-1.5">Uang Harian Supir <span class="text-error">*</span></label>
-									<input type="number" name="uangHarian" bind:value={dedUangHarian} min="0" step="5000" required placeholder="100000" class="w-full bg-surface-container-low rounded-xl px-4 py-2.5 text-sm font-bold border-0 outline-none focus:ring-2 focus:ring-amber-500/20 text-amber-600 font-mono" />
+									<label class="block text-[11px] font-bold text-on-surface-variant uppercase tracking-wider mb-1.5">Tanggal Mulai <span class="text-error">*</span></label>
+									<input type="date" name="tglTrip" bind:value={dedDate} required class="w-full bg-surface-container-lowest border border-surface-container rounded-xl px-4 py-2 text-sm font-medium border-0 outline-none focus:ring-2 focus:ring-amber-500/20 text-on-surface" />
+								</div>
+							</div>
+						{:else}
+							<!-- Non-Kontrak: Parameter Lengkap -->
+							<div class="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+								<div>
+									<label class="block text-[11px] font-bold text-on-surface-variant uppercase tracking-wider mb-1.5">Periode / Shift <span class="text-error">*</span></label>
+									<input type="text" name="periodeShift" bind:value={dedShift} required placeholder="Shift 1 (08:00 - 16:00)" class="w-full bg-surface-container-lowest border border-surface-container rounded-xl px-4 py-2 text-sm font-medium border-0 outline-none focus:ring-2 focus:ring-amber-500/20 text-on-surface" />
+								</div>
+								<div>
+									<label class="block text-[11px] font-bold text-on-surface-variant uppercase tracking-wider mb-1.5">Uang Harian Supir <span class="text-error">*</span></label>
+									<input type="number" name="uangHarian" bind:value={dedUangHarian} min="0" step="5000" required placeholder="100000" class="w-full bg-surface-container-lowest border border-surface-container rounded-xl px-4 py-2 text-sm font-bold border-0 outline-none focus:ring-2 focus:ring-amber-500/20 text-amber-600 font-mono" />
 								</div>
 							</div>
 
-							{#if selectedContractForDedicated}
-								<div class="p-4 rounded-2xl bg-amber-50/70 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900 space-y-2.5">
-									<div class="flex items-center justify-between">
-										<div class="flex items-center gap-2">
-											<span class="font-mono text-xs font-black text-amber-600 dark:text-amber-400">{selectedContractForDedicated.contract_id}</span>
-											<span class="text-xs font-bold text-on-surface">• {selectedContractForDedicated.customer}</span>
-										</div>
-										<span class="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-amber-600 text-white">
-											Kontrak Terkunci
-										</span>
-									</div>
-									<div class="flex items-center gap-2 text-xs text-on-surface-variant font-medium">
-										<span>Area: <strong class="text-on-surface">{selectedContractForDedicated.origin} ↔ {selectedContractForDedicated.destination}</strong></span>
-										<span class="text-slate-300 dark:text-slate-700">•</span>
-										<span class="text-amber-700 dark:text-amber-300 font-bold">{selectedContractForDedicated.cargo}</span>
-									</div>
-								</div>
-								<input type="hidden" name="contractId" value={dedContractId}>
+							<div class="pt-1 border-t border-amber-200/50 dark:border-amber-900/40">
+								<label class="block text-[11px] font-bold text-on-surface-variant uppercase tracking-wider mb-1.5">Pelanggan / Perusahaan Customer <span class="text-error">*</span></label>
+								<SearchableSelect 
+									options={customerOpts} 
+									bind:value={dedCustomerId} 
+									placeholder="-- Pilih Customer --" 
+									required={true}
+								/>
 								<input type="hidden" name="customerId" value={dedCustomerId}>
-								<input type="hidden" name="originId" value={dedOriginId}>
-								<input type="hidden" name="destinationId" value={dedDestId}>
-							{:else}
+							</div>
+
+							<div class="grid grid-cols-1 md:grid-cols-2 gap-3.5">
 								<div>
-									<label class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-1.5">Pelanggan / Perusahaan Customer <span class="text-error">*</span></label>
+									<label class="block text-[11px] font-bold text-on-surface-variant uppercase tracking-wider mb-1.5">Area Asal (Gudang/Kapal)</label>
 									<SearchableSelect 
 										options={customerOpts} 
-										bind:value={dedCustomerId} 
-										placeholder="-- Pilih Customer --" 
-										required={true}
+										bind:value={dedOriginId} 
+										placeholder="-- Pilih Lokasi Asal --" 
 									/>
-									<input type="hidden" name="customerId" value={dedCustomerId}>
-								</div>
-
-								<div class="grid grid-cols-2 gap-3.5">
-									<div>
-										<label class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-1.5">Area Asal (Gudang/Kapal)</label>
-										<SearchableSelect 
-											options={customerOpts} 
-											bind:value={dedOriginId} 
-											placeholder="-- Pilih Lokasi Asal --" 
-										/>
-										<input type="hidden" name="originId" value={dedOriginId}>
-									</div>
-									<div>
-										<label class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-1.5">Area Tujuan (Bongkar)</label>
-										<SearchableSelect 
-											options={customerOpts} 
-											bind:value={dedDestId} 
-											placeholder="-- Pilih Lokasi Tujuan --" 
-										/>
-										<input type="hidden" name="destinationId" value={dedDestId}>
-									</div>
-								</div>
-							{/if}
-
-							<div class="grid grid-cols-2 gap-3.5">
-								<div>
-									<label class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-1.5">Jenis Muatan</label>
-									<input type="text" name="cargoName" bind:value={dedCargo} placeholder="Muatan On-Site" class="w-full bg-surface-container-low rounded-xl px-4 py-2.5 text-sm font-medium border-0 outline-none focus:ring-2 focus:ring-amber-500/20 text-on-surface" />
+									<input type="hidden" name="originId" value={dedOriginId}>
 								</div>
 								<div>
-									<label class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-1.5">Tanggal Mulai</label>
-									<input type="date" name="tglTrip" bind:value={dedDate} required class="w-full bg-surface-container-low rounded-xl px-4 py-2.5 text-sm font-medium border-0 outline-none focus:ring-2 focus:ring-amber-500/20 text-on-surface" />
+									<label class="block text-[11px] font-bold text-on-surface-variant uppercase tracking-wider mb-1.5">Area Tujuan (Bongkar)</label>
+									<SearchableSelect 
+										options={customerOpts} 
+										bind:value={dedDestId} 
+										placeholder="-- Pilih Lokasi Tujuan --" 
+									/>
+									<input type="hidden" name="destinationId" value={dedDestId}>
 								</div>
 							</div>
-						</div>
 
-						<!-- Kolom Kanan (Katalog Visual Dump Truck & Sopir) -->
-						<div class="lg:col-span-7">
-							<div class="flex items-center justify-between mb-2">
-								<label class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider">
-									Pilih Armada & Sopir Standby <span class="text-error">*</span>
+							<div class="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+								<div>
+									<label class="block text-[11px] font-bold text-on-surface-variant uppercase tracking-wider mb-1.5">Jenis Muatan</label>
+									<input type="text" name="cargoName" bind:value={dedCargo} placeholder="Muatan On-Site" class="w-full bg-surface-container-lowest border border-surface-container rounded-xl px-4 py-2 text-sm font-medium border-0 outline-none focus:ring-2 focus:ring-amber-500/20 text-on-surface" />
+								</div>
+								<div>
+									<label class="block text-[11px] font-bold text-on-surface-variant uppercase tracking-wider mb-1.5">Tanggal Mulai <span class="text-error">*</span></label>
+									<input type="date" name="tglTrip" bind:value={dedDate} required class="w-full bg-surface-container-lowest border border-surface-container rounded-xl px-4 py-2 text-sm font-medium border-0 outline-none focus:ring-2 focus:ring-amber-500/20 text-on-surface" />
+								</div>
+							</div>
+						{/if}
+					</div>
+
+					<!-- 2. Bagian Tengah (Mendominasi Layar): Katalog Armada Dump Truck & Sopir (Grid 2-Kolom) -->
+					<div class="space-y-2.5">
+						<div class="flex items-center justify-between">
+							<div class="flex items-center gap-2">
+								<span class="material-symbols-outlined text-amber-600 text-lg">view_cozy</span>
+								<label class="block text-xs font-black text-on-surface uppercase tracking-wider">
+									Pilih Armada & Sopir Standby On-Site <span class="text-error">*</span>
 								</label>
-								<span class="text-[11px] text-on-surface-variant">Klik kartu untuk memilih (bisa multi-unit)</span>
 							</div>
-							<FleetUnitSelector
-								units={availableUnits}
-								multiple={true}
-								bind:value={dedUnitIds}
-								accentColor="amber"
-								maxHeight="420px"
-							/>
+							<span class="text-xs text-on-surface-variant">Klik kartu armada untuk check-in ke shift operasional</span>
 						</div>
+
+						<FleetUnitSelector
+							units={availableUnits}
+							multiple={true}
+							bind:value={dedUnitIds}
+							accentColor="amber"
+							gridCols={2}
+							maxHeight="480px"
+						/>
 					</div>
 				</div>
 
-				<div class="px-6 py-4 border-t border-surface-container bg-surface-container-low/40 flex items-center justify-between gap-3">
-					<div class="text-xs text-on-surface-variant">
-						Armada Standby: <strong class="text-on-surface">{dedUnitIds.length} Unit</strong> dipilih
-					</div>
-					<div class="flex items-center gap-3">
-						<button type="button" onclick={closeDedicatedModal} class="px-5 py-2.5 rounded-xl text-sm font-bold text-on-surface-variant hover:bg-surface-container transition-colors cursor-pointer">
-							Batal
-						</button>
-						<button type="submit" disabled={isSubmitting || dedUnitIds.length === 0} class="px-5 py-2.5 bg-amber-600 text-white rounded-xl text-sm font-bold shadow-sm hover:bg-amber-700 transition-colors flex items-center gap-2 disabled:opacity-50 cursor-pointer">
-							{#if isSubmitting}
-								<span class="material-symbols-outlined text-[18px] animate-spin">sync</span>
-								<span>Menyimpan...</span>
-							{:else}
-								<span class="material-symbols-outlined text-[18px]">login</span>
-								<span>Buka Shift ({dedUnitIds.length} Unit Standby On-Site)</span>
-							{/if}
-						</button>
-					</div>
+				<!-- 3. Bagian Bawah: Keranjang Armada Sticky (Food Menu Cart Style) -->
+				<div class="px-6 py-3.5 border-t border-surface-container bg-surface-container-lowest shadow-lg">
+					{#if dedUnitIds.length === 0}
+						<!-- Empty State Guide -->
+						<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+							<div class="flex items-center gap-2.5 text-on-surface-variant">
+								<div class="w-8 h-8 rounded-full bg-surface-container flex items-center justify-center shrink-0">
+									<span class="material-symbols-outlined text-[18px]">shopping_cart</span>
+								</div>
+								<div>
+									<p class="text-xs font-bold text-on-surface">Keranjang Armada Masih Kosong</p>
+									<p class="text-[11px] text-on-surface-variant">Pilih armada Dump Truck di atas untuk check-in ke Shift On-Site ini.</p>
+								</div>
+							</div>
+							<div class="flex items-center gap-3 self-end sm:self-auto">
+								<button type="button" onclick={closeDedicatedModal} class="px-4 py-2 rounded-xl text-xs font-bold text-on-surface-variant hover:bg-surface-container transition-colors cursor-pointer">
+									Batal
+								</button>
+								<button type="button" disabled class="px-5 py-2.5 rounded-xl text-xs font-bold bg-surface-container text-on-surface-variant/50 cursor-not-allowed flex items-center gap-2">
+									<span class="material-symbols-outlined text-[16px]">login</span>
+									Buka Shift (0 Unit)
+								</button>
+							</div>
+						</div>
+					{:else}
+						<!-- Active Selected State -->
+						{@const totalSelectedTons = dedUnitIds.reduce((acc, val) => {
+							const uId = val.split('|')[0];
+							const found = availableUnits.find((u: any) => String(u.unitId) === uId);
+							return acc + (Number(found?.capacity) || 35);
+						}, 0)}
+						<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+							<div class="flex-1 min-w-0 space-y-1.5">
+								<div class="flex items-center justify-between gap-2">
+									<div class="flex items-center gap-2">
+										<span class="px-2 py-0.5 rounded-md bg-amber-600 text-white text-[11px] font-black uppercase tracking-wider">
+											{dedUnitIds.length} Unit Standby
+										</span>
+										<span class="text-xs font-bold text-on-surface">
+											Est. Kapasitas: <span class="font-extrabold text-amber-600">{totalSelectedTons} Ton</span>
+										</span>
+										{#if dedUangHarian && dedUangHarian > 0}
+											<span class="text-[11px] font-medium text-on-surface-variant hidden sm:inline">
+												• Est. Uang Harian: Rp {(Number(dedUangHarian) * dedUnitIds.length).toLocaleString('id-ID')}
+											</span>
+										{/if}
+									</div>
+									<button type="button" onclick={() => dedUnitIds = []} class="text-[11px] font-bold text-rose-600 hover:underline cursor-pointer">
+										Kosongkan Keranjang
+									</button>
+								</div>
+
+								<!-- Horizontal Scrollable Chips with Remove (x) -->
+								<div class="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar">
+									{#each dedUnitIds as val}
+										{@const uId = val.split('|')[0]}
+										{@const found = availableUnits.find((u: any) => String(u.unitId) === uId)}
+										<span class="inline-flex items-center gap-1.5 pl-2.5 pr-1.5 py-1 rounded-lg text-xs font-bold bg-amber-50 dark:bg-amber-950/50 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800 shrink-0">
+											<span class="font-mono">{found?.id || uId}</span>
+											{#if found?.driver}
+												<span class="text-[10px] font-normal opacity-85 truncate max-w-[90px]">• {found.driver}</span>
+											{/if}
+											<button
+												type="button"
+												onclick={() => dedUnitIds = dedUnitIds.filter(v => v !== val)}
+												class="w-4 h-4 rounded-full hover:bg-amber-200 dark:hover:bg-amber-800 flex items-center justify-center text-amber-700 dark:text-amber-300 cursor-pointer"
+												title="Hapus unit ini"
+											>
+												<span class="material-symbols-outlined text-[13px]">close</span>
+											</button>
+										</span>
+									{/each}
+								</div>
+							</div>
+
+							<div class="flex items-center gap-3 shrink-0 self-end sm:self-center">
+								<button type="button" onclick={closeDedicatedModal} class="px-4 py-2.5 rounded-xl text-xs font-bold text-on-surface-variant hover:bg-surface-container transition-colors cursor-pointer">
+									Batal
+								</button>
+								<button type="submit" disabled={isSubmitting || (!dedContractId && !dedCustomerId)} class="px-5 py-2.5 bg-amber-600 text-white rounded-xl text-xs font-bold shadow-sm hover:bg-amber-700 transition-colors flex items-center gap-2 disabled:opacity-50 cursor-pointer">
+									{#if isSubmitting}
+										<span class="material-symbols-outlined text-[18px] animate-spin">sync</span>
+										<span>Menyimpan...</span>
+									{:else}
+										<span class="material-symbols-outlined text-[18px]">login</span>
+										<span>Buka Shift ({dedUnitIds.length} Unit Standby)</span>
+									{/if}
+								</button>
+							</div>
+						</div>
+					{/if}
 				</div>
 			</form>
 		</div>

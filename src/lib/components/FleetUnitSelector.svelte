@@ -7,6 +7,7 @@
 		accentColor = 'blue',
 		recommendedUnitId = '',
 		maxHeight = '430px',
+		gridCols = 2,
 		onSelectSingle
 	}: {
 		units: any[];
@@ -16,6 +17,7 @@
 		accentColor?: 'blue' | 'indigo' | 'amber';
 		recommendedUnitId?: string;
 		maxHeight?: string;
+		gridCols?: 1 | 2;
 		onSelectSingle?: (unit: any) => void;
 	} = $props();
 
@@ -351,7 +353,8 @@
 				</div>
 			{/if}
 
-			{#each readyUnits as unit (unit.unitId || unit.id)}
+			<div class="{gridCols === 2 ? 'grid grid-cols-1 md:grid-cols-2 gap-3' : 'space-y-2.5'}">
+				{#each readyUnits as unit (unit.unitId || unit.id)}
 				{@const selected = isUnitSelected(unit)}
 				{@const isRecommended =
 					recommendedUnitId && (String(unit.unitId) === String(recommendedUnitId) || unit.id === recommendedUnitId)}
@@ -486,6 +489,7 @@
 					</div>
 				</div>
 			{/each}
+			</div>
 		{/if}
 
 		<!-- ========================================================= -->
@@ -503,7 +507,7 @@
 					</div>
 				{/if}
 
-				<div class="space-y-2.5">
+				<div class="{gridCols === 2 ? 'grid grid-cols-1 md:grid-cols-2 gap-3' : 'space-y-2.5'}">
 					{#each onTripUnits as unit (unit.unitId || unit.id)}
 						{@const pct = Number(unit.trip_progress_pct || 50)}
 						<div
@@ -600,7 +604,7 @@
 					</div>
 				{/if}
 
-				<div class="space-y-2.5">
+				<div class="{gridCols === 2 ? 'grid grid-cols-1 md:grid-cols-2 gap-3' : 'space-y-2.5'}">
 					{#each woUnits as unit (unit.unitId || unit.id)}
 						{@const woPct = Number(unit.wo_progress_pct || 20)}
 						{@const woTotal = Number(unit.wo_total_items || 0)}
@@ -706,7 +710,7 @@
 					</div>
 				{/if}
 
-				<div class="space-y-2">
+				<div class="{gridCols === 2 ? 'grid grid-cols-1 md:grid-cols-2 gap-3' : 'space-y-2'}">
 					{#each expiredUnits as unit (unit.unitId || unit.id)}
 						<div
 							class="flex items-center gap-3.5 p-3 rounded-2xl bg-surface-container-lowest/60 opacity-65 cursor-not-allowed select-none"
