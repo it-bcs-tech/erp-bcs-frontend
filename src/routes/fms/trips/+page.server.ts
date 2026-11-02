@@ -12,8 +12,11 @@ export const load: PageServerLoad = async ({ url }) => {
 			SELECT 
 				t.id as trip_db_id,
 				t.no_surat_tugas as id,
+				t.unit_id as unit_db_id,
+				t.driver_id as driver_db_id,
 				u.nomor_unit as vehicle,
 				k.nama_karyawan as driver,
+				k.payroll_id as driver_payroll,
 				t.origin,
 				t.destination,
 				t.cargo,
@@ -49,7 +52,17 @@ export const load: PageServerLoad = async ({ url }) => {
 					'[]'::json
 				) as status_logs,
 				COALESCE(
-					(SELECT json_agg(json_build_object('point', tn.point, 'note', tn.note, 'created_by', tn.created_by, 'created_at', tn.created_at))
+					(SELECT json_agg(json_build_object(
+						'point', tn.point, 
+						'note', tn.note, 
+						'created_by', tn.created_by, 
+						'created_at', tn.created_at,
+						'category', COALESCE(tn.category, 'GENERAL'),
+						'ref_wo_no', tn.ref_wo_no,
+						'ref_incident_no', tn.ref_incident_no,
+						'is_escalated_hse', tn.is_escalated_hse,
+						'location_detail', tn.location_detail
+					))
 					 FROM fleet.trip_notes tn WHERE tn.trip_id = t.id),
 					'[]'::json
 				) as notes
@@ -212,14 +225,22 @@ export const load: PageServerLoad = async ({ url }) => {
 				}
 			];
 
+			const activeStoringNote = notesList.find((n: any) => n.category === 'STORING');
+			const hasActiveStoring = !!activeStoringNote;
+			const activeStoringWo = activeStoringNote?.ref_wo_no || null;
+
 			return {
 				id: t.id || 'TRP-UNKNOWN',
 				db_id: t.trip_db_id,
+				unit_id: t.unit_db_id,
+				driver_id: t.driver_db_id,
 				vehicle: t.vehicle || '-',
 				driver: t.driver || '-',
 				origin: t.origin || '-',
 				destination: t.destination || '-',
 				status: mappedStatus,
+				has_active_storing: hasActiveStoring,
+				active_storing_wo: activeStoringWo,
 				progress,
 				departedAt: t.depart_time ? new Date(t.depart_time).toLocaleString('id-ID') : '-',
 				eta: arriveTime ? arriveTime : (t.depart_time ? 'Est. 4h' : '-'),
@@ -288,10 +309,14 @@ export const actions: Actions = {
 		const data = await request.formData();
 		const tripId = data.get('trip_id')?.toString();
 		const point = data.get('point')?.toString();
-		const note = data.get('note')?.toString() || '';
+		const note = data.get('note')?.toString()?.trim() || '';
+		const category = (data.get('category')?.toString() || 'HSE').toUpperCase(); // 'HSE' or 'STORING'
+		const locationDetail = data.get('location_detail')?.toString()?.trim() || point;
+		const escalateHse = data.get('escalate_hse') === 'true' || data.get('escalate_hse') === 'on';
+		const incidentType = data.get('incident_type')?.toString() || 'Unsafe Condition';
 
-		if (!tripId || !point) {
-			return fail(400, { success: false, message: 'Invalid data' });
+		if (!tripId || !point || !note) {
+			return fail(400, { success: false, message: 'Trip, titik milestone, dan isi catatan wajib diisi!' });
 		}
 
 		let createdBy = 'Unknown';
@@ -304,19 +329,184 @@ export const actions: Actions = {
 		}
 
 		try {
-			// UPSERT the note
+			// 1. Ambil info trip, unit, driver
+			const [tripData] = await sql`
+				SELECT 
+					t.id, 
+					t.unit_id, 
+					t.driver_id, 
+					t.no_surat_tugas, 
+					u.nomor_unit, 
+					k.payroll_id, 
+					k.nama_karyawan
+				FROM fleet.trip t
+				LEFT JOIN fleet.unit u ON u.id = t.unit_id
+				LEFT JOIN master.m_drivers d ON d.id = t.driver_id
+				LEFT JOIN master.m_karyawan k ON k.id = d.karyawan_id
+				WHERE t.id = ${tripId}
+			`;
+
+			const [existingNote] = await sql`
+				SELECT ref_wo_no, ref_incident_no 
+				FROM fleet.trip_notes 
+				WHERE trip_id = ${tripId} AND point = ${point}
+			`;
+
+			let refWoNo = existingNote?.ref_wo_no || null;
+			let refIncidentNo = existingNote?.ref_incident_no || null;
+
+			// 2. Kategori STORING: Terbitkan Work Order di fleet.work_orders jika belum ada
+			if (category === 'STORING') {
+				if (!refWoNo) {
+					const now = new Date();
+					const month = String(now.getMonth() + 1).padStart(2, '0');
+					const year = now.getFullYear();
+					const suffix = `/WO/WSP/${month}/${year}`;
+
+					const lastWo = await sql`
+						SELECT wo_no FROM fleet.work_orders 
+						WHERE wo_no LIKE ${'%' + suffix} 
+						ORDER BY wo_no DESC LIMIT 1
+					`;
+
+					let seq = 1;
+					if (lastWo.length > 0) {
+						const lastSeqStr = lastWo[0].wo_no.split('/')[0];
+						seq = parseInt(lastSeqStr, 10) + 1;
+					}
+					refWoNo = `${String(seq).padStart(5, '0')}${suffix}`;
+
+					const repairedItems = [{
+						id: 'wo_item_1',
+						category: 'STORING',
+						item: note,
+						remark: `Storing darurat di ${locationDetail}`,
+						status: 'PENDING',
+						mechanic_notes: '',
+						repaired_at: null
+					}];
+
+					await sql`
+						INSERT INTO fleet.work_orders (
+							wo_no,
+							unit_id,
+							driver_id,
+							keluhan_driver,
+							maint_category,
+							job_location,
+							status,
+							status_reason,
+							operational_reason,
+							wo_date,
+							checklist_items,
+							repaired_items,
+							created_at,
+							created_by
+						) VALUES (
+							${refWoNo},
+							${tripData?.nomor_unit || 'UNKNOWN'},
+							${tripData?.payroll_id || tripData?.nama_karyawan || null},
+							${note},
+							'STORING',
+							${locationDetail},
+							'Open',
+							'Unit Storing di Jalan pada Perjalanan Trip',
+							${'Trip No: ' + (tripData?.no_surat_tugas || tripId)},
+							NOW(),
+							${sql.json(repairedItems.map(r => ({ item: r.item, status: 'Not Yet' })))},
+							${sql.json(repairedItems)},
+							NOW(),
+							${createdBy}
+						)
+					`;
+				}
+			}
+
+			// 3. Kategori HSE: Eskalasi ke Laporan Insiden di qhse.incidents jika diminta
+			if (category === 'HSE' && escalateHse) {
+				if (!refIncidentNo) {
+					const countRes = await sql`SELECT count(*) FROM qhse.incidents`;
+					const seq = (parseInt(countRes[0].count, 10) + 1).toString().padStart(4, '0');
+					refIncidentNo = `INC-${new Date().getFullYear()}-${seq}`;
+
+					await sql`
+						INSERT INTO qhse.incidents (
+							incident_number,
+							incident_date,
+							incident_type,
+							severity,
+							unit_id,
+							driver_id,
+							location,
+							description,
+							status
+						) VALUES (
+							${refIncidentNo},
+							NOW(),
+							${incidentType},
+							'LOW',
+							${tripData?.unit_id ? String(tripData.unit_id) : null},
+							${tripData?.driver_id ? String(tripData.driver_id) : null},
+							${locationDetail},
+							${note},
+							'OPEN'
+						)
+					`;
+				}
+			}
+
+			// 4. Upsert Catatan Trip
 			await sql`
-				INSERT INTO fleet.trip_notes (trip_id, point, note, created_by)
-				VALUES (${tripId}, ${point}, ${note}, ${createdBy})
+				INSERT INTO fleet.trip_notes (
+					trip_id,
+					point,
+					note,
+					category,
+					ref_wo_no,
+					ref_incident_no,
+					is_escalated_hse,
+					location_detail,
+					created_by,
+					created_at,
+					updated_at
+				) VALUES (
+					${tripId},
+					${point},
+					${note},
+					${category},
+					${category === 'STORING' ? refWoNo : null},
+					${category === 'HSE' && escalateHse ? refIncidentNo : null},
+					${category === 'HSE' && escalateHse},
+					${locationDetail},
+					${createdBy},
+					NOW(),
+					NOW()
+				)
 				ON CONFLICT (trip_id, point) DO UPDATE SET 
 					note = EXCLUDED.note,
+					category = EXCLUDED.category,
+					ref_wo_no = COALESCE(EXCLUDED.ref_wo_no, fleet.trip_notes.ref_wo_no),
+					ref_incident_no = COALESCE(EXCLUDED.ref_incident_no, fleet.trip_notes.ref_incident_no),
+					is_escalated_hse = EXCLUDED.is_escalated_hse,
+					location_detail = EXCLUDED.location_detail,
 					created_by = EXCLUDED.created_by,
 					updated_at = CURRENT_TIMESTAMP
 			`;
-			return { success: true };
-		} catch (error) {
+
+			return { 
+				success: true, 
+				category, 
+				refWoNo, 
+				refIncidentNo,
+				message: category === 'STORING'
+					? `Catatan tersimpan & Tiket Work Order Storing ${refWoNo} berhasil diterbitkan ke Bengkel.`
+					: (escalateHse 
+						? `Catatan tersimpan & Laporan Insiden ${refIncidentNo} berhasil dieskalasi ke QHSE.`
+						: `Catatan lapangan berhasil disimpan.`)
+			};
+		} catch (error: any) {
 			console.error("Failed to save note:", error);
-			return fail(500, { success: false, message: 'Failed to save note' });
+			return fail(500, { success: false, message: 'Gagal menyimpan catatan: ' + (error?.message || error) });
 		}
 	}
 };

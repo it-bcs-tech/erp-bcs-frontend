@@ -16,11 +16,30 @@
 	let generatingSummaryFor = $state<string | null>(null);
 	let aiSummaries = $state<Record<string, any>>({});
 	
-	let activeNotePopover = $state<{ tripId: string, dbId: number, point: string, note: string } | null>(null);
+	let activeNotePopover = $state<{ 
+		tripId: string, 
+		dbId: number, 
+		point: string, 
+		pointLabel: string,
+		note: string,
+		category: 'HSE' | 'STORING',
+		locationDetail: string,
+		escalateHse: boolean,
+		incidentType: string,
+		refWoNo?: string,
+		refIncidentNo?: string
+	} | null>(null);
 
 	// Trip Detail Drawer state
 	let showTripDrawer = $state(false);
 	let selectedTrip = $state<any | null>(null);
+
+	$effect(() => {
+		if (selectedTrip && trips) {
+			const found = trips.find((t: any) => t.id === selectedTrip.id);
+			if (found) selectedTrip = found;
+		}
+	});
 
 	function openTripDetail(trip: any) {
 		selectedTrip = trip;
@@ -92,6 +111,14 @@
 	let currentPage = $derived(meta?.current_page || 1);
 	let startItem = $derived(meta?.total === 0 ? 0 : ((currentPage - 1) * (meta?.per_page || 5)) + 1);
 	let endItem = $derived(Math.min(currentPage * (meta?.per_page || 5), meta?.total || 0));
+
+	let pageNumbers = $derived.by(() => {
+		const pages: number[] = [];
+		const start = Math.max(1, currentPage - 2);
+		const end = Math.min(totalPages, Math.max(1, start + 4));
+		for (let i = start; i <= end; i++) pages.push(i);
+		return pages;
+	});
 
 	function goToPage(p: number) {
 		if (p < 1 || p > totalPages) return;
@@ -272,27 +299,41 @@
 								</div>
 							</td>
 							<td class="py-4 px-6">
-								{#if trip.status === 'Waiting Cashier'}
-									<span class="inline-flex items-center gap-1.5 text-amber-600 dark:text-amber-400 font-bold text-[11px] bg-amber-500/10 px-2.5 py-1 rounded-md uppercase tracking-wider border border-amber-500/20">
-										<span class="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span> Menunggu Kasir
-									</span>
-								{:else if trip.status === 'In Transit'}
-									<span class="inline-flex items-center gap-1.5 text-blue-600 dark:text-blue-400 font-bold text-[11px] bg-blue-500/10 px-2.5 py-1 rounded-md uppercase tracking-wider border border-blue-500/20">
-										<span class="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse"></span> In Transit
-									</span>
-								{:else if trip.status === 'Completed'}
-									<span class="inline-flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400 font-bold text-[11px] bg-emerald-500/10 px-2.5 py-1 rounded-md uppercase tracking-wider border border-emerald-500/20">
-										<span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> Completed
-									</span>
-								{:else if trip.status === 'Delayed'}
-									<span class="inline-flex items-center gap-1.5 text-rose-600 dark:text-rose-400 font-bold text-[11px] bg-rose-500/10 px-2.5 py-1 rounded-md uppercase tracking-wider border border-rose-500/20">
-										<span class="w-1.5 h-1.5 rounded-full bg-rose-500"></span> Delayed
-									</span>
-								{:else}
-									<span class="inline-flex items-center gap-1.5 text-amber-600 dark:text-amber-400 font-bold text-[11px] bg-amber-500/10 px-2.5 py-1 rounded-md uppercase tracking-wider border border-amber-500/20">
-										<span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span> Scheduled
-									</span>
-								{/if}
+								<div class="flex flex-col gap-1 items-start">
+									{#if trip.has_active_storing}
+										<a 
+											href={trip.active_storing_wo ? `/maintenance/transactions/work-orders/${encodeURIComponent(trip.active_storing_wo)}` : '#'} 
+											onclick={(e) => e.stopPropagation()}
+											class="inline-flex items-center gap-1.5 text-rose-700 dark:text-rose-300 font-bold text-[10px] bg-rose-500/15 px-2 py-0.5 rounded-md uppercase tracking-wider border border-rose-500/30 hover:bg-rose-500/25 transition-colors animate-pulse"
+											title={`Unit Storing - Klik untuk buka Work Order ${trip.active_storing_wo || ''}`}
+										>
+											<span class="w-1.5 h-1.5 rounded-full bg-rose-600"></span>
+											<span>STORING ACTIVE</span>
+										</a>
+									{/if}
+
+									{#if trip.status === 'Waiting Cashier'}
+										<span class="inline-flex items-center gap-1.5 text-amber-600 dark:text-amber-400 font-bold text-[11px] bg-amber-500/10 px-2.5 py-1 rounded-md uppercase tracking-wider border border-amber-500/20">
+											<span class="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span> Menunggu Kasir
+										</span>
+									{:else if trip.status === 'In Transit'}
+										<span class="inline-flex items-center gap-1.5 text-blue-600 dark:text-blue-400 font-bold text-[11px] bg-blue-500/10 px-2.5 py-1 rounded-md uppercase tracking-wider border border-blue-500/20">
+											<span class="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse"></span> In Transit
+										</span>
+									{:else if trip.status === 'Completed'}
+										<span class="inline-flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400 font-bold text-[11px] bg-emerald-500/10 px-2.5 py-1 rounded-md uppercase tracking-wider border border-emerald-500/20">
+											<span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> Completed
+										</span>
+									{:else if trip.status === 'Delayed'}
+										<span class="inline-flex items-center gap-1.5 text-rose-600 dark:text-rose-400 font-bold text-[11px] bg-rose-500/10 px-2.5 py-1 rounded-md uppercase tracking-wider border border-rose-500/20">
+											<span class="w-1.5 h-1.5 rounded-full bg-rose-500"></span> Delayed
+										</span>
+									{:else}
+										<span class="inline-flex items-center gap-1.5 text-amber-600 dark:text-amber-400 font-bold text-[11px] bg-amber-500/10 px-2.5 py-1 rounded-md uppercase tracking-wider border border-amber-500/20">
+											<span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span> Scheduled
+										</span>
+									{/if}
+								</div>
 							</td>
 							<td class="py-4 px-6 text-right">
 								<div class="flex items-center justify-end gap-2">
@@ -346,9 +387,24 @@
 														<div class="mt-4 text-center px-2">
 															<button 
 																type="button"
-																onclick={() => activeNotePopover = { tripId: trip.id, dbId: trip.db_id, point: event.step, note: event.note?.note || '' }}
+																onclick={() => {
+																	const currentNote = event.note;
+																	activeNotePopover = { 
+																		tripId: trip.id, 
+																		dbId: trip.db_id, 
+																		point: event.step, 
+																		pointLabel: event.label,
+																		note: currentNote?.note || '',
+																		category: (currentNote?.category === 'STORING' ? 'STORING' : 'HSE'),
+																		locationDetail: currentNote?.location_detail || event.label,
+																		escalateHse: currentNote?.is_escalated_hse ?? false,
+																		incidentType: 'Unsafe Condition',
+																		refWoNo: currentNote?.ref_wo_no || '',
+																		refIncidentNo: currentNote?.ref_incident_no || ''
+																	};
+																}}
 																class="text-xs font-bold hover:underline hover:underline-offset-4 decoration-on-surface-variant/30 transition-all {event.active ? 'text-blue-600 dark:text-blue-400' : (event.completed ? 'text-on-surface' : 'text-on-surface-variant/50')}"
-																title="Klik untuk tambah/edit catatan"
+																title="Klik untuk tambah/edit catatan atau lapor storing"
 															>
 																{event.label}
 															</button>
@@ -372,10 +428,54 @@
 															{/if}
 
 															{#if event.note}
-																<div class="mt-2 text-center w-full max-w-[140px] mx-auto">
-																	<p class="text-[10px] px-2 py-1.5 bg-amber-50/50 border border-amber-200/50 rounded-md text-amber-700 italic truncate" title={event.note.note}>
-																		{event.note.note}
-																	</p>
+																<div class="mt-2 text-center w-full max-w-[150px] mx-auto">
+																	{#if event.note.category === 'STORING'}
+																		<div class="px-2 py-1.5 bg-rose-500/10 border border-rose-500/30 rounded-lg text-rose-700 dark:text-rose-300 text-left shadow-xs">
+																			<div class="flex items-center gap-1 font-bold text-[9px] uppercase tracking-wider text-rose-700 dark:text-rose-400">
+																				<span class="material-symbols-outlined text-[12px]">warning</span>
+																				<span>STORING</span>
+																			</div>
+																			<p class="text-[10px] font-medium truncate mt-0.5" title={event.note.note}>
+																				{event.note.note}
+																			</p>
+																			{#if event.note.ref_wo_no}
+																				<a 
+																					href="/maintenance/transactions/work-orders/{encodeURIComponent(event.note.ref_wo_no)}" 
+																					target="_blank" 
+																					class="text-[9px] font-mono font-bold text-rose-700 dark:text-rose-300 hover:underline block mt-0.5"
+																					title="Buka Tiket Work Order di Bengkel"
+																				>
+																					WO: {event.note.ref_wo_no}
+																				</a>
+																			{/if}
+																		</div>
+																	{:else if event.note.category === 'HSE' && event.note.is_escalated_hse}
+																		<div class="px-2 py-1.5 bg-amber-500/10 border border-amber-500/30 rounded-lg text-amber-800 dark:text-amber-200 text-left shadow-xs">
+																			<div class="flex items-center gap-1 font-bold text-[9px] uppercase tracking-wider text-amber-800 dark:text-amber-300">
+																				<span class="material-symbols-outlined text-[12px]">health_and_safety</span>
+																				<span>INSIDEN HSE</span>
+																			</div>
+																			<p class="text-[10px] font-medium truncate mt-0.5" title={event.note.note}>
+																				{event.note.note}
+																			</p>
+																			{#if event.note.ref_incident_no}
+																				<a 
+																					href="/qhse/incidents" 
+																					target="_blank" 
+																					class="text-[9px] font-mono font-bold text-amber-800 dark:text-amber-200 hover:underline block mt-0.5"
+																					title="Buka Laporan Insiden di QHSE"
+																				>
+																					{event.note.ref_incident_no}
+																				</a>
+																			{/if}
+																		</div>
+																	{:else}
+																		<div class="px-2 py-1.5 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-700 dark:text-slate-300 text-left">
+																			<p class="text-[10px] italic truncate" title={event.note.note}>
+																				{event.note.note}
+																			</p>
+																		</div>
+																	{/if}
 																</div>
 															{/if}
 
@@ -387,15 +487,17 @@
 																		<div class="absolute left-1/2 -translate-x-1/2 -top-2 w-4 h-4 bg-white/85 dark:bg-slate-900/85 border-t border-l border-white/60 dark:border-white/10 transform rotate-45 z-0" style="backdrop-filter: blur(24px);"></div>
 																		
 																		<!-- Glassmorphism Floating Card -->
-																		<div class="relative w-[300px] bg-white/85 dark:bg-slate-900/85 backdrop-blur-2xl rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.12)] border border-white/60 dark:border-white/10 flex flex-col z-10 text-left">
+																		<div class="relative w-[340px] sm:w-[380px] bg-white/90 dark:bg-slate-900/90 backdrop-blur-2xl rounded-2xl shadow-[0_12px_40px_rgb(0,0,0,0.18)] border border-white/60 dark:border-white/10 flex flex-col z-10 text-left">
 																			<div class="relative w-full h-full rounded-2xl overflow-hidden flex flex-col bg-white/40 dark:bg-slate-900/40">
 																				
 																				<!-- Popup Header -->
 																				<div class="px-4 py-3 border-b border-slate-200/60 dark:border-slate-800/60 flex items-center justify-between bg-slate-50/50 dark:bg-slate-800/50">
 																					<div class="flex flex-col">
-																						<span class="text-[9px] font-bold text-sky-500 uppercase tracking-widest leading-none mb-1.5">Catatan Trip</span>
+																						<span class="text-[9px] font-bold uppercase tracking-widest leading-none mb-1 {activeNotePopover.category === 'STORING' ? 'text-rose-600 dark:text-rose-400' : 'text-sky-600 dark:text-sky-400'}">
+																							{activeNotePopover.category === 'STORING' ? 'Laporan Storing Bengkel' : 'Catatan Lapangan & HSE'}
+																						</span>
 																						<h4 class="text-[13px] font-bold text-slate-800 dark:text-slate-100 tracking-tight leading-none">
-																							{event.label}
+																							{event.label} ({trip.vehicle})
 																						</h4>
 																					</div>
 																					<button type="button" onclick={(e) => { e.stopPropagation(); activeNotePopover = null; }} class="w-6 h-6 rounded-full bg-slate-200/50 hover:bg-slate-300/50 dark:bg-slate-700/50 dark:hover:bg-slate-600/50 flex items-center justify-center text-slate-500 dark:text-slate-400 transition-colors">
@@ -404,7 +506,27 @@
 																				</div>
 
 																				<!-- Popup Body -->
-																				<div class="p-4">
+																				<div class="p-4 space-y-3">
+																					<!-- Category Tabs -->
+																					<div class="grid grid-cols-2 gap-1 p-1 bg-slate-100 dark:bg-slate-800 rounded-xl">
+																						<button
+																							type="button"
+																							class="py-1.5 text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1.5 {activeNotePopover.category === 'HSE' ? 'bg-white dark:bg-slate-700 text-sky-600 dark:text-sky-300 shadow-xs' : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'}"
+																							onclick={() => activeNotePopover.category = 'HSE'}
+																						>
+																							<span class="material-symbols-outlined text-sm">health_and_safety</span>
+																							<span>Umum / HSE</span>
+																						</button>
+																						<button
+																							type="button"
+																							class="py-1.5 text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1.5 {activeNotePopover.category === 'STORING' ? 'bg-rose-600 text-white shadow-xs' : 'text-slate-500 hover:text-rose-600'}"
+																							onclick={() => activeNotePopover.category = 'STORING'}
+																						>
+																							<span class="material-symbols-outlined text-sm">warning</span>
+																							<span>Storing di Jalan</span>
+																						</button>
+																					</div>
+
 																					<form method="POST" action="?/saveNote" use:enhance={() => {
 																						return async ({ result, update }) => {
 																							if (result.type === 'success') {
@@ -415,26 +537,126 @@
 																					}}>
 																						<input type="hidden" name="trip_id" value={activeNotePopover.dbId} />
 																						<input type="hidden" name="point" value={activeNotePopover.point} />
-																						
-																						<div class="mb-4">
-																							<textarea 
-																								name="note" 
-																								class="w-full bg-slate-100/50 dark:bg-slate-800/50 border border-slate-200/50 dark:border-slate-700/50 rounded-xl px-3 py-2 text-sm text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-sky-500/50 transition-shadow resize-none min-h-[80px]"
-																								placeholder="Tuliskan catatan di titik ini..."
-																								bind:value={activeNotePopover.note}
-																								autofocus
-																								onkeydown={(e) => {
-																									if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
-																										e.currentTarget.form?.requestSubmit();
-																									}
-																								}}
-																							></textarea>
-																						</div>
+																						<input type="hidden" name="category" value={activeNotePopover.category} />
 
-																						<div class="flex items-center justify-between">
+																						{#if activeNotePopover.category === 'STORING'}
+																							<div class="space-y-3">
+																								{#if activeNotePopover.refWoNo}
+																									<div class="p-2.5 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800/50 flex items-center justify-between text-xs">
+																										<div>
+																											<p class="text-[10px] uppercase font-bold text-rose-700 dark:text-rose-300">Tiket WO Storing Terbit</p>
+																											<p class="font-mono font-bold text-rose-800 dark:text-rose-200">{activeNotePopover.refWoNo}</p>
+																										</div>
+																										<a 
+																											href="/maintenance/transactions/work-orders/{encodeURIComponent(activeNotePopover.refWoNo)}" 
+																											target="_blank"
+																											class="text-[11px] font-bold text-rose-600 hover:underline flex items-center gap-0.5"
+																										>
+																											<span>Buka WO</span>
+																											<span class="material-symbols-outlined text-xs">open_in_new</span>
+																										</a>
+																									</div>
+																								{:else}
+																									<div class="p-2.5 rounded-xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/40 text-[11px] text-amber-800 dark:text-amber-300 flex items-start gap-2">
+																										<span class="material-symbols-outlined text-base flex-shrink-0 text-amber-600">info</span>
+																										<span>Menyimpan kategori Storing akan <strong>otomatis menerbitkan Work Order</strong> darurat ke sistem Bengkel & Workshop.</span>
+																									</div>
+																								{/if}
+
+																								<div>
+																									<label for="locDetail_{trip.id}_{event.step}" class="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Patokan Lokasi Mogok (KM / Daerah)</label>
+																									<input 
+																										id="locDetail_{trip.id}_{event.step}"
+																										type="text" 
+																										name="location_detail" 
+																										class="w-full bg-slate-100/50 dark:bg-slate-800/50 border border-slate-200/50 dark:border-slate-700/50 rounded-xl px-3 py-1.5 text-xs text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-rose-500/50" 
+																										placeholder="Contoh: Tol Cikupa KM 34 arah Merak"
+																										bind:value={activeNotePopover.locationDetail}
+																									/>
+																								</div>
+
+																								<div>
+																									<label for="storingNote_{trip.id}_{event.step}" class="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Gejala Kerusakan / Keluhan Supir <span class="text-rose-500">*</span></label>
+																									<textarea 
+																										id="storingNote_{trip.id}_{event.step}"
+																										name="note" 
+																										required
+																										class="w-full bg-slate-100/50 dark:bg-slate-800/50 border border-slate-200/50 dark:border-slate-700/50 rounded-xl px-3 py-2 text-xs text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-rose-500/50 resize-none min-h-[70px]"
+																										placeholder="Jelaskan kendala: misal bocor angin, overheat, rem macet..."
+																										bind:value={activeNotePopover.note}
+																									></textarea>
+																								</div>
+																							</div>
+																						{:else}
+																							<div class="space-y-3">
+																								<div>
+																									<label for="hseNote_{trip.id}_{event.step}" class="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Catatan Lapangan & Perjalanan <span class="text-rose-500">*</span></label>
+																									<textarea 
+																										id="hseNote_{trip.id}_{event.step}"
+																										name="note" 
+																										required
+																										class="w-full bg-slate-100/50 dark:bg-slate-800/50 border border-slate-200/50 dark:border-slate-700/50 rounded-xl px-3 py-2 text-xs text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-sky-500/50 resize-none min-h-[70px]"
+																										placeholder="Tuliskan catatan kondisi jalan, cuaca, atau kepatuhan supir..."
+																										bind:value={activeNotePopover.note}
+																									></textarea>
+																								</div>
+
+																								{#if activeNotePopover.refIncidentNo}
+																									<div class="p-2.5 rounded-xl bg-sky-50 dark:bg-sky-950/40 border border-sky-200 dark:border-sky-800/50 flex items-center justify-between text-xs">
+																										<div>
+																											<p class="text-[10px] uppercase font-bold text-sky-700 dark:text-sky-300">Laporan Insiden QHSE</p>
+																											<p class="font-mono font-bold text-sky-800 dark:text-sky-200">{activeNotePopover.refIncidentNo}</p>
+																										</div>
+																										<a 
+																											href="/qhse/incidents" 
+																											target="_blank"
+																											class="text-[11px] font-bold text-sky-600 hover:underline flex items-center gap-0.5"
+																										>
+																											<span>Buka QHSE</span>
+																											<span class="material-symbols-outlined text-xs">open_in_new</span>
+																										</a>
+																									</div>
+																								{:else}
+																									<div class="pt-2 border-t border-slate-200/50 dark:border-slate-800/50">
+																										<label class="flex items-center gap-2 cursor-pointer select-none">
+																											<input 
+																												type="checkbox" 
+																												name="escalate_hse" 
+																												value="true" 
+																												bind:checked={activeNotePopover.escalateHse} 
+																												class="rounded border-slate-300 text-sky-600 focus:ring-sky-500 w-4 h-4" 
+																											/>
+																											<span class="text-xs font-semibold text-slate-700 dark:text-slate-300">Eskalasi ke Laporan Insiden QHSE</span>
+																										</label>
+
+																										{#if activeNotePopover.escalateHse}
+																											<div class="mt-2.5 space-y-1">
+																												<label for="incType_{trip.id}_{event.step}" class="block text-[10px] font-bold text-slate-500 uppercase tracking-wider">Jenis Insiden / Hazard</label>
+																												<select 
+																													id="incType_{trip.id}_{event.step}"
+																													name="incident_type" 
+																													bind:value={activeNotePopover.incidentType}
+																													class="w-full bg-slate-100/50 dark:bg-slate-800/50 border border-slate-200/50 dark:border-slate-700/50 rounded-xl px-2.5 py-1.5 text-xs text-slate-800 dark:text-slate-100 font-medium"
+																												>
+																													<option value="Unsafe Condition">Unsafe Condition (Kondisi Berbahaya)</option>
+																													<option value="Near Miss">Near Miss (Hampir Celaka)</option>
+																													<option value="Accident">Accident (Kecelakaan)</option>
+																													<option value="Pelanggaran Prosedur">Pelanggaran Prosedur Lapangan</option>
+																												</select>
+																											</div>
+																										{/if}
+																									</div>
+																								{/if}
+																							</div>
+																						{/if}
+
+																						<div class="flex items-center justify-between pt-3 mt-3 border-t border-slate-200/50 dark:border-slate-800/50">
 																							<span class="text-[9px] font-medium text-slate-400 dark:text-slate-500">Cmd+Enter to save</span>
-																							<button type="submit" class="bg-sky-500 text-white px-4 py-1.5 rounded-xl text-[11px] font-semibold hover:bg-sky-600 active:scale-[0.98] transition-all shadow-sm">
-																								Simpan Catatan
+																							<button 
+																								type="submit" 
+																								class="px-4 py-2 rounded-xl text-xs font-bold text-white transition-all shadow-xs active:scale-[0.98] cursor-pointer {activeNotePopover.category === 'STORING' ? 'bg-rose-600 hover:bg-rose-700' : 'bg-sky-600 hover:bg-sky-700'}"
+																							>
+																								{activeNotePopover.category === 'STORING' ? 'Simpan & Buat WO Storing' : (activeNotePopover.escalateHse ? 'Simpan & Buat Insiden QHSE' : 'Simpan Catatan')}
 																							</button>
 																						</div>
 																					</form>
@@ -516,11 +738,11 @@
 					<span class="material-symbols-outlined text-lg">chevron_left</span>
 				</button>
 				
-				{#each Array(totalPages) as _, i}
+				{#each pageNumbers as p}
 					<button 
-						class="w-8 h-8 rounded-lg flex items-center justify-center font-bold text-xs shadow-xs transition-colors {currentPage === i + 1 ? 'bg-blue-600 text-white' : 'text-on-surface hover:bg-surface-container-high'}"
-						onclick={() => goToPage(i + 1)}>
-						{i + 1}
+						class="w-8 h-8 rounded-lg flex items-center justify-center font-bold text-xs shadow-xs transition-colors cursor-pointer {currentPage === p ? 'bg-blue-600 text-white' : 'text-on-surface hover:bg-surface-container-high'}"
+						onclick={() => goToPage(p)}>
+						{p}
 					</button>
 				{/each}
 
@@ -556,6 +778,18 @@
 						<div>
 							<div class="flex items-center gap-2">
 								<h2 class="text-xl font-black text-on-surface tracking-tight font-mono">{selectedTrip.id}</h2>
+								{#if selectedTrip.has_active_storing}
+									<a 
+										href={selectedTrip.active_storing_wo ? `/maintenance/transactions/work-orders/${encodeURIComponent(selectedTrip.active_storing_wo)}` : '/maintenance/transactions/work-orders'} 
+										target="_blank"
+										class="inline-flex items-center gap-1.5 text-rose-700 dark:text-rose-300 text-[10px] font-bold bg-rose-500/10 px-2 py-0.5 rounded-md border border-rose-500/30 hover:bg-rose-500/20 transition-colors"
+										title="Klik untuk membuka tiket Work Order Storing"
+									>
+										<span class="w-1.5 h-1.5 rounded-full bg-rose-600 animate-pulse"></span>
+										<span>STORING ACTIVE</span>
+										<span class="material-symbols-outlined text-[11px]">open_in_new</span>
+									</a>
+								{/if}
 								{#if selectedTrip.status === 'Waiting Cashier'}
 									<span class="inline-flex items-center gap-1.5 text-amber-600 text-[10px] font-bold bg-amber-500/10 px-2 py-0.5 rounded-md border border-amber-500/20">
 										<span class="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span> Menunggu Closing Kasir
@@ -657,9 +891,62 @@
 												<span class="text-[10px] font-mono text-on-surface-variant">{event.time || '—'}</span>
 											</div>
 											{#if event.note}
-												<p class="text-[11px] text-amber-700 bg-amber-50 dark:bg-amber-900/20 p-2 rounded-lg mt-1 border border-amber-200/50">
-													{event.note.note}
-												</p>
+												{#if event.note.category === 'STORING'}
+													<div class="mt-1.5 p-2.5 rounded-xl bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-900/50 text-xs">
+														<div class="flex items-center justify-between font-bold text-[10px] uppercase tracking-wider text-rose-700 dark:text-rose-400 mb-1">
+															<div class="flex items-center gap-1">
+																<span class="material-symbols-outlined text-xs">warning</span>
+																<span>STORING DI JALAN</span>
+															</div>
+															{#if event.note.ref_wo_no}
+																<a 
+																	href="/maintenance/transactions/work-orders/{encodeURIComponent(event.note.ref_wo_no)}" 
+																	target="_blank"
+																	class="font-mono text-rose-700 dark:text-rose-300 hover:underline flex items-center gap-0.5"
+																	title="Buka Tiket Work Order"
+																>
+																	<span>WO: {event.note.ref_wo_no}</span>
+																	<span class="material-symbols-outlined text-[10px]">open_in_new</span>
+																</a>
+															{/if}
+														</div>
+														{#if event.note.location_detail}
+															<p class="text-[10px] text-slate-500 dark:text-slate-400 mb-0.5">
+																<span class="font-semibold text-slate-600 dark:text-slate-300">Lokasi:</span> {event.note.location_detail}
+															</p>
+														{/if}
+														<p class="text-rose-900 dark:text-rose-200 font-medium">
+															{event.note.note}
+														</p>
+													</div>
+												{:else if event.note.category === 'HSE' && event.note.is_escalated_hse}
+													<div class="mt-1.5 p-2.5 rounded-xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/50 text-xs">
+														<div class="flex items-center justify-between font-bold text-[10px] uppercase tracking-wider text-amber-800 dark:text-amber-400 mb-1">
+															<div class="flex items-center gap-1">
+																<span class="material-symbols-outlined text-xs">health_and_safety</span>
+																<span>ESKALASI INSIDEN QHSE</span>
+															</div>
+															{#if event.note.ref_incident_no}
+																<a 
+																	href="/qhse/incidents" 
+																	target="_blank"
+																	class="font-mono text-amber-800 dark:text-amber-300 hover:underline flex items-center gap-0.5"
+																	title="Buka Modul QHSE"
+																>
+																	<span>{event.note.ref_incident_no}</span>
+																	<span class="material-symbols-outlined text-[10px]">open_in_new</span>
+																</a>
+															{/if}
+														</div>
+														<p class="text-amber-950 dark:text-amber-200 font-medium">
+															{event.note.note}
+														</p>
+													</div>
+												{:else}
+													<div class="mt-1.5 p-2 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/50 dark:border-slate-700/50 text-xs text-slate-700 dark:text-slate-300">
+														<p class="italic">{event.note.note}</p>
+													</div>
+												{/if}
 											{/if}
 										</div>
 									</div>
