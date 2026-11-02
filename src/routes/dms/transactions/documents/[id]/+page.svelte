@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
-	import { formatDateId, formatDateTimeId, getStatusInfo, getPhysicalStatusInfo, getEntityTypeInfo } from '$lib/utils/dms';
+	import { formatDateId, formatDateTimeId, getStatusInfo, getPhysicalStatusInfo, getEntityTypeInfo, resolveUploadUrl } from '$lib/utils/dms';
 	import DmsSecureViewer from '$lib/components/DmsSecureViewer.svelte';
 	import DmsQrLabelModal from '$lib/components/DmsQrLabelModal.svelte';
 
@@ -498,7 +498,7 @@
 								<td class="py-3.5 px-4 text-right">
 									{#if ver.file_path}
 										<a
-											href={`/uploads/${ver.file_path}`}
+											href={resolveUploadUrl(ver.file_path)}
 											target="_blank"
 											class="text-indigo-600 font-bold hover:underline inline-flex items-center gap-1"
 										>
@@ -659,6 +659,7 @@
 	filePath={doc.file_path || ''}
 	docTitle={doc.title}
 	docNumber={doc.doc_number || ''}
+	docId={doc.id || ''}
 	userName="Staff ERP BCS"
 />
 

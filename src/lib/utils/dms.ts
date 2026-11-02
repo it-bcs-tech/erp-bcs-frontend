@@ -153,3 +153,20 @@ export function getEntityTypeInfo(type: DMSEntityType) {
 			};
 	}
 }
+
+/**
+ * Normalisasi path file upload agar selalu menunjuk ke endpoint yang valid (/api/uploads/...)
+ * dan menangani awalan redundant seperti 'uploads/' atau '/uploads/'
+ */
+export function resolveUploadUrl(filePath: string | null | undefined): string {
+	if (!filePath) return '';
+	if (filePath.startsWith('http://') || filePath.startsWith('https://')) {
+		return filePath;
+	}
+	const cleaned = filePath
+		.replace(/^\/+/, '')
+		.replace(/^api\/uploads\//, '')
+		.replace(/^uploads\//, '');
+	return `/api/uploads/${cleaned}`;
+}
+

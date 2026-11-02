@@ -828,6 +828,7 @@
 		filePath={selectedDoc.file_path || ''}
 		docTitle={selectedDoc.title}
 		docNumber={selectedDoc.doc_number || ''}
+		docId={selectedDoc.id || ''}
 		userName="Staff ERP BCS"
 	/>
 {/if}

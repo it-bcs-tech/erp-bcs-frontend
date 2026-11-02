@@ -17,6 +17,7 @@ export const handle: Handle = async ({ event, resolve }) => {
 	const isLoginPage       = pathname.startsWith('/login');
 	const isLogoutEndpoint  = pathname.startsWith('/logout');
 	const isApiRoute        = pathname.startsWith('/api');
+	const isUploadsRoute    = pathname.startsWith('/uploads');
 	const isAdminRoute      = pathname.startsWith('/admin');
 	const isScanRoute       = pathname.startsWith('/scan');
 
@@ -32,8 +33,8 @@ export const handle: Handle = async ({ event, resolve }) => {
 	}
 	event.locals.user = currentUser;
 
-	// Biarkan logout, API, dan Scan publik berjalan tanpa guard
-	if (isLogoutEndpoint || isApiRoute || isScanRoute) {
+	// Biarkan logout, API, Uploads, dan Scan publik berjalan tanpa guard
+	if (isLogoutEndpoint || isApiRoute || isUploadsRoute || isScanRoute) {
 		return resolve(event);
 	}
 

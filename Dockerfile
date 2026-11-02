@@ -28,6 +28,9 @@ COPY --from=builder /app/build ./build
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/package.json ./
 
+# Ensure uploads directory exists
+RUN mkdir -p /app/uploads
+
 # Expose the port the app runs on
 EXPOSE 3000
 
