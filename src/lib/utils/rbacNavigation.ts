@@ -6,7 +6,7 @@
  */
 
 import type { AuthUser } from '$lib/types/auth';
-import { MODULE_MENUS, OCS_MIN_LEVEL_SEQUENCE } from '$lib/types/auth';
+import { MODULE_MENUS } from '$lib/types/auth';
 import { hasModuleAccess, hasMenuAccess } from '$lib/stores/auth';
 
 export const MODULE_ROUTES = [
@@ -150,18 +150,7 @@ export function checkUrlAccess(urlOrPath: string, user: AuthUser | null): Access
 
 	const moduleLabel = MODULE_NAMES[targetModule] || targetModule.toUpperCase();
 
-	// 1. Cek aturan khusus hierarki OCS (minimal Supervisor / sequence 4)
-	if (targetModule === 'ocs' && typeof user.levelSequence === 'number' && user.levelSequence < OCS_MIN_LEVEL_SEQUENCE) {
-		return {
-			allowed: false,
-			moduleCode: targetModule,
-			moduleName: moduleLabel,
-			targetName: `${moduleLabel}`,
-			reason: `Akses modul OCS dibatasi hanya untuk posisi minimal Supervisor atau ke atas (Hierarki Level ${user.levelSequence} < 4).`
-		};
-	}
-
-	// 2. Cek hak akses modul dasar
+	// 1. Cek hak akses modul dasar
 	if (!hasModuleAccess(user, targetModule)) {
 		return {
 			allowed: false,
@@ -172,7 +161,7 @@ export function checkUrlAccess(urlOrPath: string, user: AuthUser | null): Access
 		};
 	}
 
-	// 3. Cek hak akses sub-menu jika ada
+	// 2. Cek hak akses sub-menu jika ada
 	const resolvedMenu = resolveMenuId(targetModule, pathname);
 	if (resolvedMenu) {
 		if (!hasMenuAccess(user, targetModule, resolvedMenu.menuId)) {

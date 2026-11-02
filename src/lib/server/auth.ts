@@ -14,7 +14,6 @@ import type { AuthUser, ModuleId } from '$lib/types/auth';
 import {
 	ALL_MODULES,
 	ADMIN_ROLES,
-	OCS_MIN_LEVEL_SEQUENCE,
 	ROLE_MODULE_MAP,
 	DIVISION_MODULE_MAP
 } from '$lib/types/auth';
@@ -265,12 +264,6 @@ async function resolveModuleAccess(
 			}
 		}
 	}
-
-	// 5. Khusus OCS: cek level minimum (Supervisor = sequence 4)
-	// DINONAKTIFKAN SEMENTARA (Sesuai request untuk testing)
-	// if (modules.has('ocs') && levelSequence < OCS_MIN_LEVEL_SEQUENCE) {
-	// 	modules.delete('ocs');
-	// }
 
 	return Array.from(modules);
 }

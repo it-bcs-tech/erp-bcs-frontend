@@ -9,7 +9,6 @@
 
 import { writable, derived } from 'svelte/store';
 import type { AuthUser, ModuleId } from '$lib/types/auth';
-import { OCS_MIN_LEVEL_SEQUENCE } from '$lib/types/auth';
 
 // ─────────────────────────────────────────────────────────
 // Store: User yang sedang login

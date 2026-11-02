@@ -86,11 +86,7 @@
 		<div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 lg:gap-8">
 			{#each modules as mod}
 				{@const canAccess = user ? hasModuleAccess(user, mod.id) : true}
-				{@const disabledReason = !canAccess 
-					? (mod.id === 'ocs' && user && user.levelSequence < 4
-						? 'Level akses tidak mencukupi (min. Supervisor)'
-						: 'Akses Terbatas — Hubungi Administrator') 
-					: ''}
+				{@const disabledReason = !canAccess ? 'Akses Terbatas — Hubungi Administrator' : ''}
 				<ModuleCard 
 					title={mod.title}
 					subtitle={mod.subtitle}
