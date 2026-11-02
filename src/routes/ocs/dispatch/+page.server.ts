@@ -674,16 +674,27 @@ async function validateDispatchCompliance(
 	}
 
 	// Cek dms.documents untuk dokumen pengemudi (SIM, Sertifikat B3, dsb)
-	const driverDocs = await sqlClient`
-		SELECT 
-			COALESCE(dt.name, doc.title) as doc_name,
-			doc.expiry_date,
-			doc.status
-		FROM dms.documents doc
-		LEFT JOIN dms.m_doc_type dt ON dt.id = doc.doc_type_id
-		WHERE (doc.employee_id = ${drv.id} OR (doc.employee_id IS NOT NULL AND ${drv.karyawan_id || null} IS NOT NULL AND doc.employee_id = ${drv.karyawan_id}))
-		  AND (doc.expiry_date < CURRENT_DATE OR doc.status = 'EXPIRED')
-	`;
+	const driverDocs = drv.karyawan_id
+		? await sqlClient`
+			SELECT 
+				COALESCE(dt.name, doc.title) as doc_name,
+				doc.expiry_date,
+				doc.status
+			FROM dms.documents doc
+			LEFT JOIN dms.m_doc_type dt ON dt.id = doc.doc_type_id
+			WHERE (doc.employee_id = ${drv.id} OR doc.employee_id = ${drv.karyawan_id})
+			  AND (doc.expiry_date < CURRENT_DATE OR doc.status = 'EXPIRED')
+		`
+		: await sqlClient`
+			SELECT 
+				COALESCE(dt.name, doc.title) as doc_name,
+				doc.expiry_date,
+				doc.status
+			FROM dms.documents doc
+			LEFT JOIN dms.m_doc_type dt ON dt.id = doc.doc_type_id
+			WHERE doc.employee_id = ${drv.id}
+			  AND (doc.expiry_date < CURRENT_DATE OR doc.status = 'EXPIRED')
+		`;
 
 	if (driverDocs.length > 0) {
 		const docDetails = driverDocs.map((d: any) => {
