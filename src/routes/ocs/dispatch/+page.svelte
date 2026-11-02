@@ -153,6 +153,9 @@
 	let manualDispatchLoadingDate = $state('');
 	let manualDispatchUnloadingDate = $state('');
 	let manualDispatchRuteUjoId = $state('');
+	let manualDispatchFullscreen = $state(false);
+	let ngepokFullscreen = $state(false);
+	let dedicatedFullscreen = $state(false);
 
 	// Dropdown Options (Hanya unit & supir yang patuh: dokumen & SIM aktif/valid)
 	let unitOpts = $derived(
@@ -2616,20 +2619,31 @@
 
 					<!-- 2. Bagian Tengah (Mendominasi Layar): Katalog Armada Dump Truck & Sopir (Grid 2-Kolom) -->
 					<div class="space-y-2.5">
-						<div class="flex items-center justify-between">
+						<div class="flex items-center justify-between gap-3 flex-wrap">
 							<div class="flex items-center gap-2">
 								<span class="material-symbols-outlined text-blue-600 text-lg">view_cozy</span>
 								<label class="block text-xs font-black text-on-surface uppercase tracking-wider">
 									Pilih Armada Dump Truck & Sopir <span class="text-error">*</span>
 								</label>
 							</div>
-							<span class="text-xs text-on-surface-variant">Klik kartu armada untuk menambahkan ke keranjang dispatch</span>
+							<div class="flex items-center gap-2.5">
+								<span class="text-xs text-on-surface-variant hidden md:inline">Klik kartu untuk menambahkan</span>
+								<button
+									type="button"
+									onclick={() => (manualDispatchFullscreen = true)}
+									class="px-3 py-1.5 rounded-xl text-xs font-bold bg-blue-50 text-blue-700 dark:bg-blue-950/50 dark:text-blue-300 hover:bg-blue-600 hover:text-white transition-all flex items-center gap-1.5 border border-blue-200 dark:border-blue-800 cursor-pointer shadow-2xs"
+								>
+									<span class="material-symbols-outlined text-[16px]">open_in_full</span>
+									<span>Buka Layar Penuh (Fullscreen)</span>
+								</button>
+							</div>
 						</div>
 
 						<FleetUnitSelector
 							units={availableUnits}
 							multiple={true}
 							bind:value={manualDispatchUnitIds}
+							bind:isFullscreen={manualDispatchFullscreen}
 							accentColor="blue"
 							gridCols={2}
 							recommendedUnitId={manualDispatchOrder.ai_recommended_unit_id || ''}
@@ -3189,20 +3203,31 @@
 
 					<!-- 2. Bagian Tengah (Mendominasi Layar): Katalog Armada Dump Truck & Sopir (Grid 2-Kolom) -->
 					<div class="space-y-2.5">
-						<div class="flex items-center justify-between">
+						<div class="flex items-center justify-between gap-3 flex-wrap">
 							<div class="flex items-center gap-2">
 								<span class="material-symbols-outlined text-indigo-600 text-lg">view_cozy</span>
 								<label class="block text-xs font-black text-on-surface uppercase tracking-wider">
 									Pilih Armada & Sopir Ngepok <span class="text-error">*</span>
 								</label>
 							</div>
-							<span class="text-xs text-on-surface-variant">Klik kartu armada untuk memasukkan ke batch penugasan</span>
+							<div class="flex items-center gap-2.5">
+								<span class="text-xs text-on-surface-variant hidden md:inline">Klik kartu untuk menambahkan</span>
+								<button
+									type="button"
+									onclick={() => (ngepokFullscreen = true)}
+									class="px-3 py-1.5 rounded-xl text-xs font-bold bg-indigo-50 text-indigo-700 dark:bg-indigo-950/50 dark:text-indigo-300 hover:bg-indigo-600 hover:text-white transition-all flex items-center gap-1.5 border border-indigo-200 dark:border-indigo-800 cursor-pointer shadow-2xs"
+								>
+									<span class="material-symbols-outlined text-[16px]">open_in_full</span>
+									<span>Buka Layar Penuh (Fullscreen)</span>
+								</button>
+							</div>
 						</div>
 
 						<FleetUnitSelector
 							units={availableUnits}
 							multiple={true}
 							bind:value={ngepokUnitIds}
+							bind:isFullscreen={ngepokFullscreen}
 							accentColor="indigo"
 							gridCols={2}
 							maxHeight="480px"
@@ -3745,20 +3770,31 @@
 
 					<!-- 2. Bagian Tengah (Mendominasi Layar): Katalog Armada Dump Truck & Sopir (Grid 2-Kolom) -->
 					<div class="space-y-2.5">
-						<div class="flex items-center justify-between">
+						<div class="flex items-center justify-between gap-3 flex-wrap">
 							<div class="flex items-center gap-2">
 								<span class="material-symbols-outlined text-amber-600 text-lg">view_cozy</span>
 								<label class="block text-xs font-black text-on-surface uppercase tracking-wider">
 									Pilih Armada & Sopir Standby On-Site <span class="text-error">*</span>
 								</label>
 							</div>
-							<span class="text-xs text-on-surface-variant">Klik kartu armada untuk check-in ke shift operasional</span>
+							<div class="flex items-center gap-2.5">
+								<span class="text-xs text-on-surface-variant hidden md:inline">Klik kartu untuk menambahkan</span>
+								<button
+									type="button"
+									onclick={() => (dedicatedFullscreen = true)}
+									class="px-3 py-1.5 rounded-xl text-xs font-bold bg-amber-50 text-amber-700 dark:bg-amber-950/50 dark:text-amber-300 hover:bg-amber-600 hover:text-white transition-all flex items-center gap-1.5 border border-amber-200 dark:border-amber-800 cursor-pointer shadow-2xs"
+								>
+									<span class="material-symbols-outlined text-[16px]">open_in_full</span>
+									<span>Buka Layar Penuh (Fullscreen)</span>
+								</button>
+							</div>
 						</div>
 
 						<FleetUnitSelector
 							units={availableUnits}
 							multiple={true}
 							bind:value={dedUnitIds}
+							bind:isFullscreen={dedicatedFullscreen}
 							accentColor="amber"
 							gridCols={2}
 							maxHeight="480px"

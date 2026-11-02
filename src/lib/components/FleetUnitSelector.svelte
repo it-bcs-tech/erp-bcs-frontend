@@ -8,6 +8,7 @@
 		recommendedUnitId = '',
 		maxHeight = '430px',
 		gridCols = 2,
+		isFullscreen = $bindable<boolean>(false),
 		onSelectSingle
 	}: {
 		units: any[];
@@ -18,6 +19,7 @@
 		recommendedUnitId?: string;
 		maxHeight?: string;
 		gridCols?: 1 | 2;
+		isFullscreen?: boolean;
 		onSelectSingle?: (unit: any) => void;
 	} = $props();
 
@@ -189,55 +191,56 @@
 			truckBedSelected: '#3b82f6'
 		};
 	});
+
+	function handleKeydown(e: KeyboardEvent) {
+		if (e.key === 'Escape' && isFullscreen) {
+			isFullscreen = false;
+		}
+	}
+
+	let totalSelectedTons = $derived.by(() => {
+		if (multiple) {
+			return value.reduce((acc, val) => {
+				const uId = val.split('|')[0];
+				const found = units.find((u) => String(u.unitId) === uId || u.id === uId);
+				return acc + (Number(found?.capacity) || 35);
+			}, 0);
+		} else {
+			if (!singleValue) return 0;
+			const found = units.find((u) => String(u.unitId) === singleValue || u.id === singleValue);
+			return Number(found?.capacity) || 35;
+		}
+	});
+
+	let selectedUnitObjects = $derived.by(() => {
+		if (multiple) {
+			return value.map((val) => {
+				const uId = val.split('|')[0];
+				const found = units.find((u) => String(u.unitId) === uId || u.id === uId);
+				return {
+					key: val,
+					id: found?.id || uId,
+					driver: found?.driver,
+					capacity: found?.capacity || 35
+				};
+			});
+		} else if (singleValue) {
+			const found = units.find((u) => String(u.unitId) === singleValue || u.id === singleValue);
+			return [{
+				key: singleValue,
+				id: found?.id || singleValue,
+				driver: found?.driver,
+				capacity: found?.capacity || 35
+			}];
+		}
+		return [];
+	});
 </script>
 
-<div class="flex flex-col h-full bg-surface-container-low/50 rounded-2xl p-4">
-	<!-- Top Header & Selected Counter -->
-	<div class="flex flex-wrap items-center justify-between gap-2 mb-2.5">
-		<div class="flex items-center gap-2">
-			<span class="material-symbols-outlined text-on-surface-variant text-lg">local_shipping</span>
-			<h4 class="text-xs font-black text-on-surface uppercase tracking-wider">
-				Katalog & Status Armada ({units.length} Unit)
-			</h4>
-		</div>
+<svelte:window onkeydown={handleKeydown} />
 
-		<div class="flex items-center gap-2">
-			{#if selectedCount > 0}
-				<span class="px-2.5 py-0.5 rounded-lg text-[11px] font-black {theme.badgeSelected}">
-					{selectedCount} Unit Terpilih
-				</span>
-				<button
-					type="button"
-					onclick={clearSelection}
-					class="text-[11px] font-bold text-rose-600 hover:text-rose-700 dark:text-rose-400 px-2 py-0.5 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors cursor-pointer"
-				>
-					Reset
-				</button>
-			{/if}
-		</div>
-	</div>
-
-	<!-- Search Bar (Borderless Standard) -->
-	<div class="flex items-center gap-2.5 px-3.5 py-2 rounded-xl bg-surface-container-lowest focus-within:ring-2 {theme.ring} transition-all mb-2.5">
-		<span class="material-symbols-outlined text-on-surface-variant text-[18px]">search</span>
-		<input
-			type="text"
-			bind:value={searchQuery}
-			placeholder="Cari Nopol (A 9512 TX), No. Lambung, Sopir, Nomor WO, atau Rute..."
-			class="bg-transparent text-xs font-medium text-on-surface border-0 outline-none w-full placeholder:text-on-surface-variant/50 focus:ring-0 p-0"
-		/>
-		{#if searchQuery}
-			<button
-				type="button"
-				onclick={() => (searchQuery = '')}
-				class="text-on-surface-variant hover:text-rose-500 transition-colors cursor-pointer flex items-center"
-			>
-				<span class="material-symbols-outlined text-[16px]">close</span>
-			</button>
-		{/if}
-	</div>
-
-	<!-- Status Filter Pills (Ready, On-Trip, Bengkel/WO, Dokumen/SIM) -->
+{#snippet filterBar()}
+<!-- Status Filter Pills (Ready, On-Trip, Bengkel/WO, Dokumen/SIM) -->
 	<div class="flex items-center gap-1.5 overflow-x-auto pb-1.5 mb-1.5 no-scrollbar">
 		<button
 			type="button"
@@ -327,9 +330,11 @@
 		</div>
 	{/if}
 
-	<!-- Scrollable Fleet Cards List -->
-	<div class="flex-1 overflow-y-auto space-y-2.5 pr-1 custom-scrollbar" style="max-height: {maxHeight};">
-		{#if totalVisibleCount === 0}
+	
+{/snippet}
+
+{#snippet fleetCards(activeColsClass: string)}
+{#if totalVisibleCount === 0}
 			<div class="py-12 px-4 text-center rounded-2xl bg-surface-container-lowest">
 				<span class="material-symbols-outlined text-3xl text-on-surface-variant/40 mb-1">local_shipping</span>
 				<p class="text-xs font-bold text-on-surface">Armada Tidak Ditemukan</p>
@@ -353,7 +358,7 @@
 				</div>
 			{/if}
 
-			<div class="{gridCols === 2 ? 'grid grid-cols-1 md:grid-cols-2 gap-3' : 'space-y-2.5'}">
+			<div class="{activeColsClass}">
 				{#each readyUnits as unit (unit.unitId || unit.id)}
 				{@const selected = isUnitSelected(unit)}
 				{@const isRecommended =
@@ -507,7 +512,7 @@
 					</div>
 				{/if}
 
-				<div class="{gridCols === 2 ? 'grid grid-cols-1 md:grid-cols-2 gap-3' : 'space-y-2.5'}">
+				<div class="{activeColsClass}">
 					{#each onTripUnits as unit (unit.unitId || unit.id)}
 						{@const pct = Number(unit.trip_progress_pct || 50)}
 						<div
@@ -604,7 +609,7 @@
 					</div>
 				{/if}
 
-				<div class="{gridCols === 2 ? 'grid grid-cols-1 md:grid-cols-2 gap-3' : 'space-y-2.5'}">
+				<div class="{activeColsClass}">
 					{#each woUnits as unit (unit.unitId || unit.id)}
 						{@const woPct = Number(unit.wo_progress_pct || 20)}
 						{@const woTotal = Number(unit.wo_total_items || 0)}
@@ -710,7 +715,7 @@
 					</div>
 				{/if}
 
-				<div class="{gridCols === 2 ? 'grid grid-cols-1 md:grid-cols-2 gap-3' : 'space-y-2'}">
+				<div class="{activeColsClass}">
 					{#each expiredUnits as unit (unit.unitId || unit.id)}
 						<div
 							class="flex items-center gap-3.5 p-3 rounded-2xl bg-surface-container-lowest/60 opacity-65 cursor-not-allowed select-none"
@@ -777,5 +782,215 @@
 				</div>
 			</div>
 		{/if}
+{/snippet}
+
+<div class="flex flex-col h-full bg-surface-container-low/50 rounded-2xl p-4">
+	<!-- Top Header & Selected Counter -->
+	<div class="flex flex-wrap items-center justify-between gap-2 mb-2.5">
+		<div class="flex items-center gap-2">
+			<span class="material-symbols-outlined text-on-surface-variant text-lg">local_shipping</span>
+			<h4 class="text-xs font-black text-on-surface uppercase tracking-wider">
+				Katalog & Status Armada ({units.length} Unit)
+			</h4>
+		</div>
+
+		<div class="flex items-center gap-2">
+			{#if selectedCount > 0}
+				<span class="px-2.5 py-0.5 rounded-lg text-[11px] font-black {theme.badgeSelected}">
+					{selectedCount} Unit Terpilih
+				</span>
+				<button
+					type="button"
+					onclick={clearSelection}
+					class="text-[11px] font-bold text-rose-600 hover:text-rose-700 dark:text-rose-400 px-2 py-0.5 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors cursor-pointer"
+				>
+					Reset
+				</button>
+			{/if}
+
+			<button
+				type="button"
+				onclick={() => (isFullscreen = true)}
+				class="px-2.5 py-1 rounded-xl text-xs font-bold bg-surface-container hover:bg-surface-container-high text-on-surface transition-all flex items-center gap-1.5 cursor-pointer shadow-2xs"
+				title="Buka pilihan armada dalam layar penuh (Fullscreen 3-4 kolom)"
+			>
+				<span class="material-symbols-outlined text-[15px]">open_in_full</span>
+				<span class="hidden sm:inline">Layar Penuh</span>
+			</button>
+		</div>
+	</div>
+
+	<!-- Search Bar (Borderless Standard) -->
+	<div class="flex items-center gap-2.5 px-3.5 py-2 rounded-xl bg-surface-container-lowest focus-within:ring-2 {theme.ring} transition-all mb-2.5">
+		<span class="material-symbols-outlined text-on-surface-variant text-[18px]">search</span>
+		<input
+			type="text"
+			bind:value={searchQuery}
+			placeholder="Cari Nopol (A 9512 TX), No. Lambung, Sopir, Nomor WO, atau Rute..."
+			class="bg-transparent text-xs font-medium text-on-surface border-0 outline-none w-full placeholder:text-on-surface-variant/50 focus:ring-0 p-0"
+		/>
+		{#if searchQuery}
+			<button
+				type="button"
+				onclick={() => (searchQuery = '')}
+				class="text-on-surface-variant hover:text-rose-500 transition-colors cursor-pointer flex items-center"
+			>
+				<span class="material-symbols-outlined text-[16px]">close</span>
+			</button>
+		{/if}
+	</div>
+
+	{@render filterBar()}
+
+	<!-- Scrollable Fleet Cards List (Normal View) -->
+	<div class="flex-1 overflow-y-auto space-y-2.5 pr-1 custom-scrollbar" style="max-height: {maxHeight};">
+		{@render fleetCards(gridCols === 2 ? 'grid grid-cols-1 md:grid-cols-2 gap-3' : 'space-y-2.5')}
 	</div>
 </div>
+
+<!-- Fullscreen Overlay Modal (3 to 4 Columns) -->
+{#if isFullscreen}
+	<div class="fixed inset-0 z-[100] flex flex-col bg-surface-container-lowest animate-in fade-in duration-150">
+		<!-- Header Fullscreen -->
+		<div class="px-6 py-4 border-b border-surface-container bg-surface-container-low/70 backdrop-blur-md flex flex-wrap items-center justify-between gap-4 shrink-0 shadow-xs">
+			<div class="flex items-center gap-3">
+				<div class="w-10 h-10 rounded-xl {accentColor === 'blue' ? 'bg-blue-600' : accentColor === 'indigo' ? 'bg-indigo-600' : 'bg-amber-600'} text-white flex items-center justify-center shadow-xs">
+					<span class="material-symbols-outlined text-2xl">local_shipping</span>
+				</div>
+				<div>
+					<div class="flex items-center gap-2">
+						<h3 class="text-base font-extrabold text-on-surface">Katalog Armada Dump Truck & Sopir BCS</h3>
+						<span class="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-surface-container-high text-on-surface">
+							Mode Layar Penuh (3-4 Kolom)
+						</span>
+					</div>
+					<p class="text-xs text-on-surface-variant mt-0.5">
+						Total {units.length} Armada BCS • Siap Ditugaskan: <span class="font-bold text-emerald-600">{totalReadyCount}</span> • On-Trip: <span class="font-bold text-sky-600">{totalOnTripCount}</span> • Bengkel WO: <span class="font-bold text-amber-600">{totalWoCount}</span>
+					</p>
+				</div>
+			</div>
+
+			<div class="flex items-center gap-3">
+				<span class="text-xs text-on-surface-variant font-medium hidden md:inline">
+					Tekan <kbd class="px-1.5 py-0.5 rounded bg-surface-container border border-surface-container-high font-mono text-[10px]">ESC</kbd> untuk kembali
+				</span>
+				<button
+					type="button"
+					onclick={() => (isFullscreen = false)}
+					class="px-5 py-2.5 rounded-xl text-xs font-bold {accentColor === 'blue' ? 'bg-blue-600 hover:bg-blue-700' : accentColor === 'indigo' ? 'bg-indigo-600 hover:bg-indigo-700' : 'bg-amber-600 hover:bg-amber-700'} text-white transition-colors flex items-center gap-2 cursor-pointer shadow-sm"
+				>
+					<span class="material-symbols-outlined text-[16px]">check_circle</span>
+					<span>Selesai Memilih ({selectedCount} Unit)</span>
+				</button>
+			</div>
+		</div>
+
+		<!-- Pinned Search & Filter Ribbon in Fullscreen -->
+		<div class="px-6 py-3 border-b border-surface-container bg-surface-container-lowest flex flex-wrap items-center justify-between gap-4 shrink-0">
+			<!-- Search Bar -->
+			<div class="flex-1 min-w-[280px] max-w-xl flex items-center gap-2.5 px-3.5 py-2 rounded-xl bg-surface-container-low focus-within:ring-2 {theme.ring} transition-all">
+				<span class="material-symbols-outlined text-on-surface-variant text-[18px]">search</span>
+				<input
+					type="text"
+					bind:value={searchQuery}
+					placeholder="Cari Nopol (A 9512 TX), No. Lambung, Sopir, Nomor WO, atau Rute..."
+					class="bg-transparent text-xs font-medium text-on-surface border-0 outline-none w-full placeholder:text-on-surface-variant/50 focus:ring-0 p-0"
+				/>
+				{#if searchQuery}
+					<button
+						type="button"
+						onclick={() => (searchQuery = '')}
+						class="text-on-surface-variant hover:text-rose-500 transition-colors cursor-pointer flex items-center"
+					>
+						<span class="material-symbols-outlined text-[16px]">close</span>
+					</button>
+				{/if}
+			</div>
+
+			<!-- Filter Bar -->
+			<div class="flex items-center gap-2 flex-wrap">
+				{@render filterBar()}
+			</div>
+		</div>
+
+		<!-- Main Scrollable Grid in Fullscreen (3 to 4 Columns) -->
+		<div class="flex-1 overflow-y-auto p-6 space-y-5 custom-scrollbar bg-surface-container-lowest">
+			{@render fleetCards('grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3.5')}
+		</div>
+
+		<!-- Sticky Bottom Cart Bar in Fullscreen -->
+		<div class="px-6 py-3.5 border-t border-surface-container bg-surface-container-lowest shadow-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 shrink-0">
+			{#if selectedCount === 0}
+				<div class="flex items-center gap-2.5 text-on-surface-variant">
+					<div class="w-8 h-8 rounded-full bg-surface-container flex items-center justify-center shrink-0">
+						<span class="material-symbols-outlined text-[18px]">shopping_cart</span>
+					</div>
+					<div>
+						<p class="text-xs font-bold text-on-surface">Keranjang Armada Masih Kosong</p>
+						<p class="text-[11px] text-on-surface-variant">Klik kartu armada di atas untuk menambahkan unit ke penugasan ini.</p>
+					</div>
+				</div>
+				<button
+					type="button"
+					onclick={() => (isFullscreen = false)}
+					class="px-5 py-2.5 rounded-xl text-xs font-bold bg-surface-container hover:bg-surface-container-high text-on-surface transition-colors cursor-pointer self-end sm:self-auto"
+				>
+					Kembali ke Form
+				</button>
+			{:else}
+				<div class="flex-1 min-w-0 space-y-1.5">
+					<div class="flex items-center justify-between gap-2">
+						<div class="flex items-center gap-2">
+							<span class="px-2 py-0.5 rounded-md text-white text-[11px] font-black uppercase tracking-wider {theme.badgeSelected}">
+								{selectedCount} Unit Terpilih
+							</span>
+							<span class="text-xs font-bold text-on-surface">
+								Est. Kapasitas: <span class="font-extrabold {accentColor === 'blue' ? 'text-blue-600' : accentColor === 'indigo' ? 'text-indigo-600' : 'text-amber-600'}">{totalSelectedTons} Ton</span>
+							</span>
+						</div>
+						<button type="button" onclick={clearSelection} class="text-[11px] font-bold text-rose-600 hover:underline cursor-pointer">
+							Kosongkan Keranjang
+						</button>
+					</div>
+
+					<!-- Horizontal Scrollable Chips with Remove (x) -->
+					<div class="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar">
+						{#each selectedUnitObjects as u}
+							<span class="inline-flex items-center gap-1.5 pl-2.5 pr-1.5 py-1 rounded-lg text-xs font-bold bg-surface-container border border-surface-container-high text-on-surface shrink-0">
+								<span class="font-mono">{u.id}</span>
+								{#if u.driver}
+									<span class="text-[10px] font-normal opacity-85 truncate max-w-[90px]">• {u.driver}</span>
+								{/if}
+								<button
+									type="button"
+									onclick={() => {
+										if (multiple) {
+											value = value.filter((v) => v !== u.key && !v.startsWith(`${u.id}|`));
+										} else {
+											singleValue = '';
+										}
+									}}
+									class="w-4 h-4 rounded-full hover:bg-surface-container-high flex items-center justify-center text-on-surface-variant cursor-pointer"
+									title="Hapus unit ini"
+								>
+									<span class="material-symbols-outlined text-[13px]">close</span>
+								</button>
+							</span>
+						{/each}
+					</div>
+				</div>
+
+				<div class="flex items-center gap-3 shrink-0 self-end sm:self-center">
+					<button
+						type="button"
+						onclick={() => (isFullscreen = false)}
+						class="px-6 py-2.5 rounded-xl text-xs font-bold {accentColor === 'blue' ? 'bg-blue-600 hover:bg-blue-700' : accentColor === 'indigo' ? 'bg-indigo-600 hover:bg-indigo-700' : 'bg-amber-600 hover:bg-amber-700'} text-white transition-colors flex items-center gap-2 shadow-sm cursor-pointer"
+					>
+						<span class="material-symbols-outlined text-[16px]">check_circle</span>
+						<span>Selesai Memilih & Simpan ({selectedCount} Unit)</span>
+					</button>
+				</div>
+			{/if}
+		</div>
+	</div>
+{/if}
