@@ -276,6 +276,11 @@ export const load: PageServerLoad = async ({ locals }) => {
 				title: c.title,
 				category: c.category,
 				based: c.based || 'Mandatory',
+				trainingCategory: c.training_category || 'IN_HOUSE',
+				trainerToken: c.trainer_token || '',
+				trainerTokenStatus: c.trainer_token_status || 'ACTIVE',
+				trainerTokenExpiresAt: c.trainer_token_expires_at,
+				trainerMaterialsUrl: c.trainer_materials_url || '',
 				level: c.level,
 				status: c.status,
 				durationHours: Number(c.duration_hours),
@@ -311,6 +316,8 @@ export const load: PageServerLoad = async ({ locals }) => {
 				title: s.title,
 				trainer: s.trainer,
 				trainerType: s.trainer_type || 'Internal',
+				trainingCategory: s.training_category || 'IN_HOUSE',
+				trainerToken: s.trainer_token || '',
 				costTrainer: Number(s.cost_trainer || 0),
 				costTrainee: Number(s.cost_trainee || 0),
 				department: s.department || 'Operations',
@@ -530,6 +537,8 @@ export const actions = {
 		const title = formData.get('title')?.toString().trim();
 		const category = formData.get('category')?.toString().trim() || 'Safety';
 		const based = formData.get('based')?.toString().trim() || 'Mandatory';
+		const trainingCategory = formData.get('trainingCategory')?.toString().trim() || 'IN_HOUSE';
+		const quizInputMode = formData.get('quizInputMode')?.toString().trim() || 'HR_INPUT';
 		const level = formData.get('level')?.toString().trim() || 'Beginner';
 		const instructor = formData.get('instructor')?.toString().trim() || 'Syarochman';
 		const trainerType = formData.get('trainerType')?.toString().trim() || 'Internal';
@@ -584,13 +593,18 @@ export const actions = {
 			return Array.isArray(q.options) && q.options.filter((o: any) => o.text?.trim()).length >= 2 && q.correctKey;
 		});
 
-		if (validPreTest.length === 0 || validPostTest.length === 0) {
-			return {
-				success: false,
-				message: 'Minimal 1 butir soal Pre-Test dan 1 butir soal Post-Test wajib diisi secara lengkap.'
-			};
+		// Validasi Soal hanya jika In-House Training dan mode input langsung oleh HR
+		if (trainingCategory === 'IN_HOUSE' && quizInputMode === 'HR_INPUT') {
+			if (validPreTest.length === 0 || validPostTest.length === 0) {
+				return {
+					success: false,
+					message: 'Minimal 1 butir soal Pre-Test dan 1 butir soal Post-Test wajib diisi secara lengkap untuk In-House Training (Mode HR Input).'
+				};
+			}
 		}
 
+		const crypto = await import('crypto');
+		const trainerToken = crypto.randomBytes(16).toString('hex');
 		const id = `CRS-${category.substring(0, 3).toUpperCase()}-${Date.now().toString().slice(-4)}`;
 
 		// Proses modul materi berdasarkan materialMode (SINGLE vs MULTI)
@@ -644,10 +658,12 @@ export const actions = {
 			await sql`
 				INSERT INTO hris.lms_courses (
 					id, title, category, based, level, status, duration_hours, modules_count, instructor,
-					trainer_type, cost_trainer, cost_trainee, department, description, tags, passing_grade
+					trainer_type, cost_trainer, cost_trainee, department, description, tags, passing_grade,
+					training_category, trainer_token, trainer_token_status
 				) VALUES (
 					${id}, ${title}, ${category}, ${based}, ${level}, 'Published', ${durationHours}, ${realModulesCount}, ${instructor},
-					${trainerType}, ${costTrainer}, ${costTrainee}, ${division}, ${description}, ${tags}, ${passingGrade}
+					${trainerType}, ${costTrainer}, ${costTrainee}, ${division}, ${description}, ${tags}, ${passingGrade},
+					${trainingCategory}, ${trainerToken}, 'ACTIVE'
 				);
 			`;
 
@@ -727,11 +743,13 @@ export const actions = {
 					INSERT INTO hris.lms_sessions (
 						id, course_id, title, trainer, trainer_type, cost_trainer, cost_trainee,
 						department, based, session_type, location_or_link, session_date, end_date,
-						start_time, end_time, target_role, quota, status, enrolled_count
+						start_time, end_time, target_role, quota, status, enrolled_count,
+						training_category, trainer_token
 					) VALUES (
 						${sessionId}, ${id}, ${title}, ${instructor}, ${trainerType}, ${costTrainer}, ${costTrainee},
 						${division}, ${based}, ${sessionType}, ${locationOrLink}, ${sessionDate}, ${sessionEndDate || sessionDate},
-						${startTime}, ${endTime}, 'All Staff', ${quota}, 'SCHEDULED', ${repEmployees.length}
+						${startTime}, ${endTime}, 'All Staff', ${quota}, 'SCHEDULED', ${repEmployees.length},
+						${trainingCategory}, ${trainerToken}
 					);
 				`;
 				sessionCreated = true;
@@ -756,7 +774,7 @@ export const actions = {
 				sessionCreated ? ` beserta Jadwal Sesi (${sessionDate})` : ''
 			}.${repEmployees.length > 0 ? ` (${repEmployees.length} peserta perwakilan terdaftar)` : ''}`;
 
-			return { success: true, message: successMsg };
+			return { success: true, message: successMsg, courseId: id, trainerToken, trainingCategory };
 		} catch (e: any) {
 			logError('LMS_CREATE_COURSE_FAIL', e?.message);
 			return { success: false, message: 'Gagal menambahkan kursus ke database.' };
@@ -1957,6 +1975,68 @@ export const actions = {
 		} catch (e: any) {
 			logError('LMS_SAVE_JOB_COMPETENCIES_FAIL', e?.message);
 			return { success: false, message: `Gagal menyimpan standar jabatan: ${e?.message || 'Error database'}` };
+		}
+	},
+
+	// 17. Toggle Kunci / Buka Akses Magic Link Trainer
+	toggleTrainerTokenLock: async ({ request }) => {
+		const formData = await request.formData();
+		const courseId = formData.get('courseId')?.toString();
+		const newStatus = formData.get('status')?.toString(); // 'ACTIVE' or 'LOCKED'
+
+		if (!courseId || !newStatus) {
+			return { success: false, message: 'ID Pelatihan atau status kunci tidak valid.' };
+		}
+
+		try {
+			await sql`
+				UPDATE hris.lms_courses 
+				SET trainer_token_status = ${newStatus}
+				WHERE id = ${courseId};
+			`;
+			return {
+				success: true,
+				message: `Akses Magic Link trainer berhasil ${newStatus === 'LOCKED' ? 'DIKUNCI' : 'DIBUKA KEMBALI'}.`
+			};
+		} catch (e: any) {
+			logError('LMS_TOGGLE_TOKEN_LOCK_FAIL', e?.message);
+			return { success: false, message: 'Gagal memperbarui status kunci token trainer.' };
+		}
+	},
+
+	// 18. Regenerate Magic Link Trainer Token
+	regenerateTrainerToken: async ({ request }) => {
+		const formData = await request.formData();
+		const courseId = formData.get('courseId')?.toString();
+
+		if (!courseId) {
+			return { success: false, message: 'ID Pelatihan tidak valid.' };
+		}
+
+		try {
+			const crypto = await import('crypto');
+			const newToken = crypto.randomBytes(16).toString('hex');
+
+			await sql`
+				UPDATE hris.lms_courses 
+				SET trainer_token = ${newToken}, trainer_token_status = 'ACTIVE'
+				WHERE id = ${courseId};
+			`;
+
+			await sql`
+				UPDATE hris.lms_sessions 
+				SET trainer_token = ${newToken}
+				WHERE course_id = ${courseId};
+			`;
+
+			return {
+				success: true,
+				message: 'Tautan Magic Link Trainer berhasil diperbarui dengan token baru.',
+				newToken
+			};
+		} catch (e: any) {
+			logError('LMS_REGEN_TOKEN_FAIL', e?.message);
+			return { success: false, message: 'Gagal memperbarui token trainer.' };
 		}
 	}
 } satisfies Actions;

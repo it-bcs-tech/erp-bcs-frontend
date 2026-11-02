@@ -1176,9 +1176,40 @@
 		})
 	);
 
-	let isCreateCourseReadyToSubmit = $derived(
-		createCourseTitle.trim().length > 0 && isPreTestValid && isPostTestValid
-	);
+	let createCourseTrainingCategory = $state<'IN_HOUSE' | 'PUBLIC'>('IN_HOUSE');
+	let createCourseQuizInputMode = $state<'HR_INPUT' | 'TRAINER_LINK'>('HR_INPUT');
+
+	let isCreateCourseReadyToSubmit = $derived.by(() => {
+		if (!createCourseTitle.trim()) return false;
+		if (createCourseTrainingCategory === 'PUBLIC') return true;
+		if (createCourseQuizInputMode === 'TRAINER_LINK') return true;
+		return isPreTestValid && isPostTestValid;
+	});
+
+	function copyTrainerLink(token: string, title?: string) {
+		if (typeof window === 'undefined') return;
+		const fullUrl = `${window.location.origin}/portal/trainer/${token}`;
+		navigator.clipboard.writeText(fullUrl);
+		spawnToast({
+			id: Date.now().toString(),
+			title: 'Tautan Disalin!',
+			message: `Magic Link untuk pelatihan "${title || 'Pelatihan'}" berhasil disalin ke clipboard.`,
+			type: 'SUCCESS',
+			timestamp: new Date().toISOString()
+		});
+	}
+
+	function shareViaWhatsApp(course: any, session?: any) {
+		if (typeof window === 'undefined') return;
+		const fullUrl = `${window.location.origin}/portal/trainer/${course.trainerToken}`;
+		const sessionDate = session?.sessionDate || 'Jadwal Ditentukan';
+		const sessionTime = session?.startTime ? `${session.startTime} - ${session.endTime} WIB` : '';
+		const location = session?.locationOrLink || 'Ruang Training BCS';
+
+		const message = `Halo Bapak/Ibu ${course.instructor || 'Instruktur'},%0A%0ABerikut adalah tautan resmi untuk input materi dan penyusunan soal Pre-Test & Post-Test pelatihan PT Buana Centra Swakarsa:%0A%0A*Program:* ${course.title}%0A*Jadwal:* ${sessionDate} ${sessionTime}%0A*Lokasi:* ${location}%0A%0A*Tautan Portal Instruktur (Tanpa Perlu Login):*%0A${fullUrl}%0A%0ATerima kasih.`;
+
+		window.open(`https://wa.me/?text=${message}`, '_blank');
+	}
 
 	let currentQuizQuestions = $derived(
 		createQuizTab === 'PRE_TEST' ? preTestQuestionsList : postTestQuestionsList
@@ -1219,6 +1250,8 @@
 	function openCreateCourseModal() {
 		createModalStep = 1;
 		createQuizTab = 'PRE_TEST';
+		createCourseTrainingCategory = 'IN_HOUSE';
+		createCourseQuizInputMode = 'HR_INPUT';
 		createCourseTitle = '';
 		createCourseTrainerType = 'Internal';
 		createCourseDivision = '';
@@ -2305,12 +2338,15 @@
 		downloadGenericCSV(headers, rows, `Evaluasi_Kirkpatrick_Level4_PostTest_${new Date().toISOString().split('T')[0]}.csv`);
 	}
 
+	let selectedTrainingCategory = $state<'ALL' | 'IN_HOUSE' | 'PUBLIC'>('ALL');
+
 	// Filtered Courses in Catalog
 	let filteredCourses = $derived(
 		courses.filter((c: any) => {
 			const matchesCategory = selectedCategory === 'All' || c.category === selectedCategory;
 			const matchesBased = selectedBased === 'All' || c.based === selectedBased;
-			if (!matchesCategory || !matchesBased) return false;
+			const matchesTrainingCat = selectedTrainingCategory === 'ALL' || (c.trainingCategory || 'IN_HOUSE') === selectedTrainingCategory;
+			if (!matchesCategory || !matchesBased || !matchesTrainingCat) return false;
 			if (!searchQuery.trim()) return true;
 			const q = searchQuery.toLowerCase();
 			return (
@@ -3189,6 +3225,45 @@
 								{/each}
 							</div>
 						</div>
+
+						<!-- Training Category Filter (In-House vs Public Training) -->
+						<div class="flex items-center gap-2 pt-1 border-t border-slate-200/50 dark:border-slate-800/50">
+							<span class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Lingkup:</span>
+							<div class="flex items-center gap-1.5">
+								<button
+									type="button"
+									onclick={() => (selectedTrainingCategory = 'ALL')}
+									class="px-2.5 py-1 rounded-md text-[11px] font-bold whitespace-nowrap transition-all cursor-pointer
+									{selectedTrainingCategory === 'ALL'
+										? 'bg-primary text-on-primary shadow-xs'
+										: 'bg-surface-container text-slate-500 hover:bg-surface-container-high'}"
+								>
+									Semua
+								</button>
+								<button
+									type="button"
+									onclick={() => (selectedTrainingCategory = 'IN_HOUSE')}
+									class="px-2.5 py-1 rounded-md text-[11px] font-bold whitespace-nowrap transition-all cursor-pointer flex items-center gap-1
+									{selectedTrainingCategory === 'IN_HOUSE'
+										? 'bg-emerald-600 text-white shadow-xs'
+										: 'bg-surface-container text-slate-500 hover:bg-surface-container-high'}"
+								>
+									<span class="material-symbols-outlined text-[12px]">apartment</span>
+									<span>In-House Training</span>
+								</button>
+								<button
+									type="button"
+									onclick={() => (selectedTrainingCategory = 'PUBLIC')}
+									class="px-2.5 py-1 rounded-md text-[11px] font-bold whitespace-nowrap transition-all cursor-pointer flex items-center gap-1
+									{selectedTrainingCategory === 'PUBLIC'
+										? 'bg-indigo-600 text-white shadow-xs'
+										: 'bg-surface-container text-slate-500 hover:bg-surface-container-high'}"
+								>
+									<span class="material-symbols-outlined text-[12px]">public</span>
+									<span>Public Training</span>
+								</button>
+							</div>
+						</div>
 					</div>
 
 					<!-- Courses Grid -->
@@ -3227,6 +3302,10 @@
 														<span>Tuntas & Bersertifikat</span>
 													</span>
 												{/if}
+												<span class="px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-wider
+													{course.trainingCategory === 'PUBLIC' ? 'bg-indigo-600 text-white' : 'bg-emerald-600 text-white'}">
+													{course.trainingCategory === 'PUBLIC' ? 'Public Training' : 'In-House'}
+												</span>
 												<span class="px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-wider
 													{course.based === 'Mandatory' ? 'bg-rose-500 text-white' :
 													course.based === 'Additional' ? 'bg-amber-500 text-slate-950 font-bold' :
@@ -3307,6 +3386,53 @@
 													>
 														+ Jadwalkan
 													</button>
+												</div>
+											{/if}
+
+											<!-- Trainer Magic Link Bar (In-House Only) -->
+											{#if course.trainingCategory !== 'PUBLIC' && course.trainerToken}
+												<div class="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-xs space-y-1.5">
+													<div class="flex items-center justify-between">
+														<span class="flex items-center gap-1 text-[10px] font-black uppercase tracking-wider text-amber-700 dark:text-amber-400">
+															<span class="material-symbols-outlined text-xs">link</span>
+															<span>Portal Instruktur:</span>
+														</span>
+														<span class="px-1.5 py-0.2 rounded text-[9px] font-black uppercase tracking-wider {course.trainerTokenStatus === 'COMPLETED' ? 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400' : course.trainerTokenStatus === 'LOCKED' ? 'bg-rose-500/20 text-rose-600 dark:text-rose-400' : 'bg-amber-500/20 text-amber-600 dark:text-amber-400'}">
+															{course.trainerTokenStatus === 'COMPLETED' ? 'Soal Lengkap' : course.trainerTokenStatus === 'LOCKED' ? 'Terkunci' : 'Menunggu Soal'}
+														</span>
+													</div>
+													<div class="flex items-center gap-1.5 pt-0.5">
+														<button
+															type="button"
+															onclick={() => copyTrainerLink(course.trainerToken, course.title)}
+															class="flex-1 py-1 px-2 rounded-lg bg-surface hover:bg-surface-container border border-amber-300 dark:border-amber-800 text-[11px] font-bold text-on-surface flex items-center justify-center gap-1 cursor-pointer transition-all shadow-2xs"
+															title="Salin Tautan Portal Trainer"
+														>
+															<span class="material-symbols-outlined text-xs text-amber-600">content_copy</span>
+															<span>Salin Link</span>
+														</button>
+														<button
+															type="button"
+															onclick={() => shareViaWhatsApp(course, nearestSession)}
+															class="py-1 px-2.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-[11px] font-bold text-white flex items-center justify-center gap-1 cursor-pointer transition-all shadow-2xs"
+															title="Bagikan Tautan ke WhatsApp Trainer"
+														>
+															<span class="material-symbols-outlined text-xs">chat</span>
+															<span>WhatsApp</span>
+														</button>
+														<form method="POST" action="?/toggleTrainerTokenLock" use:enhance class="inline">
+															<input type="hidden" name="courseId" value={course.id} />
+															<button
+																type="submit"
+																class="w-7 h-7 rounded-lg border border-slate-300 dark:border-slate-700 hover:bg-surface-container flex items-center justify-center cursor-pointer transition-all"
+																title={course.trainerTokenStatus === 'LOCKED' ? 'Buka Kunci Akses Trainer' : 'Kunci Akses Trainer'}
+															>
+																<span class="material-symbols-outlined text-xs {course.trainerTokenStatus === 'LOCKED' ? 'text-rose-500' : 'text-slate-400'}">
+																	{course.trainerTokenStatus === 'LOCKED' ? 'lock' : 'lock_open'}
+																</span>
+															</button>
+														</form>
+													</div>
 												</div>
 											{/if}
 
@@ -3449,6 +3575,10 @@
 								<div class="space-y-2">
 									<div class="flex items-center justify-between">
 										<div class="flex items-center gap-1.5 flex-wrap">
+											<span class="px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-wider
+												{s.trainingCategory === 'PUBLIC' ? 'bg-indigo-600 text-white' : 'bg-emerald-600 text-white'}">
+												{s.trainingCategory === 'PUBLIC' ? 'Public' : 'In-House'}
+											</span>
 											<span class="px-2 py-0.5 rounded-full text-[9.5px] font-black uppercase tracking-wider
 												{s.sessionType === 'ONLINE' ? 'bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300' : 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300'}">
 												{s.sessionType}
@@ -3497,6 +3627,17 @@
 									</div>
 
 									<div class="flex items-center gap-1.5">
+										{#if s.trainingCategory !== 'PUBLIC' && s.trainerToken}
+											<button
+												type="button"
+												onclick={() => copyTrainerLink(s.trainerToken, s.title)}
+												class="w-7 h-7 rounded-xl border border-amber-300 dark:border-amber-800 hover:bg-amber-500/10 text-amber-600 flex items-center justify-center transition-all cursor-pointer shadow-2xs"
+												title="Salin Magic Link Trainer"
+											>
+												<span class="material-symbols-outlined text-xs">link</span>
+											</button>
+										{/if}
+
 										<button
 											type="button"
 											onclick={() => openAttendanceModal(s)}
@@ -8342,7 +8483,7 @@
 						: 'text-amber-600 hover:bg-surface-container'}"
 				>
 					<span class="material-symbols-outlined text-sm">quiz</span>
-					<span>5. Asesmen</span>
+					<span>5. Asesmen {createCourseTrainingCategory === 'PUBLIC' ? '(Public)' : createCourseQuizInputMode === 'TRAINER_LINK' ? '(Link Trainer)' : ''}</span>
 					{#if !isCreateCourseReadyToSubmit}
 						<span class="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
 					{:else}
@@ -8353,6 +8494,8 @@
 
 			<form method="POST" action="?/createCourse" use:enhance class="flex flex-col flex-1 overflow-hidden space-y-3.5 text-xs">
 				<!-- Hidden Form State Values -->
+				<input type="hidden" name="trainingCategory" value={createCourseTrainingCategory} />
+				<input type="hidden" name="quizInputMode" value={createCourseQuizInputMode} />
 				<input
 					type="hidden"
 					name="division"
@@ -8387,6 +8530,54 @@
 					<!-- LANGKAH 1: INFO PROGRAM & BIAYA PELATIHAN                     -->
 					<!-- ══════════════════════════════════════════════════════════════ -->
 					<div class={createModalStep === 1 ? 'space-y-3.5' : 'hidden'}>
+						<!-- Lingkup Pelatihan: In-House vs Public Training -->
+						<div class="space-y-1.5">
+							<label class="font-bold text-on-surface block text-xs">Lingkup & Kategori Pelatihan *</label>
+							<div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+								<button
+									type="button"
+									onclick={() => (createCourseTrainingCategory = 'IN_HOUSE')}
+									class="p-3 rounded-2xl border text-left transition-all cursor-pointer flex items-start gap-2.5 {createCourseTrainingCategory === 'IN_HOUSE'
+										? 'bg-emerald-500/10 border-emerald-500/80 text-emerald-950 dark:text-emerald-100 ring-1 ring-emerald-500/50'
+										: 'bg-surface-container border-slate-200 dark:border-slate-800 text-on-surface hover:bg-surface-container-high'}"
+								>
+									<span class="w-8 h-8 rounded-xl flex items-center justify-center shrink-0 {createCourseTrainingCategory === 'IN_HOUSE' ? 'bg-emerald-600 text-white' : 'bg-surface-container-high text-slate-500'}">
+										<span class="material-symbols-outlined text-lg">apartment</span>
+									</span>
+									<div class="space-y-0.5">
+										<div class="flex items-center gap-1.5">
+											<span class="font-black text-xs">In-House Training</span>
+											<span class="px-1.5 py-0.2 rounded text-[9px] font-black uppercase tracking-wider bg-emerald-500/20 text-emerald-600 dark:text-emerald-400">Internal BCS</span>
+										</div>
+										<p class="text-[11px] text-slate-500 dark:text-slate-400 leading-snug">
+											Pelatihan internal BCS. Ada Pre-Test & Post-Test. Trainer bisa susun soal mandiri via Magic Link.
+										</p>
+									</div>
+								</button>
+
+								<button
+									type="button"
+									onclick={() => (createCourseTrainingCategory = 'PUBLIC')}
+									class="p-3 rounded-2xl border text-left transition-all cursor-pointer flex items-start gap-2.5 {createCourseTrainingCategory === 'PUBLIC'
+										? 'bg-indigo-500/10 border-indigo-500/80 text-indigo-950 dark:text-indigo-100 ring-1 ring-indigo-500/50'
+										: 'bg-surface-container border-slate-200 dark:border-slate-800 text-on-surface hover:bg-surface-container-high'}"
+								>
+									<span class="w-8 h-8 rounded-xl flex items-center justify-center shrink-0 {createCourseTrainingCategory === 'PUBLIC' ? 'bg-indigo-600 text-white' : 'bg-surface-container-high text-slate-500'}">
+										<span class="material-symbols-outlined text-lg">public</span>
+									</span>
+									<div class="space-y-0.5">
+										<div class="flex items-center gap-1.5">
+											<span class="font-black text-xs">Public Training</span>
+											<span class="px-1.5 py-0.2 rounded text-[9px] font-black uppercase tracking-wider bg-indigo-500/20 text-indigo-600 dark:text-indigo-400">Eksternal</span>
+										</div>
+										<p class="text-[11px] text-slate-500 dark:text-slate-400 leading-snug">
+											Seminar, webinar luar, pelatihan eksternal. Tanpa tes. Kelulusan via absensi & evaluasi reaksi.
+										</p>
+									</div>
+								</button>
+							</div>
+						</div>
+
 						<div>
 							<label class="font-bold text-on-surface block mb-1">Judul Program Pelatihan *</label>
 							<input
@@ -9143,8 +9334,77 @@
 					<!-- LANGKAH 5: BANK SOAL PRE-TEST & POST-TEST                    -->
 					<!-- ══════════════════════════════════════════════════════════════ -->
 					<div class={createModalStep === 5 ? 'space-y-3.5' : 'hidden'}>
-						<!-- Sub-Tab Pre-Test vs Post-Test -->
-						<div class="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-2">
+						{#if createCourseTrainingCategory === 'PUBLIC'}
+							<!-- Public Training Assessment Info -->
+							<div class="p-6 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 text-center space-y-3">
+								<span class="w-12 h-12 rounded-2xl bg-indigo-500/20 text-indigo-600 dark:text-indigo-400 inline-flex items-center justify-center">
+									<span class="material-symbols-outlined text-2xl">public</span>
+								</span>
+								<div class="max-w-md mx-auto space-y-1">
+									<h4 class="font-black text-sm text-on-surface">Kategori Public Training (Tanpa Asesmen Tes)</h4>
+									<p class="text-xs text-on-surface-variant leading-relaxed">
+										Untuk program Public Training (seminar, webinar luar, sertifikasi eksternal), tahapan Pre-Test & Post-Test dilewati. Kriteria penyelesaian pelatihan dinilai berdasarkan rekap absensi kehadiran dan pengisian evaluasi kepuasan materi (Kirkpatrick Level 1).
+									</p>
+								</div>
+								<div class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-indigo-500/20 text-indigo-700 dark:text-indigo-300 font-bold text-xs">
+									<span class="material-symbols-outlined text-sm">verified</span>
+									<span>Siap Disimpan & Diterbitkan</span>
+								</div>
+							</div>
+						{:else}
+							<!-- In-House Training: Switcher HR Input vs Delegasi Trainer Magic Link -->
+							<div class="p-3.5 rounded-2xl bg-surface-container border border-slate-200 dark:border-slate-800 space-y-2.5">
+								<label class="font-bold text-on-surface block text-xs">Metode Penginputan Soal Pre-Test & Post-Test *</label>
+								<div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+									<button
+										type="button"
+										onclick={() => (createCourseQuizInputMode = 'HR_INPUT')}
+										class="p-2.5 rounded-xl border text-left transition-all cursor-pointer flex items-center gap-2.5 {createCourseQuizInputMode === 'HR_INPUT'
+											? 'bg-primary/10 border-primary text-primary font-bold ring-1 ring-primary/40'
+											: 'bg-surface border-slate-200 dark:border-slate-700 text-on-surface hover:bg-surface-container'}"
+									>
+										<span class="w-7 h-7 rounded-lg flex items-center justify-center shrink-0 {createCourseQuizInputMode === 'HR_INPUT' ? 'bg-primary text-on-primary' : 'bg-surface-container text-slate-500'}">
+											<span class="material-symbols-outlined text-base">edit_note</span>
+										</span>
+										<div class="leading-tight">
+											<div class="text-xs font-black">Input Langsung oleh HR</div>
+											<div class="text-[10px] text-slate-500 font-normal">HR menyusun bank soal saat ini</div>
+										</div>
+									</button>
+
+									<button
+										type="button"
+										onclick={() => (createCourseQuizInputMode = 'TRAINER_LINK')}
+										class="p-2.5 rounded-xl border text-left transition-all cursor-pointer flex items-center gap-2.5 {createCourseQuizInputMode === 'TRAINER_LINK'
+											? 'bg-amber-500/10 border-amber-500 text-amber-600 dark:text-amber-400 font-bold ring-1 ring-amber-500/40'
+											: 'bg-surface border-slate-200 dark:border-slate-700 text-on-surface hover:bg-surface-container'}"
+									>
+										<span class="w-7 h-7 rounded-lg flex items-center justify-center shrink-0 {createCourseQuizInputMode === 'TRAINER_LINK' ? 'bg-amber-500 text-white' : 'bg-surface-container text-slate-500'}">
+											<span class="material-symbols-outlined text-base">link</span>
+										</span>
+										<div class="leading-tight">
+											<div class="text-xs font-black">Delegasikan ke Trainer (Magic Link)</div>
+											<div class="text-[10px] text-slate-500 font-normal">Trainer buat soal mandiri tanpa login</div>
+										</div>
+									</button>
+								</div>
+
+								{#if createCourseQuizInputMode === 'TRAINER_LINK'}
+									<div class="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-xs text-amber-900 dark:text-amber-200 flex items-start gap-2.5">
+										<span class="material-symbols-outlined text-base text-amber-600 shrink-0 mt-0.5">info</span>
+										<div class="space-y-1">
+											<p class="font-bold">Magic Link Trainer akan otomatis dibuat saat pelatihan disimpan.</p>
+											<p class="text-[11px] text-amber-800 dark:text-amber-300 leading-relaxed">
+												Trainer dapat mengakses portal mandiri untuk mengunggah materi (PDF/link) serta menyusun butir soal Pre-Test & Post-Test tanpa harus login akun ERP BCS. Tautan dapat dibagikan via tombol "Salin Link Trainer" atau "Kirim WhatsApp" dari katalog.
+											</p>
+										</div>
+									</div>
+								{/if}
+							</div>
+
+							{#if createCourseQuizInputMode === 'HR_INPUT'}
+								<!-- Sub-Tab Pre-Test vs Post-Test -->
+								<div class="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-2">
 							<div class="flex items-center gap-1 bg-surface-container p-1 rounded-xl text-xs font-bold">
 								<button
 									type="button"
@@ -9312,6 +9572,8 @@
 									Wajib mengisi minimal 1 butir soal Pre-Test dan 1 butir soal Post-Test secara lengkap (teks pertanyaan, minimal 2 opsi dan kunci jawaban untuk MCQ, atau teks pertanyaan untuk essay) sebelum menyimpan.
 								</span>
 							</div>
+						{/if}
+							{/if}
 						{/if}
 					</div>
 				</div>
