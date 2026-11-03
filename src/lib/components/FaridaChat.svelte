@@ -134,6 +134,11 @@
 			console.error('[FARIDA Chat]', err);
 		} finally {
 			isLoading = false;
+			messages = messages.map(m =>
+				m.id === assistantId && !m.content.trim()
+					? { ...m, content: '⚠️ Tidak ada respon data yang diterima dari asisten. Silakan coba kirim kembali.' }
+					: m
+			);
 		}
 	}
 
