@@ -650,6 +650,46 @@
 		});
 	});
 
+	function exportAssessmentHistoryCSV() {
+		const headers = [
+			'No',
+			'Periode Asesmen',
+			'Payroll ID (NIK)',
+			'Nama Karyawan',
+			'Posisi Jabatan',
+			'Kode Kompetensi',
+			'Nama Kompetensi',
+			'Nilai Diberikan (Actual Level)',
+			'Catatan Observasi Khusus',
+			'Nama Asesor / Atasan',
+			'Tanggal Penilaian'
+		];
+		const rows = filteredHistory.map((a: any, idx: number) => [
+			idx + 1,
+			`"${a.period || '-'}"`,
+			`"${a.payrollId || '-'}"`,
+			`"${(a.employeeName || '').replace(/"/g, '""')}"`,
+			`"${(a.positionTitle || '').replace(/"/g, '""')}"`,
+			`"${a.competencyCode || '-'}"`,
+			`"${(a.competencyName || '').replace(/"/g, '""')}"`,
+			Number(a.actualLevel || 0),
+			`"${(a.notes || '-').replace(/"/g, '""')}"`,
+			`"${(a.assessorName || '-').replace(/"/g, '""')}"`,
+			`"${a.assessmentDate || '-'}"`
+		]);
+
+		const csvContent = '\uFEFF' + [headers.join(','), ...rows.map((r) => r.join(','))].join('\r\n');
+		const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+		const url = URL.createObjectURL(blob);
+		const link = document.createElement('a');
+		link.setAttribute('href', url);
+		link.setAttribute('download', `Riwayat_Evaluasi_Kompetensi_BCS_${new Date().toISOString().split('T')[0]}.csv`);
+		document.body.appendChild(link);
+		link.click();
+		document.body.removeChild(link);
+		notifySuccess('Laporan Diunduh', 'Riwayat evaluasi kompetensi berhasil diekspor ke format Excel/CSV.');
+	}
+
 	// Derived metrics untuk Progress Tim & Realtime Evaluasi Karyawan Terpilih (Blind Assessment)
 	const totalTeam = $derived(allDirectSubordinates.length);
 	const assessedTeamCount = $derived(
@@ -1197,7 +1237,7 @@
 						{@const currentVal = getRating(selectedEmployee.payrollId, comp.competencyCode)}
 
 						<div class="p-4 sm:p-5 rounded-3xl border bg-surface border-slate-200/80 dark:border-slate-800/80 shadow-xs space-y-3.5">
-							<!-- Header Kompetensi: Kode, Nama, & Nilai Terpilih (Blind: Standar Dirahasiakan) -->
+							<!-- Header Kompetensi: Kode, Nama, & Nilai Terpilih (Menampilkan Target Standar Jabatan) -->
 							<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-200/50 dark:border-slate-800/50">
 								<div class="space-y-1">
 									<div class="flex items-center gap-2 flex-wrap">
@@ -1205,6 +1245,12 @@
 											{comp.competencyCode}
 										</span>
 										<span class="font-bold text-sm text-on-surface">{comp.competencyName}</span>
+										{#if comp.requiredLevel}
+											<span class="px-2 py-0.5 rounded-lg text-[10px] font-black uppercase tracking-wider bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30 inline-flex items-center gap-1">
+												<span class="material-symbols-outlined text-[11px]">flag</span>
+												<span>Standar: Level {comp.requiredLevel}</span>
+											</span>
+										{/if}
 									</div>
 								</div>
 
@@ -1234,6 +1280,8 @@
 								
 								<div class="grid grid-cols-1 gap-1.5">
 									{#each [1, 2, 3, 4, 5] as lvl}
+										{@const reqLvl = Number(comp.requiredLevel || 0)}
+										{@const isStandard = reqLvl === lvl}
 										{@const isSelected = currentVal === lvl}
 										{@const desc = getLevelDescription(comp.competencyCode, lvl)}
 
@@ -1243,12 +1291,16 @@
 											class="w-full text-left p-2.5 sm:p-3 rounded-2xl border transition-all cursor-pointer flex items-start gap-3 group
 											{isSelected
 												? 'bg-primary/10 border-primary ring-1 ring-primary/30 shadow-xs'
+												: isStandard
+												? 'bg-emerald-500/5 hover:bg-emerald-500/10 border-emerald-500/50 dark:border-emerald-500/30 shadow-2xs'
 												: 'bg-surface-container-low hover:bg-surface-container-high border-slate-200/60 dark:border-slate-800/60'}"
 										>
 											<!-- Level Badge Number -->
 											<div class="shrink-0 flex items-center justify-center w-7 h-7 rounded-xl font-mono text-xs font-black transition-all
 												{isSelected
 													? 'bg-primary text-on-primary shadow-xs scale-105'
+													: isStandard
+													? 'bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border border-emerald-500/40 font-bold'
 													: 'bg-surface-container-high text-slate-400 group-hover:text-on-surface'}">
 												{lvl}
 											</div>
@@ -1256,9 +1308,15 @@
 											<!-- Konten Level -->
 											<div class="flex-1 min-w-0">
 												<div class="flex items-center gap-2 flex-wrap mb-0.5">
-													<span class="font-bold text-xs {isSelected ? 'text-primary' : 'text-on-surface'}">
+													<span class="font-bold text-xs {isSelected ? 'text-primary' : isStandard ? 'text-emerald-700 dark:text-emerald-300' : 'text-on-surface'}">
 														Level {lvl}
 													</span>
+													{#if isStandard}
+														<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30">
+															<span class="material-symbols-outlined text-xs">flag</span>
+															<span>Standar Jabatan (Target)</span>
+														</span>
+													{/if}
 													{#if isSelected}
 														<span class="ml-auto inline-flex items-center gap-1 text-[10px] font-bold text-primary">
 															<span class="material-symbols-outlined text-xs">check_circle</span>
@@ -1266,7 +1324,7 @@
 														</span>
 													{/if}
 												</div>
-												<p class="text-xs {isSelected ? 'text-on-surface font-medium' : 'text-slate-400 group-hover:text-slate-300'} leading-relaxed">
+												<p class="text-xs {isSelected ? 'text-on-surface font-medium' : isStandard ? 'text-slate-600 dark:text-slate-300 font-medium' : 'text-slate-400 group-hover:text-slate-300'} leading-relaxed">
 													{desc}
 												</p>
 											</div>
@@ -2190,6 +2248,16 @@
 							<option value={prd}>{prd}</option>
 						{/each}
 					</select>
+
+					<button
+						type="button"
+						onclick={exportAssessmentHistoryCSV}
+						class="px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold flex items-center gap-1.5 transition-all cursor-pointer shadow-xs text-xs"
+						title="Download Riwayat Evaluasi Kompetensi (Format Excel/CSV)"
+					>
+						<span class="material-symbols-outlined text-sm">download</span>
+						<span>Export Excel</span>
+					</button>
 				</div>
 			</div>
 

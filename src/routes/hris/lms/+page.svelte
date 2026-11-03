@@ -2338,6 +2338,80 @@
 		downloadGenericCSV(headers, rows, `Evaluasi_Kirkpatrick_Level4_PostTest_${new Date().toISOString().split('T')[0]}.csv`);
 	}
 
+	function exportCompetencySummaryExcel() {
+		const headers = [
+			'No',
+			'Payroll ID (NIP)',
+			'Nama Karyawan',
+			'Jabatan',
+			'Departemen',
+			'Total Kompetensi Diuji',
+			'Memenuhi Standar',
+			'GAP Competency',
+			'Kepatuhan Standar (%)',
+			'Status Kelayakan',
+			'Penugasan LMS'
+		];
+		const rows = filteredGroupedEmployeeAssessments.map((grp: any, idx: number) => {
+			const compliancePct = Math.round((grp.qualifiedCount / (grp.totalCompetencies || 1)) * 100);
+			const statusKelayakan = grp.gapCount === 0 ? 'MEMENUHI STANDAR' : 'GAP PERLU PELATIHAN';
+			const trainingAssign = grp.assignedCount > 0 ? 'DITUGASKAN' : grp.completedCount > 0 ? 'SELESAI' : 'BELUM DITUGASKAN';
+			return [
+				idx + 1,
+				`"${grp.payrollId}"`,
+				`"${grp.employeeName}"`,
+				`"${grp.positionTitle}"`,
+				`"${grp.department}"`,
+				grp.totalCompetencies,
+				grp.qualifiedCount,
+				grp.gapCount,
+				`"${compliancePct}%"`,
+				`"${statusKelayakan}"`,
+				`"${trainingAssign}"`
+			];
+		});
+		downloadGenericCSV(headers, rows, `Resume_Evaluasi_Kompetensi_Ringkas_BCS_${new Date().toISOString().split('T')[0]}.csv`);
+	}
+
+	function exportCompetencyDetailExcel() {
+		const headers = [
+			'No',
+			'Payroll ID (NIP)',
+			'Nama Karyawan',
+			'Jabatan',
+			'Departemen',
+			'Aspek Kompetensi',
+			'Kode Kompetensi',
+			'Nama Kompetensi',
+			'Required Level (Standar)',
+			'Actual Level (Nilai Atasan)',
+			'Competency Gap (Act - Req)',
+			'Status Kelayakan',
+			'Status Penugasan Pelatihan',
+			'Rekomendasi Pelatihan (TNA)'
+		];
+		const rows = filteredEmployeeAssessments.map((a: any, idx: number) => {
+			const statusStr = a.gap >= 0 ? 'MEMENUHI STANDAR' : 'GAP COMPETENCY';
+			return [
+				idx + 1,
+				`"${a.payrollId}"`,
+				`"${a.employeeName}"`,
+				`"${a.positionTitle}"`,
+				`"${a.department || 'General'}"`,
+				`"${a.aspect || 'Competency'}"`,
+				`"${a.competencyCode}"`,
+				`"${(a.competencyName || '').replace(/"/g, '""')}"`,
+				Number(a.requiredLevel || 0),
+				Number(a.actualLevel || 0),
+				Number(a.gap || 0),
+				`"${statusStr}"`,
+				`"${a.trainingStatus || 'NONE'}"`,
+				`"${(a.defaultCourseTitle || a.recommendation || '-').replace(/"/g, '""')}"`
+			];
+		});
+		downloadGenericCSV(headers, rows, `Detail_Matriks_Evaluasi_Kompetensi_BCS_${new Date().toISOString().split('T')[0]}.csv`);
+	}
+
 	let selectedTrainingCategory = $state<'ALL' | 'IN_HOUSE' | 'PUBLIC'>('ALL');
 
 	// Filtered Courses in Catalog
@@ -3343,11 +3417,6 @@
 													<span class="material-symbols-outlined text-xs">domain</span>
 													<span>Target: <strong>{course.department || 'All Dept'}</strong></span>
 												</span>
-												<span>•</span>
-												<span class="flex items-center gap-0.5 text-emerald-600 dark:text-emerald-400 font-bold">
-													<span class="material-symbols-outlined text-xs">payments</span>
-													<span>Rp {Number(course.costTrainer || 500000).toLocaleString('id-ID')}</span>
-												</span>
 											</div>
 
 											<!-- Widget Jadwal Sesi Terdekat & Absensi -->
@@ -3608,9 +3677,6 @@
 											<span class="flex items-center gap-1">
 												<span class="material-symbols-outlined text-xs">domain</span>
 												<span>Dept: <strong>{s.department || 'Operations'}</strong></span>
-											</span>
-											<span class="font-bold text-emerald-600 dark:text-emerald-400 font-mono">
-												Rp {Number(s.costTrainer || 500000).toLocaleString('id-ID')}
 											</span>
 										</p>
 									</div>
@@ -5535,6 +5601,28 @@
 											<span class="hidden md:inline">Tutup Semua</span>
 										</button>
 									</div>
+
+									<!-- Export Excel Evaluasi Kompetensi -->
+									<div class="flex items-center gap-1.5 border-l border-slate-200 dark:border-slate-800 pl-2">
+										<button
+											type="button"
+											onclick={exportCompetencySummaryExcel}
+											class="px-3 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-[11px] font-bold transition-all cursor-pointer flex items-center gap-1 shadow-xs"
+											title="Download Resume Ringkas per Karyawan (Format Excel/CSV)"
+										>
+											<span class="material-symbols-outlined text-sm">download</span>
+											<span>Resume Excel</span>
+										</button>
+										<button
+											type="button"
+											onclick={exportCompetencyDetailExcel}
+											class="px-2.5 py-2 rounded-xl bg-surface-container hover:bg-surface-container-high border border-emerald-500/40 text-emerald-600 dark:text-emerald-400 text-[11px] font-bold transition-all cursor-pointer flex items-center gap-1"
+											title="Download Detail Matriks Semua Kompetensi (Format Excel/CSV)"
+										>
+											<span class="material-symbols-outlined text-sm">table_view</span>
+											<span class="hidden lg:inline">Detail Matriks</span>
+										</button>
+									</div>
 								</div>
 							</div>
 
@@ -7407,10 +7495,28 @@
 									<h4 class="font-bold text-xs text-on-surface uppercase tracking-wider">Laporan Kesenjangan Kompetensi (Competency Gap Report - TNA)</h4>
 									<p class="text-xs text-on-surface-variant">Identifikasi selisih Required Competency vs Actual Competency untuk rekomendasi training 2026.</p>
 								</div>
-								<div class="flex items-center gap-2 text-xs font-mono">
-									<span class="px-2.5 py-1 rounded-lg bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300 font-bold">
+								<div class="flex items-center gap-2 text-xs font-mono flex-wrap">
+									<span class="px-2.5 py-1.5 rounded-lg bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300 font-bold">
 										Kesenjangan: {competencyGapList.filter((cg: any) => cg.gap < 0).length} Gap
 									</span>
+									<button
+										type="button"
+										onclick={exportCompetencySummaryExcel}
+										class="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-sans text-xs font-bold transition-all cursor-pointer flex items-center gap-1 shadow-xs"
+										title="Download Resume Ringkas per Karyawan (Format Excel/CSV)"
+									>
+										<span class="material-symbols-outlined text-sm">download</span>
+										<span>Resume Excel</span>
+									</button>
+									<button
+										type="button"
+										onclick={exportCompetencyDetailExcel}
+										class="px-3 py-1.5 rounded-xl bg-surface-container hover:bg-surface-container-high border border-emerald-500/40 text-emerald-600 dark:text-emerald-400 font-sans text-xs font-bold transition-all cursor-pointer flex items-center gap-1"
+										title="Download Detail Matriks Semua Kompetensi (Format Excel/CSV)"
+									>
+										<span class="material-symbols-outlined text-sm">table_view</span>
+										<span>Detail Matriks</span>
+									</button>
 								</div>
 							</div>
 
