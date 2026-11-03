@@ -1384,9 +1384,35 @@
 	let isSafetyTestModalOpen = $state(false);
 	let isCertModalOpen = $state(false);
 
+	// Taksonomi Hierarki Aspek & Aspek Spesifik Kamus Kompetensi BCS
+	const competencyAspectHierarchy: Record<string, string[]> = {
+		'Core Competency': ['Core Competency'],
+		'Role Competency': ['Task Management'],
+		'Behavioral Competency': ['Behavioral Competency'],
+		'Technical Competency': [
+			'Basic Competency',
+			'Civil Engineering',
+			'Sales & Marketing',
+			'Operational',
+			'IT Development & Software Maintenance',
+			'Finance',
+			'Procurement',
+			'Legal',
+			'Business Development',
+			'Corporate Communication',
+			'General Affair',
+			'Human Resources Management',
+			'QHSE',
+			'Internal Audit'
+		]
+	};
+
 	// TNA Modals State
 	let isAssessmentModalOpen = $state(false);
 	let isCompetencyModalOpen = $state(false);
+	let isEditingCompetency = $state(false);
+	let activeCompActionMenuCode = $state<string | null>(null);
+	let isSubmittingDeleteComp = $state(false);
 	let isJobStandardModalOpen = $state(false);
 	let isLevelIndicatorModalOpen = $state(false);
 	let selectedCompetencyForIndicator = $state<any>(null);
@@ -1394,6 +1420,7 @@
 	// Kamus Kompetensi (170 items) Filter & Link Modal State
 	let compSearchQuery = $state('');
 	let compFilterAspect = $state('All');
+	let compFilterSubAspect = $state('All');
 	let compFilterStatus = $state<'All' | 'Linked' | 'Unlinked'>('All');
 	let compCurrentPage = $state(1);
 	const compPerPage = 18;
@@ -1426,13 +1453,72 @@
 		code: '',
 		name: '',
 		aspect: 'Technical Competency',
+		subAspect: 'Operational',
 		defaultCourseId: '',
-		level1: '',
-		level2: '',
-		level3: '',
-		level4: '',
-		level5: ''
+		level1: 'Memahami dasar prosedur dan SOP kerja dasar.',
+		level2: 'Mampu mengaplikasikan dalam tugas rutin mandiri.',
+		level3: 'Mampu memodifikasi dan menyelesaikan kendala operasional.',
+		level4: 'Mampu menganalisa peningkatan sistem dan membimbing tim.',
+		level5: 'Menjadi rujukan ahli (SME) dan inovator strategi perusahaan.'
 	});
+
+	function openCreateCompetencyModal() {
+		isEditingCompetency = false;
+		competencyForm = {
+			code: '',
+			name: '',
+			aspect: 'Technical Competency',
+			subAspect: 'Operational',
+			defaultCourseId: '',
+			level1: 'Memahami dasar prosedur dan SOP kerja dasar.',
+			level2: 'Mampu mengaplikasikan dalam tugas rutin mandiri.',
+			level3: 'Mampu memodifikasi dan menyelesaikan kendala operasional.',
+			level4: 'Mampu menganalisa peningkatan sistem dan membimbing tim.',
+			level5: 'Menjadi rujukan ahli (SME) dan inovator strategi perusahaan.'
+		};
+		isCompetencyModalOpen = true;
+	}
+
+	function openEditCompetencyModal(comp: any) {
+		isEditingCompetency = true;
+		const ind = comp.levelIndicators || [];
+		const getDesc = (lvl: number) => {
+			const item = ind.find((x: any) => x.level === lvl);
+			return item?.desc || '';
+		};
+
+		let asp = comp.aspect || 'Technical Competency';
+		if (!competencyAspectHierarchy[asp]) {
+			if (asp.includes('Core')) asp = 'Core Competency';
+			else if (asp.includes('Role') || asp.includes('Task')) asp = 'Role Competency';
+			else if (asp.includes('Behavioral')) asp = 'Behavioral Competency';
+			else asp = 'Technical Competency';
+		}
+
+		let sub = comp.subAspect || '';
+		if (!sub) {
+			sub = competencyAspectHierarchy[asp]?.[0] || '';
+		}
+
+		competencyForm = {
+			code: comp.code,
+			name: comp.name,
+			aspect: asp,
+			subAspect: sub,
+			defaultCourseId: comp.defaultCourseId || '',
+			level1: getDesc(1) || 'Memahami dasar prosedur dan SOP kerja dasar.',
+			level2: getDesc(2) || 'Mampu mengaplikasikan dalam tugas rutin mandiri.',
+			level3: getDesc(3) || 'Mampu memodifikasi dan menyelesaikan kendala operasional.',
+			level4: getDesc(4) || 'Mampu menganalisa peningkatan sistem dan membimbing tim.',
+			level5: getDesc(5) || 'Menjadi rujukan ahli (SME) dan inovator strategi perusahaan.'
+		};
+		isCompetencyModalOpen = true;
+	}
+
+	function handleAspectChange() {
+		const availableSubs = competencyAspectHierarchy[competencyForm.aspect] || [];
+		competencyForm.subAspect = availableSubs[0] || '';
+	}
 
 	let jobStandardForm = $state({
 		positionTitle: '',
@@ -2627,10 +2713,24 @@
 		...Array.from(new Set(competencyLibrary.map((c: any) => c.aspect).filter(Boolean)))
 	]);
 
+	// Derived Sub-Aspects List based on selected Aspect filter
+	const availableSubAspects = $derived.by(() => {
+		if (compFilterAspect === 'All') {
+			const set = new Set<string>();
+			competencyLibrary.forEach((c: any) => {
+				if (c.subAspect) set.add(c.subAspect);
+			});
+			return ['All', ...Array.from(set).sort()];
+		}
+		const subs = competencyAspectHierarchy[compFilterAspect] || [];
+		return ['All', ...subs];
+	});
+
 	// Filtered & Paged Competency Library
 	let filteredCompetencyLibrary = $derived(
 		competencyLibrary.filter((c: any) => {
 			if (compFilterAspect !== 'All' && c.aspect !== compFilterAspect) return false;
+			if (compFilterSubAspect !== 'All' && c.subAspect !== compFilterSubAspect) return false;
 			if (compFilterStatus === 'Linked' && !c.defaultCourseId) return false;
 			if (compFilterStatus === 'Unlinked' && c.defaultCourseId) return false;
 			if (!compSearchQuery.trim()) return true;
@@ -2638,6 +2738,7 @@
 			return (
 				c.name.toLowerCase().includes(q) ||
 				c.code.toLowerCase().includes(q) ||
+				(c.subAspect && c.subAspect.toLowerCase().includes(q)) ||
 				(c.defaultCourseTitle && c.defaultCourseTitle.toLowerCase().includes(q))
 			);
 		})
@@ -5991,7 +6092,7 @@
 								<div class="flex items-center gap-2">
 									<button
 										type="button"
-										onclick={() => (isCompetencyModalOpen = true)}
+										onclick={openCreateCompetencyModal}
 										class="px-3.5 py-2 rounded-xl bg-primary text-on-primary text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer shadow-xs shrink-0"
 									>
 										<span class="material-symbols-outlined text-sm">add_circle</span>
@@ -6045,22 +6146,39 @@
 								</div>
 
 								<div class="flex flex-wrap items-center gap-2">
-									<!-- Filter Aspek -->
+									<!-- Filter Aspek Utama -->
 									<select
 										bind:value={compFilterAspect}
-										onchange={() => (compCurrentPage = 1)}
-										class="px-3 py-2 rounded-xl bg-surface border border-slate-200 dark:border-slate-800 text-xs text-on-surface font-medium"
+										onchange={() => {
+											compFilterSubAspect = 'All';
+											compCurrentPage = 1;
+										}}
+										class="px-3 py-2 rounded-xl bg-surface border border-slate-200 dark:border-slate-800 text-xs text-on-surface font-medium cursor-pointer"
 									>
 										{#each competencyAspects as asp}
-											<option value={asp}>{asp === 'All' ? 'Semua Aspek Kompetensi' : asp}</option>
+											<option value={asp}>{asp === 'All' ? 'Semua Aspek Utama' : asp}</option>
 										{/each}
 									</select>
+
+									<!-- Filter Aspek Spesifik (Sub-Aspek) -->
+									{#if availableSubAspects.length > 2}
+										<select
+											bind:value={compFilterSubAspect}
+											onchange={() => (compCurrentPage = 1)}
+											class="px-3 py-2 rounded-xl bg-surface border border-slate-200 dark:border-slate-800 text-xs text-on-surface font-medium cursor-pointer"
+										>
+											<option value="All">Semua Aspek Spesifik</option>
+											{#each availableSubAspects.filter((s) => s !== 'All') as sub}
+												<option value={sub}>{sub}</option>
+											{/each}
+										</select>
+									{/if}
 
 									<!-- Filter Status Materi -->
 									<select
 										bind:value={compFilterStatus}
 										onchange={() => (compCurrentPage = 1)}
-										class="px-3 py-2 rounded-xl bg-surface border border-slate-200 dark:border-slate-800 text-xs text-on-surface font-medium"
+										class="px-3 py-2 rounded-xl bg-surface border border-slate-200 dark:border-slate-800 text-xs text-on-surface font-medium cursor-pointer"
 									>
 										<option value="All">Semua Status Materi</option>
 										<option value="Linked">Terhubung Materi Kursus</option>
@@ -6069,23 +6187,98 @@
 								</div>
 							</div>
 
+							<!-- Backdrop untuk menutup menu aksi titik tiga jika diklik di luar -->
+							{#if activeCompActionMenuCode}
+								<div
+									class="fixed inset-0 z-15 bg-transparent"
+									onclick={() => (activeCompActionMenuCode = null)}
+									role="presentation"
+								></div>
+							{/if}
+
 							<!-- Grid Kartu Kamus Kompetensi -->
 							<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
 								{#each pagedCompetencyLibrary as comp}
-									<div class="p-4 rounded-2xl bg-surface-container border border-slate-200/60 dark:border-slate-800/60 space-y-3 flex flex-col justify-between hover:border-slate-300 dark:hover:border-slate-700 transition-all shadow-xs">
+									<div class="p-4 rounded-2xl bg-surface-container border border-slate-200/60 dark:border-slate-800/60 space-y-3 flex flex-col justify-between hover:border-slate-300 dark:hover:border-slate-700 transition-all shadow-xs relative">
 										<div class="space-y-2.5">
 											<div class="flex items-start justify-between gap-2">
-												<span class="px-2.5 py-0.5 rounded-lg text-xs font-mono font-black bg-primary/10 text-primary border border-primary/20">
-													{comp.code}
-												</span>
-												<span class="px-2 py-0.5 rounded-full text-[9px] font-bold text-right leading-tight line-clamp-1
-													{comp.aspect.includes('Core') ? 'bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300' :
-													comp.aspect.includes('Behavioral') ? 'bg-purple-100 text-purple-800 dark:bg-purple-950 dark:text-purple-300' :
-													comp.aspect.includes('Task') ? 'bg-indigo-100 text-indigo-800 dark:bg-indigo-950 dark:text-indigo-300' :
-													comp.aspect.includes('QHSE') ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300' :
-													'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300'}">
-													{comp.aspect}
-												</span>
+												<div class="flex flex-wrap items-center gap-1.5 flex-1 min-w-0">
+													<span class="px-2.5 py-0.5 rounded-lg text-xs font-mono font-black bg-primary/10 text-primary border border-primary/20 shrink-0">
+														{comp.code}
+													</span>
+													<span class="px-2 py-0.5 rounded-full text-[9px] font-bold leading-tight truncate
+														{comp.aspect.includes('Core') ? 'bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300' :
+														comp.aspect.includes('Behavioral') ? 'bg-purple-100 text-purple-800 dark:bg-purple-950 dark:text-purple-300' :
+														comp.aspect.includes('Role') || comp.aspect.includes('Task') ? 'bg-indigo-100 text-indigo-800 dark:bg-indigo-950 dark:text-indigo-300' :
+														comp.aspect.includes('QHSE') ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300' :
+														'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300'}">
+														{comp.subAspect ? `${comp.aspect} (${comp.subAspect})` : comp.aspect}
+													</span>
+												</div>
+
+												<!-- Menu Aksi Titik Tiga -->
+												<div class="relative shrink-0">
+													<button
+														type="button"
+														onclick={(e) => {
+															e.stopPropagation();
+															activeCompActionMenuCode = activeCompActionMenuCode === comp.code ? null : comp.code;
+														}}
+														class="w-7 h-7 rounded-lg hover:bg-surface-container-high flex items-center justify-center text-slate-400 hover:text-on-surface transition-all cursor-pointer"
+														title="Menu Aksi Kompetensi"
+													>
+														<span class="material-symbols-outlined text-base">more_vert</span>
+													</button>
+
+													{#if activeCompActionMenuCode === comp.code}
+														<div class="absolute right-0 top-8 z-20 w-44 rounded-2xl bg-surface border border-slate-200 dark:border-slate-700 shadow-xl py-1.5 animate-in fade-in zoom-in-95 duration-100">
+															<button
+																type="button"
+																onclick={() => {
+																	activeCompActionMenuCode = null;
+																	openEditCompetencyModal(comp);
+																}}
+																class="w-full px-3 py-2 text-left text-xs font-bold text-on-surface hover:bg-surface-container flex items-center gap-2 cursor-pointer"
+															>
+																<span class="material-symbols-outlined text-sm text-blue-500">edit</span>
+																<span>Edit Kompetensi</span>
+															</button>
+
+															<form
+																method="POST"
+																action="?/deleteCompetency"
+																use:enhance={() => {
+																	isSubmittingDeleteComp = true;
+																	return async ({ result, update }) => {
+																		isSubmittingDeleteComp = false;
+																		activeCompActionMenuCode = null;
+																		if (result.type === 'success') {
+																			notifySuccess('Berhasil Dihapus', result.data?.message || 'Kompetensi berhasil dihapus.');
+																		} else {
+																			notifyError('Gagal Hapus', result.data?.message || 'Gagal menghapus kompetensi.');
+																		}
+																		await update();
+																	};
+																}}
+															>
+																<input type="hidden" name="code" value={comp.code} />
+																<button
+																	type="submit"
+																	disabled={isSubmittingDeleteComp}
+																	onclick={(e) => {
+																		if (!confirm(`Apakah Anda yakin ingin menghapus kompetensi [${comp.code}] "${comp.name}"?`)) {
+																			e.preventDefault();
+																		}
+																	}}
+																	class="w-full px-3 py-2 text-left text-xs font-bold text-rose-600 hover:bg-rose-500/10 flex items-center gap-2 cursor-pointer disabled:opacity-50"
+																>
+																	<span class="material-symbols-outlined text-sm">delete</span>
+																	<span>Hapus Kompetensi</span>
+																</button>
+															</form>
+														</div>
+													{/if}
+												</div>
 											</div>
 
 											<div>
@@ -11362,22 +11555,42 @@
 {/if}
 
 <!-- ════════════════════════════════════════════════════════════════════════ -->
-<!-- MODAL 10: TAMBAH KAMUS KOMPETENSI RESMI (LIBRARY)                       -->
+<!-- MODAL 10: TAMBAH / EDIT KAMUS KOMPETENSI RESMI (LIBRARY)                 -->
 <!-- ════════════════════════════════════════════════════════════════════════ -->
 {#if isCompetencyModalOpen}
 	<div class="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
 		<div class="bg-surface rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xl w-full max-w-xl overflow-hidden p-6 space-y-4 animate-in zoom-in-95 duration-150 my-8">
 			<div class="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800">
 				<div>
-					<h3 class="font-black text-base text-on-surface">Tambah Kamus Kompetensi Baru</h3>
+					<h3 class="font-black text-base text-on-surface">
+						{isEditingCompetency ? `Edit Kamus Kompetensi [${competencyForm.code}]` : 'Tambah Kamus Kompetensi Baru'}
+					</h3>
 					<p class="text-xs text-on-surface-variant">Taksonomi kompetensi standar PT Buana Centra Swakarsa</p>
 				</div>
-				<button type="button" onclick={() => (isCompetencyModalOpen = false)} class="w-8 h-8 rounded-full bg-surface-container flex items-center justify-center text-slate-400 hover:text-slate-600">
+				<button type="button" onclick={() => (isCompetencyModalOpen = false)} class="w-8 h-8 rounded-full bg-surface-container flex items-center justify-center text-slate-400 hover:text-slate-600 cursor-pointer">
 					<span class="material-symbols-outlined text-lg">close</span>
 				</button>
 			</div>
 
-			<form method="POST" action="?/saveCompetency" use:enhance class="space-y-4 text-xs">
+			<form
+				method="POST"
+				action="?/saveCompetency"
+				use:enhance={() => {
+					return async ({ result, update }) => {
+						if (result.type === 'success') {
+							notifySuccess(
+								isEditingCompetency ? 'Kompetensi Diperbarui' : 'Kompetensi Ditambahkan',
+								result.data?.message || 'Kamus kompetensi berhasil disimpan.'
+							);
+							isCompetencyModalOpen = false;
+						} else {
+							notifyError('Gagal Menyimpan', result.data?.message || 'Terjadi kesalahan saat menyimpan.');
+						}
+						await update();
+					};
+				}}
+				class="space-y-4 text-xs"
+			>
 				<div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
 					<div class="space-y-1">
 						<label class="font-bold text-slate-500 uppercase tracking-wider text-[10px]">Kode Kompetensi *</label>
@@ -11385,24 +11598,46 @@
 							type="text"
 							name="code"
 							bind:value={competencyForm.code}
+							readonly={isEditingCompetency}
 							required
-							class="w-full px-3 py-2 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800 text-xs font-mono font-bold uppercase"
+							class="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-800 text-xs font-mono font-bold uppercase {isEditingCompetency ? 'bg-surface-container-high text-slate-400 cursor-not-allowed' : 'bg-surface-container'}"
 							placeholder="misal: Q10"
 						/>
+						{#if isEditingCompetency}
+							<p class="text-[9px] text-slate-400 italic">Kode kompetensi (Primary Key) tidak dapat diubah saat edit.</p>
+						{/if}
 					</div>
 
 					<div class="space-y-1">
-						<label class="font-bold text-slate-500 uppercase tracking-wider text-[10px]">Aspek Kompetensi *</label>
+						<label class="font-bold text-slate-500 uppercase tracking-wider text-[10px]">Aspek Kompetensi Utama *</label>
 						<select
 							name="aspect"
 							bind:value={competencyForm.aspect}
-							class="w-full px-3 py-2 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800 text-xs"
+							onchange={handleAspectChange}
+							class="w-full px-3 py-2 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800 text-xs font-bold cursor-pointer"
 						>
-							<option value="Core Competency">Core Competency</option>
-							<option value="Behavioral Competency">Behavioral Competency</option>
-							<option value="Technical Competency">Technical Competency</option>
+							{#each Object.keys(competencyAspectHierarchy) as asp}
+								<option value={asp}>{asp}</option>
+							{/each}
 						</select>
 					</div>
+				</div>
+
+				<!-- Aspek Spesifik (Dropdown Berantai Otomatis) -->
+				<div class="space-y-1">
+					<label class="font-bold text-slate-500 uppercase tracking-wider text-[10px] flex items-center justify-between">
+						<span>Aspek Spesifik / Sub-Aspek *</span>
+						<span class="text-[9px] text-primary font-normal">Sesuai klasifikasi {competencyForm.aspect}</span>
+					</label>
+					<select
+						name="subAspect"
+						bind:value={competencyForm.subAspect}
+						class="w-full px-3 py-2 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800 text-xs font-bold cursor-pointer"
+					>
+						{#each (competencyAspectHierarchy[competencyForm.aspect] || []) as sub}
+							<option value={sub}>{sub}</option>
+						{/each}
+					</select>
 				</div>
 
 				<div class="space-y-1">
@@ -11422,9 +11657,9 @@
 					<select
 						name="defaultCourseId"
 						bind:value={competencyForm.defaultCourseId}
-						class="w-full px-3 py-2 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800 text-xs"
+						class="w-full px-3 py-2 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800 text-xs cursor-pointer"
 					>
-						<option value="">-- Pilih Kursus Rekomendasi --</option>
+						<option value="">-- Pilih Kursus Rekomendasi (Opsional) --</option>
 						{#each courses as c}
 							<option value={c.id}>[{c.id}] {c.title} ({c.category})</option>
 						{/each}
@@ -11436,21 +11671,21 @@
 					<p class="font-bold text-on-surface uppercase tracking-wider text-[10px]">Deskripsi Rubrik Perilaku (Level 1 s.d. Level 5):</p>
 					
 					<div class="space-y-2">
-						<input type="text" name="level1" placeholder="Level 1: Mengetahui dan memahami SOP dasar..." class="w-full px-3 py-1.5 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800 text-xs" />
-						<input type="text" name="level2" placeholder="Level 2: Mampu menerapkan dalam pekerjaan mandiri..." class="w-full px-3 py-1.5 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800 text-xs" />
-						<input type="text" name="level3" placeholder="Level 3: Mampu menyelesaikan masalah operasional & memodifikasi prosedur..." class="w-full px-3 py-1.5 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800 text-xs" />
-						<input type="text" name="level4" placeholder="Level 4: Mampu menganalisa peluang peningkatan sistem dan membimbing rekan..." class="w-full px-3 py-1.5 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800 text-xs" />
-						<input type="text" name="level5" placeholder="Level 5: Menjadi rujukan ahli (SME) dan perumus inovasi strategis..." class="w-full px-3 py-1.5 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800 text-xs" />
+						<input type="text" name="level1" bind:value={competencyForm.level1} placeholder="Level 1: Mengetahui dan memahami SOP dasar..." class="w-full px-3 py-1.5 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800 text-xs" />
+						<input type="text" name="level2" bind:value={competencyForm.level2} placeholder="Level 2: Mampu menerapkan dalam pekerjaan mandiri..." class="w-full px-3 py-1.5 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800 text-xs" />
+						<input type="text" name="level3" bind:value={competencyForm.level3} placeholder="Level 3: Mampu menyelesaikan masalah operasional & memodifikasi prosedur..." class="w-full px-3 py-1.5 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800 text-xs" />
+						<input type="text" name="level4" bind:value={competencyForm.level4} placeholder="Level 4: Mampu menganalisa peluang peningkatan sistem dan membimbing rekan..." class="w-full px-3 py-1.5 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800 text-xs" />
+						<input type="text" name="level5" bind:value={competencyForm.level5} placeholder="Level 5: Menjadi rujukan ahli (SME) dan perumus inovasi strategis..." class="w-full px-3 py-1.5 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-800 text-xs" />
 					</div>
 				</div>
 
 				<div class="flex justify-end gap-2 pt-3 border-t border-slate-200 dark:border-slate-800">
-					<button type="button" onclick={() => (isCompetencyModalOpen = false)} class="px-4 py-2 rounded-xl border text-xs font-bold hover:bg-surface-container">
+					<button type="button" onclick={() => (isCompetencyModalOpen = false)} class="px-4 py-2 rounded-xl border text-xs font-bold hover:bg-surface-container cursor-pointer">
 						Batal
 					</button>
-					<button type="submit" class="px-5 py-2 rounded-xl bg-primary text-on-primary text-xs font-bold shadow-xs hover:opacity-90 flex items-center gap-1.5">
+					<button type="submit" class="px-5 py-2 rounded-xl bg-primary text-on-primary text-xs font-bold shadow-xs hover:opacity-90 flex items-center gap-1.5 cursor-pointer">
 						<span class="material-symbols-outlined text-sm">check_circle</span>
-						<span>Simpan ke Kamus Kompetensi</span>
+						<span>{isEditingCompetency ? 'Simpan Perubahan' : 'Simpan ke Kamus Kompetensi'}</span>
 					</button>
 				</div>
 			</form>

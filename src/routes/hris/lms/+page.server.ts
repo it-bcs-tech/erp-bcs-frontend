@@ -111,6 +111,13 @@ export const load: PageServerLoad = async ({ locals }) => {
 			ORDER BY issued_at DESC;
 		`;
 
+		// Ensure schema column sub_aspect exists
+		try {
+			await sql`ALTER TABLE hris.lms_competency_library ADD COLUMN IF NOT EXISTS sub_aspect VARCHAR(100);`;
+		} catch (e) {
+			// ignore if already exists or permission
+		}
+
 		// 9. Kamus Kompetensi Resmi PT BCS (Competency Library)
 		const competencyLibraryRows = await sql`
 			SELECT c.*, cr.title as default_course_title
@@ -447,6 +454,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 				code: c.code,
 				name: c.name,
 				aspect: c.aspect,
+				subAspect: c.sub_aspect || '',
 				levelIndicators: (() => {
 					let raw = typeof c.level_indicators === 'string' ? JSON.parse(c.level_indicators) : c.level_indicators;
 					if (Array.isArray(raw)) return raw;
@@ -1566,6 +1574,7 @@ export const actions = {
 		const code = formData.get('code')?.toString().trim().toUpperCase();
 		const name = formData.get('name')?.toString().trim();
 		const aspect = formData.get('aspect')?.toString().trim() || 'Technical Competency';
+		const subAspect = formData.get('subAspect')?.toString().trim() || '';
 		const defaultCourseId = formData.get('defaultCourseId')?.toString().trim() || null;
 
 		const level1 = formData.get('level1')?.toString().trim() || 'Memahami dasar prosedur dan SOP kerja dasar.';
@@ -1589,19 +1598,64 @@ export const actions = {
 		try {
 			await sql`
 				INSERT INTO hris.lms_competency_library (
-					code, name, aspect, level_indicators, default_course_id
+					code, name, aspect, sub_aspect, level_indicators, default_course_id
 				) VALUES (
-					${code}, ${name}, ${aspect}, ${JSON.stringify(levelIndicators)}::jsonb, ${defaultCourseId}
+					${code}, ${name}, ${aspect}, ${subAspect}, ${JSON.stringify(levelIndicators)}::jsonb, ${defaultCourseId}
 				)
 				ON CONFLICT (code) DO UPDATE SET
 					name = EXCLUDED.name,
 					aspect = EXCLUDED.aspect,
+					sub_aspect = EXCLUDED.sub_aspect,
 					level_indicators = EXCLUDED.level_indicators,
 					default_course_id = EXCLUDED.default_course_id;
 			`;
 			return { success: true, message: `Kamus kompetensi [${code}] ${name} berhasil disimpan.` };
 		} catch (e: any) {
 			return { success: false, message: `Gagal menyimpan kompetensi: ${e?.message || 'Error database'}` };
+		}
+	},
+
+	// 10b. Hapus Kamus Kompetensi dengan Proteksi Integritas Data
+	deleteCompetency: async ({ request }) => {
+		const formData = await request.formData();
+		const code = formData.get('code')?.toString().trim();
+		if (!code) return { success: false, message: 'Kode kompetensi tidak valid.' };
+
+		try {
+			// 1. Cek apakah masih digunakan pada Standar Jabatan
+			const jobUsage = await sql`
+				SELECT COUNT(*)::int as count 
+				FROM hris.lms_job_competencies 
+				WHERE competency_code = ${code};
+			`;
+			if (jobUsage[0]?.count > 0) {
+				return { 
+					success: false, 
+					message: `Kompetensi [${code}] tidak dapat dihapus karena masih terikat pada ${jobUsage[0].count} Standar Jabatan.` 
+				};
+			}
+
+			// 2. Cek apakah masih digunakan pada Asesmen Karyawan
+			const evalUsage = await sql`
+				SELECT COUNT(*)::int as count 
+				FROM hris.lms_employee_assessments 
+				WHERE competency_code = ${code};
+			`;
+			if (evalUsage[0]?.count > 0) {
+				return { 
+					success: false, 
+					message: `Kompetensi [${code}] tidak dapat dihapus karena masih terikat pada ${evalUsage[0].count} data Asesmen Karyawan.` 
+				};
+			}
+
+			// 3. Hapus kompetensi
+			await sql`
+				DELETE FROM hris.lms_competency_library 
+				WHERE code = ${code};
+			`;
+			return { success: true, message: `Kompetensi [${code}] berhasil dihapus dari Kamus Kompetensi.` };
+		} catch (e: any) {
+			return { success: false, message: `Gagal menghapus kompetensi: ${e?.message || 'Error database'}` };
 		}
 	},
 
