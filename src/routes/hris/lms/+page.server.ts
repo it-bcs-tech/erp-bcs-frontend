@@ -1243,30 +1243,82 @@ export const actions = {
 
 			let certNumber = '';
 			if (passed) {
-				const certSeq = Math.floor(1000 + Math.random() * 9000);
-				certNumber = `CERT-BCS-2026-${certSeq}`;
-				const qrUrl = `https://academy.bcslabs.tech/verify/${certNumber}`;
-
-				await sql`
-					INSERT INTO hris.lms_certificates (
-						certificate_number, payroll_id, employee_name, course_id, course_title,
-						category, score, issued_at, valid_until, qr_verify_url
-					) VALUES (
-						${certNumber}, ${payrollId}, ${employeeName}, ${courseId}, ${course?.title || 'Training Program'},
-						${course?.category || 'Operations'}, ${score}, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP + INTERVAL '1 year', ${qrUrl}
-					)
-					ON CONFLICT (certificate_number) DO NOTHING;
+				const existingCertRows = await sql`
+					SELECT certificate_number, score, valid_until
+					FROM hris.lms_certificates
+					WHERE course_id = ${courseId}
+					  AND UPPER(TRIM(payroll_id)) = ${payrollId}
+					  AND valid_until > CURRENT_TIMESTAMP
+					ORDER BY issued_at ASC
+					LIMIT 1;
 				`;
 
-				// Jadwalkan Evaluasi Atasan (Level 3 & 4) H+3 Bulan
-				await sql`
-					INSERT INTO hris.lms_evaluations_l3_l4 (
-						course_id, payroll_id, employee_name, supervisor_name, due_date, status
-					) VALUES (
-						${courseId}, ${payrollId}, ${employeeName}, 'Hadi Sucipto (Supervisor Operasional)',
-						CURRENT_DATE + INTERVAL '3 months', 'PENDING'
-					);
-				`;
+				if (existingCertRows.length > 0) {
+					// Gunakan sertifikat aktif yang sudah ada
+					certNumber = existingCertRows[0].certificate_number;
+					if (score > Number(existingCertRows[0].score)) {
+						await sql`
+							UPDATE hris.lms_certificates
+							SET score = ${score}
+							WHERE certificate_number = ${certNumber};
+						`;
+					}
+					await sql`
+						UPDATE hris.lms_enrollments
+						SET 
+							status = 'COMPLETED',
+							progress_percent = 100,
+							completed_at = COALESCE(completed_at, CURRENT_TIMESTAMP),
+							has_certificate = TRUE,
+							certificate_number = ${certNumber},
+							post_test_score = GREATEST(COALESCE(post_test_score, 0), ${score})
+						WHERE course_id = ${courseId} AND UPPER(TRIM(payroll_id)) = ${payrollId};
+					`;
+				} else {
+					const certSeq = Math.floor(1000 + Math.random() * 9000);
+					certNumber = `CERT-BCS-2026-${certSeq}`;
+					const qrUrl = `https://academy.bcslabs.tech/verify/${certNumber}`;
+
+					await sql`
+						INSERT INTO hris.lms_certificates (
+							certificate_number, payroll_id, employee_name, course_id, course_title,
+							category, score, issued_at, valid_until, qr_verify_url
+						) VALUES (
+							${certNumber}, ${payrollId}, ${employeeName}, ${courseId}, ${course?.title || 'Training Program'},
+							${course?.category || 'Operations'}, ${score}, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP + INTERVAL '1 year', ${qrUrl}
+						)
+						ON CONFLICT (certificate_number) DO NOTHING;
+					`;
+
+					// Jadwalkan Evaluasi Atasan (Level 3 & 4) H+3 Bulan jika belum ada
+					const existingL3 = await sql`
+						SELECT id FROM hris.lms_evaluations_l3_l4
+						WHERE course_id = ${courseId} AND UPPER(TRIM(payroll_id)) = ${payrollId} AND status = 'PENDING'
+						LIMIT 1;
+					`;
+					if (!existingL3 || existingL3.length === 0) {
+						await sql`
+							INSERT INTO hris.lms_evaluations_l3_l4 (
+								course_id, payroll_id, employee_name, supervisor_name, due_date, status
+							) VALUES (
+								${courseId}, ${payrollId}, ${employeeName}, 'Hadi Sucipto (Supervisor Operasional)',
+								CURRENT_DATE + INTERVAL '3 months', 'PENDING'
+							);
+						`;
+					}
+
+					await sql`
+						UPDATE hris.lms_enrollments
+						SET 
+							status = 'COMPLETED',
+							progress_percent = 100,
+							completed_at = CURRENT_TIMESTAMP,
+							has_certificate = TRUE,
+							certificate_number = ${certNumber},
+							post_test_score = ${score}
+						WHERE course_id = ${courseId} AND UPPER(TRIM(payroll_id)) = ${payrollId};
+					`;
+				}
 			}
 
 			return {
