@@ -735,8 +735,8 @@
 								type="number"
 								name="amount"
 								bind:value={inputTopupAmount}
-								min="1000"
-								step="1000"
+								min="1"
+								step="any"
 								placeholder="0"
 								class="w-full bg-surface-container-low border border-slate-200 dark:border-slate-800 rounded-xl pl-10 pr-4 py-2.5 text-base font-bold font-mono text-on-surface outline-none focus:ring-2 focus:ring-emerald-500/30"
 								required
@@ -892,9 +892,21 @@
 
 					<!-- Saldo Modal Awal -->
 					<div>
-						<label class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-1.5" for="opening_cash">
-							Modal Kas Awal di Laci (Rp) <span class="text-rose-500">*</span>
-						</label>
+						<div class="flex items-center justify-between mb-1.5">
+							<label class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider" for="opening_cash">
+								Modal Kas Awal di Laci (Rp) <span class="text-rose-500">*</span>
+							</label>
+							{#if lastClosedShift}
+								<button 
+									type="button" 
+									class="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 hover:underline flex items-center gap-1 cursor-pointer"
+									onclick={() => inputOpeningCash = parseFloat(lastClosedShift.actualClosingCash) || 0}
+								>
+									<span class="material-symbols-outlined text-[13px]">sync_alt</span>
+									<span>Sesuai Handover</span>
+								</button>
+							{/if}
+						</div>
 						<div class="relative">
 							<span class="absolute left-4 top-1/2 -translate-y-1/2 text-xs font-bold text-on-surface-variant">Rp</span>
 							<input
@@ -903,7 +915,7 @@
 								name="openingCash"
 								bind:value={inputOpeningCash}
 								min="0"
-								step="1000"
+								step="any"
 								class="w-full bg-surface-container-low border border-slate-200 dark:border-slate-800 rounded-xl pl-10 pr-4 py-2.5 text-sm font-mono font-bold text-on-surface outline-none focus:ring-2 focus:ring-emerald-500/30"
 								required
 							/>
@@ -1012,9 +1024,21 @@
 
 					<!-- Input Fisik Kasir -->
 					<div>
-						<label class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-1.5" for="actual_cash">
-							Hasil Hitung Uang Kas Fisik di Laci (Rp) <span class="text-rose-500">*</span>
-						</label>
+						<div class="flex items-center justify-between mb-1.5">
+							<label class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider" for="actual_cash">
+								Hasil Hitung Uang Kas Fisik di Laci (Rp) <span class="text-rose-500">*</span>
+							</label>
+							{#if activeShift}
+								<button 
+									type="button" 
+									class="text-[11px] font-semibold text-rose-600 dark:text-rose-400 hover:underline flex items-center gap-1 cursor-pointer"
+									onclick={() => inputActualCash = activeShift.expectedClosingCash || 0}
+								>
+									<span class="material-symbols-outlined text-[13px]">sync_alt</span>
+									<span>Isi Sesuai Kas Sistem</span>
+								</button>
+							{/if}
+						</div>
 						<div class="relative">
 							<span class="absolute left-4 top-1/2 -translate-y-1/2 text-xs font-bold text-on-surface-variant">Rp</span>
 							<input
@@ -1023,7 +1047,7 @@
 								name="actualClosingCash"
 								bind:value={inputActualCash}
 								min="0"
-								step="1000"
+								step="any"
 								class="w-full bg-surface-container-low border border-slate-200 dark:border-slate-800 rounded-xl pl-10 pr-4 py-2.5 text-sm font-mono font-bold text-on-surface outline-none focus:ring-2 focus:ring-rose-500/30"
 								required
 							/>

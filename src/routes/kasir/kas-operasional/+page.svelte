@@ -973,8 +973,8 @@
 						type="number" 
 						name="amount" 
 						placeholder="Contoh: 15000000" 
-						min="1000" 
-						step="1000" 
+						min="1" 
+						step="any" 
 						required 
 						class="w-full px-3.5 py-2.5 rounded-xl text-base font-mono font-bold bg-surface-container-low border border-slate-200 dark:border-slate-800 text-on-surface focus:outline-none focus:ring-2 focus:ring-emerald-500/30"
 					/>
@@ -1078,8 +1078,8 @@
 						type="number" 
 						name="amountReceived" 
 						value={selectedRequestToConfirm.amountRequested}
-						min="1000" 
-						step="1000" 
+						min="1" 
+						step="any" 
 						required 
 						class="w-full px-3.5 py-2.5 rounded-xl text-base font-mono font-bold bg-surface-container-low border border-slate-200 dark:border-slate-800 text-emerald-600 dark:text-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/30"
 					/>
@@ -1186,8 +1186,8 @@
 						type="number" 
 						name="amount" 
 						placeholder="Contoh: 5000000" 
-						min="1000" 
-						step="1000" 
+						min="1" 
+						step="any" 
 						required 
 						class="w-full px-3.5 py-2.5 rounded-xl text-base font-mono font-bold bg-surface-container-low border border-slate-200 dark:border-slate-800 text-on-surface focus:outline-none focus:ring-2 focus:ring-emerald-500/30"
 					/>
