@@ -474,6 +474,43 @@
 		};
 	}
 
+	// ══════════════════════════════════════════════════════════════════════════════
+	// MASTER DATA PEDOMAN PENILAIAN LEVEL 4 (STANDAR SPREADSHEET BCS)
+	// ══════════════════════════════════════════════════════════════════════════════
+	interface L4PedomanOption {
+		score: number;
+		category: string;
+		range: string;
+		badgeClass: string;
+	}
+
+	const l4PedomanRules: {
+		increase: L4PedomanOption[];
+		decrease: L4PedomanOption[];
+	} = {
+		increase: [
+			{ score: 1, category: 'Menurun signifikan', range: '0-3 Kejadian', badgeClass: 'bg-rose-500/15 text-rose-600 dark:text-rose-400 border-rose-500/30' },
+			{ score: 2, category: 'Menurun', range: '4-6 Kejadian', badgeClass: 'bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/30' },
+			{ score: 3, category: 'Tidak berubah', range: '7-9 Kejadian', badgeClass: 'bg-slate-500/15 text-slate-600 dark:text-slate-400 border-slate-500/30' },
+			{ score: 4, category: 'Meningkat', range: '10-12 Kejadian', badgeClass: 'bg-teal-500/15 text-teal-600 dark:text-teal-400 border-teal-500/30' },
+			{ score: 5, category: 'Meningkat signifikan', range: '>13 Kejadian', badgeClass: 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30' }
+		],
+		decrease: [
+			{ score: 1, category: 'Meningkat signifikan', range: '>13 Kejadian', badgeClass: 'bg-rose-500/15 text-rose-600 dark:text-rose-400 border-rose-500/30' },
+			{ score: 2, category: 'Meningkat', range: '10-12 Kejadian', badgeClass: 'bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/30' },
+			{ score: 3, category: 'Tidak berubah', range: '7-9 Kejadian', badgeClass: 'bg-slate-500/15 text-slate-600 dark:text-slate-400 border-slate-500/30' },
+			{ score: 4, category: 'Menurun', range: '4-6 Kejadian', badgeClass: 'bg-teal-500/15 text-teal-600 dark:text-teal-400 border-teal-500/30' },
+			{ score: 5, category: 'Menurun signifikan', range: '0-3 Kejadian', badgeClass: 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30' }
+		]
+	};
+
+	function getL4Option(direction: 'increase' | 'decrease', score: number | string | undefined | null): L4PedomanOption | undefined {
+		if (score === undefined || score === null || score === '') return undefined;
+		const num = Number(score);
+		if (isNaN(num) || num < 1 || num > 5) return undefined;
+		return l4PedomanRules[direction]?.find((o) => o.score === num);
+	}
+
 	// Definisi 4 Kategori Skill Level 4 Pre-Test sesuai Master Spreadsheet
 	const preSkillCategoryDefinitions = {
 		'Technical Skill': {
@@ -482,10 +519,10 @@
 			badgeColor: 'bg-blue-500/10 text-blue-600 border-blue-500/20',
 			description: 'Keterampilan operasional & teknis sesuai fungsi jabatan.',
 			metrics: [
-				{ id: 'p1', label: 'Waktu Penyelesaian Pekerjaan Teknis', unit: 'Jam', hint: 'Total waktu penyelesaian per pekerjaan sesuai SOP (dalam 3 bulan sebelum pelatihan).' },
-				{ id: 'p2', label: 'Error / Rework Teknis', unit: 'Kejadian', hint: 'Total kesalahan teknis atau pekerjaan ulang akibat ketidaksesuaian prosedur.' },
-				{ id: 'p3', label: 'Penerapan Materi Teknis', unit: 'Penerapan', hint: 'Frekuensi penerapan keterampilan teknis di lingkungan kerja nyata.' },
-				{ id: 'p4', label: 'Eskalasi Teknis ke Atasan', unit: 'Kasus', hint: 'Masalah teknis yang tidak dapat diselesaikan mandiri sehingga perlu eskalasi.' }
+				{ id: 'p1', label: 'Waktu Penyelesaian Pekerjaan Teknis', unit: 'Jam', direction: 'decrease' as const, hint: 'Total waktu penyelesaian per pekerjaan sesuai SOP (dalam 3 bulan sebelum pelatihan).' },
+				{ id: 'p2', label: 'Error / Rework Teknis', unit: 'Kejadian', direction: 'decrease' as const, hint: 'Total kesalahan teknis atau pekerjaan ulang akibat ketidaksesuaian prosedur.' },
+				{ id: 'p3', label: 'Penerapan Materi Teknis', unit: 'Penerapan', direction: 'increase' as const, hint: 'Frekuensi penerapan keterampilan teknis di lingkungan kerja nyata.' },
+				{ id: 'p4', label: 'Eskalasi Teknis ke Atasan', unit: 'Kasus', direction: 'decrease' as const, hint: 'Masalah teknis yang tidak dapat diselesaikan mandiri sehingga perlu eskalasi.' }
 			]
 		},
 		'Soft Skill': {
@@ -494,10 +531,10 @@
 			badgeColor: 'bg-purple-500/10 text-purple-600 border-purple-500/20',
 			description: 'Komunikasi, kepemimpinan, kerjasama tim, dan inisiatif personal.',
 			metrics: [
-				{ id: 'p1', label: 'Keterlambatan Tugas', unit: 'Kejadian', hint: 'Jumlah keterlambatan penyelesaian tugas dari jadwal yang disepakati.' },
-				{ id: 'p2', label: 'Komplain Internal / Rekan Kerja', unit: 'Komplain', hint: 'Komplain atau keluhan terkait sikap kerja, komunikasi, atau cara kerja tim.' },
-				{ id: 'p3', label: 'Penerapan Soft Skill Kerja', unit: 'Kasus', hint: 'Masalah kerja atau dinamika tim yang berhasil diselesaikan dengan pendekatan positif.' },
-				{ id: 'p4', label: 'Keputusan Kerja Mandiri', unit: 'Keputusan', hint: 'Keputusan kerja mandiri yang tepat tanpa harus menunggu instruksi atasan.' }
+				{ id: 'p1', label: 'Keterlambatan Tugas', unit: 'Kejadian', direction: 'decrease' as const, hint: 'Jumlah keterlambatan penyelesaian tugas dari jadwal yang disepakati.' },
+				{ id: 'p2', label: 'Komplain Internal / Rekan Kerja', unit: 'Komplain', direction: 'decrease' as const, hint: 'Komplain atau keluhan terkait sikap kerja, komunikasi, atau cara kerja tim.' },
+				{ id: 'p3', label: 'Penerapan Soft Skill Kerja', unit: 'Kasus', direction: 'increase' as const, hint: 'Masalah kerja atau dinamika tim yang berhasil diselesaikan dengan pendekatan positif.' },
+				{ id: 'p4', label: 'Keputusan Kerja Mandiri', unit: 'Keputusan', direction: 'increase' as const, hint: 'Keputusan kerja mandiri yang tepat tanpa harus menunggu instruksi atasan.' }
 			]
 		},
 		'Safety': {
@@ -506,10 +543,10 @@
 			badgeColor: 'bg-rose-500/10 text-rose-600 border-rose-500/20',
 			description: 'Kepatuhan K3, kesadaran bahaya, dan perlindungan lingkungan kerja.',
 			metrics: [
-				{ id: 'p1', label: 'Insiden / Kecelakaan Kerja', unit: 'Kejadian', hint: 'Kejadian insiden atau kecelakaan kerja yang melibatkan karyawan.' },
-				{ id: 'p2', label: 'Pelanggaran Prosedur Safety', unit: 'Pelanggaran', hint: 'Pelanggaran terhadap SOP K3/safety atau kelalaian pemakaian APD.' },
-				{ id: 'p3', label: 'Pelaporan Potensi Bahaya (Hazard)', unit: 'Laporan', hint: 'Keaktifan membuat laporan identifikasi bahaya/unsafe condition.' },
-				{ id: 'p4', label: 'Keputusan Safety Mandiri', unit: 'Keputusan', hint: 'Tindakan stop work authority atau inisiatif pencegahan bahaya secara mandiri.' }
+				{ id: 'p1', label: 'Insiden / Kecelakaan Kerja', unit: 'Kejadian', direction: 'decrease' as const, hint: 'Kejadian insiden atau kecelakaan kerja yang melibatkan karyawan.' },
+				{ id: 'p2', label: 'Pelanggaran Prosedur Safety', unit: 'Pelanggaran', direction: 'decrease' as const, hint: 'Pelanggaran terhadap SOP K3/safety atau kelalaian pemakaian APD.' },
+				{ id: 'p3', label: 'Pelaporan Potensi Bahaya (Hazard)', unit: 'Laporan', direction: 'increase' as const, hint: 'Keaktifan membuat laporan identifikasi bahaya/unsafe condition.' },
+				{ id: 'p4', label: 'Keputusan Safety Mandiri', unit: 'Keputusan', direction: 'increase' as const, hint: 'Tindakan stop work authority atau inisiatif pencegahan bahaya secara mandiri.' }
 			]
 		},
 		'Hard Skill': {
@@ -518,10 +555,10 @@
 			badgeColor: 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20',
 			description: 'Kecepatan, akurasi, dan kapabilitas penanganan peralatan/sistem.',
 			metrics: [
-				{ id: 'p1', label: 'Produktivitas Output Kerja', unit: 'Output', hint: 'Jumlah output atau volume pekerjaan yang diselesaikan per periode kerja.' },
-				{ id: 'p2', label: 'Waktu Per Satuan Output', unit: 'Menit', hint: 'Rata-rata waktu yang dihabiskan untuk menyelesaikan satu unit pekerjaan.' },
-				{ id: 'p3', label: 'Kualitas & Akurasi Hasil Kerja', unit: 'Kejadian', hint: 'Frekuensi kesalahan atau cacat hasil kerja yang memerlukan koreksi.' },
-				{ id: 'p4', label: 'Pemecahan Masalah Mandiri', unit: 'Kasus', hint: 'Kasus kendala operasional yang berhasil diselesaikan tanpa bantuan pihak lain.' }
+				{ id: 'p1', label: 'Produktivitas Output Kerja', unit: 'Output', direction: 'increase' as const, hint: 'Jumlah output atau volume pekerjaan yang diselesaikan per periode kerja.' },
+				{ id: 'p2', label: 'Waktu Per Satuan Output', unit: 'Menit', direction: 'decrease' as const, hint: 'Rata-rata waktu yang dihabiskan untuk menyelesaikan satu unit pekerjaan.' },
+				{ id: 'p3', label: 'Kualitas & Akurasi Hasil Kerja', unit: 'Kejadian', direction: 'decrease' as const, hint: 'Frekuensi kesalahan atau cacat hasil kerja yang memerlukan koreksi.' },
+				{ id: 'p4', label: 'Pemecahan Masalah Mandiri', unit: 'Kasus', direction: 'increase' as const, hint: 'Kasus kendala operasional yang berhasil diselesaikan tanpa bantuan pihak lain.' }
 			]
 		}
 	};
@@ -1923,27 +1960,21 @@
 												</span>
 											</td>
 											<td class="p-3">
-												<div class="grid grid-cols-2 gap-1 text-[11px]">
-													<div class="flex items-center gap-1 font-mono">
-														<span class="text-slate-400">P1:</span>
-														<strong class="text-on-surface">{item.l4PreMetrics?.p1 ?? '-'}</strong>
-														<span class="text-[9px] text-slate-400">({catConfig.metrics[0].unit})</span>
-													</div>
-													<div class="flex items-center gap-1 font-mono">
-														<span class="text-slate-400">P2:</span>
-														<strong class="text-on-surface">{item.l4PreMetrics?.p2 ?? '-'}</strong>
-														<span class="text-[9px] text-slate-400">({catConfig.metrics[1].unit})</span>
-													</div>
-													<div class="flex items-center gap-1 font-mono">
-														<span class="text-slate-400">P3:</span>
-														<strong class="text-on-surface">{item.l4PreMetrics?.p3 ?? '-'}</strong>
-														<span class="text-[9px] text-slate-400">({catConfig.metrics[2].unit})</span>
-													</div>
-													<div class="flex items-center gap-1 font-mono">
-														<span class="text-slate-400">P4:</span>
-														<strong class="text-on-surface">{item.l4PreMetrics?.p4 ?? '-'}</strong>
-														<span class="text-[9px] text-slate-400">({catConfig.metrics[3].unit})</span>
-													</div>
+												<div class="grid grid-cols-2 gap-1.5 text-[11px]">
+													{#each catConfig.metrics as m, mIdx}
+														{@const val = item.l4PreMetrics?.[m.id]}
+														{@const opt = getL4Option(m.direction || 'decrease', val)}
+														<div class="flex items-center gap-1 font-mono">
+															<span class="text-slate-400 font-bold">P{mIdx + 1}:</span>
+															{#if opt}
+																<span class="px-1.5 py-0.5 rounded text-[10px] font-bold border {opt.badgeClass}">
+																	★ {opt.score} ({opt.category})
+																</span>
+															{:else}
+																<strong class="text-on-surface">{val !== undefined && val !== '' ? val : '-'}</strong>
+															{/if}
+														</div>
+													{/each}
 												</div>
 											</td>
 											<td class="p-3 text-on-surface-variant font-mono text-[11px]">
@@ -2181,16 +2212,20 @@
 												</span>
 											</td>
 											<td class="p-3">
-												<div class="grid grid-cols-2 gap-1 text-[11px]">
+												<div class="grid grid-cols-2 gap-1.5 text-[11px]">
 													{#each catConfig.metrics as m}
+														{@const dir = m.direction || 'decrease'}
 														{@const pre = item.l4PreMetrics?.[m.id]}
 														{@const post = item.l4PostMetrics?.[m.id]}
+														{@const preOpt = getL4Option(dir, pre)}
+														{@const postOpt = getL4Option(dir, post)}
 														<div class="flex items-center gap-1 font-mono">
-															<span class="text-slate-400">{m.id.toUpperCase()}:</span>
-															<span class="text-slate-400">{pre !== undefined && pre !== '' ? pre : '-'}</span>
+															<span class="text-slate-400 font-bold">{m.id.toUpperCase()}:</span>
+															<span class="text-slate-400">{preOpt ? `★${preOpt.score}` : (pre !== undefined && pre !== '' ? pre : '-')}</span>
 															<span class="text-slate-400 text-[10px]">➔</span>
-															<strong class="text-on-surface">{post !== undefined && post !== '' ? post : '-'}</strong>
-															<span class="text-[9px] text-slate-400">({m.unit})</span>
+															<strong class="{postOpt ? (postOpt.score >= (preOpt?.score || 0) ? 'text-emerald-500' : 'text-rose-500') : 'text-on-surface'}">
+																{postOpt ? `★${postOpt.score} (${postOpt.category})` : (post !== undefined && post !== '' ? post : '-')}
+															</strong>
 														</div>
 													{/each}
 												</div>
@@ -2822,9 +2857,12 @@
 
 					<div class="space-y-3.5">
 						{#each catConfig.metrics as metric, idx}
+							{@const dir = metric.direction || 'decrease'}
 							{@const preVal = selectedL4Eval.l4PreMetrics?.[metric.id]}
 							{@const postVal = l4PostMetrics[metric.id]}
-							<div class="p-3.5 rounded-xl bg-surface border border-slate-200 dark:border-slate-700 space-y-2">
+							{@const preOpt = getL4Option(dir, preVal)}
+							{@const postOpt = getL4Option(dir, postVal)}
+							<div class="p-3.5 rounded-2xl bg-surface border border-slate-200 dark:border-slate-700 space-y-2.5">
 								<div class="flex items-start justify-between gap-2">
 									<div>
 										<h6 class="text-xs font-black text-on-surface">
@@ -2832,57 +2870,91 @@
 										</h6>
 										<p class="text-[10px] text-slate-400 mt-0.5">{metric.hint}</p>
 									</div>
-									<span class="px-1.5 py-0.5 rounded text-[10px] font-mono font-bold bg-surface-container text-slate-400 shrink-0">
-										{metric.unit}
+									<span class="px-2 py-0.5 rounded-full text-[9px] font-bold shrink-0 {dir === 'increase' ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20' : 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20'}">
+										{dir === 'increase' ? 'Target: Meningkat' : 'Target: Menurun'}
 									</span>
 								</div>
 
 								<!-- 2 Kolom Komparasi: Sebelum vs Sesudah -->
 								<div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
 									<!-- Kolom Kiri: Sebelum Pelatihan (Pre-Test) -->
-									<div class="p-2.5 rounded-xl bg-surface-container-low border border-slate-200/60 dark:border-slate-700/60 space-y-1">
+									<div class="p-3 rounded-xl bg-surface-container-low border border-slate-200/60 dark:border-slate-700/60 space-y-1.5">
 										<div class="text-[10px] font-black uppercase tracking-wider text-slate-400 flex items-center justify-between">
 											<span>Sebelum Training (Baseline)</span>
 											<span class="material-symbols-outlined text-xs">history</span>
 										</div>
-										<div class="flex items-baseline gap-1 font-mono">
-											<span class="text-base font-black text-on-surface">
-												{preVal !== undefined && preVal !== '' ? preVal : '-'}
-											</span>
-											<span class="text-xs font-semibold text-slate-400">{metric.unit}</span>
-										</div>
+										{#if preOpt}
+											<div class="flex items-center gap-1.5">
+												<span class="px-2 py-0.5 rounded-lg border font-bold text-[10px] inline-flex items-center gap-1 {preOpt.badgeClass}">
+													<span class="material-symbols-outlined text-xs">star</span>
+													<span>Skor {preOpt.score}: {preOpt.category}</span>
+												</span>
+											</div>
+											<div class="text-[10px] text-slate-500 dark:text-slate-400 font-mono">
+												Frekuensi: <strong>{preOpt.range}</strong>
+											</div>
+										{:else}
+											<div class="text-xs font-mono text-slate-400">
+												{preVal !== undefined && preVal !== '' ? `Skor ${preVal}` : 'Belum Terisi'}
+											</div>
+										{/if}
 									</div>
 
-									<!-- Kolom Kanan: Sesudah 3 Bulan (Post-Test Input) -->
-									<div class="p-2.5 rounded-xl bg-amber-500/5 border border-amber-500/20 space-y-1">
+									<!-- Kolom Kanan: Sesudah 3 Bulan (Post-Test Input Dropdown) -->
+									<div class="p-3 rounded-xl bg-amber-500/5 border border-amber-500/20 space-y-1.5">
 										<div class="text-[10px] font-black uppercase tracking-wider text-amber-600 dark:text-amber-400 flex items-center justify-between">
 											<span>Hasil Sesudah (3 Bulan) *</span>
 											<span class="material-symbols-outlined text-xs">update</span>
 										</div>
-										<div class="relative">
-											<input
-												type="number"
-												step="any"
-												min="0"
-												bind:value={l4PostMetrics[metric.id]}
-												required
-												placeholder="Masukkan angka..."
-												class="w-full px-3 py-1.5 pr-14 rounded-lg bg-surface border border-slate-300 dark:border-slate-600 text-xs font-black text-on-surface font-mono outline-none focus:ring-2 focus:ring-amber-500"
-											/>
-											<span class="absolute right-3 top-2 text-[11px] font-bold text-slate-400 pointer-events-none">
-												{metric.unit}
-											</span>
-										</div>
+										<select
+											bind:value={l4PostMetrics[metric.id]}
+											required
+											class="w-full px-2.5 py-1.5 rounded-xl bg-surface border border-slate-300 dark:border-slate-600 text-xs font-bold text-on-surface outline-none focus:ring-2 focus:ring-amber-500 cursor-pointer"
+										>
+											<option value="" disabled>-- Pilih Skor Pedoman (1–5) --</option>
+											{#each l4PedomanRules[dir] as opt}
+												<option value={opt.score}>
+													[Skor {opt.score}] {opt.category} • ({opt.range})
+												</option>
+											{/each}
+										</select>
+										{#if postOpt}
+											<div class="flex items-center justify-between gap-1 text-[10px] pt-0.5">
+												<span class="px-2 py-0.5 rounded-lg border font-bold text-[10px] inline-flex items-center gap-1 {postOpt.badgeClass}">
+													<span class="material-symbols-outlined text-xs">star</span>
+													<span>Skor {postOpt.score}: {postOpt.category}</span>
+												</span>
+												<span class="text-slate-500 dark:text-slate-400 font-mono text-[10px]">
+													<strong>{postOpt.range}</strong>
+												</span>
+											</div>
+										{/if}
 									</div>
 								</div>
 
 								<!-- Delta Indikator Perubahan -->
-								{#if preVal !== undefined && preVal !== '' && postVal !== '' && !isNaN(Number(postVal)) && !isNaN(Number(preVal))}
+								{#if preOpt && postOpt}
+									{@const diff = postOpt.score - preOpt.score}
+									<div class="flex flex-wrap items-center justify-between gap-1.5 text-[11px] font-semibold pt-1.5 border-t border-slate-100 dark:border-slate-800">
+										<div class="flex items-center gap-1.5">
+											<span class="text-slate-400">Perubahan:</span>
+											<span class="font-mono font-black {diff > 0 ? 'text-emerald-500' : diff < 0 ? 'text-rose-500' : 'text-slate-400'}">
+												{diff > 0 ? `+${diff} Skor` : diff === 0 ? `0 (Stabil)` : `${diff} Skor`}
+											</span>
+											<span class="text-[10px] text-slate-400">
+												({preOpt.category} &rarr; {postOpt.category})
+											</span>
+										</div>
+										<span class="text-[10px] font-black px-2 py-0.5 rounded-full {diff > 0 ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' : diff < 0 ? 'bg-rose-500/10 text-rose-600 dark:text-rose-400' : 'bg-slate-500/10 text-slate-500'}">
+											{diff > 0 ? '▲ Peningkatan Signifikan' : diff < 0 ? '▼ Penurunan' : '■ Tidak Berubah'}
+										</span>
+									</div>
+								{:else if preVal !== undefined && preVal !== '' && postVal !== '' && !isNaN(Number(postVal)) && !isNaN(Number(preVal))}
 									{@const diff = Number(postVal) - Number(preVal)}
 									<div class="flex items-center gap-1.5 text-[11px] font-semibold pt-1 border-t border-slate-100 dark:border-slate-800">
 										<span class="text-slate-400">Perubahan:</span>
 										<span class="font-mono font-black {diff > 0 ? 'text-emerald-500' : diff < 0 ? 'text-blue-500' : 'text-slate-400'}">
-											{diff > 0 ? `+${diff}` : diff} {metric.unit}
+											{diff > 0 ? `+${diff}` : diff} Skor
 										</span>
 										<span class="text-[10px] text-slate-400">
 											(Dari {preVal} menjadi {postVal})
@@ -3050,31 +3122,52 @@
 
 					<div class="grid grid-cols-1 md:grid-cols-2 gap-3.5 pt-1">
 						{#each catConfig.metrics as metric, idx}
-							<div class="p-3 rounded-xl bg-surface border border-slate-200 dark:border-slate-700 space-y-1.5">
+							{@const dir = metric.direction || 'decrease'}
+							{@const selectedOpt = getL4Option(dir, l4PreMetrics[metric.id])}
+							<div class="p-3.5 rounded-2xl bg-surface border border-slate-200 dark:border-slate-700 space-y-2">
 								<div class="flex items-start justify-between gap-1">
 									<label class="text-xs font-bold text-on-surface leading-snug">
 										<span class="text-indigo-600 font-mono mr-1">P{idx + 1}.</span> {metric.label}
 									</label>
-									<span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-surface-container text-slate-400 font-mono shrink-0">
-										{metric.unit}
+									<span class="px-2 py-0.5 rounded-full text-[9px] font-bold shrink-0 {dir === 'increase' ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20' : 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20'}">
+										{dir === 'increase' ? 'Target: Meningkat' : 'Target: Menurun'}
 									</span>
 								</div>
 								<p class="text-[10px] text-slate-400 leading-tight">
 									{metric.hint}
 								</p>
-								<div class="relative pt-1">
-									<input
-										type="number"
-										step="any"
-										min="0"
-										bind:value={l4PreMetrics[metric.id]}
-										required
-										placeholder={`Angka numerik (contoh: 0, 2, 5.5)...`}
-										class="w-full px-3 py-1.5 pr-14 rounded-lg bg-surface-container-low border border-slate-300 dark:border-slate-600 text-xs font-black text-on-surface font-mono outline-none focus:ring-2 focus:ring-indigo-500"
-									/>
-									<span class="absolute right-3 top-2.5 text-[11px] font-bold text-slate-400 pointer-events-none">
-										{metric.unit}
-									</span>
+
+								<!-- Dropdown Skor 1-5 Berdasarkan Pedoman Penilaian -->
+								<div class="space-y-1.5 pt-1">
+									<div class="relative">
+										<select
+											bind:value={l4PreMetrics[metric.id]}
+											required
+											class="w-full px-3 py-2 rounded-xl bg-surface-container-low border border-slate-300 dark:border-slate-600 text-xs font-bold text-on-surface outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
+										>
+											<option value="" disabled>-- Pilih Skor Pedoman (1–5) --</option>
+											{#each l4PedomanRules[dir] as opt}
+												<option value={opt.score}>
+													[Skor {opt.score}] {opt.category} • ({opt.range})
+												</option>
+											{/each}
+										</select>
+									</div>
+
+									<!-- Live Badge Kategori & Rentang Kejadian -->
+									<div class="flex items-center justify-between gap-1.5 pt-0.5 text-[11px] min-h-[22px]">
+										{#if selectedOpt}
+											<span class="px-2 py-0.5 rounded-lg border font-bold text-[10px] inline-flex items-center gap-1 {selectedOpt.badgeClass}">
+												<span class="material-symbols-outlined text-xs">star</span>
+												<span>Skor {selectedOpt.score}: {selectedOpt.category}</span>
+											</span>
+											<span class="text-slate-500 dark:text-slate-400 font-mono text-[10px]">
+												Frekuensi: <strong>{selectedOpt.range}</strong>
+											</span>
+										{:else}
+											<span class="text-[10px] text-slate-400 italic">Pilih skor untuk melihat pedoman frekuensi kejadian</span>
+										{/if}
+									</div>
 								</div>
 							</div>
 						{/each}
