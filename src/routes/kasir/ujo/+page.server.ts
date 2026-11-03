@@ -107,7 +107,8 @@ export const actions: Actions = {
 								total_ujo_amount = total_ujo_amount + ${totalUjoAmount},
 								total_cash_out = total_cash_out + ${totalUjoAmount},
 								expected_closing_cash = expected_closing_cash - ${totalUjoAmount},
-								updated_at = CURRENT_TIMESTAMP
+								updated_at = CURRENT_TIMESTAMP,
+								updated_by = ${user}
 							WHERE id = ${shiftSessionId}
 						`;
 					}

@@ -208,6 +208,7 @@ export const actions: Actions = {
 		const cashierName = (data.get('cashierName') as string)?.trim() || locals?.user?.name || 'Kasir Operasional';
 		const openingCash = parseFloat(data.get('openingCash') as string) || 0;
 		const openingSource = (data.get('openingSource') as string) || 'BRANKAS';
+		const userDisplayName = locals?.user?.name || cashierName || 'Kasir Operasional';
 
 		try {
 			// Cek apakah sudah ada shift yang sedang OPEN
@@ -247,7 +248,8 @@ export const actions: Actions = {
 						opened_at,
 						status,
 						opening_cash,
-						expected_closing_cash
+						expected_closing_cash,
+						created_by
 					) VALUES (
 						${sessionNumber},
 						${shiftName},
@@ -256,7 +258,8 @@ export const actions: Actions = {
 						CURRENT_TIMESTAMP,
 						'OPEN',
 						${openingCash},
-						${openingCash}
+						${openingCash},
+						${userDisplayName}
 					)
 					RETURNING id
 				`;
@@ -273,7 +276,8 @@ export const actions: Actions = {
 							reference_type,
 							description,
 							performed_by,
-							shift_session_id
+							shift_session_id,
+							created_by
 						) VALUES (
 							'OUT',
 							'MODAL_AWAL_SHIFT',
@@ -282,7 +286,8 @@ export const actions: Actions = {
 							'OPEN_SHIFT',
 							${`Penarikan modal awal shift ${shiftName} (${sessionNumber}) dari brankas kasir`},
 							${cashierName},
-							${shiftId}
+							${shiftId},
+							${userDisplayName}
 						)
 					`;
 				}
@@ -301,6 +306,7 @@ export const actions: Actions = {
 		const actualClosingCash = parseFloat(data.get('actualClosingCash') as string) || 0;
 		const handoverTo = (data.get('handoverTo') as string)?.trim() || null;
 		const closingNotes = (data.get('closingNotes') as string)?.trim() || null;
+		const userDisplayName = locals?.user?.name || 'Kasir Operasional';
 
 		if (!shiftId) {
 			return fail(400, { error: 'ID sesi shift tidak valid.' });
@@ -375,7 +381,8 @@ export const actions: Actions = {
 						total_dn_count = ${totalDnCount},
 						handover_to = ${handoverTo},
 						closing_notes = ${closingNotes},
-						updated_at = CURRENT_TIMESTAMP
+						updated_at = CURRENT_TIMESTAMP,
+						updated_by = ${userDisplayName}
 					WHERE id = ${shiftId}
 				`;
 			});
@@ -438,7 +445,8 @@ export const actions: Actions = {
 						reference_type,
 						description,
 						performed_by,
-						shift_session_id
+						shift_session_id,
+						created_by
 					) VALUES (
 						${ledgerDirection},
 						${ledgerCategory},
@@ -447,7 +455,8 @@ export const actions: Actions = {
 						'SHIFT_TOPUP',
 						${defaultDesc},
 						${user},
-						${shiftId}
+						${shiftId},
+						${user}
 					)
 				`;
 
@@ -457,7 +466,8 @@ export const actions: Actions = {
 					SET 
 						total_cash_in = total_cash_in + ${amount},
 						expected_closing_cash = expected_closing_cash + ${amount},
-						updated_at = CURRENT_TIMESTAMP
+						updated_at = CURRENT_TIMESTAMP,
+						updated_by = ${user}
 					WHERE id = ${shiftId}
 				`;
 			});

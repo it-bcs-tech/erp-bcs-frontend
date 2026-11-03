@@ -388,7 +388,8 @@ export const actions: Actions = {
 						reference_type,
 						description,
 						performed_by,
-						shift_session_id
+						shift_session_id,
+						created_by
 					) VALUES (
 						'IN',
 						'DROP_DANA_FINANCE',
@@ -397,7 +398,8 @@ export const actions: Actions = {
 						'FUND_REQUEST',
 						${desc},
 						${user},
-						${shiftSessionId}
+						${shiftSessionId},
+						${user}
 					)
 				`;
 
@@ -407,7 +409,8 @@ export const actions: Actions = {
 						SET 
 							total_cash_in = total_cash_in + ${amountReceived},
 							expected_closing_cash = expected_closing_cash + ${amountReceived},
-							updated_at = CURRENT_TIMESTAMP
+							updated_at = CURRENT_TIMESTAMP,
+							updated_by = ${user}
 						WHERE id = ${shiftSessionId}
 					`;
 				}
@@ -474,7 +477,8 @@ export const actions: Actions = {
 					reference_type,
 					description,
 					performed_by,
-					shift_session_id
+					shift_session_id,
+					created_by
 				) VALUES (
 					'IN',
 					${category},
@@ -483,7 +487,8 @@ export const actions: Actions = {
 					'MANUAL',
 					${description},
 					${user},
-					${shiftSessionId}
+					${shiftSessionId},
+					${user}
 				)
 			`;
 
@@ -493,7 +498,8 @@ export const actions: Actions = {
 					SET 
 						total_cash_in = total_cash_in + ${amount},
 						expected_closing_cash = expected_closing_cash + ${amount},
-						updated_at = CURRENT_TIMESTAMP
+						updated_at = CURRENT_TIMESTAMP,
+						updated_by = ${user}
 					WHERE id = ${shiftSessionId}
 				`;
 			}
@@ -532,7 +538,8 @@ export const actions: Actions = {
 					reference_type,
 					description,
 					performed_by,
-					shift_session_id
+					shift_session_id,
+					created_by
 				) VALUES (
 					'OUT',
 					${category},
@@ -541,7 +548,8 @@ export const actions: Actions = {
 					'MANUAL',
 					${description},
 					${user},
-					${shiftSessionId}
+					${shiftSessionId},
+					${user}
 				)
 			`;
 
@@ -551,7 +559,8 @@ export const actions: Actions = {
 					SET 
 						total_cash_out = total_cash_out + ${amount},
 						expected_closing_cash = expected_closing_cash - ${amount},
-						updated_at = CURRENT_TIMESTAMP
+						updated_at = CURRENT_TIMESTAMP,
+						updated_by = ${user}
 					WHERE id = ${shiftSessionId}
 				`;
 			}
@@ -632,6 +641,7 @@ export const actions: Actions = {
 						status,
 						shift_session_ids,
 						closed_by,
+						created_by,
 						notes
 					) VALUES (
 						${closingNumber},
@@ -653,6 +663,7 @@ export const actions: Actions = {
 						${status},
 						${shiftIds},
 						${user},
+						${user},
 						${notes}
 					)
 					RETURNING id, closing_number, closing_date, expected_closing_cash, actual_closing_cash, cash_difference, status
@@ -664,7 +675,8 @@ export const actions: Actions = {
 				await sql`
 					UPDATE finance.kasir_shift_sessions
 					SET daily_closing_id = ${createdClosing.id},
-					    updated_at = CURRENT_TIMESTAMP
+					    updated_at = CURRENT_TIMESTAMP,
+					    updated_by = ${user}
 					WHERE id = ANY(${shiftIds})
 				`;
 			});

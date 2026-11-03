@@ -130,13 +130,14 @@ export const load: PageServerLoad = async () => {
 };
 
 export const actions: Actions = {
-	submitDN: async ({ request }) => {
+	submitDN: async ({ request, locals }) => {
 		const data = await request.formData();
 		const tripId = data.get('tripId') as string;
 		const noSuratJalan = data.get('noSuratJalan') as string;
 		const tglSuratJalan = data.get('tglSuratJalan') as string;
 		const totalBerat = parseFloat(data.get('totalBerat') as string);
 		const fileUploadUrl = (data.get('fileUploadUrl') as string) || '';
+		const user = locals?.user?.name || 'Kasir Operasional';
 
 		if (!tripId || !noSuratJalan || !tglSuratJalan || isNaN(totalBerat)) {
 			return fail(400, { message: 'Harap lengkapi semua field wajib!' });
@@ -208,7 +209,8 @@ export const actions: Actions = {
 					UPDATE finance.kasir_shift_sessions
 					SET 
 						total_dn_count = total_dn_count + 1,
-						updated_at = CURRENT_TIMESTAMP
+						updated_at = CURRENT_TIMESTAMP,
+						updated_by = ${user}
 					WHERE id = ${shiftSessionId}
 				`;
 			});
@@ -223,13 +225,14 @@ export const actions: Actions = {
 		}
 	},
 
-	submitNgepokDN: async ({ request }) => {
+	submitNgepokDN: async ({ request, locals }) => {
 		const data = await request.formData();
 		const tripId = data.get('tripId') as string;
 		const noSuratJalan = (data.get('noSuratJalan') as string || '').trim();
 		const tglSuratJalan = (data.get('tglSuratJalan') as string || '').trim();
 		const totalBerat = parseFloat(data.get('totalBerat') as string);
 		const fileUploadUrl = (data.get('fileUploadUrl') as string || '').trim();
+		const user = locals?.user?.name || 'Kasir Operasional';
 
 		if (!tripId || !noSuratJalan || !tglSuratJalan || isNaN(totalBerat)) {
 			return fail(400, { message: 'Harap lengkapi semua field wajib (No. SJ, Tanggal, Tonase Riil)!' });
@@ -331,7 +334,8 @@ export const actions: Actions = {
 					UPDATE finance.kasir_shift_sessions
 					SET 
 						total_dn_count = total_dn_count + 1,
-						updated_at = CURRENT_TIMESTAMP
+						updated_at = CURRENT_TIMESTAMP,
+						updated_by = ${user}
 					WHERE id = ${shiftSessionId}
 				`;
 			});
