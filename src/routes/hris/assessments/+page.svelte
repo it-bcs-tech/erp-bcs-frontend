@@ -558,7 +558,7 @@
 				{ id: 'p1', label: 'Produktivitas Output Kerja', unit: 'Output', direction: 'increase' as const, hint: 'Jumlah output atau volume pekerjaan yang diselesaikan per periode kerja.' },
 				{ id: 'p2', label: 'Waktu Per Satuan Output', unit: 'Menit', direction: 'decrease' as const, hint: 'Rata-rata waktu yang dihabiskan untuk menyelesaikan satu unit pekerjaan.' },
 				{ id: 'p3', label: 'Kualitas & Akurasi Hasil Kerja', unit: 'Kejadian', direction: 'decrease' as const, hint: 'Frekuensi kesalahan atau cacat hasil kerja yang memerlukan koreksi.' },
-				{ id: 'p4', label: 'Pemecahan Masalah Mandiri', unit: 'Kasus', direction: 'increase' as const, hint: 'Kasus kendala operasional yang berhasil diselesaikan tanpa bantuan pihak lain.' }
+				{ id: 'p4', label: 'Pemecahan Masalah Teknis', unit: 'Kasus', direction: 'decrease' as const, hint: 'Frekuensi kendala teknis yang memerlukan bantuan atau intervensi atasan/rekan kerja (makin sedikit intervensi = makin mandiri).' }
 			]
 		}
 	};
@@ -2841,124 +2841,125 @@
 					</span>
 				</div>
 
-				<!-- Kartu Komparasi 4 Indikator P1–P4 (Sebelum vs Sesudah) -->
+				<!-- 4 Indikator Metrik P1–P4 (Level 4 Post-Test: Hasil 3 Bulan) -->
 				<div class="space-y-3 p-4 rounded-2xl bg-surface-container-high/60 border border-slate-200/60 dark:border-slate-800/60">
 					<div class="flex items-center justify-between pb-2 border-b border-slate-200/60 dark:border-slate-700/60">
-						<div>
-							<h5 class="text-xs font-black uppercase tracking-wider text-on-surface">
-								Komparasi 4 Indikator Hasil Nyata
-							</h5>
-							<p class="text-[11px] text-slate-400">Bandingkan kondisi baseline sebelum pelatihan vs pencapaian aktual selama 3 bulan terakhir.</p>
+						<div class="flex items-center gap-2">
+							<span class="material-symbols-outlined text-amber-500 text-lg">{catConfig.icon}</span>
+							<div>
+								<h5 class="text-xs font-black uppercase tracking-wider text-on-surface">
+									4 Indikator Hasil Nyata (Post-Test): {catConfig.label}
+								</h5>
+								<p class="text-[11px] text-slate-400">Pencapaian aktual selama 3 bulan terakhir dikomparasikan dengan baseline sebelum pelatihan.</p>
+							</div>
 						</div>
 						<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/15 text-amber-600">
-							Before vs After
+							Post-Test
 						</span>
 					</div>
 
-					<div class="space-y-3.5">
+					<div class="grid grid-cols-1 md:grid-cols-2 gap-3.5 pt-1">
 						{#each catConfig.metrics as metric, idx}
 							{@const dir = metric.direction || 'decrease'}
 							{@const preVal = selectedL4Eval.l4PreMetrics?.[metric.id]}
 							{@const postVal = l4PostMetrics[metric.id]}
 							{@const preOpt = getL4Option(dir, preVal)}
 							{@const postOpt = getL4Option(dir, postVal)}
-							<div class="p-3.5 rounded-2xl bg-surface border border-slate-200 dark:border-slate-700 space-y-2.5">
-								<div class="flex items-start justify-between gap-2">
-									<div>
-										<h6 class="text-xs font-black text-on-surface">
+							<div class="p-3.5 rounded-2xl bg-surface border border-slate-200 dark:border-slate-700 space-y-2.5 flex flex-col justify-between">
+								<div class="space-y-2">
+									<div class="flex items-start justify-between gap-1">
+										<label class="text-xs font-bold text-on-surface leading-snug">
 											<span class="text-amber-500 font-mono mr-1">P{idx + 1}.</span> {metric.label}
-										</h6>
-										<p class="text-[10px] text-slate-400 mt-0.5">{metric.hint}</p>
+										</label>
+										<span class="px-2 py-0.5 rounded-full text-[9px] font-bold shrink-0 {dir === 'increase' ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20' : 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20'}">
+											{dir === 'increase' ? 'Target: Meningkat' : 'Target: Menurun'}
+										</span>
 									</div>
-									<span class="px-2 py-0.5 rounded-full text-[9px] font-bold shrink-0 {dir === 'increase' ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20' : 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20'}">
-										{dir === 'increase' ? 'Target: Meningkat' : 'Target: Menurun'}
-									</span>
-								</div>
+									<p class="text-[10px] text-slate-400 leading-tight">
+										{metric.hint}
+									</p>
 
-								<!-- 2 Kolom Komparasi: Sebelum vs Sesudah -->
-								<div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
-									<!-- Kolom Kiri: Sebelum Pelatihan (Pre-Test) -->
-									<div class="p-3 rounded-xl bg-surface-container-low border border-slate-200/60 dark:border-slate-700/60 space-y-1.5">
-										<div class="text-[10px] font-black uppercase tracking-wider text-slate-400 flex items-center justify-between">
-											<span>Sebelum Training (Baseline)</span>
+									<!-- Referensi Ringkas Baseline Pre-Test -->
+									<div class="p-2 rounded-xl bg-surface-container-low border border-slate-200/60 dark:border-slate-700/60 flex items-center justify-between text-[11px]">
+										<span class="text-[10px] font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1">
 											<span class="material-symbols-outlined text-xs">history</span>
-										</div>
+											<span>Baseline Pre-Test:</span>
+										</span>
 										{#if preOpt}
-											<div class="flex items-center gap-1.5">
-												<span class="px-2 py-0.5 rounded-lg border font-bold text-[10px] inline-flex items-center gap-1 {preOpt.badgeClass}">
-													<span class="material-symbols-outlined text-xs">star</span>
-													<span>Skor {preOpt.score}: {preOpt.category}</span>
-												</span>
-											</div>
-											<div class="text-[10px] text-slate-500 dark:text-slate-400 font-mono">
-												Frekuensi: <strong>{preOpt.range}</strong>
-											</div>
+											<span class="px-2 py-0.5 rounded-lg border font-bold text-[10px] inline-flex items-center gap-1 {preOpt.badgeClass}">
+												<span class="material-symbols-outlined text-xs">star</span>
+												<span>Skor {preOpt.score}: {preOpt.category}</span>
+												<span class="text-slate-500 dark:text-slate-400 font-mono text-[9px]">({preOpt.range})</span>
+											</span>
 										{:else}
-											<div class="text-xs font-mono text-slate-400">
-												{preVal !== undefined && preVal !== '' ? `Skor ${preVal}` : 'Belum Terisi'}
-											</div>
+											<span class="text-[10px] font-mono text-slate-400">
+												{preVal !== undefined && preVal !== '' ? `Skor ${preVal}` : 'Belum Diisi'}
+											</span>
 										{/if}
 									</div>
 
-									<!-- Kolom Kanan: Sesudah 3 Bulan (Post-Test Input Dropdown) -->
-									<div class="p-3 rounded-xl bg-amber-500/5 border border-amber-500/20 space-y-1.5">
-										<div class="text-[10px] font-black uppercase tracking-wider text-amber-600 dark:text-amber-400 flex items-center justify-between">
-											<span>Hasil Sesudah (3 Bulan) *</span>
-											<span class="material-symbols-outlined text-xs">update</span>
+									<!-- Dropdown Skor 1-5 Berdasarkan Pedoman Penilaian (Post-Test) -->
+									<div class="space-y-1.5 pt-0.5">
+										<div class="flex items-center justify-between text-[10px] font-bold uppercase tracking-wider text-amber-600 dark:text-amber-400">
+											<span class="flex items-center gap-1">
+												<span class="material-symbols-outlined text-xs">update</span>
+												<span>Hasil Sesudah (3 Bulan) *</span>
+											</span>
 										</div>
-										<select
-											bind:value={l4PostMetrics[metric.id]}
-											required
-											class="w-full px-2.5 py-1.5 rounded-xl bg-surface border border-slate-300 dark:border-slate-600 text-xs font-bold text-on-surface outline-none focus:ring-2 focus:ring-amber-500 cursor-pointer"
-										>
-											<option value="" disabled>-- Pilih Skor Pedoman (1–5) --</option>
-											{#each l4PedomanRules[dir] as opt}
-												<option value={opt.score}>
-													[Skor {opt.score}] {opt.category} • ({opt.range})
-												</option>
-											{/each}
-										</select>
-										{#if postOpt}
-											<div class="flex items-center justify-between gap-1 text-[10px] pt-0.5">
+										<div class="relative">
+											<select
+												bind:value={l4PostMetrics[metric.id]}
+												required
+												class="w-full px-3 py-2 rounded-xl bg-surface-container-low border border-slate-300 dark:border-slate-600 text-xs font-bold text-on-surface outline-none focus:ring-2 focus:ring-amber-500 cursor-pointer"
+											>
+												<option value="" disabled>-- Pilih Skor Pedoman (1–5) --</option>
+												{#each l4PedomanRules[dir] as opt}
+													<option value={opt.score}>
+														[Skor {opt.score}] {opt.category} • ({opt.range})
+													</option>
+												{/each}
+											</select>
+										</div>
+
+										<!-- Live Badge Kategori & Rentang Kejadian -->
+										<div class="flex items-center justify-between gap-1.5 pt-0.5 text-[11px] min-h-[22px]">
+											{#if postOpt}
 												<span class="px-2 py-0.5 rounded-lg border font-bold text-[10px] inline-flex items-center gap-1 {postOpt.badgeClass}">
 													<span class="material-symbols-outlined text-xs">star</span>
 													<span>Skor {postOpt.score}: {postOpt.category}</span>
 												</span>
 												<span class="text-slate-500 dark:text-slate-400 font-mono text-[10px]">
-													<strong>{postOpt.range}</strong>
+													Frekuensi: <strong>{postOpt.range}</strong>
 												</span>
-											</div>
-										{/if}
+											{:else}
+												<span class="text-[10px] text-slate-400 italic">Pilih skor untuk melihat pedoman frekuensi kejadian</span>
+											{/if}
+										</div>
 									</div>
 								</div>
 
 								<!-- Delta Indikator Perubahan -->
 								{#if preOpt && postOpt}
 									{@const diff = postOpt.score - preOpt.score}
-									<div class="flex flex-wrap items-center justify-between gap-1.5 text-[11px] font-semibold pt-1.5 border-t border-slate-100 dark:border-slate-800">
-										<div class="flex items-center gap-1.5">
-											<span class="text-slate-400">Perubahan:</span>
+									<div class="flex items-center justify-between gap-1 text-[10px] font-semibold pt-1.5 border-t border-slate-100 dark:border-slate-800">
+										<div class="flex items-center gap-1">
+											<span class="text-slate-400">Dampak:</span>
 											<span class="font-mono font-black {diff > 0 ? 'text-emerald-500' : diff < 0 ? 'text-rose-500' : 'text-slate-400'}">
-												{diff > 0 ? `+${diff} Skor` : diff === 0 ? `0 (Stabil)` : `${diff} Skor`}
+												{diff > 0 ? `+${diff}` : diff} Skor
 											</span>
-											<span class="text-[10px] text-slate-400">
+											<span class="text-[9px] text-slate-400">
 												({preOpt.category} &rarr; {postOpt.category})
 											</span>
 										</div>
-										<span class="text-[10px] font-black px-2 py-0.5 rounded-full {diff > 0 ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' : diff < 0 ? 'bg-rose-500/10 text-rose-600 dark:text-rose-400' : 'bg-slate-500/10 text-slate-500'}">
-											{diff > 0 ? '▲ Peningkatan Signifikan' : diff < 0 ? '▼ Penurunan' : '■ Tidak Berubah'}
+										<span class="text-[9px] font-black px-1.5 py-0.5 rounded-full {diff > 0 ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' : diff < 0 ? 'bg-rose-500/10 text-rose-600 dark:text-rose-400' : 'bg-slate-500/10 text-slate-500'}">
+											{diff > 0 ? '▲ Peningkatan' : diff < 0 ? '▼ Penurunan' : '■ Stabil'}
 										</span>
 									</div>
 								{:else if preVal !== undefined && preVal !== '' && postVal !== '' && !isNaN(Number(postVal)) && !isNaN(Number(preVal))}
 									{@const diff = Number(postVal) - Number(preVal)}
-									<div class="flex items-center gap-1.5 text-[11px] font-semibold pt-1 border-t border-slate-100 dark:border-slate-800">
-										<span class="text-slate-400">Perubahan:</span>
-										<span class="font-mono font-black {diff > 0 ? 'text-emerald-500' : diff < 0 ? 'text-blue-500' : 'text-slate-400'}">
-											{diff > 0 ? `+${diff}` : diff} Skor
-										</span>
-										<span class="text-[10px] text-slate-400">
-											(Dari {preVal} menjadi {postVal})
-										</span>
+									<div class="flex items-center justify-between gap-1 text-[10px] font-semibold pt-1 border-t border-slate-100 dark:border-slate-800">
+										<span class="text-slate-400">Perubahan: {diff > 0 ? `+${diff}` : diff} Skor</span>
+										<span class="text-[9px] text-slate-400">({preVal} &rarr; {postVal})</span>
 									</div>
 								{/if}
 							</div>
