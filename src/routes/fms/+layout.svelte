@@ -2,6 +2,7 @@
 	import { page } from '$app/stores';
 	import FaridaChat from '$lib/components/FaridaChat.svelte';
 	import { authUser, hasMenuAccess } from '$lib/stores/auth';
+	import { isSidebarExpanded } from '$lib/stores/sidebar';
 
 	let { children } = $props();
 
@@ -27,87 +28,92 @@
 
 <div class="flex h-[calc(100vh-64px)] overflow-hidden bg-surface relative">
 	<!-- SideNavBar (Flat Standard FMS) -->
-	<aside class="w-64 flex-shrink-0 h-full bg-surface-container-low flex flex-col p-4 gap-2 z-40 relative overflow-y-auto">
+	<aside class="{$isSidebarExpanded ? 'w-64' : 'w-20'} transition-all duration-300 flex-shrink-0 h-full bg-surface-container-low flex flex-col p-4 gap-2 z-40 relative overflow-y-auto overflow-x-hidden">
 		<div class="absolute inset-y-0 right-0 w-[1px] bg-gradient-to-b from-transparent via-surface-variant/30 to-transparent"></div>
 		
 		<!-- Branding Header -->
-		<div class="px-4 py-6 mb-2">
-			<div class="flex items-center gap-3">
-				<div class="w-10 h-10 bg-blue-100 dark:bg-blue-900/50 rounded-xl flex items-center justify-center text-blue-600 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
-					<span class="material-symbols-outlined text-[20px]">local_shipping</span>
-				</div>
-				<div>
+		<div class="px-2 py-6 mb-2 flex items-center {$isSidebarExpanded ? 'gap-3' : 'justify-center'}">
+			<div class="w-10 h-10 flex-shrink-0 bg-blue-100 dark:bg-blue-900/50 rounded-xl flex items-center justify-center text-blue-600 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
+				<span class="material-symbols-outlined text-[20px]">local_shipping</span>
+			</div>
+			{#if $isSidebarExpanded}
+				<div class="whitespace-nowrap transition-opacity duration-300">
 					<p class="text-sm font-black text-blue-600 dark:text-blue-400 uppercase tracking-wider">Fleet Management</p>
 					<p class="text-[10px] text-on-surface-variant font-medium uppercase">System (FMS)</p>
 				</div>
-			</div>
+			{/if}
 		</div>
 
-		<nav class="flex-1 space-y-1">
+		<nav class="flex-1 flex flex-col space-y-1">
 			{#if hasMenuAccess(user, 'fms', 'fms.overview')}
 			<a
-				class="flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200 hover:translate-x-1 {isActive('/fms') && $page.url.pathname === '/fms'
+				class="flex items-center {$isSidebarExpanded ? 'justify-start px-4' : 'justify-center'} gap-3 py-2.5 rounded-xl transition-all duration-200 hover:translate-x-1 {isActive('/fms') && $page.url.pathname === '/fms'
 					? 'bg-surface-container-highest text-blue-600 dark:text-blue-400 font-bold'
 					: 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container font-medium text-sm'}"
 				href="/fms"
+				title="Dashboard"
 			>
 				<span class="material-symbols-outlined text-[20px]">dashboard</span>
-				<span class="text-sm">Dashboard</span>
+				{#if $isSidebarExpanded}<span class="text-sm whitespace-nowrap">Dashboard</span>{/if}
 			</a>
 			{/if}
 
 			<!-- Section: Main & Fleet Units -->
 			{#if hasMenuAccess(user, 'fms', 'fms.vehicles') || hasMenuAccess(user, 'fms', 'fms.drivers') || hasMenuAccess(user, 'fms', 'fms.trips') || hasMenuAccess(user, 'fms', 'fms.maintenance')}
-			<div class="pt-3 pb-1 px-4">
-				<p class="text-[9px] font-black text-on-surface-variant/50 uppercase tracking-[0.2em]">Fleet & Units</p>
+			<div class="pt-3 pb-1 {$isSidebarExpanded ? 'px-4' : 'px-0 text-center'}">
+				<p class="text-[9px] font-black text-on-surface-variant/50 uppercase tracking-[0.2em]">{$isSidebarExpanded ? 'Fleet & Units' : '...'}</p>
 			</div>
 			{/if}
 
 			{#if hasMenuAccess(user, 'fms', 'fms.vehicles')}
 			<a
-				class="flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200 hover:translate-x-1 {isActive('/fms/vehicles')
+				class="flex items-center {$isSidebarExpanded ? 'justify-start px-4' : 'justify-center'} gap-3 py-2.5 rounded-xl transition-all duration-200 hover:translate-x-1 {isActive('/fms/vehicles')
 					? 'bg-surface-container-highest text-blue-600 dark:text-blue-400 font-bold'
 					: 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container font-medium text-sm'}"
 				href="/fms/vehicles"
+				title="Vehicles & Trucks"
 			>
 				<span class="material-symbols-outlined text-[20px]">local_shipping</span>
-				<span class="text-sm">Vehicles & Trucks</span>
+				{#if $isSidebarExpanded}<span class="text-sm whitespace-nowrap">Vehicles & Trucks</span>{/if}
 			</a>
 			{/if}
 
 			{#if hasMenuAccess(user, 'fms', 'fms.drivers')}
 			<a
-				class="flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200 hover:translate-x-1 {isActive('/fms/drivers')
+				class="flex items-center {$isSidebarExpanded ? 'justify-start px-4' : 'justify-center'} gap-3 py-2.5 rounded-xl transition-all duration-200 hover:translate-x-1 {isActive('/fms/drivers')
 					? 'bg-surface-container-highest text-blue-600 dark:text-blue-400 font-bold'
 					: 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container font-medium text-sm'}"
 				href="/fms/drivers"
+				title="Drivers & SIM"
 			>
 				<span class="material-symbols-outlined text-[20px]">badge</span>
-				<span class="text-sm">Drivers & SIM</span>
+				{#if $isSidebarExpanded}<span class="text-sm whitespace-nowrap">Drivers & SIM</span>{/if}
 			</a>
 			{/if}
 
 			{#if hasMenuAccess(user, 'fms', 'fms.trips')}
 			<a
-				class="flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200 hover:translate-x-1 {isActive('/fms/trips')
+				class="flex items-center {$isSidebarExpanded ? 'justify-start px-4' : 'justify-center'} gap-3 py-2.5 rounded-xl transition-all duration-200 hover:translate-x-1 {isActive('/fms/trips')
 					? 'bg-surface-container-highest text-blue-600 dark:text-blue-400 font-bold'
 					: 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container font-medium text-sm'}"
 				href="/fms/trips"
+				title="Trips & Routes"
 			>
 				<span class="material-symbols-outlined text-[20px]">route</span>
-				<span class="text-sm">Trips & Routes</span>
+				{#if $isSidebarExpanded}<span class="text-sm whitespace-nowrap">Trips & Routes</span>{/if}
 			</a>
 			{/if}
 
 			{#if hasMenuAccess(user, 'fms', 'fms.maintenance')}
 			<a
-				class="flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200 hover:translate-x-1 {isActive('/fms/maintenance')
+				class="flex items-center {$isSidebarExpanded ? 'justify-start px-4' : 'justify-center'} gap-3 py-2.5 rounded-xl transition-all duration-200 hover:translate-x-1 {isActive('/fms/maintenance')
 					? 'bg-surface-container-highest text-blue-600 dark:text-blue-400 font-bold'
 					: 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container font-medium text-sm'}"
 				href="/fms/maintenance"
+				title="Maintenance"
 			>
 				<span class="material-symbols-outlined text-[20px]">build</span>
-				<span class="text-sm">Maintenance</span>
+				{#if $isSidebarExpanded}<span class="text-sm whitespace-nowrap">Maintenance</span>{/if}
 			</a>
 			{/if}
 
@@ -115,101 +121,122 @@
 
 			<!-- Section: Operations & Assets -->
 			{#if hasMenuAccess(user, 'fms', 'fms.fuel') || hasMenuAccess(user, 'fms', 'fms.documents') || hasMenuAccess(user, 'fms', 'fms.incidents') || hasMenuAccess(user, 'fms', 'fms.reports')}
-			<div class="pt-3 pb-1 px-4">
-				<p class="text-[9px] font-black text-on-surface-variant/50 uppercase tracking-[0.2em]">Operations & Assets</p>
+			<div class="pt-3 pb-1 {$isSidebarExpanded ? 'px-4' : 'px-0 text-center'}">
+				<p class="text-[9px] font-black text-on-surface-variant/50 uppercase tracking-[0.2em]">{$isSidebarExpanded ? 'Operations & Assets' : '...'}</p>
 			</div>
 			{/if}
 
 			{#if hasMenuAccess(user, 'fms', 'fms.fuel')}
 			<a
-				class="flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200 hover:translate-x-1 {isActive('/fms/fuel')
+				class="flex items-center {$isSidebarExpanded ? 'justify-start px-4' : 'justify-center'} gap-3 py-2.5 rounded-xl transition-all duration-200 hover:translate-x-1 {isActive('/fms/fuel')
 					? 'bg-surface-container-highest text-blue-600 dark:text-blue-400 font-bold'
 					: 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container font-medium text-sm'}"
 				href="/fms/fuel"
+				title="Fuel Management"
 			>
 				<span class="material-symbols-outlined text-[20px]">local_gas_station</span>
-				<span class="text-sm">Fuel Management</span>
+				{#if $isSidebarExpanded}<span class="text-sm whitespace-nowrap">Fuel Management</span>{/if}
 			</a>
 			{/if}
 
 			{#if hasMenuAccess(user, 'fms', 'fms.documents')}
 			<a
-				class="flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200 hover:translate-x-1 {isActive('/fms/documents')
+				class="flex items-center {$isSidebarExpanded ? 'justify-start px-4' : 'justify-center'} gap-3 py-2.5 rounded-xl transition-all duration-200 hover:translate-x-1 {isActive('/fms/documents')
 					? 'bg-surface-container-highest text-blue-600 dark:text-blue-400 font-bold'
 					: 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container font-medium text-sm'}"
 				href="/fms/documents"
+				title="Fleet Documents"
 			>
 				<span class="material-symbols-outlined text-[20px]">folder_open</span>
-				<span class="text-sm">Fleet Documents</span>
+				{#if $isSidebarExpanded}<span class="text-sm whitespace-nowrap">Fleet Documents</span>{/if}
 			</a>
 			{/if}
 
 			{#if hasMenuAccess(user, 'fms', 'fms.incidents')}
 			<a
-				class="flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200 hover:translate-x-1 {isActive('/fms/incidents')
+				class="flex items-center {$isSidebarExpanded ? 'justify-start px-4' : 'justify-center'} gap-3 py-2.5 rounded-xl transition-all duration-200 hover:translate-x-1 {isActive('/fms/incidents')
 					? 'bg-surface-container-highest text-blue-600 dark:text-blue-400 font-bold'
 					: 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container font-medium text-sm'}"
 				href="/fms/incidents"
+				title="Incident Logs"
 			>
 				<span class="material-symbols-outlined text-[20px]">report_problem</span>
-				<span class="text-sm">Incident Logs</span>
+				{#if $isSidebarExpanded}<span class="text-sm whitespace-nowrap">Incident Logs</span>{/if}
 			</a>
 			{/if}
 
 			{#if hasMenuAccess(user, 'fms', 'fms.reports')}
 			<a
-				class="flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200 hover:translate-x-1 {isActive('/fms/reports')
+				class="flex items-center {$isSidebarExpanded ? 'justify-start px-4' : 'justify-center'} gap-3 py-2.5 rounded-xl transition-all duration-200 hover:translate-x-1 {isActive('/fms/reports')
 					? 'bg-surface-container-highest text-blue-600 dark:text-blue-400 font-bold'
 					: 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container font-medium text-sm'}"
 				href="/fms/reports"
+				title="Fleet Reports"
 			>
 				<span class="material-symbols-outlined text-[20px]">bar_chart</span>
-				<span class="text-sm">Fleet Reports</span>
+				{#if $isSidebarExpanded}<span class="text-sm whitespace-nowrap">Fleet Reports</span>{/if}
 			</a>
 			{/if}
 
 			<!-- Section: Tracking & Telematics -->
 			{#if hasMenuAccess(user, 'fms', 'fms.live-map') || hasMenuAccess(user, 'fms', 'fms.route-history') || hasMenuAccess(user, 'fms', 'fms.rest-area')}
-			<div class="pt-3 pb-1 px-4">
-				<p class="text-[9px] font-black text-on-surface-variant/50 uppercase tracking-[0.2em]">Tracking & Telematics</p>
+			<div class="pt-3 pb-1 {$isSidebarExpanded ? 'px-4' : 'px-0 text-center'}">
+				<p class="text-[9px] font-black text-on-surface-variant/50 uppercase tracking-[0.2em]">{$isSidebarExpanded ? 'Tracking & Telematics' : '...'}</p>
 			</div>
 			{/if}
 
 			{#if hasMenuAccess(user, 'fms', 'fms.live-map')}
 			<a
-				class="flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200 hover:translate-x-1 {isActive('/fms/live-map')
+				class="flex items-center {$isSidebarExpanded ? 'justify-start px-4' : 'justify-center'} gap-3 py-2.5 rounded-xl transition-all duration-200 hover:translate-x-1 {isActive('/fms/live-map')
 					? 'bg-surface-container-highest text-blue-600 dark:text-blue-400 font-bold'
 					: 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container font-medium text-sm'}"
 				href="/fms/live-map"
+				title="Live GPS Map"
 			>
 				<span class="material-symbols-outlined text-[20px]">map</span>
-				<span class="text-sm">Live GPS Map</span>
+				{#if $isSidebarExpanded}<span class="text-sm whitespace-nowrap">Live GPS Map</span>{/if}
 			</a>
 			{/if}
 
 			{#if hasMenuAccess(user, 'fms', 'fms.route-history')}
 			<a
-				class="flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200 hover:translate-x-1 {isActive('/fms/route-history')
+				class="flex items-center {$isSidebarExpanded ? 'justify-start px-4' : 'justify-center'} gap-3 py-2.5 rounded-xl transition-all duration-200 hover:translate-x-1 {isActive('/fms/route-history')
 					? 'bg-surface-container-highest text-blue-600 dark:text-blue-400 font-bold'
 					: 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container font-medium text-sm'}"
 				href="/fms/route-history"
+				title="Route Playback"
 			>
 				<span class="material-symbols-outlined text-[20px]">history</span>
-				<span class="text-sm">Route Playback</span>
+				{#if $isSidebarExpanded}<span class="text-sm whitespace-nowrap">Route Playback</span>{/if}
 			</a>
 			{/if}
 
 			{#if hasMenuAccess(user, 'fms', 'fms.rest-area')}
 			<a
-				class="flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200 hover:translate-x-1 {isActive('/fms/rest-area')
+				class="flex items-center {$isSidebarExpanded ? 'justify-start px-4' : 'justify-center'} gap-3 py-2.5 rounded-xl transition-all duration-200 hover:translate-x-1 {isActive('/fms/rest-area')
 					? 'bg-surface-container-highest text-blue-600 dark:text-blue-400 font-bold'
 					: 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container font-medium text-sm'}"
 				href="/fms/rest-area"
+				title="Rest Areas & Geofence"
 			>
 				<span class="material-symbols-outlined text-[20px]">local_cafe</span>
-				<span class="text-sm">Rest Areas & Geofence</span>
+				{#if $isSidebarExpanded}<span class="text-sm whitespace-nowrap">Rest Areas & Geofence</span>{/if}
 			</a>
 			{/if}
+
+			<!-- Spacer -->
+			<div class="flex-1"></div>
+
+			<!-- Toggle Button -->
+			<button 
+				type="button"
+				onclick={() => isSidebarExpanded.toggle()} 
+				class="mt-4 flex items-center {$isSidebarExpanded ? 'justify-start px-4' : 'justify-center'} gap-3 py-2.5 rounded-xl text-on-surface-variant hover:bg-surface-container transition-all duration-200 hover:text-on-surface cursor-pointer"
+				title={$isSidebarExpanded ? 'Collapse Menu' : 'Expand Menu'}
+			>
+				<span class="material-symbols-outlined transition-transform duration-300 {$isSidebarExpanded ? '' : 'rotate-180'}">keyboard_double_arrow_left</span>
+				{#if $isSidebarExpanded}<span class="font-medium text-xs whitespace-nowrap">Collapse Sidebar</span>{/if}
+			</button>
 		</nav>
 	</aside>
 

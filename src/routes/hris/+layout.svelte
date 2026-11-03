@@ -2,6 +2,7 @@
 	import { page } from '$app/stores';
 	import Chatbot from '$lib/components/Chatbot.svelte';
 	import { authUser, hasMenuAccess } from '$lib/stores/auth';
+	import { isSidebarExpanded } from '$lib/stores/sidebar';
 
 	let { children } = $props();
 
@@ -33,206 +34,233 @@
 
 <div class="flex h-[calc(100vh-64px)] overflow-hidden bg-surface relative">
 	<!-- SideNavBar (Flat Standard HRIS) -->
-	<aside class="w-64 flex-shrink-0 h-full bg-surface-container-low flex flex-col p-4 gap-2 z-40 relative overflow-y-auto">
+	<aside class="{$isSidebarExpanded ? 'w-64' : 'w-20'} transition-all duration-300 flex-shrink-0 h-full bg-surface-container-low flex flex-col p-4 gap-2 z-40 relative overflow-y-auto overflow-x-hidden">
 		<div class="absolute inset-y-0 right-0 w-[1px] bg-gradient-to-b from-transparent via-surface-variant/30 to-transparent"></div>
 		
 		<!-- Branding Header -->
-		<div class="px-4 py-6 mb-2">
-			<div class="flex items-center gap-3">
-				<div class="w-10 h-10 bg-primary-container/80 rounded-xl flex items-center justify-center text-primary border border-primary/20">
-					<span class="material-symbols-outlined text-[20px]">group</span>
-				</div>
-				<div>
+		<div class="px-2 py-6 mb-2 flex items-center {$isSidebarExpanded ? 'gap-3' : 'justify-center'}">
+			<div class="w-10 h-10 flex-shrink-0 bg-primary-container/80 rounded-xl flex items-center justify-center text-primary border border-primary/20">
+				<span class="material-symbols-outlined text-[20px]">group</span>
+			</div>
+			{#if $isSidebarExpanded}
+				<div class="whitespace-nowrap transition-opacity duration-300">
 					<p class="text-sm font-black text-primary uppercase tracking-wider">Human Capital</p>
 					<p class="text-[10px] text-on-surface-variant font-medium uppercase">Management System</p>
 				</div>
-			</div>
+			{/if}
 		</div>
 
-		<nav class="flex-1 space-y-1">
+		<nav class="flex-1 flex flex-col space-y-1">
 			{#if hasMenuAccess(user, 'hris', 'hris.overview')}
 			<a
-				class="flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200 hover:translate-x-1 {isActive('/hris') && $page.url.pathname === '/hris'
+				class="flex items-center {$isSidebarExpanded ? 'justify-start px-4' : 'justify-center'} gap-3 py-2.5 rounded-xl transition-all duration-200 hover:translate-x-1 {isActive('/hris') && $page.url.pathname === '/hris'
 					? 'bg-surface-container-highest text-primary font-bold'
 					: 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container font-medium text-sm'}"
 				href="/hris"
+				title="Dashboard"
 			>
 				<span class="material-symbols-outlined text-[20px]">dashboard</span>
-				<span class="text-sm">Dashboard</span>
+				{#if $isSidebarExpanded}<span class="text-sm whitespace-nowrap">Dashboard</span>{/if}
 			</a>
 			{/if}
 
 			<!-- Section: Personnel & Careers -->
 			{#if hasMenuAccess(user, 'hris', 'hris.employees') || hasMenuAccess(user, 'hris', 'hris.recruitment') || hasMenuAccess(user, 'hris', 'hris.lifecycle')}
-			<div class="pt-3 pb-1 px-4">
-				<p class="text-[9px] font-black text-on-surface-variant/50 uppercase tracking-[0.2em]">Personnel & Careers</p>
+			<div class="pt-3 pb-1 {$isSidebarExpanded ? 'px-4' : 'px-0 text-center'}">
+				<p class="text-[9px] font-black text-on-surface-variant/50 uppercase tracking-[0.2em]">{$isSidebarExpanded ? 'Personnel & Careers' : '...'}</p>
 			</div>
 			{/if}
 
 			{#if hasMenuAccess(user, 'hris', 'hris.employees')}
 			<a
-				class="flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200 hover:translate-x-1 {isActive('/hris/employees')
+				class="flex items-center {$isSidebarExpanded ? 'justify-start px-4' : 'justify-center'} gap-3 py-2.5 rounded-xl transition-all duration-200 hover:translate-x-1 {isActive('/hris/employees')
 					? 'bg-surface-container-highest text-primary font-bold'
 					: 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container font-medium text-sm'}"
 				href="/hris/employees"
+				title="Employees"
 			>
 				<span class="material-symbols-outlined text-[20px]">badge</span>
-				<span class="text-sm">Employees</span>
+				{#if $isSidebarExpanded}<span class="text-sm whitespace-nowrap">Employees</span>{/if}
 			</a>
 			{/if}
 
 			{#if hasMenuAccess(user, 'hris', 'hris.recruitment')}
 			<a
-				class="flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200 hover:translate-x-1 {isActive('/hris/recruitment')
+				class="flex items-center {$isSidebarExpanded ? 'justify-start px-4' : 'justify-center'} gap-3 py-2.5 rounded-xl transition-all duration-200 hover:translate-x-1 {isActive('/hris/recruitment')
 					? 'bg-surface-container-highest text-primary font-bold'
 					: 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container font-medium text-sm'}"
 				href="/hris/recruitment"
+				title="Recruitment & ATS"
 			>
 				<span class="material-symbols-outlined text-[20px]">person_search</span>
-				<span class="text-sm">Recruitment & ATS</span>
+				{#if $isSidebarExpanded}<span class="text-sm whitespace-nowrap">Recruitment & ATS</span>{/if}
 			</a>
 			{/if}
 
 			{#if hasMenuAccess(user, 'hris', 'hris.lifecycle')}
 			<a
-				class="flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200 hover:translate-x-1 {isActive('/hris/lifecycle')
+				class="flex items-center {$isSidebarExpanded ? 'justify-start px-4' : 'justify-center'} gap-3 py-2.5 rounded-xl transition-all duration-200 hover:translate-x-1 {isActive('/hris/lifecycle')
 					? 'bg-surface-container-highest text-primary font-bold'
 					: 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container font-medium text-sm'}"
 				href="/hris/lifecycle"
+				title="Lifecycle & Actions"
 			>
 				<span class="material-symbols-outlined text-[20px]">manage_accounts</span>
-				<span class="text-sm">Lifecycle & Actions</span>
+				{#if $isSidebarExpanded}<span class="text-sm whitespace-nowrap">Lifecycle & Actions</span>{/if}
 			</a>
 			{/if}
 
 			<!-- Section: Time & Attendance -->
 			{#if hasMenuAccess(user, 'hris', 'hris.attendance') || hasMenuAccess(user, 'hris', 'hris.leave')}
-			<div class="pt-3 pb-1 px-4">
-				<p class="text-[9px] font-black text-on-surface-variant/50 uppercase tracking-[0.2em]">Time & Attendance</p>
+			<div class="pt-3 pb-1 {$isSidebarExpanded ? 'px-4' : 'px-0 text-center'}">
+				<p class="text-[9px] font-black text-on-surface-variant/50 uppercase tracking-[0.2em]">{$isSidebarExpanded ? 'Time & Attendance' : '...'}</p>
 			</div>
 			{/if}
 
 			{#if hasMenuAccess(user, 'hris', 'hris.attendance')}
 			<a
-				class="flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200 hover:translate-x-1 {isActive('/hris/attendance')
+				class="flex items-center {$isSidebarExpanded ? 'justify-start px-4' : 'justify-center'} gap-3 py-2.5 rounded-xl transition-all duration-200 hover:translate-x-1 {isActive('/hris/attendance')
 					? 'bg-surface-container-highest text-primary font-bold'
 					: 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container font-medium text-sm'}"
 				href="/hris/attendance"
+				title="Attendance"
 			>
 				<span class="material-symbols-outlined text-[20px]">how_to_reg</span>
-				<span class="text-sm">Attendance</span>
+				{#if $isSidebarExpanded}<span class="text-sm whitespace-nowrap">Attendance</span>{/if}
 			</a>
 			{/if}
 
 			{#if hasMenuAccess(user, 'hris', 'hris.leave')}
 			<a
-				class="flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200 hover:translate-x-1 {isActive('/hris/leave')
+				class="flex items-center {$isSidebarExpanded ? 'justify-start px-4' : 'justify-center'} gap-3 py-2.5 rounded-xl transition-all duration-200 hover:translate-x-1 {isActive('/hris/leave')
 					? 'bg-surface-container-highest text-primary font-bold'
 					: 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container font-medium text-sm'}"
 				href="/hris/leave"
+				title="Leave Requests"
 			>
 				<span class="material-symbols-outlined text-[20px]">pending_actions</span>
-				<span class="text-sm">Leave Requests</span>
+				{#if $isSidebarExpanded}<span class="text-sm whitespace-nowrap">Leave Requests</span>{/if}
 			</a>
 			{/if}
 
 			<!-- Section: Compensation & Benefits -->
 			{#if hasMenuAccess(user, 'hris', 'hris.payroll') || hasMenuAccess(user, 'hris', 'hris.loans')}
-			<div class="pt-3 pb-1 px-4">
-				<p class="text-[9px] font-black text-on-surface-variant/50 uppercase tracking-[0.2em]">Compensation & Benefits</p>
+			<div class="pt-3 pb-1 {$isSidebarExpanded ? 'px-4' : 'px-0 text-center'}">
+				<p class="text-[9px] font-black text-on-surface-variant/50 uppercase tracking-[0.2em]">{$isSidebarExpanded ? 'Compensation & Benefits' : '...'}</p>
 			</div>
 			{/if}
 
 			{#if hasMenuAccess(user, 'hris', 'hris.payroll')}
 			<a
-				class="flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200 hover:translate-x-1 {isActive('/hris/payroll') && !isActive('/hris/payroll/loans')
+				class="flex items-center {$isSidebarExpanded ? 'justify-start px-4' : 'justify-center'} gap-3 py-2.5 rounded-xl transition-all duration-200 hover:translate-x-1 {isActive('/hris/payroll') && !isActive('/hris/payroll/loans')
 					? 'bg-surface-container-highest text-primary font-bold'
 					: 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container font-medium text-sm'}"
 				href="/hris/payroll"
+				title="Payroll & Slips"
 			>
 				<span class="material-symbols-outlined text-[20px]">payments</span>
-				<span class="text-sm">Payroll & Slips</span>
+				{#if $isSidebarExpanded}<span class="text-sm whitespace-nowrap">Payroll & Slips</span>{/if}
 			</a>
 			{/if}
 
 			{#if hasMenuAccess(user, 'hris', 'hris.loans')}
 			<a
-				class="flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200 hover:translate-x-1 {isActive('/hris/payroll/loans')
+				class="flex items-center {$isSidebarExpanded ? 'justify-start px-4' : 'justify-center'} gap-3 py-2.5 rounded-xl transition-all duration-200 hover:translate-x-1 {isActive('/hris/payroll/loans')
 					? 'bg-surface-container-highest text-primary font-bold'
 					: 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container font-medium text-sm'}"
 				href="/hris/payroll/loans"
+				title="Employee Loans"
 			>
 				<span class="material-symbols-outlined text-[20px]">account_balance_wallet</span>
-				<span class="text-sm">Employee Loans</span>
+				{#if $isSidebarExpanded}<span class="text-sm whitespace-nowrap">Employee Loans</span>{/if}
 			</a>
 			{/if}
 
 			<!-- Section: Talent & Organization -->
 			{#if hasMenuAccess(user, 'hris', 'hris.performance') || hasMenuAccess(user, 'hris', 'hris.assessments') || hasMenuAccess(user, 'hris', 'hris.lms') || hasMenuAccess(user, 'hris', 'hris.org-chart') || hasMenuAccess(user, 'hris', 'hris.certifications')}
-			<div class="pt-3 pb-1 px-4">
-				<p class="text-[9px] font-black text-on-surface-variant/50 uppercase tracking-[0.2em]">Talent & Organization</p>
+			<div class="pt-3 pb-1 {$isSidebarExpanded ? 'px-4' : 'px-0 text-center'}">
+				<p class="text-[9px] font-black text-on-surface-variant/50 uppercase tracking-[0.2em]">{$isSidebarExpanded ? 'Talent & Organization' : '...'}</p>
 			</div>
 			{/if}
 
 			{#if hasMenuAccess(user, 'hris', 'hris.performance')}
 			<a
-				class="flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200 hover:translate-x-1 {isActive('/hris/performance')
+				class="flex items-center {$isSidebarExpanded ? 'justify-start px-4' : 'justify-center'} gap-3 py-2.5 rounded-xl transition-all duration-200 hover:translate-x-1 {isActive('/hris/performance')
 					? 'bg-surface-container-highest text-primary font-bold'
 					: 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container font-medium text-sm'}"
 				href="/hris/performance"
+				title="Performance & KPI"
 			>
 				<span class="material-symbols-outlined text-[20px]">assessment</span>
-				<span class="text-sm">Performance & KPI</span>
+				{#if $isSidebarExpanded}<span class="text-sm whitespace-nowrap">Performance & KPI</span>{/if}
 			</a>
 			{/if}
 
 			{#if hasMenuAccess(user, 'hris', 'hris.assessments')}
 			<a
-				class="flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200 hover:translate-x-1 {isActive('/hris/assessments')
+				class="flex items-center {$isSidebarExpanded ? 'justify-start px-4' : 'justify-center'} gap-3 py-2.5 rounded-xl transition-all duration-200 hover:translate-x-1 {isActive('/hris/assessments')
 					? 'bg-surface-container-highest text-primary font-bold'
 					: 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container font-medium text-sm'}"
 				href="/hris/assessments"
+				title="Team Competency Assessment"
 			>
 				<span class="material-symbols-outlined text-[20px]">fact_check</span>
-				<span class="text-sm">Team Competency Assessment</span>
+				{#if $isSidebarExpanded}<span class="text-sm whitespace-nowrap">Team Competency Assessment</span>{/if}
 			</a>
 			{/if}
 
 			{#if hasMenuAccess(user, 'hris', 'hris.lms')}
 			<a
-				class="flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200 hover:translate-x-1 {isActive('/hris/lms')
+				class="flex items-center {$isSidebarExpanded ? 'justify-start px-4' : 'justify-center'} gap-3 py-2.5 rounded-xl transition-all duration-200 hover:translate-x-1 {isActive('/hris/lms')
 					? 'bg-surface-container-highest text-primary font-bold'
 					: 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container font-medium text-sm'}"
 				href="/hris/lms"
+				title="LMS & Training"
 			>
 				<span class="material-symbols-outlined text-[20px]">school</span>
-				<span class="text-sm">LMS & Training</span>
+				{#if $isSidebarExpanded}<span class="text-sm whitespace-nowrap">LMS & Training</span>{/if}
 			</a>
 			{/if}
 
 			{#if hasMenuAccess(user, 'hris', 'hris.org-chart')}
 			<a
-				class="flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200 hover:translate-x-1 {isActive('/hris/org-chart')
+				class="flex items-center {$isSidebarExpanded ? 'justify-start px-4' : 'justify-center'} gap-3 py-2.5 rounded-xl transition-all duration-200 hover:translate-x-1 {isActive('/hris/org-chart')
 					? 'bg-surface-container-highest text-primary font-bold'
 					: 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container font-medium text-sm'}"
 				href="/hris/org-chart"
+				title="Org Chart & Hierarchy"
 			>
 				<span class="material-symbols-outlined text-[20px]">account_tree</span>
-				<span class="text-sm">Org Chart & Hierarchy</span>
+				{#if $isSidebarExpanded}<span class="text-sm whitespace-nowrap">Org Chart & Hierarchy</span>{/if}
 			</a>
 			{/if}
 
 			{#if hasMenuAccess(user, 'hris', 'hris.certifications')}
 			<a
-				class="flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200 hover:translate-x-1 {isActive('/hris/certifications')
+				class="flex items-center {$isSidebarExpanded ? 'justify-start px-4' : 'justify-center'} gap-3 py-2.5 rounded-xl transition-all duration-200 hover:translate-x-1 {isActive('/hris/certifications')
 					? 'bg-surface-container-highest text-primary font-bold'
 					: 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container font-medium text-sm'}"
 				href="/hris/certifications"
+				title="Document Expiry & Certs"
 			>
 				<span class="material-symbols-outlined text-[20px]">verified</span>
-				<span class="text-sm">Document Expiry & Certs</span>
+				{#if $isSidebarExpanded}<span class="text-sm whitespace-nowrap">Document Expiry & Certs</span>{/if}
 			</a>
 			{/if}
+
+			<!-- Spacer -->
+			<div class="flex-1"></div>
+
+			<!-- Toggle Button -->
+			<button 
+				type="button"
+				onclick={() => isSidebarExpanded.toggle()} 
+				class="mt-4 flex items-center {$isSidebarExpanded ? 'justify-start px-4' : 'justify-center'} gap-3 py-2.5 rounded-xl text-on-surface-variant hover:bg-surface-container transition-all duration-200 hover:text-on-surface cursor-pointer"
+				title={$isSidebarExpanded ? 'Collapse Menu' : 'Expand Menu'}
+			>
+				<span class="material-symbols-outlined transition-transform duration-300 {$isSidebarExpanded ? '' : 'rotate-180'}">keyboard_double_arrow_left</span>
+				{#if $isSidebarExpanded}<span class="font-medium text-xs whitespace-nowrap">Collapse Sidebar</span>{/if}
+			</button>
 		</nav>
 	</aside>
 

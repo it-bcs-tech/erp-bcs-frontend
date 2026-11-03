@@ -3,6 +3,7 @@
 	import Chatbot from '$lib/components/Chatbot.svelte';
 
 	import { authUser, hasMenuAccess } from '$lib/stores/auth';
+	import { isSidebarExpanded } from '$lib/stores/sidebar';
 
 	let { data, children } = $props();
 
@@ -31,63 +32,65 @@
 
 <div class="flex h-[calc(100vh-64px)] overflow-hidden bg-surface relative">
 	<!-- SideNavBar (Flat Standard Kasir) -->
-	<aside class="w-64 flex-shrink-0 h-full bg-surface-container-low flex flex-col p-4 gap-2 z-40 relative overflow-y-auto">
+	<aside class="{$isSidebarExpanded ? 'w-64' : 'w-20'} transition-all duration-300 flex-shrink-0 h-full bg-surface-container-low flex flex-col p-4 gap-2 z-40 relative overflow-y-auto overflow-x-hidden">
 		<div class="absolute inset-y-0 right-0 w-[1px] bg-gradient-to-b from-transparent via-surface-variant/30 to-transparent"></div>
 
 		<!-- Branding Header -->
-		<div class="px-4 py-6 mb-2">
-			<div class="flex items-center gap-3">
-				<div class="w-10 h-10 bg-emerald-500/10 rounded-xl flex items-center justify-center text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
-					<span class="material-symbols-outlined text-[20px]">point_of_sale</span>
-				</div>
-				<div>
+		<div class="px-2 py-6 mb-2 flex items-center {$isSidebarExpanded ? 'gap-3' : 'justify-center'}">
+			<div class="w-10 h-10 flex-shrink-0 bg-emerald-500/10 rounded-xl flex items-center justify-center text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+				<span class="material-symbols-outlined text-[20px]">point_of_sale</span>
+			</div>
+			{#if $isSidebarExpanded}
+				<div class="whitespace-nowrap transition-opacity duration-300">
 					<p class="text-sm font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">Cashier</p>
 					<p class="text-[10px] text-on-surface-variant font-medium uppercase">& Settlement (Kasir)</p>
 				</div>
-			</div>
+			{/if}
 		</div>
 
-		<nav class="flex-1 space-y-1">
+		<nav class="flex-1 flex flex-col space-y-1">
 			{#if hasMenuAccess(user, 'kasir', 'kasir.overview')}
-				<a class="flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200 hover:translate-x-1 {isActive('/kasir') ? 'bg-surface-container-highest text-emerald-600 dark:text-emerald-400 font-bold' : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container font-medium text-sm'}" href="/kasir">
+				<a class="flex items-center {$isSidebarExpanded ? 'justify-start px-4' : 'justify-center'} gap-3 py-2.5 rounded-xl transition-all duration-200 hover:translate-x-1 {isActive('/kasir') ? 'bg-surface-container-highest text-emerald-600 dark:text-emerald-400 font-bold' : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container font-medium text-sm'}" href="/kasir" title="Dashboard">
 					<span class="material-symbols-outlined text-[20px]">space_dashboard</span>
-					<span class="text-sm">Dashboard</span>
+					{#if $isSidebarExpanded}<span class="text-sm whitespace-nowrap">Dashboard</span>{/if}
 				</a>
 			{/if}
 
 			<!-- Menu Shift & Handover -->
-			<a class="flex items-center justify-between px-4 py-2.5 rounded-xl transition-all duration-200 hover:translate-x-1 {isActive('/kasir/shift') ? 'bg-surface-container-highest text-emerald-600 dark:text-emerald-400 font-bold' : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container font-medium text-sm'}" href="/kasir/shift">
+			<a class="flex items-center {$isSidebarExpanded ? 'justify-between px-4' : 'justify-center'} py-2.5 rounded-xl transition-all duration-200 hover:translate-x-1 {isActive('/kasir/shift') ? 'bg-surface-container-highest text-emerald-600 dark:text-emerald-400 font-bold' : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container font-medium text-sm'}" href="/kasir/shift" title="Shift & Handover">
 				<div class="flex items-center gap-3">
 					<span class="material-symbols-outlined text-[20px]">schedule</span>
-					<span class="text-sm">Shift & Handover</span>
+					{#if $isSidebarExpanded}<span class="text-sm whitespace-nowrap">Shift & Handover</span>{/if}
 				</div>
-				{#if activeShift}
-					<span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" title="Shift Aktif"></span>
-				{:else}
-					<span class="w-2 h-2 rounded-full bg-amber-500" title="Shift Tutup"></span>
+				{#if $isSidebarExpanded}
+					{#if activeShift}
+						<span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" title="Shift Aktif"></span>
+					{:else}
+						<span class="w-2 h-2 rounded-full bg-amber-500" title="Shift Tutup"></span>
+					{/if}
 				{/if}
 			</a>
 
 			{#if hasMenuAccess(user, 'kasir', 'kasir.kas-operasional')}
-				<a class="flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200 hover:translate-x-1 {isActive('/kasir/kas-operasional') ? 'bg-surface-container-highest text-emerald-600 dark:text-emerald-400 font-bold' : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container font-medium text-sm'}" href="/kasir/kas-operasional">
+				<a class="flex items-center {$isSidebarExpanded ? 'justify-start px-4' : 'justify-center'} gap-3 py-2.5 rounded-xl transition-all duration-200 hover:translate-x-1 {isActive('/kasir/kas-operasional') ? 'bg-surface-container-highest text-emerald-600 dark:text-emerald-400 font-bold' : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container font-medium text-sm'}" href="/kasir/kas-operasional" title="Petty Cash & Balance">
 					<span class="material-symbols-outlined text-[20px]">account_balance_wallet</span>
-					<span class="text-sm">Petty Cash & Balance</span>
+					{#if $isSidebarExpanded}<span class="text-sm whitespace-nowrap">Petty Cash & Balance</span>{/if}
 				</a>
 			{/if}
 
 			{#if hasMenuAccess(user, 'kasir', 'kasir.ujo') || hasMenuAccess(user, 'kasir', 'kasir.surat-jalan') || hasMenuAccess(user, 'kasir', 'kasir.closing')}
-				<div class="pt-3 pb-1 px-4">
-					<p class="text-[9px] font-black text-on-surface-variant/50 uppercase tracking-[0.2em]">Fleet Settlements</p>
+				<div class="pt-3 pb-1 {$isSidebarExpanded ? 'px-4' : 'px-0 text-center'}">
+					<p class="text-[9px] font-black text-on-surface-variant/50 uppercase tracking-[0.2em]">{$isSidebarExpanded ? 'Fleet Settlements' : '...'}</p>
 				</div>
 			{/if}
 
 			{#if hasMenuAccess(user, 'kasir', 'kasir.ujo')}
-				<a class="flex items-center justify-between px-4 py-2.5 rounded-xl transition-all duration-200 hover:translate-x-1 {isActive('/kasir/ujo') ? 'bg-surface-container-highest text-emerald-600 dark:text-emerald-400 font-bold' : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container font-medium text-sm'}" href="/kasir/ujo">
+				<a class="flex items-center {$isSidebarExpanded ? 'justify-between px-4' : 'justify-center'} py-2.5 rounded-xl transition-all duration-200 hover:translate-x-1 {isActive('/kasir/ujo') ? 'bg-surface-container-highest text-emerald-600 dark:text-emerald-400 font-bold' : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container font-medium text-sm'}" href="/kasir/ujo" title="Driver UJO Advance">
 					<div class="flex items-center gap-3">
 						<span class="material-symbols-outlined text-[20px]">payments</span>
-						<span class="text-sm">Driver UJO Advance</span>
+						{#if $isSidebarExpanded}<span class="text-sm whitespace-nowrap">Driver UJO Advance</span>{/if}
 					</div>
-					{#if counts.pendingUjo > 0}
+					{#if $isSidebarExpanded && counts.pendingUjo > 0}
 						<span class="px-2 py-0.5 rounded-full text-[10px] font-bold font-mono bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
 							{counts.pendingUjo}
 						</span>
@@ -95,12 +98,12 @@
 				</a>
 			{/if}
 			{#if hasMenuAccess(user, 'kasir', 'kasir.surat-jalan')}
-				<a class="flex items-center justify-between px-4 py-2.5 rounded-xl transition-all duration-200 hover:translate-x-1 {isActive('/kasir/surat-jalan') ? 'bg-surface-container-highest text-emerald-600 dark:text-emerald-400 font-bold' : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container font-medium text-sm'}" href="/kasir/surat-jalan">
+				<a class="flex items-center {$isSidebarExpanded ? 'justify-between px-4' : 'justify-center'} py-2.5 rounded-xl transition-all duration-200 hover:translate-x-1 {isActive('/kasir/surat-jalan') ? 'bg-surface-container-highest text-emerald-600 dark:text-emerald-400 font-bold' : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container font-medium text-sm'}" href="/kasir/surat-jalan" title="Return Delivery Notes">
 					<div class="flex items-center gap-3">
 						<span class="material-symbols-outlined text-[20px]">edit_document</span>
-						<span class="text-sm">Return Delivery Notes</span>
+						{#if $isSidebarExpanded}<span class="text-sm whitespace-nowrap">Return Delivery Notes</span>{/if}
 					</div>
-					{#if counts.pendingDN > 0}
+					{#if $isSidebarExpanded && counts.pendingDN > 0}
 						<span class="px-2 py-0.5 rounded-full text-[10px] font-bold font-mono bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 border border-cyan-500/20">
 							{counts.pendingDN}
 						</span>
@@ -108,18 +111,32 @@
 				</a>
 			{/if}
 			{#if hasMenuAccess(user, 'kasir', 'kasir.closing')}
-				<a class="flex items-center justify-between px-4 py-2.5 rounded-xl transition-all duration-200 hover:translate-x-1 {isActive('/kasir/closing') ? 'bg-surface-container-highest text-emerald-600 dark:text-emerald-400 font-bold' : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container font-medium text-sm'}" href="/kasir/closing">
+				<a class="flex items-center {$isSidebarExpanded ? 'justify-between px-4' : 'justify-center'} py-2.5 rounded-xl transition-all duration-200 hover:translate-x-1 {isActive('/kasir/closing') ? 'bg-surface-container-highest text-emerald-600 dark:text-emerald-400 font-bold' : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container font-medium text-sm'}" href="/kasir/closing" title="UJO Settlement">
 					<div class="flex items-center gap-3">
 						<span class="material-symbols-outlined text-[20px]">assignment_turned_in</span>
-						<span class="text-sm">UJO Settlement</span>
+						{#if $isSidebarExpanded}<span class="text-sm whitespace-nowrap">UJO Settlement</span>{/if}
 					</div>
-					{#if counts.pendingClosing > 0}
+					{#if $isSidebarExpanded && counts.pendingClosing > 0}
 						<span class="px-2 py-0.5 rounded-full text-[10px] font-bold font-mono bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20">
 							{counts.pendingClosing}
 						</span>
 					{/if}
 				</a>
 			{/if}
+
+			<!-- Spacer -->
+			<div class="flex-1"></div>
+
+			<!-- Toggle Button -->
+			<button 
+				type="button"
+				onclick={() => isSidebarExpanded.toggle()} 
+				class="mt-4 flex items-center {$isSidebarExpanded ? 'justify-start px-4' : 'justify-center'} gap-3 py-2.5 rounded-xl text-on-surface-variant hover:bg-surface-container transition-all duration-200 hover:text-on-surface cursor-pointer"
+				title={$isSidebarExpanded ? 'Collapse Menu' : 'Expand Menu'}
+			>
+				<span class="material-symbols-outlined transition-transform duration-300 {$isSidebarExpanded ? '' : 'rotate-180'}">keyboard_double_arrow_left</span>
+				{#if $isSidebarExpanded}<span class="font-medium text-xs whitespace-nowrap">Collapse Sidebar</span>{/if}
+			</button>
 		</nav>
 	</aside>
 
