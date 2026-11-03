@@ -421,6 +421,7 @@ export const actions = {
 	submitEvaluationL4: async ({ request }) => {
 		const formData = await request.formData();
 		const evalId = Number(formData.get('evalId'));
+		const skillCategory = formData.get('skillCategory')?.toString() || 'Technical Skill';
 		const metricsRaw = formData.get('metrics')?.toString() || '{}';
 		const notes = formData.get('notes')?.toString() || '';
 		const assessorName = formData.get('assessorName')?.toString() || 'Supervisor';
@@ -439,6 +440,7 @@ export const actions = {
 				UPDATE hris.lms_evaluations_l3_l4
 				SET
 					l4_status = 'COMPLETED',
+					l4_pre_skill_category = ${skillCategory},
 					l4_post_metrics = ${JSON.stringify(metrics)}::jsonb,
 					l4_post_notes = ${notes},
 					l4_post_reviewed_at = CURRENT_TIMESTAMP,

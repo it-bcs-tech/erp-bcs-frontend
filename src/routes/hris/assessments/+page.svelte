@@ -639,6 +639,7 @@
 	// Modal State Level 4 Post-Test (Dampak 3 Bulan - Komparasi Before vs After)
 	let isL4ModalOpen = $state(false);
 	let selectedL4Eval = $state<any>(null);
+	let l4PostSkillCategory = $state<'Technical Skill' | 'Soft Skill' | 'Safety' | 'Hard Skill'>('Technical Skill');
 	let l4PostMetrics = $state<Record<string, number | string>>({
 		p1: '',
 		p2: '',
@@ -649,6 +650,17 @@
 
 	function openL4Modal(item: any) {
 		selectedL4Eval = item;
+		let cat: 'Technical Skill' | 'Soft Skill' | 'Safety' | 'Hard Skill' = 'Technical Skill';
+		if (item.l4PreSkillCategory && preSkillCategoryDefinitions[item.l4PreSkillCategory as keyof typeof preSkillCategoryDefinitions]) {
+			cat = item.l4PreSkillCategory;
+		} else if (item.courseCategory) {
+			const c = item.courseCategory.toLowerCase();
+			if (c.includes('soft')) cat = 'Soft Skill';
+			else if (c.includes('safety') || c.includes('k3')) cat = 'Safety';
+			else if (c.includes('hard') || c.includes('operasional')) cat = 'Hard Skill';
+		}
+		l4PostSkillCategory = cat;
+
 		const m = item.l4PostMetrics || {};
 		l4PostMetrics = {
 			p1: m.p1 !== undefined && m.p1 !== null ? m.p1 : '',
@@ -2768,8 +2780,7 @@
 
 <!-- Modal Form Evaluasi Dampak Bisnis 3 Bulan (Level 4 Post-Test - Komparasi Before vs After) -->
 {#if isL4ModalOpen && selectedL4Eval}
-	{@const preCategory = selectedL4Eval.l4PreSkillCategory || 'Technical Skill'}
-	{@const catConfig = preSkillCategoryDefinitions[preCategory as keyof typeof preSkillCategoryDefinitions] || preSkillCategoryDefinitions['Technical Skill']}
+	{@const catConfig = preSkillCategoryDefinitions[l4PostSkillCategory] || preSkillCategoryDefinitions['Technical Skill']}
 	<div class="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
 		<div class="bg-surface rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xl w-full max-w-3xl overflow-hidden p-6 space-y-5 animate-in zoom-in-95 duration-150 my-8 max-h-[92vh] flex flex-col">
 			<!-- Header Modal -->
@@ -2808,6 +2819,7 @@
 			>
 				<input type="hidden" name="evalId" value={selectedL4Eval.id} />
 				<input type="hidden" name="assessorName" value={currentAssessor?.name || currentUser?.name || 'Supervisor'} />
+				<input type="hidden" name="skillCategory" value={l4PostSkillCategory} />
 				<input type="hidden" name="metrics" value={JSON.stringify(l4PostMetrics)} />
 
 				<!-- Info Box Karyawan & Kursus -->
@@ -2827,18 +2839,35 @@
 					</div>
 				</div>
 
-				<!-- Kategori Keahlian Terkunci Otomatis Sesuai Pre-Test -->
-				<div class="p-3.5 rounded-2xl bg-surface border border-slate-200 dark:border-slate-700 flex items-center justify-between">
-					<div class="flex items-center gap-2.5">
-						<span class="material-symbols-outlined text-amber-500 text-xl">{catConfig.icon}</span>
-						<div>
-							<div class="text-[10px] font-black uppercase text-slate-400 tracking-wider">Kategori Keahlian (Terkunci Sesuai Pre-Test)</div>
-							<div class="text-xs font-black text-on-surface">{catConfig.label}</div>
-						</div>
+				<!-- Kategori Skill Switcher (4 Tab Kategori Sesuai Master Spreadsheet) -->
+				<div class="space-y-2">
+					<div class="flex items-center justify-between">
+						<label class="text-xs font-black uppercase tracking-wider text-on-surface">Pilih Kategori Keahlian (Skill Category) *</label>
+						<span class="text-[11px] text-slate-400">Pilih kategori yang paling dominan dalam evaluasi ini</span>
 					</div>
-					<span class="px-2.5 py-1 rounded-xl text-xs font-bold border {catConfig.badgeColor}">
-						{catConfig.label}
-					</span>
+					<div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
+						{#each (Object.keys(preSkillCategoryDefinitions) as Array<'Technical Skill' | 'Soft Skill' | 'Safety' | 'Hard Skill'>) as catKey}
+							{@const itemCat = preSkillCategoryDefinitions[catKey]}
+							<button
+								type="button"
+								onclick={() => (l4PostSkillCategory = catKey)}
+								class="p-2.5 rounded-2xl border text-left transition-all cursor-pointer flex flex-col items-start gap-1.5
+								{l4PostSkillCategory === catKey
+									? 'bg-amber-600 text-white border-amber-600 shadow-xs'
+									: 'bg-surface border-slate-200 dark:border-slate-700 text-on-surface hover:bg-surface-container'}"
+							>
+								<div class="flex items-center gap-1.5">
+									<span class="material-symbols-outlined text-base {l4PostSkillCategory === catKey ? 'text-white' : 'text-amber-500'}">
+										{itemCat.icon}
+									</span>
+									<span class="text-xs font-black leading-tight">{itemCat.label}</span>
+								</div>
+								<span class="text-[10px] {l4PostSkillCategory === catKey ? 'text-amber-100' : 'text-slate-400'} line-clamp-1">
+									{itemCat.description}
+								</span>
+							</button>
+						{/each}
+					</div>
 				</div>
 
 				<!-- 4 Indikator Metrik P1–P4 (Level 4 Post-Test: Hasil 3 Bulan) -->
@@ -2861,7 +2890,7 @@
 					<div class="grid grid-cols-1 md:grid-cols-2 gap-3.5 pt-1">
 						{#each catConfig.metrics as metric, idx}
 							{@const dir = metric.direction || 'decrease'}
-							{@const preVal = selectedL4Eval.l4PreMetrics?.[metric.id]}
+							{@const preVal = selectedL4Eval.l4PreSkillCategory === l4PostSkillCategory ? selectedL4Eval.l4PreMetrics?.[metric.id] : undefined}
 							{@const postVal = l4PostMetrics[metric.id]}
 							{@const preOpt = getL4Option(dir, preVal)}
 							{@const postOpt = getL4Option(dir, postVal)}
