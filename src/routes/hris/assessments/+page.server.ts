@@ -15,7 +15,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 			FROM master.m_atasan a
 			JOIN master.m_title t_atasan ON t_atasan.title_code = a.title_atasan
 			JOIN master.m_title t_bawahan ON t_bawahan.title_code = a.title_bawahan
-			WHERE a.status = '0' OR a.status = 'Y' OR a.status IS NULL;
+			WHERE a.status IN ('0', '1', 'Y') OR a.status IS NULL;
 		`;
 
 		// 2. Terapkan Aturan Atasan Langsung (Strict Direct Supervisor Elimination)
