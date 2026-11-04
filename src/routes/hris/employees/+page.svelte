@@ -4,6 +4,7 @@
 	import { page } from '$app/stores';
 	import Pagination from '$lib/components/Pagination.svelte';
 	import EditEmployeeModal from '$lib/components/hris/EditEmployeeModal.svelte';
+	import AddEmployeeModal from '$lib/components/hris/AddEmployeeModal.svelte';
 	
 	let { data }: { data: PageData } = $props();
 	
@@ -16,6 +17,7 @@
 	let supervisorMappings = $derived(data.supervisorMappings || []);
 	let activePersonnel = $derived(data.activePersonnel || []);
 	let locations = $derived(data.locations || []);
+	let nextPayrollId = $derived(data.nextPayrollId || '');
 	let meta = $derived(data.meta);
 
 	// State yang sinkron dengan URL
@@ -246,105 +248,19 @@
 </div>
 
 <!-- Add Employee Modal -->
-{#if isAddModalOpen}
-	<div class="fixed inset-0 z-50 flex items-center justify-center p-4">
-		<!-- Backdrop -->
-		<div class="absolute inset-0 bg-black/40 backdrop-blur-sm" onclick={() => isAddModalOpen = false}></div>
-		
-		<!-- Modal Content -->
-		<div class="relative bg-surface-container-lowest rounded-[24px] shadow-xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-200">
-			<!-- Modal Header -->
-			<div class="px-8 py-6 border-b border-surface-container flex items-center justify-between bg-surface-container-lowest z-10">
-				<div>
-					<h2 class="text-xl font-bold text-on-surface">Add New Employee</h2>
-					<p class="text-sm text-on-surface-variant mt-1">Enter the details for the new team member.</p>
-				</div>
-				<button class="w-10 h-10 rounded-full flex items-center justify-center text-on-surface-variant hover:bg-surface-container-high transition-colors" onclick={() => isAddModalOpen = false}>
-					<span class="material-symbols-outlined">close</span>
-				</button>
-			</div>
-
-			<!-- Modal Body (Scrollable) -->
-			<div class="p-8 overflow-y-auto flex-1">
-				<form id="add-employee-form" class="space-y-6">
-					
-					<!-- Personal Information -->
-					<div>
-						<h3 class="text-sm font-bold text-primary uppercase tracking-wider mb-4 flex items-center gap-2">
-							<span class="material-symbols-outlined text-lg">person</span>
-							Personal Information
-						</h3>
-						<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-							<div class="space-y-1.5">
-								<label class="text-sm font-bold text-on-surface">First Name</label>
-								<input type="text" placeholder="John" class="w-full px-4 py-2.5 rounded-xl bg-surface-container border border-outline-variant/50 focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all text-sm" />
-							</div>
-							<div class="space-y-1.5">
-								<label class="text-sm font-bold text-on-surface">Last Name</label>
-								<input type="text" placeholder="Doe" class="w-full px-4 py-2.5 rounded-xl bg-surface-container border border-outline-variant/50 focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all text-sm" />
-							</div>
-							<div class="space-y-1.5 md:col-span-2">
-								<label class="text-sm font-bold text-on-surface">Email Address</label>
-								<input type="email" placeholder="john.doe@company.com" class="w-full px-4 py-2.5 rounded-xl bg-surface-container border border-outline-variant/50 focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all text-sm" />
-							</div>
-						</div>
-					</div>
-
-					<div class="h-px bg-surface-container w-full"></div>
-
-					<!-- Employment Details -->
-					<div>
-						<h3 class="text-sm font-bold text-primary uppercase tracking-wider mb-4 flex items-center gap-2">
-							<span class="material-symbols-outlined text-lg">work</span>
-							Employment Details
-						</h3>
-						<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-							<div class="space-y-1.5">
-								<label class="text-sm font-bold text-on-surface">Employee ID</label>
-								<input type="text" placeholder="EMP-2026..." class="w-full px-4 py-2.5 rounded-xl bg-surface-container border border-outline-variant/50 focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all text-sm" />
-							</div>
-							<div class="space-y-1.5">
-								<label class="text-sm font-bold text-on-surface">Department</label>
-								<select class="w-full px-4 py-2.5 rounded-xl bg-surface-container border border-outline-variant/50 focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all text-sm text-on-surface appearance-none cursor-pointer">
-									<option value="" disabled selected>Select Department</option>
-									<option value="Engineering">Engineering</option>
-									<option value="Design">Design</option>
-									<option value="Management">Management</option>
-									<option value="Marketing">Marketing</option>
-									<option value="Product">Product</option>
-								</select>
-							</div>
-							<div class="space-y-1.5 md:col-span-2">
-								<label class="text-sm font-bold text-on-surface">Job Title / Role</label>
-								<input type="text" placeholder="e.g. Senior Frontend Developer" class="w-full px-4 py-2.5 rounded-xl bg-surface-container border border-outline-variant/50 focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all text-sm" />
-							</div>
-							<div class="space-y-1.5 md:col-span-2">
-								<label class="text-sm font-bold text-on-surface">Employment Status</label>
-								<select class="w-full px-4 py-2.5 rounded-xl bg-surface-container border border-outline-variant/50 focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all text-sm text-on-surface appearance-none cursor-pointer">
-									<option value="Active">Active (Full-Time)</option>
-									<option value="Contract">Contract</option>
-									<option value="Probation">Probation</option>
-								</select>
-							</div>
-						</div>
-					</div>
-
-				</form>
-			</div>
-
-			<!-- Modal Footer -->
-			<div class="px-8 py-5 border-t border-surface-container bg-surface-container-lowest flex justify-end gap-3 z-10">
-				<button class="px-6 py-2.5 rounded-xl text-sm font-bold text-on-surface-variant hover:bg-surface-container-high transition-colors" onclick={() => isAddModalOpen = false}>
-					Cancel
-				</button>
-				<button form="add-employee-form" class="px-6 py-2.5 rounded-xl text-sm font-bold bg-primary text-on-primary hover:bg-primary/90 shadow-sm transition-colors flex items-center gap-2">
-					<span class="material-symbols-outlined text-sm">save</span>
-					Save Employee
-				</button>
-			</div>
-		</div>
-	</div>
-{/if}
+<AddEmployeeModal
+	bind:isOpen={isAddModalOpen}
+	defaultPayrollId={nextPayrollId}
+	{titles}
+	{divisions}
+	{departments}
+	{supervisorMappings}
+	{activePersonnel}
+	{locations}
+	onSaved={async () => {
+		await invalidateAll();
+	}}
+/>
 
 <!-- Edit Employee Modal -->
 <EditEmployeeModal

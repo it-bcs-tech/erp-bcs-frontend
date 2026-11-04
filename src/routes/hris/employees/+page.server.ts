@@ -3,7 +3,13 @@ import { fail } from '@sveltejs/kit';
 import { apiFetch } from '$lib/utils/api';
 import { logError } from '$lib/utils/logger';
 import sql from '$lib/server/db';
-import { getEmployeeMasterLookups, updateEmployeeRecord, type UpdateEmployeeData } from '$lib/server/hris/employeeService';
+import { 
+	getEmployeeMasterLookups, 
+	updateEmployeeRecord, 
+	createEmployeeRecord,
+	type UpdateEmployeeData,
+	type CreateEmployeeData 
+} from '$lib/server/hris/employeeService';
 
 export const load: PageServerLoad = async ({ cookies, url }) => {
 	const authToken = cookies.get('auth_token');
@@ -158,6 +164,7 @@ export const load: PageServerLoad = async ({ cookies, url }) => {
 					supervisorMappings: lookups.supervisorMappings,
 					activePersonnel: lookups.activePersonnel,
 					locations: lookups.locations,
+					nextPayrollId: lookups.nextPayrollId,
 					meta: response.meta || {
 						current_page: page,
 						total: total,
@@ -289,6 +296,7 @@ export const load: PageServerLoad = async ({ cookies, url }) => {
 			supervisorMappings: lookups.supervisorMappings,
 			activePersonnel: lookups.activePersonnel,
 			locations: lookups.locations,
+			nextPayrollId: lookups.nextPayrollId,
 			meta: {
 				current_page: page,
 				total: total,
@@ -308,6 +316,7 @@ export const load: PageServerLoad = async ({ cookies, url }) => {
 			supervisorMappings: lookups.supervisorMappings,
 			activePersonnel: lookups.activePersonnel,
 			locations: lookups.locations,
+			nextPayrollId: lookups.nextPayrollId,
 			meta: {
 				current_page: page,
 				total: 0,
@@ -408,6 +417,59 @@ export const actions: Actions = {
 			return { success: true, message: result.message, employee: result.employee };
 		} catch (e: any) {
 			return fail(500, { success: false, message: `Gagal memperbarui data karyawan: ${e?.message || 'Kesalahan database'}` });
+		}
+	},
+
+	createEmployee: async ({ request }) => {
+		const formData = await request.formData();
+		const nama_karyawan = formData.get('nama_karyawan')?.toString() || '';
+
+		if (!nama_karyawan || !nama_karyawan.trim()) {
+			return fail(400, { success: false, message: 'Nama Lengkap Karyawan wajib diisi.' });
+		}
+
+		try {
+			const subRaw = formData.get('subordinate_titles')?.toString();
+			let subordinate_titles: string[] | null = null;
+			if (subRaw) {
+				try {
+					subordinate_titles = JSON.parse(subRaw);
+				} catch {
+					subordinate_titles = subRaw.split(',').map((s) => s.trim()).filter(Boolean);
+				}
+			}
+
+			const createData: CreateEmployeeData = {
+				payroll_id: formData.get('payrollId')?.toString() || formData.get('payroll_id')?.toString() || null,
+				nama_karyawan: nama_karyawan.trim(),
+				email: formData.get('email')?.toString() || null,
+				telp1: formData.get('telp1')?.toString() || null,
+				title: formData.get('title')?.toString() || null,
+				div_id: formData.get('div_id')?.toString() || null,
+				dept_id: formData.get('dept_id')?.toString() || null,
+				lokasi: formData.get('lokasi')?.toString() || null,
+				status: formData.get('status')?.toString() || formData.get('status_karyawan')?.toString() || 'PERMANENT',
+				aktif: formData.get('aktif')?.toString() || 'Y',
+				tgl_masuk: formData.get('tgl_masuk')?.toString() || null,
+				no_ktp: formData.get('no_ktp')?.toString() || null,
+				no_npwp: formData.get('no_npwp')?.toString() || null,
+				tempat_lahir: formData.get('tempat_lahir')?.toString() || null,
+				tgl_lahir: formData.get('tgl_lahir')?.toString() || null,
+				jenis_kelamin: formData.get('jenis_kelamin')?.toString() || null,
+				agama: formData.get('agama')?.toString() || null,
+				marital_status: formData.get('marital_status')?.toString() || null,
+				alamat_ktp: formData.get('alamat_ktp')?.toString() || null,
+				kota_ktp: formData.get('kota_ktp')?.toString() || null,
+				pendidikan_terakhir: formData.get('pendidikan_terakhir')?.toString() || null,
+				jurusan: formData.get('jurusan')?.toString() || null,
+				title_atasan: formData.get('title_atasan')?.toString() || null,
+				subordinate_titles
+			};
+
+			const result = await createEmployeeRecord(createData);
+			return { success: true, message: result.message, employee: result.employee };
+		} catch (e: any) {
+			return fail(500, { success: false, message: `Gagal menambahkan karyawan baru: ${e?.message || 'Kesalahan database'}` });
 		}
 	}
 };

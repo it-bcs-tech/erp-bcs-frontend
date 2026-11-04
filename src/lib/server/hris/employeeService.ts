@@ -28,6 +28,33 @@ export interface UpdateEmployeeData {
 	subordinate_titles?: string[] | null;
 }
 
+export interface CreateEmployeeData {
+	payroll_id?: string | null;
+	nama_karyawan: string;
+	email?: string | null;
+	telp1?: string | null;
+	title?: string | null;
+	div_id?: string | null;
+	dept_id?: string | null;
+	lokasi?: string | null;
+	status?: string | null;
+	aktif?: string | null;
+	tgl_masuk?: string | null;
+	no_ktp?: string | null;
+	no_npwp?: string | null;
+	tempat_lahir?: string | null;
+	tgl_lahir?: string | null;
+	jenis_kelamin?: string | null;
+	agama?: string | null;
+	marital_status?: string | null;
+	alamat_ktp?: string | null;
+	kota_ktp?: string | null;
+	pendidikan_terakhir?: string | null;
+	jurusan?: string | null;
+	title_atasan?: string | null;
+	subordinate_titles?: string[] | null;
+}
+
 /**
  * Normalisasi jenis kelamin sesuai constraint: 'MALE' | 'FEMALE'
  */
@@ -154,11 +181,157 @@ export async function updateEmployeeRecord(data: UpdateEmployeeData) {
 }
 
 /**
+ * Generate nomor urut Payroll ID berikutnya dengan format standar YYMM.NNNN
+ */
+export async function generateNextPayrollId(joinDateStr?: string): Promise<string> {
+	try {
+		const date = joinDateStr ? new Date(joinDateStr) : new Date();
+		const validDate = isNaN(date.getTime()) ? new Date() : date;
+		const yy = String(validDate.getFullYear()).slice(-2);
+		const mm = String(validDate.getMonth() + 1).padStart(2, '0');
+		const prefix = `${yy}${mm}`;
+
+		const [row] = await sql`
+			SELECT MAX(SUBSTRING(payroll_id FROM '\\.([0-9]+)$')::integer) as max_seq
+			FROM master.m_karyawan
+			WHERE payroll_id ~ '^(9[0-9]|[0-2][0-9])[0-1][0-9]\\.[0-9]{4}$'
+		`;
+		const nextSeq = (row?.max_seq || 4398) + 1;
+		return `${prefix}.${String(nextSeq).padStart(4, '0')}`;
+	} catch (e: any) {
+		logError('GENERATE_PAYROLL_ID_FAIL', e?.message);
+		const now = new Date();
+		const yy = String(now.getFullYear()).slice(-2);
+		const mm = String(now.getMonth() + 1).padStart(2, '0');
+		return `${yy}${mm}.4399`;
+	}
+}
+
+/**
+ * Tambah data karyawan baru ke master.m_karyawan dan relasi hirarki di master.m_atasan
+ */
+export async function createEmployeeRecord(data: CreateEmployeeData) {
+	if (!data.nama_karyawan || !data.nama_karyawan.trim()) {
+		throw new Error('Nama Lengkap Karyawan wajib diisi.');
+	}
+
+	try {
+		const cleanDate = (d?: string | null) => (d && d.trim() ? d.trim() : null);
+		const genderVal = normalizeGender(data.jenis_kelamin);
+		const statusVal = normalizeStatus(data.status);
+		const titleVal = data.title?.trim() || null;
+		const ptkpVal = data.marital_status?.trim() || 'TK-0';
+		const payrollIdVal = data.payroll_id?.trim() || (await generateNextPayrollId(data.tgl_masuk || undefined));
+
+		const result = await sql`
+			INSERT INTO master.m_karyawan (
+				payroll_id,
+				nama_karyawan,
+				email,
+				telp1,
+				title,
+				div_id,
+				dept_id,
+				lokasi,
+				status,
+				aktif,
+				ptkp,
+				tgl_masuk,
+				no_ktp,
+				no_npwp,
+				tempat_lahir,
+				tgl_lahir,
+				jenis_kelamin,
+				agama,
+				marital_status,
+				alamat_ktp,
+				kota_ktp,
+				pendidikan_terakhir,
+				jurusan,
+				created_by,
+				date_created,
+				created_at,
+				last_updated
+			) VALUES (
+				${payrollIdVal},
+				${data.nama_karyawan.trim()},
+				${data.email?.trim() || null},
+				${data.telp1?.trim() || null},
+				${titleVal},
+				${data.div_id?.trim() || null},
+				${data.dept_id?.trim() || null},
+				${data.lokasi?.trim() || 'Head Office Cilegon'},
+				${statusVal},
+				${data.aktif === 'N' ? 'N' : 'Y'},
+				${ptkpVal},
+				${cleanDate(data.tgl_masuk)}::date,
+				${data.no_ktp?.trim() || null},
+				${data.no_npwp?.trim() || null},
+				${data.tempat_lahir?.trim() || null},
+				${cleanDate(data.tgl_lahir)}::date,
+				${genderVal},
+				${data.agama?.trim() || null},
+				${data.marital_status?.trim() || null},
+				${data.alamat_ktp?.trim() || null},
+				${data.kota_ktp?.trim() || null},
+				${data.pendidikan_terakhir?.trim() || null},
+				${data.jurusan?.trim() || null},
+				'HRIS_SYSTEM',
+				NOW(),
+				NOW(),
+				NOW()
+			)
+			RETURNING id, payroll_id, nama_karyawan, email, telp1, title, div_id, dept_id, aktif, status;
+		`;
+
+		if (result.length === 0) {
+			throw new Error('Gagal menyimpan data karyawan baru ke database.');
+		}
+
+		const newEmployee = result[0];
+
+		// Simpan Hirarki di master.m_atasan jika jabatan valid
+		if (titleVal) {
+			// 1. Hubungkan Atasan Langsung
+			if (data.title_atasan && data.title_atasan.trim()) {
+				await sql`
+					INSERT INTO master.m_atasan (title_atasan, title_bawahan, status, create_date)
+					VALUES (${data.title_atasan.trim()}, ${titleVal}, '1', NOW())
+					ON CONFLICT DO NOTHING;
+				`;
+			}
+
+			// 2. Hubungkan Bawahan Langsung
+			if (data.subordinate_titles && Array.isArray(data.subordinate_titles)) {
+				for (const subCode of data.subordinate_titles) {
+					if (subCode && subCode.trim() && subCode.trim() !== titleVal) {
+						await sql`
+							INSERT INTO master.m_atasan (title_atasan, title_bawahan, status, create_date)
+							VALUES (${titleVal}, ${subCode.trim()}, '1', NOW())
+							ON CONFLICT DO NOTHING;
+						`;
+					}
+				}
+			}
+		}
+
+		return {
+			success: true,
+			employee: newEmployee,
+			message: `Karyawan baru ${newEmployee.nama_karyawan} (${newEmployee.payroll_id}) berhasil ditambahkan.`
+		};
+	} catch (err: any) {
+		logError('CREATE_EMPLOYEE_RECORD_FAIL', err?.message);
+		throw err;
+	}
+}
+
+/**
  * Mengambil master data referensi lengkap termasuk pemetaan atasan-bawahan dan daftar personel aktif
  */
 export async function getEmployeeMasterLookups() {
 	try {
-		const [titles, divisions, departments, supervisorMappings, activePersonnel, locations] = await Promise.all([
+		const [titles, divisions, departments, supervisorMappings, activePersonnel, locations, nextPayrollId] = await Promise.all([
 			sql<any[]>`SELECT title_code, title FROM master.m_title ORDER BY title ASC`,
 			sql<any[]>`SELECT div_code, div_name FROM master.m_division ORDER BY div_name ASC`,
 			sql<any[]>`
@@ -177,7 +350,8 @@ export async function getEmployeeMasterLookups() {
 				WHERE k.aktif = 'Y'
 				ORDER BY k.nama_karyawan ASC
 			`,
-			sql<any[]>`SELECT loc_code, loc_name, city FROM master.m_lokasi ORDER BY loc_name ASC`
+			sql<any[]>`SELECT loc_code, loc_name, city FROM master.m_lokasi ORDER BY loc_name ASC`,
+			generateNextPayrollId()
 		]);
 
 		return {
@@ -202,7 +376,8 @@ export async function getEmployeeMasterLookups() {
 				code: l.loc_code,
 				name: l.loc_name,
 				city: l.city
-			}))
+			})),
+			nextPayrollId
 		};
 	} catch (e: any) {
 		logError('GET_EMPLOYEE_LOOKUPS_FAIL', e?.message);
@@ -212,7 +387,8 @@ export async function getEmployeeMasterLookups() {
 			departments: [],
 			supervisorMappings: [],
 			activePersonnel: [],
-			locations: []
+			locations: [],
+			nextPayrollId: ''
 		};
 	}
 }
