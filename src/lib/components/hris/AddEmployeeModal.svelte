@@ -1,11 +1,12 @@
 <script lang="ts">
+	import { untrack } from 'svelte';
 	import { enhance } from '$app/forms';
 	import { fly, fade } from 'svelte/transition';
 	import { addToast } from '$lib/stores/notifications';
 
 	interface Props {
 		isOpen: boolean;
-		titles?: Array<{ code: string; name: string }>;
+		titles?: Array<{ code: string; name: string; active?: string }>;
 		divisions?: Array<{ code: string; name: string }>;
 		departments?: Array<{ code: string; name: string; divCode?: string }>;
 		supervisorMappings?: Array<{ id: number; titleAtasan: string; titleBawahan: string }>;
@@ -76,39 +77,50 @@
 		}
 	}
 
-	// Reset dan inisialisasi form saat modal dibuka
+	let wasOpen = $state(false);
+
+	function resetForm() {
+		errorMessage = '';
+		successMessage = '';
+		activeTab = 'kepegawaian';
+
+		payrollId = defaultPayrollId || '';
+		name = '';
+		email = '';
+		phone = '';
+		titleCode = '';
+		divCode = '';
+		deptCode = '';
+		statusKaryawan = 'PERMANENT';
+		isActive = 'Y';
+		joinDate = new Date().toISOString().slice(0, 10);
+		workLocation = locations.find(l => l.code === 'LOC_027')?.code || (locations[0]?.code || 'LOC_027');
+		noKtp = '';
+		noNpwp = '';
+		birthPlace = '';
+		birthDate = '';
+		gender = 'MALE';
+		religion = 'ISLAM';
+		maritalStatus = 'TK-0';
+		addressKtp = '';
+		cityKtp = 'Cilegon';
+		education = 'S1';
+		major = '';
+
+		selectedAtasanTitle = '';
+		selectedSubordinateTitles = [];
+		newSubordinateToAdd = '';
+	}
+
+	// Reset dan inisialisasi form saat modal baru dibuka (di-guard agar tidak re-trigger saat user mengedit form)
 	$effect(() => {
-		if (isOpen) {
-			errorMessage = '';
-			successMessage = '';
-			activeTab = 'kepegawaian';
-
-			payrollId = defaultPayrollId || '';
-			name = '';
-			email = '';
-			phone = '';
-			titleCode = '';
-			divCode = '';
-			deptCode = '';
-			statusKaryawan = 'PERMANENT';
-			isActive = 'Y';
-			joinDate = new Date().toISOString().slice(0, 10);
-			workLocation = locations.find(l => l.code === 'LOC_027')?.code || (locations[0]?.code || 'LOC_027');
-			noKtp = '';
-			noNpwp = '';
-			birthPlace = '';
-			birthDate = '';
-			gender = 'MALE';
-			religion = 'ISLAM';
-			maritalStatus = 'TK-0';
-			addressKtp = '';
-			cityKtp = 'Cilegon';
-			education = 'S1';
-			major = '';
-
-			selectedAtasanTitle = '';
-			selectedSubordinateTitles = [];
-			newSubordinateToAdd = '';
+		if (isOpen && !wasOpen) {
+			wasOpen = true;
+			untrack(() => {
+				resetForm();
+			});
+		} else if (!isOpen) {
+			wasOpen = false;
 		}
 	});
 
@@ -140,9 +152,9 @@
 		})
 	);
 
-	// Available titles to add as subordinates (excluding current employee's title and already added)
+	// Available titles to add as subordinates (excluding current employee's title and already added, only active)
 	let availableTitlesForSubordinate = $derived(
-		titles.filter(t => t.code !== titleCode && !selectedSubordinateTitles.includes(t.code))
+		titles.filter(t => (t.active === 'Y' || !t.active) && t.code !== titleCode && !selectedSubordinateTitles.includes(t.code))
 	);
 
 	function addSubordinateTitle() {
@@ -374,7 +386,7 @@
 									class="w-full px-3.5 py-2.5 rounded-xl bg-surface border border-slate-300 dark:border-slate-700 text-xs font-bold text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/40 cursor-pointer"
 								>
 									<option value="">-- Pilih Jabatan --</option>
-									{#each titles as t}
+									{#each titles.filter(t => t.active === 'Y' || !t.active) as t}
 										<option value={t.code}>{t.name} ({t.code})</option>
 									{/each}
 								</select>
@@ -650,7 +662,7 @@
 										class="w-full px-3 py-2 rounded-xl bg-surface border border-slate-300 dark:border-slate-700 text-xs font-bold text-on-surface focus:outline-none focus:ring-2 focus:ring-indigo-500/40 cursor-pointer"
 									>
 										<option value="">-- Tanpa Atasan (Direksi / Puncak) --</option>
-										{#each titles as t}
+										{#each titles.filter(t => t.active === 'Y' || !t.active) as t}
 											{#if t.code !== titleCode}
 												<option value={t.code}>{t.name} ({t.code})</option>
 											{/if}

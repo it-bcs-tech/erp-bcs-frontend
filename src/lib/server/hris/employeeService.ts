@@ -332,7 +332,13 @@ export async function createEmployeeRecord(data: CreateEmployeeData) {
 export async function getEmployeeMasterLookups() {
 	try {
 		const [titles, divisions, departments, supervisorMappings, activePersonnel, locations, nextPayrollId] = await Promise.all([
-			sql<any[]>`SELECT title_code, title FROM master.m_title ORDER BY title ASC`,
+			sql<any[]>`
+				SELECT title_code, title, active 
+				FROM master.m_title 
+				WHERE active = 'Y' 
+				   OR title_code IN (SELECT DISTINCT title FROM master.m_karyawan WHERE title IS NOT NULL)
+				ORDER BY title ASC
+			`,
 			sql<any[]>`SELECT div_code, div_name FROM master.m_division ORDER BY div_name ASC`,
 			sql<any[]>`
 				SELECT dept_code, dept_name, div_code 
@@ -355,7 +361,7 @@ export async function getEmployeeMasterLookups() {
 		]);
 
 		return {
-			titles: titles.map(t => ({ code: t.title_code, name: t.title })),
+			titles: titles.map(t => ({ code: t.title_code, name: t.title, active: t.active })),
 			divisions: divisions.map(d => ({ code: d.div_code, name: d.div_name })),
 			departments: departments.map(d => ({ code: d.dept_code, name: d.dept_name, divCode: d.div_code })),
 			supervisorMappings: supervisorMappings.map(m => ({

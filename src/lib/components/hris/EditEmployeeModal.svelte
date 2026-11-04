@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { untrack } from 'svelte';
 	import { enhance } from '$app/forms';
 	import { fly, fade } from 'svelte/transition';
 	import { addToast } from '$lib/stores/notifications';
@@ -6,7 +7,7 @@
 	interface Props {
 		isOpen: boolean;
 		employee: any;
-		titles?: Array<{ code: string; name: string }>;
+		titles?: Array<{ code: string; name: string; active?: string }>;
 		divisions?: Array<{ code: string; name: string }>;
 		departments?: Array<{ code: string; name: string; divCode?: string }>;
 		supervisorMappings?: Array<{ id: number; titleAtasan: string; titleBawahan: string }>;
@@ -77,103 +78,120 @@
 		}
 	}
 
-	// Sinkronisasi data saat employee berubah atau modal dibuka
+	function loadEmployeeData(emp: any) {
+		errorMessage = '';
+		successMessage = '';
+
+		const cleanStr = (s: any) => (typeof s === 'string' ? s.trim().toLowerCase() : '');
+
+		const numId = Number(emp.rawId || emp.dbId || String(emp.id || '').replace(/[^0-9]/g, '')) || 0;
+		const targetPayrollId = emp.payroll_id || emp.payrollId || emp.id || '';
+		const targetName = emp.name || emp.nama_karyawan || '';
+
+		payrollId = targetPayrollId;
+		name = targetName;
+		email = emp.email || '';
+		phone = emp.phone || emp.telp1 || '';
+
+		// Fallback cerdas: cari profil lengkap di activePersonnel jika ada
+		const personRecord = activePersonnel.find(p => 
+			(numId > 0 && p.id === numId) || 
+			(targetPayrollId && p.payrollId === targetPayrollId) ||
+			(targetName && cleanStr(p.name) === cleanStr(targetName))
+		);
+		rawId = numId > 0 ? numId : (personRecord?.id || 0);
+		if (personRecord?.payrollId && (!payrollId || payrollId.startsWith('EMP-'))) {
+			payrollId = personRecord.payrollId;
+		}
+
+		// Temukan title code
+		const targetTitleCode = emp.title || emp.title_code || personRecord?.titleCode || '';
+		const targetRoleName = cleanStr(emp.job_title || emp.role);
+		const matchedTitle = titles.find(t => 
+			(targetTitleCode && t.code.toUpperCase() === targetTitleCode.toUpperCase()) ||
+			(targetRoleName && cleanStr(t.name) === targetRoleName)
+		);
+		titleCode = matchedTitle ? matchedTitle.code : targetTitleCode;
+
+		// Temukan div code
+		const targetDivCode = emp.div_id || personRecord?.divId || '';
+		const targetDivName = cleanStr(emp.directorate || emp.div_name);
+		const matchedDiv = divisions.find(d => 
+			(targetDivCode && d.code.toUpperCase() === targetDivCode.toUpperCase()) ||
+			(targetDivName && (d.code.toUpperCase() === targetDivName.toUpperCase() || cleanStr(d.name) === targetDivName))
+		);
+		divCode = matchedDiv ? matchedDiv.code : targetDivCode;
+
+		// Temukan dept code
+		const targetDeptCode = emp.dept_id || personRecord?.deptId || '';
+		const targetDeptName = cleanStr(emp.department?.name || emp.department || emp.dept_name);
+		const matchedDept = departments.find(d => 
+			(targetDeptCode && d.code.toUpperCase() === targetDeptCode.toUpperCase()) ||
+			(targetDeptName && (d.code.toUpperCase() === targetDeptName.toUpperCase() || cleanStr(d.name) === targetDeptName))
+		);
+		deptCode = matchedDept ? matchedDept.code : targetDeptCode;
+
+		// Normalisasi status kepegawaian
+		const rawStatus = (
+			emp.status_karyawan || 
+			(emp.status && emp.status !== 'Active' && emp.status !== 'Inactive' ? emp.status : '') || 
+			'PERMANENT'
+		).toUpperCase();
+		if (rawStatus.includes('CONTRACT') || rawStatus.includes('KONTRAK')) statusKaryawan = 'CONTRACT';
+		else if (rawStatus.includes('PROBATION') || rawStatus.includes('PERCOBAAN')) statusKaryawan = 'PROBATION';
+		else if (rawStatus.includes('INTERN') || rawStatus.includes('MAGANG')) statusKaryawan = 'INTERNSHIP';
+		else if (rawStatus.includes('MITRA')) statusKaryawan = 'MITRA KERJA';
+		else if (rawStatus.includes('BORONGAN')) statusKaryawan = 'BORONGAN';
+		else if (rawStatus.includes('HARIAN')) statusKaryawan = 'HARIAN';
+		else statusKaryawan = 'PERMANENT';
+
+		isActive = (emp.status === 'Active' || emp.aktif === 'Y' || emp.aktif === '1') ? 'Y' : 'N';
+		
+		// Format tanggal YYYY-MM-DD
+		joinDate = emp.tgl_masuk ? new Date(emp.tgl_masuk).toISOString().slice(0, 10) : (emp.joinDateRaw || '');
+		birthDate = emp.tgl_lahir ? new Date(emp.tgl_lahir).toISOString().slice(0, 10) : (emp.birthDateRaw || '');
+		
+		// Resolusi Lokasi Kerja
+		const targetLoc = emp.lokasi || emp.location || '';
+		const matchedLoc = locations.find(l => 
+			(targetLoc && l.code.toUpperCase() === targetLoc.toUpperCase()) ||
+			(targetLoc && cleanStr(l.name) === cleanStr(targetLoc)) ||
+			(emp.nama_lokasi && cleanStr(l.name) === cleanStr(emp.nama_lokasi))
+		);
+		workLocation = matchedLoc ? matchedLoc.code : (targetLoc.startsWith('LOC_') ? targetLoc : (locations[0]?.code || 'LOC_027'));
+		noKtp = emp.no_ktp || emp.nik || '';
+		noNpwp = emp.no_npwp || emp.npwp || '';
+		birthPlace = emp.tempat_lahir || emp.birthPlace || '';
+
+		// Normalisasi jenis kelamin (MALE / FEMALE)
+		const rawGender = (emp.jenis_kelamin || emp.gender || 'MALE').toUpperCase();
+		gender = (rawGender === 'FEMALE' || rawGender === 'P' || rawGender === 'WANITA' || rawGender === 'PEREMPUAN') ? 'FEMALE' : 'MALE';
+
+		religion = (emp.agama || emp.religion || 'ISLAM').toUpperCase();
+		maritalStatus = emp.marital_status || emp.maritalStatus || 'TK-0';
+		addressKtp = emp.alamat_ktp || emp.address || '';
+		cityKtp = emp.kota_ktp || emp.city || 'Cilegon';
+		education = emp.pendidikan_terakhir || emp.education || 'S1';
+		major = emp.jurusan || emp.major || '';
+
+		// Inisialisasi Atasan Langsung dari supervisorMappings
+		syncHierarchyWithTitle(titleCode);
+	}
+
+	// Sinkronisasi data saat employee berubah atau modal dibuka (di-guard agar tidak re-trigger saat user mengedit form)
+	let lastLoadedEmployeeKey = $state<string | number | null>(null);
+
 	$effect(() => {
 		if (isOpen && employee) {
-			errorMessage = '';
-			successMessage = '';
-
-			const cleanStr = (s: any) => (typeof s === 'string' ? s.trim().toLowerCase() : '');
-
-			const numId = Number(employee.rawId || employee.dbId || String(employee.id || '').replace(/[^0-9]/g, '')) || 0;
-			payrollId = employee.payroll_id || employee.payrollId || employee.id || '';
-			name = employee.name || employee.nama_karyawan || '';
-			email = employee.email || '';
-			phone = employee.phone || employee.telp1 || '';
-
-			// Fallback cerdas: cari profil lengkap di activePersonnel jika ada (via ID numerik, payroll ID, atau nama)
-			const personRecord = activePersonnel.find(p => 
-				(numId > 0 && p.id === numId) || 
-				(payrollId && p.payrollId === payrollId) ||
-				(name && cleanStr(p.name) === cleanStr(name))
-			);
-			rawId = numId > 0 ? numId : (personRecord?.id || 0);
-			if (personRecord?.payrollId && (!payrollId || payrollId.startsWith('EMP-'))) {
-				payrollId = personRecord.payrollId;
+			const currentKey = `${employee.id || employee.rawId || ''}_${employee.payroll_id || employee.payrollId || ''}`;
+			if (currentKey !== lastLoadedEmployeeKey) {
+				lastLoadedEmployeeKey = currentKey;
+				untrack(() => {
+					loadEmployeeData(employee);
+				});
 			}
-
-			// Temukan title code
-			const targetTitleCode = employee.title || employee.title_code || personRecord?.titleCode || '';
-			const targetRoleName = cleanStr(employee.job_title || employee.role);
-			const matchedTitle = titles.find(t => 
-				(targetTitleCode && t.code.toUpperCase() === targetTitleCode.toUpperCase()) ||
-				(targetRoleName && cleanStr(t.name) === targetRoleName)
-			);
-			titleCode = matchedTitle ? matchedTitle.code : targetTitleCode;
-
-			// Temukan div code
-			const targetDivCode = employee.div_id || personRecord?.divId || '';
-			const targetDivName = cleanStr(employee.directorate || employee.div_name);
-			const matchedDiv = divisions.find(d => 
-				(targetDivCode && d.code.toUpperCase() === targetDivCode.toUpperCase()) ||
-				(targetDivName && (d.code.toUpperCase() === targetDivName.toUpperCase() || cleanStr(d.name) === targetDivName))
-			);
-			divCode = matchedDiv ? matchedDiv.code : targetDivCode;
-
-			// Temukan dept code
-			const targetDeptCode = employee.dept_id || personRecord?.deptId || '';
-			const targetDeptName = cleanStr(employee.department?.name || employee.department || employee.dept_name);
-			const matchedDept = departments.find(d => 
-				(targetDeptCode && d.code.toUpperCase() === targetDeptCode.toUpperCase()) ||
-				(targetDeptName && (d.code.toUpperCase() === targetDeptName.toUpperCase() || cleanStr(d.name) === targetDeptName))
-			);
-			deptCode = matchedDept ? matchedDept.code : targetDeptCode;
-
-			// Normalisasi status kepegawaian (dahulukan status_karyawan, hindari bentrok dengan employee.status 'Active'/'Inactive')
-			const rawStatus = (
-				employee.status_karyawan || 
-				(employee.status && employee.status !== 'Active' && employee.status !== 'Inactive' ? employee.status : '') || 
-				'PERMANENT'
-			).toUpperCase();
-			if (rawStatus.includes('CONTRACT') || rawStatus.includes('KONTRAK')) statusKaryawan = 'CONTRACT';
-			else if (rawStatus.includes('PROBATION') || rawStatus.includes('PERCOBAAN')) statusKaryawan = 'PROBATION';
-			else if (rawStatus.includes('INTERN') || rawStatus.includes('MAGANG')) statusKaryawan = 'INTERNSHIP';
-			else if (rawStatus.includes('MITRA')) statusKaryawan = 'MITRA KERJA';
-			else if (rawStatus.includes('BORONGAN')) statusKaryawan = 'BORONGAN';
-			else if (rawStatus.includes('HARIAN')) statusKaryawan = 'HARIAN';
-			else statusKaryawan = 'PERMANENT';
-
-			isActive = (employee.status === 'Active' || employee.aktif === 'Y' || employee.aktif === '1') ? 'Y' : 'N';
-			
-			// Format tanggal YYYY-MM-DD
-			joinDate = employee.tgl_masuk ? new Date(employee.tgl_masuk).toISOString().slice(0, 10) : (employee.joinDateRaw || '');
-			birthDate = employee.tgl_lahir ? new Date(employee.tgl_lahir).toISOString().slice(0, 10) : (employee.birthDateRaw || '');
-			
-			// Resolusi Lokasi Kerja
-			const targetLoc = employee.lokasi || employee.location || '';
-			const matchedLoc = locations.find(l => 
-				(targetLoc && l.code.toUpperCase() === targetLoc.toUpperCase()) ||
-				(targetLoc && cleanStr(l.name) === cleanStr(targetLoc)) ||
-				(employee.nama_lokasi && cleanStr(l.name) === cleanStr(employee.nama_lokasi))
-			);
-			workLocation = matchedLoc ? matchedLoc.code : (targetLoc.startsWith('LOC_') ? targetLoc : (locations[0]?.code || 'LOC_027'));
-			noKtp = employee.no_ktp || employee.nik || '';
-			noNpwp = employee.no_npwp || employee.npwp || '';
-			birthPlace = employee.tempat_lahir || employee.birthPlace || '';
-
-			// Normalisasi jenis kelamin (MALE / FEMALE)
-			const rawGender = (employee.jenis_kelamin || employee.gender || 'MALE').toUpperCase();
-			gender = (rawGender === 'FEMALE' || rawGender === 'P' || rawGender === 'WANITA' || rawGender === 'PEREMPUAN') ? 'FEMALE' : 'MALE';
-
-			religion = (employee.agama || employee.religion || 'ISLAM').toUpperCase();
-			maritalStatus = employee.marital_status || employee.maritalStatus || 'TK-0';
-			addressKtp = employee.alamat_ktp || employee.address || '';
-			cityKtp = employee.kota_ktp || employee.city || 'Cilegon';
-			education = employee.pendidikan_terakhir || employee.education || 'S1';
-			major = employee.jurusan || employee.major || '';
-
-			// Inisialisasi Atasan Langsung dari supervisorMappings
-			syncHierarchyWithTitle(titleCode);
+		} else if (!isOpen) {
+			lastLoadedEmployeeKey = null;
 		}
 	});
 
@@ -205,9 +223,9 @@
 		})
 	);
 
-	// Available titles to add as subordinates (excluding current employee's title and already added)
+	// Available titles to add as subordinates (excluding current employee's title and already added, only active)
 	let availableTitlesForSubordinate = $derived(
-		titles.filter(t => t.code !== titleCode && !selectedSubordinateTitles.includes(t.code))
+		titles.filter(t => (t.active === 'Y' || !t.active) && t.code !== titleCode && !selectedSubordinateTitles.includes(t.code))
 	);
 
 	function addSubordinateTitle() {
@@ -419,7 +437,11 @@
 								>
 									<option value="">-- Pilih Jabatan --</option>
 									{#each titles as t}
-										<option value={t.code}>{t.name} ({t.code})</option>
+										{#if t.active === 'Y' || t.code === titleCode}
+											<option value={t.code}>
+												{t.name} ({t.code}){t.active === 'N' ? ' [Nonaktif]' : ''}
+											</option>
+										{/if}
 									{/each}
 								</select>
 							</div>
@@ -723,8 +745,8 @@
 									>
 										<option value="">-- Belum Ada Atasan (Level Tertinggi) --</option>
 										{#each titles as t}
-											{#if t.code !== titleCode}
-												<option value={t.code}>{t.name} ({t.code})</option>
+											{#if (t.active === 'Y' || t.code === selectedAtasanTitle) && t.code !== titleCode}
+												<option value={t.code}>{t.name} ({t.code}){t.active === 'N' ? ' [Nonaktif]' : ''}</option>
 											{/if}
 										{/each}
 									</select>
