@@ -23,11 +23,14 @@ export const load: PageServerLoad = async ({ params, cookies }) => {
 					k.*,
 					t.title as job_title,
 					d.dept_name,
-					div.div_name
+					div.div_name,
+					loc.loc_name as nama_lokasi,
+					loc.city as kota_lokasi
 				FROM master.m_karyawan k
 				LEFT JOIN master.m_title t ON t.title_code = k.title
 				LEFT JOIN master.m_dept d ON d.dept_code = k.dept_id
 				LEFT JOIN master.m_division div ON div.div_code = k.div_id
+				LEFT JOIN master.m_lokasi loc ON loc.loc_code = k.lokasi
 				WHERE k.id = ${empNumericId > 0 ? empNumericId : -1} OR k.payroll_id = ${empId}
 				LIMIT 1
 			`;
@@ -79,8 +82,9 @@ export const load: PageServerLoad = async ({ params, cookies }) => {
 				email: dbKaryawan.email || `${(dbKaryawan.nama_karyawan || 'user').toLowerCase().replace(/\s+/g, '.')}@bcslabs.tech`,
 				phone: dbKaryawan.telp1 || dbKaryawan.telp2 || '-',
 				telp1: dbKaryawan.telp1 || dbKaryawan.telp2 || '-',
-				location: dbKaryawan.lokasi || 'Cilegon Head Office',
-				lokasi: dbKaryawan.lokasi || 'Cilegon Head Office',
+				location: dbKaryawan.nama_lokasi ? `${dbKaryawan.nama_lokasi}${dbKaryawan.kota_lokasi ? ' (' + dbKaryawan.kota_lokasi + ')' : ''}` : (dbKaryawan.lokasi || 'Cilegon Head Office'),
+				lokasi: dbKaryawan.lokasi || 'LOC_027',
+				nama_lokasi: dbKaryawan.nama_lokasi || dbKaryawan.lokasi || 'HEAD OFFICE',
 				joinDate: dbKaryawan.tgl_masuk ? new Date(dbKaryawan.tgl_masuk).toLocaleDateString('id-ID', { year: 'numeric', month: 'short', day: 'numeric' }) : '2020-01-15',
 				tgl_masuk: dbKaryawan.tgl_masuk,
 				status: dbKaryawan.aktif === 'Y' ? 'Active' : 'Inactive',
@@ -141,8 +145,9 @@ export const load: PageServerLoad = async ({ params, cookies }) => {
 		employee.status = employee.status || (dbKaryawan.aktif === 'Y' ? 'Active' : 'Inactive');
 		employee.aktif = employee.aktif || dbKaryawan.aktif;
 		employee.tgl_masuk = employee.tgl_masuk || dbKaryawan.tgl_masuk;
-		employee.lokasi = employee.lokasi || employee.location || dbKaryawan.lokasi;
-		employee.location = employee.lokasi;
+		employee.lokasi = employee.lokasi || dbKaryawan.lokasi || 'LOC_027';
+		employee.location = dbKaryawan.nama_lokasi ? `${dbKaryawan.nama_lokasi}${dbKaryawan.kota_lokasi ? ' (' + dbKaryawan.kota_lokasi + ')' : ''}` : (employee.location || dbKaryawan.lokasi || 'Head Office Cilegon');
+		employee.nama_lokasi = employee.nama_lokasi || dbKaryawan.nama_lokasi || employee.location;
 		employee.nik = employee.nik || dbKaryawan.no_ktp || dbKaryawan.payroll_id;
 		employee.no_ktp = employee.no_ktp || dbKaryawan.no_ktp;
 		employee.npwp = employee.npwp || dbKaryawan.no_npwp || '-';
@@ -469,6 +474,7 @@ export const load: PageServerLoad = async ({ params, cookies }) => {
 		departments: lookups.departments,
 		supervisorMappings: lookups.supervisorMappings,
 		activePersonnel: lookups.activePersonnel,
+		locations: lookups.locations,
 		trainingData: {
 			trainings,
 			lmsCertificates,
@@ -482,10 +488,23 @@ export const load: PageServerLoad = async ({ params, cookies }) => {
 };
 
 export const actions: Actions = {
-	updateEmployee: async ({ request }) => {
+	updateEmployee: async ({ request, params }) => {
 		const formData = await request.formData();
-		const rawId = Number(formData.get('id'));
-		const nama_karyawan = formData.get('nama_karyawan')?.toString() || '';
+		let rawId = Number(formData.get('id'));
+		if (!rawId && params.id) {
+			const empNumeric = Number(String(params.id).replace(/[^0-9]/g, ''));
+			if (empNumeric > 0) rawId = empNumeric;
+		}
+
+		let nama_karyawan = formData.get('nama_karyawan')?.toString() || '';
+		if (!nama_karyawan && rawId > 0) {
+			try {
+				const existing = await sql`SELECT nama_karyawan FROM master.m_karyawan WHERE id = ${rawId} LIMIT 1`;
+				if (existing.length > 0) nama_karyawan = existing[0].nama_karyawan;
+			} catch (lookupErr) {
+				console.warn('Fallback nama_karyawan lookup failed:', lookupErr);
+			}
+		}
 
 		if (!rawId || !nama_karyawan) {
 			return fail(400, { success: false, message: 'ID dan Nama Karyawan wajib diisi.' });

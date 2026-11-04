@@ -101,6 +101,7 @@ export const load: PageServerLoad = async ({ cookies, url }) => {
 					departments: lookups.departments,
 					supervisorMappings: lookups.supervisorMappings,
 					activePersonnel: lookups.activePersonnel,
+					locations: lookups.locations,
 					meta: response.meta || {
 						current_page: page,
 						total: total,
@@ -146,6 +147,8 @@ export const load: PageServerLoad = async ({ cookies, url }) => {
 				k.status as status_karyawan,
 				k.status,
 				k.lokasi,
+				loc.loc_name as nama_lokasi,
+				loc.city as kota_lokasi,
 				k.aktif,
 				k.no_ktp,
 				k.no_npwp,
@@ -163,6 +166,7 @@ export const load: PageServerLoad = async ({ cookies, url }) => {
 			LEFT JOIN master.m_title t ON t.title_code = k.title
 			LEFT JOIN master.m_dept d ON d.dept_code = k.dept_id
 			LEFT JOIN master.m_division md ON md.div_code = k.div_id
+			LEFT JOIN master.m_lokasi loc ON loc.loc_code = k.lokasi
 			WHERE k.aktif = 'Y'
 				AND (${searchQuery} = '' OR k.nama_karyawan ILIKE ${'%' + searchQuery + '%'} OR k.payroll_id ILIKE ${'%' + searchQuery + '%'} OR t.title ILIKE ${'%' + searchQuery + '%'})
 				AND (${directorateFilter} = 'All' OR k.div_id = ${directorateFilter} OR md.div_name ILIKE ${directorateFilter})
@@ -191,8 +195,9 @@ export const load: PageServerLoad = async ({ cookies, url }) => {
 			status: r.status,
 			aktif: r.aktif,
 			status_karyawan: r.status_karyawan || 'TETAP',
-			lokasi: r.lokasi || 'Head Office Cilegon',
-			location: r.lokasi || 'Head Office Cilegon',
+			lokasi: r.lokasi || 'LOC_027',
+			location: r.nama_lokasi ? `${r.nama_lokasi}${r.kota_lokasi ? ' (' + r.kota_lokasi + ')' : ''}` : (r.lokasi || 'Head Office Cilegon'),
+			nama_lokasi: r.nama_lokasi || r.lokasi || 'HEAD OFFICE',
 			tgl_masuk: r.tgl_masuk,
 			no_ktp: r.no_ktp,
 			nik: r.no_ktp,
@@ -227,6 +232,7 @@ export const load: PageServerLoad = async ({ cookies, url }) => {
 			departments: lookups.departments,
 			supervisorMappings: lookups.supervisorMappings,
 			activePersonnel: lookups.activePersonnel,
+			locations: lookups.locations,
 			meta: {
 				current_page: page,
 				total: total,
@@ -245,6 +251,7 @@ export const load: PageServerLoad = async ({ cookies, url }) => {
 			departments: lookups.departments,
 			supervisorMappings: lookups.supervisorMappings,
 			activePersonnel: lookups.activePersonnel,
+			locations: lookups.locations,
 			meta: {
 				current_page: page,
 				total: 0,
@@ -259,7 +266,16 @@ export const actions: Actions = {
 	updateEmployee: async ({ request }) => {
 		const formData = await request.formData();
 		const rawId = Number(formData.get('id'));
-		const nama_karyawan = formData.get('nama_karyawan')?.toString() || '';
+		let nama_karyawan = formData.get('nama_karyawan')?.toString() || '';
+
+		if (!nama_karyawan && rawId > 0) {
+			try {
+				const existing = await sql`SELECT nama_karyawan FROM master.m_karyawan WHERE id = ${rawId} LIMIT 1`;
+				if (existing.length > 0) nama_karyawan = existing[0].nama_karyawan;
+			} catch (lookupErr) {
+				console.warn('Fallback nama_karyawan lookup failed:', lookupErr);
+			}
+		}
 
 		if (!rawId || !nama_karyawan) {
 			return fail(400, { success: false, message: 'ID dan Nama Karyawan wajib diisi.' });

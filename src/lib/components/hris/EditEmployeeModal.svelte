@@ -11,6 +11,7 @@
 		departments?: Array<{ code: string; name: string; divCode?: string }>;
 		supervisorMappings?: Array<{ id: number; titleAtasan: string; titleBawahan: string }>;
 		activePersonnel?: Array<{ id: number; payrollId: string; name: string; titleCode: string; avatar?: string; divId?: string; deptId?: string }>;
+		locations?: Array<{ code: string; name: string; city?: string }>;
 		actionUrl?: string;
 		onSaved?: (updated: any) => void;
 	}
@@ -23,6 +24,7 @@
 		departments = [],
 		supervisorMappings = [],
 		activePersonnel = [],
+		locations = [],
 		actionUrl = '?/updateEmployee',
 		onSaved
 	}: Props = $props();
@@ -136,7 +138,14 @@
 			joinDate = employee.tgl_masuk ? new Date(employee.tgl_masuk).toISOString().slice(0, 10) : (employee.joinDateRaw || '');
 			birthDate = employee.tgl_lahir ? new Date(employee.tgl_lahir).toISOString().slice(0, 10) : (employee.birthDateRaw || '');
 			
-			workLocation = employee.lokasi || employee.location || 'Head Office Cilegon';
+			// Resolusi Lokasi Kerja
+			const targetLoc = employee.lokasi || employee.location || '';
+			const matchedLoc = locations.find(l => 
+				(targetLoc && l.code.toUpperCase() === targetLoc.toUpperCase()) ||
+				(targetLoc && cleanStr(l.name) === cleanStr(targetLoc)) ||
+				(employee.nama_lokasi && cleanStr(l.name) === cleanStr(employee.nama_lokasi))
+			);
+			workLocation = matchedLoc ? matchedLoc.code : (targetLoc.startsWith('LOC_') ? targetLoc : (locations[0]?.code || 'LOC_027'));
 			noKtp = employee.no_ktp || employee.nik || '';
 			noNpwp = employee.no_npwp || employee.npwp || '';
 			birthPlace = employee.tempat_lahir || employee.birthPlace || '';
@@ -308,7 +317,13 @@
 				method="POST"
 				action={actionUrl}
 				id="edit-employee-form"
-				use:enhance={() => {
+				use:enhance={({ cancel }) => {
+					if (!name || !name.trim()) {
+						activeTab = 'kepegawaian';
+						errorMessage = 'Nama Lengkap Karyawan wajib diisi.';
+						cancel();
+						return;
+					}
 					isSubmitting = true;
 					errorMessage = '';
 					successMessage = '';
@@ -355,9 +370,8 @@
 				<input type="hidden" name="subordinate_titles" value={JSON.stringify(selectedSubordinateTitles)} />
 
 				<!-- TAB 1: KEPEGAWAIAN -->
-				{#if activeTab === 'kepegawaian'}
-					<div class="space-y-4 animate-in fade-in duration-150">
-						<div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+				<div class="space-y-4 animate-in fade-in duration-150" class:hidden={activeTab !== 'kepegawaian'}>
+					<div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
 							<div class="space-y-1.5">
 								<label for="emp-payroll-id" class="text-xs font-bold text-on-surface">Payroll ID / NIK Perusahaan</label>
 								<input
@@ -378,7 +392,6 @@
 									type="text"
 									name="nama_karyawan"
 									bind:value={name}
-									required
 									placeholder="Contoh: Budi Santoso"
 									class="w-full px-3.5 py-2.5 rounded-xl bg-surface border border-slate-300 dark:border-slate-700 text-xs font-bold text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/40"
 								/>
@@ -474,23 +487,24 @@
 
 							<div class="space-y-1.5 sm:col-span-2">
 								<label for="emp-lokasi" class="text-xs font-bold text-on-surface">Lokasi Penempatan Kerja</label>
-								<input
+								<select
 									id="emp-lokasi"
-									type="text"
 									name="lokasi"
 									bind:value={workLocation}
-									placeholder="Contoh: Head Office Cilegon / Site Ciwandan"
-									class="w-full px-3.5 py-2.5 rounded-xl bg-surface border border-slate-300 dark:border-slate-700 text-xs font-medium text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/40"
-								/>
+									class="w-full px-3.5 py-2.5 rounded-xl bg-surface border border-slate-300 dark:border-slate-700 text-xs font-bold text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/40 cursor-pointer"
+								>
+									<option value="">-- Pilih Lokasi Kerja --</option>
+									{#each locations as loc}
+										<option value={loc.code}>{loc.name}{loc.city ? ` (${loc.city})` : ''} - {loc.code}</option>
+									{/each}
+								</select>
 							</div>
 						</div>
 					</div>
-				{/if}
 
 				<!-- TAB 2: PRIBADI & KONTAK -->
-				{#if activeTab === 'pribadi'}
-					<div class="space-y-4 animate-in fade-in duration-150">
-						<div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+				<div class="space-y-4 animate-in fade-in duration-150" class:hidden={activeTab !== 'pribadi'}>
+					<div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
 							<div class="space-y-1.5">
 								<label for="emp-email" class="text-xs font-bold text-on-surface">Email Perusahaan / Pribadi</label>
 								<input
@@ -588,12 +602,10 @@
 							</div>
 						</div>
 					</div>
-				{/if}
 
 				<!-- TAB 3: LEGALITAS & ALAMAT -->
-				{#if activeTab === 'legalitas'}
-					<div class="space-y-4 animate-in fade-in duration-150">
-						<div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+				<div class="space-y-4 animate-in fade-in duration-150" class:hidden={activeTab !== 'legalitas'}>
+					<div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
 							<div class="space-y-1.5">
 								<label for="emp-no-ktp" class="text-xs font-bold text-on-surface">Nomor Induk Kependudukan (NIK KTP)</label>
 								<input
@@ -673,12 +685,10 @@
 							</div>
 						</div>
 					</div>
-				{/if}
 
 				<!-- TAB 4: STRUKTUR & HIRARKI ORGANISASI (DIAGRAM POHON 3-LEVEL) -->
-				{#if activeTab === 'hirarki'}
-					<div class="space-y-6 animate-in fade-in duration-150">
-						<!-- Konfigurasi Atasan & Bawahan Form Box -->
+				<div class="space-y-6 animate-in fade-in duration-150" class:hidden={activeTab !== 'hirarki'}>
+					<!-- Konfigurasi Atasan & Bawahan Form Box -->
 						<div class="p-5 rounded-2xl bg-surface border border-slate-200 dark:border-slate-800 space-y-4">
 							<div class="flex items-center justify-between">
 								<div class="flex items-center gap-2">
@@ -919,7 +929,6 @@
 							</div>
 						</div>
 					</div>
-				{/if}
 			</form>
 
 			<!-- Footer -->

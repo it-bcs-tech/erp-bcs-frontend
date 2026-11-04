@@ -10,6 +10,7 @@
 	let departments = $derived(data.departments || []);
 	let supervisorMappings = $derived(data.supervisorMappings || []);
 	let activePersonnel = $derived(data.activePersonnel || []);
+	let locations = $derived(data.locations || []);
 	let isEditModalOpen = $state(false);
 
 	const trainingData = $derived(data.trainingData || {
@@ -997,6 +998,7 @@
 	{departments}
 	{supervisorMappings}
 	{activePersonnel}
+	{locations}
 	onSaved={async () => {
 		await invalidateAll();
 	}}

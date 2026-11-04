@@ -15,6 +15,7 @@
 	let departments = $derived(data.departments || []);
 	let supervisorMappings = $derived(data.supervisorMappings || []);
 	let activePersonnel = $derived(data.activePersonnel || []);
+	let locations = $derived(data.locations || []);
 	let meta = $derived(data.meta);
 
 	// State yang sinkron dengan URL
@@ -349,6 +350,7 @@
 	{departments}
 	{supervisorMappings}
 	{activePersonnel}
+	{locations}
 />
 
 <style>

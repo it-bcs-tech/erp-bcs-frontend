@@ -158,7 +158,7 @@ export async function updateEmployeeRecord(data: UpdateEmployeeData) {
  */
 export async function getEmployeeMasterLookups() {
 	try {
-		const [titles, divisions, departments, supervisorMappings, activePersonnel] = await Promise.all([
+		const [titles, divisions, departments, supervisorMappings, activePersonnel, locations] = await Promise.all([
 			sql<any[]>`SELECT title_code, title FROM master.m_title ORDER BY title ASC`,
 			sql<any[]>`SELECT div_code, div_name FROM master.m_division ORDER BY div_name ASC`,
 			sql<any[]>`SELECT dept_code, dept_name, div_code FROM master.m_dept ORDER BY dept_name ASC`,
@@ -170,7 +170,8 @@ export async function getEmployeeMasterLookups() {
 				FROM master.m_karyawan k
 				WHERE k.aktif = 'Y'
 				ORDER BY k.nama_karyawan ASC
-			`
+			`,
+			sql<any[]>`SELECT loc_code, loc_name, city FROM master.m_lokasi ORDER BY loc_name ASC`
 		]);
 
 		return {
@@ -190,6 +191,11 @@ export async function getEmployeeMasterLookups() {
 				avatar: p.avatar,
 				divId: p.div_id,
 				deptId: p.dept_id
+			})),
+			locations: locations.map(l => ({
+				code: l.loc_code,
+				name: l.loc_name,
+				city: l.city
 			}))
 		};
 	} catch (e: any) {
@@ -199,7 +205,8 @@ export async function getEmployeeMasterLookups() {
 			divisions: [],
 			departments: [],
 			supervisorMappings: [],
-			activePersonnel: []
+			activePersonnel: [],
+			locations: []
 		};
 	}
 }
