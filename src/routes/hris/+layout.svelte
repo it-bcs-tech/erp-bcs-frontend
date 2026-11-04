@@ -28,7 +28,8 @@
 		!currentPath.startsWith('/hris/assessments') &&
 		!currentPath.startsWith('/hris/org-chart') &&
 		!currentPath.startsWith('/hris/certifications') &&
-		!currentPath.startsWith('/hris/recruitment')
+		!currentPath.startsWith('/hris/recruitment') &&
+		!currentPath.startsWith('/hris/settings')
 	);
 </script>
 
@@ -245,6 +246,23 @@
 			>
 				<span class="material-symbols-outlined text-[20px]">verified</span>
 				{#if $isSidebarExpanded}<span class="text-sm whitespace-nowrap">Document Expiry & Certs</span>{/if}
+			</a>
+			{/if}
+
+			<!-- Section: Settings & Master -->
+			{#if isAdmin || hasMenuAccess(user, 'hris', 'hris.settings')}
+			<div class="pt-3 pb-1 {$isSidebarExpanded ? 'px-4' : 'px-0 text-center'}">
+				<p class="text-[9px] font-black text-on-surface-variant/50 uppercase tracking-[0.2em]">{$isSidebarExpanded ? 'Settings & Master' : '...'}</p>
+			</div>
+			<a
+				class="flex items-center {$isSidebarExpanded ? 'justify-start px-4' : 'justify-center'} gap-3 py-2.5 rounded-xl transition-all duration-200 hover:translate-x-1 {isActive('/hris/settings')
+					? 'bg-surface-container-highest text-primary font-bold'
+					: 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container font-medium text-sm'}"
+				href="/hris/settings"
+				title="Organization Settings"
+			>
+				<span class="material-symbols-outlined text-[20px]">tune</span>
+				{#if $isSidebarExpanded}<span class="text-sm whitespace-nowrap">Organization Settings</span>{/if}
 			</a>
 			{/if}
 
