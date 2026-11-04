@@ -20,6 +20,7 @@ export const handle: Handle = async ({ event, resolve }) => {
 	const isUploadsRoute    = pathname.startsWith('/uploads');
 	const isAdminRoute      = pathname.startsWith('/admin');
 	const isScanRoute       = pathname.startsWith('/scan');
+	const isPortalRoute     = pathname.startsWith('/portal');
 
 	// Populate event.locals.user dari cookie yang terverifikasi
 	let currentUser: AuthUser | null = null;
@@ -33,8 +34,8 @@ export const handle: Handle = async ({ event, resolve }) => {
 	}
 	event.locals.user = currentUser;
 
-	// Biarkan logout, API, Uploads, dan Scan publik berjalan tanpa guard
-	if (isLogoutEndpoint || isApiRoute || isUploadsRoute || isScanRoute) {
+	// Biarkan logout, API, Uploads, Scan publik, dan Portal magic link berjalan tanpa guard
+	if (isLogoutEndpoint || isApiRoute || isUploadsRoute || isScanRoute || isPortalRoute) {
 		return resolve(event);
 	}
 
@@ -46,7 +47,7 @@ export const handle: Handle = async ({ event, resolve }) => {
 	}
 
 	// Jika pengguna belum login, arahkan ke halaman login
-	if (!authToken && !isLoginPage && !isScanRoute) {
+	if (!authToken && !isLoginPage && !isScanRoute && !isPortalRoute) {
 		return redirect(303, '/login');
 	}
 

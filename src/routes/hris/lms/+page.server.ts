@@ -2088,13 +2088,21 @@ export const actions = {
 	toggleTrainerTokenLock: async ({ request }) => {
 		const formData = await request.formData();
 		const courseId = formData.get('courseId')?.toString();
-		const newStatus = formData.get('status')?.toString(); // 'ACTIVE' or 'LOCKED'
+		let newStatus = formData.get('status')?.toString(); // 'ACTIVE' or 'LOCKED'
 
-		if (!courseId || !newStatus) {
-			return { success: false, message: 'ID Pelatihan atau status kunci tidak valid.' };
+		if (!courseId) {
+			return { success: false, message: 'ID Pelatihan tidak valid.' };
 		}
 
 		try {
+			if (!newStatus) {
+				const currentRows = await sql<any[]>`
+					SELECT trainer_token_status FROM hris.lms_courses WHERE id = ${courseId} LIMIT 1;
+				`;
+				const current = currentRows[0]?.trainer_token_status || 'ACTIVE';
+				newStatus = current === 'LOCKED' ? 'ACTIVE' : 'LOCKED';
+			}
+
 			await sql`
 				UPDATE hris.lms_courses 
 				SET trainer_token_status = ${newStatus}

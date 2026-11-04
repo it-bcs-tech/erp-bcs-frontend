@@ -111,19 +111,6 @@ export function resolveMenuId(moduleCode: string, pathname: string): { menuId: s
  * Mengembalikan `{ allowed: true }` jika berhak, atau detail penolakan jika tidak berhak.
  */
 export function checkUrlAccess(urlOrPath: string, user: AuthUser | null): AccessCheckResult {
-	if (!user) {
-		return {
-			allowed: false,
-			targetName: 'Sistem ERP BCS',
-			reason: 'Sesi login telah berakhir atau pengguna belum terotentikasi.'
-		};
-	}
-
-	// Administrator selalu diizinkan
-	if (['superadmin', 'administrator', 'superhyperadmin', 'super_admin'].includes(user.role?.toLowerCase())) {
-		return { allowed: true };
-	}
-
 	// Parsing pathname
 	let pathname = urlOrPath;
 	try {
@@ -137,6 +124,25 @@ export function checkUrlAccess(urlOrPath: string, user: AuthUser | null): Access
 
 	// Normalisasi: buang query, hash, dan suffix SvelteKit __data.json
 	pathname = pathname.split('?')[0].split('#')[0].replace('/__data.json', '').replace(/\/+$/, '') || '/';
+
+	// Rute publik / standalone yang tidak memerlukan login
+	const publicPrefixes = ['/login', '/portal', '/scan', '/api', '/uploads', '/logout'];
+	if (publicPrefixes.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`))) {
+		return { allowed: true };
+	}
+
+	if (!user) {
+		return {
+			allowed: false,
+			targetName: 'Sistem ERP BCS',
+			reason: 'Sesi login telah berakhir atau pengguna belum terotentikasi.'
+		};
+	}
+
+	// Administrator selalu diizinkan
+	if (['superadmin', 'administrator', 'superhyperadmin', 'super_admin'].includes(user.role?.toLowerCase())) {
+		return { allowed: true };
+	}
 
 	// Cari apakah pathname mengarah ke salah satu modul ERP
 	const targetModule = MODULE_ROUTES.find(

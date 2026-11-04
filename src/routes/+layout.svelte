@@ -109,7 +109,8 @@
 		$page.url.pathname.startsWith('/login') || 
 		isPrintRoute || 
 		$page.url.pathname.startsWith('/p2h') ||
-		$page.url.pathname.startsWith('/scan')
+		$page.url.pathname.startsWith('/scan') ||
+		$page.url.pathname.startsWith('/portal')
 	);
 </script>
 

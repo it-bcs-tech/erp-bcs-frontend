@@ -3592,6 +3592,7 @@
 														</button>
 														<form method="POST" action="?/toggleTrainerTokenLock" use:enhance class="inline">
 															<input type="hidden" name="courseId" value={course.id} />
+															<input type="hidden" name="status" value={course.trainerTokenStatus === 'LOCKED' ? 'ACTIVE' : 'LOCKED'} />
 															<button
 																type="submit"
 																class="w-7 h-7 rounded-lg border border-slate-300 dark:border-slate-700 hover:bg-surface-container flex items-center justify-center cursor-pointer transition-all"
