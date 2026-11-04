@@ -162,7 +162,7 @@ export async function getEmployeeMasterLookups() {
 			sql<any[]>`SELECT title_code, title FROM master.m_title ORDER BY title ASC`,
 			sql<any[]>`SELECT div_code, div_name FROM master.m_division ORDER BY div_name ASC`,
 			sql<any[]>`SELECT dept_code, dept_name, div_code FROM master.m_dept ORDER BY dept_name ASC`,
-			sql<any[]>`SELECT id, title_atasan, title_bawahan FROM master.m_atasan WHERE status = '1' OR status = 'Y' OR status IS NULL`,
+			sql<any[]>`SELECT id, title_atasan, title_bawahan FROM master.m_atasan WHERE status IN ('0', '1', 'Y') OR status IS NULL`,
 			sql<any[]>`
 				SELECT 
 					k.id, k.payroll_id, k.nama_karyawan as name, k.title as title_code, 

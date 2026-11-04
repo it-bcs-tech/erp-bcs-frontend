@@ -44,6 +44,54 @@ export const load: PageServerLoad = async ({ cookies, url }) => {
 				const total = response.meta?.total || rawList.length;
 				const paginatedEmployees = response.meta ? rawList : rawList.slice((page - 1) * perPage, page * perPage);
 
+				// Pengayaan data karyawan Laravel dari master.m_karyawan agar kode divisi & jabatan selalu lengkap
+				const empIds = paginatedEmployees.map((e: any) => Number(e.id || e.rawId || 0)).filter((id: number) => id > 0);
+				if (empIds.length > 0) {
+					try {
+						const dbRows = await sql`
+							SELECT id, payroll_id, title, div_id, dept_id, status, lokasi, aktif,
+								   tgl_masuk, no_ktp, no_npwp, tempat_lahir, tgl_lahir, jenis_kelamin,
+								   agama, marital_status, alamat_ktp, kota_ktp, pendidikan_terakhir, jurusan
+							FROM master.m_karyawan 
+							WHERE id IN ${sql(empIds)}
+						`;
+						const dbMap = new Map(dbRows.map(r => [r.id, r]));
+						paginatedEmployees.forEach((e: any) => {
+							const numId = Number(e.id || e.rawId || 0);
+							const db = dbMap.get(numId);
+							if (db) {
+								e.rawId = e.rawId || db.id;
+								e.dbId = e.dbId || db.id;
+								e.payroll_id = e.payroll_id || db.payroll_id;
+								e.payrollId = e.payrollId || db.payroll_id;
+								e.title = e.title || e.title_code || db.title;
+								e.title_code = e.title_code || db.title;
+								e.div_id = e.div_id || db.div_id;
+								e.dept_id = e.dept_id || db.dept_id;
+								e.status_karyawan = e.status_karyawan || db.status;
+								e.lokasi = e.lokasi || e.location || db.lokasi;
+								e.location = e.lokasi;
+								e.tgl_masuk = e.tgl_masuk || db.tgl_masuk;
+								e.no_ktp = e.no_ktp || e.nik || db.no_ktp;
+								e.nik = e.no_ktp;
+								e.no_npwp = e.no_npwp || e.npwp || db.no_npwp;
+								e.npwp = e.no_npwp;
+								e.tempat_lahir = e.tempat_lahir || db.tempat_lahir;
+								e.tgl_lahir = e.tgl_lahir || db.tgl_lahir;
+								e.jenis_kelamin = e.jenis_kelamin || db.jenis_kelamin;
+								e.agama = e.agama || db.agama;
+								e.marital_status = e.marital_status || db.marital_status;
+								e.alamat_ktp = e.alamat_ktp || db.alamat_ktp;
+								e.kota_ktp = e.kota_ktp || db.kota_ktp;
+								e.pendidikan_terakhir = e.pendidikan_terakhir || db.pendidikan_terakhir;
+								e.jurusan = e.jurusan || db.jurusan;
+							}
+						});
+					} catch (enrichErr) {
+						console.warn('[HRIS Employees] Failed to enrich Laravel list from PostgreSQL:', enrichErr);
+					}
+				}
+
 				return {
 					employees: paginatedEmployees,
 					directorates: response.data?.directorates || directorates,
@@ -95,7 +143,8 @@ export const load: PageServerLoad = async ({ cookies, url }) => {
 				k.title as title_code,
 				k.div_id,
 				k.dept_id,
-				k.status_karyawan,
+				k.status as status_karyawan,
+				k.status,
 				k.lokasi,
 				k.aktif,
 				k.no_ktp,

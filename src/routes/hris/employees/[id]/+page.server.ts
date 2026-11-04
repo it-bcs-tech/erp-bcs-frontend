@@ -64,13 +64,28 @@ export const load: PageServerLoad = async ({ params, cookies }) => {
 				rawId: dbKaryawan.id,
 				dbId: dbKaryawan.id,
 				name: dbKaryawan.nama_karyawan,
+				nama_karyawan: dbKaryawan.nama_karyawan,
+				title: dbKaryawan.title,
+				title_code: dbKaryawan.title,
+				job_title: dbKaryawan.job_title || dbKaryawan.title,
 				role: dbKaryawan.job_title || dbKaryawan.title || 'Staff',
+				div_id: dbKaryawan.div_id,
+				dept_id: dbKaryawan.dept_id,
+				dir_id: dbKaryawan.dir_id,
+				directorate: dbKaryawan.div_name || 'Operations',
+				div_name: dbKaryawan.div_name,
+				dept_name: dbKaryawan.dept_name,
 				department: dbKaryawan.dept_name || 'General',
 				email: dbKaryawan.email || `${(dbKaryawan.nama_karyawan || 'user').toLowerCase().replace(/\s+/g, '.')}@bcslabs.tech`,
 				phone: dbKaryawan.telp1 || dbKaryawan.telp2 || '-',
+				telp1: dbKaryawan.telp1 || dbKaryawan.telp2 || '-',
 				location: dbKaryawan.lokasi || 'Cilegon Head Office',
+				lokasi: dbKaryawan.lokasi || 'Cilegon Head Office',
 				joinDate: dbKaryawan.tgl_masuk ? new Date(dbKaryawan.tgl_masuk).toLocaleDateString('id-ID', { year: 'numeric', month: 'short', day: 'numeric' }) : '2020-01-15',
+				tgl_masuk: dbKaryawan.tgl_masuk,
 				status: dbKaryawan.aktif === 'Y' ? 'Active' : 'Inactive',
+				status_karyawan: dbKaryawan.status || 'PERMANENT',
+				aktif: dbKaryawan.aktif || 'Y',
 				performance: '92',
 				leaveBalance: 12,
 				manager: 'Management Team',
@@ -81,35 +96,74 @@ export const load: PageServerLoad = async ({ params, cookies }) => {
 				payrollId: dbKaryawan.payroll_id,
 				payroll_id: dbKaryawan.payroll_id,
 				nik: dbKaryawan.no_ktp || dbKaryawan.payroll_id,
+				no_ktp: dbKaryawan.no_ktp || dbKaryawan.payroll_id,
 				npwp: dbKaryawan.no_npwp || '-',
+				no_npwp: dbKaryawan.no_npwp || '-',
 				birthPlace: dbKaryawan.tempat_lahir,
+				tempat_lahir: dbKaryawan.tempat_lahir,
 				birthDate: dbKaryawan.tgl_lahir ? new Date(dbKaryawan.tgl_lahir).toLocaleDateString('id-ID', { year: 'numeric', month: 'short', day: 'numeric' }) : '-',
+				tgl_lahir: dbKaryawan.tgl_lahir,
 				gender: dbKaryawan.jenis_kelamin,
+				jenis_kelamin: dbKaryawan.jenis_kelamin,
 				religion: dbKaryawan.agama,
+				agama: dbKaryawan.agama,
 				maritalStatus: dbKaryawan.marital_status,
+				marital_status: dbKaryawan.marital_status,
 				address: dbKaryawan.alamat_ktp || dbKaryawan.alamat_ktp2 || '-',
+				alamat_ktp: dbKaryawan.alamat_ktp || dbKaryawan.alamat_ktp2 || '-',
 				city: dbKaryawan.kota_ktp || 'Cilegon',
-				education: dbKaryawan.pendidikan_terakhir ? `${dbKaryawan.pendidikan_terakhir} - ${dbKaryawan.jurusan || ''}` : '-'
+				kota_ktp: dbKaryawan.kota_ktp || 'Cilegon',
+				education: dbKaryawan.pendidikan_terakhir ? `${dbKaryawan.pendidikan_terakhir} - ${dbKaryawan.jurusan || ''}` : '-',
+				pendidikan_terakhir: dbKaryawan.pendidikan_terakhir,
+				jurusan: dbKaryawan.jurusan
 			};
 		} else {
 			throw error(404, 'Employee not found');
 		}
 	} else if (dbKaryawan) {
 		// Sinkronkan data master ke employee jika ada properti yang belum lengkap dari Laravel
+		employee.rawId = employee.rawId || dbKaryawan.id;
+		employee.dbId = employee.dbId || dbKaryawan.id;
 		employee.payroll_id = employee.payroll_id || employee.payrollId || dbKaryawan.payroll_id;
 		employee.payrollId = employee.payroll_id;
-		employee.nik = employee.nik || dbKaryawan.no_ktp || dbKaryawan.payroll_id;
-		employee.npwp = employee.npwp || dbKaryawan.no_npwp || '-';
-		employee.birthPlace = employee.birthPlace || dbKaryawan.tempat_lahir;
-		employee.birthDate = employee.birthDate || (dbKaryawan.tgl_lahir ? new Date(dbKaryawan.tgl_lahir).toLocaleDateString('id-ID', { year: 'numeric', month: 'short', day: 'numeric' }) : '-');
-		employee.gender = employee.gender || dbKaryawan.jenis_kelamin;
-		employee.religion = employee.religion || dbKaryawan.agama;
-		employee.maritalStatus = employee.maritalStatus || dbKaryawan.marital_status;
-		employee.address = employee.address || dbKaryawan.alamat_ktp || dbKaryawan.alamat_ktp2 || '-';
-		employee.city = employee.city || dbKaryawan.kota_ktp || 'Cilegon';
-		employee.education = employee.education || (dbKaryawan.pendidikan_terakhir ? `${dbKaryawan.pendidikan_terakhir} - ${dbKaryawan.jurusan || ''}` : '-');
-		employee.rawId = employee.rawId || dbKaryawan.id;
+		employee.nama_karyawan = employee.nama_karyawan || employee.name || dbKaryawan.nama_karyawan;
+		employee.title = employee.title || employee.title_code || dbKaryawan.title;
+		employee.title_code = employee.title;
+		employee.job_title = employee.job_title || dbKaryawan.job_title || employee.role;
+		employee.div_id = employee.div_id || dbKaryawan.div_id;
+		employee.dept_id = employee.dept_id || dbKaryawan.dept_id;
+		employee.dir_id = employee.dir_id || dbKaryawan.dir_id;
+		employee.directorate = employee.directorate || dbKaryawan.div_name;
+		employee.div_name = employee.div_name || dbKaryawan.div_name;
 		employee.department = typeof employee.department === 'object' ? (employee.department.name || dbKaryawan.dept_name || 'General') : (employee.department || dbKaryawan.dept_name || 'General');
+		employee.dept_name = employee.dept_name || dbKaryawan.dept_name;
+		employee.status_karyawan = employee.status_karyawan || dbKaryawan.status || 'PERMANENT';
+		employee.status = employee.status || (dbKaryawan.aktif === 'Y' ? 'Active' : 'Inactive');
+		employee.aktif = employee.aktif || dbKaryawan.aktif;
+		employee.tgl_masuk = employee.tgl_masuk || dbKaryawan.tgl_masuk;
+		employee.lokasi = employee.lokasi || employee.location || dbKaryawan.lokasi;
+		employee.location = employee.lokasi;
+		employee.nik = employee.nik || dbKaryawan.no_ktp || dbKaryawan.payroll_id;
+		employee.no_ktp = employee.no_ktp || dbKaryawan.no_ktp;
+		employee.npwp = employee.npwp || dbKaryawan.no_npwp || '-';
+		employee.no_npwp = employee.no_npwp || dbKaryawan.no_npwp;
+		employee.birthPlace = employee.birthPlace || dbKaryawan.tempat_lahir;
+		employee.tempat_lahir = employee.tempat_lahir || dbKaryawan.tempat_lahir;
+		employee.birthDate = employee.birthDate || (dbKaryawan.tgl_lahir ? new Date(dbKaryawan.tgl_lahir).toLocaleDateString('id-ID', { year: 'numeric', month: 'short', day: 'numeric' }) : '-');
+		employee.tgl_lahir = employee.tgl_lahir || dbKaryawan.tgl_lahir;
+		employee.gender = employee.gender || dbKaryawan.jenis_kelamin;
+		employee.jenis_kelamin = employee.jenis_kelamin || dbKaryawan.jenis_kelamin;
+		employee.religion = employee.religion || dbKaryawan.agama;
+		employee.agama = employee.agama || dbKaryawan.agama;
+		employee.maritalStatus = employee.maritalStatus || dbKaryawan.marital_status;
+		employee.marital_status = employee.marital_status || dbKaryawan.marital_status;
+		employee.address = employee.address || dbKaryawan.alamat_ktp || dbKaryawan.alamat_ktp2 || '-';
+		employee.alamat_ktp = employee.alamat_ktp || dbKaryawan.alamat_ktp;
+		employee.city = employee.city || dbKaryawan.kota_ktp || 'Cilegon';
+		employee.kota_ktp = employee.kota_ktp || dbKaryawan.kota_ktp;
+		employee.education = employee.education || (dbKaryawan.pendidikan_terakhir ? `${dbKaryawan.pendidikan_terakhir} - ${dbKaryawan.jurusan || ''}` : '-');
+		employee.pendidikan_terakhir = employee.pendidikan_terakhir || dbKaryawan.pendidikan_terakhir;
+		employee.jurusan = employee.jurusan || dbKaryawan.jurusan;
 	}
 
 	employee.skills = employee.skills || [];

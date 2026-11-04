@@ -62,11 +62,26 @@
 	let selectedSubordinateTitles = $state<string[]>([]);
 	let newSubordinateToAdd = $state('');
 
+	function syncHierarchyWithTitle(code: string) {
+		if (code && supervisorMappings.length > 0) {
+			const atasanRel = supervisorMappings.find(m => m.titleBawahan === code);
+			selectedAtasanTitle = atasanRel ? atasanRel.titleAtasan : '';
+
+			const subRels = supervisorMappings.filter(m => m.titleAtasan === code);
+			selectedSubordinateTitles = Array.from(new Set(subRels.map(m => m.titleBawahan).filter(Boolean)));
+		} else {
+			selectedAtasanTitle = '';
+			selectedSubordinateTitles = [];
+		}
+	}
+
 	// Sinkronisasi data saat employee berubah atau modal dibuka
 	$effect(() => {
 		if (isOpen && employee) {
 			errorMessage = '';
 			successMessage = '';
+
+			const cleanStr = (s: any) => (typeof s === 'string' ? s.trim().toLowerCase() : '');
 
 			const numId = Number(employee.rawId || employee.dbId || String(employee.id || '').replace(/[^0-9]/g, '')) || 0;
 			rawId = numId;
@@ -74,18 +89,36 @@
 			name = employee.name || employee.nama_karyawan || '';
 			email = employee.email || '';
 			phone = employee.phone || employee.telp1 || '';
-			
+
+			// Fallback cerdas: cari profil lengkap di activePersonnel jika ada
+			const personRecord = activePersonnel.find(p => (numId > 0 && p.id === numId) || (payrollId && p.payrollId === payrollId));
+
 			// Temukan title code
-			const matchedTitle = titles.find(t => t.code === employee.title || t.name === employee.role || t.name === employee.job_title);
-			titleCode = matchedTitle ? matchedTitle.code : (employee.title || '');
+			const targetTitleCode = employee.title || employee.title_code || personRecord?.titleCode || '';
+			const targetRoleName = cleanStr(employee.job_title || employee.role);
+			const matchedTitle = titles.find(t => 
+				(targetTitleCode && t.code.toUpperCase() === targetTitleCode.toUpperCase()) ||
+				(targetRoleName && cleanStr(t.name) === targetRoleName)
+			);
+			titleCode = matchedTitle ? matchedTitle.code : targetTitleCode;
 
 			// Temukan div code
-			const matchedDiv = divisions.find(d => d.code === employee.div_id || d.name === employee.directorate || d.name === employee.div_name);
-			divCode = matchedDiv ? matchedDiv.code : (employee.div_id || '');
+			const targetDivCode = employee.div_id || personRecord?.divId || '';
+			const targetDivName = cleanStr(employee.directorate || employee.div_name);
+			const matchedDiv = divisions.find(d => 
+				(targetDivCode && d.code.toUpperCase() === targetDivCode.toUpperCase()) ||
+				(targetDivName && (d.code.toUpperCase() === targetDivName.toUpperCase() || cleanStr(d.name) === targetDivName))
+			);
+			divCode = matchedDiv ? matchedDiv.code : targetDivCode;
 
 			// Temukan dept code
-			const matchedDept = departments.find(d => d.code === employee.dept_id || d.name === employee.department || d.name === employee.dept_name);
-			deptCode = matchedDept ? matchedDept.code : (employee.dept_id || '');
+			const targetDeptCode = employee.dept_id || personRecord?.deptId || '';
+			const targetDeptName = cleanStr(employee.department?.name || employee.department || employee.dept_name);
+			const matchedDept = departments.find(d => 
+				(targetDeptCode && d.code.toUpperCase() === targetDeptCode.toUpperCase()) ||
+				(targetDeptName && (d.code.toUpperCase() === targetDeptName.toUpperCase() || cleanStr(d.name) === targetDeptName))
+			);
+			deptCode = matchedDept ? matchedDept.code : targetDeptCode;
 
 			// Normalisasi status kepegawaian
 			const rawStatus = (employee.status || employee.status_karyawan || 'PERMANENT').toUpperCase();
@@ -120,16 +153,7 @@
 			major = employee.jurusan || employee.major || '';
 
 			// Inisialisasi Atasan Langsung dari supervisorMappings
-			if (titleCode && supervisorMappings.length > 0) {
-				const atasanRel = supervisorMappings.find(m => m.titleBawahan === titleCode);
-				selectedAtasanTitle = atasanRel ? atasanRel.titleAtasan : '';
-
-				const subRels = supervisorMappings.filter(m => m.titleAtasan === titleCode);
-				selectedSubordinateTitles = Array.from(new Set(subRels.map(m => m.titleBawahan).filter(Boolean)));
-			} else {
-				selectedAtasanTitle = '';
-				selectedSubordinateTitles = [];
-			}
+			syncHierarchyWithTitle(titleCode);
 		}
 	});
 
@@ -366,6 +390,7 @@
 									id="emp-title"
 									name="title"
 									bind:value={titleCode}
+									onchange={() => syncHierarchyWithTitle(titleCode)}
 									class="w-full px-3.5 py-2.5 rounded-xl bg-surface border border-slate-300 dark:border-slate-700 text-xs font-bold text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/40 cursor-pointer"
 								>
 									<option value="">-- Pilih Jabatan --</option>
