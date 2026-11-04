@@ -338,7 +338,7 @@
 								</div>
 								<div>
 									<p class="text-[10px] text-on-surface-variant font-bold uppercase tracking-widest mb-1">Employment Type</p>
-									<p class="text-base font-semibold text-on-surface">PKWT / Permanent</p>
+									<p class="text-base font-semibold text-on-surface">{employee.status_karyawan || 'PERMANENT'}</p>
 								</div>
 								<div>
 									<p class="text-[10px] text-on-surface-variant font-bold uppercase tracking-widest mb-1">Join Date</p>

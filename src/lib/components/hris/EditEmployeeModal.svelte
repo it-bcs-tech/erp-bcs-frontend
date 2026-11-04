@@ -86,14 +86,21 @@
 			const cleanStr = (s: any) => (typeof s === 'string' ? s.trim().toLowerCase() : '');
 
 			const numId = Number(employee.rawId || employee.dbId || String(employee.id || '').replace(/[^0-9]/g, '')) || 0;
-			rawId = numId;
 			payrollId = employee.payroll_id || employee.payrollId || employee.id || '';
 			name = employee.name || employee.nama_karyawan || '';
 			email = employee.email || '';
 			phone = employee.phone || employee.telp1 || '';
 
-			// Fallback cerdas: cari profil lengkap di activePersonnel jika ada
-			const personRecord = activePersonnel.find(p => (numId > 0 && p.id === numId) || (payrollId && p.payrollId === payrollId));
+			// Fallback cerdas: cari profil lengkap di activePersonnel jika ada (via ID numerik, payroll ID, atau nama)
+			const personRecord = activePersonnel.find(p => 
+				(numId > 0 && p.id === numId) || 
+				(payrollId && p.payrollId === payrollId) ||
+				(name && cleanStr(p.name) === cleanStr(name))
+			);
+			rawId = numId > 0 ? numId : (personRecord?.id || 0);
+			if (personRecord?.payrollId && (!payrollId || payrollId.startsWith('EMP-'))) {
+				payrollId = personRecord.payrollId;
+			}
 
 			// Temukan title code
 			const targetTitleCode = employee.title || employee.title_code || personRecord?.titleCode || '';
@@ -122,8 +129,12 @@
 			);
 			deptCode = matchedDept ? matchedDept.code : targetDeptCode;
 
-			// Normalisasi status kepegawaian
-			const rawStatus = (employee.status || employee.status_karyawan || 'PERMANENT').toUpperCase();
+			// Normalisasi status kepegawaian (dahulukan status_karyawan, hindari bentrok dengan employee.status 'Active'/'Inactive')
+			const rawStatus = (
+				employee.status_karyawan || 
+				(employee.status && employee.status !== 'Active' && employee.status !== 'Inactive' ? employee.status : '') || 
+				'PERMANENT'
+			).toUpperCase();
 			if (rawStatus.includes('CONTRACT') || rawStatus.includes('KONTRAK')) statusKaryawan = 'CONTRACT';
 			else if (rawStatus.includes('PROBATION') || rawStatus.includes('PERCOBAAN')) statusKaryawan = 'PROBATION';
 			else if (rawStatus.includes('INTERN') || rawStatus.includes('MAGANG')) statusKaryawan = 'INTERNSHIP';
@@ -169,7 +180,7 @@
 	// Filter departemen berdasarkan divisi yang dipilih jika ada
 	let filteredDepartments = $derived(
 		divCode
-			? departments.filter(d => !d.divCode || d.divCode === divCode)
+			? departments.filter(d => d.divCode === divCode || d.code === deptCode || (!d.divCode && d.code === 'D_71'))
 			: departments
 	);
 

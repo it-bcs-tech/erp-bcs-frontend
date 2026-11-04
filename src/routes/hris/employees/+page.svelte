@@ -1,6 +1,6 @@
 <script lang="ts">
 	import type { PageData } from './$types';
-	import { goto } from '$app/navigation';
+	import { goto, invalidateAll } from '$app/navigation';
 	import { page } from '$app/stores';
 	import Pagination from '$lib/components/Pagination.svelte';
 	import EditEmployeeModal from '$lib/components/hris/EditEmployeeModal.svelte';
@@ -188,15 +188,20 @@
 									</div>
 								</td>
 								<td class="py-4 px-6">
-									{#if emp.status === 'Active'}
-										<span class="inline-flex items-center gap-2 text-emerald-700 dark:text-emerald-300 font-bold text-xs bg-emerald-500/15 px-3 py-1 rounded-full">
-											<span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> Active
-										</span>
-									{:else}
-										<span class="inline-flex items-center gap-2 text-amber-700 dark:text-amber-300 font-bold text-xs bg-amber-500/15 px-3 py-1 rounded-full">
-											<span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span> On Leave
-										</span>
-									{/if}
+									<div class="space-y-1">
+										{#if emp.status === 'Active'}
+											<span class="inline-flex items-center gap-2 text-emerald-700 dark:text-emerald-300 font-bold text-xs bg-emerald-500/15 px-3 py-1 rounded-full">
+												<span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> Active
+											</span>
+										{:else}
+											<span class="inline-flex items-center gap-2 text-amber-700 dark:text-amber-300 font-bold text-xs bg-amber-500/15 px-3 py-1 rounded-full">
+												<span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span> On Leave
+											</span>
+										{/if}
+										{#if emp.status_karyawan}
+											<p class="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">{emp.status_karyawan}</p>
+										{/if}
+									</div>
 								</td>
 								<td class="py-4 px-6">
 									<p class="text-sm font-medium text-on-surface flex items-center gap-2">
@@ -351,6 +356,9 @@
 	{supervisorMappings}
 	{activePersonnel}
 	{locations}
+	onSaved={async () => {
+		await invalidateAll();
+	}}
 />
 
 <style>

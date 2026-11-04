@@ -31,7 +31,9 @@ export const load: PageServerLoad = async ({ params, cookies }) => {
 				LEFT JOIN master.m_dept d ON d.dept_code = k.dept_id
 				LEFT JOIN master.m_division div ON div.div_code = k.div_id
 				LEFT JOIN master.m_lokasi loc ON loc.loc_code = k.lokasi
-				WHERE k.id = ${empNumericId > 0 ? empNumericId : -1} OR k.payroll_id = ${empId}
+				WHERE k.id = ${empNumericId > 0 ? empNumericId : -1} 
+				   OR k.payroll_id = ${empId}
+				   OR k.nama_karyawan ILIKE ${empId}
 				LIMIT 1
 			`;
 			if (rows.length > 0) {
@@ -490,13 +492,43 @@ export const load: PageServerLoad = async ({ params, cookies }) => {
 export const actions: Actions = {
 	updateEmployee: async ({ request, params }) => {
 		const formData = await request.formData();
-		let rawId = Number(formData.get('id'));
+		let rawId = Number(formData.get('id') || 0);
 		if (!rawId && params.id) {
 			const empNumeric = Number(String(params.id).replace(/[^0-9]/g, ''));
 			if (empNumeric > 0) rawId = empNumeric;
 		}
 
 		let nama_karyawan = formData.get('nama_karyawan')?.toString() || '';
+		const rawPayrollId = formData.get('payrollId')?.toString() || params.id || '';
+
+		if (!rawId || rawId <= 0) {
+			try {
+				if (rawPayrollId) {
+					const cleanPayroll = rawPayrollId.startsWith('EMP-') ? rawPayrollId.replace(/[^0-9]/g, '') : rawPayrollId;
+					const found = await sql`
+						SELECT id, nama_karyawan FROM master.m_karyawan 
+						WHERE payroll_id = ${rawPayrollId} 
+						   OR id = ${Number(cleanPayroll) || -1} 
+						LIMIT 1
+					`;
+					if (found.length > 0) {
+						rawId = found[0].id;
+						if (!nama_karyawan) nama_karyawan = found[0].nama_karyawan;
+					}
+				}
+				if ((!rawId || rawId <= 0) && nama_karyawan) {
+					const foundByName = await sql`
+						SELECT id FROM master.m_karyawan 
+						WHERE nama_karyawan ILIKE ${nama_karyawan.trim()} 
+						LIMIT 1
+					`;
+					if (foundByName.length > 0) rawId = foundByName[0].id;
+				}
+			} catch (fallbackIdErr) {
+				console.warn('Fallback ID lookup failed in detail action:', fallbackIdErr);
+			}
+		}
+
 		if (!nama_karyawan && rawId > 0) {
 			try {
 				const existing = await sql`SELECT nama_karyawan FROM master.m_karyawan WHERE id = ${rawId} LIMIT 1`;

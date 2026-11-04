@@ -19,7 +19,11 @@ export const load: PageServerLoad = async ({ url }) => {
 		`;
 
 		const departments = await sql`
-			SELECT dept_code, dept_name, div_code FROM master.m_dept WHERE active = '1' OR active = 'Y' ORDER BY dept_name ASC
+			SELECT dept_code, dept_name, div_code 
+			FROM master.m_dept 
+			WHERE (app IS NULL OR app != 'finance_system')
+			  AND (active = '1' OR active = 'Y') 
+			ORDER BY dept_name ASC
 		`;
 
 		const titles = await sql`

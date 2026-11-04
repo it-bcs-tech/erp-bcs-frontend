@@ -44,47 +44,103 @@ export const load: PageServerLoad = async ({ cookies, url }) => {
 				const total = response.meta?.total || rawList.length;
 				const paginatedEmployees = response.meta ? rawList : rawList.slice((page - 1) * perPage, page * perPage);
 
-				// Pengayaan data karyawan Laravel dari master.m_karyawan agar kode divisi & jabatan selalu lengkap
-				const empIds = paginatedEmployees.map((e: any) => Number(e.id || e.rawId || 0)).filter((id: number) => id > 0);
-				if (empIds.length > 0) {
+				// Pengayaan data karyawan Laravel dari master.m_karyawan agar seluruh field form & detail lengkap
+				const empNumIds = paginatedEmployees
+					.map((e: any) => {
+						const raw = e.rawId || e.dbId || e.id;
+						const num = typeof raw === 'number' ? raw : Number(String(raw || '').replace(/[^0-9]/g, ''));
+						return num > 0 ? num : 0;
+					})
+					.filter((id: number) => id > 0);
+				const payrollIds = paginatedEmployees
+					.map((e: any) => e.payroll_id || e.payrollId || e.nik || '')
+					.filter((p: string) => Boolean(p && !p.startsWith('EMP-')));
+				const empNames = paginatedEmployees
+					.map((e: any) => (e.name || e.nama_karyawan || '').trim())
+					.filter(Boolean);
+
+				if (empNumIds.length > 0 || payrollIds.length > 0 || empNames.length > 0) {
 					try {
 						const dbRows = await sql`
-							SELECT id, payroll_id, title, div_id, dept_id, status, lokasi, aktif,
-								   tgl_masuk, no_ktp, no_npwp, tempat_lahir, tgl_lahir, jenis_kelamin,
-								   agama, marital_status, alamat_ktp, kota_ktp, pendidikan_terakhir, jurusan
-							FROM master.m_karyawan 
-							WHERE id IN ${sql(empIds)}
+							SELECT 
+								k.id, k.payroll_id, k.nama_karyawan, k.title, k.div_id, k.dept_id, k.status, k.lokasi, k.aktif,
+								k.tgl_masuk, k.no_ktp, k.no_npwp, k.tempat_lahir, k.tgl_lahir, k.jenis_kelamin,
+								k.agama, k.marital_status, k.alamat_ktp, k.kota_ktp, k.pendidikan_terakhir, k.jurusan,
+								t.title as job_title,
+								d.dept_name,
+								md.div_name,
+								loc.loc_name as nama_lokasi,
+								loc.city as kota_lokasi
+							FROM master.m_karyawan k
+							LEFT JOIN master.m_title t ON t.title_code = k.title
+							LEFT JOIN master.m_dept d ON d.dept_code = k.dept_id
+							LEFT JOIN master.m_division md ON md.div_code = k.div_id
+							LEFT JOIN master.m_lokasi loc ON loc.loc_code = k.lokasi
+							WHERE (
+								${empNumIds.length > 0 ? sql`k.id IN ${sql(empNumIds)}` : sql`1=0`}
+								OR ${payrollIds.length > 0 ? sql`k.payroll_id IN ${sql(payrollIds)}` : sql`1=0`}
+								OR ${empNames.length > 0 ? sql`k.nama_karyawan IN ${sql(empNames)}` : sql`1=0`}
+							)
 						`;
-						const dbMap = new Map(dbRows.map(r => [r.id, r]));
+						
 						paginatedEmployees.forEach((e: any) => {
-							const numId = Number(e.id || e.rawId || 0);
-							const db = dbMap.get(numId);
+							const raw = e.rawId || e.dbId || e.id;
+							const numId = typeof raw === 'number' ? raw : Number(String(raw || '').replace(/[^0-9]/g, ''));
+							const pId = e.payroll_id || e.payrollId || '';
+							const nameStr = (e.name || e.nama_karyawan || '').trim().toLowerCase();
+
+							const db = dbRows.find(r => 
+								(numId > 0 && r.id === numId) ||
+								(pId && r.payroll_id === pId) ||
+								(nameStr && r.nama_karyawan?.trim().toLowerCase() === nameStr)
+							);
+
 							if (db) {
-								e.rawId = e.rawId || db.id;
-								e.dbId = e.dbId || db.id;
-								e.payroll_id = e.payroll_id || db.payroll_id;
-								e.payrollId = e.payrollId || db.payroll_id;
-								e.title = e.title || e.title_code || db.title;
-								e.title_code = e.title_code || db.title;
-								e.div_id = e.div_id || db.div_id;
-								e.dept_id = e.dept_id || db.dept_id;
-								e.status_karyawan = e.status_karyawan || db.status;
-								e.lokasi = e.lokasi || e.location || db.lokasi;
-								e.location = e.lokasi;
-								e.tgl_masuk = e.tgl_masuk || db.tgl_masuk;
-								e.no_ktp = e.no_ktp || e.nik || db.no_ktp;
-								e.nik = e.no_ktp;
-								e.no_npwp = e.no_npwp || e.npwp || db.no_npwp;
-								e.npwp = e.no_npwp;
-								e.tempat_lahir = e.tempat_lahir || db.tempat_lahir;
-								e.tgl_lahir = e.tgl_lahir || db.tgl_lahir;
-								e.jenis_kelamin = e.jenis_kelamin || db.jenis_kelamin;
-								e.agama = e.agama || db.agama;
-								e.marital_status = e.marital_status || db.marital_status;
-								e.alamat_ktp = e.alamat_ktp || db.alamat_ktp;
-								e.kota_ktp = e.kota_ktp || db.kota_ktp;
-								e.pendidikan_terakhir = e.pendidikan_terakhir || db.pendidikan_terakhir;
-								e.jurusan = e.jurusan || db.jurusan;
+								e.rawId = db.id;
+								e.dbId = db.id;
+								e.id = `EMP-${String(db.id).padStart(3, '0')}`;
+								e.payroll_id = db.payroll_id;
+								e.payrollId = db.payroll_id;
+								e.name = db.nama_karyawan;
+								e.nama_karyawan = db.nama_karyawan;
+								e.title = db.title;
+								e.title_code = db.title;
+								e.job_title = db.job_title || db.title || e.role;
+								e.role = db.job_title || db.title || e.role || 'Staff';
+								e.div_id = db.div_id;
+								e.div_name = db.div_name;
+								e.directorate = db.div_name || e.directorate || 'Operations';
+								e.dept_id = db.dept_id;
+								e.dept_name = db.dept_name;
+								e.department = db.dept_name || e.department || 'General';
+								e.status = db.aktif === 'Y' ? 'Active' : 'Inactive';
+								e.status_karyawan = db.status || 'PERMANENT';
+								e.aktif = db.aktif || 'Y';
+								e.lokasi = db.lokasi || 'LOC_027';
+								e.location = db.nama_lokasi ? `${db.nama_lokasi}${db.kota_lokasi ? ' (' + db.kota_lokasi + ')' : ''}` : (db.lokasi || 'Head Office Cilegon');
+								e.nama_lokasi = db.nama_lokasi || db.lokasi || 'HEAD OFFICE';
+								e.tgl_masuk = db.tgl_masuk;
+								e.no_ktp = db.no_ktp;
+								e.nik = db.no_ktp;
+								e.no_npwp = db.no_npwp;
+								e.npwp = db.no_npwp;
+								e.tempat_lahir = db.tempat_lahir;
+								e.birthPlace = db.tempat_lahir;
+								e.tgl_lahir = db.tgl_lahir;
+								e.jenis_kelamin = db.jenis_kelamin;
+								e.gender = db.jenis_kelamin;
+								e.agama = db.agama;
+								e.religion = db.agama;
+								e.marital_status = db.marital_status;
+								e.maritalStatus = db.marital_status;
+								e.alamat_ktp = db.alamat_ktp;
+								e.address = db.alamat_ktp;
+								e.kota_ktp = db.kota_ktp;
+								e.city = db.kota_ktp;
+								e.pendidikan_terakhir = db.pendidikan_terakhir;
+								e.education = db.pendidikan_terakhir;
+								e.jurusan = db.jurusan;
+								e.major = db.jurusan;
 							}
 						});
 					} catch (enrichErr) {
@@ -265,8 +321,37 @@ export const load: PageServerLoad = async ({ cookies, url }) => {
 export const actions: Actions = {
 	updateEmployee: async ({ request }) => {
 		const formData = await request.formData();
-		const rawId = Number(formData.get('id'));
+		let rawId = Number(formData.get('id') || 0);
 		let nama_karyawan = formData.get('nama_karyawan')?.toString() || '';
+		const rawPayrollId = formData.get('payrollId')?.toString() || '';
+
+		if (!rawId || rawId <= 0) {
+			try {
+				if (rawPayrollId) {
+					const cleanPayroll = rawPayrollId.startsWith('EMP-') ? rawPayrollId.replace(/[^0-9]/g, '') : rawPayrollId;
+					const found = await sql`
+						SELECT id, nama_karyawan FROM master.m_karyawan 
+						WHERE payroll_id = ${rawPayrollId} 
+						   OR id = ${Number(cleanPayroll) || -1} 
+						LIMIT 1
+					`;
+					if (found.length > 0) {
+						rawId = found[0].id;
+						if (!nama_karyawan) nama_karyawan = found[0].nama_karyawan;
+					}
+				}
+				if ((!rawId || rawId <= 0) && nama_karyawan) {
+					const foundByName = await sql`
+						SELECT id FROM master.m_karyawan 
+						WHERE nama_karyawan ILIKE ${nama_karyawan.trim()} 
+						LIMIT 1
+					`;
+					if (foundByName.length > 0) rawId = foundByName[0].id;
+				}
+			} catch (fallbackIdErr) {
+				console.warn('Fallback ID lookup failed in table action:', fallbackIdErr);
+			}
+		}
 
 		if (!nama_karyawan && rawId > 0) {
 			try {
