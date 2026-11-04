@@ -1,9 +1,15 @@
 <script lang="ts">
 	import DriverSimAiScannerModal from '$lib/components/DriverSimAiScannerModal.svelte';
+	import EditEmployeeModal from '$lib/components/hris/EditEmployeeModal.svelte';
 	import { invalidateAll } from '$app/navigation';
 
 	let { data } = $props();
-	const employee = data.employee;
+	let employee = $derived(data.employee);
+	let titles = $derived(data.titles || []);
+	let divisions = $derived(data.divisions || []);
+	let departments = $derived(data.departments || []);
+	let isEditModalOpen = $state(false);
+
 	const trainingData = $derived(data.trainingData || {
 		trainings: [],
 		lmsCertificates: [],
@@ -145,10 +151,14 @@
 				<span class="material-symbols-outlined text-base text-primary">verified</span>
 				<span>Cek Sertifikasi & K3</span>
 			</a>
-			<a href={`/hris/employees/${employee.rawId}/edit`} class="bg-primary text-on-primary px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 hover:bg-primary/90 transition-colors shadow-xs">
+			<button 
+				type="button"
+				onclick={() => isEditModalOpen = true}
+				class="bg-primary text-on-primary px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 hover:bg-primary/90 transition-colors shadow-xs cursor-pointer"
+			>
 				<span class="material-symbols-outlined text-base">edit</span>
-				<span>Edit Profile</span>
-			</a>
+				<span>Edit Data Karyawan</span>
+			</button>
 		</div>
 	</div>
 
@@ -974,4 +984,16 @@
 	selectedDriver={selectedDriverForSim}
 	onClose={() => { showSimModal = false; }}
 	onSuccess={() => { invalidateAll(); }}
+/>
+
+<!-- Edit Employee Modal -->
+<EditEmployeeModal
+	bind:isOpen={isEditModalOpen}
+	employee={employee}
+	{titles}
+	{divisions}
+	{departments}
+	onSaved={async () => {
+		await invalidateAll();
+	}}
 />

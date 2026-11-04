@@ -3,12 +3,16 @@
 	import { goto } from '$app/navigation';
 	import { page } from '$app/stores';
 	import Pagination from '$lib/components/Pagination.svelte';
+	import EditEmployeeModal from '$lib/components/hris/EditEmployeeModal.svelte';
 	
 	let { data }: { data: PageData } = $props();
 	
 	// Data berasal dari +page.server.ts
 	let employees = $derived(data.employees || []);
 	let directorates = $derived(data.directorates || []);
+	let titles = $derived(data.titles || []);
+	let divisions = $derived(data.divisions || []);
+	let departments = $derived(data.departments || []);
 	let meta = $derived(data.meta);
 
 	// State yang sinkron dengan URL
@@ -49,6 +53,13 @@
 
 	// Modal State
 	let isAddModalOpen = $state(false);
+	let isEditModalOpen = $state(false);
+	let selectedEmployeeForEdit = $state<any>(null);
+
+	function openEditModal(emp: any) {
+		selectedEmployeeForEdit = emp;
+		isEditModalOpen = true;
+	}
 
 	// Pagination Compute
 	let totalPages = $derived(Math.max(1, Math.ceil((meta?.total || 0) / (meta?.per_page || 10))));
@@ -191,12 +202,17 @@
 									</p>
 								</td>
 								<td class="py-4 px-6 text-right">
-									<div class="flex items-center justify-end gap-2">
-										<a href={`/hris/employees/${emp.id}`} class="p-2 rounded-lg text-primary hover:bg-primary-container/20 transition-colors tooltip" title="View Profile">
+									<div class="flex items-center justify-end gap-1.5">
+										<a href={`/hris/employees/${emp.id}`} class="p-2 rounded-xl text-primary hover:bg-primary/10 transition-colors tooltip cursor-pointer" title="Lihat Profil Lengkap">
 											<span class="material-symbols-outlined text-[20px]">visibility</span>
 										</a>
-										<button class="p-2 rounded-lg text-on-surface-variant hover:bg-surface-container-high transition-colors tooltip" title="More Options">
-											<span class="material-symbols-outlined text-[20px]">more_vert</span>
+										<button 
+											type="button"
+											onclick={() => openEditModal(emp)}
+											class="p-2 rounded-xl text-amber-600 hover:bg-amber-500/10 transition-colors tooltip cursor-pointer" 
+											title="Edit Data Karyawan"
+										>
+											<span class="material-symbols-outlined text-[20px]">edit</span>
 										</button>
 									</div>
 								</td>
@@ -321,6 +337,15 @@
 		</div>
 	</div>
 {/if}
+
+<!-- Edit Employee Modal -->
+<EditEmployeeModal
+	bind:isOpen={isEditModalOpen}
+	employee={selectedEmployeeForEdit}
+	{titles}
+	{divisions}
+	{departments}
+/>
 
 <style>
 	/* Hide scrollbar for tabs */

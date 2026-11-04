@@ -1,14 +1,18 @@
-import type { PageServerLoad } from './$types';
+import type { PageServerLoad, Actions } from './$types';
 import { apiFetch } from '$lib/utils/api';
-import { error } from '@sveltejs/kit';
+import { error, fail } from '@sveltejs/kit';
 import { calculateExpiryGate } from '$lib/server/dms';
 import { logError } from '$lib/utils/logger';
 import sql from '$lib/server/db';
+import { getEmployeeMasterLookups, updateEmployeeRecord, type UpdateEmployeeData } from '$lib/server/hris/employeeService';
 
 export const load: PageServerLoad = async ({ params, cookies }) => {
 	const authToken = cookies.get('auth_token');
 	const empId = params.id;
 	const empNumericId = Number(String(empId).replace(/[^0-9]/g, ''));
+
+	// Ambil lookup data untuk form edit
+	const lookups = await getEmployeeMasterLookups();
 
 	// 1. Ambil data master karyawan dari PostgreSQL untuk fallback & enrichment
 	let dbKaryawan: any = null;
@@ -406,6 +410,9 @@ export const load: PageServerLoad = async ({ params, cookies }) => {
 		employee,
 		driverInfo,
 		dmsDocs,
+		titles: lookups.titles,
+		divisions: lookups.divisions,
+		departments: lookups.departments,
 		trainingData: {
 			trainings,
 			lmsCertificates,
@@ -416,4 +423,48 @@ export const load: PageServerLoad = async ({ params, cookies }) => {
 		},
 		dataSource: apiSuccess ? 'laravel+postgres' : 'postgres-direct'
 	};
+};
+
+export const actions: Actions = {
+	updateEmployee: async ({ request }) => {
+		const formData = await request.formData();
+		const rawId = Number(formData.get('id'));
+		const nama_karyawan = formData.get('nama_karyawan')?.toString() || '';
+
+		if (!rawId || !nama_karyawan) {
+			return fail(400, { success: false, message: 'ID dan Nama Karyawan wajib diisi.' });
+		}
+
+		try {
+			const updateData: UpdateEmployeeData = {
+				id: rawId,
+				nama_karyawan,
+				email: formData.get('email')?.toString() || null,
+				telp1: formData.get('telp1')?.toString() || null,
+				title: formData.get('title')?.toString() || null,
+				div_id: formData.get('div_id')?.toString() || null,
+				dept_id: formData.get('dept_id')?.toString() || null,
+				lokasi: formData.get('lokasi')?.toString() || null,
+				status_karyawan: formData.get('status_karyawan')?.toString() || null,
+				aktif: formData.get('aktif')?.toString() || 'Y',
+				tgl_masuk: formData.get('tgl_masuk')?.toString() || null,
+				no_ktp: formData.get('no_ktp')?.toString() || null,
+				no_npwp: formData.get('no_npwp')?.toString() || null,
+				tempat_lahir: formData.get('tempat_lahir')?.toString() || null,
+				tgl_lahir: formData.get('tgl_lahir')?.toString() || null,
+				jenis_kelamin: formData.get('jenis_kelamin')?.toString() || null,
+				agama: formData.get('agama')?.toString() || null,
+				marital_status: formData.get('marital_status')?.toString() || null,
+				alamat_ktp: formData.get('alamat_ktp')?.toString() || null,
+				kota_ktp: formData.get('kota_ktp')?.toString() || null,
+				pendidikan_terakhir: formData.get('pendidikan_terakhir')?.toString() || null,
+				jurusan: formData.get('jurusan')?.toString() || null
+			};
+
+			const result = await updateEmployeeRecord(updateData);
+			return { success: true, message: result.message, employee: result.employee };
+		} catch (e: any) {
+			return fail(500, { success: false, message: `Gagal memperbarui data karyawan: ${e?.message || 'Kesalahan database'}` });
+		}
+	}
 };
