@@ -221,11 +221,14 @@
 						</svg>
 					</div>
 					<div>
-						<h3 class="font-extrabold text-sm tracking-wide">OCS AI Assistant</h3>
+						<h3 class="font-extrabold text-sm tracking-wide flex items-center gap-1.5">
+							ORIS Assistant
+							<span class="text-[9px] bg-black/20 px-1.5 py-0.5 rounded font-mono font-semibold">OCS</span>
+						</h3>
 						<div class="flex items-center gap-1.5 mt-0.5">
-							<span class="w-2 h-2 rounded-full {isLoading ? 'bg-yellow-400 animate-pulse' : 'bg-green-400 animate-pulse'}"></span>
-							<span class="text-[10px] font-medium text-white/80 uppercase tracking-wider">
-								{isLoading ? 'Berpikir...' : 'Powered by Groq ⚡'}
+							<span class="w-2 h-2 rounded-full {isLoading ? 'bg-yellow-400 animate-pulse' : 'bg-emerald-400 animate-pulse'}"></span>
+							<span class="text-[10px] font-medium text-white/90">
+								{isLoading ? 'ORIS menganalisis data dispatch...' : 'Operations & Logistics AI'}
 							</span>
 						</div>
 					</div>

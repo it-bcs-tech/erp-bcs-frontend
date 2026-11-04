@@ -23,7 +23,7 @@
 		{
 			id: 'init-1',
 			role: 'assistant',
-			content: 'Halo! Saya AI Assistant BCS Logistics Anda. Apa yang dapat saya bantu hari ini?'
+			content: 'Halo! Saya HARIS, asisten AI HRIS PT BCS Logistics. Saya siap membantu Anda menganalisis data karyawan, presensi harian & bulanan, kuota cuti, masa kerja (tenure), hingga kepatuhan regulasi kepegawaian. Ada yang bisa saya bantu?'
 		}
 	]);
 
@@ -50,7 +50,7 @@
 			{
 				id: 'init-1',
 				role: 'assistant',
-				content: 'Halo! Saya AI Assistant BCS Logistics Anda. Apa yang dapat saya bantu hari ini?'
+				content: 'Halo! Saya HARIS, asisten AI HRIS PT BCS Logistics. Saya siap membantu Anda menganalisis data karyawan, presensi harian & bulanan, kuota cuti, masa kerja (tenure), hingga kepatuhan regulasi kepegawaian. Ada yang bisa saya bantu?'
 			}
 		];
 		currentView = 'chat';
@@ -221,11 +221,14 @@
 						</svg>
 					</div>
 					<div>
-						<h3 class="font-extrabold text-sm tracking-wide">HRIS AI Assistant</h3>
+						<h3 class="font-extrabold text-sm tracking-wide flex items-center gap-1.5">
+							HARIS Assistant
+							<span class="text-[9px] bg-black/20 px-1.5 py-0.5 rounded font-mono font-semibold">HRIS</span>
+						</h3>
 						<div class="flex items-center gap-1.5 mt-0.5">
-							<span class="w-2 h-2 rounded-full {isLoading ? 'bg-yellow-400 animate-pulse' : 'bg-green-400 animate-pulse'}"></span>
-							<span class="text-[10px] font-medium text-white/80 uppercase tracking-wider">
-								{isLoading ? 'Berpikir...' : 'Powered by Groq ⚡'}
+							<span class="w-2 h-2 rounded-full {isLoading ? 'bg-yellow-400 animate-pulse' : 'bg-emerald-400 animate-pulse'}"></span>
+							<span class="text-[10px] font-medium text-white/90">
+								{isLoading ? 'HARIS menganalisis data SDM...' : 'Human Resources & People AI'}
 							</span>
 						</div>
 					</div>
