@@ -9,6 +9,8 @@
 		titles?: Array<{ code: string; name: string }>;
 		divisions?: Array<{ code: string; name: string }>;
 		departments?: Array<{ code: string; name: string; divCode?: string }>;
+		supervisorMappings?: Array<{ id: number; titleAtasan: string; titleBawahan: string }>;
+		activePersonnel?: Array<{ id: number; payrollId: string; name: string; titleCode: string; avatar?: string; divId?: string; deptId?: string }>;
 		actionUrl?: string;
 		onSaved?: (updated: any) => void;
 	}
@@ -19,12 +21,16 @@
 		titles = [],
 		divisions = [],
 		departments = [],
+		supervisorMappings = [],
+		activePersonnel = [],
 		actionUrl = '?/updateEmployee',
 		onSaved
 	}: Props = $props();
 
 	let isSubmitting = $state(false);
-	let activeTab = $state<'kepegawaian' | 'pribadi' | 'legalitas'>('kepegawaian');
+	let errorMessage = $state('');
+	let successMessage = $state('');
+	let activeTab = $state<'kepegawaian' | 'pribadi' | 'legalitas' | 'hirarki'>('kepegawaian');
 
 	// Local form state
 	let rawId = $state<number>(0);
@@ -35,7 +41,7 @@
 	let titleCode = $state('');
 	let divCode = $state('');
 	let deptCode = $state('');
-	let statusKaryawan = $state('TETAP');
+	let statusKaryawan = $state('PERMANENT');
 	let isActive = $state('Y');
 	let joinDate = $state('');
 	let workLocation = $state('');
@@ -43,7 +49,7 @@
 	let noNpwp = $state('');
 	let birthPlace = $state('');
 	let birthDate = $state('');
-	let gender = $state('L');
+	let gender = $state('MALE');
 	let religion = $state('ISLAM');
 	let maritalStatus = $state('TK-0');
 	let addressKtp = $state('');
@@ -51,9 +57,17 @@
 	let education = $state('S1');
 	let major = $state('');
 
+	// State Hirarki Atasan & Bawahan
+	let selectedAtasanTitle = $state('');
+	let selectedSubordinateTitles = $state<string[]>([]);
+	let newSubordinateToAdd = $state('');
+
 	// Sinkronisasi data saat employee berubah atau modal dibuka
 	$effect(() => {
 		if (isOpen && employee) {
+			errorMessage = '';
+			successMessage = '';
+
 			const numId = Number(employee.rawId || employee.dbId || String(employee.id || '').replace(/[^0-9]/g, '')) || 0;
 			rawId = numId;
 			payrollId = employee.payroll_id || employee.payrollId || employee.id || '';
@@ -61,7 +75,7 @@
 			email = employee.email || '';
 			phone = employee.phone || employee.telp1 || '';
 			
-			// Temukan title code jika yang dikirim berupa nama
+			// Temukan title code
 			const matchedTitle = titles.find(t => t.code === employee.title || t.name === employee.role || t.name === employee.job_title);
 			titleCode = matchedTitle ? matchedTitle.code : (employee.title || '');
 
@@ -73,7 +87,16 @@
 			const matchedDept = departments.find(d => d.code === employee.dept_id || d.name === employee.department || d.name === employee.dept_name);
 			deptCode = matchedDept ? matchedDept.code : (employee.dept_id || '');
 
-			statusKaryawan = employee.status_karyawan || 'TETAP';
+			// Normalisasi status kepegawaian
+			const rawStatus = (employee.status || employee.status_karyawan || 'PERMANENT').toUpperCase();
+			if (rawStatus.includes('CONTRACT') || rawStatus.includes('KONTRAK')) statusKaryawan = 'CONTRACT';
+			else if (rawStatus.includes('PROBATION') || rawStatus.includes('PERCOBAAN')) statusKaryawan = 'PROBATION';
+			else if (rawStatus.includes('INTERN') || rawStatus.includes('MAGANG')) statusKaryawan = 'INTERNSHIP';
+			else if (rawStatus.includes('MITRA')) statusKaryawan = 'MITRA KERJA';
+			else if (rawStatus.includes('BORONGAN')) statusKaryawan = 'BORONGAN';
+			else if (rawStatus.includes('HARIAN')) statusKaryawan = 'HARIAN';
+			else statusKaryawan = 'PERMANENT';
+
 			isActive = (employee.status === 'Active' || employee.aktif === 'Y' || employee.aktif === '1') ? 'Y' : 'N';
 			
 			// Format tanggal YYYY-MM-DD
@@ -84,13 +107,29 @@
 			noKtp = employee.no_ktp || employee.nik || '';
 			noNpwp = employee.no_npwp || employee.npwp || '';
 			birthPlace = employee.tempat_lahir || employee.birthPlace || '';
-			gender = employee.jenis_kelamin || employee.gender || 'L';
+
+			// Normalisasi jenis kelamin (MALE / FEMALE)
+			const rawGender = (employee.jenis_kelamin || employee.gender || 'MALE').toUpperCase();
+			gender = (rawGender === 'FEMALE' || rawGender === 'P' || rawGender === 'WANITA' || rawGender === 'PEREMPUAN') ? 'FEMALE' : 'MALE';
+
 			religion = (employee.agama || employee.religion || 'ISLAM').toUpperCase();
 			maritalStatus = employee.marital_status || employee.maritalStatus || 'TK-0';
 			addressKtp = employee.alamat_ktp || employee.address || '';
 			cityKtp = employee.kota_ktp || employee.city || 'Cilegon';
 			education = employee.pendidikan_terakhir || employee.education || 'S1';
 			major = employee.jurusan || employee.major || '';
+
+			// Inisialisasi Atasan Langsung dari supervisorMappings
+			if (titleCode && supervisorMappings.length > 0) {
+				const atasanRel = supervisorMappings.find(m => m.titleBawahan === titleCode);
+				selectedAtasanTitle = atasanRel ? atasanRel.titleAtasan : '';
+
+				const subRels = supervisorMappings.filter(m => m.titleAtasan === titleCode);
+				selectedSubordinateTitles = Array.from(new Set(subRels.map(m => m.titleBawahan).filter(Boolean)));
+			} else {
+				selectedAtasanTitle = '';
+				selectedSubordinateTitles = [];
+			}
 		}
 	});
 
@@ -101,6 +140,44 @@
 			: departments
 	);
 
+	// Resolusi Data Atasan Terpilih
+	let atasanTitleObj = $derived(titles.find(t => t.code === selectedAtasanTitle));
+	let atasanPersonnel = $derived(
+		selectedAtasanTitle
+			? activePersonnel.filter(p => p.titleCode === selectedAtasanTitle)
+			: []
+	);
+
+	// Resolusi Data Bawahan Terpilih
+	let subordinateListWithPersonnel = $derived(
+		selectedSubordinateTitles.map(code => {
+			const tObj = titles.find(t => t.code === code);
+			const persons = activePersonnel.filter(p => p.titleCode === code);
+			return {
+				code,
+				name: tObj ? tObj.name : code,
+				personnel: persons
+			};
+		})
+	);
+
+	// Available titles to add as subordinates (excluding current employee's title and already added)
+	let availableTitlesForSubordinate = $derived(
+		titles.filter(t => t.code !== titleCode && !selectedSubordinateTitles.includes(t.code))
+	);
+
+	function addSubordinateTitle() {
+		if (!newSubordinateToAdd) return;
+		if (!selectedSubordinateTitles.includes(newSubordinateToAdd)) {
+			selectedSubordinateTitles = [...selectedSubordinateTitles, newSubordinateToAdd];
+		}
+		newSubordinateToAdd = '';
+	}
+
+	function removeSubordinateTitle(codeToRemove: string) {
+		selectedSubordinateTitles = selectedSubordinateTitles.filter(c => c !== codeToRemove);
+	}
+
 	function closeModal() {
 		if (isSubmitting) return;
 		isOpen = false;
@@ -108,7 +185,7 @@
 </script>
 
 {#if isOpen}
-	<div class="fixed inset-0 z-50 flex items-center justify-center p-4 overflow-y-auto">
+	<div class="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
 		<!-- Backdrop -->
 		<button
 			type="button"
@@ -120,13 +197,13 @@
 
 		<!-- Modal Container -->
 		<div
-			class="relative w-full max-w-3xl bg-surface-container-lowest border border-slate-200 dark:border-slate-800 rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[92vh] z-10"
+			class="relative w-full max-w-4xl bg-surface-container-lowest border border-slate-200 dark:border-slate-800 rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[92vh] z-10"
 			transition:fly={{ y: 20, duration: 200 }}
 		>
 			<!-- Header -->
-			<div class="px-6 py-5 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between bg-surface-container-lowest">
+			<div class="px-6 py-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between bg-surface-container-lowest">
 				<div class="flex items-center gap-3">
-					<div class="w-12 h-12 rounded-2xl bg-primary/10 text-primary flex items-center justify-center font-black text-lg border border-primary/20 shrink-0">
+					<div class="w-11 h-11 rounded-2xl bg-primary/10 text-primary flex items-center justify-center font-black text-base border border-primary/20 shrink-0">
 						{name ? name.charAt(0).toUpperCase() : 'E'}
 					</div>
 					<div>
@@ -136,7 +213,7 @@
 								{payrollId || 'EMP'}
 							</span>
 						</div>
-						<p class="text-xs text-on-surface-variant mt-0.5">{name || 'Nama Karyawan'}</p>
+						<p class="text-xs text-on-surface-variant mt-0.5 font-medium">{name || 'Nama Karyawan'}</p>
 					</div>
 				</div>
 				<button
@@ -149,12 +226,12 @@
 				</button>
 			</div>
 
-			<!-- Tabs Switcher -->
+			<!-- Tabs Switcher (4 Tabs) -->
 			<div class="px-6 pt-3 pb-2 border-b border-slate-200/80 dark:border-slate-800/80 bg-surface-container-low flex gap-2 overflow-x-auto">
 				<button
 					type="button"
 					onclick={() => activeTab = 'kepegawaian'}
-					class="px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2 transition-all cursor-pointer whitespace-nowrap {activeTab === 'kepegawaian' ? 'bg-primary text-on-primary shadow-xs' : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container'}"
+					class="px-3.5 py-1.5 rounded-xl text-xs font-bold flex items-center gap-2 transition-all cursor-pointer whitespace-nowrap {activeTab === 'kepegawaian' ? 'bg-primary text-on-primary shadow-xs' : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container'}"
 				>
 					<span class="material-symbols-outlined text-sm">badge</span>
 					<span>Kepegawaian & Jabatan</span>
@@ -162,7 +239,7 @@
 				<button
 					type="button"
 					onclick={() => activeTab = 'pribadi'}
-					class="px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2 transition-all cursor-pointer whitespace-nowrap {activeTab === 'pribadi' ? 'bg-primary text-on-primary shadow-xs' : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container'}"
+					class="px-3.5 py-1.5 rounded-xl text-xs font-bold flex items-center gap-2 transition-all cursor-pointer whitespace-nowrap {activeTab === 'pribadi' ? 'bg-primary text-on-primary shadow-xs' : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container'}"
 				>
 					<span class="material-symbols-outlined text-sm">person</span>
 					<span>Pribadi & Kontak</span>
@@ -170,12 +247,37 @@
 				<button
 					type="button"
 					onclick={() => activeTab = 'legalitas'}
-					class="px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2 transition-all cursor-pointer whitespace-nowrap {activeTab === 'legalitas' ? 'bg-primary text-on-primary shadow-xs' : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container'}"
+					class="px-3.5 py-1.5 rounded-xl text-xs font-bold flex items-center gap-2 transition-all cursor-pointer whitespace-nowrap {activeTab === 'legalitas' ? 'bg-primary text-on-primary shadow-xs' : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container'}"
 				>
 					<span class="material-symbols-outlined text-sm">description</span>
 					<span>Legalitas & Alamat</span>
 				</button>
+				<button
+					type="button"
+					onclick={() => activeTab = 'hirarki'}
+					class="px-3.5 py-1.5 rounded-xl text-xs font-bold flex items-center gap-2 transition-all cursor-pointer whitespace-nowrap {activeTab === 'hirarki' ? 'bg-indigo-600 text-white shadow-xs' : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container'}"
+				>
+					<span class="material-symbols-outlined text-sm">account_tree</span>
+					<span>Struktur & Hirarki Organisasi</span>
+					{#if selectedAtasanTitle || selectedSubordinateTitles.length > 0}
+						<span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+					{/if}
+				</button>
 			</div>
+
+			<!-- In-Modal Alert Banner -->
+			{#if errorMessage}
+				<div class="mx-6 mt-4 p-3 rounded-2xl bg-rose-500/10 border border-rose-500/30 text-rose-700 dark:text-rose-300 text-xs font-bold flex items-center gap-2.5 animate-in fade-in duration-150">
+					<span class="material-symbols-outlined text-lg shrink-0">error</span>
+					<span class="flex-1">{errorMessage}</span>
+				</div>
+			{/if}
+			{#if successMessage}
+				<div class="mx-6 mt-4 p-3 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-700 dark:text-emerald-300 text-xs font-bold flex items-center gap-2.5 animate-in fade-in duration-150">
+					<span class="material-symbols-outlined text-lg shrink-0">check_circle</span>
+					<span class="flex-1">{successMessage}</span>
+				</div>
+			{/if}
 
 			<!-- Form Content (Scrollable) -->
 			<form
@@ -184,15 +286,39 @@
 				id="edit-employee-form"
 				use:enhance={() => {
 					isSubmitting = true;
+					errorMessage = '';
+					successMessage = '';
 					return async ({ result, update }) => {
 						isSubmitting = false;
 						if (result.type === 'success') {
-							addToast('Berhasil', 'Data karyawan berhasil diperbarui.', 'SUCCESS');
-							isOpen = false;
+							const msg = (result.data as any)?.message || 'Data karyawan dan struktur hirarki berhasil diperbarui.';
+							successMessage = msg;
+							addToast({
+								title: 'Berhasil',
+								message: msg,
+								type: 'SUCCESS'
+							});
 							if (onSaved) onSaved(result.data);
 							await update();
+							setTimeout(() => {
+								if (isOpen) isOpen = false;
+							}, 600);
 						} else if (result.type === 'failure') {
-							addToast('Gagal Memperbarui', (result.data as any)?.message || 'Terjadi kesalahan sistem.', 'CRITICAL');
+							const msg = (result.data as any)?.message || 'Gagal memperbarui data karyawan.';
+							errorMessage = msg;
+							addToast({
+								title: 'Gagal Memperbarui',
+								message: msg,
+								type: 'CRITICAL'
+							});
+						} else if (result.type === 'error') {
+							const msg = (result.error as any)?.message || 'Terjadi kesalahan sistem saat menghubungi server database.';
+							errorMessage = msg;
+							addToast({
+								title: 'Kesalahan Sistem',
+								message: msg,
+								type: 'CRITICAL'
+							});
 						} else {
 							await update();
 						}
@@ -201,6 +327,8 @@
 				class="p-6 overflow-y-auto flex-1 space-y-6"
 			>
 				<input type="hidden" name="id" value={rawId} />
+				<input type="hidden" name="title_atasan" value={selectedAtasanTitle} />
+				<input type="hidden" name="subordinate_titles" value={JSON.stringify(selectedSubordinateTitles)} />
 
 				<!-- TAB 1: KEPEGAWAIAN -->
 				{#if activeTab === 'kepegawaian'}
@@ -281,27 +409,30 @@
 								<label for="emp-status-karyawan" class="text-xs font-bold text-on-surface">Status Kepegawaian</label>
 								<select
 									id="emp-status-karyawan"
-									name="status_karyawan"
+									name="status"
 									bind:value={statusKaryawan}
 									class="w-full px-3.5 py-2.5 rounded-xl bg-surface border border-slate-300 dark:border-slate-700 text-xs font-bold text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/40 cursor-pointer"
 								>
-									<option value="TETAP">Karyawan Tetap (PKWTT)</option>
-									<option value="KONTRAK">Karyawan Kontrak (PKWT)</option>
-									<option value="PROBATION">Probation / Percobaan</option>
-									<option value="MAGANG">Magang / Internship</option>
+									<option value="PERMANENT">Karyawan Tetap (PERMANENT / PKWTT)</option>
+									<option value="CONTRACT">Karyawan Kontrak (CONTRACT / PKWT)</option>
+									<option value="PROBATION">Masa Percobaan (PROBATION)</option>
+									<option value="INTERNSHIP">Magang / Prakerin (INTERNSHIP)</option>
+									<option value="MITRA KERJA">Mitra Kerja Operasional</option>
+									<option value="BORONGAN">Tenaga Borongan</option>
+									<option value="HARIAN">Harian Lepas</option>
 								</select>
 							</div>
 
 							<div class="space-y-1.5">
-								<label for="emp-aktif" class="text-xs font-bold text-on-surface">Status Aktif</label>
+								<label for="emp-aktif" class="text-xs font-bold text-on-surface">Status Aktif Bekerja</label>
 								<select
 									id="emp-aktif"
 									name="aktif"
 									bind:value={isActive}
 									class="w-full px-3.5 py-2.5 rounded-xl bg-surface border border-slate-300 dark:border-slate-700 text-xs font-bold text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/40 cursor-pointer"
 								>
-									<option value="Y">🟢 Aktif Bekerja</option>
-									<option value="N">🔴 Non-Aktif / Resigned</option>
+									<option value="Y">🟢 Aktif Bekerja (Y)</option>
+									<option value="N">🔴 Non-Aktif / Resigned (N)</option>
 								</select>
 							</div>
 
@@ -390,8 +521,8 @@
 									bind:value={gender}
 									class="w-full px-3.5 py-2.5 rounded-xl bg-surface border border-slate-300 dark:border-slate-700 text-xs font-medium text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/40 cursor-pointer"
 								>
-									<option value="L">Laki-laki</option>
-									<option value="P">Perempuan</option>
+									<option value="MALE">Laki-laki (MALE)</option>
+									<option value="FEMALE">Perempuan (FEMALE)</option>
 								</select>
 							</div>
 
@@ -518,6 +649,252 @@
 						</div>
 					</div>
 				{/if}
+
+				<!-- TAB 4: STRUKTUR & HIRARKI ORGANISASI (DIAGRAM POHON 3-LEVEL) -->
+				{#if activeTab === 'hirarki'}
+					<div class="space-y-6 animate-in fade-in duration-150">
+						<!-- Konfigurasi Atasan & Bawahan Form Box -->
+						<div class="p-5 rounded-2xl bg-surface border border-slate-200 dark:border-slate-800 space-y-4">
+							<div class="flex items-center justify-between">
+								<div class="flex items-center gap-2">
+									<span class="material-symbols-outlined text-primary text-xl">tune</span>
+									<h3 class="text-xs font-black uppercase tracking-wider text-on-surface">Pengaturan Relasi Hirarki</h3>
+								</div>
+								<span class="text-[11px] text-on-surface-variant font-mono">Tersimpan ke master.m_atasan</span>
+							</div>
+
+							<div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+								<!-- Pilih Atasan Langsung -->
+								<div class="space-y-1.5">
+									<label for="select-atasan-title" class="text-xs font-bold text-on-surface flex items-center gap-1.5">
+										<span class="material-symbols-outlined text-sm text-blue-500">supervisor_account</span>
+										<span>Pilih Jabatan Atasan Langsung</span>
+									</label>
+									<select
+										id="select-atasan-title"
+										bind:value={selectedAtasanTitle}
+										class="w-full px-3.5 py-2.5 rounded-xl bg-surface-container border border-slate-300 dark:border-slate-700 text-xs font-bold text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/40 cursor-pointer"
+									>
+										<option value="">-- Belum Ada Atasan (Level Tertinggi) --</option>
+										{#each titles as t}
+											{#if t.code !== titleCode}
+												<option value={t.code}>{t.name} ({t.code})</option>
+											{/if}
+										{/each}
+									</select>
+									<p class="text-[10px] text-slate-400 leading-tight">
+										Atasan ini menjadi approver resmi untuk asesmen kinerja Kirkpatrick L3/L4, cuti, dan persetujuan kerja.
+									</p>
+								</div>
+
+								<!-- Tambah Jabatan Bawahan -->
+								<div class="space-y-1.5">
+									<label for="select-sub-to-add" class="text-xs font-bold text-on-surface flex items-center gap-1.5">
+										<span class="material-symbols-outlined text-sm text-emerald-500">group_add</span>
+										<span>Tambah Jabatan Bawahan Langsung</span>
+									</label>
+									<div class="flex gap-2">
+										<select
+											id="select-sub-to-add"
+											bind:value={newSubordinateToAdd}
+											class="flex-1 px-3.5 py-2.5 rounded-xl bg-surface-container border border-slate-300 dark:border-slate-700 text-xs font-bold text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/40 cursor-pointer"
+										>
+											<option value="">-- Pilih Jabatan Bawahan --</option>
+											{#each availableTitlesForSubordinate as t}
+												<option value={t.code}>{t.name} ({t.code})</option>
+											{/each}
+										</select>
+										<button
+											type="button"
+											onclick={addSubordinateTitle}
+											disabled={!newSubordinateToAdd}
+											class="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 text-white text-xs font-bold flex items-center gap-1 cursor-pointer transition-all shrink-0"
+											title="Tambahkan Jabatan Bawahan"
+										>
+											<span class="material-symbols-outlined text-sm">add</span>
+											<span>Tambah</span>
+										</button>
+									</div>
+									<p class="text-[10px] text-slate-400 leading-tight">
+										Jabatan yang dipilih akan melapor langsung ke jabatan {name || 'karyawan ini'}.
+									</p>
+								</div>
+							</div>
+						</div>
+
+						<!-- DIAGRAM POHON VISUAL 3-LEVEL -->
+						<div class="p-6 rounded-3xl bg-surface-container-low border border-slate-200/80 dark:border-slate-800/80 space-y-4">
+							<div class="text-center space-y-1">
+								<span class="px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest bg-primary/10 text-primary border border-primary/20 inline-block">
+									Visual Diagram Pohon Hirarki
+								</span>
+								<h3 class="text-sm font-black text-on-surface">Struktur Lini Komando 3-Tingkat</h3>
+							</div>
+
+							<div class="flex flex-col items-center max-w-xl mx-auto pt-2">
+								<!-- LEVEL 1: ATASAN LANGSUNG -->
+								<div class="w-full sm:w-80 p-4 rounded-2xl border transition-all {selectedAtasanTitle ? 'bg-surface border-blue-500/40 shadow-xs' : 'bg-slate-100/60 dark:bg-slate-900/40 border-dashed border-slate-300 dark:border-slate-700 text-center'}">
+									<div class="flex items-center justify-between pb-2 mb-2 border-b border-slate-200/60 dark:border-slate-800/60">
+										<span class="px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-wider bg-blue-500/10 text-blue-600 border border-blue-500/20">
+											Level 1: Atasan Langsung
+										</span>
+										{#if selectedAtasanTitle}
+											<button 
+												type="button" 
+												onclick={() => selectedAtasanTitle = ''}
+												class="text-[10px] text-rose-500 hover:underline font-bold"
+												title="Hapus Atasan"
+											>
+												Lepas
+											</button>
+										{/if}
+									</div>
+
+									{#if selectedAtasanTitle}
+										<div class="flex items-start gap-3">
+											<div class="w-10 h-10 rounded-xl bg-blue-500/10 text-blue-600 flex items-center justify-center font-bold text-sm shrink-0 border border-blue-500/20">
+												<span class="material-symbols-outlined text-lg">military_tech</span>
+											</div>
+											<div class="flex-1 min-w-0">
+												<h4 class="text-xs font-bold text-on-surface truncate">
+													{atasanTitleObj?.name || selectedAtasanTitle}
+												</h4>
+												<p class="text-[10px] font-mono text-slate-400">{selectedAtasanTitle}</p>
+												
+												<!-- Pejabat Aktif -->
+												<div class="mt-2 pt-1.5 border-t border-slate-200/40 dark:border-slate-800/40">
+													<p class="text-[10px] font-bold text-slate-500">Pejabat Aktif:</p>
+													{#if atasanPersonnel.length > 0}
+														<div class="flex flex-col gap-1 mt-1">
+															{#each atasanPersonnel as person}
+																<div class="flex items-center gap-1.5 text-xs text-on-surface font-semibold truncate">
+																	<span class="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0"></span>
+																	<span class="truncate">{person.name}</span>
+																	<span class="text-[9px] text-slate-400 font-mono">({person.payrollId})</span>
+																</div>
+															{/each}
+														</div>
+													{:else}
+														<p class="text-[10px] text-amber-600 italic">Belum ada karyawan aktif di jabatan ini</p>
+													{/if}
+												</div>
+											</div>
+										</div>
+									{:else}
+										<div class="py-2 text-on-surface-variant">
+											<span class="material-symbols-outlined text-2xl text-slate-400 mb-1">domain</span>
+											<p class="text-xs font-bold text-on-surface">Posisi Puncak / Mandiri</p>
+											<p class="text-[10px] text-slate-400">Tidak ada atasan langsung di atas jabatan ini</p>
+										</div>
+									{/if}
+								</div>
+
+								<!-- KONEKTOR 1 -> 2 -->
+								<div class="flex flex-col items-center my-1.5">
+									<div class="w-0.5 h-6 bg-primary/40"></div>
+									<span class="px-2 py-0.5 rounded-full bg-surface border border-slate-200 dark:border-slate-700 text-[9px] font-black text-slate-400 -my-2.5 z-10">
+										MELAPOR KE ⬇
+									</span>
+									<div class="w-0.5 h-6 bg-primary/40"></div>
+								</div>
+
+								<!-- LEVEL 2: KARYAWAN INI (CURRENT EMPLOYEE) -->
+								<div class="w-full sm:w-80 p-4 rounded-2xl bg-surface border-2 border-primary shadow-md relative overflow-hidden">
+									<div class="absolute top-0 right-0 px-2.5 py-0.5 rounded-bl-xl text-[9px] font-black uppercase tracking-wider bg-primary text-on-primary">
+										Karyawan Ini
+									</div>
+
+									<div class="flex items-start gap-3">
+										<div class="w-11 h-11 rounded-xl bg-primary/10 text-primary flex items-center justify-center font-black text-base shrink-0 border border-primary/20">
+											{name ? name.charAt(0).toUpperCase() : 'E'}
+										</div>
+										<div class="flex-1 min-w-0 pr-12">
+											<h4 class="text-xs font-black text-on-surface truncate">
+												{name || 'Nama Karyawan'}
+											</h4>
+											<p class="text-[11px] font-bold text-primary truncate mt-0.5">
+												{titles.find(t => t.code === titleCode)?.name || titleCode || 'Belum Ditentukan'}
+											</p>
+											<p class="text-[10px] font-mono text-slate-400 mt-0.5">
+												NIK: {payrollId || 'EMP'}
+											</p>
+										</div>
+									</div>
+								</div>
+
+								<!-- KONEKTOR 2 -> 3 -->
+								<div class="flex flex-col items-center my-1.5">
+									<div class="w-0.5 h-6 bg-emerald-500/40"></div>
+									<span class="px-2 py-0.5 rounded-full bg-surface border border-slate-200 dark:border-slate-700 text-[9px] font-black text-emerald-600 -my-2.5 z-10">
+										MEMBAWAHI ⬇
+									</span>
+									<div class="w-0.5 h-6 bg-emerald-500/40"></div>
+								</div>
+
+								<!-- LEVEL 3: TIM BAWAHAN LANGSUNG -->
+								<div class="w-full space-y-3">
+									<div class="flex items-center justify-between px-2">
+										<span class="px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-wider bg-emerald-500/10 text-emerald-600 border border-emerald-500/20">
+											Level 3: Tim Bawahan Langsung ({subordinateListWithPersonnel.length} Jabatan)
+										</span>
+									</div>
+
+									{#if subordinateListWithPersonnel.length > 0}
+										<div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+											{#each subordinateListWithPersonnel as sub}
+												<div class="p-3 rounded-2xl bg-surface border border-slate-200 dark:border-slate-800 shadow-2xs relative group">
+													<div class="flex items-start justify-between gap-2">
+														<div class="flex items-start gap-2.5 min-w-0">
+															<div class="w-7 h-7 rounded-lg bg-emerald-500/10 text-emerald-600 flex items-center justify-center font-bold text-xs shrink-0 mt-0.5">
+																<span class="material-symbols-outlined text-sm">person</span>
+															</div>
+															<div class="min-w-0">
+																<h5 class="text-xs font-bold text-on-surface truncate">{sub.name}</h5>
+																<p class="text-[10px] font-mono text-slate-400">{sub.code}</p>
+															</div>
+														</div>
+														<button
+															type="button"
+															onclick={() => removeSubordinateTitle(sub.code)}
+															class="w-6 h-6 rounded-lg text-slate-400 hover:text-rose-500 hover:bg-rose-500/10 flex items-center justify-center transition-colors cursor-pointer shrink-0"
+															title="Hapus Jabatan Bawahan Ini"
+														>
+															<span class="material-symbols-outlined text-xs">close</span>
+														</button>
+													</div>
+
+													<!-- Daftar Personel di Jabatan Bawahan -->
+													<div class="mt-2 pt-2 border-t border-slate-200/50 dark:border-slate-800/50 text-[10px]">
+														{#if sub.personnel.length > 0}
+															<div class="flex items-center gap-1 text-slate-500 mb-1">
+																<span class="font-bold">{sub.personnel.length} Personel Aktif:</span>
+															</div>
+															<div class="flex flex-wrap gap-1">
+																{#each sub.personnel as p}
+																	<span class="px-1.5 py-0.5 rounded bg-surface-container text-on-surface text-[10px] font-medium truncate max-w-[150px]">
+																		{p.name}
+																	</span>
+																{/each}
+															</div>
+														{:else}
+															<span class="text-slate-400 italic">0 personel saat ini</span>
+														{/if}
+													</div>
+												</div>
+											{/each}
+										</div>
+									{:else}
+										<div class="p-4 rounded-2xl bg-surface border border-dashed border-slate-200 dark:border-slate-800 text-center text-on-surface-variant">
+											<span class="material-symbols-outlined text-xl text-slate-400 mb-1">group_off</span>
+											<p class="text-xs font-bold text-on-surface">Belum Ada Bawahan Langsung</p>
+											<p class="text-[10px] text-slate-400">Gunakan dropdown di atas untuk menambahkan jabatan yang melapor ke karyawan ini.</p>
+										</div>
+									{/if}
+								</div>
+							</div>
+						</div>
+					</div>
+				{/if}
 			</form>
 
 			<!-- Footer -->
@@ -545,7 +922,7 @@
 							<span>Menyimpan...</span>
 						{:else}
 							<span class="material-symbols-outlined text-sm">save</span>
-							<span>Simpan Perubahan</span>
+							<span>Simpan Perubahan & Hirarki</span>
 						{/if}
 					</button>
 				</div>

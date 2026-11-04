@@ -13,6 +13,8 @@
 	let titles = $derived(data.titles || []);
 	let divisions = $derived(data.divisions || []);
 	let departments = $derived(data.departments || []);
+	let supervisorMappings = $derived(data.supervisorMappings || []);
+	let activePersonnel = $derived(data.activePersonnel || []);
 	let meta = $derived(data.meta);
 
 	// State yang sinkron dengan URL
@@ -345,6 +347,8 @@
 	{titles}
 	{divisions}
 	{departments}
+	{supervisorMappings}
+	{activePersonnel}
 />
 
 <style>

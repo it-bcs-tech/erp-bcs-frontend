@@ -10,7 +10,7 @@ export interface UpdateEmployeeData {
 	div_id?: string | null;
 	dept_id?: string | null;
 	lokasi?: string | null;
-	status_karyawan?: string | null;
+	status?: string | null;
 	aktif?: string | null;
 	tgl_masuk?: string | null;
 	no_ktp?: string | null;
@@ -24,10 +24,39 @@ export interface UpdateEmployeeData {
 	kota_ktp?: string | null;
 	pendidikan_terakhir?: string | null;
 	jurusan?: string | null;
+	title_atasan?: string | null;
+	subordinate_titles?: string[] | null;
 }
 
 /**
- * Update data karyawan di tabel master.m_karyawan
+ * Normalisasi jenis kelamin sesuai constraint: 'MALE' | 'FEMALE'
+ */
+function normalizeGender(g?: string | null): string {
+	if (!g) return 'MALE';
+	const upper = g.trim().toUpperCase();
+	if (upper === 'P' || upper === 'PEREMPUAN' || upper === 'FEMALE' || upper === 'WANITA') {
+		return 'FEMALE';
+	}
+	return 'MALE';
+}
+
+/**
+ * Normalisasi status kepegawaian
+ */
+function normalizeStatus(s?: string | null): string {
+	if (!s) return 'PERMANENT';
+	const upper = s.trim().toUpperCase();
+	if (upper.includes('TETAP') || upper.includes('PERMANENT')) return 'PERMANENT';
+	if (upper.includes('KONTRAK') || upper.includes('CONTRACT')) return 'CONTRACT';
+	if (upper.includes('MITRA')) return 'MITRA KERJA';
+	if (upper.includes('BORONGAN')) return 'BORONGAN';
+	if (upper.includes('MAGANG') || upper.includes('INTERN')) return 'INTERNSHIP';
+	if (upper.includes('HARIAN')) return 'HARIAN';
+	return upper;
+}
+
+/**
+ * Update data karyawan di tabel master.m_karyawan dan relasi hirarki di master.m_atasan
  */
 export async function updateEmployeeRecord(data: UpdateEmployeeData) {
 	if (!data.id || data.id <= 0) {
@@ -40,6 +69,9 @@ export async function updateEmployeeRecord(data: UpdateEmployeeData) {
 
 	try {
 		const cleanDate = (d?: string | null) => (d && d.trim() ? d.trim() : null);
+		const genderVal = normalizeGender(data.jenis_kelamin);
+		const statusVal = normalizeStatus(data.status);
+		const titleVal = data.title?.trim() || null;
 
 		const result = await sql`
 			UPDATE master.m_karyawan
@@ -47,18 +79,18 @@ export async function updateEmployeeRecord(data: UpdateEmployeeData) {
 				nama_karyawan = ${data.nama_karyawan.trim()},
 				email = ${data.email?.trim() || null},
 				telp1 = ${data.telp1?.trim() || null},
-				title = ${data.title?.trim() || null},
+				title = ${titleVal},
 				div_id = ${data.div_id?.trim() || null},
 				dept_id = ${data.dept_id?.trim() || null},
 				lokasi = ${data.lokasi?.trim() || 'Head Office Cilegon'},
-				status_karyawan = ${data.status_karyawan?.trim() || 'TETAP'},
+				status = ${statusVal},
 				aktif = ${data.aktif === 'N' ? 'N' : 'Y'},
 				tgl_masuk = ${cleanDate(data.tgl_masuk)}::date,
 				no_ktp = ${data.no_ktp?.trim() || null},
 				no_npwp = ${data.no_npwp?.trim() || null},
 				tempat_lahir = ${data.tempat_lahir?.trim() || null},
 				tgl_lahir = ${cleanDate(data.tgl_lahir)}::date,
-				jenis_kelamin = ${data.jenis_kelamin?.trim() || null},
+				jenis_kelamin = ${genderVal},
 				agama = ${data.agama?.trim() || null},
 				marital_status = ${data.marital_status?.trim() || null},
 				alamat_ktp = ${data.alamat_ktp?.trim() || null},
@@ -67,17 +99,53 @@ export async function updateEmployeeRecord(data: UpdateEmployeeData) {
 				jurusan = ${data.jurusan?.trim() || null},
 				last_updated = NOW()
 			WHERE id = ${data.id}
-			RETURNING id, payroll_id, nama_karyawan, email, telp1, title, div_id, dept_id, aktif;
+			RETURNING id, payroll_id, nama_karyawan, email, telp1, title, div_id, dept_id, aktif, status;
 		`;
 
 		if (result.length === 0) {
 			throw new Error('Data karyawan tidak ditemukan atau sudah dihapus.');
 		}
 
+		// Update Hirarki di master.m_atasan jika jabatan karyawan valid
+		if (titleVal) {
+			// 1. Update Atasan Langsung (title_atasan untuk title_bawahan = titleVal)
+			if (data.title_atasan && data.title_atasan.trim()) {
+				const atasanCode = data.title_atasan.trim();
+				// Hapus relasi atasan lama untuk jabatan bawahan ini
+				await sql`
+					DELETE FROM master.m_atasan 
+					WHERE title_bawahan = ${titleVal};
+				`;
+				// Masukkan relasi baru
+				await sql`
+					INSERT INTO master.m_atasan (title_atasan, title_bawahan, status, create_date)
+					VALUES (${atasanCode}, ${titleVal}, '1', NOW());
+				`;
+			}
+
+			// 2. Update Tim Bawahan Langsung (title_atasan = titleVal)
+			if (data.subordinate_titles && Array.isArray(data.subordinate_titles)) {
+				// Ambil bawahan lama
+				await sql`
+					DELETE FROM master.m_atasan 
+					WHERE title_atasan = ${titleVal};
+				`;
+				for (const subCode of data.subordinate_titles) {
+					if (subCode && subCode.trim() && subCode.trim() !== titleVal) {
+						await sql`
+							INSERT INTO master.m_atasan (title_atasan, title_bawahan, status, create_date)
+							VALUES (${titleVal}, ${subCode.trim()}, '1', NOW())
+							ON CONFLICT DO NOTHING;
+						`;
+					}
+				}
+			}
+		}
+
 		return {
 			success: true,
 			employee: result[0],
-			message: `Data karyawan ${result[0].nama_karyawan} berhasil diperbarui.`
+			message: `Data karyawan ${result[0].nama_karyawan} dan struktur hirarki berhasil diperbarui.`
 		};
 	} catch (err: any) {
 		logError('UPDATE_EMPLOYEE_RECORD_FAIL', err?.message);
@@ -86,27 +154,52 @@ export async function updateEmployeeRecord(data: UpdateEmployeeData) {
 }
 
 /**
- * Mengambil master data referensi (jabatan, divisi, departemen)
+ * Mengambil master data referensi lengkap termasuk pemetaan atasan-bawahan dan daftar personel aktif
  */
 export async function getEmployeeMasterLookups() {
 	try {
-		const [titles, divisions, departments] = await Promise.all([
+		const [titles, divisions, departments, supervisorMappings, activePersonnel] = await Promise.all([
 			sql<any[]>`SELECT title_code, title FROM master.m_title ORDER BY title ASC`,
 			sql<any[]>`SELECT div_code, div_name FROM master.m_division ORDER BY div_name ASC`,
-			sql<any[]>`SELECT dept_code, dept_name, div_code FROM master.m_dept ORDER BY dept_name ASC`
+			sql<any[]>`SELECT dept_code, dept_name, div_code FROM master.m_dept ORDER BY dept_name ASC`,
+			sql<any[]>`SELECT id, title_atasan, title_bawahan FROM master.m_atasan WHERE status = '1' OR status = 'Y' OR status IS NULL`,
+			sql<any[]>`
+				SELECT 
+					k.id, k.payroll_id, k.nama_karyawan as name, k.title as title_code, 
+					COALESCE(k.foto, '') as avatar, k.div_id, k.dept_id
+				FROM master.m_karyawan k
+				WHERE k.aktif = 'Y'
+				ORDER BY k.nama_karyawan ASC
+			`
 		]);
 
 		return {
 			titles: titles.map(t => ({ code: t.title_code, name: t.title })),
 			divisions: divisions.map(d => ({ code: d.div_code, name: d.div_name })),
-			departments: departments.map(d => ({ code: d.dept_code, name: d.dept_name, divCode: d.div_code }))
+			departments: departments.map(d => ({ code: d.dept_code, name: d.dept_name, divCode: d.div_code })),
+			supervisorMappings: supervisorMappings.map(m => ({
+				id: m.id,
+				titleAtasan: m.title_atasan,
+				titleBawahan: m.title_bawahan
+			})),
+			activePersonnel: activePersonnel.map(p => ({
+				id: p.id,
+				payrollId: p.payroll_id,
+				name: p.name,
+				titleCode: p.title_code,
+				avatar: p.avatar,
+				divId: p.div_id,
+				deptId: p.dept_id
+			}))
 		};
 	} catch (e: any) {
 		logError('GET_EMPLOYEE_LOOKUPS_FAIL', e?.message);
 		return {
 			titles: [],
 			divisions: [],
-			departments: []
+			departments: [],
+			supervisorMappings: [],
+			activePersonnel: []
 		};
 	}
 }

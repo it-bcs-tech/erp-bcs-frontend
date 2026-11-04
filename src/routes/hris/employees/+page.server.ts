@@ -51,6 +51,8 @@ export const load: PageServerLoad = async ({ cookies, url }) => {
 					titles: lookups.titles,
 					divisions: lookups.divisions,
 					departments: lookups.departments,
+					supervisorMappings: lookups.supervisorMappings,
+					activePersonnel: lookups.activePersonnel,
 					meta: response.meta || {
 						current_page: page,
 						total: total,
@@ -174,6 +176,8 @@ export const load: PageServerLoad = async ({ cookies, url }) => {
 			titles: lookups.titles,
 			divisions: lookups.divisions,
 			departments: lookups.departments,
+			supervisorMappings: lookups.supervisorMappings,
+			activePersonnel: lookups.activePersonnel,
 			meta: {
 				current_page: page,
 				total: total,
@@ -190,6 +194,8 @@ export const load: PageServerLoad = async ({ cookies, url }) => {
 			titles: lookups.titles,
 			divisions: lookups.divisions,
 			departments: lookups.departments,
+			supervisorMappings: lookups.supervisorMappings,
+			activePersonnel: lookups.activePersonnel,
 			meta: {
 				current_page: page,
 				total: 0,
@@ -211,6 +217,16 @@ export const actions: Actions = {
 		}
 
 		try {
+			const subRaw = formData.get('subordinate_titles')?.toString();
+			let subordinate_titles: string[] | null = null;
+			if (subRaw) {
+				try {
+					subordinate_titles = JSON.parse(subRaw);
+				} catch {
+					subordinate_titles = subRaw.split(',').map((s) => s.trim()).filter(Boolean);
+				}
+			}
+
 			const updateData: UpdateEmployeeData = {
 				id: rawId,
 				nama_karyawan,
@@ -220,7 +236,7 @@ export const actions: Actions = {
 				div_id: formData.get('div_id')?.toString() || null,
 				dept_id: formData.get('dept_id')?.toString() || null,
 				lokasi: formData.get('lokasi')?.toString() || null,
-				status_karyawan: formData.get('status_karyawan')?.toString() || null,
+				status: formData.get('status')?.toString() || formData.get('status_karyawan')?.toString() || 'PERMANENT',
 				aktif: formData.get('aktif')?.toString() || 'Y',
 				tgl_masuk: formData.get('tgl_masuk')?.toString() || null,
 				no_ktp: formData.get('no_ktp')?.toString() || null,
@@ -233,7 +249,9 @@ export const actions: Actions = {
 				alamat_ktp: formData.get('alamat_ktp')?.toString() || null,
 				kota_ktp: formData.get('kota_ktp')?.toString() || null,
 				pendidikan_terakhir: formData.get('pendidikan_terakhir')?.toString() || null,
-				jurusan: formData.get('jurusan')?.toString() || null
+				jurusan: formData.get('jurusan')?.toString() || null,
+				title_atasan: formData.get('title_atasan')?.toString() || null,
+				subordinate_titles
 			};
 
 			const result = await updateEmployeeRecord(updateData);
