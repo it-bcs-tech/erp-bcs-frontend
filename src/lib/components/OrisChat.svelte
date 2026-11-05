@@ -35,7 +35,7 @@
 					const parsed = JSON.parse(saved);
 					if (parsed.length > 1) { // Hanya munculkan menu jika ada riwayat obrolan user
 						messages = parsed;
-						currentView = 'menu';
+						currentView = 'chat';
 					}
 				} catch (e) {
 					console.error('Gagal memuat riwayat chat', e);
@@ -72,9 +72,22 @@
 		}
 	});
 
+	
+	function scrollToBottom() {
+		tick().then(() => {
+			if (chatContainer) {
+				chatContainer.scrollTop = chatContainer.scrollHeight;
+			}
+		});
+	}
+
 	function toggleChat() {
 		isOpen = !isOpen;
-		if (!isOpen) isExpanded = false; // reset expand when closed
+		if (!isOpen) {
+			isExpanded = false;
+		} else {
+			scrollToBottom();
+		}
 	}
 
 	function toggleExpand() {
@@ -157,7 +170,10 @@
 {#if browser}
 	<!-- Floating Action Button -->
 	{#if !isOpen}
-		<button
+		<button class="w-8 h-8 rounded-full hover:bg-white/20 flex items-center justify-center transition-colors text-white" onclick={startNewChat} title="Mulai Obrolan Baru (Reset)" aria-label="Mulai Obrolan Baru">
+						<span class="material-symbols-outlined text-lg">add_comment</span>
+					</button>
+					<button
 			class="oris-fab"
 			onclick={toggleChat}
 			aria-label="Buka ORIS — Asisten OCS"

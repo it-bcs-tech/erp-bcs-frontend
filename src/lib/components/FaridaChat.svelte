@@ -8,7 +8,7 @@
 	let isOpen = $state(false);
 	let isExpanded = $state(false);
 	let currentView = $state<'menu' | 'chat'>('chat');
-	let chatContainer: HTMLElement;
+	let chatContainer = $state<HTMLElement | null>(null);
 	let inputValue = $state('');
 	let isLoading = $state(false);
 
@@ -47,7 +47,7 @@
 					const parsed = JSON.parse(saved);
 					if (parsed.length > 1) {
 						messages = parsed;
-						currentView = 'menu';
+						currentView = 'chat';
 					}
 				} catch {}
 			}
@@ -69,6 +69,15 @@
 	});
 
 	// ── Actions ────────────────────────────────────────────────────────
+	
+	function scrollToBottom() {
+		tick().then(() => {
+			if (chatContainer) {
+				chatContainer.scrollTop = chatContainer.scrollHeight;
+			}
+		});
+	}
+
 	function toggleChat() {
 		isOpen = !isOpen;
 		if (!isOpen) isExpanded = false;
@@ -96,6 +105,7 @@
 		messages = [...messages, { id: `user-${Date.now()}`, role: 'user', content: text }];
 		inputValue = '';
 		isLoading = true;
+		scrollToBottom();
 
 		const assistantId = `farida-${Date.now()}`;
 		messages = [...messages, { id: assistantId, role: 'assistant', content: '' }];
@@ -124,6 +134,7 @@
 				messages = messages.map(m =>
 					m.id === assistantId ? { ...m, content: m.content + chunk } : m
 				);
+				scrollToBottom();
 			}
 		} catch (err) {
 			messages = messages.map(m =>
@@ -153,7 +164,10 @@
 {#if browser}
 	<!-- ── FAB Button ─────────────────────────────────────────────── -->
 	{#if !isOpen}
-		<button
+		<button class="w-8 h-8 rounded-full hover:bg-white/20 flex items-center justify-center transition-colors text-white" onclick={startNewChat} title="Mulai Obrolan Baru (Reset)" aria-label="Mulai Obrolan Baru">
+						<span class="material-symbols-outlined text-lg">add_comment</span>
+					</button>
+					<button
 			class="farida-fab"
 			onclick={toggleChat}
 			aria-label="Buka FARIDA — Asisten Armada FMS"
