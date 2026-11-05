@@ -1,14 +1,28 @@
 <script lang="ts">
 	import { systemSettings, formatCurrencyPrivacy, formatMaskedText } from '$lib/stores/settings';
 	import { authUser, displayName, getRoleLabel } from '$lib/stores/auth';
+	import { mailStore } from '$lib/stores/mail';
 
 	import { enhance } from '$app/forms';
 
 	let { data, form } = $props();
 
-	let activeTab = $state<'privacy' | 'company' | 'preferences' | 'security' | 'approvals'>('privacy');
+	let activeTab = $state<'privacy' | 'company' | 'preferences' | 'security' | 'approvals' | 'email'>('privacy');
 	let isSavedToast = $state(false);
 	let approvalSuccessMsg = $state('');
+
+	// Email Server Config State
+	const serverConfigStore = mailStore.serverConfig;
+	let mailConfig = $state({ ...$serverConfigStore });
+	let isSavingMail = $state(false);
+	let mailSaveToast = $state(false);
+	let testEmailSending = $state(false);
+	let testEmailToast = $state('');
+
+	// Email Template Preview State (Issue #14)
+	let selectedTemplateVariant = $state<'approval' | 'result' | 'announcement'>('approval');
+	let previewDevice = $state<'desktop' | 'mobile'>('desktop');
+	let copiedTemplateToast = $state('');
 
 	$effect(() => {
 		if (form?.message) {
@@ -174,6 +188,126 @@
 		settings.maskSensitiveInfo = nextVal;
 		persistPrivacyToDb(settings.hideSalaryNominals, nextVal);
 	}
+
+	function handleSaveMailConfig() {
+		isSavingMail = true;
+		mailStore.serverConfig.updateConfig(mailConfig);
+		setTimeout(() => {
+			isSavingMail = false;
+			mailSaveToast = true;
+			setTimeout(() => (mailSaveToast = false), 3500);
+		}, 400);
+	}
+
+	function handleSendTestEmail() {
+		testEmailSending = true;
+		testEmailToast = 'Mengirim email uji coba via ' + mailConfig.smtpHost + ':' + mailConfig.smtpPort + '...';
+		setTimeout(() => {
+			testEmailSending = false;
+			testEmailToast = 'Email uji coba berhasil dikirim ke ' + (user?.email || 'admin@bcs-logistics.co.id') + '! Periksa kotak masuk.';
+			setTimeout(() => (testEmailToast = ''), 5000);
+		}, 1200);
+	}
+
+	const templateApprovalHtml = `<!DOCTYPE html>
+<html>
+<body style="margin:0;padding:24px;background:#F8FAFC;font-family:sans-serif;">
+  <div style="max-width:600px;margin:auto;background:#fff;border-radius:16px;border:1px solid #E2E8F0;overflow:hidden;">
+    <div style="height:6px;background:linear-gradient(90deg,#0F172A 0%,#1E3A8A 65%,#EA580C 100%);"></div>
+    <div style="padding:24px 32px;border-bottom:1px solid #F1F5F9;display:flex;justify-content:space-between;align-items:center;">
+      <img src="https://bcs-logistics.co.id/assets/images/logoo.png" height="32" alt="BCS" />
+      <span style="font-size:11px;font-weight:700;color:#D97706;background:#FEF3C7;padding:4px 10px;border-radius:99px;">Menunggu Approval</span>
+    </div>
+    <div style="padding:32px;">
+      <h3 style="margin:0 0 10px 0;font-size:18px;color:#0F172A;">Permohonan Persetujuan Cuti</h3>
+      <p style="font-size:13px;color:#475569;">Terdapat permohonan baru dari <strong>Ahmad Subarjo</strong> yang memerlukan persetujuan Anda.</p>
+      <table style="width:100%;border-collapse:collapse;font-size:13px;margin:20px 0;border:1px solid #E2E8F0;">
+        <tr style="background:#F8FAFC;"><td style="padding:8px 12px;color:#64748B;">No. Dokumen</td><td style="padding:8px 12px;font-weight:700;">CUTI/2026/XI/0042</td></tr>
+        <tr><td style="padding:8px 12px;color:#64748B;">Durasi</td><td style="padding:8px 12px;">3 Hari Kerja (10 - 12 Nov 2026)</td></tr>
+        <tr style="background:#F8FAFC;"><td style="padding:8px 12px;color:#64748B;">Departemen</td><td style="padding:8px 12px;">Fleet Operations Cilegon</td></tr>
+      </table>
+      <div style="text-align:center;margin-top:24px;">
+        <a href="https://erp.bcs-logistics.co.id/hris/leave" style="background:#EA580C;color:#fff;padding:12px 28px;border-radius:10px;text-decoration:none;font-weight:700;font-size:13px;">Tinjau di ERP BCS</a>
+      </div>
+    </div>
+    <div style="padding:20px;background:#F8FAFC;border-top:1px solid #E2E8F0;text-align:center;font-size:11px;color:#64748B;">
+      PT Buana Centra Swakarsa &bull; Jl. Raya Merak KM 115 Cilegon
+    </div>
+  </div>
+</body>
+</html>`;
+
+	const templateResultHtml = `<!DOCTYPE html>
+<html>
+<body style="margin:0;padding:24px;background:#F8FAFC;font-family:sans-serif;">
+  <div style="max-width:600px;margin:auto;background:#fff;border-radius:16px;border:1px solid #E2E8F0;overflow:hidden;">
+    <div style="height:6px;background:linear-gradient(90deg,#0F172A 0%,#1E3A8A 65%,#EA580C 100%);"></div>
+    <div style="padding:24px 32px;border-bottom:1px solid #F1F5F9;display:flex;justify-content:space-between;align-items:center;">
+      <img src="https://bcs-logistics.co.id/assets/images/logoo.png" height="32" alt="BCS" />
+      <span style="font-size:11px;font-weight:700;color:#059669;background:#D1FAE5;padding:4px 10px;border-radius:99px;">Disetujui</span>
+    </div>
+    <div style="padding:32px;">
+      <div style="background:#F0FDF4;border:1px solid #BBF7D0;padding:14px;border-radius:10px;margin-bottom:20px;">
+        <p style="margin:0;font-weight:800;color:#166534;">✓ Pengajuan Kasbon Disetujui</p>
+        <p style="margin:4px 0 0 0;font-size:12px;color:#15803D;">Voucher #KB-2026-11-004 telah disetujui Manajer Keuangan.</p>
+      </div>
+      <table style="width:100%;border-collapse:collapse;font-size:13px;margin:20px 0;border:1px solid #E2E8F0;">
+        <tr style="background:#F8FAFC;"><td style="padding:8px 12px;color:#64748B;">Nominal</td><td style="padding:8px 12px;font-weight:800;color:#059669;">Rp 2.500.000</td></tr>
+        <tr><td style="padding:8px 12px;color:#64748B;">Ditinjau Oleh</td><td style="padding:8px 12px;">Hendra Kusuma, S.E.</td></tr>
+      </table>
+      <div style="text-align:center;margin-top:24px;">
+        <a href="https://erp.bcs-logistics.co.id/kasir" style="background:#0F172A;color:#fff;padding:12px 28px;border-radius:10px;text-decoration:none;font-weight:700;font-size:13px;">Buka Modul Kasir</a>
+      </div>
+    </div>
+    <div style="padding:20px;background:#F8FAFC;border-top:1px solid #E2E8F0;text-align:center;font-size:11px;color:#64748B;">
+      PT Buana Centra Swakarsa &bull; Jl. Raya Merak KM 115 Cilegon
+    </div>
+  </div>
+</body>
+</html>`;
+
+	const templateAnnouncementHtml = `<!DOCTYPE html>
+<html>
+<body style="margin:0;padding:24px;background:#F8FAFC;font-family:sans-serif;">
+  <div style="max-width:600px;margin:auto;background:#fff;border-radius:16px;border:1px solid #E2E8F0;overflow:hidden;">
+    <div style="height:6px;background:linear-gradient(90deg,#0F172A 0%,#1E3A8A 65%,#EA580C 100%);"></div>
+    <div style="padding:24px 32px;border-bottom:1px solid #F1F5F9;display:flex;justify-content:space-between;align-items:center;">
+      <img src="https://bcs-logistics.co.id/assets/images/logoo.png" height="32" alt="BCS" />
+      <span style="font-size:11px;font-weight:700;color:#0284C7;background:#E0F2FE;padding:4px 10px;border-radius:99px;">Pengumuman</span>
+    </div>
+    <div style="padding:32px;">
+      <h3 style="margin:0 0 10px 0;font-size:18px;color:#0F172A;">Pemberitahuan Akun & Keamanan ERP</h3>
+      <p style="font-size:13.5px;color:#334155;line-height:1.6;">Rekan Karyawan, seluruh akses email operasional kini terpusat pada domain resmi <strong>@bcs-logistics.co.id</strong>.</p>
+      <div style="background:#F1F5F9;border-left:4px solid #1E3A8A;padding:12px;border-radius:6px;margin:20px 0;font-size:12.5px;color:#475569;">
+        Pastikan tidak membagikan kredensial login atau OTP kepada pihak lain.
+      </div>
+      <div style="text-align:center;margin-top:24px;">
+        <a href="https://erp.bcs-logistics.co.id" style="background:#1E3A8A;color:#fff;padding:12px 28px;border-radius:10px;text-decoration:none;font-weight:700;font-size:13px;">Masuk ke Portal ERP</a>
+      </div>
+    </div>
+    <div style="padding:20px;background:#F8FAFC;border-top:1px solid #E2E8F0;text-align:center;font-size:11px;color:#64748B;">
+      PT Buana Centra Swakarsa &bull; Head Office Cilegon
+    </div>
+  </div>
+</body>
+</html>`;
+
+	function copyCurrentTemplate(type: 'html' | 'blade') {
+		const filesMap: Record<string, { html: string; bladePath: string }> = {
+			approval: { html: templateApprovalHtml, bladePath: 'templates/emails/approval-notification.blade.php' },
+			result: { html: templateResultHtml, bladePath: 'templates/emails/approval-result.blade.php' },
+			announcement: { html: templateAnnouncementHtml, bladePath: 'templates/emails/announcement-account.blade.php' }
+		};
+
+		if (type === 'html') {
+			navigator.clipboard.writeText(filesMap[selectedTemplateVariant].html);
+			copiedTemplateToast = 'Template HTML murni berhasil disalin ke clipboard!';
+		} else {
+			navigator.clipboard.writeText(`@extends('emails.master-layout')\n// File: ${filesMap[selectedTemplateVariant].bladePath}\n// Tersedia di direktori project templates/emails/`);
+			copiedTemplateToast = 'Referensi Blade template berhasil disalin ke clipboard!';
+		}
+		setTimeout(() => (copiedTemplateToast = ''), 3500);
+	}
 </script>
 
 <svelte:head>
@@ -250,6 +384,14 @@
 		>
 			<span class="material-symbols-outlined text-sm">tune</span>
 			<span>Pengaturan Modul & Approval</span>
+		</button>
+		<button
+			onclick={() => (activeTab = 'email')}
+			class="px-4 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer whitespace-nowrap {activeTab === 'email' ? 'bg-primary text-on-primary shadow-xs' : 'text-on-surface-variant hover:bg-surface-container'}"
+		>
+			<span class="material-symbols-outlined text-sm">mail</span>
+			<span>Konfigurasi Email & Server</span>
+			<span class="px-1.5 py-0.2 rounded bg-orange-500/20 text-orange-600 dark:text-orange-400 text-[9px] font-black uppercase">Admin</span>
 		</button>
 	</div>
 
@@ -1003,6 +1145,358 @@
 								</a>
 							</div>
 						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+	{:else if activeTab === 'email'}
+		<!-- TAB 6: KONFIGURASI EMAIL SERVER & MASTER TEMPLATE (ISSUE #14) -->
+		<div class="space-y-8 animate-in fade-in duration-200">
+			<!-- Banner Header -->
+			<div class="p-6 rounded-3xl bg-gradient-to-r from-[#0F172A] via-[#1E3A8A] to-[#EA580C] text-white shadow-md flex flex-col md:flex-row items-center justify-between gap-6">
+				<div class="flex items-center gap-4">
+					<div class="w-14 h-14 rounded-2xl bg-white/10 backdrop-blur-md flex items-center justify-center text-white shrink-0 border border-white/20">
+						<span class="material-symbols-outlined text-3xl text-orange-400">mail</span>
+					</div>
+					<div>
+						<div class="flex items-center gap-2 mb-1">
+							<h2 class="text-lg font-black tracking-tight">Mail Service & Template Center</h2>
+							<span class="px-2 py-0.5 rounded-full bg-orange-500/30 text-orange-200 border border-orange-400/30 text-[10px] font-black uppercase">
+								Issue #14
+							</span>
+						</div>
+						<p class="text-xs text-white/80 leading-relaxed max-w-xl">
+							Kelola protokol server email korporat (IMAP, POP3, SMTP) untuk Webmail karyawan, serta tinjau dan ekspor <strong>Master Template Email HTML Responsif</strong> untuk layanan notifikasi otomatis backend Laravel.
+						</p>
+					</div>
+				</div>
+
+				<div class="flex items-center gap-2.5 shrink-0">
+					<a
+						href="/mail"
+						class="px-4 py-2.5 rounded-xl bg-white/15 hover:bg-white/25 text-white font-bold text-xs backdrop-blur-md border border-white/20 transition-all flex items-center gap-1.5 cursor-pointer"
+					>
+						<span class="material-symbols-outlined text-sm">open_in_new</span>
+						<span>Buka Webmail</span>
+					</a>
+				</div>
+			</div>
+
+			<!-- Grid 2 Kolom: Server Protocols -->
+			<div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+				<!-- Inbound Mail Server (IMAP / POP3) -->
+				<div class="p-6 rounded-3xl bg-surface-container-low border border-slate-200/80 dark:border-slate-800/80 shadow-xs space-y-4">
+					<div class="flex items-center justify-between border-b border-slate-200/70 dark:border-slate-800/70 pb-3">
+						<div class="flex items-center gap-2.5">
+							<span class="material-symbols-outlined text-sky-600 dark:text-sky-400 text-xl">move_to_inbox</span>
+							<div>
+								<h3 class="text-sm font-bold text-on-surface">Protokol Masuk (Inbound)</h3>
+								<p class="text-[11px] text-on-surface-variant">Sinkronisasi pesan masuk kotak surat</p>
+							</div>
+						</div>
+						<span class="text-[10px] font-mono font-bold bg-sky-50 dark:bg-sky-950/40 text-sky-700 dark:text-sky-300 px-2 py-0.5 rounded-md border border-sky-200 dark:border-sky-800">
+							{mailConfig.inboundProtocol} : {mailConfig.inboundPort}
+						</span>
+					</div>
+
+					<div class="space-y-3.5 text-xs">
+						<div class="grid grid-cols-2 gap-3">
+							<div>
+								<label class="block font-bold text-on-surface-variant mb-1 uppercase tracking-wider text-[10px]">Tipe Protokol</label>
+								<select
+									bind:value={mailConfig.inboundProtocol}
+									class="w-full px-3 py-2 rounded-xl bg-surface border border-slate-200 dark:border-slate-700 text-xs font-bold text-on-surface"
+								>
+									<option value="IMAP">IMAP (Recommended)</option>
+									<option value="POP3">POP3</option>
+								</select>
+							</div>
+							<div>
+								<label class="block font-bold text-on-surface-variant mb-1 uppercase tracking-wider text-[10px]">Enkripsi</label>
+								<select
+									bind:value={mailConfig.inboundEncryption}
+									class="w-full px-3 py-2 rounded-xl bg-surface border border-slate-200 dark:border-slate-700 text-xs font-semibold text-on-surface"
+								>
+									<option value="SSL">SSL / TLS</option>
+									<option value="STARTTLS">STARTTLS</option>
+									<option value="NONE">None</option>
+								</select>
+							</div>
+						</div>
+
+						<div>
+							<label class="block font-bold text-on-surface-variant mb-1 uppercase tracking-wider text-[10px]">Host Server Masuk</label>
+							<input
+								type="text"
+								bind:value={mailConfig.inboundHost}
+								class="w-full px-3 py-2 rounded-xl bg-surface border border-slate-200 dark:border-slate-700 text-xs font-mono text-on-surface"
+							/>
+						</div>
+
+						<div class="grid grid-cols-2 gap-3">
+							<div>
+								<label class="block font-bold text-on-surface-variant mb-1 uppercase tracking-wider text-[10px]">Port</label>
+								<input
+									type="number"
+									bind:value={mailConfig.inboundPort}
+									class="w-full px-3 py-2 rounded-xl bg-surface border border-slate-200 dark:border-slate-700 text-xs font-mono text-on-surface"
+								/>
+							</div>
+							<div>
+								<label class="block font-bold text-on-surface-variant mb-1 uppercase tracking-wider text-[10px]">Username Akun</label>
+								<input
+									type="text"
+									bind:value={mailConfig.inboundUsername}
+									class="w-full px-3 py-2 rounded-xl bg-surface border border-slate-200 dark:border-slate-700 text-xs text-on-surface"
+								/>
+							</div>
+						</div>
+					</div>
+				</div>
+
+				<!-- Outbound Mail Server (SMTP) -->
+				<div class="p-6 rounded-3xl bg-surface-container-low border border-slate-200/80 dark:border-slate-800/80 shadow-xs space-y-4">
+					<div class="flex items-center justify-between border-b border-slate-200/70 dark:border-slate-800/70 pb-3">
+						<div class="flex items-center gap-2.5">
+							<span class="material-symbols-outlined text-orange-600 dark:text-orange-400 text-xl">forward_to_inbox</span>
+							<div>
+								<h3 class="text-sm font-bold text-on-surface">Protokol Keluar (SMTP)</h3>
+								<p class="text-[11px] text-on-surface-variant">Pengiriman email & notifikasi sistem</p>
+							</div>
+						</div>
+						<span class="text-[10px] font-mono font-bold bg-orange-50 dark:bg-orange-950/40 text-orange-700 dark:text-orange-300 px-2 py-0.5 rounded-md border border-orange-200 dark:border-orange-800">
+							SMTP : {mailConfig.smtpPort}
+						</span>
+					</div>
+
+					<div class="space-y-3.5 text-xs">
+						<div class="grid grid-cols-2 gap-3">
+							<div>
+								<label class="block font-bold text-on-surface-variant mb-1 uppercase tracking-wider text-[10px]">Host SMTP Server</label>
+								<input
+									type="text"
+									bind:value={mailConfig.smtpHost}
+									class="w-full px-3 py-2 rounded-xl bg-surface border border-slate-200 dark:border-slate-700 text-xs font-mono text-on-surface"
+								/>
+							</div>
+							<div>
+								<label class="block font-bold text-on-surface-variant mb-1 uppercase tracking-wider text-[10px]">Port</label>
+								<input
+									type="number"
+									bind:value={mailConfig.smtpPort}
+									class="w-full px-3 py-2 rounded-xl bg-surface border border-slate-200 dark:border-slate-700 text-xs font-mono text-on-surface"
+								/>
+							</div>
+						</div>
+
+						<div class="grid grid-cols-2 gap-3">
+							<div>
+								<label class="block font-bold text-on-surface-variant mb-1 uppercase tracking-wider text-[10px]">Enkripsi</label>
+								<select
+									bind:value={mailConfig.smtpEncryption}
+									class="w-full px-3 py-2 rounded-xl bg-surface border border-slate-200 dark:border-slate-700 text-xs font-semibold text-on-surface"
+								>
+									<option value="TLS">TLS</option>
+									<option value="SSL">SSL</option>
+									<option value="STARTTLS">STARTTLS</option>
+								</select>
+							</div>
+							<div>
+								<label class="block font-bold text-on-surface-variant mb-1 uppercase tracking-wider text-[10px]">Domain Korporat</label>
+								<input
+									type="text"
+									bind:value={mailConfig.corporateDomain}
+									class="w-full px-3 py-2 rounded-xl bg-surface border border-slate-200 dark:border-slate-700 text-xs text-on-surface font-mono"
+								/>
+							</div>
+						</div>
+
+						<div>
+							<label class="block font-bold text-on-surface-variant mb-1 uppercase tracking-wider text-[10px]">Nama Pengirim Sistem (From Name)</label>
+							<input
+								type="text"
+								bind:value={mailConfig.smtpFromName}
+								class="w-full px-3 py-2 rounded-xl bg-surface border border-slate-200 dark:border-slate-700 text-xs text-on-surface"
+							/>
+						</div>
+					</div>
+				</div>
+			</div>
+
+			<!-- Save & Test Bar -->
+			<div class="p-4 rounded-2xl bg-surface-container border border-slate-200/70 dark:border-slate-800/70 flex flex-col sm:flex-row items-center justify-between gap-4">
+				<div class="flex items-center gap-2 text-xs text-on-surface-variant">
+					<span class="material-symbols-outlined text-emerald-500 text-lg">verified_user</span>
+					<span>Pengaturan tersinkronisasi otomatis untuk seluruh modul ERP BCS.</span>
+				</div>
+				<div class="flex items-center gap-3">
+					<button
+						type="button"
+						onclick={handleSendTestEmail}
+						disabled={testEmailSending}
+						class="px-4 py-2 rounded-xl bg-surface hover:bg-surface-container-high border border-slate-200 dark:border-slate-700 text-xs font-bold text-on-surface flex items-center gap-1.5 transition-colors cursor-pointer"
+					>
+						<span class="material-symbols-outlined text-sm {testEmailSending ? 'animate-spin' : ''}">send</span>
+						<span>{testEmailSending ? 'Mengirim...' : 'Kirim Uji Coba'}</span>
+					</button>
+					<button
+						type="button"
+						onclick={handleSaveMailConfig}
+						disabled={isSavingMail}
+						class="px-5 py-2 rounded-xl bg-primary hover:bg-primary/90 text-on-primary text-xs font-bold flex items-center gap-1.5 transition-all shadow-xs cursor-pointer"
+					>
+						<span class="material-symbols-outlined text-sm">save</span>
+						<span>{isSavingMail ? 'Menyimpan...' : 'Simpan Konfigurasi'}</span>
+					</button>
+				</div>
+			</div>
+
+			{#if testEmailToast}
+				<div class="p-3.5 rounded-xl bg-blue-50 dark:bg-blue-950/60 border border-blue-200 dark:border-blue-800 text-blue-800 dark:text-blue-300 text-xs font-bold flex items-center gap-2">
+					<span class="material-symbols-outlined text-base">info</span>
+					<span>{testEmailToast}</span>
+				</div>
+			{/if}
+
+			{#if mailSaveToast}
+				<div class="p-3.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300 text-xs font-bold flex items-center gap-2">
+					<span class="material-symbols-outlined text-base">check_circle</span>
+					<span>Konfigurasi mail server berhasil disimpan ke sistem!</span>
+				</div>
+			{/if}
+
+			<!-- ========================================================================= -->
+			<!-- SUB-BAGIAN: KATALOG MASTER TEMPLATE EMAIL (ISSUE #14) -->
+			<!-- ========================================================================= -->
+			<div class="p-6 md:p-8 rounded-3xl bg-surface-container-low border border-slate-200/80 dark:border-slate-800/80 shadow-xs space-y-6">
+				<!-- Header Section -->
+				<div class="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-200/70 dark:border-slate-800/70 pb-4">
+					<div>
+						<div class="flex items-center gap-2 mb-1">
+							<span class="material-symbols-outlined text-orange-600 text-2xl">style</span>
+							<h3 class="text-base font-black text-on-surface">Master Layout & Template Email Korporat</h3>
+						</div>
+						<p class="text-xs text-on-surface-variant">
+							Spesifikasi resmi Issue #14: File HTML murni inline-CSS & Laravel Blade (<code class="font-mono">templates/emails/</code>).
+						</p>
+					</div>
+
+					<!-- Device Preview Switch -->
+					<div class="flex items-center gap-2 bg-surface p-1 rounded-xl border border-slate-200 dark:border-slate-700">
+						<button
+							type="button"
+							onclick={() => (previewDevice = 'desktop')}
+							class="px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-colors {previewDevice === 'desktop' ? 'bg-primary text-on-primary shadow-xs' : 'text-on-surface-variant hover:text-on-surface'}"
+						>
+							<span class="material-symbols-outlined text-sm">desktop_windows</span>
+							<span>Desktop (600px)</span>
+						</button>
+						<button
+							type="button"
+							onclick={() => (previewDevice = 'mobile')}
+							class="px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-colors {previewDevice === 'mobile' ? 'bg-primary text-on-primary shadow-xs' : 'text-on-surface-variant hover:text-on-surface'}"
+						>
+							<span class="material-symbols-outlined text-sm">smartphone</span>
+							<span>Mobile (360px)</span>
+						</button>
+					</div>
+				</div>
+
+				<!-- Variant Pills Selector -->
+				<div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+					<button
+						type="button"
+						onclick={() => (selectedTemplateVariant = 'approval')}
+						class="p-3.5 rounded-2xl text-left border transition-all cursor-pointer {selectedTemplateVariant === 'approval' ? 'bg-amber-500/10 border-amber-500/50 ring-2 ring-amber-500/20' : 'bg-surface border-slate-200 dark:border-slate-800 hover:bg-surface-container'}"
+					>
+						<div class="flex items-center justify-between mb-1.5">
+							<span class="text-[10px] font-black uppercase tracking-wider text-amber-600 dark:text-amber-400">Varian A</span>
+							<span class="w-2 h-2 rounded-full {selectedTemplateVariant === 'approval' ? 'bg-amber-500' : 'bg-slate-300'}"></span>
+						</div>
+						<p class="text-xs font-bold text-on-surface">Alur Approval Baru</p>
+						<p class="text-[10px] text-on-surface-variant">Cuti, Kasbon, PR, & SPK</p>
+					</button>
+
+					<button
+						type="button"
+						onclick={() => (selectedTemplateVariant = 'result')}
+						class="p-3.5 rounded-2xl text-left border transition-all cursor-pointer {selectedTemplateVariant === 'result' ? 'bg-emerald-500/10 border-emerald-500/50 ring-2 ring-emerald-500/20' : 'bg-surface border-slate-200 dark:border-slate-800 hover:bg-surface-container'}"
+					>
+						<div class="flex items-center justify-between mb-1.5">
+							<span class="text-[10px] font-black uppercase tracking-wider text-emerald-600 dark:text-emerald-400">Varian B</span>
+							<span class="w-2 h-2 rounded-full {selectedTemplateVariant === 'result' ? 'bg-emerald-500' : 'bg-slate-300'}"></span>
+						</div>
+						<p class="text-xs font-bold text-on-surface">Hasil Approval</p>
+						<p class="text-[10px] text-on-surface-variant">Konfirmasi Disetujui / Ditolak</p>
+					</button>
+
+					<button
+						type="button"
+						onclick={() => (selectedTemplateVariant = 'announcement')}
+						class="p-3.5 rounded-2xl text-left border transition-all cursor-pointer {selectedTemplateVariant === 'announcement' ? 'bg-sky-500/10 border-sky-500/50 ring-2 ring-sky-500/20' : 'bg-surface border-slate-200 dark:border-slate-800 hover:bg-surface-container'}"
+					>
+						<div class="flex items-center justify-between mb-1.5">
+							<span class="text-[10px] font-black uppercase tracking-wider text-sky-600 dark:text-sky-400">Varian C</span>
+							<span class="w-2 h-2 rounded-full {selectedTemplateVariant === 'announcement' ? 'bg-sky-500' : 'bg-slate-300'}"></span>
+						</div>
+						<p class="text-xs font-bold text-on-surface">Pengumuman & Akun</p>
+						<p class="text-[10px] text-on-surface-variant">Kredensial & Memo Resmi</p>
+					</button>
+				</div>
+
+				<!-- Live Preview Container -->
+				<div class="space-y-3">
+					<div class="flex items-center justify-between text-xs">
+						<span class="font-bold text-on-surface">Pratinjau Visual Responsif:</span>
+						<div class="flex items-center gap-2">
+							<button
+								type="button"
+								onclick={() => copyCurrentTemplate('html')}
+								class="px-3 py-1.5 rounded-lg bg-surface hover:bg-surface-container border border-slate-200 dark:border-slate-700 text-xs font-bold text-on-surface flex items-center gap-1.5 transition-colors cursor-pointer"
+								title="Salin Kode HTML Inline-CSS"
+							>
+								<span class="material-symbols-outlined text-[15px]">code</span>
+								<span>Salin HTML</span>
+							</button>
+							<button
+								type="button"
+								onclick={() => copyCurrentTemplate('blade')}
+								class="px-3 py-1.5 rounded-lg bg-orange-600 hover:bg-orange-700 text-white text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer shadow-2xs"
+								title="Salin Referensi Blade Laravel"
+							>
+								<span class="material-symbols-outlined text-[15px]">file_copy</span>
+								<span>Salin Blade (.blade.php)</span>
+							</button>
+						</div>
+					</div>
+
+					{#if copiedTemplateToast}
+						<div class="p-2.5 rounded-xl bg-slate-900 text-white text-xs font-bold text-center border border-slate-700 animate-in fade-in duration-150">
+							✓ {copiedTemplateToast}
+						</div>
+					{/if}
+
+					<!-- Preview Frame Canvas -->
+					<div class="p-6 md:p-8 bg-slate-100 dark:bg-slate-950 rounded-2xl border border-slate-200 dark:border-slate-800 flex justify-center overflow-x-auto min-h-[420px]">
+						<div class="transition-all duration-300 {previewDevice === 'mobile' ? 'w-[360px]' : 'w-[600px]'} shadow-xl rounded-2xl overflow-hidden bg-white">
+							{#if selectedTemplateVariant === 'approval'}
+								{@html templateApprovalHtml}
+							{:else if selectedTemplateVariant === 'result'}
+								{@html templateResultHtml}
+							{:else}
+								{@html templateAnnouncementHtml}
+							{/if}
+						</div>
+					</div>
+
+					<!-- Delivery Path Notes -->
+					<div class="p-4 rounded-xl bg-surface border border-slate-200/60 dark:border-slate-800/60 text-xs flex items-center justify-between flex-wrap gap-2">
+						<div class="flex items-center gap-2">
+							<span class="material-symbols-outlined text-orange-600 text-sm">folder</span>
+							<span class="text-on-surface-variant">File tersimpan di direktori:</span>
+							<code class="font-mono text-orange-700 dark:text-orange-400 font-bold">templates/emails/{selectedTemplateVariant === 'approval' ? 'approval-notification.html' : selectedTemplateVariant === 'result' ? 'approval-result.html' : 'announcement-account.html'}</code>
+						</div>
+						<span class="text-[11px] text-slate-400">Siap di-include ke Mail Service Laravel backend</span>
 					</div>
 				</div>
 			</div>

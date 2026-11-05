@@ -2,6 +2,7 @@
 	import { goto } from '$app/navigation';
 	import { onMount, onDestroy } from 'svelte';
 	import { notificationsStore, unreadCount, initNotificationPolling, stopNotificationPolling, markAllAsRead } from '$lib/stores/notifications';
+	import { unreadCount as unreadMailCount } from '$lib/stores/mail';
 	import { authUser, userInitials, displayName, isAdmin, getRoleLabel, getRoleBadgeColor } from '$lib/stores/auth';
 	import { clickOutside } from '$lib/utils/clickOutside';
 	import { page } from '$app/stores';
@@ -137,6 +138,18 @@
 			<input class="bg-surface-container-low border border-slate-200 dark:border-slate-700 rounded-full py-1.5 pl-10 pr-4 text-sm w-64 focus:ring-2 focus:ring-primary/20 placeholder:text-on-surface-variant" placeholder="Search modules..." type="text"/>
 		</div>
 
+		<!-- Quick Access Webmail Korporat -->
+		<a
+			href="/mail"
+			class="p-2 text-slate-500 hover:text-orange-600 hover:bg-slate-200/50 dark:hover:bg-slate-800/50 rounded-lg transition-all relative {currentPath.startsWith('/mail') ? 'text-orange-600 bg-orange-500/10' : ''}"
+			title="Buka Webmail ERP BCS"
+		>
+			<span class="material-symbols-outlined">mail</span>
+			{#if $unreadMailCount > 0}
+				<span class="absolute top-1 right-1 w-2.5 h-2.5 bg-orange-600 rounded-full border-2 border-slate-50 dark:border-slate-900 animate-pulse"></span>
+			{/if}
+		</a>
+
 		<!-- Quick Access Calendar Dropdown Popover (Menggantung) -->
 		<div class="relative">
 			<button
@@ -251,6 +264,36 @@
 								{/if}
 							</div>
 						</div>
+					</div>
+
+					<!-- Akses Kotak Masuk Email Karyawan -->
+					<div class="p-3 pb-2.5 border-b border-surface-container bg-surface-container-low/30">
+						<button
+							type="button"
+							onclick={() => { goto('/mail'); isProfileOpen = false; }}
+							class="w-full flex items-center justify-between p-2.5 rounded-xl bg-surface hover:bg-orange-500/10 border border-slate-200/80 dark:border-slate-800 text-left transition-all group cursor-pointer hover:border-orange-500/40 shadow-2xs"
+						>
+							<div class="flex items-center gap-2.5 min-w-0">
+								<div class="w-8 h-8 rounded-lg bg-orange-500/15 text-orange-600 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+									<span class="material-symbols-outlined text-[18px]">mail</span>
+								</div>
+								<div class="truncate">
+									<p class="text-xs font-bold text-on-surface group-hover:text-orange-600 transition-colors leading-tight">
+										Kotak Masuk Email
+									</p>
+									<p class="text-[10px] text-on-surface-variant truncate">
+										Buka Webmail Korporat
+									</p>
+								</div>
+							</div>
+							{#if $unreadMailCount > 0}
+								<span class="px-2 py-0.5 rounded-full text-[10px] font-black bg-orange-600 text-white flex-shrink-0">
+									{$unreadMailCount} baru
+								</span>
+							{:else}
+								<span class="material-symbols-outlined text-[15px] text-on-surface-variant group-hover:translate-x-0.5 transition-transform">arrow_forward</span>
+							{/if}
+						</button>
 					</div>
 
 					<!-- Seksi Layanan Mandiri Karyawan (Grid 2x2) -->

@@ -1,0 +1,61 @@
+/**
+ * Type Definitions for ERP Mail & Notification Center
+ * PT Buana Centra Swakarsa (BCS Logistics)
+ */
+
+export interface EmailAttachment {
+	id: string;
+	filename: string;
+	size: string;
+	mimeType: string;
+	downloadUrl?: string;
+}
+
+export type EmailCategory = 'inbox' | 'sent' | 'drafts' | 'trash' | 'system' | 'approvals';
+
+export interface EmailMessage {
+	id: string;
+	folder: EmailCategory;
+	fromName: string;
+	fromEmail: string;
+	toName: string;
+	toEmail: string;
+	subject: string;
+	preview: string;
+	bodyHtml?: string;
+	bodyText?: string;
+	date: string; // ISO date string or formatted
+	timestamp: number;
+	isRead: boolean;
+	isStarred: boolean;
+	hasAttachments: boolean;
+	attachments?: EmailAttachment[];
+	priority?: 'normal' | 'high' | 'urgent';
+	badge?: {
+		text: string;
+		variant: 'amber' | 'emerald' | 'rose' | 'sky' | 'indigo' | 'purple';
+	};
+}
+
+export interface MailServerConfig {
+	// Inbound
+	inboundProtocol: 'IMAP' | 'POP3';
+	inboundHost: string;
+	inboundPort: number;
+	inboundEncryption: 'SSL' | 'TLS' | 'STARTTLS' | 'NONE';
+	inboundUsername: string;
+
+	// Outbound
+	smtpHost: string;
+	smtpPort: number;
+	smtpEncryption: 'TLS' | 'SSL' | 'STARTTLS' | 'NONE';
+	smtpUsername: string;
+	smtpFromEmail: string;
+	smtpFromName: string;
+
+	// Security & Domains
+	corporateDomain: string;
+	authRequired: boolean;
+	verifySsl: boolean;
+	timeoutSeconds: number;
+}
