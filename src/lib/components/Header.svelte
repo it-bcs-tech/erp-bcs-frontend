@@ -13,6 +13,7 @@
 
 	let isNotifOpen = $state(false);
 	let isProfileOpen = $state(false);
+	let isSelfServiceOpen = $state(false);
 	let isCalendarOpen = $state(false);
 	let isQuickWoOpen = $state(false);
 	let isTravelOpen = $state(false);
@@ -80,10 +81,17 @@
 
 	function toggleProfile() {
 		isProfileOpen = !isProfileOpen;
+		if (isProfileOpen) {
+			isSelfServiceOpen = false;
+		}
 		isNotifOpen = false;
 		isCalendarOpen = false;
 		isQuickWoOpen = false;
 		isTravelOpen = false;
+	}
+
+	function toggleSelfService() {
+		isSelfServiceOpen = !isSelfServiceOpen;
 	}
 
 	async function handleLogout() {
@@ -225,7 +233,7 @@
 		</div>
 
 		<!-- User Profile Section -->
-		<div class="relative ml-1" use:clickOutside={() => isProfileOpen = false}>
+		<div class="relative ml-1" use:clickOutside={() => { isProfileOpen = false; isSelfServiceOpen = false; }}>
 			<button 
 				onclick={toggleProfile}
 				class="flex items-center gap-3 pl-3 pr-1 py-1 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-all cursor-pointer"
@@ -247,11 +255,11 @@
 
 			<!-- Profile Dropdown -->
 			{#if isProfileOpen}
-				<div class="absolute right-0 mt-2 w-80 bg-surface-container-lowest rounded-2xl shadow-xl border border-surface-container overflow-hidden z-50 animate-in fade-in zoom-in-95 duration-200">
-					<!-- User Card -->
-					<div class="p-5 bg-gradient-to-br from-[#57344f] to-[#2f1029] text-white">
+				<div class="absolute right-0 mt-2 w-80 max-h-[calc(100vh-5rem)] bg-surface-container-lowest rounded-2xl shadow-2xl border border-surface-container overflow-hidden z-50 animate-in fade-in zoom-in-95 duration-200 flex flex-col">
+					<!-- User Card (Sticky Header) -->
+					<div class="p-5 bg-gradient-to-br from-[#57344f] to-[#2f1029] text-white shrink-0 shadow-sm">
 						<div class="flex items-center gap-4">
-							<div class="w-12 h-12 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center text-white font-bold text-lg ring-2 ring-white/30">
+							<div class="w-12 h-12 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center text-white font-bold text-lg ring-2 ring-white/30 shrink-0">
 								{initials}
 							</div>
 							<div class="flex-1 min-w-0">
@@ -266,233 +274,251 @@
 						</div>
 					</div>
 
-					<!-- Akses Kotak Masuk Email Karyawan -->
-					<div class="p-3 pb-2.5 border-b border-surface-container bg-surface-container-low/30">
-						<button
-							type="button"
-							onclick={() => { goto('/mail'); isProfileOpen = false; }}
-							class="w-full flex items-center justify-between p-2.5 rounded-xl bg-surface hover:bg-orange-500/10 border border-slate-200/80 dark:border-slate-800 text-left transition-all group cursor-pointer hover:border-orange-500/40 shadow-2xs"
-						>
-							<div class="flex items-center gap-2.5 min-w-0">
-								<div class="w-8 h-8 rounded-lg bg-orange-500/15 text-orange-600 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
-									<span class="material-symbols-outlined text-[18px]">mail</span>
+					<!-- Scrollable Area (Email, Layanan Mandiri, User Details, Actions) -->
+					<div class="overflow-y-auto overscroll-contain flex-1 divide-y divide-surface-container [scrollbar-width:thin]">
+						<!-- Akses Kotak Masuk Email Karyawan -->
+						<div class="p-3 bg-surface-container-low/30">
+							<button
+								type="button"
+								onclick={() => { goto('/mail'); isProfileOpen = false; }}
+								class="w-full flex items-center justify-between p-2.5 rounded-xl bg-surface hover:bg-orange-500/10 border border-slate-200/80 dark:border-slate-800 text-left transition-all group cursor-pointer hover:border-orange-500/40 shadow-2xs"
+							>
+								<div class="flex items-center gap-2.5 min-w-0">
+									<div class="w-8 h-8 rounded-lg bg-orange-500/15 text-orange-600 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+										<span class="material-symbols-outlined text-[18px]">mail</span>
+									</div>
+									<div class="truncate">
+										<p class="text-xs font-bold text-on-surface group-hover:text-orange-600 transition-colors leading-tight">
+											Kotak Masuk Email
+										</p>
+										<p class="text-[10px] text-on-surface-variant truncate">
+											Buka Webmail Korporat
+										</p>
+									</div>
 								</div>
-								<div class="truncate">
-									<p class="text-xs font-bold text-on-surface group-hover:text-orange-600 transition-colors leading-tight">
-										Kotak Masuk Email
-									</p>
-									<p class="text-[10px] text-on-surface-variant truncate">
-										Buka Webmail Korporat
-									</p>
+								{#if $unreadMailCount > 0}
+									<span class="px-2 py-0.5 rounded-full text-[10px] font-black bg-orange-600 text-white flex-shrink-0">
+										{$unreadMailCount} baru
+									</span>
+								{:else}
+									<span class="material-symbols-outlined text-[15px] text-on-surface-variant group-hover:translate-x-0.5 transition-transform">arrow_forward</span>
+								{/if}
+							</button>
+						</div>
+
+						<!-- Seksi Layanan Mandiri Karyawan (Collapsible Accordion) -->
+						<div class="bg-surface-container-low/40">
+							<button
+								type="button"
+								onclick={toggleSelfService}
+								class="w-full flex items-center justify-between p-3 hover:bg-surface-container/70 transition-colors cursor-pointer text-left"
+								aria-expanded={isSelfServiceOpen}
+							>
+								<div class="flex items-center gap-2 min-w-0">
+									<span class="material-symbols-outlined text-[16px] text-[#57344f] dark:text-[#d1c3ca]">hub</span>
+									<span class="text-[10px] font-black text-on-surface uppercase tracking-wider truncate">
+										Layanan Mandiri
+									</span>
 								</div>
-							</div>
-							{#if $unreadMailCount > 0}
-								<span class="px-2 py-0.5 rounded-full text-[10px] font-black bg-orange-600 text-white flex-shrink-0">
-									{$unreadMailCount} baru
-								</span>
-							{:else}
-								<span class="material-symbols-outlined text-[15px] text-on-surface-variant group-hover:translate-x-0.5 transition-transform">arrow_forward</span>
+								<div class="flex items-center gap-1.5 shrink-0">
+									<span class="text-[9px] font-bold text-[#57344f] dark:text-[#d1c3ca] bg-[#57344f]/10 dark:bg-[#57344f]/25 px-2 py-0.5 rounded-full">
+										4 Layanan
+									</span>
+									<span class="material-symbols-outlined text-[18px] text-on-surface-variant transition-transform duration-200 {isSelfServiceOpen ? 'rotate-180' : ''}">
+										expand_more
+									</span>
+								</div>
+							</button>
+
+							{#if isSelfServiceOpen}
+								<div class="px-3 pb-3 pt-0 space-y-2 animate-in fade-in duration-150">
+									<div class="grid grid-cols-2 gap-2 pt-1">
+										<!-- 1. WO Fasilitas -->
+										<button
+											type="button"
+											onclick={() => openQuickWo('FORM')}
+											class="p-2.5 rounded-xl bg-surface hover:bg-blue-500/10 border border-slate-200/70 dark:border-slate-800 text-left transition-all group cursor-pointer hover:border-blue-500/40 shadow-2xs"
+										>
+											<div class="w-7 h-7 rounded-lg bg-blue-500/15 text-blue-600 flex items-center justify-center mb-1.5 group-hover:scale-105 transition-transform">
+												<span class="material-symbols-outlined text-[16px]">build</span>
+											</div>
+											<div class="text-[11px] font-bold text-on-surface group-hover:text-blue-600 transition-colors leading-tight">
+												WO Fasilitas
+											</div>
+											<div class="text-[9px] text-on-surface-variant truncate">
+												Lapor Kerusakan
+											</div>
+										</button>
+
+										<!-- 2. Pesan Mobil (Carpool) -->
+										<button
+											type="button"
+											onclick={() => openQuickTravel('FORM', 'CARPOOL')}
+											class="p-2.5 rounded-xl bg-surface hover:bg-cyan-500/10 border border-slate-200/70 dark:border-slate-800 text-left transition-all group cursor-pointer hover:border-cyan-500/40 shadow-2xs"
+										>
+											<div class="w-7 h-7 rounded-lg bg-cyan-500/15 text-cyan-600 flex items-center justify-center mb-1.5 group-hover:scale-105 transition-transform">
+												<span class="material-symbols-outlined text-[16px]">directions_car</span>
+											</div>
+											<div class="text-[11px] font-bold text-on-surface group-hover:text-cyan-600 transition-colors leading-tight">
+												Pesan Mobil
+											</div>
+											<div class="text-[9px] text-on-surface-variant truncate">
+												Carpool & Supir
+											</div>
+										</button>
+
+										<!-- 3. Surat SPD -->
+										<button
+											type="button"
+											onclick={() => openQuickTravel('FORM', 'SPD')}
+											class="p-2.5 rounded-xl bg-surface hover:bg-indigo-500/10 border border-slate-200/70 dark:border-slate-800 text-left transition-all group cursor-pointer hover:border-indigo-500/40 shadow-2xs"
+										>
+											<div class="w-7 h-7 rounded-lg bg-indigo-500/15 text-indigo-600 flex items-center justify-center mb-1.5 group-hover:scale-105 transition-transform">
+												<span class="material-symbols-outlined text-[16px]">flight_takeoff</span>
+											</div>
+											<div class="text-[11px] font-bold text-on-surface group-hover:text-indigo-600 transition-colors leading-tight">
+												Surat SPD
+											</div>
+											<div class="text-[9px] text-on-surface-variant truncate">
+												Perjalanan Dinas
+											</div>
+										</button>
+
+										<!-- 4. Booking Ruangan -->
+										<button
+											type="button"
+											onclick={openQuickBooking}
+											class="p-2.5 rounded-xl bg-surface hover:bg-amber-500/10 border border-slate-200/70 dark:border-slate-800 text-left transition-all group cursor-pointer hover:border-amber-500/40 shadow-2xs"
+										>
+											<div class="w-7 h-7 rounded-lg bg-amber-500/15 text-amber-600 flex items-center justify-center mb-1.5 group-hover:scale-105 transition-transform">
+												<span class="material-symbols-outlined text-[16px]">meeting_room</span>
+											</div>
+											<div class="text-[11px] font-bold text-on-surface group-hover:text-amber-600 transition-colors leading-tight">
+												Ruang Rapat
+											</div>
+											<div class="text-[9px] text-on-surface-variant truncate">
+												Reservasi Jadwal
+											</div>
+										</button>
+									</div>
+
+									<!-- Tautan Riwayat Cepat -->
+									<div class="grid grid-cols-2 gap-1.5 pt-1 text-[10px]">
+										<button
+											type="button"
+											onclick={() => openQuickWo('LIST')}
+											class="px-2.5 py-1.5 rounded-lg bg-surface hover:bg-surface-container text-left flex items-center justify-between text-on-surface-variant hover:text-on-surface transition-colors cursor-pointer border border-slate-200/60 dark:border-slate-800/60"
+										>
+											<span class="font-bold text-[10px] truncate">Riwayat WO</span>
+											<span class="material-symbols-outlined text-[13px]">arrow_forward</span>
+										</button>
+										<button
+											type="button"
+											onclick={() => openQuickTravel('LIST', 'CARPOOL')}
+											class="px-2.5 py-1.5 rounded-lg bg-surface hover:bg-surface-container text-left flex items-center justify-between text-on-surface-variant hover:text-on-surface transition-colors cursor-pointer border border-slate-200/60 dark:border-slate-800/60"
+										>
+											<span class="font-bold text-[10px] truncate">Riwayat Dinas</span>
+											<span class="material-symbols-outlined text-[13px]">arrow_forward</span>
+										</button>
+									</div>
+								</div>
 							{/if}
-						</button>
-					</div>
-
-					<!-- Seksi Layanan Mandiri Karyawan (Grid 2x2) -->
-					<div class="p-3 border-b border-surface-container bg-surface-container-low/40 space-y-2">
-						<div class="flex items-center justify-between px-1">
-							<span class="text-[10px] font-black text-on-surface uppercase tracking-wider flex items-center gap-1.5">
-								<span class="material-symbols-outlined text-[14px] text-[#57344f] dark:text-[#d1c3ca]">hub</span>
-								<span>Layanan Mandiri</span>
-							</span>
-							<span class="text-[9px] font-bold text-[#57344f] dark:text-[#d1c3ca] bg-[#57344f]/10 dark:bg-[#57344f]/25 px-2 py-0.5 rounded-full">
-								Self-Service
-							</span>
 						</div>
 
-						<div class="grid grid-cols-2 gap-2">
-							<!-- 1. WO Fasilitas -->
-							<button
-								type="button"
-								onclick={() => openQuickWo('FORM')}
-								class="p-2.5 rounded-xl bg-surface hover:bg-blue-500/10 border border-slate-200/70 dark:border-slate-800 text-left transition-all group cursor-pointer hover:border-blue-500/40 shadow-2xs"
-							>
-								<div class="w-7 h-7 rounded-lg bg-blue-500/15 text-blue-600 flex items-center justify-center mb-1.5 group-hover:scale-105 transition-transform">
-									<span class="material-symbols-outlined text-[16px]">build</span>
-								</div>
-								<div class="text-[11px] font-bold text-on-surface group-hover:text-blue-600 transition-colors leading-tight">
-									WO Fasilitas
-								</div>
-								<div class="text-[9px] text-on-surface-variant truncate">
-									Lapor Kerusakan
-								</div>
-							</button>
-
-							<!-- 2. Pesan Mobil (Carpool) -->
-							<button
-								type="button"
-								onclick={() => openQuickTravel('FORM', 'CARPOOL')}
-								class="p-2.5 rounded-xl bg-surface hover:bg-cyan-500/10 border border-slate-200/70 dark:border-slate-800 text-left transition-all group cursor-pointer hover:border-cyan-500/40 shadow-2xs"
-							>
-								<div class="w-7 h-7 rounded-lg bg-cyan-500/15 text-cyan-600 flex items-center justify-center mb-1.5 group-hover:scale-105 transition-transform">
-									<span class="material-symbols-outlined text-[16px]">directions_car</span>
-								</div>
-								<div class="text-[11px] font-bold text-on-surface group-hover:text-cyan-600 transition-colors leading-tight">
-									Pesan Mobil
-								</div>
-								<div class="text-[9px] text-on-surface-variant truncate">
-									Carpool & Supir
-								</div>
-							</button>
-
-							<!-- 3. Surat SPD -->
-							<button
-								type="button"
-								onclick={() => openQuickTravel('FORM', 'SPD')}
-								class="p-2.5 rounded-xl bg-surface hover:bg-indigo-500/10 border border-slate-200/70 dark:border-slate-800 text-left transition-all group cursor-pointer hover:border-indigo-500/40 shadow-2xs"
-							>
-								<div class="w-7 h-7 rounded-lg bg-indigo-500/15 text-indigo-600 flex items-center justify-center mb-1.5 group-hover:scale-105 transition-transform">
-									<span class="material-symbols-outlined text-[16px]">flight_takeoff</span>
-								</div>
-								<div class="text-[11px] font-bold text-on-surface group-hover:text-indigo-600 transition-colors leading-tight">
-									Surat SPD
-								</div>
-								<div class="text-[9px] text-on-surface-variant truncate">
-									Perjalanan Dinas
-								</div>
-							</button>
-
-							<!-- 4. Booking Ruangan -->
-							<button
-								type="button"
-								onclick={openQuickBooking}
-								class="p-2.5 rounded-xl bg-surface hover:bg-amber-500/10 border border-slate-200/70 dark:border-slate-800 text-left transition-all group cursor-pointer hover:border-amber-500/40 shadow-2xs"
-							>
-								<div class="w-7 h-7 rounded-lg bg-amber-500/15 text-amber-600 flex items-center justify-center mb-1.5 group-hover:scale-105 transition-transform">
-									<span class="material-symbols-outlined text-[16px]">meeting_room</span>
-								</div>
-								<div class="text-[11px] font-bold text-on-surface group-hover:text-amber-600 transition-colors leading-tight">
-									Ruang Rapat
-								</div>
-								<div class="text-[9px] text-on-surface-variant truncate">
-									Reservasi Jadwal
-								</div>
-							</button>
-						</div>
-
-						<!-- Tautan Riwayat Cepat -->
-						<div class="grid grid-cols-2 gap-1.5 pt-1 text-[10px]">
-							<button
-								type="button"
-								onclick={() => openQuickWo('LIST')}
-								class="px-2.5 py-1.5 rounded-lg bg-surface hover:bg-surface-container text-left flex items-center justify-between text-on-surface-variant hover:text-on-surface transition-colors cursor-pointer border border-slate-200/60 dark:border-slate-800/60"
-							>
-								<span class="font-bold text-[10px] truncate">Riwayat WO</span>
-								<span class="material-symbols-outlined text-[13px]">arrow_forward</span>
-							</button>
-							<button
-								type="button"
-								onclick={() => openQuickTravel('LIST', 'CARPOOL')}
-								class="px-2.5 py-1.5 rounded-lg bg-surface hover:bg-surface-container text-left flex items-center justify-between text-on-surface-variant hover:text-on-surface transition-colors cursor-pointer border border-slate-200/60 dark:border-slate-800/60"
-							>
-								<span class="font-bold text-[10px] truncate">Riwayat Dinas</span>
-								<span class="material-symbols-outlined text-[13px]">arrow_forward</span>
-							</button>
-						</div>
-					</div>
-
-					<!-- User Details -->
-					{#if user}
-						<div class="p-3 space-y-1 border-b border-surface-container">
-							<div class="flex items-center gap-3 px-3 py-2 rounded-lg">
-								<span class="material-symbols-outlined text-on-surface-variant text-[18px]">business</span>
-								<div>
-									<p class="text-[10px] text-on-surface-variant uppercase tracking-wider font-bold">Departemen</p>
-									<p class="text-xs font-semibold text-on-surface">{user.department || user.division}</p>
-									{#if user.department && user.division && user.department !== user.division}
-										<p class="text-[10px] text-on-surface-variant font-medium">{user.division}</p>
-									{/if}
-								</div>
-							</div>
-							<div class="flex items-center gap-3 px-3 py-2 rounded-lg">
-								<span class="material-symbols-outlined text-on-surface-variant text-[18px]">badge</span>
-								<div>
-									<p class="text-[10px] text-on-surface-variant uppercase tracking-wider font-bold">Level</p>
-									<p class="text-xs font-semibold text-on-surface">{user.level}</p>
-								</div>
-							</div>
-							<div class="flex items-center gap-3 px-3 py-2 rounded-lg">
-								<span class="material-symbols-outlined text-on-surface-variant text-[18px]">apps</span>
-								<div>
-									<p class="text-[10px] text-on-surface-variant uppercase tracking-wider font-bold">Akses Modul</p>
-									<p class="text-xs font-semibold text-on-surface">
-										{user.allowedModules.length === 9 ? 'Semua Modul' : user.allowedModules.length + ' Modul'}
-									</p>
-								</div>
-							</div>
-							<div class="flex items-center gap-3 px-3 py-2 rounded-lg">
-								<span class="material-symbols-outlined {user.authSource === 'svelte-db' ? 'text-amber-500' : 'text-emerald-500'} text-[18px]">dns</span>
-								<div>
-									<p class="text-[10px] text-on-surface-variant uppercase tracking-wider font-bold">Server Auth</p>
-									<p class="text-xs font-semibold {user.authSource === 'svelte-db' ? 'text-amber-600' : 'text-emerald-600'}">
-										{user.authSource === 'svelte-db' ? 'Svelte (Fallback)' : 'Laravel API'}
-									</p>
-								</div>
-							</div>
-						</div>
-					{/if}
-
-					<!-- Actions -->
-					<div class="p-2">
-						{#if isSupervisorOrAdmin}
-							<button 
-								onclick={() => { goto('/assessments'); isProfileOpen = false; }}
-								class="w-full flex items-center justify-between px-3.5 py-2.5 text-on-surface hover:bg-primary/10 hover:text-primary rounded-xl transition-all text-xs font-bold mb-1.5 border border-primary/20 bg-primary/5 cursor-pointer group"
-								title="Buka lembar penilaian kompetensi bawahan langsung"
-							>
-								<div class="flex items-center gap-2.5">
-									<div class="w-7 h-7 rounded-lg bg-primary/15 text-primary flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
-										<span class="material-symbols-outlined text-[17px]">assignment_ind</span>
-									</div>
-									<div class="text-left">
-										<p class="leading-tight font-extrabold text-on-surface group-hover:text-primary">Penilaian Tim</p>
-										<p class="text-[9px] text-slate-400 font-medium">Supervisor Portal</p>
+						<!-- User Details -->
+						{#if user}
+							<div class="p-3 space-y-1">
+								<div class="flex items-center gap-3 px-3 py-2 rounded-lg">
+									<span class="material-symbols-outlined text-on-surface-variant text-[18px]">business</span>
+									<div>
+										<p class="text-[10px] text-on-surface-variant uppercase tracking-wider font-bold">Departemen</p>
+										<p class="text-xs font-semibold text-on-surface">{user.department || user.division}</p>
+										{#if user.department && user.division && user.department !== user.division}
+											<p class="text-[10px] text-on-surface-variant font-medium">{user.division}</p>
+										{/if}
 									</div>
 								</div>
-								<span class="material-symbols-outlined text-xs text-primary/60 group-hover:translate-x-0.5 transition-transform">arrow_forward</span>
-							</button>
+								<div class="flex items-center gap-3 px-3 py-2 rounded-lg">
+									<span class="material-symbols-outlined text-on-surface-variant text-[18px]">badge</span>
+									<div>
+										<p class="text-[10px] text-on-surface-variant uppercase tracking-wider font-bold">Level</p>
+										<p class="text-xs font-semibold text-on-surface">{user.level}</p>
+									</div>
+								</div>
+								<div class="flex items-center gap-3 px-3 py-2 rounded-lg">
+									<span class="material-symbols-outlined text-on-surface-variant text-[18px]">apps</span>
+									<div>
+										<p class="text-[10px] text-on-surface-variant uppercase tracking-wider font-bold">Akses Modul</p>
+										<p class="text-xs font-semibold text-on-surface">
+											{user.allowedModules.length === 9 ? 'Semua Modul' : user.allowedModules.length + ' Modul'}
+										</p>
+									</div>
+								</div>
+								<div class="flex items-center gap-3 px-3 py-2 rounded-lg">
+									<span class="material-symbols-outlined {user.authSource === 'svelte-db' ? 'text-amber-500' : 'text-emerald-500'} text-[18px]">dns</span>
+									<div>
+										<p class="text-[10px] text-on-surface-variant uppercase tracking-wider font-bold">Server Auth</p>
+										<p class="text-xs font-semibold {user.authSource === 'svelte-db' ? 'text-amber-600' : 'text-emerald-600'}">
+											{user.authSource === 'svelte-db' ? 'Svelte (Fallback)' : 'Laravel API'}
+										</p>
+									</div>
+								</div>
+							</div>
 						{/if}
 
-						{#if admin}
+						<!-- Actions -->
+						<div class="p-2">
+							{#if isSupervisorOrAdmin}
+								<button 
+									onclick={() => { goto('/assessments'); isProfileOpen = false; }}
+									class="w-full flex items-center justify-between px-3.5 py-2.5 text-on-surface hover:bg-primary/10 hover:text-primary rounded-xl transition-all text-xs font-bold mb-1.5 border border-primary/20 bg-primary/5 cursor-pointer group"
+									title="Buka lembar penilaian kompetensi bawahan langsung"
+								>
+									<div class="flex items-center gap-2.5">
+										<div class="w-7 h-7 rounded-lg bg-primary/15 text-primary flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+											<span class="material-symbols-outlined text-[17px]">assignment_ind</span>
+										</div>
+										<div class="text-left">
+											<p class="leading-tight font-extrabold text-on-surface group-hover:text-primary">Penilaian Tim</p>
+											<p class="text-[9px] text-slate-400 font-medium">Supervisor Portal</p>
+										</div>
+									</div>
+									<span class="material-symbols-outlined text-xs text-primary/60 group-hover:translate-x-0.5 transition-transform">arrow_forward</span>
+								</button>
+							{/if}
+
+							{#if admin}
+								<button 
+									onclick={() => { goto('/admin/active-users'); isProfileOpen = false; }}
+									class="w-full flex items-center gap-3 px-4 py-2 text-on-surface hover:bg-surface-container-low rounded-xl transition-colors text-sm font-semibold mb-1 cursor-pointer"
+								>
+									<span class="material-symbols-outlined text-[18px] text-emerald-600">monitor_heart</span>
+									Live Monitor Pengguna
+								</button>
+								<button 
+									onclick={() => { goto('/admin/users'); isProfileOpen = false; }}
+									class="w-full flex items-center gap-3 px-4 py-2 text-on-surface hover:bg-surface-container-low rounded-xl transition-colors text-sm font-semibold mb-1 cursor-pointer"
+								>
+									<span class="material-symbols-outlined text-[18px] text-on-surface-variant">manage_accounts</span>
+									User Management
+								</button>
+								<button 
+									onclick={() => { goto('/settings'); isProfileOpen = false; }}
+									class="w-full flex items-center gap-3 px-4 py-2 text-on-surface hover:bg-surface-container-low rounded-xl transition-colors text-sm font-semibold mb-1 cursor-pointer"
+								>
+									<span class="material-symbols-outlined text-[18px] text-on-surface-variant">tune</span>
+									Settings & Privasi
+								</button>
+							{/if}
 							<button 
-								onclick={() => { goto('/admin/active-users'); isProfileOpen = false; }}
-								class="w-full flex items-center gap-3 px-4 py-2 text-on-surface hover:bg-surface-container-low rounded-xl transition-colors text-sm font-semibold mb-1 cursor-pointer"
+								onclick={handleLogout}
+								class="w-full flex items-center gap-3 px-4 py-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl transition-colors text-sm font-semibold cursor-pointer"
 							>
-								<span class="material-symbols-outlined text-[18px] text-emerald-600">monitor_heart</span>
-								Live Monitor Pengguna
+								<span class="material-symbols-outlined text-[18px]">logout</span>
+								Sign Out
 							</button>
-							<button 
-								onclick={() => { goto('/admin/users'); isProfileOpen = false; }}
-								class="w-full flex items-center gap-3 px-4 py-2 text-on-surface hover:bg-surface-container-low rounded-xl transition-colors text-sm font-semibold mb-1 cursor-pointer"
-							>
-								<span class="material-symbols-outlined text-[18px] text-on-surface-variant">manage_accounts</span>
-								User Management
-							</button>
-							<button 
-								onclick={() => { goto('/settings'); isProfileOpen = false; }}
-								class="w-full flex items-center gap-3 px-4 py-2 text-on-surface hover:bg-surface-container-low rounded-xl transition-colors text-sm font-semibold mb-1 cursor-pointer"
-							>
-								<span class="material-symbols-outlined text-[18px] text-on-surface-variant">tune</span>
-								Settings & Privasi
-							</button>
-						{/if}
-						<button 
-							onclick={handleLogout}
-							class="w-full flex items-center gap-3 px-4 py-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl transition-colors text-sm font-semibold cursor-pointer"
-						>
-							<span class="material-symbols-outlined text-[18px]">logout</span>
-							Sign Out
-						</button>
+						</div>
 					</div>
-
 				</div>
 			{/if}
 		</div>
