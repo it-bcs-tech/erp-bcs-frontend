@@ -12,7 +12,8 @@ RUN npm ci
 # Copy the rest of the application code
 COPY . .
 
-# Build the SvelteKit application
+# Build the SvelteKit application (dummy DATABASE_URL prevents build-time prerender checks from failing)
+ENV DATABASE_URL=postgresql://build_dummy:build_dummy@127.0.0.1:5432/dummy
 RUN npm run build
 
 # Remove devDependencies to keep the image small
