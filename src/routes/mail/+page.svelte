@@ -15,11 +15,14 @@
 	const searchQuery = mailStore.searchQuery;
 	const filterUnreadOnly = mailStore.filterUnreadOnly;
 	const isComposeOpen = mailStore.isComposeOpen;
+	const profilesStore = mailStore.profiles;
+	const activeAccountFilter = mailStore.activeAccountFilter;
 
 	// Mobile view switch: 'list' | 'detail'
 	let mobileView = $state<'list' | 'detail'>('list');
 
 	// Compose Form State
+	let composeFromProfileId = $state<string>('');
 	let composeTo = $state('');
 	let composeSubject = $state('');
 	let composeBody = $state('');
@@ -37,6 +40,12 @@
 	}
 
 	function handleOpenCompose(replyTo?: EmailMessage | null) {
+		// Tentukan default pengirim sesuai domain email user atau profile default
+		const matchingProfile = $profilesStore.find((p) => p.domain && user?.email?.toLowerCase().includes(p.domain.toLowerCase()))
+			|| $profilesStore.find((p) => p.isDefault)
+			|| $profilesStore[0];
+		composeFromProfileId = matchingProfile?.id || '';
+
 		if (replyTo) {
 			composeTo = replyTo.fromEmail;
 			composeSubject = replyTo.subject.startsWith('Re:') ? replyTo.subject : `Re: ${replyTo.subject}`;
@@ -52,10 +61,22 @@
 	function handleSendCompose() {
 		if (!composeTo.trim() || !composeSubject.trim()) return;
 
+		const selectedProfile = $profilesStore.find((p) => p.id === composeFromProfileId)
+			|| $profilesStore.find((p) => p.isDefault)
+			|| $profilesStore[0];
+
+		const fromEmail = selectedProfile?.smtpFromEmail || user?.email || 'karyawan@bcs-logistics.co.id';
+		const fromName = selectedProfile?.smtpFromName || displayName(user) || 'Pengguna ERP';
+		const accountBadge = selectedProfile?.providerType === 'gmail'
+			? ({ label: 'Gmail', variant: 'rose' } as const)
+			: ({ label: 'BCS Mail', variant: 'slate' } as const);
+
 		mailStore.emails.sendEmail({
 			folder: 'sent',
-			fromName: displayName(user) || 'Pengguna ERP',
-			fromEmail: user?.email || 'karyawan@bcs-logistics.co.id',
+			serverId: selectedProfile?.id,
+			accountBadge,
+			fromName,
+			fromEmail,
 			toName: composeTo.split('@')[0],
 			toEmail: composeTo.trim(),
 			subject: composeSubject.trim(),
@@ -249,22 +270,47 @@
 				{/if}
 			</div>
 
-			<!-- Filter Toggles -->
-			<div class="flex items-center gap-2 text-xs">
-				<button
-					type="button"
-					onclick={() => filterUnreadOnly.set(false)}
-					class="px-2.5 py-1 rounded-lg font-semibold transition-colors {!$filterUnreadOnly ? 'bg-surface-container-highest text-on-surface font-bold' : 'text-on-surface-variant hover:text-on-surface'}"
-				>
-					Semua ({$folderCounts[$activeFolder as keyof typeof $folderCounts] || 0})
-				</button>
-				<button
-					type="button"
-					onclick={() => filterUnreadOnly.set(true)}
-					class="px-2.5 py-1 rounded-lg font-semibold transition-colors {$filterUnreadOnly ? 'bg-orange-500/15 text-orange-600 dark:text-orange-400 font-bold' : 'text-on-surface-variant hover:text-on-surface'}"
-				>
-					Belum Dibaca
-				</button>
+			<!-- Filter Toggles & Multi-Server Account Pills -->
+			<div class="space-y-2">
+				<!-- Unified Inbox Account Selector -->
+				<div class="flex items-center gap-1.5 overflow-x-auto pb-0.5 [scrollbar-width:none]">
+					<button
+						type="button"
+						onclick={() => activeAccountFilter.set('all')}
+						class="px-2.5 py-1 rounded-lg text-[10px] font-bold flex items-center gap-1 transition-colors cursor-pointer shrink-0 {$activeAccountFilter === 'all' ? 'bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900 shadow-2xs' : 'bg-surface hover:bg-surface-container text-on-surface-variant border border-slate-200/60 dark:border-slate-800'}"
+					>
+						<span class="material-symbols-outlined text-[13px]">all_inbox</span>
+						<span>Semua Akun</span>
+					</button>
+
+					{#each $profilesStore as prof}
+						<button
+							type="button"
+							onclick={() => activeAccountFilter.set(prof.id)}
+							class="px-2.5 py-1 rounded-lg text-[10px] font-bold flex items-center gap-1 transition-colors cursor-pointer shrink-0 {$activeAccountFilter === prof.id ? (prof.providerType === 'gmail' ? 'bg-rose-600 text-white shadow-2xs' : 'bg-sky-600 text-white shadow-2xs') : 'bg-surface hover:bg-surface-container text-on-surface-variant border border-slate-200/60 dark:border-slate-800'}"
+						>
+							<span class="w-1.5 h-1.5 rounded-full {prof.providerType === 'gmail' ? 'bg-rose-400' : 'bg-sky-400'}"></span>
+							<span>{prof.name}</span>
+						</button>
+					{/each}
+				</div>
+
+				<div class="flex items-center gap-2 text-xs">
+					<button
+						type="button"
+						onclick={() => filterUnreadOnly.set(false)}
+						class="px-2.5 py-1 rounded-lg font-semibold transition-colors {!$filterUnreadOnly ? 'bg-surface-container-highest text-on-surface font-bold' : 'text-on-surface-variant hover:text-on-surface'}"
+					>
+						Semua ({$folderCounts[$activeFolder as keyof typeof $folderCounts] || 0})
+					</button>
+					<button
+						type="button"
+						onclick={() => filterUnreadOnly.set(true)}
+						class="px-2.5 py-1 rounded-lg font-semibold transition-colors {$filterUnreadOnly ? 'bg-orange-500/15 text-orange-600 dark:text-orange-400 font-bold' : 'text-on-surface-variant hover:text-on-surface'}"
+					>
+						Belum Dibaca
+					</button>
+				</div>
 			</div>
 		</div>
 
@@ -312,6 +358,11 @@
 						<!-- Badges & Indicators -->
 						<div class="flex items-center justify-between text-[10px] pt-1">
 							<div class="flex items-center gap-1.5 flex-wrap">
+								{#if email.accountBadge}
+									<span class="px-2 py-0.5 rounded-md font-bold text-[9px] uppercase tracking-wider {email.accountBadge.variant === 'rose' ? 'bg-rose-50 text-rose-700 dark:bg-rose-950/50 dark:text-rose-300 border border-rose-200 dark:border-rose-900' : 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border border-slate-200 dark:border-slate-700'}">
+										{email.accountBadge.label}
+									</span>
+								{/if}
 								{#if email.badge}
 									<span class="px-2 py-0.5 rounded-full font-bold {email.badge.variant === 'amber' ? 'bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300' : email.badge.variant === 'emerald' ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300' : 'bg-sky-100 text-sky-800 dark:bg-sky-950/60 dark:text-sky-300'}">
 										{email.badge.text}
@@ -516,6 +567,23 @@
 
 			<!-- Modal Form Body -->
 			<div class="p-6 space-y-4">
+				<!-- Dari / Sender Selection -->
+				<div>
+					<label class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-1">
+						Kirim Dari Akun (Server SMTP)
+					</label>
+					<select
+						bind:value={composeFromProfileId}
+						class="w-full px-3.5 py-2.5 rounded-xl bg-surface-container border border-slate-200/80 dark:border-slate-700 text-xs font-bold text-on-surface focus:outline-none focus:ring-2 focus:ring-orange-500/40"
+					>
+						{#each $profilesStore as prof}
+							<option value={prof.id}>
+								{prof.name} &bull; {prof.smtpFromEmail} (@{prof.domain}) {prof.isDefault ? '[Default]' : ''}
+							</option>
+						{/each}
+					</select>
+				</div>
+
 				<div>
 					<label class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-1">
 						Kepada (Email Penerima)
@@ -556,7 +624,7 @@
 			<!-- Modal Footer Actions -->
 			<div class="p-4 px-6 bg-surface-container-low border-t border-slate-200/70 dark:border-slate-800/70 flex items-center justify-between">
 				<p class="text-[11px] text-on-surface-variant">
-					Pengirim: <strong>{user?.email || 'karyawan@bcs-logistics.co.id'}</strong>
+					Pengirim: <strong>{$profilesStore.find((p) => p.id === composeFromProfileId)?.smtpFromEmail || user?.email || 'karyawan@bcs-logistics.co.id'}</strong>
 				</p>
 				<div class="flex items-center gap-2.5">
 					<button

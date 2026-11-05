@@ -1,22 +1,74 @@
 /**
  * Global Mail Store — BCS Logistics ERP
  * ─────────────────────────────────────────────────────────
- * Mengelola state inbox, sent, draft, trash, dan notifikasi approval sistem.
- * Mendukung pembacaan template HTML email korporat BCS Logistics dan pengiriman pesan baru.
+ * Mengelola state inbox, sent, draft, trash, notifikasi approval sistem,
+ * dan dukungan Multi-Server Email (Domain-Based Routing: BCS Corporate & Gmail).
  */
 
 import { writable, derived } from 'svelte/store';
 import { browser } from '$app/environment';
-import type { EmailMessage, EmailCategory, MailServerConfig } from '$lib/types/mail';
+import type { EmailMessage, EmailCategory, MailServerConfig, MailServerProfile } from '$lib/types/mail';
 
-const STORAGE_KEY_EMAILS = 'bcs_erp_mail_messages_v1';
+const STORAGE_KEY_EMAILS = 'bcs_erp_mail_messages_v2';
 const STORAGE_KEY_CONFIG = 'bcs_erp_mail_server_config_v1';
+const STORAGE_KEY_PROFILES = 'bcs_erp_mail_server_profiles_v2';
 
-// Initial Mock Data featuring Issue #14 corporate responsive HTML templates
+export const DEFAULT_SERVER_PROFILES: MailServerProfile[] = [
+	{
+		id: 'profile-bcs',
+		name: 'BCS Corporate Mail',
+		domain: 'bcs-logistics.co.id',
+		providerType: 'bcs-corporate',
+		isDefault: true,
+		isActive: true,
+		inboundProtocol: 'IMAP',
+		inboundHost: 'mail.bcs-logistics.co.id',
+		inboundPort: 993,
+		inboundEncryption: 'SSL',
+		inboundUsername: 'erp-inbox@bcs-logistics.co.id',
+		smtpHost: 'smtp.bcs-logistics.co.id',
+		smtpPort: 587,
+		smtpEncryption: 'TLS',
+		smtpUsername: 'no-reply@bcs-logistics.co.id',
+		smtpFromEmail: 'no-reply@bcs-logistics.co.id',
+		smtpFromName: 'PT Buana Centra Swakarsa (BCS Logistics Mailer)',
+		authRequired: true,
+		verifySsl: true,
+		timeoutSeconds: 30,
+		note: 'Server email utama korporat untuk domain resmi bcs-logistics.co.id (cPanel/Zimbra/Postfix).'
+	},
+	{
+		id: 'profile-gmail',
+		name: 'Google Workspace / Gmail',
+		domain: 'gmail.com',
+		providerType: 'gmail',
+		isDefault: false,
+		isActive: true,
+		inboundProtocol: 'IMAP',
+		inboundHost: 'imap.gmail.com',
+		inboundPort: 993,
+		inboundEncryption: 'SSL',
+		inboundUsername: 'bcslogistics.cilegon@gmail.com',
+		smtpHost: 'smtp.gmail.com',
+		smtpPort: 587,
+		smtpEncryption: 'TLS',
+		smtpUsername: 'bcslogistics.cilegon@gmail.com',
+		smtpFromEmail: 'bcslogistics.cilegon@gmail.com',
+		smtpFromName: 'BCS Logistics Operations (Gmail Service)',
+		authRequired: true,
+		verifySsl: true,
+		timeoutSeconds: 30,
+		note: 'Layanan email Google Workspace/Gmail menggunakan Sandi Aplikasi (App Password) 16-karakter.'
+	}
+];
+
+// Initial Mock Data featuring Issue #14 corporate responsive HTML templates & multi-server badges
 const INITIAL_EMAILS: EmailMessage[] = [
 	{
 		id: 'msg-001',
 		folder: 'inbox',
+		serverId: 'profile-bcs',
+		accountBadge: { label: 'BCS Mail', variant: 'slate' },
 		fromName: 'ERP Mailer — HRIS Approval',
 		fromEmail: 'no-reply@bcs-logistics.co.id',
 		toName: 'Pengguna ERP',
@@ -73,6 +125,8 @@ const INITIAL_EMAILS: EmailMessage[] = [
 	{
 		id: 'msg-002',
 		folder: 'inbox',
+		serverId: 'profile-bcs',
+		accountBadge: { label: 'BCS Mail', variant: 'slate' },
 		fromName: 'Finance System — Kasbon Hub',
 		fromEmail: 'finance-alert@bcs-logistics.co.id',
 		toName: 'Pengguna ERP',
@@ -124,13 +178,54 @@ const INITIAL_EMAILS: EmailMessage[] = [
 		badge: { text: 'Disetujui', variant: 'emerald' }
 	},
 	{
+		id: 'msg-006',
+		folder: 'inbox',
+		serverId: 'profile-gmail',
+		accountBadge: { label: 'Gmail', variant: 'rose' },
+		fromName: 'Vendor Pertamina Lubricants Banten',
+		fromEmail: 'cs.pertaminalub@gmail.com',
+		toName: 'Pengguna ERP',
+		toEmail: 'bcslogistics.cilegon@gmail.com',
+		subject: 'Konfirmasi Jadwal Delivery Oli Mesin Meditran SX — Pool Merak',
+		preview: 'Yth. Tim Logistik BCS, pesanan oli pelumas armada 20 drum dijadwalkan tiba besok pagi pukul 09:00 WIB...',
+		bodyHtml: `
+			<div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; color: #1E293B; line-height: 1.6;">
+				<h3 style="margin: 0 0 10px 0; font-size: 17px; font-weight: 800; color: #0F172A;">Konfirmasi Delivery Oli Meditran SX 15W-40</h3>
+				<p style="font-size: 13px; color: #334155; margin-bottom: 14px;">
+					Yth. Tim Workshop & Procurement PT Buana Centra Swakarsa,<br>
+					Kami informasikan bahwa armada pengirim kami telah mengagendakan pengantaran 20 Drum Oli Mesin Meditran SX menuju Pool Cilegon/Merak dengan rincian berikut:
+				</p>
+				<table style="width: 100%; border-collapse: collapse; font-size: 13px; margin-bottom: 16px; border: 1px solid #E2E8F0;">
+					<tr style="background:#F8FAFC;"><td style="padding:8px 12px;font-weight:600;color:#64748B;">Surat Jalan</td><td style="padding:8px 12px;font-weight:700;">SJ-PTM/2026/XI/8841</td></tr>
+					<tr><td style="padding:8px 12px;font-weight:600;color:#64748B;">Volume</td><td style="padding:8px 12px;">20 Drum (4.180 Liter)</td></tr>
+					<tr style="background:#F8FAFC;"><td style="padding:8px 12px;font-weight:600;color:#64748B;">Estimasi Tiba</td><td style="padding:8px 12px;font-weight:700;color:#059669;">Besok Pagi, 09:00 WIB</td></tr>
+				</table>
+				<p style="font-size: 12px; color: #64748B;">
+					Mohon bantuan PIC Workshop menyiapkan fork-lift dan tanda tangan bukti terima dokumen terlampir.
+				</p>
+			</div>
+		`,
+		date: 'Hari ini, 09:30',
+		timestamp: Date.now() - 1000 * 60 * 15,
+		isRead: false,
+		isStarred: false,
+		hasAttachments: true,
+		attachments: [
+			{ id: 'att-3', filename: 'Surat_Jalan_Pertamina_091126.pdf', size: '380 KB', mimeType: 'application/pdf' }
+		],
+		priority: 'normal',
+		badge: { text: 'Vendor Luar', variant: 'purple' }
+	},
+	{
 		id: 'msg-003',
 		folder: 'inbox',
+		serverId: 'profile-bcs',
+		accountBadge: { label: 'BCS Mail', variant: 'slate' },
 		fromName: 'Corporate Communications & IT',
 		fromEmail: 'it-support@bcs-logistics.co.id',
 		toName: 'Seluruh Karyawan PT BCS',
 		toEmail: 'all-staff@bcs-logistics.co.id',
-		subject: 'Pengumuman Resmi: Peluncuran Fitur Webmail Korporat & Template Email Baru',
+		subject: 'Pengumuman Resmi: Peluncuran Fitur Webmail Korporat & Dukungan Multi-Server Email',
 		preview: 'Manajemen IT PT Buana Centra Swakarsa mengumumkan ketersediaan fitur Webmail terintegrasi di portal ERP...',
 		bodyHtml: `
 			<div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; color: #1E293B; line-height: 1.6;">
@@ -143,7 +238,7 @@ const INITIAL_EMAILS: EmailMessage[] = [
 					<ul style="margin: 0; padding-left: 20px; font-size: 12.5px; color: #475569;">
 						<li>Akses cepat pembacaan pesan langsung di bawah menu dropdown profil.</li>
 						<li>Template email otomatis berstandar branding resmi BCS Logistics (Navy & Orange).</li>
-						<li>Konfigurasi protokol IMAP/POP3 & SMTP korporat yang aman.</li>
+						<li>Dukungan Multi-Server Email (Domain Routing: BCS Server & Gmail).</li>
 					</ul>
 				</div>
 				<p style="font-size: 12px; color: #64748B;">
@@ -162,6 +257,8 @@ const INITIAL_EMAILS: EmailMessage[] = [
 	{
 		id: 'msg-004',
 		folder: 'inbox',
+		serverId: 'profile-bcs',
+		accountBadge: { label: 'BCS Mail', variant: 'slate' },
 		fromName: 'PMS Procurement System',
 		fromEmail: 'pms-alert@bcs-logistics.co.id',
 		toName: 'Pengguna ERP',
@@ -192,6 +289,8 @@ const INITIAL_EMAILS: EmailMessage[] = [
 	{
 		id: 'msg-005',
 		folder: 'sent',
+		serverId: 'profile-bcs',
+		accountBadge: { label: 'BCS Mail', variant: 'slate' },
 		fromName: 'Saya (Karyawan)',
 		fromEmail: 'karyawan@bcs-logistics.co.id',
 		toName: 'Bambang Irawan (Workshop Head)',
@@ -211,27 +310,9 @@ const INITIAL_EMAILS: EmailMessage[] = [
 	}
 ];
 
-const DEFAULT_SERVER_CONFIG: MailServerConfig = {
-	inboundProtocol: 'IMAP',
-	inboundHost: 'mail.bcs-logistics.co.id',
-	inboundPort: 993,
-	inboundEncryption: 'SSL',
-	inboundUsername: 'erp-inbox@bcs-logistics.co.id',
-	smtpHost: 'smtp.bcs-logistics.co.id',
-	smtpPort: 587,
-	smtpEncryption: 'TLS',
-	smtpUsername: 'no-reply@bcs-logistics.co.id',
-	smtpFromEmail: 'no-reply@bcs-logistics.co.id',
-	smtpFromName: 'PT Buana Centra Swakarsa (BCS Logistics Mailer)',
-	corporateDomain: 'bcs-logistics.co.id',
-	authRequired: true,
-	verifySsl: true,
-	timeoutSeconds: 30
-};
-
 function createMailStore() {
 	let initialEmails = INITIAL_EMAILS;
-	let initialConfig = DEFAULT_SERVER_CONFIG;
+	let initialProfiles = DEFAULT_SERVER_PROFILES;
 
 	if (browser) {
 		try {
@@ -239,23 +320,27 @@ function createMailStore() {
 			if (savedEmails) {
 				initialEmails = JSON.parse(savedEmails);
 			}
-			const savedConfig = localStorage.getItem(STORAGE_KEY_CONFIG);
-			if (savedConfig) {
-				initialConfig = { ...DEFAULT_SERVER_CONFIG, ...JSON.parse(savedConfig) };
+			const savedProfiles = localStorage.getItem(STORAGE_KEY_PROFILES);
+			if (savedProfiles) {
+				const parsed = JSON.parse(savedProfiles);
+				if (Array.isArray(parsed) && parsed.length > 0) {
+					initialProfiles = parsed;
+				}
 			}
 		} catch (e) {
-			console.error('Error loading mail from localStorage:', e);
+			console.error('Error loading mail state from localStorage:', e);
 		}
 	}
 
 	const emailsStore = writable<EmailMessage[]>(initialEmails);
+	const profilesStore = writable<MailServerProfile[]>(initialProfiles);
+	const activeAccountFilter = writable<string>('all'); // 'all' or profile.id
 	const activeFolder = writable<EmailCategory>('inbox');
 	const selectedEmailId = writable<string | null>(initialEmails[0]?.id || null);
 	const searchQuery = writable<string>('');
 	const filterUnreadOnly = writable<boolean>(false);
 	const isComposeOpen = writable<boolean>(false);
 	const composeReplyTo = writable<EmailMessage | null>(null);
-	const serverConfig = writable<MailServerConfig>(initialConfig);
 
 	function persistEmails(list: EmailMessage[]) {
 		if (browser) {
@@ -267,12 +352,12 @@ function createMailStore() {
 		}
 	}
 
-	function persistConfig(cfg: MailServerConfig) {
+	function persistProfiles(list: MailServerProfile[]) {
 		if (browser) {
 			try {
-				localStorage.setItem(STORAGE_KEY_CONFIG, JSON.stringify(cfg));
+				localStorage.setItem(STORAGE_KEY_PROFILES, JSON.stringify(list));
 			} catch (e) {
-				console.error('Error saving mail config:', e);
+				console.error('Error saving mail server profiles:', e);
 			}
 		}
 	}
@@ -305,7 +390,6 @@ function createMailStore() {
 				emailsStore.update((list) => {
 					const updated = list.map((m) => {
 						if (m.id === id) {
-							// If already in trash, remove permanently, else move to trash
 							return m.folder === 'trash' ? null : { ...m, folder: 'trash' as EmailCategory };
 						}
 						return m;
@@ -337,19 +421,112 @@ function createMailStore() {
 				persistEmails(INITIAL_EMAILS);
 			}
 		},
+		profiles: {
+			subscribe: profilesStore.subscribe,
+			addProfile: (profile: MailServerProfile) => {
+				profilesStore.update((list) => {
+					const updated = [...list, profile];
+					persistProfiles(updated);
+					return updated;
+				});
+			},
+			updateProfile: (id: string, partial: Partial<MailServerProfile>) => {
+				profilesStore.update((list) => {
+					const updated = list.map((p) => (p.id === id ? { ...p, ...partial } : p));
+					persistProfiles(updated);
+					return updated;
+				});
+			},
+			deleteProfile: (id: string) => {
+				profilesStore.update((list) => {
+					if (list.length <= 1) return list; // Minimal 1 profil
+					const updated = list.filter((p) => p.id !== id);
+					// Jika profil yang dihapus adalah default, jadikan profil pertama default
+					if (!updated.some((p) => p.isDefault) && updated[0]) {
+						updated[0].isDefault = true;
+					}
+					persistProfiles(updated);
+					return updated;
+				});
+			},
+			setDefaultProfile: (id: string) => {
+				profilesStore.update((list) => {
+					const updated = list.map((p) => ({ ...p, isDefault: p.id === id }));
+					persistProfiles(updated);
+					return updated;
+				});
+			},
+			toggleActive: (id: string) => {
+				profilesStore.update((list) => {
+					const updated = list.map((p) => (p.id === id ? { ...p, isActive: !p.isActive } : p));
+					persistProfiles(updated);
+					return updated;
+				});
+			},
+			resetToDefaults: () => {
+				profilesStore.set(DEFAULT_SERVER_PROFILES);
+				persistProfiles(DEFAULT_SERVER_PROFILES);
+			}
+		},
+		activeAccountFilter,
 		activeFolder,
 		selectedEmailId,
 		searchQuery,
 		filterUnreadOnly,
 		isComposeOpen,
 		composeReplyTo,
+
+		// Backward-compatibility serverConfig adapter (syncs with default profile)
 		serverConfig: {
-			subscribe: serverConfig.subscribe,
+			subscribe: (run: (val: MailServerConfig) => void) => {
+				return profilesStore.subscribe((list) => {
+					const def = list.find((p) => p.isDefault) || list[0] || DEFAULT_SERVER_PROFILES[0];
+					const cfg: MailServerConfig = {
+						inboundProtocol: def.inboundProtocol,
+						inboundHost: def.inboundHost,
+						inboundPort: def.inboundPort,
+						inboundEncryption: def.inboundEncryption,
+						inboundUsername: def.inboundUsername,
+						smtpHost: def.smtpHost,
+						smtpPort: def.smtpPort,
+						smtpEncryption: def.smtpEncryption,
+						smtpUsername: def.smtpUsername,
+						smtpFromEmail: def.smtpFromEmail,
+						smtpFromName: def.smtpFromName,
+						corporateDomain: def.domain,
+						authRequired: def.authRequired,
+						verifySsl: def.verifySsl,
+						timeoutSeconds: def.timeoutSeconds
+					};
+					run(cfg);
+				});
+			},
 			updateConfig: (cfg: Partial<MailServerConfig>) => {
-				serverConfig.update((old) => {
-					const next = { ...old, ...cfg };
-					persistConfig(next);
-					return next;
+				profilesStore.update((list) => {
+					const defIdx = list.findIndex((p) => p.isDefault);
+					const idx = defIdx !== -1 ? defIdx : 0;
+					if (list[idx]) {
+						list[idx] = {
+							...list[idx],
+							...(cfg.inboundProtocol && { inboundProtocol: cfg.inboundProtocol }),
+							...(cfg.inboundHost && { inboundHost: cfg.inboundHost }),
+							...(cfg.inboundPort !== undefined && { inboundPort: cfg.inboundPort }),
+							...(cfg.inboundEncryption && { inboundEncryption: cfg.inboundEncryption }),
+							...(cfg.inboundUsername && { inboundUsername: cfg.inboundUsername }),
+							...(cfg.smtpHost && { smtpHost: cfg.smtpHost }),
+							...(cfg.smtpPort !== undefined && { smtpPort: cfg.smtpPort }),
+							...(cfg.smtpEncryption && { smtpEncryption: cfg.smtpEncryption }),
+							...(cfg.smtpUsername && { smtpUsername: cfg.smtpUsername }),
+							...(cfg.smtpFromEmail && { smtpFromEmail: cfg.smtpFromEmail }),
+							...(cfg.smtpFromName && { smtpFromName: cfg.smtpFromName }),
+							...(cfg.corporateDomain && { domain: cfg.corporateDomain }),
+							...(cfg.authRequired !== undefined && { authRequired: cfg.authRequired }),
+							...(cfg.verifySsl !== undefined && { verifySsl: cfg.verifySsl }),
+							...(cfg.timeoutSeconds !== undefined && { timeoutSeconds: cfg.timeoutSeconds })
+						};
+						persistProfiles(list);
+					}
+					return [...list];
 				});
 			}
 		}
@@ -375,9 +552,20 @@ export const folderCounts = derived(mailStore.emails, ($emails) => {
 });
 
 export const filteredEmails = derived(
-	[mailStore.emails, mailStore.activeFolder, mailStore.searchQuery, mailStore.filterUnreadOnly],
-	([$emails, $folder, $query, $unreadOnly]) => {
+	[
+		mailStore.emails,
+		mailStore.activeFolder,
+		mailStore.searchQuery,
+		mailStore.filterUnreadOnly,
+		mailStore.activeAccountFilter
+	],
+	([$emails, $folder, $query, $unreadOnly, $accountFilter]) => {
 		return $emails.filter((m) => {
+			// Account/Server filtering (Unified Inbox filter)
+			if ($accountFilter !== 'all' && m.serverId && m.serverId !== $accountFilter) {
+				return false;
+			}
+
 			// Folder filtering
 			if ($folder === 'approvals') {
 				if (!m.badge?.text.toLowerCase().includes('approval')) return false;

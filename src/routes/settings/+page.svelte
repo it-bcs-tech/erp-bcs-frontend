@@ -2,18 +2,35 @@
 	import { systemSettings, formatCurrencyPrivacy, formatMaskedText } from '$lib/stores/settings';
 	import { authUser, displayName, getRoleLabel } from '$lib/stores/auth';
 	import { mailStore } from '$lib/stores/mail';
+	import type { MailServerProfile } from '$lib/types/mail';
 
 	import { enhance } from '$app/forms';
 
 	let { data, form } = $props();
 
+	const user = $derived($authUser);
+
 	let activeTab = $state<'privacy' | 'company' | 'preferences' | 'security' | 'approvals' | 'email'>('privacy');
 	let isSavedToast = $state(false);
 	let approvalSuccessMsg = $state('');
 
-	// Email Server Config State
-	const serverConfigStore = mailStore.serverConfig;
-	let mailConfig = $state({ ...$serverConfigStore });
+	// Multi-Server Mail Profiles State (Domain-Based Routing)
+	const profilesStore = mailStore.profiles;
+	let profiles = $state<MailServerProfile[]>([]);
+	let selectedProfileId = $state<string>('profile-bcs');
+
+	$effect(() => {
+		profiles = [...$profilesStore];
+		if (!profiles.some((p) => p.id === selectedProfileId) && profiles[0]) {
+			selectedProfileId = profiles[0].id;
+		}
+	});
+
+	// Active profile selected for editing
+	let activeProfile = $derived(
+		profiles.find((p) => p.id === selectedProfileId) || profiles[0] || null
+	);
+
 	let isSavingMail = $state(false);
 	let mailSaveToast = $state(false);
 	let testEmailSending = $state(false);
@@ -189,22 +206,127 @@
 		persistPrivacyToDb(settings.hideSalaryNominals, nextVal);
 	}
 
-	function handleSaveMailConfig() {
+	function handleSelectProfile(id: string) {
+		selectedProfileId = id;
+	}
+
+	function handleSaveActiveProfile() {
+		if (!activeProfile) return;
 		isSavingMail = true;
-		mailStore.serverConfig.updateConfig(mailConfig);
+		mailStore.profiles.updateProfile(activeProfile.id, activeProfile);
 		setTimeout(() => {
 			isSavingMail = false;
 			mailSaveToast = true;
 			setTimeout(() => (mailSaveToast = false), 3500);
-		}, 400);
+		}, 300);
+	}
+
+	function handleSetDefaultProfile(id: string) {
+		mailStore.profiles.setDefaultProfile(id);
+	}
+
+	function handleToggleProfileActive(id: string) {
+		mailStore.profiles.toggleActive(id);
+	}
+
+	function handleDeleteProfile(id: string) {
+		if (profiles.length <= 1) {
+			alert('Minimal harus ada 1 profil server email.');
+			return;
+		}
+		if (confirm('Hapus profil server email ini?')) {
+			mailStore.profiles.deleteProfile(id);
+		}
+	}
+
+	function handleAddProfile(type: 'bcs-corporate' | 'gmail' | 'custom' = 'custom') {
+		const newId = `profile-${Date.now()}`;
+		let newProfile: MailServerProfile;
+
+		if (type === 'gmail') {
+			newProfile = {
+				id: newId,
+				name: 'Google Workspace / Gmail',
+				domain: 'gmail.com',
+				providerType: 'gmail',
+				isDefault: false,
+				isActive: true,
+				inboundProtocol: 'IMAP',
+				inboundHost: 'imap.gmail.com',
+				inboundPort: 993,
+				inboundEncryption: 'SSL',
+				inboundUsername: 'ops.bcs@gmail.com',
+				smtpHost: 'smtp.gmail.com',
+				smtpPort: 587,
+				smtpEncryption: 'TLS',
+				smtpUsername: 'ops.bcs@gmail.com',
+				smtpFromEmail: 'ops.bcs@gmail.com',
+				smtpFromName: 'BCS Logistics (Gmail)',
+				authRequired: true,
+				verifySsl: true,
+				timeoutSeconds: 30,
+				note: 'Gunakan Google App Password 16 karakter tanpa spasi.'
+			};
+		} else if (type === 'bcs-corporate') {
+			newProfile = {
+				id: newId,
+				name: 'BCS Secondary Server',
+				domain: 'bcs-logistics.co.id',
+				providerType: 'bcs-corporate',
+				isDefault: false,
+				isActive: true,
+				inboundProtocol: 'IMAP',
+				inboundHost: 'mail.bcs-logistics.co.id',
+				inboundPort: 993,
+				inboundEncryption: 'SSL',
+				inboundUsername: 'ops-pool@bcs-logistics.co.id',
+				smtpHost: 'smtp.bcs-logistics.co.id',
+				smtpPort: 587,
+				smtpEncryption: 'TLS',
+				smtpUsername: 'ops-pool@bcs-logistics.co.id',
+				smtpFromEmail: 'ops-pool@bcs-logistics.co.id',
+				smtpFromName: 'BCS Pool Merak Mailer',
+				authRequired: true,
+				verifySsl: true,
+				timeoutSeconds: 30,
+				note: 'Server cadangan operasional pool Merak.'
+			};
+		} else {
+			newProfile = {
+				id: newId,
+				name: 'Server Email Baru',
+				domain: 'perusahaan.com',
+				providerType: 'custom',
+				isDefault: false,
+				isActive: true,
+				inboundProtocol: 'IMAP',
+				inboundHost: 'mail.perusahaan.com',
+				inboundPort: 993,
+				inboundEncryption: 'SSL',
+				inboundUsername: 'user@perusahaan.com',
+				smtpHost: 'smtp.perusahaan.com',
+				smtpPort: 587,
+				smtpEncryption: 'TLS',
+				smtpUsername: 'user@perusahaan.com',
+				smtpFromEmail: 'user@perusahaan.com',
+				smtpFromName: 'BCS Custom Mailer',
+				authRequired: true,
+				verifySsl: true,
+				timeoutSeconds: 30
+			};
+		}
+
+		mailStore.profiles.addProfile(newProfile);
+		selectedProfileId = newId;
 	}
 
 	function handleSendTestEmail() {
+		if (!activeProfile) return;
 		testEmailSending = true;
-		testEmailToast = 'Mengirim email uji coba via ' + mailConfig.smtpHost + ':' + mailConfig.smtpPort + '...';
+		testEmailToast = `Menguji pengiriman email via [${activeProfile.name}] ${activeProfile.smtpHost}:${activeProfile.smtpPort} (Domain: @${activeProfile.domain})...`;
 		setTimeout(() => {
 			testEmailSending = false;
-			testEmailToast = 'Email uji coba berhasil dikirim ke ' + (user?.email || 'admin@bcs-logistics.co.id') + '! Periksa kotak masuk.';
+			testEmailToast = `Uji koneksi SMTP [${activeProfile.name}] BERHASIL! Email uji coba terkirim ke ${user?.email || 'admin@bcs-logistics.co.id'}.`;
 			setTimeout(() => (testEmailToast = ''), 5000);
 		}, 1200);
 	}
@@ -1150,7 +1272,7 @@
 			</div>
 		</div>
 	{:else if activeTab === 'email'}
-		<!-- TAB 6: KONFIGURASI EMAIL SERVER & MASTER TEMPLATE (ISSUE #14) -->
+		<!-- TAB 6: MULTI-SERVER EMAIL ROUTING & MASTER TEMPLATE (ISSUE #14 & MULTI-DOMAIN) -->
 		<div class="space-y-8 animate-in fade-in duration-200">
 			<!-- Banner Header -->
 			<div class="p-6 rounded-3xl bg-gradient-to-r from-[#0F172A] via-[#1E3A8A] to-[#EA580C] text-white shadow-md flex flex-col md:flex-row items-center justify-between gap-6">
@@ -1160,13 +1282,13 @@
 					</div>
 					<div>
 						<div class="flex items-center gap-2 mb-1">
-							<h2 class="text-lg font-black tracking-tight">Mail Service & Template Center</h2>
+							<h2 class="text-lg font-black tracking-tight">Mail Service & Multi-Server Routing</h2>
 							<span class="px-2 py-0.5 rounded-full bg-orange-500/30 text-orange-200 border border-orange-400/30 text-[10px] font-black uppercase">
-								Issue #14
+								Multi-Domain
 							</span>
 						</div>
 						<p class="text-xs text-white/80 leading-relaxed max-w-xl">
-							Kelola protokol server email korporat (IMAP, POP3, SMTP) untuk Webmail karyawan, serta tinjau dan ekspor <strong>Master Template Email HTML Responsif</strong> untuk layanan notifikasi otomatis backend Laravel.
+							Kelola multi-server email (BCS Corporate, Gmail, & eksternal) dengan routing otomatis berbasis domain pengirim/penerima (<code class="font-mono text-orange-200">@bcs-logistics.co.id</code> & <code class="font-mono text-orange-200">@gmail.com</code>).
 						</p>
 					</div>
 				</div>
@@ -1182,186 +1304,399 @@
 				</div>
 			</div>
 
-			<!-- Grid 2 Kolom: Server Protocols -->
-			<div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-				<!-- Inbound Mail Server (IMAP / POP3) -->
-				<div class="p-6 rounded-3xl bg-surface-container-low border border-slate-200/80 dark:border-slate-800/80 shadow-xs space-y-4">
-					<div class="flex items-center justify-between border-b border-slate-200/70 dark:border-slate-800/70 pb-3">
-						<div class="flex items-center gap-2.5">
-							<span class="material-symbols-outlined text-sky-600 dark:text-sky-400 text-xl">move_to_inbox</span>
-							<div>
-								<h3 class="text-sm font-bold text-on-surface">Protokol Masuk (Inbound)</h3>
-								<p class="text-[11px] text-on-surface-variant">Sinkronisasi pesan masuk kotak surat</p>
-							</div>
-						</div>
-						<span class="text-[10px] font-mono font-bold bg-sky-50 dark:bg-sky-950/40 text-sky-700 dark:text-sky-300 px-2 py-0.5 rounded-md border border-sky-200 dark:border-sky-800">
-							{mailConfig.inboundProtocol} : {mailConfig.inboundPort}
-						</span>
+			<!-- Multi-Server Profile Selector Cards -->
+			<div class="space-y-3">
+				<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+					<div>
+						<h3 class="text-sm font-extrabold text-on-surface flex items-center gap-2">
+							<span class="material-symbols-outlined text-primary text-lg">dns</span>
+							<span>Daftar Server Email Terdaftar ({profiles.length})</span>
+						</h3>
+						<p class="text-xs text-on-surface-variant">Pilih kartu server untuk meninjau atau menyesuaikan konfigurasi IMAP & SMTP.</p>
 					</div>
 
-					<div class="space-y-3.5 text-xs">
-						<div class="grid grid-cols-2 gap-3">
-							<div>
-								<label class="block font-bold text-on-surface-variant mb-1 uppercase tracking-wider text-[10px]">Tipe Protokol</label>
-								<select
-									bind:value={mailConfig.inboundProtocol}
-									class="w-full px-3 py-2 rounded-xl bg-surface border border-slate-200 dark:border-slate-700 text-xs font-bold text-on-surface"
-								>
-									<option value="IMAP">IMAP (Recommended)</option>
-									<option value="POP3">POP3</option>
-								</select>
-							</div>
-							<div>
-								<label class="block font-bold text-on-surface-variant mb-1 uppercase tracking-wider text-[10px]">Enkripsi</label>
-								<select
-									bind:value={mailConfig.inboundEncryption}
-									class="w-full px-3 py-2 rounded-xl bg-surface border border-slate-200 dark:border-slate-700 text-xs font-semibold text-on-surface"
-								>
-									<option value="SSL">SSL / TLS</option>
-									<option value="STARTTLS">STARTTLS</option>
-									<option value="NONE">None</option>
-								</select>
-							</div>
-						</div>
-
-						<div>
-							<label class="block font-bold text-on-surface-variant mb-1 uppercase tracking-wider text-[10px]">Host Server Masuk</label>
-							<input
-								type="text"
-								bind:value={mailConfig.inboundHost}
-								class="w-full px-3 py-2 rounded-xl bg-surface border border-slate-200 dark:border-slate-700 text-xs font-mono text-on-surface"
-							/>
-						</div>
-
-						<div class="grid grid-cols-2 gap-3">
-							<div>
-								<label class="block font-bold text-on-surface-variant mb-1 uppercase tracking-wider text-[10px]">Port</label>
-								<input
-									type="number"
-									bind:value={mailConfig.inboundPort}
-									class="w-full px-3 py-2 rounded-xl bg-surface border border-slate-200 dark:border-slate-700 text-xs font-mono text-on-surface"
-								/>
-							</div>
-							<div>
-								<label class="block font-bold text-on-surface-variant mb-1 uppercase tracking-wider text-[10px]">Username Akun</label>
-								<input
-									type="text"
-									bind:value={mailConfig.inboundUsername}
-									class="w-full px-3 py-2 rounded-xl bg-surface border border-slate-200 dark:border-slate-700 text-xs text-on-surface"
-								/>
-							</div>
-						</div>
+					<!-- Tombol Cepat Tambah Preset -->
+					<div class="flex items-center gap-2">
+						<button
+							type="button"
+							onclick={() => handleAddProfile('gmail')}
+							class="px-3 py-1.5 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 dark:text-rose-400 border border-rose-500/30 text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer"
+							title="Tambah profil server Gmail / Google Workspace"
+						>
+							<span class="material-symbols-outlined text-sm">mail</span>
+							<span>+ Preset Gmail</span>
+						</button>
+						<button
+							type="button"
+							onclick={() => handleAddProfile('bcs-corporate')}
+							class="px-3 py-1.5 rounded-xl bg-sky-500/10 hover:bg-sky-500/20 text-sky-600 dark:text-sky-400 border border-sky-500/30 text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer"
+							title="Tambah profil server korporat BCS Logistics"
+						>
+							<span class="material-symbols-outlined text-sm">business</span>
+							<span>+ Server BCS</span>
+						</button>
+						<button
+							type="button"
+							onclick={() => handleAddProfile('custom')}
+							class="px-3 py-1.5 rounded-xl bg-surface hover:bg-surface-container border border-slate-200 dark:border-slate-700 text-xs font-bold text-on-surface flex items-center gap-1.5 transition-colors cursor-pointer"
+						>
+							<span class="material-symbols-outlined text-sm">add</span>
+							<span>Kustom</span>
+						</button>
 					</div>
 				</div>
 
-				<!-- Outbound Mail Server (SMTP) -->
-				<div class="p-6 rounded-3xl bg-surface-container-low border border-slate-200/80 dark:border-slate-800/80 shadow-xs space-y-4">
-					<div class="flex items-center justify-between border-b border-slate-200/70 dark:border-slate-800/70 pb-3">
-						<div class="flex items-center gap-2.5">
-							<span class="material-symbols-outlined text-orange-600 dark:text-orange-400 text-xl">forward_to_inbox</span>
+				<!-- Grid Server Profile Cards -->
+				<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
+					{#each profiles as p}
+						<div
+							onclick={() => handleSelectProfile(p.id)}
+							onkeydown={(e) => e.key === 'Enter' && handleSelectProfile(p.id)}
+							role="button"
+							tabindex="0"
+							class="p-4 rounded-2xl border transition-all text-left cursor-pointer flex flex-col justify-between gap-3 relative group {selectedProfileId === p.id ? 'bg-primary/5 border-primary shadow-sm ring-2 ring-primary/20' : 'bg-surface-container-low border-slate-200/80 dark:border-slate-800/80 hover:border-slate-300 dark:hover:border-slate-700'}"
+						>
 							<div>
-								<h3 class="text-sm font-bold text-on-surface">Protokol Keluar (SMTP)</h3>
-								<p class="text-[11px] text-on-surface-variant">Pengiriman email & notifikasi sistem</p>
-							</div>
-						</div>
-						<span class="text-[10px] font-mono font-bold bg-orange-50 dark:bg-orange-950/40 text-orange-700 dark:text-orange-300 px-2 py-0.5 rounded-md border border-orange-200 dark:border-orange-800">
-							SMTP : {mailConfig.smtpPort}
-						</span>
-					</div>
+								<div class="flex items-center justify-between mb-2">
+									<div class="flex items-center gap-2">
+										<div class="w-8 h-8 rounded-lg flex items-center justify-center {p.providerType === 'gmail' ? 'bg-rose-500/15 text-rose-600' : 'bg-sky-500/15 text-sky-600'}">
+											<span class="material-symbols-outlined text-[18px]">
+												{p.providerType === 'gmail' ? 'mail' : 'business'}
+											</span>
+										</div>
+										<div>
+											<h4 class="font-bold text-xs text-on-surface leading-tight">{p.name}</h4>
+											<p class="text-[10px] text-on-surface-variant font-mono">@{p.domain}</p>
+										</div>
+									</div>
 
-					<div class="space-y-3.5 text-xs">
-						<div class="grid grid-cols-2 gap-3">
-							<div>
-								<label class="block font-bold text-on-surface-variant mb-1 uppercase tracking-wider text-[10px]">Host SMTP Server</label>
-								<input
-									type="text"
-									bind:value={mailConfig.smtpHost}
-									class="w-full px-3 py-2 rounded-xl bg-surface border border-slate-200 dark:border-slate-700 text-xs font-mono text-on-surface"
-								/>
-							</div>
-							<div>
-								<label class="block font-bold text-on-surface-variant mb-1 uppercase tracking-wider text-[10px]">Port</label>
-								<input
-									type="number"
-									bind:value={mailConfig.smtpPort}
-									class="w-full px-3 py-2 rounded-xl bg-surface border border-slate-200 dark:border-slate-700 text-xs font-mono text-on-surface"
-								/>
-							</div>
-						</div>
+									{#if p.isDefault}
+										<span class="px-2 py-0.5 rounded-full text-[9px] font-black bg-emerald-500/15 text-emerald-600 border border-emerald-500/30">
+											DEFAULT
+										</span>
+									{/if}
+								</div>
 
-						<div class="grid grid-cols-2 gap-3">
-							<div>
-								<label class="block font-bold text-on-surface-variant mb-1 uppercase tracking-wider text-[10px]">Enkripsi</label>
-								<select
-									bind:value={mailConfig.smtpEncryption}
-									class="w-full px-3 py-2 rounded-xl bg-surface border border-slate-200 dark:border-slate-700 text-xs font-semibold text-on-surface"
-								>
-									<option value="TLS">TLS</option>
-									<option value="SSL">SSL</option>
-									<option value="STARTTLS">STARTTLS</option>
-								</select>
+								<div class="grid grid-cols-2 gap-1.5 text-[11px] font-mono text-on-surface-variant bg-surface/60 p-2 rounded-xl border border-slate-200/50 dark:border-slate-800/50">
+									<div>
+										<span class="text-[9px] block text-slate-400 font-sans uppercase font-bold">IMAP Inbound</span>
+										<span class="truncate block font-semibold text-on-surface">{p.inboundHost}:{p.inboundPort}</span>
+									</div>
+									<div>
+										<span class="text-[9px] block text-slate-400 font-sans uppercase font-bold">SMTP Outbound</span>
+										<span class="truncate block font-semibold text-on-surface">{p.smtpHost}:{p.smtpPort}</span>
+									</div>
+								</div>
 							</div>
-							<div>
-								<label class="block font-bold text-on-surface-variant mb-1 uppercase tracking-wider text-[10px]">Domain Korporat</label>
-								<input
-									type="text"
-									bind:value={mailConfig.corporateDomain}
-									class="w-full px-3 py-2 rounded-xl bg-surface border border-slate-200 dark:border-slate-700 text-xs text-on-surface font-mono"
-								/>
-							</div>
-						</div>
 
-						<div>
-							<label class="block font-bold text-on-surface-variant mb-1 uppercase tracking-wider text-[10px]">Nama Pengirim Sistem (From Name)</label>
-							<input
-								type="text"
-								bind:value={mailConfig.smtpFromName}
-								class="w-full px-3 py-2 rounded-xl bg-surface border border-slate-200 dark:border-slate-700 text-xs text-on-surface"
-							/>
+							<div class="flex items-center justify-between pt-1 border-t border-slate-200/50 dark:border-slate-800/50 text-[11px]">
+								<span class="flex items-center gap-1.5 font-semibold {p.isActive ? 'text-emerald-600' : 'text-slate-400'}">
+									<span class="w-2 h-2 rounded-full {p.isActive ? 'bg-emerald-500' : 'bg-slate-300'}"></span>
+									<span>{p.isActive ? 'Aktif' : 'Nonaktif'}</span>
+								</span>
+
+								<span class="text-[10px] font-bold text-primary flex items-center gap-0.5 group-hover:translate-x-0.5 transition-transform">
+									<span>{selectedProfileId === p.id ? 'Sedang Diedit' : 'Pilih & Edit'}</span>
+									<span class="material-symbols-outlined text-xs">arrow_forward</span>
+								</span>
+							</div>
 						</div>
-					</div>
+					{/each}
 				</div>
 			</div>
 
-			<!-- Save & Test Bar -->
-			<div class="p-4 rounded-2xl bg-surface-container border border-slate-200/70 dark:border-slate-800/70 flex flex-col sm:flex-row items-center justify-between gap-4">
-				<div class="flex items-center gap-2 text-xs text-on-surface-variant">
-					<span class="material-symbols-outlined text-emerald-500 text-lg">verified_user</span>
-					<span>Pengaturan tersinkronisasi otomatis untuk seluruh modul ERP BCS.</span>
+			<!-- Form Editor Profil Terpilih -->
+			{#if activeProfile}
+				<div class="p-6 md:p-7 rounded-3xl bg-surface-container-low border border-slate-200/80 dark:border-slate-800/80 shadow-xs space-y-6">
+					<!-- Header Form Profil -->
+					<div class="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-200/70 dark:border-slate-800/70 pb-4">
+						<div class="flex items-center gap-3">
+							<div class="w-10 h-10 rounded-xl flex items-center justify-center {activeProfile.providerType === 'gmail' ? 'bg-rose-500/15 text-rose-600' : 'bg-primary/15 text-primary'}">
+								<span class="material-symbols-outlined text-xl">
+									{activeProfile.providerType === 'gmail' ? 'mail' : 'tune'}
+								</span>
+							</div>
+							<div>
+								<div class="flex items-center gap-2">
+									<h3 class="text-base font-bold text-on-surface">Konfigurasi: {activeProfile.name}</h3>
+									{#if activeProfile.isDefault}
+										<span class="px-2 py-0.5 rounded-full text-[10px] font-black bg-emerald-500/15 text-emerald-600 border border-emerald-500/30">
+											Server Utama (Default)
+										</span>
+									{/if}
+								</div>
+								<p class="text-xs text-on-surface-variant">
+									Routing otomatis berlaku untuk pengirim & penerima dengan akhiran domain <strong class="font-mono text-primary">@{activeProfile.domain}</strong>
+								</p>
+							</div>
+						</div>
+
+						<div class="flex items-center gap-2">
+							{#if !activeProfile.isDefault}
+								<button
+									type="button"
+									onclick={() => handleSetDefaultProfile(activeProfile.id)}
+									class="px-3.5 py-1.5 rounded-xl bg-surface hover:bg-surface-container border border-slate-200 dark:border-slate-700 text-xs font-bold text-on-surface transition-colors cursor-pointer flex items-center gap-1"
+								>
+									<span class="material-symbols-outlined text-sm text-emerald-600">check_circle</span>
+									<span>Jadikan Default</span>
+								</button>
+							{/if}
+
+							<button
+								type="button"
+								onclick={() => handleToggleProfileActive(activeProfile.id)}
+								class="px-3 py-1.5 rounded-xl border text-xs font-bold transition-colors cursor-pointer flex items-center gap-1 {activeProfile.isActive ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/30' : 'bg-slate-200/50 text-slate-600 border-slate-300'}"
+							>
+								<span class="material-symbols-outlined text-sm">{activeProfile.isActive ? 'toggle_on' : 'toggle_off'}</span>
+								<span>{activeProfile.isActive ? 'Aktif' : 'Nonaktif'}</span>
+							</button>
+
+							{#if profiles.length > 1}
+								<button
+									type="button"
+									onclick={() => handleDeleteProfile(activeProfile.id)}
+									class="px-2.5 py-1.5 rounded-xl text-rose-600 hover:bg-rose-500/10 border border-rose-200 dark:border-rose-900 text-xs font-bold transition-colors cursor-pointer"
+									title="Hapus profil server ini"
+								>
+									<span class="material-symbols-outlined text-sm">delete</span>
+								</button>
+							{/if}
+						</div>
+					</div>
+
+					<!-- Metadata Dasar Profil -->
+					<div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+						<div>
+							<label class="block font-bold text-on-surface-variant mb-1 uppercase tracking-wider text-[10px]">Nama Profil Server</label>
+							<input
+								type="text"
+								bind:value={activeProfile.name}
+								class="w-full px-3 py-2 rounded-xl bg-surface border border-slate-200 dark:border-slate-700 text-xs font-bold text-on-surface"
+							/>
+						</div>
+						<div>
+							<label class="block font-bold text-on-surface-variant mb-1 uppercase tracking-wider text-[10px]">Target Domain Routing</label>
+							<div class="relative">
+								<span class="absolute left-3 top-2 text-xs font-mono text-slate-400">@</span>
+								<input
+									type="text"
+									bind:value={activeProfile.domain}
+									placeholder="contoh: bcs-logistics.co.id atau gmail.com"
+									class="w-full pl-7 pr-3 py-2 rounded-xl bg-surface border border-slate-200 dark:border-slate-700 text-xs font-mono text-on-surface font-semibold"
+								/>
+							</div>
+						</div>
+						<div>
+							<label class="block font-bold text-on-surface-variant mb-1 uppercase tracking-wider text-[10px]">Tipe Penyedia (Provider)</label>
+							<select
+								bind:value={activeProfile.providerType}
+								class="w-full px-3 py-2 rounded-xl bg-surface border border-slate-200 dark:border-slate-700 text-xs font-bold text-on-surface"
+							>
+								<option value="bcs-corporate">BCS Corporate (cPanel / Postfix)</option>
+								<option value="gmail">Google Workspace / Gmail</option>
+								<option value="office365">Microsoft 365</option>
+								<option value="custom">Server Kustom / Lainnya</option>
+							</select>
+						</div>
+					</div>
+
+					<!-- Grid 2 Kolom: Inbound & Outbound -->
+					<div class="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2">
+						<!-- Inbound (IMAP) -->
+						<div class="p-5 rounded-2xl bg-surface border border-slate-200/70 dark:border-slate-800/70 space-y-3.5">
+							<div class="flex items-center justify-between border-b border-slate-200/60 pb-2.5">
+								<div class="flex items-center gap-2">
+									<span class="material-symbols-outlined text-sky-600 text-lg">move_to_inbox</span>
+									<h4 class="font-bold text-xs text-on-surface">Inbound (Penerimaan Pesan)</h4>
+								</div>
+								<span class="text-[10px] font-mono font-bold bg-sky-50 dark:bg-sky-950/40 text-sky-700 dark:text-sky-300 px-2 py-0.5 rounded-md border border-sky-200 dark:border-sky-800">
+									{activeProfile.inboundProtocol} : {activeProfile.inboundPort}
+								</span>
+							</div>
+
+							<div class="space-y-3 text-xs">
+								<div class="grid grid-cols-2 gap-3">
+									<div>
+										<label class="block font-bold text-on-surface-variant mb-1 uppercase tracking-wider text-[10px]">Protokol</label>
+										<select
+											bind:value={activeProfile.inboundProtocol}
+											class="w-full px-3 py-2 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-700 text-xs font-bold text-on-surface"
+										>
+											<option value="IMAP">IMAP (Recommended)</option>
+											<option value="POP3">POP3</option>
+										</select>
+									</div>
+									<div>
+										<label class="block font-bold text-on-surface-variant mb-1 uppercase tracking-wider text-[10px]">Enkripsi</label>
+										<select
+											bind:value={activeProfile.inboundEncryption}
+											class="w-full px-3 py-2 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-700 text-xs font-semibold text-on-surface"
+										>
+											<option value="SSL">SSL / TLS (Port 993)</option>
+											<option value="STARTTLS">STARTTLS (Port 143)</option>
+											<option value="NONE">None</option>
+										</select>
+									</div>
+								</div>
+
+								<div>
+									<label class="block font-bold text-on-surface-variant mb-1 uppercase tracking-wider text-[10px]">Host Inbound</label>
+									<input
+										type="text"
+										bind:value={activeProfile.inboundHost}
+										class="w-full px-3 py-2 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-700 text-xs font-mono text-on-surface"
+									/>
+								</div>
+
+								<div class="grid grid-cols-2 gap-3">
+									<div>
+										<label class="block font-bold text-on-surface-variant mb-1 uppercase tracking-wider text-[10px]">Port</label>
+										<input
+											type="number"
+											bind:value={activeProfile.inboundPort}
+											class="w-full px-3 py-2 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-700 text-xs font-mono text-on-surface"
+										/>
+									</div>
+									<div>
+										<label class="block font-bold text-on-surface-variant mb-1 uppercase tracking-wider text-[10px]">Username Inbound</label>
+										<input
+											type="text"
+											bind:value={activeProfile.inboundUsername}
+											class="w-full px-3 py-2 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-700 text-xs text-on-surface"
+										/>
+									</div>
+								</div>
+							</div>
+						</div>
+
+						<!-- Outbound (SMTP) -->
+						<div class="p-5 rounded-2xl bg-surface border border-slate-200/70 dark:border-slate-800/70 space-y-3.5">
+							<div class="flex items-center justify-between border-b border-slate-200/60 pb-2.5">
+								<div class="flex items-center gap-2">
+									<span class="material-symbols-outlined text-orange-600 text-lg">forward_to_inbox</span>
+									<h4 class="font-bold text-xs text-on-surface">Outbound (Pengiriman SMTP)</h4>
+								</div>
+								<span class="text-[10px] font-mono font-bold bg-orange-50 dark:bg-orange-950/40 text-orange-700 dark:text-orange-300 px-2 py-0.5 rounded-md border border-orange-200 dark:border-orange-800">
+									SMTP : {activeProfile.smtpPort}
+								</span>
+							</div>
+
+							<div class="space-y-3 text-xs">
+								<div class="grid grid-cols-2 gap-3">
+									<div>
+										<label class="block font-bold text-on-surface-variant mb-1 uppercase tracking-wider text-[10px]">Host SMTP</label>
+										<input
+											type="text"
+											bind:value={activeProfile.smtpHost}
+											class="w-full px-3 py-2 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-700 text-xs font-mono text-on-surface"
+										/>
+									</div>
+									<div>
+										<label class="block font-bold text-on-surface-variant mb-1 uppercase tracking-wider text-[10px]">Port SMTP</label>
+										<input
+											type="number"
+											bind:value={activeProfile.smtpPort}
+											class="w-full px-3 py-2 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-700 text-xs font-mono text-on-surface"
+										/>
+									</div>
+								</div>
+
+								<div class="grid grid-cols-2 gap-3">
+									<div>
+										<label class="block font-bold text-on-surface-variant mb-1 uppercase tracking-wider text-[10px]">Enkripsi SMTP</label>
+										<select
+											bind:value={activeProfile.smtpEncryption}
+											class="w-full px-3 py-2 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-700 text-xs font-semibold text-on-surface"
+										>
+											<option value="TLS">TLS (Port 587)</option>
+											<option value="SSL">SSL (Port 465)</option>
+											<option value="STARTTLS">STARTTLS</option>
+										</select>
+									</div>
+									<div>
+										<label class="block font-bold text-on-surface-variant mb-1 uppercase tracking-wider text-[10px]">Username SMTP</label>
+										<input
+											type="text"
+											bind:value={activeProfile.smtpUsername}
+											class="w-full px-3 py-2 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-700 text-xs text-on-surface font-mono"
+										/>
+									</div>
+								</div>
+
+								<div class="grid grid-cols-2 gap-3">
+									<div>
+										<label class="block font-bold text-on-surface-variant mb-1 uppercase tracking-wider text-[10px]">From Email Default</label>
+										<input
+											type="text"
+											bind:value={activeProfile.smtpFromEmail}
+											class="w-full px-3 py-2 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-700 text-xs text-on-surface font-mono"
+										/>
+									</div>
+									<div>
+										<label class="block font-bold text-on-surface-variant mb-1 uppercase tracking-wider text-[10px]">From Name Pengirim</label>
+										<input
+											type="text"
+											bind:value={activeProfile.smtpFromName}
+											class="w-full px-3 py-2 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-700 text-xs text-on-surface"
+										/>
+									</div>
+								</div>
+							</div>
+						</div>
+					</div>
+
+					<!-- Petunjuk Khusus Provider -->
+					{#if activeProfile.providerType === 'gmail'}
+						<div class="p-3.5 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 text-[11px] text-amber-800 dark:text-amber-300 flex items-center gap-2">
+							<span class="material-symbols-outlined text-base shrink-0">lock</span>
+							<span>
+								<strong>Tips Gmail:</strong> Karena Google mewajibkan 2FA, buat <em>App Password</em> (Sandi Aplikasi 16-karakter) di menu Keamanan Akun Google Anda untuk dimasukkan sebagai kata sandi SMTP/IMAP.
+							</span>
+						</div>
+					{/if}
+
+					<!-- Action Save & Test Bar -->
+					<div class="pt-4 border-t border-slate-200/70 dark:border-slate-800/70 flex flex-col sm:flex-row items-center justify-between gap-4">
+						<div class="flex items-center gap-2 text-xs text-on-surface-variant">
+							<span class="material-symbols-outlined text-emerald-500 text-lg">verified_user</span>
+							<span>Pengaturan profil ini akan disinkronkan ke Webmail & Mailer ERP.</span>
+						</div>
+						<div class="flex items-center gap-3">
+							<button
+								type="button"
+								onclick={handleSendTestEmail}
+								disabled={testEmailSending}
+								class="px-4 py-2 rounded-xl bg-surface hover:bg-surface-container-high border border-slate-200 dark:border-slate-700 text-xs font-bold text-on-surface flex items-center gap-1.5 transition-colors cursor-pointer"
+							>
+								<span class="material-symbols-outlined text-sm {testEmailSending ? 'animate-spin' : ''}">send</span>
+								<span>{testEmailSending ? 'Menguji...' : `Uji Koneksi (${activeProfile.name})`}</span>
+							</button>
+							<button
+								type="button"
+								onclick={handleSaveActiveProfile}
+								disabled={isSavingMail}
+								class="px-5 py-2 rounded-xl bg-primary hover:bg-primary/90 text-on-primary text-xs font-bold flex items-center gap-1.5 transition-all shadow-xs cursor-pointer"
+							>
+								<span class="material-symbols-outlined text-sm">save</span>
+								<span>{isSavingMail ? 'Menyimpan...' : 'Simpan Profil Server'}</span>
+							</button>
+						</div>
+					</div>
 				</div>
-				<div class="flex items-center gap-3">
-					<button
-						type="button"
-						onclick={handleSendTestEmail}
-						disabled={testEmailSending}
-						class="px-4 py-2 rounded-xl bg-surface hover:bg-surface-container-high border border-slate-200 dark:border-slate-700 text-xs font-bold text-on-surface flex items-center gap-1.5 transition-colors cursor-pointer"
-					>
-						<span class="material-symbols-outlined text-sm {testEmailSending ? 'animate-spin' : ''}">send</span>
-						<span>{testEmailSending ? 'Mengirim...' : 'Kirim Uji Coba'}</span>
-					</button>
-					<button
-						type="button"
-						onclick={handleSaveMailConfig}
-						disabled={isSavingMail}
-						class="px-5 py-2 rounded-xl bg-primary hover:bg-primary/90 text-on-primary text-xs font-bold flex items-center gap-1.5 transition-all shadow-xs cursor-pointer"
-					>
-						<span class="material-symbols-outlined text-sm">save</span>
-						<span>{isSavingMail ? 'Menyimpan...' : 'Simpan Konfigurasi'}</span>
-					</button>
-				</div>
-			</div>
+			{/if}
 
 			{#if testEmailToast}
-				<div class="p-3.5 rounded-xl bg-blue-50 dark:bg-blue-950/60 border border-blue-200 dark:border-blue-800 text-blue-800 dark:text-blue-300 text-xs font-bold flex items-center gap-2">
+				<div class="p-3.5 rounded-xl bg-blue-50 dark:bg-blue-950/60 border border-blue-200 dark:border-blue-800 text-blue-800 dark:text-blue-300 text-xs font-bold flex items-center gap-2 animate-in fade-in">
 					<span class="material-symbols-outlined text-base">info</span>
 					<span>{testEmailToast}</span>
 				</div>
 			{/if}
 
 			{#if mailSaveToast}
-				<div class="p-3.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300 text-xs font-bold flex items-center gap-2">
+				<div class="p-3.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300 text-xs font-bold flex items-center gap-2 animate-in fade-in">
 					<span class="material-symbols-outlined text-base">check_circle</span>
-					<span>Konfigurasi mail server berhasil disimpan ke sistem!</span>
+					<span>Profil server email berhasil disimpan ke sistem!</span>
 				</div>
 			{/if}
 
