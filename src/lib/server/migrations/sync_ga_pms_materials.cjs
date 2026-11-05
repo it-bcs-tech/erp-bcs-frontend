@@ -1,3 +1,4 @@
+require('dotenv').config();
 /**
  * sync_ga_pms_materials.cjs
  * Sinkronisasi Master Barang GA (ga.stationery_items) dengan PMS Materials Catalog (master.m_materials)
@@ -5,7 +6,8 @@
  */
 
 const postgres = require('postgres');
-const DB_URL = process.env.DATABASE_URL || 'postgresql://bcs_admin:sangatrahasia@103.31.205.199:5433/mybcs_db';
+const DB_URL = process.env.DATABASE_URL;
+if (!DB_URL) throw new Error('DATABASE_URL environment variable is missing! Please configure it in .env');
 const sql = postgres(DB_URL, { max: 5, connect_timeout: 15, idle_timeout: 30 });
 
 async function run() {

@@ -1,3 +1,4 @@
+require('dotenv').config();
 /**
  * harmonize_ga_pms_data.cjs
  * Penyelarasan Menyeluruh Data Master GA dan PMS:
@@ -10,7 +11,8 @@
  */
 
 const postgres = require('postgres');
-const DB_URL = process.env.DATABASE_URL || 'postgresql://bcs_admin:sangatrahasia@103.31.205.199:5433/mybcs_db';
+const DB_URL = process.env.DATABASE_URL;
+if (!DB_URL) throw new Error('DATABASE_URL environment variable is missing! Please configure it in .env');
 const sql = postgres(DB_URL, { max: 5, connect_timeout: 20, idle_timeout: 30 });
 
 async function run() {

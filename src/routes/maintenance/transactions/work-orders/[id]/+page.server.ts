@@ -1,10 +1,9 @@
 import type { PageServerLoad, Actions } from './$types';
 import { error, fail, redirect } from '@sveltejs/kit';
-import postgres from 'postgres';
 import { env } from '$env/dynamic/private';
 import { verifyUserData } from '$lib/server/auth';
 
-const sql = postgres(env.DATABASE_URL || 'postgres://bcs_admin:sangatrahasia@103.31.205.199:5433/mybcs_db');
+import sql from '$lib/server/db';
 
 function parseJsonSafe<T>(val: any, fallback: T): T {
 	if (!val) return fallback;

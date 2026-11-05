@@ -22,6 +22,7 @@ services:
       - AI_BRIDGE_URL=http://ai-bridge:8000  # Python AI Bridge (internal Docker network)
       - FMS_API_URL=http://erp_go_map:8081
       - PUBLIC_FMS_API_URL=http://api.bcslabs.tech:8081 # Sesuaikan jika beda domain
+      - DATABASE_URL=${DATABASE_URL:-postgresql://${DB_USERNAME:-bcs_admin}:${DB_PASSWORD:-sangatrahasia}@database:5432/${DB_DATABASE:-mybcs_db}}
     volumes:
       - dms_documents:/app/uploads
     networks:
@@ -37,9 +38,9 @@ services:
     container_name: mybcs_database
     restart: always
     environment:
-      POSTGRES_USER: bcs_admin
-      POSTGRES_PASSWORD: sangatrahasia
-      POSTGRES_DB: mybcs_db
+      POSTGRES_USER: ${DB_USERNAME:-bcs_admin}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-sangatrahasia}
+      POSTGRES_DB: ${DB_DATABASE:-mybcs_db}
       TZ: Asia/Jakarta
     ports:
       - "5433:5432" # Dibuka agar Anda bisa mengecek DB menggunakan DBeaver/TablePlus dari Macbook
@@ -153,7 +154,7 @@ services:
       - NODE_ENV=production
       - TZ=Asia/Jakarta
       - ORIGIN=http://academy.bcslabs.tech
-      - DATABASE_URL=postgresql://bcs_admin:sangatrahasia@database:5432/mybcs_db
+      - DATABASE_URL=${DATABASE_URL:-postgresql://${DB_USERNAME:-bcs_admin}:${DB_PASSWORD:-sangatrahasia}@database:5432/${DB_DATABASE:-mybcs_db}}
     networks:
       - erp_network
     depends_on:

@@ -1,3 +1,4 @@
+require('dotenv').config();
 /**
  * migrate_ga_from_portal2.cjs
  * ETL & Schema Migration dari db/database_ga.sql (MySQL portal2) ke PostgreSQL (mybcs_db skema ga.*)
@@ -14,7 +15,8 @@ const fs = require('fs');
 const path = require('path');
 const postgres = require('postgres');
 
-const DB_URL = 'postgresql://bcs_admin:sangatrahasia@103.31.205.199:5433/mybcs_db';
+const DB_URL = process.env.DATABASE_URL;
+if (!DB_URL) throw new Error('DATABASE_URL environment variable is missing! Please configure it in .env');
 const sql = postgres(DB_URL, { max: 5, connect_timeout: 20, idle_timeout: 30 });
 
 const sqlContent = fs.readFileSync(path.join(__dirname, '../../../../db/database_ga.sql'), 'utf8');

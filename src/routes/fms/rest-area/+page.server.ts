@@ -1,9 +1,8 @@
 import type { PageServerLoad, Actions } from './$types';
-import postgres from 'postgres';
 import { env } from '$env/dynamic/private';
 import { fail } from '@sveltejs/kit';
 
-const sql = postgres(env.DATABASE_URL || 'postgres://bcs_admin:sangatrahasia@103.31.205.199:5433/mybcs_db');
+import sql from '$lib/server/db';
 
 export const load: PageServerLoad = async () => {
 	const restAreas = await sql`SELECT * FROM master.m_rest_area ORDER BY created_at DESC`;

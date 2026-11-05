@@ -1,6 +1,8 @@
+require('dotenv').config();
 const postgres = require('postgres');
 
-const DATABASE_URL = process.env.DATABASE_URL || 'postgresql://bcs_admin:sangatrahasia@103.31.205.199:5433/mybcs_db';
+const DATABASE_URL = process.env.DATABASE_URL;
+if (!DATABASE_URL) throw new Error('DATABASE_URL environment variable is missing! Please configure it in .env');
 const sql = postgres(DATABASE_URL, { connect_timeout: 10 });
 
 async function migrateCompetencyTNA() {
