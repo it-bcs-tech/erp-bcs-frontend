@@ -83,7 +83,7 @@ export interface OrganizationSettingsData {
 export async function generateNextCodes() {
 	const [titles, depts, divs, dirs] = await Promise.all([
 		sql<any[]>`SELECT title_code FROM master.m_title WHERE title_code ~ '^JB_[0-9]+$'`,
-		sql<any[]>`SELECT dept_code FROM master.m_dept WHERE dept_code ~ '^D_[0-9]+$'`,
+		sql<any[]>`SELECT dept_code FROM master.m_dept WHERE dept_code ~ '^D_[0-9]+$' AND (app IS NULL OR app != 'finance_system')`,
 		sql<any[]>`SELECT div_code FROM master.m_division WHERE div_code ~ '^DV_[0-9]+$'`,
 		sql<any[]>`SELECT dir_code FROM master.m_directorat WHERE dir_code ~ '^DR_[0-9]+$'`
 	]);
@@ -126,14 +126,24 @@ export async function getOrganizationSettingsData(): Promise<OrganizationSetting
 		nextCodes
 	] = await Promise.all([
 		sql<any[]>`SELECT title_code, title, job_desc, active, created_at, updated_at FROM master.m_title ORDER BY title ASC`,
-		sql<any[]>`SELECT id, dept_code, dept_name, div_code, active, created_at, updated_at FROM master.m_dept ORDER BY dept_name ASC`,
+		sql<any[]>`
+			SELECT id, dept_code, dept_name, div_code, active, created_at, updated_at 
+			FROM master.m_dept 
+			WHERE (app IS NULL OR app != 'finance_system')
+			ORDER BY dept_name ASC
+		`,
 		sql<any[]>`SELECT id, div_code, div_name, dir_code, active, created_at, updated_at FROM master.m_division ORDER BY div_name ASC`,
 		sql<any[]>`SELECT id, dir_code, dir_name, active, created_at, updated_at FROM master.m_directorat ORDER BY dir_name ASC`,
 		sql<any[]>`SELECT title, COUNT(*)::int as cnt FROM master.m_karyawan WHERE aktif = 'Y' AND title IS NOT NULL GROUP BY title`,
 		sql<any[]>`SELECT dept_id, COUNT(*)::int as cnt FROM master.m_karyawan WHERE aktif = 'Y' AND dept_id IS NOT NULL GROUP BY dept_id`,
 		sql<any[]>`SELECT div_id, COUNT(*)::int as cnt FROM master.m_karyawan WHERE aktif = 'Y' AND div_id IS NOT NULL GROUP BY div_id`,
 		sql<any[]>`SELECT dir_id, COUNT(*)::int as cnt FROM master.m_karyawan WHERE aktif = 'Y' AND dir_id IS NOT NULL GROUP BY dir_id`,
-		sql<any[]>`SELECT div_code, COUNT(*)::int as cnt FROM master.m_dept WHERE div_code IS NOT NULL GROUP BY div_code`,
+		sql<any[]>`
+			SELECT div_code, COUNT(*)::int as cnt 
+			FROM master.m_dept 
+			WHERE div_code IS NOT NULL AND (app IS NULL OR app != 'finance_system')
+			GROUP BY div_code
+		`,
 		sql<any[]>`SELECT dir_code, COUNT(*)::int as cnt FROM master.m_division WHERE dir_code IS NOT NULL GROUP BY dir_code`,
 		generateNextCodes()
 	]);
@@ -430,7 +440,7 @@ export async function deleteDivision(code: string) {
 		throw new Error(`Divisi ${code} tidak dapat dihapus permanen karena masih digunakan oleh ${usage[0].cnt} karyawan aktif. Silakan gunakan opsi Nonaktifkan.`);
 	}
 
-	const deptUsage = await sql`SELECT COUNT(*)::int as cnt FROM master.m_dept WHERE div_code = ${code}`;
+	const deptUsage = await sql`SELECT COUNT(*)::int as cnt FROM master.m_dept WHERE div_code = ${code} AND (app IS NULL OR app != 'finance_system')`;
 	if (deptUsage[0].cnt > 0) {
 		throw new Error(`Divisi ${code} masih menjadi induk bagi ${deptUsage[0].cnt} departemen. Pindahkan atau hapus departemen tersebut terlebih dahulu.`);
 	}
