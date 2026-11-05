@@ -61,6 +61,23 @@ export const load: PageServerLoad = async ({ params }) => {
 		const isExamStarted = testedCount > 0;
 		const isLocked = isManualLocked || isCompleted || isExamStarted;
 
+		// 5. Ambil data peserta yang terdaftar / perlu penilaian essay
+		const enrollmentsRows = await sql<any[]>`
+			SELECT 
+				e.id, e.course_id, e.payroll_id, e.employee_name, e.status,
+				e.pre_test_score, e.post_test_score, e.post_test_attempts,
+				e.pre_test_answers, e.post_test_answers, e.has_essay_pending,
+				e.essay_scores, e.essay_feedback, e.essay_reviewed_by, e.essay_reviewed_at,
+				e.has_certificate, e.certificate_number, e.completed_at,
+				ev.id as eval_l1_id
+			FROM hris.lms_enrollments e
+			LEFT JOIN hris.lms_evaluations_l1 ev ON ev.course_id = e.course_id AND UPPER(TRIM(ev.payroll_id)) = UPPER(TRIM(e.payroll_id))
+			WHERE e.course_id = ${course.id}
+			ORDER BY 
+				CASE WHEN e.has_essay_pending = TRUE THEN 0 ELSE 1 END,
+				e.employee_name ASC;
+		`;
+
 		return {
 			course: {
 				id: course.id,
@@ -100,6 +117,27 @@ export const load: PageServerLoad = async ({ params }) => {
 				options: typeof q.options === 'string' ? JSON.parse(q.options) : q.options,
 				correctKey: q.correct_key,
 				explanation: q.explanation || ''
+			})),
+			enrollments: enrollmentsRows.map((e) => ({
+				id: e.id,
+				courseId: e.course_id,
+				payrollId: e.payroll_id,
+				employeeName: e.employee_name,
+				status: e.status,
+				preTestScore: e.pre_test_score !== null ? Number(e.pre_test_score) : null,
+				postTestScore: e.post_test_score !== null ? Number(e.post_test_score) : null,
+				postTestAttempts: Number(e.post_test_attempts || 0),
+				preTestAnswers: e.pre_test_answers || {},
+				postTestAnswers: e.post_test_answers || {},
+				hasEssayPending: Boolean(e.has_essay_pending),
+				essayScores: e.essay_scores || {},
+				essayFeedback: e.essay_feedback || '',
+				essayReviewedBy: e.essay_reviewed_by || '',
+				essayReviewedAt: e.essay_reviewed_at ? e.essay_reviewed_at.toISOString() : '',
+				hasCertificate: Boolean(e.has_certificate),
+				certificateNumber: e.certificate_number,
+				hasEvaluationL1: Boolean(e.eval_l1_id),
+				completedAt: e.completed_at ? e.completed_at.toISOString() : ''
 			})),
 			lockInfo: {
 				isLocked,
@@ -242,6 +280,159 @@ export const actions: Actions = {
 		} catch (e: any) {
 			console.error('Error in saveQuestions action:', e);
 			return { success: false, message: `Gagal menyimpan data soal: ${e?.message || 'Error database'}` };
+		}
+	},
+
+	gradeEssay: async ({ request, params }) => {
+		const token = params.token;
+		const formData = await request.formData();
+		const enrollmentId = Number(formData.get('enrollmentId'));
+		const reviewerName = formData.get('reviewerName')?.toString().trim() || 'Instruktur Pelatihan';
+		const feedback = formData.get('feedback')?.toString().trim() || '';
+
+		if (!enrollmentId) {
+			return { success: false, message: 'ID Enrollment peserta tidak valid.' };
+		}
+
+		try {
+			// Verifikasi kursus dari token
+			const courseRows = await sql<any[]>`
+				SELECT id, title, category, passing_grade FROM hris.lms_courses WHERE trainer_token = ${token} LIMIT 1;
+			`;
+			if (courseRows.length === 0) {
+				return { success: false, message: 'Token instruktur tidak valid.' };
+			}
+			const course = courseRows[0];
+
+			// Ambil enrollment peserta
+			const eRows = await sql<any[]>`
+				SELECT * FROM hris.lms_enrollments WHERE id = ${enrollmentId} AND course_id = ${course.id} LIMIT 1;
+			`;
+			if (eRows.length === 0) {
+				return { success: false, message: 'Data pendaftaran peserta tidak ditemukan.' };
+			}
+			const enroll = eRows[0];
+
+			// Ambil seluruh soal post-test untuk kursus ini
+			const qRows = await sql<any[]>`
+				SELECT id, quiz_type, question_type, options, correct_key FROM hris.lms_quiz_questions
+				WHERE course_id = ${course.id} AND quiz_type = 'POST_TEST'
+				ORDER BY id ASC;
+			`;
+
+			const totalQ = qRows.length || 1;
+			const essayQuestions = qRows.filter((q) => q.question_type === 'ESSAY' || !q.options || q.options.length === 0);
+			const mcqQuestions = qRows.filter((q) => q.question_type !== 'ESSAY' && q.options && q.options.length > 0);
+
+			// Hitung poin MCQ yang diperoleh peserta
+			let mcqCorrect = 0;
+			const postAnswers = (enroll.post_test_answers || {}) as Record<string, string>;
+			for (const mq of mcqQuestions) {
+				const uAns = postAnswers[String(mq.id)] || '';
+				if (uAns && uAns.toUpperCase() === (mq.correct_key || '').toUpperCase()) {
+					mcqCorrect++;
+				}
+			}
+			const mcqScore = Math.round((mcqCorrect / totalQ) * 100);
+
+			// Ambil nilai per butir essay dari formData
+			const essayScoresMap: Record<string, number> = {};
+			let totalEssayPts = 0;
+			for (const eq of essayQuestions) {
+				const pts = Number(formData.get(`score_${eq.id}`)) || 0;
+				essayScoresMap[String(eq.id)] = pts;
+				totalEssayPts += pts;
+			}
+
+			const finalScore = Math.min(100, mcqScore + totalEssayPts);
+			const passingGrade = Number(course.passing_grade || 75);
+			const isPassed = finalScore >= passingGrade;
+
+			// Update enrollment
+			await sql`
+				UPDATE hris.lms_enrollments
+				SET 
+					post_test_score = ${finalScore},
+					essay_scores = ${JSON.stringify(essayScoresMap)}::jsonb,
+					essay_feedback = ${feedback},
+					essay_reviewed_by = ${reviewerName},
+					essay_reviewed_at = CURRENT_TIMESTAMP,
+					has_essay_pending = FALSE
+				WHERE id = ${enrollmentId};
+			`;
+
+			// Cek apakah peserta sudah mengisi Evaluasi L1
+			const evalL1Rows = await sql<any[]>`
+				SELECT id FROM hris.lms_evaluations_l1 
+				WHERE course_id = ${course.id} AND UPPER(TRIM(payroll_id)) = UPPER(TRIM(${enroll.payroll_id}))
+				LIMIT 1;
+			`;
+			const hasEvalL1 = evalL1Rows.length > 0;
+
+			if (isPassed && hasEvalL1) {
+				// Cek apakah sudah ada sertifikat aktif
+				const existingCert = await sql<any[]>`
+					SELECT certificate_number, score FROM hris.lms_certificates
+					WHERE course_id = ${course.id} AND UPPER(TRIM(payroll_id)) = UPPER(TRIM(${enroll.payroll_id}))
+					  AND valid_until > CURRENT_TIMESTAMP
+					LIMIT 1;
+				`;
+				let certNumber = '';
+				if (existingCert.length > 0) {
+					certNumber = existingCert[0].certificate_number;
+					if (finalScore > Number(existingCert[0].score)) {
+						await sql`
+							UPDATE hris.lms_certificates
+							SET score = ${finalScore}
+							WHERE certificate_number = ${certNumber};
+						`;
+					}
+				} else {
+					const yearMonth = new Date().toISOString().slice(0, 7).replace('-', '');
+					const randSuffix = Math.random().toString(36).substring(2, 7).toUpperCase();
+					certNumber = `BCS-LMS-${yearMonth}-${randSuffix}`;
+					const qrUrl = `https://academy.bcslabs.tech/verify/${certNumber}`;
+					await sql`
+						INSERT INTO hris.lms_certificates (
+							certificate_number, payroll_id, employee_name, course_id, course_title,
+							category, score, issued_at, valid_until, qr_verify_url
+						) VALUES (
+							${certNumber}, ${enroll.payroll_id}, ${enroll.employee_name}, ${course.id}, ${course.title},
+							${course.category || 'Operations'}, ${finalScore}, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP + INTERVAL '1 year', ${qrUrl}
+						)
+						ON CONFLICT (certificate_number) DO NOTHING;
+					`;
+
+					// Jadwalkan Level 3-4 Atasan jika belum ada
+					await sql`
+						INSERT INTO hris.lms_evaluations_l3_l4 (
+							course_id, payroll_id, employee_name, supervisor_name, due_date, status
+						) VALUES (
+							${course.id}, ${enroll.payroll_id}, ${enroll.employee_name}, 'Atasan Langsung', CURRENT_TIMESTAMP + INTERVAL '90 days', 'PENDING'
+						);
+					`.catch(() => {});
+				}
+
+				await sql`
+					UPDATE hris.lms_enrollments
+					SET 
+						status = 'COMPLETED',
+						progress_percent = 100,
+						completed_at = COALESCE(completed_at, CURRENT_TIMESTAMP),
+						has_certificate = TRUE,
+						certificate_number = ${certNumber}
+					WHERE id = ${enrollmentId};
+				`;
+			}
+
+			return {
+				success: true,
+				actionType: 'GRADE_ESSAY',
+				message: `Penilaian essay untuk ${enroll.employee_name} berhasil disimpan! Nilai akhir: ${finalScore}/100 (${isPassed ? 'LULUS' : 'BELUM LULUS'}). ${isPassed && hasEvalL1 ? 'E-Sertifikat resmi otomatis diterbitkan.' : ''}`
+			};
+		} catch (err: any) {
+			console.error('Error in gradeEssay action:', err);
+			return { success: false, message: `Gagal menyimpan penilaian: ${err?.message || 'Error database'}` };
 		}
 	}
 };

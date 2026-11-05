@@ -51,8 +51,94 @@
 	const basedOptions = ['All', 'Mandatory', 'Additional', 'Gap Competency'];
 
 	// Sub-tab State
-	type EvalSubTab = 'l1' | 'l4_pre' | 'l3' | 'l4_post' | 'recap';
+	type EvalSubTab = 'l1' | 'l4_pre' | 'l3' | 'l4_post' | 'recap' | 'essay_review';
 	let evalSubTab = $state<EvalSubTab>('l1');
+
+	// Antrean & Modal Penilaian Essay HRIS LMS
+	const pendingEssays = $derived(data.pendingEssays || []);
+	let essaySearchTerm = $state('');
+	let essayFilterCourseId = $state<string>('all');
+	let essayFilterStatus = $state<'all' | 'pending' | 'graded'>('all');
+	let selectedEssayEnrollment = $state<any>(null);
+	let showHrEssayGradingModal = $state(false);
+	let hrEssayScoresInput = $state<Record<string, number>>({});
+	let hrFeedbackInput = $state('');
+	let isSubmittingGrade = $state(false);
+
+	let pendingEssayCount = $derived(
+		pendingEssays.filter((e: any) => e.hasEssayPending).length
+	);
+
+	let filteredPendingEssays = $derived(
+		pendingEssays.filter((e: any) => {
+			const term = essaySearchTerm.toLowerCase().trim();
+			const matchSearch =
+				!term ||
+				(e.employeeName || '').toLowerCase().includes(term) ||
+				(e.payrollId || '').toLowerCase().includes(term) ||
+				(e.courseTitle || '').toLowerCase().includes(term);
+			const matchCourse =
+				essayFilterCourseId === 'all' || String(e.courseId) === String(essayFilterCourseId);
+			const matchStatus =
+				essayFilterStatus === 'all' ||
+				(essayFilterStatus === 'pending' && e.hasEssayPending) ||
+				(essayFilterStatus === 'graded' && !e.hasEssayPending);
+			return matchSearch && matchCourse && matchStatus;
+		})
+	);
+
+	let hrSelectedCourseQuestions = $derived.by(() => {
+		if (!selectedEssayEnrollment) return [];
+		return quizQuestions.filter(
+			(q: any) =>
+				Number(q.courseId) === Number(selectedEssayEnrollment.courseId) &&
+				q.quizType === 'POST_TEST'
+		);
+	});
+
+	let hrSelectedEssayQuestions = $derived.by(() => {
+		return hrSelectedCourseQuestions.filter(
+			(q: any) => q.questionType === 'ESSAY' || !q.options || q.options.length === 0
+		);
+	});
+
+	let hrTotalPostQ = $derived(hrSelectedCourseQuestions.length || 1);
+	let hrMaxPtsPerEssay = $derived(Math.max(1, Math.round(100 / hrTotalPostQ)));
+
+	let hrCurrentMcqScore = $derived.by(() => {
+		if (!selectedEssayEnrollment) return 0;
+		const mcqQuestions = hrSelectedCourseQuestions.filter(
+			(q: any) => q.questionType !== 'ESSAY' && q.options && q.options.length > 0
+		);
+		let correct = 0;
+		const answers = (selectedEssayEnrollment.postTestAnswers || {}) as Record<string, string>;
+		for (const mq of mcqQuestions) {
+			if ((answers[mq.id] || '').toUpperCase() === (mq.correctKey || '').toUpperCase()) {
+				correct++;
+			}
+		}
+		return Math.round((correct / hrTotalPostQ) * 100);
+	});
+
+	let hrCurrentTotalEssayPts = $derived(
+		Object.values(hrEssayScoresInput).reduce((sum, val) => sum + (Number(val) || 0), 0)
+	);
+
+	let hrPredictedFinalScore = $derived(
+		Math.min(100, hrCurrentMcqScore + hrCurrentTotalEssayPts)
+	);
+
+	function openHrGradingModal(enrollment: any) {
+		selectedEssayEnrollment = enrollment;
+		hrEssayScoresInput = { ...(enrollment.essayScores || {}) };
+		for (const eq of hrSelectedEssayQuestions) {
+			if (hrEssayScoresInput[eq.id] === undefined) {
+				hrEssayScoresInput[eq.id] = 0;
+			}
+		}
+		hrFeedbackInput = enrollment.essayFeedback || '';
+		showHrEssayGradingModal = true;
+	}
 
 	// State untuk Sub-tab 5: Rekapitulasi Database Evaluasi (All-in-One Kirkpatrick)
 	let recapSearchQuery = $state('');
@@ -3185,6 +3271,7 @@
 				isEvalSupervisorModalOpen = false;
 				isRequestModalOpen = false;
 				isSafetyTestModalOpen = false;
+				showHrEssayGradingModal = false;
 			} else if (form.message) {
 				spawnToast({
 					id: Date.now().toString(),
@@ -3299,6 +3386,11 @@
 				>
 					<span class="material-symbols-outlined text-base">{tab.icon}</span>
 					<span>{tab.label}</span>
+					{#if tab.id === 'evaluations' && pendingEssayCount > 0}
+						<span class="px-1.5 py-0.5 rounded-full text-[10px] font-black bg-amber-500 text-white animate-pulse">
+							{pendingEssayCount}
+						</span>
+					{/if}
 				</button>
 			{/each}
 		</div>
@@ -4403,6 +4495,23 @@
 					<div class="flex items-center gap-2 border-b border-slate-200 dark:border-slate-800 pb-3 overflow-x-auto">
 						<button
 							type="button"
+							onclick={() => (evalSubTab = 'essay_review')}
+							class="px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 whitespace-nowrap
+							{evalSubTab === 'essay_review'
+								? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-sm'
+								: 'bg-surface-container text-on-surface-variant hover:bg-surface-container-high'}"
+						>
+							<span class="material-symbols-outlined text-sm">rate_review</span>
+							<span>Koreksi Essay Pelatihan</span>
+							{#if pendingEssayCount > 0}
+								<span class="px-1.5 py-0.5 rounded-full text-[10px] font-black bg-amber-500 text-white animate-pulse">
+									{pendingEssayCount}
+								</span>
+							{/if}
+						</button>
+
+						<button
+							type="button"
 							onclick={() => (evalSubTab = 'l1')}
 							class="px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 whitespace-nowrap
 							{evalSubTab === 'l1'
@@ -5489,6 +5598,346 @@
 								</div>
 							</div>
 						</div>
+
+					<!-- SUB-TAB 6: KOREKSI ESSAY PELATIHAN -->
+					{:else if evalSubTab === 'essay_review'}
+						<div class="space-y-6">
+							<!-- 4 KPI Summary Cards Penilaian Essay -->
+							<div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+								<div class="p-4 rounded-2xl bg-surface border border-slate-200 dark:border-slate-800 space-y-1">
+									<span class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Total Peserta Mengisi Essay</span>
+									<p class="text-2xl font-black text-on-surface">{pendingEssays.length}</p>
+								</div>
+								<div class="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/20 space-y-1">
+									<span class="text-[10px] font-bold uppercase tracking-wider text-amber-600 dark:text-amber-400">Menunggu Koreksi</span>
+									<p class="text-2xl font-black text-amber-600 dark:text-amber-400">{pendingEssayCount}</p>
+								</div>
+								<div class="p-4 rounded-2xl bg-surface border border-slate-200 dark:border-slate-800 space-y-1">
+									<span class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Selesai Dinilai</span>
+									<p class="text-2xl font-black text-on-surface">
+										{pendingEssays.filter((e: any) => !e.hasEssayPending).length}
+									</p>
+								</div>
+								<div class="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 space-y-1">
+									<span class="text-[10px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">Lulus & Bersertifikat</span>
+									<p class="text-2xl font-black text-emerald-600 dark:text-emerald-400">
+										{pendingEssays.filter((e: any) => e.hasCertificate).length}
+									</p>
+								</div>
+							</div>
+
+							<!-- Filter & Pencarian -->
+							<div class="p-4 rounded-2xl bg-surface border border-slate-200 dark:border-slate-800 flex flex-col md:flex-row items-center justify-between gap-4">
+								<div class="relative w-full md:w-96">
+									<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">search</span>
+									<input
+										type="text"
+										bind:value={essaySearchTerm}
+										placeholder="Cari nama peserta, payroll ID, atau judul kursus..."
+										class="w-full pl-9 pr-4 py-2 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-700 text-xs text-on-surface focus:outline-hidden focus:ring-1 focus:ring-primary"
+									/>
+								</div>
+
+								<div class="flex items-center gap-2 w-full md:w-auto overflow-x-auto">
+									<select
+										bind:value={essayFilterCourseId}
+										class="px-3 py-2 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-700 text-xs text-on-surface font-medium focus:outline-hidden"
+									>
+										<option value="all">Semua Program Pelatihan</option>
+										{#each courses as c}
+											<option value={String(c.id)}>{c.title}</option>
+										{/each}
+									</select>
+
+									<select
+										bind:value={essayFilterStatus}
+										class="px-3 py-2 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-700 text-xs text-on-surface font-medium focus:outline-hidden"
+									>
+										<option value="all">Semua Status</option>
+										<option value="pending">Menunggu Koreksi</option>
+										<option value="graded">Sudah Dinilai</option>
+									</select>
+								</div>
+							</div>
+
+							<!-- Tabel Antrean Koreksi Essay -->
+							<div class="rounded-2xl border border-slate-200 dark:border-slate-800 bg-surface overflow-hidden shadow-xs">
+								<div class="overflow-x-auto">
+									<table class="w-full text-left text-xs">
+										<thead class="bg-surface-container-high/50 border-b border-slate-200 dark:border-slate-800 text-on-surface-variant font-bold">
+											<tr>
+												<th class="p-3 w-10 text-center">No</th>
+												<th class="p-3">Peserta Pelatihan</th>
+												<th class="p-3">Program Pelatihan</th>
+												<th class="p-3 text-center">Pre-Test</th>
+												<th class="p-3 text-center">Nilai Akhir</th>
+												<th class="p-3 text-center">Evaluasi L1</th>
+												<th class="p-3 text-center">Status Essay</th>
+												<th class="p-3 text-center">E-Sertifikat</th>
+												<th class="p-3 text-right">Aksi</th>
+											</tr>
+										</thead>
+										<tbody class="divide-y divide-slate-200 dark:divide-slate-800">
+											{#if filteredPendingEssays.length === 0}
+												<tr>
+													<td colspan="9" class="p-8 text-center text-slate-400">
+														<span class="material-symbols-outlined text-3xl mb-1 text-slate-300">task_alt</span>
+														<p class="font-medium">Tidak ada antrean jawaban essay yang ditemukan.</p>
+													</td>
+												</tr>
+											{:else}
+												{#each filteredPendingEssays as enroll, idx}
+													{@const isPassed = (enroll.postTestScore ?? 0) >= enroll.passingGrade}
+													<tr class="hover:bg-surface-container/50 transition-colors">
+														<td class="p-3 text-center text-slate-400 font-mono">{idx + 1}</td>
+														<td class="p-3">
+															<div class="font-bold text-on-surface">{enroll.employeeName}</div>
+															<div class="text-[11px] text-slate-400 font-mono">{enroll.payrollId}</div>
+														</td>
+														<td class="p-3">
+															<div class="font-bold text-on-surface">{enroll.courseTitle}</div>
+															<div class="text-[11px] text-slate-400">Min. Lulus: {enroll.passingGrade}%</div>
+														</td>
+														<td class="p-3 text-center font-mono font-bold">
+															{#if enroll.preTestScore !== null}
+																<span class="px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-mono">
+																	{enroll.preTestScore}%
+																</span>
+															{:else}
+																<span class="text-slate-400">-</span>
+															{/if}
+														</td>
+														<td class="p-3 text-center font-mono font-black">
+															{#if enroll.postTestScore !== null}
+																<span class="px-2.5 py-1 rounded-lg text-xs {isPassed ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' : 'bg-rose-500/10 text-rose-600 dark:text-rose-400'}">
+																	{enroll.postTestScore}%
+																</span>
+															{:else}
+																<span class="text-slate-400 italic">Belum Final</span>
+															{/if}
+														</td>
+														<td class="p-3 text-center">
+															{#if enroll.hasEvaluationL1}
+																<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+																	<span class="material-symbols-outlined text-xs">check_circle</span>
+																	<span>Sudah Isi</span>
+																</span>
+															{:else}
+																<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/10 text-amber-600 dark:text-amber-400">
+																	<span class="material-symbols-outlined text-xs">pending</span>
+																	<span>Belum Isi</span>
+																</span>
+															{/if}
+														</td>
+														<td class="p-3 text-center">
+															{#if enroll.hasEssayPending}
+																<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black bg-amber-500/10 text-amber-600 dark:text-amber-400 animate-pulse border border-amber-500/20">
+																	<span class="material-symbols-outlined text-xs">edit_note</span>
+																	<span>Menunggu Koreksi</span>
+																</span>
+															{:else}
+																<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+																	<span class="material-symbols-outlined text-xs">verified</span>
+																	<span>Sudah Dinilai</span>
+																</span>
+															{/if}
+														</td>
+														<td class="p-3 text-center">
+															{#if enroll.hasCertificate}
+																<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black bg-emerald-500/20 text-emerald-700 dark:text-emerald-300">
+																	<span class="material-symbols-outlined text-xs">workspace_premium</span>
+																	<span>Terbit</span>
+																</span>
+															{:else}
+																<span class="text-slate-400 text-[11px]">-</span>
+															{/if}
+														</td>
+														<td class="p-3 text-right">
+															<button
+																type="button"
+																onclick={() => openHrGradingModal(enroll)}
+																class="px-3 py-1.5 rounded-xl {enroll.hasEssayPending ? 'bg-amber-500 hover:bg-amber-600 text-white shadow-xs' : 'bg-surface-container hover:bg-surface-container-high text-on-surface'} text-xs font-bold transition-all cursor-pointer inline-flex items-center gap-1.5"
+															>
+																<span class="material-symbols-outlined text-sm">rate_review</span>
+																<span>{enroll.hasEssayPending ? 'Koreksi Essay' : 'Tinjau / Edit'}</span>
+															</button>
+														</td>
+													</tr>
+												{/each}
+											{/if}
+										</tbody>
+									</table>
+								</div>
+							</div>
+						</div>
+
+						<!-- Modal Koreksi Essay HRIS LMS -->
+						{#if showHrEssayGradingModal && selectedEssayEnrollment}
+							<div class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
+								<div class="bg-surface rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xl w-full max-w-2xl p-6 md:p-8 space-y-6 my-8 animate-in zoom-in-95 duration-150">
+									<!-- Header Modal -->
+									<div class="flex items-start justify-between gap-4 border-b border-slate-200 dark:border-slate-800 pb-4">
+										<div class="flex items-center gap-3">
+											<div class="w-10 h-10 rounded-2xl bg-amber-500/10 text-amber-500 flex items-center justify-center font-bold shrink-0">
+												<span class="material-symbols-outlined text-2xl">rate_review</span>
+											</div>
+											<div>
+												<h4 class="font-black text-base text-on-surface">Koreksi Jawaban Essay Peserta (HR Admin)</h4>
+												<p class="text-xs text-on-surface-variant font-medium">
+													{selectedEssayEnrollment.employeeName} ({selectedEssayEnrollment.payrollId}) • {selectedEssayEnrollment.courseTitle} • Min. Lulus: {selectedEssayEnrollment.passingGrade}%
+												</p>
+											</div>
+										</div>
+										<button
+											type="button"
+											onclick={() => (showHrEssayGradingModal = false)}
+											class="p-2 rounded-xl text-slate-400 hover:text-on-surface hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
+										>
+											<span class="material-symbols-outlined text-lg">close</span>
+										</button>
+									</div>
+
+									<form
+										method="POST"
+										action="?/gradeEssay"
+										use:enhance={() => {
+											isSubmittingGrade = true;
+											return async ({ update }) => {
+												await update();
+												isSubmittingGrade = false;
+												showHrEssayGradingModal = false;
+											};
+										}}
+										class="space-y-6"
+									>
+										<input type="hidden" name="enrollmentId" value={selectedEssayEnrollment.id} />
+										<input type="hidden" name="reviewerName" value={currentUser?.name || 'Administrator HR'} />
+
+										<!-- Ringkasan Nilai Pilihan Ganda -->
+										<div class="p-4 rounded-2xl bg-surface-container border border-slate-200 dark:border-slate-800 flex items-center justify-between text-xs">
+											<span class="text-on-surface-variant font-medium">Nilai Pilihan Ganda (MCQ):</span>
+											<span class="font-bold text-on-surface font-mono">{hrCurrentMcqScore} Poin</span>
+										</div>
+
+										<!-- Daftar Butir Soal Essay -->
+										<div class="space-y-4 max-h-96 overflow-y-auto pr-1">
+											{#if hrSelectedEssayQuestions.length === 0}
+												<div class="p-4 rounded-2xl bg-slate-100 dark:bg-slate-800/40 text-center text-xs text-slate-400">
+													Tidak ditemukan soal essay untuk kursus ini.
+												</div>
+											{:else}
+												{#each hrSelectedEssayQuestions as eq, idx}
+													{@const userAns = selectedEssayEnrollment.postTestAnswers?.[eq.id] || '(Peserta tidak mengisi jawaban)'}
+													<div class="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-800 space-y-3">
+														<div class="flex items-start justify-between gap-3">
+															<div class="flex items-start gap-2.5">
+																<span class="w-6 h-6 rounded-lg bg-amber-600 text-white text-[11px] font-black flex items-center justify-center shrink-0 mt-0.5">
+																	{idx + 1}
+																</span>
+																<div class="space-y-1">
+																	<p class="text-xs font-bold text-on-surface">{eq.questionText}</p>
+																	{#if eq.explanation}
+																		<p class="text-[11px] text-amber-600 dark:text-amber-400 italic">
+																			Panduan Koreksi: {eq.explanation}
+																		</p>
+																	{/if}
+																</div>
+															</div>
+															<span class="text-[10px] font-mono font-bold text-slate-400 shrink-0">
+																Maks. {hrMaxPtsPerEssay} Pts
+															</span>
+														</div>
+
+														<!-- Tampilan Jawaban Peserta -->
+														<div class="p-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs">
+															<span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">
+																Jawaban Peserta:
+															</span>
+															<p class="text-on-surface whitespace-pre-wrap leading-relaxed font-sans">{userAns}</p>
+														</div>
+
+														<!-- Input Skor Poin -->
+														<div class="flex items-center justify-end gap-2 pt-1">
+															<label for="score_{eq.id}" class="text-xs font-bold text-on-surface">Skor Diberikan (0 - {hrMaxPtsPerEssay}):</label>
+															<input
+																id="score_{eq.id}"
+																type="number"
+																name="score_{eq.id}"
+																min="0"
+																max={hrMaxPtsPerEssay}
+																bind:value={hrEssayScoresInput[eq.id]}
+																required
+																class="w-20 px-3 py-1.5 text-center font-mono font-black text-sm rounded-xl bg-surface border border-slate-300 dark:border-slate-700 text-on-surface focus:outline-hidden focus:ring-2 focus:ring-primary"
+															/>
+														</div>
+													</div>
+												{/each}
+											{/if}
+										</div>
+
+										<!-- Catatan Umpan Balik -->
+										<div class="space-y-1.5">
+											<label for="hr_essay_feedback" class="text-xs font-bold text-on-surface">Catatan & Umpan Balik Evaluasi (Opsional):</label>
+											<textarea
+												id="hr_essay_feedback"
+												name="feedback"
+												rows="2"
+												bind:value={hrFeedbackInput}
+												placeholder="Tuliskan saran perbaikan atau ulasan koreksi untuk peserta..."
+												class="w-full p-3 rounded-2xl bg-surface-container border border-slate-200 dark:border-slate-700 text-xs text-on-surface focus:outline-hidden focus:ring-1 focus:ring-primary"
+											></textarea>
+										</div>
+
+										<!-- Prediksi Nilai Akhir & Auto-Issue Status -->
+										<div class="p-4 rounded-2xl {hrPredictedFinalScore >= selectedEssayEnrollment.passingGrade ? 'bg-emerald-500/10 border-emerald-500/20' : 'bg-rose-500/10 border-rose-500/20'} border space-y-2">
+											<div class="flex items-center justify-between text-xs">
+												<span class="font-bold {hrPredictedFinalScore >= selectedEssayEnrollment.passingGrade ? 'text-emerald-700 dark:text-emerald-300' : 'text-rose-700 dark:text-rose-300'}">
+													Prediksi Nilai Akhir (MCQ {hrCurrentMcqScore} + Essay {hrCurrentTotalEssayPts}):
+												</span>
+												<span class="font-mono font-black text-base {hrPredictedFinalScore >= selectedEssayEnrollment.passingGrade ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}">
+													{hrPredictedFinalScore} / 100
+												</span>
+											</div>
+											<div class="text-[11px] text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
+												{#if hrPredictedFinalScore >= selectedEssayEnrollment.passingGrade}
+													<span class="material-symbols-outlined text-sm text-emerald-500">check_circle</span>
+													<span>
+														Nilai memenuhi Passing Grade ({selectedEssayEnrollment.passingGrade}%).
+														{#if selectedEssayEnrollment.hasEvaluationL1}
+															E-Sertifikat resmi akan <strong>otomatis diterbitkan</strong>.
+														{:else}
+															Sertifikat akan terbit setelah peserta menyelesaikan Evaluasi Reaksi (L1).
+														{/if}
+													</span>
+												{:else}
+													<span class="material-symbols-outlined text-sm text-rose-500">cancel</span>
+													<span>Nilai belum mencapai Passing Grade ({selectedEssayEnrollment.passingGrade}%).</span>
+												{/if}
+											</div>
+										</div>
+
+										<!-- Modal Footer Buttons -->
+										<div class="flex items-center justify-end gap-3 pt-2 border-t border-slate-200 dark:border-slate-800">
+											<button
+												type="button"
+												onclick={() => (showHrEssayGradingModal = false)}
+												class="px-5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold text-on-surface hover:bg-surface-container cursor-pointer"
+											>
+												Batal
+											</button>
+											<button
+												type="submit"
+												disabled={isSubmittingGrade}
+												class="px-6 py-2.5 rounded-xl bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500 text-white text-xs font-black shadow-lg shadow-amber-600/30 transition-all cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
+											>
+												<span class="material-symbols-outlined text-sm">verified</span>
+												<span>{isSubmittingGrade ? 'Menyimpan...' : 'Simpan Nilai & Sinkronkan Kelulusan'}</span>
+											</button>
+										</div>
+									</form>
+								</div>
+							</div>
+						{/if}
 					{/if}
 				</div>
 
