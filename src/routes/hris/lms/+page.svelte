@@ -98,7 +98,7 @@
 		if (!selectedEssayEnrollment) return [];
 		return quizQuestions.filter(
 			(q: any) =>
-				Number(q.courseId) === Number(selectedEssayEnrollment.courseId) &&
+				String(q.courseId) === String(selectedEssayEnrollment.courseId) &&
 				q.quizType === 'POST_TEST'
 		);
 	});
@@ -150,7 +150,13 @@
 		selectedEssayEnrollment = enrollment;
 		const rawScores = parseAnswers(enrollment.essayScores);
 		hrEssayScoresInput = { ...rawScores };
-		for (const eq of hrSelectedEssayQuestions) {
+		const courseQuestions = quizQuestions.filter(
+			(q: any) =>
+				String(q.courseId) === String(enrollment.courseId) &&
+				q.quizType === 'POST_TEST' &&
+				(q.questionType === 'ESSAY' || !q.options || q.options.length === 0)
+		);
+		for (const eq of courseQuestions) {
 			if (hrEssayScoresInput[eq.id] === undefined) {
 				hrEssayScoresInput[eq.id] = 0;
 			}
