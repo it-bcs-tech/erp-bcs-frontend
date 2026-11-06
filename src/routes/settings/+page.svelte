@@ -218,15 +218,8 @@
 
 	// Multi-Server Mail Profiles State (Domain-Based Routing)
 	const profilesStore = mailStore.profiles;
-	let profiles = $state<MailServerProfile[]>([]);
+	const profiles = $derived<MailServerProfile[]>([...$profilesStore]);
 	let selectedProfileId = $state<string>('profile-bcs');
-
-	$effect(() => {
-		profiles = [...$profilesStore];
-		if (!profiles.some((p) => p.id === selectedProfileId) && profiles[0]) {
-			selectedProfileId = profiles[0].id;
-		}
-	});
 
 	// Active profile selected for editing
 	let activeProfile = $derived(
@@ -342,13 +335,7 @@
 		autoLogoutMinutes: $systemSettings.autoLogoutMinutes
 	});
 
-	// Sync local privacy state when database or layout data changes
-	$effect(() => {
-		if (data.privacySettings) {
-			settings.hideSalaryNominals = data.privacySettings.hideSalaryNominals;
-			settings.maskSensitiveInfo = data.privacySettings.maskSensitiveInfo;
-		}
-	});
+
 
 	async function persistPrivacyToDb(hideSalary: boolean, maskInfo: boolean) {
 		isSavingPrivacy = true;
