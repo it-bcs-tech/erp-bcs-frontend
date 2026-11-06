@@ -284,6 +284,7 @@ export const actions: Actions = {
 		return {
 			success: true,
 			savedProfileId: profileId,
+			aiCatalog: catalog,
 			message: `Profil model "${name}" (${model}) berhasil disimpan.`
 		};
 	},
@@ -322,6 +323,7 @@ export const actions: Actions = {
 
 		return {
 			success: true,
+			aiCatalog: catalog,
 			message: `Profil model "${deletedName}" berhasil dihapus.`
 		};
 	},
@@ -351,6 +353,7 @@ export const actions: Actions = {
 		return {
 			success: true,
 			activeProfileId: id,
+			aiCatalog: catalog,
 			message: `Model "${target.name}" (${target.model}) sekarang aktif untuk seluruh modul ERP.`
 		};
 	},

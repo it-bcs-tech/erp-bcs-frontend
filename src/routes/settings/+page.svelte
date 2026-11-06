@@ -5,6 +5,7 @@
 	import type { MailServerProfile } from '$lib/types/mail';
 
 	import { enhance } from '$app/forms';
+	import { page } from '$app/stores';
 
 	let { data, form } = $props();
 
@@ -14,14 +15,27 @@
 	let isSavedToast = $state(false);
 	let approvalSuccessMsg = $state('');
 
-	// AI Model Engine & Custom Endpoint State (Dynamic Catalog & Profiles)
-	let aiCatalog = $state(data.aiCatalog || { activeProfileId: 'default-model', profiles: [] });
-
 	$effect(() => {
-		if (data.aiCatalog) {
-			aiCatalog = data.aiCatalog;
+		const tab = $page.url.searchParams.get('tab');
+		if (tab && ['privacy', 'company', 'preferences', 'security', 'approvals', 'email', 'ai'].includes(tab)) {
+			activeTab = tab as any;
 		}
 	});
+
+	function switchTab(t: typeof activeTab) {
+		activeTab = t;
+		if (typeof window !== 'undefined') {
+			const url = new URL(window.location.href);
+			url.searchParams.set('tab', t);
+			window.history.replaceState({}, '', url.toString());
+		}
+	}
+
+	// AI Model Engine & Custom Endpoint State (Dynamic Catalog & Profiles)
+	// Menggunakan $derived agar sinkron instan saat data server atau form action ter-update
+	let aiCatalog = $derived(
+		form?.aiCatalog || data.aiCatalog || { activeProfileId: 'default-model', profiles: [] }
+	);
 
 	let activeAIProfile = $derived(
 		aiCatalog.profiles.find((p: any) => p.id === aiCatalog.activeProfileId) ||
@@ -101,6 +115,14 @@
 			badgeColor: 'border-teal-500/40 bg-teal-500/10 text-teal-600 dark:text-teal-400',
 			icon: 'dns',
 			desc: 'Server lokal tanpa internet'
+		},
+		nine_router: {
+			label: '9Router AI Gateway',
+			defaultUrl: 'http://103.93.160.96:20128/v1',
+			placeholderModel: 'antigravity',
+			badgeColor: 'border-violet-500/40 bg-violet-500/10 text-violet-600 dark:text-violet-400',
+			icon: 'alt_route',
+			desc: '9Router Infrastructure Gateway'
 		},
 		openclaw: {
 			label: 'OpenClaw Biznet Server',
@@ -656,7 +678,7 @@
 	<!-- Navigation Tabs -->
 	<div class="flex items-center gap-2 border-b border-slate-200 dark:border-slate-800 pb-1 overflow-x-auto">
 		<button
-			onclick={() => (activeTab = 'privacy')}
+			onclick={() => switchTab('privacy')}
 			class="px-4 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer whitespace-nowrap {activeTab === 'privacy' ? 'bg-primary text-on-primary shadow-xs' : 'text-on-surface-variant hover:bg-surface-container'}"
 		>
 			<span class="material-symbols-outlined text-sm">visibility_off</span>
@@ -666,35 +688,35 @@
 			{/if}
 		</button>
 		<button
-			onclick={() => (activeTab = 'company')}
+			onclick={() => switchTab('company')}
 			class="px-4 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer whitespace-nowrap {activeTab === 'company' ? 'bg-primary text-on-primary shadow-xs' : 'text-on-surface-variant hover:bg-surface-container'}"
 		>
 			<span class="material-symbols-outlined text-sm">corporate_fare</span>
 			<span>Profil Perusahaan & Pool</span>
 		</button>
 		<button
-			onclick={() => (activeTab = 'preferences')}
+			onclick={() => switchTab('preferences')}
 			class="px-4 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer whitespace-nowrap {activeTab === 'preferences' ? 'bg-primary text-on-primary shadow-xs' : 'text-on-surface-variant hover:bg-surface-container'}"
 		>
 			<span class="material-symbols-outlined text-sm">palette</span>
 			<span>Tampilan & Notifikasi</span>
 		</button>
 		<button
-			onclick={() => (activeTab = 'security')}
+			onclick={() => switchTab('security')}
 			class="px-4 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer whitespace-nowrap {activeTab === 'security' ? 'bg-primary text-on-primary shadow-xs' : 'text-on-surface-variant hover:bg-surface-container'}"
 		>
 			<span class="material-symbols-outlined text-sm">security</span>
 			<span>Keamanan & Sesi Login</span>
 		</button>
 		<button
-			onclick={() => (activeTab = 'approvals')}
+			onclick={() => switchTab('approvals')}
 			class="px-4 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer whitespace-nowrap {activeTab === 'approvals' ? 'bg-primary text-on-primary shadow-xs' : 'text-on-surface-variant hover:bg-surface-container'}"
 		>
 			<span class="material-symbols-outlined text-sm">tune</span>
 			<span>Pengaturan Modul & Approval</span>
 		</button>
 		<button
-			onclick={() => (activeTab = 'email')}
+			onclick={() => switchTab('email')}
 			class="px-4 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer whitespace-nowrap {activeTab === 'email' ? 'bg-primary text-on-primary shadow-xs' : 'text-on-surface-variant hover:bg-surface-container'}"
 		>
 			<span class="material-symbols-outlined text-sm">mail</span>
@@ -702,7 +724,7 @@
 			<span class="px-1.5 py-0.2 rounded bg-orange-500/20 text-orange-600 dark:text-orange-400 text-[9px] font-black uppercase">Admin</span>
 		</button>
 		<button
-			onclick={() => (activeTab = 'ai')}
+			onclick={() => switchTab('ai')}
 			class="px-4 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer whitespace-nowrap {activeTab === 'ai' ? 'bg-primary text-on-primary shadow-xs' : 'text-on-surface-variant hover:bg-surface-container'}"
 		>
 			<span class="material-symbols-outlined text-sm">smart_toy</span>
@@ -2138,7 +2160,7 @@
 									{:else}
 										<form
 											method="POST"
-											action="?/setActiveAIProfile"
+											action="?/setActiveAIProfile&tab=ai"
 											use:enhance={() => {
 												isActivatingAI = true;
 												return async ({ update }) => {
@@ -2225,7 +2247,7 @@
 									{#if aiCatalog.profiles.length > 1}
 										<form
 											method="POST"
-											action="?/deleteAIProfile"
+											action="?/deleteAIProfile&tab=ai"
 											onsubmit={(e) => {
 												if (!confirm(`Hapus profil model "${p.name}"?`)) {
 													e.preventDefault();
@@ -2355,7 +2377,7 @@
 					<!-- Form Tambah / Edit -->
 					<form
 						method="POST"
-						action="?/saveAIProfile"
+						action="?/saveAIProfile&tab=ai"
 						use:enhance={() => {
 							isSavingAI = true;
 							return async ({ result, update }) => {
