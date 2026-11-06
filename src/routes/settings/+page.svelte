@@ -5,22 +5,16 @@
 	import type { MailServerProfile } from '$lib/types/mail';
 
 	import { enhance } from '$app/forms';
-	import { page } from '$app/stores';
 
 	let { data, form } = $props();
 
 	const user = $derived($authUser);
 
-	let activeTab = $state<'privacy' | 'company' | 'preferences' | 'security' | 'approvals' | 'email' | 'ai'>('privacy');
+	let activeTab = $state<'privacy' | 'company' | 'preferences' | 'security' | 'approvals' | 'email' | 'ai'>(
+		(data.initialTab as any) || 'privacy'
+	);
 	let isSavedToast = $state(false);
 	let approvalSuccessMsg = $state('');
-
-	$effect(() => {
-		const tab = $page.url.searchParams.get('tab');
-		if (tab && ['privacy', 'company', 'preferences', 'security', 'approvals', 'email', 'ai'].includes(tab)) {
-			activeTab = tab as any;
-		}
-	});
 
 	function switchTab(t: typeof activeTab) {
 		activeTab = t;

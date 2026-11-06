@@ -11,7 +11,7 @@ import {
 	type AICatalogConfig
 } from '$lib/server/aiConfig';
 
-export const load: PageServerLoad = async ({ parent }) => {
+export const load: PageServerLoad = async ({ parent, url }) => {
 	const { user } = await parent();
 
 	// Proteksi ketat: Hanya Super Admin / Administrator yang diizinkan mengakses halaman Settings
@@ -20,6 +20,13 @@ export const load: PageServerLoad = async ({ parent }) => {
 	if (!isSuperAdmin) {
 		throw redirect(303, '/');
 	}
+
+	const tabParam = url.searchParams.get('tab');
+	const initialTab =
+		tabParam && ['privacy', 'company', 'preferences', 'security', 'approvals', 'email', 'ai'].includes(tabParam)
+			? tabParam
+			: 'privacy';
+
 	try {
 		// 1. Ambil status pool logistik & database health
 		const poolList = await sql`
@@ -50,7 +57,8 @@ export const load: PageServerLoad = async ({ parent }) => {
 			moduleSettings,
 			employees,
 			tipeUnits: tipeUnits || [],
-			aiCatalog
+			aiCatalog,
+			initialTab
 		};
 	} catch (e: any) {
 		console.warn('Fallback settings load:', e?.message);
@@ -62,7 +70,8 @@ export const load: PageServerLoad = async ({ parent }) => {
 			moduleSettings: [],
 			employees: [],
 			tipeUnits: [],
-			aiCatalog: DEFAULT_AI_CATALOG
+			aiCatalog: DEFAULT_AI_CATALOG,
+			initialTab: 'privacy'
 		};
 	}
 };
