@@ -9,6 +9,7 @@
 
 import type { RequestHandler } from './$types';
 import { env } from '$env/dynamic/private';
+import { getActiveAIConfig } from '$lib/server/aiConfig';
 
 // URL Python AI Bridge
 // Di Docker: http://ai-bridge:8000 | Di lokal: http://localhost:8083
@@ -17,12 +18,21 @@ const AI_BRIDGE_URL = env.AI_BRIDGE_URL ?? 'http://127.0.0.1:8000';
 export const POST: RequestHandler = async ({ request }) => {
 	const body = await request.json();
 
+	// Muat konfigurasi model dinamis aktif dari DB (fallback ke .env)
+	const aiConfig = await getActiveAIConfig();
+	const payload = {
+		...body,
+		model: body.model || aiConfig.model,
+		temperature: body.temperature ?? aiConfig.temperature,
+		max_tokens: body.max_tokens ?? aiConfig.maxTokens
+	};
+
 	try {
 		// Teruskan ke Python AI Bridge
 		const response = await fetch(`${AI_BRIDGE_URL}/chat`, {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify(body),
+			body: JSON.stringify(payload),
 		});
 
 		if (!response.ok) {

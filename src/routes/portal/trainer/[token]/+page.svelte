@@ -37,6 +37,9 @@
 	);
 	let totalPostQ = $derived(postTestQuestions.length || 1);
 	let maxPtsPerEssay = $derived(Math.max(1, Math.round(100 / totalPostQ)));
+	let hasEssayInCourse = $derived(
+		postTestEssayQuestions.length > 0 || enrollments.some((e: any) => e.hasEssayPending)
+	);
 
 	function openGradingModal(enrollment: any) {
 		selectedEnrollment = enrollment;
@@ -338,19 +341,21 @@
 				<span>Materi & Soal Kuis</span>
 			</button>
 
-			<button
-				type="button"
-				onclick={() => (activeMainTab = 'essay_review')}
-				class="flex items-center gap-2 px-5 py-2.5 rounded-2xl text-xs font-bold transition-all cursor-pointer {activeMainTab === 'essay_review' ? 'bg-primary text-on-primary shadow-xs' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'}"
-			>
-				<span class="material-symbols-outlined text-base">rate_review</span>
-				<span>Penilaian Essay Peserta</span>
-				{#if pendingEssayCount > 0}
-					<span class="px-2 py-0.5 rounded-full text-[10px] font-black bg-amber-500 text-white animate-pulse">
-						{pendingEssayCount}
-					</span>
-				{/if}
-			</button>
+			{#if hasEssayInCourse}
+				<button
+					type="button"
+					onclick={() => (activeMainTab = 'essay_review')}
+					class="flex items-center gap-2 px-5 py-2.5 rounded-2xl text-xs font-bold transition-all cursor-pointer {activeMainTab === 'essay_review' ? 'bg-primary text-on-primary shadow-xs' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'}"
+				>
+					<span class="material-symbols-outlined text-base">rate_review</span>
+					<span>Penilaian Essay Peserta</span>
+					{#if pendingEssayCount > 0}
+						<span class="px-2 py-0.5 rounded-full text-[10px] font-black bg-amber-500 text-white animate-pulse">
+							{pendingEssayCount}
+						</span>
+					{/if}
+				</button>
+			{/if}
 		</div>
 
 		{#if activeMainTab === 'content'}

@@ -56,6 +56,13 @@
 
 	// Antrean & Modal Penilaian Essay HRIS LMS
 	const pendingEssays = $derived(data.pendingEssays || []);
+
+	// Jika tidak ada antrean jawaban essay, otomatis sembunyikan dan fallback ke Level 1
+	$effect(() => {
+		if (evalSubTab === 'essay_review' && pendingEssays.length === 0) {
+			evalSubTab = 'l1';
+		}
+	});
 	let essaySearchTerm = $state('');
 	let essayFilterCourseId = $state<string>('all');
 	let essayFilterStatus = $state<'all' | 'pending' | 'graded'>('all');
@@ -4493,22 +4500,24 @@
 				<div class="space-y-6">
 					<!-- Sub-tab Selector -->
 					<div class="flex items-center gap-2 border-b border-slate-200 dark:border-slate-800 pb-3 overflow-x-auto">
-						<button
-							type="button"
-							onclick={() => (evalSubTab = 'essay_review')}
-							class="px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 whitespace-nowrap
-							{evalSubTab === 'essay_review'
-								? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-sm'
-								: 'bg-surface-container text-on-surface-variant hover:bg-surface-container-high'}"
-						>
-							<span class="material-symbols-outlined text-sm">rate_review</span>
-							<span>Koreksi Essay Pelatihan</span>
-							{#if pendingEssayCount > 0}
-								<span class="px-1.5 py-0.5 rounded-full text-[10px] font-black bg-amber-500 text-white animate-pulse">
-									{pendingEssayCount}
-								</span>
-							{/if}
-						</button>
+						{#if pendingEssays.length > 0}
+							<button
+								type="button"
+								onclick={() => (evalSubTab = 'essay_review')}
+								class="px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 whitespace-nowrap
+								{evalSubTab === 'essay_review'
+									? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-sm'
+									: 'bg-surface-container text-on-surface-variant hover:bg-surface-container-high'}"
+							>
+								<span class="material-symbols-outlined text-sm">rate_review</span>
+								<span>Koreksi Essay Pelatihan</span>
+								{#if pendingEssayCount > 0}
+									<span class="px-1.5 py-0.5 rounded-full text-[10px] font-black bg-amber-500 text-white animate-pulse">
+										{pendingEssayCount}
+									</span>
+								{/if}
+							</button>
+						{/if}
 
 						<button
 							type="button"

@@ -3,6 +3,7 @@ import type { PageServerLoad, Actions } from './$types';
 import sql from '$lib/server/db';
 import { ADMIN_ROLES } from '$lib/types/auth';
 import { getAllModuleSettings, setModuleSetting, getFilteredEmployeesForSettings, type ApproverSetting } from '$lib/server/settings';
+import { getActiveAIConfig } from '$lib/server/aiConfig';
 
 export const load: PageServerLoad = async ({ parent }) => {
 	const { user } = await parent();
@@ -35,11 +36,15 @@ export const load: PageServerLoad = async ({ parent }) => {
 			ORDER BY nama_tipe ASC
 		`;
 
+		// 5. Ambil konfigurasi AI Global
+		const aiConfig = await getActiveAIConfig();
+
 		return {
 			pools: poolList || [],
 			moduleSettings,
 			employees,
-			tipeUnits: tipeUnits || []
+			tipeUnits: tipeUnits || [],
+			aiConfig
 		};
 	} catch (e: any) {
 		console.warn('Fallback settings load:', e?.message);
@@ -50,7 +55,13 @@ export const load: PageServerLoad = async ({ parent }) => {
 			],
 			moduleSettings: [],
 			employees: [],
-			tipeUnits: []
+			tipeUnits: [],
+			aiConfig: {
+				model: 'glm-4.7-flash',
+				provider: 'openclaw',
+				temperature: 0.7,
+				maxTokens: 2048
+			}
 		};
 	}
 };
@@ -208,6 +219,45 @@ export const actions: Actions = {
 			success: true,
 			privacyValue,
 			message: 'Pengaturan Privasi Global berhasil disimpan ke database dan aktif di seluruh akun.'
+		};
+	},
+
+	saveAISettings: async ({ request, locals }) => {
+		const formData = await request.formData();
+		const model = (formData.get('model') as string || '').trim();
+		const provider = (formData.get('provider') as string || 'openclaw').trim();
+		const temperature = parseFloat((formData.get('temperature') as string) || '0.7');
+		const maxTokens = parseInt((formData.get('maxTokens') as string) || '2048', 10);
+
+		if (!model) {
+			return fail(400, { success: false, message: 'Nama model AI wajib diisi!' });
+		}
+
+		const sessionUser = (locals as any)?.user?.name || (locals as any)?.user?.username || 'admin';
+
+		const aiConfig = {
+			model,
+			provider,
+			temperature: isNaN(temperature) ? 0.7 : Math.min(1.0, Math.max(0.0, temperature)),
+			maxTokens: isNaN(maxTokens) ? 2048 : Math.max(128, maxTokens)
+		};
+
+		const ok = await setModuleSetting(
+			'ai',
+			'global_config',
+			aiConfig,
+			'Konfigurasi Global LLM Engine & Parameter AI Chat ERP BCS',
+			sessionUser
+		);
+
+		if (!ok) {
+			return fail(500, { success: false, message: 'Gagal menyimpan konfigurasi AI ke database.' });
+		}
+
+		return {
+			success: true,
+			aiConfig,
+			message: `Konfigurasi model AI (${model}) berhasil disimpan dan aktif serentak di seluruh modul ERP.`
 		};
 	}
 };

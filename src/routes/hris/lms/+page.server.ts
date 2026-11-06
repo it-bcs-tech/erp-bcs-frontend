@@ -278,7 +278,15 @@ export const load: PageServerLoad = async ({ locals }) => {
 			JOIN hris.lms_courses c ON c.id = e.course_id
 			LEFT JOIN hris.lms_evaluations_l1 ev ON ev.course_id = e.course_id AND UPPER(TRIM(ev.payroll_id)) = UPPER(TRIM(e.payroll_id))
 			WHERE e.has_essay_pending = TRUE 
-			   OR (e.post_test_answers IS NOT NULL AND e.post_test_answers::text != '{}'::text AND e.post_test_answers::text != 'null'::text)
+			   OR (e.essay_scores IS NOT NULL AND e.essay_scores::text != '{}'::text AND e.essay_scores::text != 'null'::text)
+			   OR EXISTS (
+			       SELECT 1 FROM hris.lms_quiz_questions q
+			       WHERE q.course_id = e.course_id 
+			         AND q.quiz_type = 'POST_TEST' 
+			         AND (q.question_type = 'ESSAY' OR q.options IS NULL)
+			         AND e.post_test_answers IS NOT NULL
+			         AND e.post_test_answers ? q.id::text
+			   )
 			ORDER BY 
 				CASE WHEN e.has_essay_pending = TRUE THEN 0 ELSE 1 END,
 				e.updated_at DESC

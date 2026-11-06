@@ -10,9 +10,106 @@
 
 	const user = $derived($authUser);
 
-	let activeTab = $state<'privacy' | 'company' | 'preferences' | 'security' | 'approvals' | 'email'>('privacy');
+	let activeTab = $state<'privacy' | 'company' | 'preferences' | 'security' | 'approvals' | 'email' | 'ai'>('privacy');
 	let isSavedToast = $state(false);
 	let approvalSuccessMsg = $state('');
+
+	// AI Model Engine State (Dynamic Configuration)
+	let aiModel = $state(data.aiConfig?.model || 'glm-4.7-flash');
+	let aiProvider = $state(data.aiConfig?.provider || 'openclaw');
+	let aiTemperature = $state<number>(data.aiConfig?.temperature ?? 0.7);
+	let aiMaxTokens = $state<number>(data.aiConfig?.maxTokens ?? 2048);
+
+	let isTestingAI = $state(false);
+	let aiTestResult = $state<{
+		success: boolean;
+		latencyMs?: number;
+		model?: string;
+		preview?: string;
+		message?: string;
+	} | null>(null);
+
+	let isSavingAI = $state(false);
+	let aiSaveSuccessMsg = $state('');
+
+	const AI_PRESETS = [
+		{
+			id: 'glm-4.7-flash',
+			name: 'GLM 4.7 Flash',
+			provider: 'openclaw',
+			providerLabel: 'OpenClaw (Biznet)',
+			badge: 'Rekomendasi Utama',
+			badgeColor: 'border-emerald-500/40 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400',
+			desc: 'Optimal untuk query database ERP, berbahasa Indonesia natural, respon instan.',
+			speed: '< 200 ms',
+			tokens: '128K'
+		},
+		{
+			id: 'llama-3.3-70b-versatile',
+			name: 'Llama 3.3 70B',
+			provider: 'groq',
+			providerLabel: 'Groq Cloud',
+			badge: 'Akurasi Tinggi',
+			badgeColor: 'border-blue-500/40 bg-blue-500/10 text-blue-600 dark:text-blue-400',
+			desc: 'Penalaran mendalam untuk laporan manajerial kompleks dan analisis finansial.',
+			speed: '300-500 ms',
+			tokens: '128K'
+		},
+		{
+			id: 'gpt-4o-mini',
+			name: 'GPT-4o Mini',
+			provider: 'openai',
+			providerLabel: 'OpenAI API',
+			badge: 'Multimodal Cerdas',
+			badgeColor: 'border-purple-500/40 bg-purple-500/10 text-purple-600 dark:text-purple-400',
+			desc: 'Format output terstruktur rapi, penalaran matematis dan sintesis teks kuat.',
+			speed: '400-700 ms',
+			tokens: '128K'
+		},
+		{
+			id: 'deepseek-chat',
+			name: 'DeepSeek V3 / R1',
+			provider: 'openclaw',
+			providerLabel: 'DeepSeek',
+			badge: 'Penalaran Logika',
+			badgeColor: 'border-amber-500/40 bg-amber-500/10 text-amber-600 dark:text-amber-400',
+			desc: 'Sangat kuat dalam reasoning berantai, kalkulasi tarif rute logistik, dan SQL.',
+			speed: '500-900 ms',
+			tokens: '64K'
+		}
+	];
+
+	function selectAIPreset(preset: typeof AI_PRESETS[0]) {
+		aiModel = preset.id;
+		aiProvider = preset.provider;
+		aiTestResult = null;
+	}
+
+	async function runAITest() {
+		if (!aiModel.trim()) return;
+		isTestingAI = true;
+		aiTestResult = null;
+		try {
+			const res = await fetch('/api/settings/ai/test', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					model: aiModel,
+					temperature: aiTemperature,
+					maxTokens: aiMaxTokens
+				})
+			});
+			const resData = await res.json();
+			aiTestResult = resData;
+		} catch (err: any) {
+			aiTestResult = {
+				success: false,
+				message: err.message || 'Gagal menghubungi endpoint uji coba'
+			};
+		} finally {
+			isTestingAI = false;
+		}
+	}
 
 	// Multi-Server Mail Profiles State (Domain-Based Routing)
 	const profilesStore = mailStore.profiles;
@@ -514,6 +611,14 @@
 			<span class="material-symbols-outlined text-sm">mail</span>
 			<span>Konfigurasi Email & Server</span>
 			<span class="px-1.5 py-0.2 rounded bg-orange-500/20 text-orange-600 dark:text-orange-400 text-[9px] font-black uppercase">Admin</span>
+		</button>
+		<button
+			onclick={() => (activeTab = 'ai')}
+			class="px-4 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer whitespace-nowrap {activeTab === 'ai' ? 'bg-primary text-on-primary shadow-xs' : 'text-on-surface-variant hover:bg-surface-container'}"
+		>
+			<span class="material-symbols-outlined text-sm">smart_toy</span>
+			<span>AI Engine & Asisten</span>
+			<span class="px-1.5 py-0.2 rounded bg-indigo-500/20 text-indigo-600 dark:text-indigo-400 text-[9px] font-black uppercase">Admin</span>
 		</button>
 	</div>
 
@@ -1835,6 +1940,326 @@
 					</div>
 				</div>
 			</div>
+		</div>
+	{:else if activeTab === 'ai'}
+		<!-- TAB: AI ENGINE & LLM CONFIGURATION -->
+		<div class="space-y-6">
+			<!-- Header Banner AI -->
+			<div class="p-6 rounded-3xl bg-gradient-to-r from-indigo-700 via-purple-700 to-indigo-900 text-white shadow-lg flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+				<div class="flex items-center gap-4">
+					<div class="w-14 h-14 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center text-white flex-shrink-0 shadow-inner">
+						<span class="material-symbols-outlined text-3xl">smart_toy</span>
+					</div>
+					<div>
+						<div class="flex items-center gap-2 mb-1">
+							<h3 class="text-xl font-black tracking-tight">AI Engine & Model LLM</h3>
+							<span class="px-2 py-0.5 rounded-full bg-emerald-400/20 text-emerald-300 text-[10px] font-black uppercase tracking-wider border border-emerald-400/30">Live Dynamic</span>
+						</div>
+						<p class="text-xs text-indigo-100/90 leading-relaxed max-w-2xl">
+							Pusat kendali model AI untuk seluruh asisten pintar di ERP BCS (HRIS, FMS, OCS, Finance, DMS, QHSE). Perubahan model berlaku serentak secara <strong>instan (zero-downtime)</strong> tanpa perlu restart server.
+						</p>
+					</div>
+				</div>
+				<div class="flex flex-col items-start md:items-end gap-1.5 flex-shrink-0 bg-white/10 px-4 py-2.5 rounded-2xl border border-white/15">
+					<span class="text-[10px] uppercase font-bold text-indigo-200 tracking-wider">Model Aktif Saat Ini</span>
+					<div class="flex items-center gap-2">
+						<span class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
+						<span class="font-mono text-sm font-black text-white">{aiModel}</span>
+					</div>
+				</div>
+			</div>
+
+			<!-- Preset Selection Section -->
+			<div class="bg-surface rounded-3xl border border-slate-200/80 dark:border-slate-800/80 p-6 shadow-xs space-y-4">
+				<div class="flex items-center justify-between">
+					<div>
+						<h4 class="text-sm font-bold text-on-surface">Pilih Preset Model Cepat (1-Klik)</h4>
+						<p class="text-xs text-on-surface-variant">Klik kartu model di bawah untuk langsung memuat spesifikasi dan rekomendasinya.</p>
+					</div>
+					<span class="text-[11px] font-bold text-indigo-600 dark:text-indigo-400 flex items-center gap-1">
+						<span class="material-symbols-outlined text-sm">touch_app</span> 1-Klik Apply
+					</span>
+				</div>
+
+				<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+					{#each AI_PRESETS as preset}
+						<button
+							type="button"
+							onclick={() => selectAIPreset(preset)}
+							class="text-left p-4 rounded-2xl border transition-all cursor-pointer flex flex-col justify-between {aiModel === preset.id ? 'border-indigo-600 dark:border-indigo-500 bg-indigo-50/40 dark:bg-indigo-950/20 shadow-md ring-2 ring-indigo-500/20' : 'border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 bg-surface-container-low'}"
+						>
+							<div>
+								<div class="flex items-center justify-between gap-1 mb-2">
+									<span class="px-2 py-0.5 rounded-md border text-[10px] font-bold {preset.badgeColor}">
+										{preset.badge}
+									</span>
+									<span class="text-[10px] font-semibold text-slate-400">{preset.providerLabel}</span>
+								</div>
+								<h5 class="text-sm font-black text-on-surface mb-1 flex items-center gap-1.5">
+									{preset.name}
+									{#if aiModel === preset.id}
+										<span class="material-symbols-outlined text-indigo-600 text-sm">check_circle</span>
+									{/if}
+								</h5>
+								<p class="text-[11px] text-on-surface-variant line-clamp-2 mb-3 leading-snug">
+									{preset.desc}
+								</p>
+							</div>
+							<div class="pt-2 border-t border-slate-200/60 dark:border-slate-800/60 flex items-center justify-between text-[10px] text-slate-500 font-medium">
+								<span class="flex items-center gap-1"><span class="material-symbols-outlined text-[13px]">speed</span> {preset.speed}</span>
+								<span class="flex items-center gap-1"><span class="material-symbols-outlined text-[13px]">dataset</span> {preset.tokens}</span>
+							</div>
+						</button>
+					{/each}
+				</div>
+			</div>
+
+			<!-- Main Form Configuration -->
+			<form
+				method="POST"
+				action="?/saveAISettings"
+				use:enhance={() => {
+					isSavingAI = true;
+					return async ({ result, update }) => {
+						isSavingAI = false;
+						await update();
+					};
+				}}
+				class="bg-surface rounded-3xl border border-slate-200/80 dark:border-slate-800/80 p-6 md:p-8 shadow-xs space-y-6"
+			>
+				<div class="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-4">
+					<div>
+						<h4 class="text-base font-bold text-on-surface">Parameter Model & Inferensi</h4>
+						<p class="text-xs text-on-surface-variant">Atur identifier model LLM dan temperatur kreativitas penalaran respons.</p>
+					</div>
+					<div class="flex items-center gap-2">
+						<span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+						<span class="text-xs font-bold text-slate-500">Global System Scope</span>
+					</div>
+				</div>
+
+				<div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+					<!-- Model Identifier Input -->
+					<div class="space-y-2">
+						<label class="block text-xs font-bold text-on-surface uppercase tracking-wider">
+							Nama Model (Model Identifier) <span class="text-rose-500">*</span>
+						</label>
+						<div class="relative">
+							<input
+								type="text"
+								name="model"
+								required
+								bind:value={aiModel}
+								placeholder="contoh: glm-4.7-flash atau llama-3.3-70b-versatile"
+								class="w-full bg-surface-container border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm font-mono font-medium focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-500 transition-all outline-hidden text-on-surface"
+							/>
+							<span class="absolute right-3 top-2.5 text-slate-400 material-symbols-outlined text-lg">code</span>
+						</div>
+						<p class="text-[11px] text-on-surface-variant">
+							Model ID yang akan dikirim ke OpenAI-compatible endpoint di AI Bridge / OpenClaw.
+						</p>
+					</div>
+
+					<!-- Provider Type -->
+					<div class="space-y-2">
+						<label class="block text-xs font-bold text-on-surface uppercase tracking-wider">
+							Provider Engine / Host
+						</label>
+						<select
+							name="provider"
+							bind:value={aiProvider}
+							class="w-full bg-surface-container border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm font-medium focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-500 transition-all outline-hidden text-on-surface"
+						>
+							<option value="openclaw">OpenClaw Biznet Server (Dedicated Internal)</option>
+							<option value="groq">Groq Cloud (Ultra Fast Inference)</option>
+							<option value="openai">OpenAI (GPT-4o Series)</option>
+							<option value="custom">Custom Compatible Endpoint</option>
+						</select>
+						<p class="text-[11px] text-on-surface-variant">
+							Koneksi server utama dikelola secara aman oleh service Python AI Bridge di jaringan internal Docker.
+						</p>
+					</div>
+
+					<!-- Temperature Slider -->
+					<div class="space-y-2">
+						<div class="flex items-center justify-between">
+							<label class="text-xs font-bold text-on-surface uppercase tracking-wider flex items-center gap-1.5">
+								<span>Kreativitas Respon (Temperature)</span>
+								<span class="px-2 py-0.5 rounded-md bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 font-mono text-xs font-bold">{aiTemperature.toFixed(2)}</span>
+							</label>
+							<span class="text-[10px] font-bold text-slate-400">0.0 (Presisi) — 1.0 (Kreatif)</span>
+						</div>
+						<input
+							type="range"
+							name="temperature"
+							min="0.0"
+							max="1.0"
+							step="0.05"
+							bind:value={aiTemperature}
+							class="w-full h-2 bg-slate-200 dark:bg-slate-700 rounded-lg appearance-none cursor-pointer accent-indigo-600"
+						/>
+						<p class="text-[11px] font-medium {aiTemperature <= 0.2 ? 'text-blue-600 dark:text-blue-400' : aiTemperature <= 0.7 ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400'}">
+							{#if aiTemperature <= 0.2}
+								🎯 Mode Presisi Tinggi: Sangat deterministik, ideal untuk kalkulasi keuangan, audit gaji, dan data eksak.
+							{:else if aiTemperature <= 0.7}
+								⚖️ Mode Seimbang (Rekomendasi ERP): Akurat untuk data operasional, fleksibel dalam merangkum laporan.
+							{:else}
+								💡 Mode Kreatif: Ragam kosakata lebih luas, cocok untuk brainstorming ide atau formulasi pengumuman.
+							{/if}
+						</p>
+					</div>
+
+					<!-- Max Tokens Input -->
+					<div class="space-y-2">
+						<div class="flex items-center justify-between">
+							<label class="text-xs font-bold text-on-surface uppercase tracking-wider">
+								Batas Maksimal Token (Max Output)
+							</label>
+							<div class="flex items-center gap-1">
+								{#each [512, 1024, 2048, 4096] as tokenVal}
+									<button
+										type="button"
+										onclick={() => (aiMaxTokens = tokenVal)}
+										class="px-2 py-0.5 rounded text-[10px] font-bold transition-all cursor-pointer {aiMaxTokens === tokenVal ? 'bg-indigo-600 text-white' : 'bg-surface-container text-slate-500 hover:bg-surface-container-high'}"
+									>
+										{tokenVal}
+									</button>
+								{/each}
+							</div>
+						</div>
+						<input
+							type="number"
+							name="maxTokens"
+							min="128"
+							max="8192"
+							step="128"
+							bind:value={aiMaxTokens}
+							class="w-full bg-surface-container border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm font-mono font-medium focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-500 transition-all outline-hidden text-on-surface"
+						/>
+						<p class="text-[11px] text-on-surface-variant">
+							Panjang maksimal jawaban teks yang di-generate AI dalam satu kali percakapan (default: 2048 token).
+						</p>
+					</div>
+				</div>
+
+				<!-- Live Interactive Verification Section -->
+				<div class="p-5 rounded-2xl bg-surface-container-low border border-slate-200 dark:border-slate-800 space-y-4">
+					<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+						<div>
+							<h5 class="text-xs font-black uppercase tracking-wider text-on-surface flex items-center gap-1.5">
+								<span class="material-symbols-outlined text-sm text-indigo-600">verified</span>
+								Uji Respon & Latency Model
+							</h5>
+							<p class="text-[11px] text-on-surface-variant">Kirim prompt uji coba langsung ke AI Bridge untuk mengecek konektivitas sebelum disimpan.</p>
+						</div>
+						<button
+							type="button"
+							onclick={runAITest}
+							disabled={isTestingAI || !aiModel.trim()}
+							class="px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer bg-slate-900 text-white dark:bg-white dark:text-slate-900 hover:opacity-90 disabled:opacity-50 flex-shrink-0 shadow-xs"
+						>
+							{#if isTestingAI}
+								<span class="w-3.5 h-3.5 border-2 border-current border-t-transparent rounded-full animate-spin"></span>
+								<span>Menguji Model...</span>
+							{:else}
+								<span class="material-symbols-outlined text-sm">bolt</span>
+								<span>Uji Respon Model Sekarang</span>
+							{/if}
+						</button>
+					</div>
+
+					{#if isTestingAI}
+						<div class="p-4 rounded-xl bg-indigo-50/50 dark:bg-indigo-950/30 border border-indigo-200 dark:border-indigo-800/50 flex items-center gap-3 animate-pulse">
+							<span class="w-4 h-4 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin"></span>
+							<span class="text-xs font-medium text-indigo-700 dark:text-indigo-300">Menghubungi AI Bridge dengan model <strong>{aiModel}</strong>... Harap tunggu beberapa detik.</span>
+						</div>
+					{:else if aiTestResult}
+						{#if aiTestResult.success}
+							<div class="p-4 rounded-xl bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800/60 space-y-2 animate-in fade-in duration-200">
+								<div class="flex items-center justify-between">
+									<div class="flex items-center gap-2 text-xs font-black text-emerald-700 dark:text-emerald-400">
+										<span class="material-symbols-outlined text-base">check_circle</span>
+										<span>Koneksi Model Berhasil & Siap Digunakan!</span>
+									</div>
+									<div class="flex items-center gap-2">
+										<span class="px-2 py-0.5 rounded bg-emerald-200/60 dark:bg-emerald-900/60 text-emerald-800 dark:text-emerald-200 text-[10px] font-mono font-bold">
+											⚡ {aiTestResult.latencyMs} ms
+										</span>
+										<span class="px-2 py-0.5 rounded bg-white dark:bg-black/40 text-slate-700 dark:text-slate-300 text-[10px] font-mono font-bold border border-emerald-300/40">
+											{aiTestResult.model}
+										</span>
+									</div>
+								</div>
+								<div class="p-3 bg-white/80 dark:bg-black/30 rounded-lg border border-emerald-200/50 dark:border-emerald-900/40 text-xs text-slate-700 dark:text-slate-300 font-mono italic leading-relaxed">
+									"{aiTestResult.preview}"
+								</div>
+							</div>
+						{:else}
+							<div class="p-4 rounded-xl bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-800/60 space-y-2 animate-in fade-in duration-200">
+								<div class="flex items-center justify-between">
+									<div class="flex items-center gap-2 text-xs font-black text-rose-700 dark:text-rose-400">
+										<span class="material-symbols-outlined text-base">error</span>
+										<span>Uji Respon Model Gagal</span>
+									</div>
+									{#if aiTestResult.latencyMs}
+										<span class="px-2 py-0.5 rounded bg-rose-200/60 dark:bg-rose-900/60 text-rose-800 dark:text-rose-200 text-[10px] font-mono font-bold">
+											{aiTestResult.latencyMs} ms
+										</span>
+									{/if}
+								</div>
+								<p class="text-xs text-rose-600 dark:text-rose-300 font-mono leading-relaxed">
+									{aiTestResult.message}
+								</p>
+								<p class="text-[11px] text-rose-500/90 italic">
+									Catatan: Pastikan nama model terdaftar pada server OpenClaw atau coba gunakan preset 'glm-4.7-flash'.
+								</p>
+							</div>
+						{/if}
+					{/if}
+				</div>
+
+				<!-- Safety Failover Note -->
+				<div class="p-4 rounded-2xl bg-slate-100 dark:bg-slate-900/60 border border-slate-200/80 dark:border-slate-800/80 flex items-start gap-3 text-xs">
+					<span class="material-symbols-outlined text-indigo-600 mt-0.5 text-base flex-shrink-0">shield</span>
+					<div class="space-y-0.5 text-on-surface-variant">
+						<span class="font-bold text-on-surface">Proteksi Failover Otomatis (Zero Crash):</span>
+						<p class="leading-relaxed">
+							Sistem ERP BCS dilengkapi mekanisme proteksi bertingkat. Jika model yang Anda simpan di sini sewaktu-waktu mengalami gangguan, overload kuota, atau maintenance provider, sistem secara otomatis beralih sementara ke model cadangan di berkas lingkungan server (<code class="font-mono bg-black/10 dark:bg-white/10 px-1 py-0.5 rounded">.env</code>) tanpa menyebabkan error pada layar pengguna.
+						</p>
+					</div>
+				</div>
+
+				<!-- Submit Button & Feedback -->
+				<div class="flex items-center justify-between pt-4 border-t border-slate-200 dark:border-slate-800">
+					<div>
+						{#if form?.success && form?.aiConfig}
+							<div class="flex items-center gap-2 text-xs font-bold text-emerald-600 dark:text-emerald-400 animate-in fade-in duration-200">
+								<span class="material-symbols-outlined text-sm">check_circle</span>
+								<span>{form.message}</span>
+							</div>
+						{:else if form?.message && !form?.success}
+							<div class="flex items-center gap-2 text-xs font-bold text-rose-600 dark:text-rose-400 animate-in fade-in duration-200">
+								<span class="material-symbols-outlined text-sm">error</span>
+								<span>{form.message}</span>
+							</div>
+						{/if}
+					</div>
+
+					<button
+						type="submit"
+						disabled={isSavingAI || !aiModel.trim()}
+						class="px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center gap-2 cursor-pointer bg-indigo-600 hover:bg-indigo-700 text-white shadow-md hover:shadow-indigo-500/25 disabled:opacity-50"
+					>
+						{#if isSavingAI}
+							<span class="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+							<span>Menyimpan...</span>
+						{:else}
+							<span class="material-symbols-outlined text-sm">save</span>
+							<span>Simpan Konfigurasi AI</span>
+						{/if}
+					</button>
+				</div>
+			</form>
 		</div>
 	{/if}
 </div>
