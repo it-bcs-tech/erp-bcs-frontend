@@ -27,53 +27,59 @@ export const load: PageServerLoad = async ({ parent, url }) => {
 			? tabParam
 			: 'privacy';
 
+	// Ambil data dengan resilience: setiap query terisolasi agar kegagalan satu query tidak menggagalkan seluruh halaman
+	let poolList: any[] = [];
 	try {
-		// 1. Ambil status pool logistik & database health
-		const poolList = await sql`
-			SELECT id, pool_name, lokasi_pool, status_operasional 
+		poolList = await sql`
+			SELECT id, nama_pool as pool_name, latitude, longitude 
 			FROM master.m_pool 
-			ORDER BY id ASC
+			ORDER BY nama_pool ASC 
 			LIMIT 10
 		`;
+	} catch (e: any) {
+		console.warn('m_pool query skipped:', e?.message);
+	}
 
-		// 2. Ambil seluruh setting approval dari master.module_settings
-		const moduleSettings = await getAllModuleSettings();
+	let moduleSettings: any[] = [];
+	try {
+		moduleSettings = await getAllModuleSettings();
+	} catch (e: any) {
+		console.warn('getAllModuleSettings skipped:', e?.message);
+	}
 
-		// 3. Ambil daftar karyawan untuk dropdown yang relevan
-		const employees = await getFilteredEmployeesForSettings(user, 'global');
+	let employees: any[] = [];
+	try {
+		employees = await getFilteredEmployeesForSettings(user, 'global');
+	} catch (e: any) {
+		console.warn('getFilteredEmployeesForSettings skipped:', e?.message);
+	}
 
-		// 4. Ambil master tipe unit armada untuk OCS
-		const tipeUnits = await sql`
+	let tipeUnits: any[] = [];
+	try {
+		tipeUnits = await sql`
 			SELECT id, nama_tipe, golongan_tol 
 			FROM master.m_tipe_unit 
 			ORDER BY nama_tipe ASC
 		`;
-
-		// 5. Ambil katalog profil model & custom endpoint AI
-		const aiCatalog = await getAICatalogConfig();
-
-		return {
-			pools: poolList || [],
-			moduleSettings,
-			employees,
-			tipeUnits: tipeUnits || [],
-			aiCatalog,
-			initialTab
-		};
 	} catch (e: any) {
-		console.warn('Fallback settings load:', e?.message);
-		return {
-			pools: [
-				{ id: 1, pool_name: 'Pool Cilegon Utama', lokasi_pool: 'Gerem, Cilegon, Banten', status_operasional: 'Active' },
-				{ id: 2, pool_name: 'Pool Gunung Putri', lokasi_pool: 'Wanaherang, Gunung Putri, Bogor', status_operasional: 'Active' }
-			],
-			moduleSettings: [],
-			employees: [],
-			tipeUnits: [],
-			aiCatalog: DEFAULT_AI_CATALOG,
-			initialTab: 'privacy'
-		};
+		console.warn('m_tipe_unit query skipped:', e?.message);
 	}
+
+	let aiCatalog: AICatalogConfig = DEFAULT_AI_CATALOG;
+	try {
+		aiCatalog = await getAICatalogConfig();
+	} catch (e: any) {
+		console.warn('getAICatalogConfig fallback:', e?.message);
+	}
+
+	return {
+		pools: poolList,
+		moduleSettings,
+		employees,
+		tipeUnits,
+		aiCatalog,
+		initialTab
+	};
 };
 
 export const actions: Actions = {
