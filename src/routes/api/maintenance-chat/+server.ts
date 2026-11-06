@@ -7,17 +7,29 @@
 
 import type { RequestHandler } from './$types';
 import { env } from '$env/dynamic/private';
+import { getActiveAIConfig } from '$lib/server/aiConfig';
 
 const AI_BRIDGE_URL = env.AI_BRIDGE_URL ?? 'http://127.0.0.1:8002';
 
 export const POST: RequestHandler = async ({ request }) => {
 	const body = await request.json();
 
+	// Muat konfigurasi model dinamis aktif dari DB
+	const aiConfig = await getActiveAIConfig();
+	const payload = {
+		...body,
+		model: body.model || aiConfig.model,
+		base_url: aiConfig.baseUrl,
+		api_key: aiConfig.apiKey,
+		temperature: body.temperature ?? aiConfig.temperature,
+		max_tokens: body.max_tokens ?? aiConfig.maxTokens
+	};
+
 	try {
 		const response = await fetch(`${AI_BRIDGE_URL}/maintenance/chat`, {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify(body),
+			body: JSON.stringify(payload),
 		});
 
 		if (!response.ok) {
