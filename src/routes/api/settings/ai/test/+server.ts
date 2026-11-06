@@ -1,30 +1,42 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { env } from '$env/dynamic/private';
-
-const AI_BRIDGE_URL = env.AI_BRIDGE_URL ?? 'http://127.0.0.1:8000';
 
 export const POST: RequestHandler = async ({ request }) => {
 	const body = await request.json();
-	const model = body.model?.trim() || 'glm-4.7-flash';
+	const baseUrl = (body.baseUrl || '').trim() || 'https://api.groq.com/openai/v1';
+	const apiKey = (body.apiKey || '').trim();
+	const model = (body.model || '').trim() || 'glm-4.7-flash';
 	const temperature = typeof body.temperature === 'number' ? body.temperature : 0.7;
-	const maxTokens = typeof body.maxTokens === 'number' ? body.maxTokens : 512;
-	const testPrompt = body.prompt?.trim() || 'Tes koneksi sistem AI ERP BCS. Harap berikan konfirmasi kesiapan sistem dalam 1-2 kalimat singkat.';
+	const maxTokens = typeof body.maxTokens === 'number' ? body.maxTokens : 256;
+	const testPrompt =
+		body.prompt?.trim() ||
+		'Tes konektivitas endpoint AI ERP BCS. Jawab dengan 1 kalimat singkat bahwa sistem siap.';
+
+	// Susun endpoint target OpenAI-compatible
+	let targetUrl = baseUrl.replace(/\/+$/, '');
+	if (!targetUrl.endsWith('/chat/completions')) {
+		targetUrl += '/chat/completions';
+	}
 
 	const startTime = Date.now();
 
 	try {
-		// Panggil AI Bridge chat endpoint dengan mode uji coba
-		const response = await fetch(`${AI_BRIDGE_URL}/chat`, {
+		const headers: Record<string, string> = {
+			'Content-Type': 'application/json'
+		};
+		if (apiKey) {
+			headers['Authorization'] = `Bearer ${apiKey}`;
+		}
+
+		const response = await fetch(targetUrl, {
 			method: 'POST',
-			headers: { 'Content-Type': 'application/json' },
+			headers,
 			body: JSON.stringify({
-				messages: [
-					{ role: 'user', content: testPrompt }
-				],
 				model,
+				messages: [{ role: 'user', content: testPrompt }],
 				temperature,
-				max_tokens: maxTokens
+				max_tokens: maxTokens,
+				stream: false
 			}),
 			signal: AbortSignal.timeout(15000) // 15 detik timeout limit
 		});
@@ -33,28 +45,45 @@ export const POST: RequestHandler = async ({ request }) => {
 
 		if (!response.ok) {
 			const errText = await response.text();
-			return json({
-				success: false,
-				status: response.status,
-				latencyMs,
-				message: `AI Bridge merespon error (${response.status}): ${errText.slice(0, 300)}`
-			}, { status: 200 });
+			let detail = errText;
+			try {
+				const errJson = JSON.parse(errText);
+				detail = errJson.error?.message || errJson.message || errText;
+			} catch {
+				// Gunakan raw text jika bukan JSON
+			}
+			return json(
+				{
+					success: false,
+					status: response.status,
+					latencyMs,
+					message: `Endpoint merespon error (${response.status}): ${detail.slice(0, 300)}`
+				},
+				{ status: 200 }
+			);
 		}
 
-		// Baca stream teks respon
-		const fullText = await response.text();
+		const data = await response.json();
+		const previewText =
+			data.choices?.[0]?.message?.content?.trim() ||
+			'Koneksi berhasil dan handshake endpoint valid.';
+
 		return json({
 			success: true,
 			model,
+			baseUrl,
 			latencyMs,
-			preview: fullText.trim() || 'Koneksi berhasil, respon diterima tanpa isi teks.'
+			preview: previewText
 		});
 	} catch (err: any) {
 		const latencyMs = Date.now() - startTime;
-		return json({
-			success: false,
-			latencyMs,
-			message: `Gagal terhubung ke AI Bridge (${AI_BRIDGE_URL}): ${err.message || 'Koneksi terputus / timeout'}`
-		}, { status: 200 });
+		return json(
+			{
+				success: false,
+				latencyMs,
+				message: `Gagal terhubung ke endpoint (${targetUrl}): ${err.message || 'Koneksi terputus / timeout'}`
+			},
+			{ status: 200 }
+		);
 	}
 };

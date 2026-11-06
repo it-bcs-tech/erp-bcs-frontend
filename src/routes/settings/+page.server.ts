@@ -3,7 +3,13 @@ import type { PageServerLoad, Actions } from './$types';
 import sql from '$lib/server/db';
 import { ADMIN_ROLES } from '$lib/types/auth';
 import { getAllModuleSettings, setModuleSetting, getFilteredEmployeesForSettings, type ApproverSetting } from '$lib/server/settings';
-import { getActiveAIConfig } from '$lib/server/aiConfig';
+import {
+	getAICatalogConfig,
+	saveAICatalogConfig,
+	DEFAULT_AI_CATALOG,
+	type AIModelProfile,
+	type AICatalogConfig
+} from '$lib/server/aiConfig';
 
 export const load: PageServerLoad = async ({ parent }) => {
 	const { user } = await parent();
@@ -36,15 +42,15 @@ export const load: PageServerLoad = async ({ parent }) => {
 			ORDER BY nama_tipe ASC
 		`;
 
-		// 5. Ambil konfigurasi AI Global
-		const aiConfig = await getActiveAIConfig();
+		// 5. Ambil katalog profil model & custom endpoint AI
+		const aiCatalog = await getAICatalogConfig();
 
 		return {
 			pools: poolList || [],
 			moduleSettings,
 			employees,
 			tipeUnits: tipeUnits || [],
-			aiConfig
+			aiCatalog
 		};
 	} catch (e: any) {
 		console.warn('Fallback settings load:', e?.message);
@@ -56,12 +62,7 @@ export const load: PageServerLoad = async ({ parent }) => {
 			moduleSettings: [],
 			employees: [],
 			tipeUnits: [],
-			aiConfig: {
-				model: 'glm-4.7-flash',
-				provider: 'openclaw',
-				temperature: 0.7,
-				maxTokens: 2048
-			}
+			aiCatalog: DEFAULT_AI_CATALOG
 		};
 	}
 };
@@ -219,6 +220,138 @@ export const actions: Actions = {
 			success: true,
 			privacyValue,
 			message: 'Pengaturan Privasi Global berhasil disimpan ke database dan aktif di seluruh akun.'
+		};
+	},
+
+	saveAIProfile: async ({ request, locals }) => {
+		const formData = await request.formData();
+		const id = (formData.get('id') as string || '').trim();
+		const name = (formData.get('name') as string || '').trim();
+		const provider = (formData.get('provider') as string || 'custom').trim();
+		const baseUrl = (formData.get('baseUrl') as string || '').trim();
+		const apiKey = (formData.get('apiKey') as string || '').trim();
+		const model = (formData.get('model') as string || '').trim();
+		const temperature = parseFloat((formData.get('temperature') as string) || '0.7');
+		const maxTokens = parseInt((formData.get('maxTokens') as string) || '2048', 10);
+		const makeActive = formData.get('makeActive') === 'true' || formData.get('makeActive') === 'on';
+
+		if (!name) {
+			return fail(400, { success: false, message: 'Label / Nama Profil Model wajib diisi!' });
+		}
+		if (!baseUrl) {
+			return fail(400, { success: false, message: 'Custom Base URL / Endpoint wajib diisi!' });
+		}
+		if (!model) {
+			return fail(400, { success: false, message: 'Nama Model Identifier wajib diisi!' });
+		}
+
+		const sessionUser = (locals as any)?.user?.name || (locals as any)?.user?.username || 'admin';
+		const catalog = await getAICatalogConfig();
+		const profileId = id || `prof_${Date.now()}`;
+
+		const updatedProfile: AIModelProfile = {
+			id: profileId,
+			name,
+			provider,
+			baseUrl,
+			apiKey,
+			model,
+			temperature: isNaN(temperature) ? 0.7 : Math.min(1.0, Math.max(0.0, temperature)),
+			maxTokens: isNaN(maxTokens) ? 2048 : Math.max(128, maxTokens),
+			updatedAt: new Date().toISOString()
+		};
+
+		const existingIndex = catalog.profiles.findIndex((p) => p.id === profileId);
+		if (existingIndex >= 0) {
+			catalog.profiles[existingIndex] = {
+				...catalog.profiles[existingIndex],
+				...updatedProfile,
+				isDefault: catalog.profiles[existingIndex].isDefault
+			};
+		} else {
+			catalog.profiles.push(updatedProfile);
+		}
+
+		if (makeActive || catalog.profiles.length === 1) {
+			catalog.activeProfileId = profileId;
+		}
+
+		const ok = await saveAICatalogConfig(catalog, sessionUser);
+		if (!ok) {
+			return fail(500, { success: false, message: 'Gagal menyimpan profil model ke database.' });
+		}
+
+		return {
+			success: true,
+			savedProfileId: profileId,
+			message: `Profil model "${name}" (${model}) berhasil disimpan.`
+		};
+	},
+
+	deleteAIProfile: async ({ request, locals }) => {
+		const formData = await request.formData();
+		const id = (formData.get('id') as string || '').trim();
+
+		if (!id) {
+			return fail(400, { success: false, message: 'ID Profil model tidak valid.' });
+		}
+
+		const sessionUser = (locals as any)?.user?.name || (locals as any)?.user?.username || 'admin';
+		const catalog = await getAICatalogConfig();
+
+		if (catalog.profiles.length <= 1) {
+			return fail(400, { success: false, message: 'Tidak dapat menghapus satu-satunya profil model di sistem.' });
+		}
+
+		const targetIndex = catalog.profiles.findIndex((p) => p.id === id);
+		if (targetIndex === -1) {
+			return fail(404, { success: false, message: 'Profil model tidak ditemukan.' });
+		}
+
+		const deletedName = catalog.profiles[targetIndex].name;
+		catalog.profiles.splice(targetIndex, 1);
+
+		if (catalog.activeProfileId === id) {
+			catalog.activeProfileId = catalog.profiles[0].id;
+		}
+
+		const ok = await saveAICatalogConfig(catalog, sessionUser);
+		if (!ok) {
+			return fail(500, { success: false, message: 'Gagal menghapus profil model dari database.' });
+		}
+
+		return {
+			success: true,
+			message: `Profil model "${deletedName}" berhasil dihapus.`
+		};
+	},
+
+	setActiveAIProfile: async ({ request, locals }) => {
+		const formData = await request.formData();
+		const id = (formData.get('id') as string || '').trim();
+
+		if (!id) {
+			return fail(400, { success: false, message: 'ID Profil model tidak valid.' });
+		}
+
+		const sessionUser = (locals as any)?.user?.name || (locals as any)?.user?.username || 'admin';
+		const catalog = await getAICatalogConfig();
+		const target = catalog.profiles.find((p) => p.id === id);
+
+		if (!target) {
+			return fail(404, { success: false, message: 'Profil model tidak ditemukan di katalog.' });
+		}
+
+		catalog.activeProfileId = id;
+		const ok = await saveAICatalogConfig(catalog, sessionUser);
+		if (!ok) {
+			return fail(500, { success: false, message: 'Gagal mengaktifkan profil model.' });
+		}
+
+		return {
+			success: true,
+			activeProfileId: id,
+			message: `Model "${target.name}" (${target.model}) sekarang aktif untuk seluruh modul ERP.`
 		};
 	},
 

@@ -14,89 +14,178 @@
 	let isSavedToast = $state(false);
 	let approvalSuccessMsg = $state('');
 
-	// AI Model Engine State (Dynamic Configuration)
-	let aiModel = $state(data.aiConfig?.model || 'glm-4.7-flash');
-	let aiProvider = $state(data.aiConfig?.provider || 'openclaw');
-	let aiTemperature = $state<number>(data.aiConfig?.temperature ?? 0.7);
-	let aiMaxTokens = $state<number>(data.aiConfig?.maxTokens ?? 2048);
+	// AI Model Engine & Custom Endpoint State (Dynamic Catalog & Profiles)
+	let aiCatalog = $state(data.aiCatalog || { activeProfileId: 'default-model', profiles: [] });
+
+	$effect(() => {
+		if (data.aiCatalog) {
+			aiCatalog = data.aiCatalog;
+		}
+	});
+
+	let activeAIProfile = $derived(
+		aiCatalog.profiles.find((p: any) => p.id === aiCatalog.activeProfileId) ||
+			aiCatalog.profiles[0] ||
+			null
+	);
+
+	// Modal State Tambah / Edit Profil Model
+	let showAIModal = $state(false);
+	let isEditingAI = $state(false);
+	let modalId = $state('');
+	let modalName = $state('');
+	let modalProvider = $state('groq');
+	let modalBaseUrl = $state('https://api.groq.com/openai/v1');
+	let modalApiKey = $state('');
+	let modalModel = $state('llama-3.3-70b-versatile');
+	let modalTemperature = $state(0.7);
+	let modalMaxTokens = $state(2048);
+	let modalMakeActive = $state(true);
+	let showApiKey = $state(false);
 
 	let isTestingAI = $state(false);
+	let testingProfileId = $state<string | null>(null);
 	let aiTestResult = $state<{
 		success: boolean;
 		latencyMs?: number;
 		model?: string;
+		baseUrl?: string;
 		preview?: string;
 		message?: string;
 	} | null>(null);
 
 	let isSavingAI = $state(false);
-	let aiSaveSuccessMsg = $state('');
+	let isActivatingAI = $state(false);
+	let isDeletingAI = $state(false);
 
-	const AI_PRESETS = [
-		{
-			id: 'glm-4.7-flash',
-			name: 'GLM 4.7 Flash',
-			provider: 'openclaw',
-			providerLabel: 'OpenClaw (Biznet)',
-			badge: 'Rekomendasi Utama',
-			badgeColor: 'border-emerald-500/40 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400',
-			desc: 'Optimal untuk query database ERP, berbahasa Indonesia natural, respon instan.',
-			speed: '< 200 ms',
-			tokens: '128K'
-		},
-		{
-			id: 'llama-3.3-70b-versatile',
-			name: 'Llama 3.3 70B',
-			provider: 'groq',
-			providerLabel: 'Groq Cloud',
-			badge: 'Akurasi Tinggi',
+	const PROVIDER_TEMPLATES: Record<
+		string,
+		{ label: string; defaultUrl: string; placeholderModel: string; badgeColor: string; icon: string; desc: string }
+	> = {
+		groq: {
+			label: 'Groq Cloud',
+			defaultUrl: 'https://api.groq.com/openai/v1',
+			placeholderModel: 'llama-3.3-70b-versatile',
 			badgeColor: 'border-blue-500/40 bg-blue-500/10 text-blue-600 dark:text-blue-400',
-			desc: 'Penalaran mendalam untuk laporan manajerial kompleks dan analisis finansial.',
-			speed: '300-500 ms',
-			tokens: '128K'
+			icon: 'speed',
+			desc: 'Inference ultra-cepat via LPU'
 		},
-		{
-			id: 'gpt-4o-mini',
-			name: 'GPT-4o Mini',
-			provider: 'openai',
-			providerLabel: 'OpenAI API',
-			badge: 'Multimodal Cerdas',
+		openrouter: {
+			label: 'OpenRouter',
+			defaultUrl: 'https://openrouter.ai/api/v1',
+			placeholderModel: 'google/gemini-2.0-flash-001',
 			badgeColor: 'border-purple-500/40 bg-purple-500/10 text-purple-600 dark:text-purple-400',
-			desc: 'Format output terstruktur rapi, penalaran matematis dan sintesis teks kuat.',
-			speed: '400-700 ms',
-			tokens: '128K'
+			icon: 'hub',
+			desc: 'Akses ratusan model LLM'
 		},
-		{
-			id: 'deepseek-chat',
-			name: 'DeepSeek V3 / R1',
-			provider: 'openclaw',
-			providerLabel: 'DeepSeek',
-			badge: 'Penalaran Logika',
+		openai: {
+			label: 'OpenAI API',
+			defaultUrl: 'https://api.openai.com/v1',
+			placeholderModel: 'gpt-4o-mini',
+			badgeColor: 'border-emerald-500/40 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400',
+			icon: 'smart_toy',
+			desc: 'Model GPT-4o resmi dari OpenAI'
+		},
+		deepseek: {
+			label: 'DeepSeek',
+			defaultUrl: 'https://api.deepseek.com/v1',
+			placeholderModel: 'deepseek-chat',
 			badgeColor: 'border-amber-500/40 bg-amber-500/10 text-amber-600 dark:text-amber-400',
-			desc: 'Sangat kuat dalam reasoning berantai, kalkulasi tarif rute logistik, dan SQL.',
-			speed: '500-900 ms',
-			tokens: '64K'
+			icon: 'psychology',
+			desc: 'DeepSeek V3 dan DeepSeek R1'
+		},
+		ollama: {
+			label: 'Ollama Lokal',
+			defaultUrl: 'http://localhost:11434/v1',
+			placeholderModel: 'qwen2.5-coder:7b',
+			badgeColor: 'border-teal-500/40 bg-teal-500/10 text-teal-600 dark:text-teal-400',
+			icon: 'dns',
+			desc: 'Server lokal tanpa internet'
+		},
+		openclaw: {
+			label: 'OpenClaw Biznet Server',
+			defaultUrl: 'https://api.groq.com/openai/v1',
+			placeholderModel: 'glm-4.7-flash',
+			badgeColor: 'border-indigo-500/40 bg-indigo-500/10 text-indigo-600 dark:text-indigo-400',
+			icon: 'memory',
+			desc: 'Server internal ERP BCS'
+		},
+		custom: {
+			label: 'Custom Endpoint',
+			defaultUrl: 'https://',
+			placeholderModel: 'custom-model-id',
+			badgeColor: 'border-slate-500/40 bg-slate-500/10 text-slate-600 dark:text-slate-400',
+			icon: 'settings_ethernet',
+			desc: 'OpenAI-compatible server mandiri'
 		}
-	];
+	};
 
-	function selectAIPreset(preset: typeof AI_PRESETS[0]) {
-		aiModel = preset.id;
-		aiProvider = preset.provider;
-		aiTestResult = null;
+	function onProviderChange(prov: string) {
+		modalProvider = prov;
+		const template = PROVIDER_TEMPLATES[prov];
+		if (template) {
+			modalBaseUrl = template.defaultUrl;
+			if (!modalModel || modalModel === 'glm-4.7-flash' || modalModel === 'llama-3.3-70b-versatile') {
+				modalModel = template.placeholderModel;
+			}
+		}
 	}
 
-	async function runAITest() {
-		if (!aiModel.trim()) return;
+	function openAddModal() {
+		isEditingAI = false;
+		modalId = '';
+		modalName = '';
+		modalProvider = 'groq';
+		modalBaseUrl = PROVIDER_TEMPLATES.groq.defaultUrl;
+		modalApiKey = '';
+		modalModel = PROVIDER_TEMPLATES.groq.placeholderModel;
+		modalTemperature = 0.7;
+		modalMaxTokens = 2048;
+		modalMakeActive = aiCatalog.profiles.length === 0;
+		showApiKey = false;
+		aiTestResult = null;
+		testingProfileId = null;
+		showAIModal = true;
+	}
+
+	function openEditModal(profile: any) {
+		isEditingAI = true;
+		modalId = profile.id;
+		modalName = profile.name;
+		modalProvider = profile.provider || 'custom';
+		modalBaseUrl = profile.baseUrl || 'https://api.groq.com/openai/v1';
+		modalApiKey = profile.apiKey || '';
+		modalModel = profile.model || 'glm-4.7-flash';
+		modalTemperature = profile.temperature ?? 0.7;
+		modalMaxTokens = profile.maxTokens ?? 2048;
+		modalMakeActive = profile.id === aiCatalog.activeProfileId;
+		showApiKey = false;
+		aiTestResult = null;
+		testingProfileId = null;
+		showAIModal = true;
+	}
+
+	async function testProfileConnection(profile: {
+		id?: string;
+		baseUrl: string;
+		apiKey: string;
+		model: string;
+		temperature?: number;
+		maxTokens?: number;
+	}) {
 		isTestingAI = true;
 		aiTestResult = null;
+		testingProfileId = profile.id || 'modal';
 		try {
 			const res = await fetch('/api/settings/ai/test', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({
-					model: aiModel,
-					temperature: aiTemperature,
-					maxTokens: aiMaxTokens
+					baseUrl: profile.baseUrl,
+					apiKey: profile.apiKey,
+					model: profile.model,
+					temperature: profile.temperature,
+					maxTokens: profile.maxTokens
 				})
 			});
 			const resData = await res.json();
@@ -1942,325 +2031,590 @@
 			</div>
 		</div>
 	{:else if activeTab === 'ai'}
-		<!-- TAB: AI ENGINE & LLM CONFIGURATION -->
+		<!-- TAB: AI ENGINE & CUSTOM ENDPOINT CONFIGURATION -->
 		<div class="space-y-6">
 			<!-- Header Banner AI -->
-			<div class="p-6 rounded-3xl bg-gradient-to-r from-indigo-700 via-purple-700 to-indigo-900 text-white shadow-lg flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+			<div class="p-6 md:p-7 rounded-3xl bg-gradient-to-r from-indigo-700 via-purple-700 to-indigo-900 text-white shadow-lg flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
 				<div class="flex items-center gap-4">
 					<div class="w-14 h-14 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center text-white flex-shrink-0 shadow-inner">
 						<span class="material-symbols-outlined text-3xl">smart_toy</span>
 					</div>
 					<div>
 						<div class="flex items-center gap-2 mb-1">
-							<h3 class="text-xl font-black tracking-tight">AI Engine & Model LLM</h3>
-							<span class="px-2 py-0.5 rounded-full bg-emerald-400/20 text-emerald-300 text-[10px] font-black uppercase tracking-wider border border-emerald-400/30">Live Dynamic</span>
+							<h3 class="text-xl font-black tracking-tight">AI Engine, Provider & Custom Endpoint</h3>
+							<span class="px-2 py-0.5 rounded-full bg-emerald-400/20 text-emerald-300 text-[10px] font-black uppercase tracking-wider border border-emerald-400/30">Dynamic Multi-Endpoint</span>
 						</div>
 						<p class="text-xs text-indigo-100/90 leading-relaxed max-w-2xl">
-							Pusat kendali model AI untuk seluruh asisten pintar di ERP BCS (HRIS, FMS, OCS, Finance, DMS, QHSE). Perubahan model berlaku serentak secara <strong>instan (zero-downtime)</strong> tanpa perlu restart server.
+							Kelola katalog model AI dan custom OpenAI-compatible endpoint untuk seluruh modul ERP BCS (HRIS, FMS, OCS, Finance, DMS, QHSE). Anda dapat menambah, mengubah, menguji, dan mengganti model aktif secara <strong>instan (zero-downtime)</strong>.
 						</p>
 					</div>
 				</div>
-				<div class="flex flex-col items-start md:items-end gap-1.5 flex-shrink-0 bg-white/10 px-4 py-2.5 rounded-2xl border border-white/15">
-					<span class="text-[10px] uppercase font-bold text-indigo-200 tracking-wider">Model Aktif Saat Ini</span>
-					<div class="flex items-center gap-2">
-						<span class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
-						<span class="font-mono text-sm font-black text-white">{aiModel}</span>
-					</div>
+
+				<div class="flex flex-row md:flex-col items-center md:items-end justify-between w-full md:w-auto gap-3 flex-shrink-0">
+					<!-- Active Model Pill -->
+					{#if activeAIProfile}
+						<div class="bg-white/10 px-4 py-2 rounded-2xl border border-white/15 flex items-center gap-2.5">
+							<span class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
+							<div class="text-left">
+								<span class="text-[9px] uppercase font-bold text-indigo-200 block tracking-wider">Model Aktif Global</span>
+								<span class="font-mono text-xs font-black text-white">{activeAIProfile.name}</span>
+							</div>
+						</div>
+					{/if}
+
+					<!-- Tombol Tambah Model Baru -->
+					<button
+						type="button"
+						onclick={openAddModal}
+						class="px-4 py-2.5 rounded-2xl bg-white text-indigo-900 hover:bg-indigo-50 font-black text-xs transition-all shadow-md hover:shadow-lg flex items-center gap-2 cursor-pointer flex-shrink-0"
+					>
+						<span class="material-symbols-outlined text-base">add_circle</span>
+						<span>Tambah Profil Model</span>
+					</button>
 				</div>
 			</div>
 
-			<!-- Preset Selection Section -->
-			<div class="bg-surface rounded-3xl border border-slate-200/80 dark:border-slate-800/80 p-6 shadow-xs space-y-4">
-				<div class="flex items-center justify-between">
-					<div>
-						<h4 class="text-sm font-bold text-on-surface">Pilih Preset Model Cepat (1-Klik)</h4>
-						<p class="text-xs text-on-surface-variant">Klik kartu model di bawah untuk langsung memuat spesifikasi dan rekomendasinya.</p>
+			<!-- Status Feedback Action (Save / Delete / Activate) -->
+			{#if form?.message}
+				<div class="p-4 rounded-2xl border flex items-center justify-between gap-3 text-xs font-bold animate-in fade-in duration-200 {form.success ? 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300' : 'bg-rose-50 dark:bg-rose-950/40 border-rose-200 dark:border-rose-800 text-rose-700 dark:text-rose-300'}">
+					<div class="flex items-center gap-2">
+						<span class="material-symbols-outlined text-base">{form.success ? 'check_circle' : 'error'}</span>
+						<span>{form.message}</span>
 					</div>
-					<span class="text-[11px] font-bold text-indigo-600 dark:text-indigo-400 flex items-center gap-1">
-						<span class="material-symbols-outlined text-sm">touch_app</span> 1-Klik Apply
+				</div>
+			{/if}
+
+			<!-- Grid Katalog Profil Model AI -->
+			<div class="bg-surface rounded-3xl border border-slate-200/80 dark:border-slate-800/80 p-6 shadow-xs space-y-5">
+				<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-200/60 dark:border-slate-800/60 pb-4">
+					<div>
+						<h4 class="text-sm font-bold text-on-surface flex items-center gap-2">
+							<span>Daftar Profil & Custom Endpoint</span>
+							<span class="px-2 py-0.5 rounded-md bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 text-[10px] font-mono font-bold">
+								{aiCatalog.profiles.length} Profil
+							</span>
+						</h4>
+						<p class="text-xs text-on-surface-variant">Pilih 1 model yang aktif untuk melayani perintah dan chat asisten cerdas.</p>
+					</div>
+
+					<span class="text-[11px] font-medium text-slate-400 flex items-center gap-1">
+						<span class="material-symbols-outlined text-xs">info</span>
+						Protokol: OpenAI-Compatible (/v1/chat/completions)
 					</span>
 				</div>
 
-				<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-					{#each AI_PRESETS as preset}
-						<button
-							type="button"
-							onclick={() => selectAIPreset(preset)}
-							class="text-left p-4 rounded-2xl border transition-all cursor-pointer flex flex-col justify-between {aiModel === preset.id ? 'border-indigo-600 dark:border-indigo-500 bg-indigo-50/40 dark:bg-indigo-950/20 shadow-md ring-2 ring-indigo-500/20' : 'border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 bg-surface-container-low'}"
+				<!-- Grid Cards -->
+				<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+					{#each aiCatalog.profiles as p (p.id)}
+						{@const isCurrentActive = p.id === aiCatalog.activeProfileId}
+						{@const provInfo = PROVIDER_TEMPLATES[p.provider] || PROVIDER_TEMPLATES.custom}
+						<div
+							class="p-5 rounded-2xl border transition-all flex flex-col justify-between gap-4 relative group {isCurrentActive
+								? 'bg-indigo-50/30 dark:bg-indigo-950/20 border-indigo-500 shadow-md ring-2 ring-indigo-500/20'
+								: 'bg-surface-container-low border-slate-200/80 dark:border-slate-800/80 hover:border-slate-300 dark:hover:border-slate-700'}"
 						>
-							<div>
-								<div class="flex items-center justify-between gap-1 mb-2">
-									<span class="px-2 py-0.5 rounded-md border text-[10px] font-bold {preset.badgeColor}">
-										{preset.badge}
-									</span>
-									<span class="text-[10px] font-semibold text-slate-400">{preset.providerLabel}</span>
-								</div>
-								<h5 class="text-sm font-black text-on-surface mb-1 flex items-center gap-1.5">
-									{preset.name}
-									{#if aiModel === preset.id}
-										<span class="material-symbols-outlined text-indigo-600 text-sm">check_circle</span>
+							<div class="space-y-3">
+								<!-- Card Header -->
+								<div class="flex items-start justify-between gap-2">
+									<div class="flex items-center gap-2.5 min-w-0">
+										<div class="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 {provInfo.badgeColor}">
+											<span class="material-symbols-outlined text-lg">{provInfo.icon}</span>
+										</div>
+										<div class="min-w-0">
+											<h5 class="text-xs font-black text-on-surface truncate" title={p.name}>
+												{p.name}
+											</h5>
+											<span class="text-[10px] font-bold text-slate-400 block truncate">
+												{provInfo.label}
+											</span>
+										</div>
+									</div>
+
+									{#if isCurrentActive}
+										<span class="px-2 py-0.5 rounded-full text-[9px] font-black bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 flex items-center gap-1 flex-shrink-0 shadow-xs">
+											<span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+											AKTIF
+										</span>
+									{:else}
+										<form
+											method="POST"
+											action="?/setActiveAIProfile"
+											use:enhance={() => {
+												isActivatingAI = true;
+												return async ({ update }) => {
+													isActivatingAI = false;
+													await update();
+												};
+											}}
+										>
+											<input type="hidden" name="id" value={p.id} />
+											<button
+												type="submit"
+												disabled={isActivatingAI}
+												class="px-2.5 py-1 rounded-lg text-[10px] font-bold transition-all cursor-pointer bg-surface border border-slate-300 dark:border-slate-700 hover:border-indigo-500 hover:text-indigo-600 dark:hover:text-indigo-400 text-slate-600 dark:text-slate-300 flex items-center gap-1 shadow-xs"
+												title="Jadikan model ini sebagai model aktif ERP BCS"
+											>
+												<span class="material-symbols-outlined text-[13px]">check</span>
+												<span>Aktifkan</span>
+											</button>
+										</form>
 									{/if}
-								</h5>
-								<p class="text-[11px] text-on-surface-variant line-clamp-2 mb-3 leading-snug">
-									{preset.desc}
-								</p>
+								</div>
+
+								<!-- Model ID & Endpoint Box -->
+								<div class="p-3 bg-surface/70 dark:bg-black/20 rounded-xl border border-slate-200/60 dark:border-slate-800/60 space-y-1.5 text-[11px] font-mono">
+									<div class="flex items-center justify-between gap-1">
+										<span class="text-[9px] font-sans font-bold text-slate-400 uppercase tracking-wider">Model ID</span>
+										<span class="font-bold text-indigo-600 dark:text-indigo-400 truncate max-w-[180px]" title={p.model}>
+											{p.model}
+										</span>
+									</div>
+									<div class="flex items-center justify-between gap-1">
+										<span class="text-[9px] font-sans font-bold text-slate-400 uppercase tracking-wider">Endpoint</span>
+										<span class="text-slate-500 dark:text-slate-400 truncate max-w-[180px]" title={p.baseUrl}>
+											{p.baseUrl.replace(/^https?:\/\//, '')}
+										</span>
+									</div>
+								</div>
+
+								<!-- Parameter Pills -->
+								<div class="flex items-center flex-wrap gap-1.5 text-[10px] text-slate-500">
+									<span class="px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700/60 font-medium">
+										Temp: <strong class="text-on-surface">{p.temperature.toFixed(2)}</strong>
+									</span>
+									<span class="px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700/60 font-medium">
+										Max: <strong class="text-on-surface">{p.maxTokens}</strong> tok
+									</span>
+									<span class="px-2 py-0.5 rounded-md border font-medium {p.apiKey ? 'bg-emerald-50 dark:bg-emerald-950/20 border-emerald-300/50 text-emerald-600 dark:text-emerald-400' : 'bg-slate-100 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-400'}">
+										{p.apiKey ? '🔑 Key Terpasang' : '🔓 Tanpa Key (Lokal)'}
+									</span>
+								</div>
 							</div>
-							<div class="pt-2 border-t border-slate-200/60 dark:border-slate-800/60 flex items-center justify-between text-[10px] text-slate-500 font-medium">
-								<span class="flex items-center gap-1"><span class="material-symbols-outlined text-[13px]">speed</span> {preset.speed}</span>
-								<span class="flex items-center gap-1"><span class="material-symbols-outlined text-[13px]">dataset</span> {preset.tokens}</span>
+
+							<!-- Card Footer Actions -->
+							<div class="flex items-center justify-between pt-3 border-t border-slate-200/60 dark:border-slate-800/60 gap-1">
+								<!-- Uji Koneksi Button -->
+								<button
+									type="button"
+									onclick={() => testProfileConnection(p)}
+									disabled={isTestingAI && testingProfileId === p.id}
+									class="px-2.5 py-1.5 rounded-lg text-[10px] font-bold transition-all cursor-pointer flex items-center gap-1 bg-surface border border-slate-200 dark:border-slate-700 hover:border-slate-300 text-slate-700 dark:text-slate-200 hover:bg-surface-container disabled:opacity-50"
+									title="Tes latensi dan respons dari endpoint profil ini"
+								>
+									{#if isTestingAI && testingProfileId === p.id}
+										<span class="w-3 h-3 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin"></span>
+										<span>Menguji...</span>
+									{:else}
+										<span class="material-symbols-outlined text-[13px] text-indigo-600">bolt</span>
+										<span>Tes Respon</span>
+									{/if}
+								</button>
+
+								<div class="flex items-center gap-1">
+									<!-- Edit Button -->
+									<button
+										type="button"
+										onclick={() => openEditModal(p)}
+										class="p-1.5 rounded-lg text-slate-500 hover:text-indigo-600 hover:bg-surface-container transition-all cursor-pointer"
+										title="Edit parameter profil ini"
+									>
+										<span class="material-symbols-outlined text-sm">edit</span>
+									</button>
+
+									<!-- Delete Button (Hanya jika profil > 1) -->
+									{#if aiCatalog.profiles.length > 1}
+										<form
+											method="POST"
+											action="?/deleteAIProfile"
+											onsubmit={(e) => {
+												if (!confirm(`Hapus profil model "${p.name}"?`)) {
+													e.preventDefault();
+												}
+											}}
+											use:enhance={() => {
+												isDeletingAI = true;
+												return async ({ update }) => {
+													isDeletingAI = false;
+													await update();
+												};
+											}}
+										>
+											<input type="hidden" name="id" value={p.id} />
+											<button
+												type="submit"
+												disabled={isDeletingAI}
+												class="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-all cursor-pointer disabled:opacity-50"
+												title="Hapus profil model ini"
+											>
+												<span class="material-symbols-outlined text-sm">delete</span>
+											</button>
+										</form>
+									{/if}
+								</div>
 							</div>
-						</button>
+						</div>
 					{/each}
 				</div>
 			</div>
 
-			<!-- Main Form Configuration -->
-			<form
-				method="POST"
-				action="?/saveAISettings"
-				use:enhance={() => {
-					isSavingAI = true;
-					return async ({ result, update }) => {
-						isSavingAI = false;
-						await update();
-					};
-				}}
-				class="bg-surface rounded-3xl border border-slate-200/80 dark:border-slate-800/80 p-6 md:p-8 shadow-xs space-y-6"
-			>
-				<div class="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-4">
-					<div>
-						<h4 class="text-base font-bold text-on-surface">Parameter Model & Inferensi</h4>
-						<p class="text-xs text-on-surface-variant">Atur identifier model LLM dan temperatur kreativitas penalaran respons.</p>
-					</div>
-					<div class="flex items-center gap-2">
-						<span class="w-2 h-2 rounded-full bg-emerald-500"></span>
-						<span class="text-xs font-bold text-slate-500">Global System Scope</span>
-					</div>
-				</div>
-
-				<div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-					<!-- Model Identifier Input -->
-					<div class="space-y-2">
-						<label class="block text-xs font-bold text-on-surface uppercase tracking-wider">
-							Nama Model (Model Identifier) <span class="text-rose-500">*</span>
-						</label>
-						<div class="relative">
-							<input
-								type="text"
-								name="model"
-								required
-								bind:value={aiModel}
-								placeholder="contoh: glm-4.7-flash atau llama-3.3-70b-versatile"
-								class="w-full bg-surface-container border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm font-mono font-medium focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-500 transition-all outline-hidden text-on-surface"
-							/>
-							<span class="absolute right-3 top-2.5 text-slate-400 material-symbols-outlined text-lg">code</span>
+			<!-- Live Interactive Verification Result Section (Jika ada hasil tes) -->
+			{#if aiTestResult}
+				<div class="p-5 rounded-3xl bg-surface border border-slate-200 dark:border-slate-800 shadow-xs space-y-3 animate-in fade-in duration-200">
+					<div class="flex items-center justify-between">
+						<div class="flex items-center gap-2">
+							<span class="material-symbols-outlined text-lg {aiTestResult.success ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}">
+								{aiTestResult.success ? 'check_circle' : 'error'}
+							</span>
+							<h5 class="text-xs font-black uppercase tracking-wider text-on-surface">
+								{aiTestResult.success ? 'Uji Koneksi Endpoint Berhasil' : 'Uji Koneksi Endpoint Gagal'}
+							</h5>
 						</div>
-						<p class="text-[11px] text-on-surface-variant">
-							Model ID yang akan dikirim ke OpenAI-compatible endpoint di AI Bridge / OpenClaw.
-						</p>
-					</div>
 
-					<!-- Provider Type -->
-					<div class="space-y-2">
-						<label class="block text-xs font-bold text-on-surface uppercase tracking-wider">
-							Provider Engine / Host
-						</label>
-						<select
-							name="provider"
-							bind:value={aiProvider}
-							class="w-full bg-surface-container border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm font-medium focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-500 transition-all outline-hidden text-on-surface"
-						>
-							<option value="openclaw">OpenClaw Biznet Server (Dedicated Internal)</option>
-							<option value="groq">Groq Cloud (Ultra Fast Inference)</option>
-							<option value="openai">OpenAI (GPT-4o Series)</option>
-							<option value="custom">Custom Compatible Endpoint</option>
-						</select>
-						<p class="text-[11px] text-on-surface-variant">
-							Koneksi server utama dikelola secara aman oleh service Python AI Bridge di jaringan internal Docker.
-						</p>
-					</div>
-
-					<!-- Temperature Slider -->
-					<div class="space-y-2">
-						<div class="flex items-center justify-between">
-							<label class="text-xs font-bold text-on-surface uppercase tracking-wider flex items-center gap-1.5">
-								<span>Kreativitas Respon (Temperature)</span>
-								<span class="px-2 py-0.5 rounded-md bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 font-mono text-xs font-bold">{aiTemperature.toFixed(2)}</span>
-							</label>
-							<span class="text-[10px] font-bold text-slate-400">0.0 (Presisi) — 1.0 (Kreatif)</span>
-						</div>
-						<input
-							type="range"
-							name="temperature"
-							min="0.0"
-							max="1.0"
-							step="0.05"
-							bind:value={aiTemperature}
-							class="w-full h-2 bg-slate-200 dark:bg-slate-700 rounded-lg appearance-none cursor-pointer accent-indigo-600"
-						/>
-						<p class="text-[11px] font-medium {aiTemperature <= 0.2 ? 'text-blue-600 dark:text-blue-400' : aiTemperature <= 0.7 ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400'}">
-							{#if aiTemperature <= 0.2}
-								🎯 Mode Presisi Tinggi: Sangat deterministik, ideal untuk kalkulasi keuangan, audit gaji, dan data eksak.
-							{:else if aiTemperature <= 0.7}
-								⚖️ Mode Seimbang (Rekomendasi ERP): Akurat untuk data operasional, fleksibel dalam merangkum laporan.
-							{:else}
-								💡 Mode Kreatif: Ragam kosakata lebih luas, cocok untuk brainstorming ide atau formulasi pengumuman.
+						<div class="flex items-center gap-2">
+							{#if aiTestResult.latencyMs}
+								<span class="px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-[10px] font-mono font-bold text-slate-600 dark:text-slate-300">
+									⚡ {aiTestResult.latencyMs} ms
+								</span>
 							{/if}
-						</p>
+							<button
+								type="button"
+								onclick={() => (aiTestResult = null)}
+								class="text-slate-400 hover:text-slate-600 text-xs cursor-pointer p-1"
+							>
+								<span class="material-symbols-outlined text-sm">close</span>
+							</button>
+						</div>
 					</div>
 
-					<!-- Max Tokens Input -->
-					<div class="space-y-2">
-						<div class="flex items-center justify-between">
-							<label class="text-xs font-bold text-on-surface uppercase tracking-wider">
-								Batas Maksimal Token (Max Output)
-							</label>
-							<div class="flex items-center gap-1">
-								{#each [512, 1024, 2048, 4096] as tokenVal}
-									<button
-										type="button"
-										onclick={() => (aiMaxTokens = tokenVal)}
-										class="px-2 py-0.5 rounded text-[10px] font-bold transition-all cursor-pointer {aiMaxTokens === tokenVal ? 'bg-indigo-600 text-white' : 'bg-surface-container text-slate-500 hover:bg-surface-container-high'}"
-									>
-										{tokenVal}
-									</button>
-								{/each}
+					{#if aiTestResult.success}
+						<div class="p-3 bg-emerald-50/50 dark:bg-emerald-950/20 border border-emerald-200/60 dark:border-emerald-800/40 rounded-xl space-y-1 text-xs">
+							<div class="flex items-center gap-2 text-[11px] text-emerald-800 dark:text-emerald-200 font-mono">
+								<span>Model: <strong>{aiTestResult.model}</strong></span>
+								<span>•</span>
+								<span class="truncate">Endpoint: {aiTestResult.baseUrl}</span>
+							</div>
+							<p class="font-mono text-xs text-slate-700 dark:text-slate-300 italic pt-1">
+								"{aiTestResult.preview}"
+							</p>
+						</div>
+					{:else}
+						<div class="p-3 bg-rose-50/50 dark:bg-rose-950/20 border border-rose-200/60 dark:border-rose-800/40 rounded-xl text-xs text-rose-700 dark:text-rose-300 font-mono">
+							{aiTestResult.message}
+						</div>
+					{/if}
+				</div>
+			{/if}
+
+			<!-- Safety Failover Note -->
+			<div class="p-4 rounded-2xl bg-slate-100 dark:bg-slate-900/60 border border-slate-200/80 dark:border-slate-800/80 flex items-start gap-3 text-xs">
+				<span class="material-symbols-outlined text-indigo-600 mt-0.5 text-base flex-shrink-0">shield</span>
+				<div class="space-y-0.5 text-on-surface-variant">
+					<span class="font-bold text-on-surface">Proteksi Failover Otomatis (Zero-Crash Guarantee):</span>
+					<p class="leading-relaxed">
+						Sistem ERP BCS dilengkapi mekanisme proteksi bertingkat. Jika custom endpoint atau API key yang aktif sewaktu-waktu mengalami limit, gangguan jaringan, atau kuota habis, seluruh modul chat AI (HRIS, FMS, OCS) secara otomatis beralih sementara ke kredensial cadangan di berkas server (<code class="font-mono bg-black/10 dark:bg-white/10 px-1 py-0.5 rounded">.env</code>) sehingga sistem tidak pernah crash di sisi pengguna.
+					</p>
+				</div>
+			</div>
+		</div>
+
+		<!-- MODAL DIALOG: TAMBAH / EDIT PROFIL MODEL AI -->
+		{#if showAIModal}
+			<div
+				class="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto animate-in fade-in duration-150"
+				role="dialog"
+				aria-modal="true"
+			>
+				<div class="bg-surface rounded-3xl border border-slate-200 dark:border-slate-800 p-6 md:p-8 max-w-2xl w-full shadow-2xl space-y-6 max-h-[92vh] overflow-y-auto">
+					<!-- Modal Header -->
+					<div class="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-4">
+						<div class="flex items-center gap-3">
+							<div class="w-10 h-10 rounded-xl bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 flex items-center justify-center flex-shrink-0">
+								<span class="material-symbols-outlined text-xl">
+									{isEditingAI ? 'tune' : 'add_circle'}
+								</span>
+							</div>
+							<div>
+								<h3 class="text-base font-black text-on-surface">
+									{isEditingAI ? 'Edit Profil Model & Custom Endpoint' : 'Tambah Profil Model AI Baru'}
+								</h3>
+								<p class="text-xs text-on-surface-variant">
+									Konfigurasi OpenAI-compatible endpoint, API key, dan parameter inferensi.
+								</p>
 							</div>
 						</div>
-						<input
-							type="number"
-							name="maxTokens"
-							min="128"
-							max="8192"
-							step="128"
-							bind:value={aiMaxTokens}
-							class="w-full bg-surface-container border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm font-mono font-medium focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-500 transition-all outline-hidden text-on-surface"
-						/>
-						<p class="text-[11px] text-on-surface-variant">
-							Panjang maksimal jawaban teks yang di-generate AI dalam satu kali percakapan (default: 2048 token).
-						</p>
-					</div>
-				</div>
 
-				<!-- Live Interactive Verification Section -->
-				<div class="p-5 rounded-2xl bg-surface-container-low border border-slate-200 dark:border-slate-800 space-y-4">
-					<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-						<div>
-							<h5 class="text-xs font-black uppercase tracking-wider text-on-surface flex items-center gap-1.5">
-								<span class="material-symbols-outlined text-sm text-indigo-600">verified</span>
-								Uji Respon & Latency Model
-							</h5>
-							<p class="text-[11px] text-on-surface-variant">Kirim prompt uji coba langsung ke AI Bridge untuk mengecek konektivitas sebelum disimpan.</p>
-						</div>
 						<button
 							type="button"
-							onclick={runAITest}
-							disabled={isTestingAI || !aiModel.trim()}
-							class="px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer bg-slate-900 text-white dark:bg-white dark:text-slate-900 hover:opacity-90 disabled:opacity-50 flex-shrink-0 shadow-xs"
+							onclick={() => (showAIModal = false)}
+							class="w-8 h-8 rounded-xl bg-surface-container hover:bg-surface-container-high text-slate-500 flex items-center justify-center transition-all cursor-pointer"
 						>
-							{#if isTestingAI}
-								<span class="w-3.5 h-3.5 border-2 border-current border-t-transparent rounded-full animate-spin"></span>
-								<span>Menguji Model...</span>
-							{:else}
-								<span class="material-symbols-outlined text-sm">bolt</span>
-								<span>Uji Respon Model Sekarang</span>
-							{/if}
+							<span class="material-symbols-outlined text-lg">close</span>
 						</button>
 					</div>
 
-					{#if isTestingAI}
-						<div class="p-4 rounded-xl bg-indigo-50/50 dark:bg-indigo-950/30 border border-indigo-200 dark:border-indigo-800/50 flex items-center gap-3 animate-pulse">
-							<span class="w-4 h-4 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin"></span>
-							<span class="text-xs font-medium text-indigo-700 dark:text-indigo-300">Menghubungi AI Bridge dengan model <strong>{aiModel}</strong>... Harap tunggu beberapa detik.</span>
-						</div>
-					{:else if aiTestResult}
-						{#if aiTestResult.success}
-							<div class="p-4 rounded-xl bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800/60 space-y-2 animate-in fade-in duration-200">
-								<div class="flex items-center justify-between">
-									<div class="flex items-center gap-2 text-xs font-black text-emerald-700 dark:text-emerald-400">
-										<span class="material-symbols-outlined text-base">check_circle</span>
-										<span>Koneksi Model Berhasil & Siap Digunakan!</span>
-									</div>
-									<div class="flex items-center gap-2">
-										<span class="px-2 py-0.5 rounded bg-emerald-200/60 dark:bg-emerald-900/60 text-emerald-800 dark:text-emerald-200 text-[10px] font-mono font-bold">
-											⚡ {aiTestResult.latencyMs} ms
-										</span>
-										<span class="px-2 py-0.5 rounded bg-white dark:bg-black/40 text-slate-700 dark:text-slate-300 text-[10px] font-mono font-bold border border-emerald-300/40">
-											{aiTestResult.model}
-										</span>
-									</div>
-								</div>
-								<div class="p-3 bg-white/80 dark:bg-black/30 rounded-lg border border-emerald-200/50 dark:border-emerald-900/40 text-xs text-slate-700 dark:text-slate-300 font-mono italic leading-relaxed">
-									"{aiTestResult.preview}"
-								</div>
-							</div>
-						{:else}
-							<div class="p-4 rounded-xl bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-800/60 space-y-2 animate-in fade-in duration-200">
-								<div class="flex items-center justify-between">
-									<div class="flex items-center gap-2 text-xs font-black text-rose-700 dark:text-rose-400">
-										<span class="material-symbols-outlined text-base">error</span>
-										<span>Uji Respon Model Gagal</span>
-									</div>
-									{#if aiTestResult.latencyMs}
-										<span class="px-2 py-0.5 rounded bg-rose-200/60 dark:bg-rose-900/60 text-rose-800 dark:text-rose-200 text-[10px] font-mono font-bold">
-											{aiTestResult.latencyMs} ms
-										</span>
-									{/if}
-								</div>
-								<p class="text-xs text-rose-600 dark:text-rose-300 font-mono leading-relaxed">
-									{aiTestResult.message}
-								</p>
-								<p class="text-[11px] text-rose-500/90 italic">
-									Catatan: Pastikan nama model terdaftar pada server OpenClaw atau coba gunakan preset 'glm-4.7-flash'.
-								</p>
-							</div>
-						{/if}
-					{/if}
-				</div>
-
-				<!-- Safety Failover Note -->
-				<div class="p-4 rounded-2xl bg-slate-100 dark:bg-slate-900/60 border border-slate-200/80 dark:border-slate-800/80 flex items-start gap-3 text-xs">
-					<span class="material-symbols-outlined text-indigo-600 mt-0.5 text-base flex-shrink-0">shield</span>
-					<div class="space-y-0.5 text-on-surface-variant">
-						<span class="font-bold text-on-surface">Proteksi Failover Otomatis (Zero Crash):</span>
-						<p class="leading-relaxed">
-							Sistem ERP BCS dilengkapi mekanisme proteksi bertingkat. Jika model yang Anda simpan di sini sewaktu-waktu mengalami gangguan, overload kuota, atau maintenance provider, sistem secara otomatis beralih sementara ke model cadangan di berkas lingkungan server (<code class="font-mono bg-black/10 dark:bg-white/10 px-1 py-0.5 rounded">.env</code>) tanpa menyebabkan error pada layar pengguna.
-						</p>
-					</div>
-				</div>
-
-				<!-- Submit Button & Feedback -->
-				<div class="flex items-center justify-between pt-4 border-t border-slate-200 dark:border-slate-800">
-					<div>
-						{#if form?.success && form?.aiConfig}
-							<div class="flex items-center gap-2 text-xs font-bold text-emerald-600 dark:text-emerald-400 animate-in fade-in duration-200">
-								<span class="material-symbols-outlined text-sm">check_circle</span>
-								<span>{form.message}</span>
-							</div>
-						{:else if form?.message && !form?.success}
-							<div class="flex items-center gap-2 text-xs font-bold text-rose-600 dark:text-rose-400 animate-in fade-in duration-200">
-								<span class="material-symbols-outlined text-sm">error</span>
-								<span>{form.message}</span>
-							</div>
-						{/if}
-					</div>
-
-					<button
-						type="submit"
-						disabled={isSavingAI || !aiModel.trim()}
-						class="px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center gap-2 cursor-pointer bg-indigo-600 hover:bg-indigo-700 text-white shadow-md hover:shadow-indigo-500/25 disabled:opacity-50"
+					<!-- Form Tambah / Edit -->
+					<form
+						method="POST"
+						action="?/saveAIProfile"
+						use:enhance={() => {
+							isSavingAI = true;
+							return async ({ result, update }) => {
+								isSavingAI = false;
+								if (result.type === 'success') {
+									showAIModal = false;
+								}
+								await update();
+							};
+						}}
+						class="space-y-5"
 					>
-						{#if isSavingAI}
-							<span class="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
-							<span>Menyimpan...</span>
-						{:else}
-							<span class="material-symbols-outlined text-sm">save</span>
-							<span>Simpan Konfigurasi AI</span>
+						{#if modalId}
+							<input type="hidden" name="id" value={modalId} />
 						{/if}
-					</button>
+
+						<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+							<!-- Nama Profil / Label -->
+							<div class="space-y-1.5 md:col-span-2">
+								<label class="block text-xs font-bold text-on-surface uppercase tracking-wider">
+									Label / Nama Profil <span class="text-rose-500">*</span>
+								</label>
+								<input
+									type="text"
+									name="name"
+									required
+									bind:value={modalName}
+									placeholder="contoh: Groq Llama 3.3 70B Fast atau Local Ollama Biznet"
+									class="w-full bg-surface-container border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm font-medium focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-500 transition-all outline-hidden text-on-surface"
+								/>
+							</div>
+
+							<!-- Provider Template Selector -->
+							<div class="space-y-1.5">
+								<label class="block text-xs font-bold text-on-surface uppercase tracking-wider">
+									Penyedia / Template Provider
+								</label>
+								<select
+									name="provider"
+									bind:value={modalProvider}
+									onchange={() => onProviderChange(modalProvider)}
+									class="w-full bg-surface-container border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm font-medium focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-500 transition-all outline-hidden text-on-surface"
+								>
+									{#each Object.entries(PROVIDER_TEMPLATES) as [key, val]}
+										<option value={key}>{val.label} — {val.desc}</option>
+									{/each}
+								</select>
+							</div>
+
+							<!-- Model ID -->
+							<div class="space-y-1.5">
+								<label class="block text-xs font-bold text-on-surface uppercase tracking-wider">
+									Model Identifier (Model ID) <span class="text-rose-500">*</span>
+								</label>
+								<input
+									type="text"
+									name="model"
+									required
+									bind:value={modalModel}
+									placeholder="contoh: llama-3.3-70b-versatile atau glm-4.7-flash"
+									class="w-full bg-surface-container border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm font-mono font-medium focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-500 transition-all outline-hidden text-on-surface"
+								/>
+							</div>
+
+							<!-- Custom Base URL -->
+							<div class="space-y-1.5 md:col-span-2">
+								<label class="block text-xs font-bold text-on-surface uppercase tracking-wider">
+									Custom Base URL / Endpoint <span class="text-rose-500">*</span>
+								</label>
+								<div class="relative">
+									<input
+										type="url"
+										name="baseUrl"
+										required
+										bind:value={modalBaseUrl}
+										placeholder="contoh: https://api.groq.com/openai/v1 atau http://localhost:11434/v1"
+										class="w-full bg-surface-container border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm font-mono font-medium focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-500 transition-all outline-hidden text-on-surface"
+									/>
+									<span class="absolute right-3 top-2.5 text-slate-400 material-symbols-outlined text-lg">link</span>
+								</div>
+								<p class="text-[11px] text-on-surface-variant">
+									URL dasar endpoint OpenAI-compatible. AI Bridge akan mengakses jalur <code class="font-mono">/chat/completions</code> di endpoint ini.
+								</p>
+							</div>
+
+							<!-- API Key -->
+							<div class="space-y-1.5 md:col-span-2">
+								<div class="flex items-center justify-between">
+									<label class="block text-xs font-bold text-on-surface uppercase tracking-wider">
+										API Key / Secret Token
+									</label>
+									<span class="text-[10px] text-slate-400">Opsional untuk server lokal Ollama</span>
+								</div>
+								<div class="relative">
+									<input
+										type={showApiKey ? 'text' : 'password'}
+										name="apiKey"
+										bind:value={modalApiKey}
+										placeholder="gsk_... atau sk-proj-... (kosongkan jika tanpa autentikasi)"
+										class="w-full bg-surface-container border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-2.5 pr-10 text-sm font-mono font-medium focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-500 transition-all outline-hidden text-on-surface"
+									/>
+									<button
+										type="button"
+										onclick={() => (showApiKey = !showApiKey)}
+										class="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600 cursor-pointer"
+										title={showApiKey ? 'Sembunyikan' : 'Tampilkan'}
+									>
+										<span class="material-symbols-outlined text-lg">
+											{showApiKey ? 'visibility_off' : 'visibility'}
+										</span>
+									</button>
+								</div>
+							</div>
+
+							<!-- Temperature Slider -->
+							<div class="space-y-1.5">
+								<div class="flex items-center justify-between">
+									<label class="text-xs font-bold text-on-surface uppercase tracking-wider">
+										Temperature
+									</label>
+									<span class="px-2 py-0.5 rounded bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 font-mono text-xs font-bold">
+										{modalTemperature.toFixed(2)}
+									</span>
+								</div>
+								<input
+									type="range"
+									name="temperature"
+									min="0.0"
+									max="1.0"
+									step="0.05"
+									bind:value={modalTemperature}
+									class="w-full h-2 bg-slate-200 dark:bg-slate-700 rounded-lg appearance-none cursor-pointer accent-indigo-600"
+								/>
+								<div class="flex justify-between text-[10px] text-slate-400 font-bold">
+									<span>0.0 (Presisi)</span>
+									<span>1.0 (Kreatif)</span>
+								</div>
+							</div>
+
+							<!-- Max Tokens -->
+							<div class="space-y-1.5">
+								<div class="flex items-center justify-between">
+									<label class="text-xs font-bold text-on-surface uppercase tracking-wider">
+										Max Output Tokens
+									</label>
+									<div class="flex gap-1">
+										{#each [512, 1024, 2048, 4096] as tok}
+											<button
+												type="button"
+												onclick={() => (modalMaxTokens = tok)}
+												class="px-1.5 py-0.5 rounded text-[9px] font-bold cursor-pointer {modalMaxTokens === tok ? 'bg-indigo-600 text-white' : 'bg-surface-container text-slate-400'}"
+											>
+												{tok}
+											</button>
+										{/each}
+									</div>
+								</div>
+								<input
+									type="number"
+									name="maxTokens"
+									min="128"
+									max="8192"
+									step="128"
+									bind:value={modalMaxTokens}
+									class="w-full bg-surface-container border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm font-mono font-medium focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-500 transition-all outline-hidden text-on-surface"
+								/>
+							</div>
+
+							<!-- Make Active Checkbox -->
+							<div class="md:col-span-2 pt-2">
+								<label class="flex items-center gap-3 p-3 rounded-xl bg-surface-container border border-slate-200 dark:border-slate-700/60 cursor-pointer">
+									<input
+										type="checkbox"
+										name="makeActive"
+										bind:checked={modalMakeActive}
+										class="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500 border-slate-300 dark:border-slate-700"
+									/>
+									<div class="text-xs">
+										<span class="font-bold text-on-surface block">Jadikan sebagai Model Aktif ERP BCS</span>
+										<span class="text-on-surface-variant text-[11px]">Profil ini akan langsung melayani asisten di modul HRIS, FMS, OCS, dll.</span>
+									</div>
+								</label>
+							</div>
+						</div>
+
+						<!-- Live Test Inside Modal -->
+						<div class="p-4 rounded-2xl bg-surface-container-low border border-slate-200 dark:border-slate-800 space-y-3">
+							<div class="flex items-center justify-between">
+								<span class="text-xs font-bold text-on-surface flex items-center gap-1.5">
+									<span class="material-symbols-outlined text-sm text-indigo-600">bolt</span>
+									Uji Handshake Endpoint
+								</span>
+								<button
+									type="button"
+									onclick={() =>
+										testProfileConnection({
+											id: 'modal',
+											baseUrl: modalBaseUrl,
+											apiKey: modalApiKey,
+											model: modalModel,
+											temperature: modalTemperature,
+											maxTokens: modalMaxTokens
+										})}
+									disabled={isTestingAI || !modalBaseUrl.trim() || !modalModel.trim()}
+									class="px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer bg-slate-900 text-white dark:bg-white dark:text-slate-900 disabled:opacity-50"
+								>
+									{#if isTestingAI && testingProfileId === 'modal'}
+										<span class="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin"></span>
+										<span>Menghubungi...</span>
+									{:else}
+										<span class="material-symbols-outlined text-sm">wifi_tethering</span>
+										<span>Tes Koneksi Sekarang</span>
+									{/if}
+								</button>
+							</div>
+
+							{#if aiTestResult && testingProfileId === 'modal'}
+								<div class="p-3 rounded-xl text-xs font-mono {aiTestResult.success ? 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800' : 'bg-rose-50 dark:bg-rose-950/30 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-800'}">
+									<div class="flex items-center justify-between mb-1">
+										<span class="font-bold">{aiTestResult.success ? '✓ Respon Diterima' : '✕ Koneksi Gagal'}</span>
+										{#if aiTestResult.latencyMs}
+											<span>⚡ {aiTestResult.latencyMs} ms</span>
+										{/if}
+									</div>
+									<p class="text-[11px] leading-relaxed truncate">
+										{aiTestResult.preview || aiTestResult.message}
+									</p>
+								</div>
+							{/if}
+						</div>
+
+						<!-- Modal Footer Actions -->
+						<div class="flex items-center justify-end gap-3 pt-4 border-t border-slate-200 dark:border-slate-800">
+							<button
+								type="button"
+								onclick={() => (showAIModal = false)}
+								class="px-5 py-2.5 rounded-xl text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-surface-container transition-all cursor-pointer"
+							>
+								Batal
+							</button>
+
+							<button
+								type="submit"
+								disabled={isSavingAI || !modalName.trim() || !modalBaseUrl.trim() || !modalModel.trim()}
+								class="px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center gap-2 cursor-pointer bg-indigo-600 hover:bg-indigo-700 text-white shadow-md hover:shadow-indigo-500/25 disabled:opacity-50"
+							>
+								{#if isSavingAI}
+									<span class="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+									<span>Menyimpan...</span>
+								{:else}
+									<span class="material-symbols-outlined text-sm">save</span>
+									<span>{isEditingAI ? 'Simpan Perubahan' : 'Tambahkan Profil'}</span>
+								{/if}
+							</button>
+						</div>
+					</form>
 				</div>
-			</form>
-		</div>
+			</div>
+		{/if}
 	{/if}
 </div>
 

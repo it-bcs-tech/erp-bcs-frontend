@@ -23,6 +23,8 @@ export const POST: RequestHandler = async ({ request }) => {
 	const payload = {
 		...body,
 		model: body.model || aiConfig.model,
+		base_url: aiConfig.baseUrl,
+		api_key: aiConfig.apiKey,
 		temperature: body.temperature ?? aiConfig.temperature,
 		max_tokens: body.max_tokens ?? aiConfig.maxTokens
 	};
