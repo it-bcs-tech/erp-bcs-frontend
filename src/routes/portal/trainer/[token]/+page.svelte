@@ -41,9 +41,20 @@
 		postTestEssayQuestions.length > 0 || enrollments.some((e: any) => e.hasEssayPending)
 	);
 
+	function parseAnswers(raw: any): Record<string, any> {
+		if (!raw) return {};
+		if (typeof raw === 'object') return raw;
+		try {
+			return typeof raw === 'string' ? JSON.parse(raw) : raw;
+		} catch {
+			return {};
+		}
+	}
+
 	function openGradingModal(enrollment: any) {
 		selectedEnrollment = enrollment;
-		essayScoresInput = { ...(enrollment.essayScores || {}) };
+		const rawScores = parseAnswers(enrollment.essayScores);
+		essayScoresInput = { ...rawScores };
 		for (const eq of postTestEssayQuestions) {
 			if (essayScoresInput[eq.id] === undefined) {
 				essayScoresInput[eq.id] = 0;
@@ -57,9 +68,10 @@
 		if (!selectedEnrollment) return 0;
 		const mcqQuestions = postTestQuestions.filter((q: any) => q.questionType !== 'ESSAY' && q.options && q.options.length > 0);
 		let correct = 0;
-		const answers = (selectedEnrollment.postTestAnswers || {}) as Record<string, string>;
+		const answers = parseAnswers(selectedEnrollment.postTestAnswers);
 		for (const mq of mcqQuestions) {
-			if ((answers[mq.id] || '').toUpperCase() === (mq.correctKey || '').toUpperCase()) {
+			const uAns = answers[String(mq.id)] || '';
+			if (uAns && uAns.toUpperCase() === (mq.correctKey || '').toUpperCase()) {
 				correct++;
 			}
 		}
@@ -856,7 +868,8 @@
 							<!-- Daftar Butir Soal Essay -->
 							<div class="space-y-4 max-h-96 overflow-y-auto pr-1">
 								{#each postTestEssayQuestions as eq, idx}
-									{@const userAns = selectedEnrollment.postTestAnswers?.[eq.id] || '(Peserta tidak mengisi jawaban)'}
+									{@const answersMap = parseAnswers(selectedEnrollment.postTestAnswers)}
+									{@const userAns = answersMap[String(eq.id)] || '(Peserta tidak mengisi jawaban)'}
 									<div class="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-800 space-y-3">
 										<div class="flex items-start justify-between gap-3">
 											<div class="flex items-start gap-2.5">

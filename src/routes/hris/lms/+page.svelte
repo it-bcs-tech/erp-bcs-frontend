@@ -112,15 +112,26 @@
 	let hrTotalPostQ = $derived(hrSelectedCourseQuestions.length || 1);
 	let hrMaxPtsPerEssay = $derived(Math.max(1, Math.round(100 / hrTotalPostQ)));
 
+	function parseAnswers(raw: any): Record<string, any> {
+		if (!raw) return {};
+		if (typeof raw === 'object') return raw;
+		try {
+			return typeof raw === 'string' ? JSON.parse(raw) : raw;
+		} catch {
+			return {};
+		}
+	}
+
 	let hrCurrentMcqScore = $derived.by(() => {
 		if (!selectedEssayEnrollment) return 0;
 		const mcqQuestions = hrSelectedCourseQuestions.filter(
 			(q: any) => q.questionType !== 'ESSAY' && q.options && q.options.length > 0
 		);
 		let correct = 0;
-		const answers = (selectedEssayEnrollment.postTestAnswers || {}) as Record<string, string>;
+		const answers = parseAnswers(selectedEssayEnrollment.postTestAnswers);
 		for (const mq of mcqQuestions) {
-			if ((answers[mq.id] || '').toUpperCase() === (mq.correctKey || '').toUpperCase()) {
+			const uAns = answers[String(mq.id)] || '';
+			if (uAns && uAns.toUpperCase() === (mq.correctKey || '').toUpperCase()) {
 				correct++;
 			}
 		}
@@ -137,7 +148,8 @@
 
 	function openHrGradingModal(enrollment: any) {
 		selectedEssayEnrollment = enrollment;
-		hrEssayScoresInput = { ...(enrollment.essayScores || {}) };
+		const rawScores = parseAnswers(enrollment.essayScores);
+		hrEssayScoresInput = { ...rawScores };
 		for (const eq of hrSelectedEssayQuestions) {
 			if (hrEssayScoresInput[eq.id] === undefined) {
 				hrEssayScoresInput[eq.id] = 0;
@@ -5836,7 +5848,8 @@
 												</div>
 											{:else}
 												{#each hrSelectedEssayQuestions as eq, idx}
-													{@const userAns = selectedEssayEnrollment.postTestAnswers?.[eq.id] || '(Peserta tidak mengisi jawaban)'}
+													{@const answersMap = parseAnswers(selectedEssayEnrollment.postTestAnswers)}
+													{@const userAns = answersMap[String(eq.id)] || '(Peserta tidak mengisi jawaban)'}
 													<div class="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-800 space-y-3">
 														<div class="flex items-start justify-between gap-3">
 															<div class="flex items-start gap-2.5">

@@ -3,6 +3,16 @@ import sql from '$lib/server/db';
 import { error } from '@sveltejs/kit';
 import { formatEmbedUrl } from '$lib/utils/embed';
 
+function parseJsonField(val: any): Record<string, any> {
+	if (!val) return {};
+	if (typeof val === 'object') return val;
+	try {
+		return typeof val === 'string' ? JSON.parse(val) : val;
+	} catch {
+		return {};
+	}
+}
+
 export const load: PageServerLoad = async ({ params }) => {
 	const token = params.token;
 	if (!token || token.length < 10) {
@@ -127,10 +137,10 @@ export const load: PageServerLoad = async ({ params }) => {
 				preTestScore: e.pre_test_score !== null ? Number(e.pre_test_score) : null,
 				postTestScore: e.post_test_score !== null ? Number(e.post_test_score) : null,
 				postTestAttempts: Number(e.post_test_attempts || 0),
-				preTestAnswers: e.pre_test_answers || {},
-				postTestAnswers: e.post_test_answers || {},
+				preTestAnswers: parseJsonField(e.pre_test_answers),
+				postTestAnswers: parseJsonField(e.post_test_answers),
 				hasEssayPending: Boolean(e.has_essay_pending),
-				essayScores: e.essay_scores || {},
+				essayScores: parseJsonField(e.essay_scores),
 				essayFeedback: e.essay_feedback || '',
 				essayReviewedBy: e.essay_reviewed_by || '',
 				essayReviewedAt: e.essay_reviewed_at ? e.essay_reviewed_at.toISOString() : '',
@@ -326,7 +336,7 @@ export const actions: Actions = {
 
 			// Hitung poin MCQ yang diperoleh peserta
 			let mcqCorrect = 0;
-			const postAnswers = (enroll.post_test_answers || {}) as Record<string, string>;
+			const postAnswers = parseJsonField(enroll.post_test_answers) as Record<string, string>;
 			for (const mq of mcqQuestions) {
 				const uAns = postAnswers[String(mq.id)] || '';
 				if (uAns && uAns.toUpperCase() === (mq.correct_key || '').toUpperCase()) {
