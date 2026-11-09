@@ -17,6 +17,8 @@
 	let searchTimer: ReturnType<typeof setTimeout>;
 	let showRejectModal = $state(false);
 	let selectedLeaveIdForReject = $state('');
+	let isSubmitting = $state(false);
+	let processingId = $state<string | null>(null);
 
 	function updateQueryParams() {
 		const url = new URL(window.location.href);
@@ -206,19 +208,29 @@
 							<td class="py-4 px-6 text-right">
 								{#if req.status?.toLowerCase() === 'pending' || !req.status}
 									<div class="flex items-center justify-end gap-2">
-										<form method="POST" action="?/approveLeave" use:enhance>
+										<form method="POST" action="?/approveLeave" use:enhance={() => {
+											isSubmitting = true;
+											processingId = req.id;
+											return async ({ update }) => {
+												await update();
+												isSubmitting = false;
+												processingId = null;
+											};
+										}}>
 											<input type="hidden" name="leaveId" value={req.id} />
 											<button 
 												type="submit" 
-												class="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition-all shadow-xs cursor-pointer active:scale-95"
+												disabled={isSubmitting}
+												class="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed text-white text-xs font-bold transition-all shadow-xs cursor-pointer active:scale-95"
 											>
-												Approve
+												{isSubmitting && processingId === req.id ? 'Memproses...' : 'Approve'}
 											</button>
 										</form>
 										<button 
 											type="button" 
+											disabled={isSubmitting}
 											onclick={() => { selectedLeaveIdForReject = req.id; showRejectModal = true; }}
-											class="px-3 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold transition-all shadow-xs cursor-pointer active:scale-95"
+											class="px-3 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-500 disabled:opacity-50 disabled:cursor-not-allowed text-white text-xs font-bold transition-all shadow-xs cursor-pointer active:scale-95"
 										>
 											Reject
 										</button>
@@ -263,8 +275,10 @@
 			</div>
 
 			<form method="POST" action="?/rejectLeave" use:enhance={() => {
+				isSubmitting = true;
 				return async ({ update }) => {
 					await update();
+					isSubmitting = false;
 					showRejectModal = false;
 				};
 			}} class="space-y-4">
@@ -280,11 +294,11 @@
 				</div>
 
 				<div class="flex justify-end gap-2.5 pt-2 border-t border-surface-container">
-					<button type="button" onclick={() => showRejectModal = false} class="px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold text-on-surface hover:bg-surface-container transition-all">
+					<button type="button" disabled={isSubmitting} onclick={() => showRejectModal = false} class="px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold text-on-surface hover:bg-surface-container transition-all">
 						Batal
 					</button>
-					<button type="submit" class="px-5 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold shadow-md transition-all">
-						Tolak Pengajuan
+					<button type="submit" disabled={isSubmitting} class="px-5 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-500 disabled:opacity-50 disabled:cursor-not-allowed text-white text-xs font-bold shadow-md transition-all">
+						{isSubmitting ? 'Memproses Penolakan...' : 'Tolak Pengajuan'}
 					</button>
 				</div>
 			</form>

@@ -1,6 +1,6 @@
 import type { PageServerLoad, Actions } from './$types';
 import { apiFetch } from '$lib/utils/api';
-import { fail } from '@sveltejs/kit';
+import { fail, redirect } from '@sveltejs/kit';
 
 export const load: PageServerLoad = async ({ cookies, url }) => {
     const authToken = cookies.get('auth_token');
@@ -63,8 +63,11 @@ export const load: PageServerLoad = async ({ cookies, url }) => {
         }
 
         return { leaveRequests, metrics, meta, dataSource: 'laravel' };
-    } catch (error) {
-        console.error('Failed to fetch leaves:', error);
+    } catch (error: any) {
+        console.error('Failed to fetch leaves:', error);
+        if (error?.message?.includes('401') || !authToken) {
+            throw redirect(303, '/login?expired=1');
+        }
         return {
             leaveRequests: [],
             metrics: {
