@@ -512,17 +512,62 @@
 	}
 
 	// Definisi 4 Kategori Skill Level 4 Pre-Test sesuai Master Spreadsheet
-	const preSkillCategoryDefinitions = {
+	interface L4MetricDefinition {
+		id: string;
+		label: string;
+		unit: string;
+		direction: 'increase' | 'decrease';
+		descPre: string;
+		descPost: string;
+	}
+
+	interface SkillCategoryDefinition {
+		label: string;
+		icon: string;
+		badgeColor: string;
+		description: string;
+		metrics: L4MetricDefinition[];
+	}
+
+	const preSkillCategoryDefinitions: Record<string, SkillCategoryDefinition> = {
 		'Technical Skill': {
 			label: 'Technical Skill',
 			icon: 'engineering',
 			badgeColor: 'bg-blue-500/10 text-blue-600 border-blue-500/20',
 			description: 'Keterampilan operasional & teknis sesuai fungsi jabatan.',
 			metrics: [
-				{ id: 'p1', label: 'Waktu Penyelesaian Pekerjaan Teknis', unit: 'Jam', direction: 'decrease' as const, hint: 'Total waktu penyelesaian per pekerjaan sesuai SOP (dalam 3 bulan sebelum pelatihan).' },
-				{ id: 'p2', label: 'Error / Rework Teknis', unit: 'Kejadian', direction: 'decrease' as const, hint: 'Total kesalahan teknis atau pekerjaan ulang akibat ketidaksesuaian prosedur.' },
-				{ id: 'p3', label: 'Penerapan Materi Teknis', unit: 'Penerapan', direction: 'increase' as const, hint: 'Frekuensi penerapan keterampilan teknis di lingkungan kerja nyata.' },
-				{ id: 'p4', label: 'Eskalasi Teknis ke Atasan', unit: 'Kasus', direction: 'decrease' as const, hint: 'Masalah teknis yang tidak dapat diselesaikan mandiri sehingga perlu eskalasi.' }
+				{
+					id: 'p1',
+					label: 'Waktu Penyelesaian Pekerjaan Teknis (Jam)',
+					unit: 'Jam',
+					direction: 'decrease',
+					descPre: 'Total waktu yang dibutuhkan untuk menyelesaikan satu jenis pekerjaan teknis yang sama dan relevan dengan materi pelatihan dan sesuai SOP, dalam 3 bulan sebelum mengikuti pelatihan.',
+					descPost: 'Total waktu yang dibutuhkan untuk menyelesaikan satu jenis pekerjaan teknis yang sama dan relevan dengan materi pelatihan, sesuai SOP, dalam 3 bulan terakhir'
+				},
+				{
+					id: 'p2',
+					label: 'Error / Rework Teknis (Jumlah Kejadian)',
+					unit: 'Kejadian',
+					direction: 'decrease',
+					descPre: 'Jumlah kesalahan teknis atau pekerjaan ulang yang terjadi pada pekerjaan yang berkaitan dengan materi pelatihan, dalam 3 bulan sebelum mengikuti pelatihan.',
+					descPost: 'Jumlah kesalahan teknis atau pekerjaan ulang yang terjadi pada pekerjaan yang berkaitan dengan materi pelatihan, dalam 3 bulan terakhir.'
+				},
+				{
+					id: 'p3',
+					label: 'Penerapan Materi Teknis Pelatihan (Jumlah Penerapan)',
+					unit: 'Penerapan',
+					direction: 'increase',
+					descPre: 'Jumlah penerapan pengetahuan atau keterampilan teknis yang relevan dengan materi pelatihan dalam pelaksanaan pekerjaan sehari-hari, dalam 3 bulan sebelum mengikuti pelatihan.',
+					descPost: 'Jumlah penerapan langsung pengetahuan atau keterampilan teknis hasil pelatihan dalam pelaksanaan pekerjaan sehari-hari selama 3 bulan terakhir.'
+				},
+				{
+					id: 'p4',
+					label: 'Eskalasi Teknis ke Atasan (Jumlah Kasus)',
+					unit: 'Kasus',
+					direction: 'decrease',
+					descPre: 'Jumlah permasalahan teknis terkait materi pelatihan yang membutuhkan bantuan atasan akibat keterbatasan kemampuan karyawan dalam penyelesaiannya, dalam 3 bulan sebelum mengikuti pelatihan',
+					descPost: 'Jumlah permasalahan teknis terkait materi pelatihan yang membutuhkan bantuan atasan akibat keterbatasan kemampuan karyawan dalam penyelesaiannya selama 3 bulan terakhir.'
+				}
 			]
 		},
 		'Soft Skill': {
@@ -531,10 +576,38 @@
 			badgeColor: 'bg-purple-500/10 text-purple-600 border-purple-500/20',
 			description: 'Komunikasi, kepemimpinan, kerjasama tim, dan inisiatif personal.',
 			metrics: [
-				{ id: 'p1', label: 'Keterlambatan Tugas', unit: 'Kejadian', direction: 'decrease' as const, hint: 'Jumlah keterlambatan penyelesaian tugas dari jadwal yang disepakati.' },
-				{ id: 'p2', label: 'Komplain Internal / Rekan Kerja', unit: 'Komplain', direction: 'decrease' as const, hint: 'Komplain atau keluhan terkait sikap kerja, komunikasi, atau cara kerja tim.' },
-				{ id: 'p3', label: 'Penerapan Soft Skill Kerja', unit: 'Kasus', direction: 'increase' as const, hint: 'Masalah kerja atau dinamika tim yang berhasil diselesaikan dengan pendekatan positif.' },
-				{ id: 'p4', label: 'Keputusan Kerja Mandiri', unit: 'Keputusan', direction: 'increase' as const, hint: 'Keputusan kerja mandiri yang tepat tanpa harus menunggu instruksi atasan.' }
+				{
+					id: 'p1',
+					label: 'Keterlambatan Penyelesaian Tugas (Jumlah Kejadian)',
+					unit: 'Kejadian',
+					direction: 'decrease',
+					descPre: 'Jumlah keterlambatan penyelesaian tugas kerja dalam 3 bulan sebelum mengikuti pelatihan, pada pekerjaan yang relevan dengan materi pelatihan.',
+					descPost: 'Jumlah keterlambatan penyelesaian tugas kerja dalam 3 bulan terakhir, setelah penerapan metode atau pendekatan yang diperoleh dari pelatihan.'
+				},
+				{
+					id: 'p2',
+					label: 'Komplain Internal (Jumlah)',
+					unit: 'Komplain',
+					direction: 'decrease',
+					descPre: 'Jumlah komplain internal terkait sikap kerja, komunikasi, atau cara kerja peserta, dalam 3 bulan sebelum mengikuti pelatihan.',
+					descPost: 'Jumlah komplain internal terkait sikap kerja, komunikasi, atau cara kerja peserta dalam 3 bulan terakhir.'
+				},
+				{
+					id: 'p3',
+					label: 'Penerapan Soft Skill Hasil Pelatihan (Jumlah Kasus)',
+					unit: 'Kasus',
+					direction: 'increase',
+					descPre: 'Jumlah permasalahan kerja yang berhasil diselesaikan menggunakan kemampuan soft skill yang relevan dengan materi pelatihan, dalam 3 bulan sebelum mengikuti pelatihan.',
+					descPost: 'Jumlah permasalahan kerja yang berhasil diselesaikan menggunakan pendekatan atau metode soft skill hasil pelatihan dalam 3 bulan terakhir.'
+				},
+				{
+					id: 'p4',
+					label: 'Keputusan Kerja Mandiri (Jumlah Keputusan)',
+					unit: 'Keputusan',
+					direction: 'increase',
+					descPre: 'Jumlah keputusan kerja yang diambil secara mandiri berdasarkan pengetahuan dan kompetensi yang dimiliki, tanpa menunggu instruksi atasan, dalam 3 bulan sebelum mengikuti pelatihan.',
+					descPost: 'Jumlah keputusan kerja yang diambil secara mandiri berdasarkan pembelajaran dari pelatihan, tanpa menunggu instruksi atasan, dalam 3 bulan terakhir.'
+				}
 			]
 		},
 		'Safety': {
@@ -543,10 +616,38 @@
 			badgeColor: 'bg-rose-500/10 text-rose-600 border-rose-500/20',
 			description: 'Kepatuhan K3, kesadaran bahaya, dan perlindungan lingkungan kerja.',
 			metrics: [
-				{ id: 'p1', label: 'Insiden / Kecelakaan Kerja', unit: 'Kejadian', direction: 'decrease' as const, hint: 'Kejadian insiden atau kecelakaan kerja yang melibatkan karyawan.' },
-				{ id: 'p2', label: 'Pelanggaran Prosedur Safety', unit: 'Pelanggaran', direction: 'decrease' as const, hint: 'Pelanggaran terhadap SOP K3/safety atau kelalaian pemakaian APD.' },
-				{ id: 'p3', label: 'Pelaporan Potensi Bahaya (Hazard)', unit: 'Laporan', direction: 'increase' as const, hint: 'Keaktifan membuat laporan identifikasi bahaya/unsafe condition.' },
-				{ id: 'p4', label: 'Keputusan Safety Mandiri', unit: 'Keputusan', direction: 'increase' as const, hint: 'Tindakan stop work authority atau inisiatif pencegahan bahaya secara mandiri.' }
+				{
+					id: 'p1',
+					label: 'Insiden Kerja (Jumlah Kejadian)',
+					unit: 'Kejadian',
+					direction: 'decrease',
+					descPre: 'Jumlah kejadian kecelakaan kerja yang melibatkan peserta, dalam 3 bulan sebelum mengikuti pelatihan.',
+					descPost: 'Jumlah kejadian kecelakaan kerja yang melibatkan peserta dalam 3 bulan terakhir.'
+				},
+				{
+					id: 'p2',
+					label: 'Pelanggaran Prosedur Safety (Jumlah)',
+					unit: 'Pelanggaran',
+					direction: 'decrease',
+					descPre: 'Jumlah pelanggaran terhadap prosedur keselamatan kerja, dalam 3 bulan sebelum mengikuti pelatihan.',
+					descPost: 'Jumlah pelanggaran terhadap prosedur keselamatan kerja dalam 3 bulan terakhir, setelah penerapan materi safety hasil pelatihan.'
+				},
+				{
+					id: 'p3',
+					label: 'Pelaporan Potensi Bahaya (Jumlah Laporan)',
+					unit: 'Laporan',
+					direction: 'increase',
+					descPre: 'Jumlah laporan potensi bahaya atau risiko kerja yang disampaikan sebagai bentuk penerapan pemahaman keselamatan kerja, dalam 3 bulan sebelum mengikuti pelatihan.',
+					descPost: 'Jumlah laporan potensi bahaya atau risiko kerja yang disampaikan sebagai bentuk penerapan pemahaman safety hasil pelatihan dalam 3 bulan terakhir.'
+				},
+				{
+					id: 'p4',
+					label: 'Keputusan Safety Mandiri (Jumlah Keputusan)',
+					unit: 'Keputusan',
+					direction: 'increase',
+					descPre: 'Jumlah keputusan keselamatan kerja yang diambil secara mandiri oleh peserta berdasarkan pengetahuan keselamatan kerja yang dimiliki, tanpa menunggu instruksi atasan, dalam 3 bulan sebelum mengikuti pelatihan.',
+					descPost: 'Jumlah keputusan keselamatan kerja yang diambil secara mandiri oleh peserta berdasarkan pengetahuan safety dari pelatihan, dalam 3 bulan terakhir, tanpa menunggu instruksi atasan.'
+				}
 			]
 		},
 		'Hard Skill': {
@@ -555,10 +656,38 @@
 			badgeColor: 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20',
 			description: 'Kecepatan, akurasi, dan kapabilitas penanganan peralatan/sistem.',
 			metrics: [
-				{ id: 'p1', label: 'Produktivitas Output Kerja', unit: 'Output', direction: 'increase' as const, hint: 'Jumlah output atau volume pekerjaan yang diselesaikan per periode kerja.' },
-				{ id: 'p2', label: 'Waktu Per Satuan Output', unit: 'Menit', direction: 'decrease' as const, hint: 'Rata-rata waktu yang dihabiskan untuk menyelesaikan satu unit pekerjaan.' },
-				{ id: 'p3', label: 'Kualitas & Akurasi Hasil Kerja', unit: 'Kejadian', direction: 'decrease' as const, hint: 'Frekuensi kesalahan atau cacat hasil kerja yang memerlukan koreksi.' },
-				{ id: 'p4', label: 'Pemecahan Masalah Teknis', unit: 'Kasus', direction: 'decrease' as const, hint: 'Frekuensi kendala teknis yang memerlukan bantuan atau intervensi atasan/rekan kerja (makin sedikit intervensi = makin mandiri).' }
+				{
+					id: 'p1',
+					label: 'Produktivitas Penyelesaian Pekerjaan Teknis',
+					unit: 'Output',
+					direction: 'increase',
+					descPre: 'Berapa jumlah pekerjaan/output yang dapat diselesaikan oleh karyawan dalam periode kerja yang sama, dalam 3 bulan sebelum mengikuti pelatihan?',
+					descPost: 'Berapa jumlah pekerjaan/output yang dapat diselesaikan oleh karyawan dalam periode kerja yang sama, dalam kurun waktu 3 bulan terakhir?'
+				},
+				{
+					id: 'p2',
+					label: 'Waktu Penyelesaian Pekerjaan Teknis (Menit)',
+					unit: 'Menit',
+					direction: 'decrease',
+					descPre: 'Berapa rata-rata waktu yang dibutuhkan untuk menyelesaikan satu pekerjaan/output, dalam 3 bulan sebelum mengikuti pelatihan?',
+					descPost: 'Berapa rata-rata waktu yang dibutuhkan untuk menyelesaikan satu pekerjaan/output, dalam kurun waktu 3 bulan terakhir?'
+				},
+				{
+					id: 'p3',
+					label: 'Kualitas & Akurasi Hasil Kerja',
+					unit: 'Kejadian',
+					direction: 'decrease',
+					descPre: 'Berapa kali ditemukan kesalahan teknis pada hasil pekerjaan karyawan yang memerlukan perbaikan/rework, dalam 3 bulan sebelum mengikuti pelatihan?',
+					descPost: 'Berapa kali ditemukan kesalahan teknis pada hasil pekerjaan karyawan yang memerlukan perbaikan/rework, dalam 3 bulan terakhir?'
+				},
+				{
+					id: 'p4',
+					label: 'Pemecahan Masalah Teknis',
+					unit: 'Kasus',
+					direction: 'decrease',
+					descPre: 'Berapa kali terjadi masalah/kendala teknis dalam pekerjaan karyawan yang memerlukan bantuan atau intervensi dari atasan/rekan kerja, dalam 3 bulan sebelum mengikuti pelatihan? ',
+					descPost: 'Berapa kali terjadi masalah/kendala teknis dalam pekerjaan karyawan yang memerlukan bantuan atau intervensi dari atasan/rekan kerja, dalam kurun waktu 3 bulan terakhir?'
+				}
 			]
 		}
 	};
@@ -2896,17 +3025,14 @@
 							{@const postOpt = getL4Option(dir, postVal)}
 							<div class="p-3.5 rounded-2xl bg-surface border border-slate-200 dark:border-slate-700 space-y-2.5 flex flex-col justify-between">
 								<div class="space-y-2">
-									<div class="flex items-start justify-between gap-1">
+									<div class="flex items-start justify-between gap-2">
 										<label class="text-xs font-bold text-on-surface leading-snug">
-											<span class="text-amber-500 font-mono mr-1">P{idx + 1}.</span> {metric.label}
+											{metric.descPost}
 										</label>
 										<span class="px-2 py-0.5 rounded-full text-[9px] font-bold shrink-0 {dir === 'increase' ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20' : 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20'}">
 											{dir === 'increase' ? 'Target: Meningkat' : 'Target: Menurun'}
 										</span>
 									</div>
-									<p class="text-[10px] text-slate-400 leading-tight">
-										{metric.hint}
-									</p>
 
 									<!-- Referensi Ringkas Baseline Pre-Test -->
 									<div class="p-2 rounded-xl bg-surface-container-low border border-slate-200/60 dark:border-slate-700/60 flex items-center justify-between text-[11px]">
@@ -3154,18 +3280,15 @@
 						{#each catConfig.metrics as metric, idx}
 							{@const dir = metric.direction || 'decrease'}
 							{@const selectedOpt = getL4Option(dir, l4PreMetrics[metric.id])}
-							<div class="p-3.5 rounded-2xl bg-surface border border-slate-200 dark:border-slate-700 space-y-2">
-								<div class="flex items-start justify-between gap-1">
+							<div class="p-3.5 rounded-2xl bg-surface border border-slate-200 dark:border-slate-700 space-y-2 flex flex-col justify-between">
+								<div class="flex items-start justify-between gap-2">
 									<label class="text-xs font-bold text-on-surface leading-snug">
-										<span class="text-indigo-600 font-mono mr-1">P{idx + 1}.</span> {metric.label}
+										{metric.descPre}
 									</label>
 									<span class="px-2 py-0.5 rounded-full text-[9px] font-bold shrink-0 {dir === 'increase' ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20' : 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20'}">
 										{dir === 'increase' ? 'Target: Meningkat' : 'Target: Menurun'}
 									</span>
 								</div>
-								<p class="text-[10px] text-slate-400 leading-tight">
-									{metric.hint}
-								</p>
 
 								<!-- Dropdown Skor 1-5 Berdasarkan Pedoman Penilaian -->
 								<div class="space-y-1.5 pt-1">

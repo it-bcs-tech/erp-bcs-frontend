@@ -2095,45 +2095,127 @@
 		}
 	];
 
-	const l4IndicatorsByCategory: Record<string, { label: string; desc: string; unit: string }[]> = {
+	const l4IndicatorsByCategory: Record<string, { label: string; descPre: string; descPost: string; unit: string }[]> = {
 		'Technical Skill': [
-			{ label: 'Pengerjaan Tugas Sesuai SOP Tanpa Deviasi', desc: 'Tingkat kepatuhan implementasi instruksi kerja teknis di lapangan', unit: 'Skala 1-5' },
-			{ label: 'Reduksi Deviasi / Reject Mutu Hasil Kerja', desc: 'Penurunan kesalahan output teknis atau klaim revisi pekerjaan', unit: 'Skala 1-5' },
-			{ label: 'Efisiensi Waktu Siklus (Cycle Time)', desc: 'Kecepatan penyelesaian proses teknis dibanding sebelum training', unit: 'Skala 1-5' },
-			{ label: 'Kemandirian Penanganan Kendala Teknis', desc: 'Kemampuan menyelesaikan kendala alat/sistem tanpa eskalasi berlebih', unit: 'Skala 1-5' }
+			{
+				label: 'Waktu Penyelesaian Pekerjaan Teknis (Jam)',
+				descPre: 'Total waktu yang dibutuhkan untuk menyelesaikan satu jenis pekerjaan teknis yang sama dan relevan dengan materi pelatihan dan sesuai SOP, dalam 3 bulan sebelum mengikuti pelatihan.',
+				descPost: 'Total waktu yang dibutuhkan untuk menyelesaikan satu jenis pekerjaan teknis yang sama dan relevan dengan materi pelatihan, sesuai SOP, dalam 3 bulan terakhir',
+				unit: 'Jam'
+			},
+			{
+				label: 'Error / Rework Teknis (Jumlah Kejadian)',
+				descPre: 'Jumlah kesalahan teknis atau pekerjaan ulang yang terjadi pada pekerjaan yang berkaitan dengan materi pelatihan, dalam 3 bulan sebelum mengikuti pelatihan.',
+				descPost: 'Jumlah kesalahan teknis atau pekerjaan ulang yang terjadi pada pekerjaan yang berkaitan dengan materi pelatihan, dalam 3 bulan terakhir.',
+				unit: 'Kejadian'
+			},
+			{
+				label: 'Penerapan Materi Teknis Pelatihan (Jumlah Penerapan)',
+				descPre: 'Jumlah penerapan pengetahuan atau keterampilan teknis yang relevan dengan materi pelatihan dalam pelaksanaan pekerjaan sehari-hari, dalam 3 bulan sebelum mengikuti pelatihan.',
+				descPost: 'Jumlah penerapan langsung pengetahuan atau keterampilan teknis hasil pelatihan dalam pelaksanaan pekerjaan sehari-hari selama 3 bulan terakhir.',
+				unit: 'Penerapan'
+			},
+			{
+				label: 'Eskalasi Teknis ke Atasan (Jumlah Kasus)',
+				descPre: 'Jumlah permasalahan teknis terkait materi pelatihan yang membutuhkan bantuan atasan akibat keterbatasan kemampuan karyawan dalam penyelesaiannya, dalam 3 bulan sebelum mengikuti pelatihan',
+				descPost: 'Jumlah permasalahan teknis terkait materi pelatihan yang membutuhkan bantuan atasan akibat keterbatasan kemampuan karyawan dalam penyelesaiannya selama 3 bulan terakhir.',
+				unit: 'Kasus'
+			}
 		],
 		'Soft Skill': [
-			{ label: 'Komunikasi Kerja & Koordinasi Tim Efektif', desc: 'Kejelasan informasi kerja dan kolaborasi antar fungsi/bagian', unit: 'Skala 1-5' },
-			{ label: 'Respon Cepat Terhadap Instruksi Kerja', desc: 'Ketepatan waktu dan tindak lanjut saat menerima arahan tugas', unit: 'Skala 1-5' },
-			{ label: 'Inisiatif & Proaktifitas Pemecahan Masalah', desc: 'Kemauan membantu rekan dan mencari solusi tanpa harus selalu disuruh', unit: 'Skala 1-5' },
-			{ label: 'Tanggung Jawab & Disiplin Waktu Kerja', desc: 'Komitmen terhadap target tim dan ketepatan penyelesaian tugas', unit: 'Skala 1-5' }
+			{
+				label: 'Keterlambatan Penyelesaian Tugas (Jumlah Kejadian)',
+				descPre: 'Jumlah keterlambatan penyelesaian tugas kerja dalam 3 bulan sebelum mengikuti pelatihan, pada pekerjaan yang relevan dengan materi pelatihan.',
+				descPost: 'Jumlah keterlambatan penyelesaian tugas kerja dalam 3 bulan terakhir, setelah penerapan metode atau pendekatan yang diperoleh dari pelatihan.',
+				unit: 'Kejadian'
+			},
+			{
+				label: 'Komplain Internal (Jumlah)',
+				descPre: 'Jumlah komplain internal terkait sikap kerja, komunikasi, atau cara kerja peserta, dalam 3 bulan sebelum mengikuti pelatihan.',
+				descPost: 'Jumlah komplain internal terkait sikap kerja, komunikasi, atau cara kerja peserta dalam 3 bulan terakhir.',
+				unit: 'Komplain'
+			},
+			{
+				label: 'Penerapan Soft Skill Hasil Pelatihan (Jumlah Kasus)',
+				descPre: 'Jumlah permasalahan kerja yang berhasil diselesaikan menggunakan kemampuan soft skill yang relevan dengan materi pelatihan, dalam 3 bulan sebelum mengikuti pelatihan.',
+				descPost: 'Jumlah permasalahan kerja yang berhasil diselesaikan menggunakan pendekatan atau metode soft skill hasil pelatihan dalam 3 bulan terakhir.',
+				unit: 'Kasus'
+			},
+			{
+				label: 'Keputusan Kerja Mandiri (Jumlah Keputusan)',
+				descPre: 'Jumlah keputusan kerja yang diambil secara mandiri berdasarkan pengetahuan dan kompetensi yang dimiliki, tanpa menunggu instruksi atasan, dalam 3 bulan sebelum mengikuti pelatihan.',
+				descPost: 'Jumlah keputusan kerja yang diambil secara mandiri berdasarkan pembelajaran dari pelatihan, tanpa menunggu instruksi atasan, dalam 3 bulan terakhir.',
+				unit: 'Keputusan'
+			}
 		],
 		'Safety': [
-			{ label: 'Kepatuhan Pemakaian APD & Aturan K3', desc: 'Konsistensi penggunaan safety gear dan kepatuhan norma keselamatan kerja', unit: 'Skala 1-5' },
-			{ label: 'Nihil Pelanggaran Regulasi & Unsafe Action', desc: 'Penurunan tindakan tidak aman yang membahayakan diri atau tim', unit: 'Skala 1-5' },
-			{ label: 'Kecepatan Pelaporan Temuan Near-Miss / Bahaya', desc: 'Partisipasi aktif dalam mitigasi risiko dan hazard report lingkungan kerja', unit: 'Skala 1-5' },
-			{ label: 'Penerapan 5R/5S di Area Lingkungan Kerja', desc: 'Kerapihan, kebersihan, dan keteraturan area kerja pasca-aktivitas', unit: 'Skala 1-5' }
+			{
+				label: 'Insiden Kerja (Jumlah Kejadian)',
+				descPre: 'Jumlah kejadian kecelakaan kerja yang melibatkan peserta, dalam 3 bulan sebelum mengikuti pelatihan.',
+				descPost: 'Jumlah kejadian kecelakaan kerja yang melibatkan peserta dalam 3 bulan terakhir.',
+				unit: 'Kejadian'
+			},
+			{
+				label: 'Pelanggaran Prosedur Safety (Jumlah)',
+				descPre: 'Jumlah pelanggaran terhadap prosedur keselamatan kerja, dalam 3 bulan sebelum mengikuti pelatihan.',
+				descPost: 'Jumlah pelanggaran terhadap prosedur keselamatan kerja dalam 3 bulan terakhir, setelah penerapan materi safety hasil pelatihan.',
+				unit: 'Pelanggaran'
+			},
+			{
+				label: 'Pelaporan Potensi Bahaya (Jumlah Laporan)',
+				descPre: 'Jumlah laporan potensi bahaya atau risiko kerja yang disampaikan sebagai bentuk penerapan pemahaman keselamatan kerja, dalam 3 bulan sebelum mengikuti pelatihan.',
+				descPost: 'Jumlah laporan potensi bahaya atau risiko kerja yang disampaikan sebagai bentuk penerapan pemahaman safety hasil pelatihan dalam 3 bulan terakhir.',
+				unit: 'Laporan'
+			},
+			{
+				label: 'Keputusan Safety Mandiri (Jumlah Keputusan)',
+				descPre: 'Jumlah keputusan keselamatan kerja yang diambil secara mandiri oleh peserta berdasarkan pengetahuan keselamatan kerja yang dimiliki, tanpa menunggu instruksi atasan, dalam 3 bulan sebelum mengikuti pelatihan.',
+				descPost: 'Jumlah keputusan keselamatan kerja yang diambil secara mandiri oleh peserta berdasarkan pengetahuan safety dari pelatihan, dalam 3 bulan terakhir, tanpa menunggu instruksi atasan.',
+				unit: 'Keputusan'
+			}
 		],
 		'Hard Skill': [
-			{ label: 'Akurasi Pengoperasian Unit / Mesin Kerja', desc: 'Presisi pengoperasian unit atau peralatan teknis sesuai panduan pabrikan', unit: 'Skala 1-5' },
-			{ label: 'Kepatuhan Checklist Perawatan & Pemeliharaan', desc: 'Disiplin pengisian P2H / checklist harian kondisi peralatan', unit: 'Skala 1-5' },
-			{ label: 'Minimasi Kerusakan Alat Akibat Kelalaian', desc: 'Penurunan frekuensi downtime unit atau kerusakan akibat salah prosedur', unit: 'Skala 1-5' },
-			{ label: 'Pencapaian Target Output Produksi / Ritase', desc: 'Pencapaian volume ritase/pekerjaan sesuai target operasional', unit: 'Skala 1-5' }
+			{
+				label: 'Produktivitas Penyelesaian Pekerjaan Teknis',
+				descPre: 'Berapa jumlah pekerjaan/output yang dapat diselesaikan oleh karyawan dalam periode kerja yang sama, dalam 3 bulan sebelum mengikuti pelatihan?',
+				descPost: 'Berapa jumlah pekerjaan/output yang dapat diselesaikan oleh karyawan dalam periode kerja yang sama, dalam kurun waktu 3 bulan terakhir?',
+				unit: 'Output'
+			},
+			{
+				label: 'Waktu Penyelesaian Pekerjaan Teknis (Menit)',
+				descPre: 'Berapa rata-rata waktu yang dibutuhkan untuk menyelesaikan satu pekerjaan/output, dalam 3 bulan sebelum mengikuti pelatihan?',
+				descPost: 'Berapa rata-rata waktu yang dibutuhkan untuk menyelesaikan satu pekerjaan/output, dalam kurun waktu 3 bulan terakhir?',
+				unit: 'Menit'
+			},
+			{
+				label: 'Kualitas & Akurasi Hasil Kerja',
+				descPre: 'Berapa kali ditemukan kesalahan teknis pada hasil pekerjaan karyawan yang memerlukan perbaikan/rework, dalam 3 bulan sebelum mengikuti pelatihan?',
+				descPost: 'Berapa kali ditemukan kesalahan teknis pada hasil pekerjaan karyawan yang memerlukan perbaikan/rework, dalam 3 bulan terakhir?',
+				unit: 'Kejadian'
+			},
+			{
+				label: 'Pemecahan Masalah Teknis',
+				descPre: 'Berapa kali terjadi masalah/kendala teknis dalam pekerjaan karyawan yang memerlukan bantuan atau intervensi dari atasan/rekan kerja, dalam 3 bulan sebelum mengikuti pelatihan? ',
+				descPost: 'Berapa kali terjadi masalah/kendala teknis dalam pekerjaan karyawan yang memerlukan bantuan atau intervensi dari atasan/rekan kerja, dalam kurun waktu 3 bulan terakhir?',
+				unit: 'Kasus'
+			}
 		]
 	};
 
 	function getPreMetricValue(metrics: any, idx: number): number {
 		if (!metrics) return 0;
-		const entry = metrics[idx] ?? metrics[String(idx)] ?? metrics[`q${idx}`];
+		const entry = metrics[idx] ?? metrics[String(idx)] ?? metrics[`q${idx}`] ?? metrics[`p${idx + 1}`] ?? metrics[`p${idx}`];
 		if (typeof entry === 'number') return entry;
+		if (typeof entry === 'string' && !isNaN(Number(entry))) return Number(entry);
 		if (entry && typeof entry.baseline === 'number') return entry.baseline;
 		return 0;
 	}
 
 	function getPostMetricValue(metrics: any, idx: number): number {
 		if (!metrics) return 0;
-		const entry = metrics[idx] ?? metrics[String(idx)] ?? metrics[`q${idx}`];
+		const entry = metrics[idx] ?? metrics[String(idx)] ?? metrics[`q${idx}`] ?? metrics[`p${idx + 1}`] ?? metrics[`p${idx}`];
 		if (typeof entry === 'number') return entry;
+		if (typeof entry === 'string' && !isNaN(Number(entry))) return Number(entry);
 		if (entry && typeof entry.post === 'number') return entry.post;
 		return 0;
 	}
@@ -11180,8 +11262,7 @@
 						{@const score = getPreMetricValue(selectedL4PreDetail.l4PreMetrics, idx)}
 						<div class="p-3.5 rounded-2xl bg-surface-container/60 border border-slate-200/60 dark:border-slate-800/60 flex items-center justify-between gap-4">
 							<div class="space-y-0.5">
-								<p class="font-bold text-on-surface">{idx + 1}. {indicator.label}</p>
-								<p class="text-[11px] text-on-surface-variant">{indicator.desc}</p>
+								<p class="font-bold text-on-surface">{indicator.descPre}</p>
 							</div>
 							<div class="text-right shrink-0">
 								<span class="px-3 py-1 rounded-xl text-xs font-black font-mono
@@ -11377,8 +11458,7 @@
 						<div class="p-4 rounded-2xl bg-surface-container/60 border border-slate-200/60 dark:border-slate-800/60 space-y-3">
 							<div class="flex items-center justify-between">
 								<div>
-									<p class="font-bold text-on-surface">{idx + 1}. {indicator.label}</p>
-									<p class="text-[11px] text-on-surface-variant">{indicator.desc}</p>
+									<p class="font-bold text-on-surface">{indicator.descPost}</p>
 								</div>
 								{#if diff !== null}
 									<span class="px-2.5 py-1 rounded-xl text-xs font-mono font-black
