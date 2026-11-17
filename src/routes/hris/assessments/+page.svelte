@@ -484,31 +484,59 @@
 		badgeClass: string;
 	}
 
-	const l4PedomanRules: {
-		increase: L4PedomanOption[];
-		decrease: L4PedomanOption[];
-	} = {
+	type L4RuleType = 'increase' | 'decrease' | 'decrease_standard' | 'decrease_yellow' | 'decrease_green';
+
+	interface L4PedomanOption {
+		score: number;
+		category: string;
+		range: string;
+		badgeClass: string;
+	}
+
+	const l4PedomanRules: Record<string, L4PedomanOption[]> = {
 		increase: [
 			{ score: 1, category: 'Menurun signifikan', range: '0-3 Kejadian', badgeClass: 'bg-rose-500/15 text-rose-600 dark:text-rose-400 border-rose-500/30' },
 			{ score: 2, category: 'Menurun', range: '4-6 Kejadian', badgeClass: 'bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/30' },
 			{ score: 3, category: 'Tidak berubah', range: '7-9 Kejadian', badgeClass: 'bg-slate-500/15 text-slate-600 dark:text-slate-400 border-slate-500/30' },
 			{ score: 4, category: 'Meningkat', range: '10-12 Kejadian', badgeClass: 'bg-teal-500/15 text-teal-600 dark:text-teal-400 border-teal-500/30' },
-			{ score: 5, category: 'Meningkat signifikan', range: '>13 Kejadian', badgeClass: 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30' }
+			{ score: 5, category: 'Meningkat signifikan', range: '> 13 Kejadian', badgeClass: 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30' }
 		],
 		decrease: [
-			{ score: 1, category: 'Meningkat signifikan', range: '>13 Kejadian', badgeClass: 'bg-rose-500/15 text-rose-600 dark:text-rose-400 border-rose-500/30' },
+			{ score: 1, category: 'Meningkat signifikan', range: '> 13 Kejadian', badgeClass: 'bg-rose-500/15 text-rose-600 dark:text-rose-400 border-rose-500/30' },
 			{ score: 2, category: 'Meningkat', range: '10-12 Kejadian', badgeClass: 'bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/30' },
 			{ score: 3, category: 'Tidak berubah', range: '7-9 Kejadian', badgeClass: 'bg-slate-500/15 text-slate-600 dark:text-slate-400 border-slate-500/30' },
 			{ score: 4, category: 'Menurun', range: '4-6 Kejadian', badgeClass: 'bg-teal-500/15 text-teal-600 dark:text-teal-400 border-teal-500/30' },
 			{ score: 5, category: 'Menurun signifikan', range: '0-3 Kejadian', badgeClass: 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30' }
+		],
+		decrease_standard: [
+			{ score: 1, category: 'Meningkat signifikan', range: '> 13 Kejadian', badgeClass: 'bg-rose-500/15 text-rose-600 dark:text-rose-400 border-rose-500/30' },
+			{ score: 2, category: 'Meningkat', range: '10-12 Kejadian', badgeClass: 'bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/30' },
+			{ score: 3, category: 'Tidak berubah', range: '7-9 Kejadian', badgeClass: 'bg-slate-500/15 text-slate-600 dark:text-slate-400 border-slate-500/30' },
+			{ score: 4, category: 'Menurun', range: '4-6 Kejadian', badgeClass: 'bg-teal-500/15 text-teal-600 dark:text-teal-400 border-teal-500/30' },
+			{ score: 5, category: 'Menurun signifikan', range: '0-3 Kejadian', badgeClass: 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30' }
+		],
+		decrease_yellow: [
+			{ score: 1, category: 'Sangat Sering', range: '> 13 Kejadian', badgeClass: 'bg-rose-500/15 text-rose-600 dark:text-rose-400 border-rose-500/30' },
+			{ score: 2, category: 'Sering', range: '10-12 Kejadian', badgeClass: 'bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/30' },
+			{ score: 3, category: 'Kadang-kadang', range: '7-9 Kejadian', badgeClass: 'bg-slate-500/15 text-slate-600 dark:text-slate-400 border-slate-500/30' },
+			{ score: 4, category: 'Jarang', range: '4-6 Kejadian', badgeClass: 'bg-teal-500/15 text-teal-600 dark:text-teal-400 border-teal-500/30' },
+			{ score: 5, category: 'Sangat Jarang', range: '0-3 Kejadian', badgeClass: 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30' }
+		],
+		decrease_green: [
+			{ score: 1, category: 'Lebih Lambat', range: '> 13 Kejadian', badgeClass: 'bg-rose-500/15 text-rose-600 dark:text-rose-400 border-rose-500/30' },
+			{ score: 2, category: 'Lambat', range: '10-12 Kejadian', badgeClass: 'bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/30' },
+			{ score: 3, category: 'Tidak berubah', range: '7-9 Kejadian', badgeClass: 'bg-slate-500/15 text-slate-600 dark:text-slate-400 border-slate-500/30' },
+			{ score: 4, category: 'Cepat', range: '4-6 Kejadian', badgeClass: 'bg-teal-500/15 text-teal-600 dark:text-teal-400 border-teal-500/30' },
+			{ score: 5, category: 'Lebih Cepat', range: '0-3 Kejadian', badgeClass: 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30' }
 		]
 	};
 
-	function getL4Option(direction: 'increase' | 'decrease', score: number | string | undefined | null): L4PedomanOption | undefined {
+	function getL4Option(ruleTypeOrDir: string, score: number | string | undefined | null): L4PedomanOption | undefined {
 		if (score === undefined || score === null || score === '') return undefined;
 		const num = Number(score);
 		if (isNaN(num) || num < 1 || num > 5) return undefined;
-		return l4PedomanRules[direction]?.find((o) => o.score === num);
+		const list = l4PedomanRules[ruleTypeOrDir] || l4PedomanRules['decrease_standard'] || l4PedomanRules['decrease'];
+		return list?.find((o) => o.score === num);
 	}
 
 	// Definisi 4 Kategori Skill Level 4 Pre-Test sesuai Master Spreadsheet
@@ -517,6 +545,7 @@
 		label: string;
 		unit: string;
 		direction: 'increase' | 'decrease';
+		ruleType: L4RuleType;
 		descPre: string;
 		descPost: string;
 	}
@@ -541,6 +570,7 @@
 					label: 'Waktu Penyelesaian Pekerjaan Teknis (Jam)',
 					unit: 'Jam',
 					direction: 'decrease',
+					ruleType: 'decrease_green',
 					descPre: 'Total waktu yang dibutuhkan untuk menyelesaikan satu jenis pekerjaan teknis yang sama dan relevan dengan materi pelatihan dan sesuai SOP, dalam 3 bulan sebelum mengikuti pelatihan.',
 					descPost: 'Total waktu yang dibutuhkan untuk menyelesaikan satu jenis pekerjaan teknis yang sama dan relevan dengan materi pelatihan, sesuai SOP, dalam 3 bulan terakhir'
 				},
@@ -549,6 +579,7 @@
 					label: 'Error / Rework Teknis (Jumlah Kejadian)',
 					unit: 'Kejadian',
 					direction: 'decrease',
+					ruleType: 'decrease_yellow',
 					descPre: 'Jumlah kesalahan teknis atau pekerjaan ulang yang terjadi pada pekerjaan yang berkaitan dengan materi pelatihan, dalam 3 bulan sebelum mengikuti pelatihan.',
 					descPost: 'Jumlah kesalahan teknis atau pekerjaan ulang yang terjadi pada pekerjaan yang berkaitan dengan materi pelatihan, dalam 3 bulan terakhir.'
 				},
@@ -557,6 +588,7 @@
 					label: 'Penerapan Materi Teknis Pelatihan (Jumlah Penerapan)',
 					unit: 'Penerapan',
 					direction: 'increase',
+					ruleType: 'increase',
 					descPre: 'Jumlah penerapan pengetahuan atau keterampilan teknis yang relevan dengan materi pelatihan dalam pelaksanaan pekerjaan sehari-hari, dalam 3 bulan sebelum mengikuti pelatihan.',
 					descPost: 'Jumlah penerapan langsung pengetahuan atau keterampilan teknis hasil pelatihan dalam pelaksanaan pekerjaan sehari-hari selama 3 bulan terakhir.'
 				},
@@ -565,6 +597,7 @@
 					label: 'Eskalasi Teknis ke Atasan (Jumlah Kasus)',
 					unit: 'Kasus',
 					direction: 'decrease',
+					ruleType: 'decrease_yellow',
 					descPre: 'Jumlah permasalahan teknis terkait materi pelatihan yang membutuhkan bantuan atasan akibat keterbatasan kemampuan karyawan dalam penyelesaiannya, dalam 3 bulan sebelum mengikuti pelatihan',
 					descPost: 'Jumlah permasalahan teknis terkait materi pelatihan yang membutuhkan bantuan atasan akibat keterbatasan kemampuan karyawan dalam penyelesaiannya selama 3 bulan terakhir.'
 				}
@@ -581,6 +614,7 @@
 					label: 'Keterlambatan Penyelesaian Tugas (Jumlah Kejadian)',
 					unit: 'Kejadian',
 					direction: 'decrease',
+					ruleType: 'decrease_standard',
 					descPre: 'Jumlah keterlambatan penyelesaian tugas kerja dalam 3 bulan sebelum mengikuti pelatihan, pada pekerjaan yang relevan dengan materi pelatihan.',
 					descPost: 'Jumlah keterlambatan penyelesaian tugas kerja dalam 3 bulan terakhir, setelah penerapan metode atau pendekatan yang diperoleh dari pelatihan.'
 				},
@@ -589,6 +623,7 @@
 					label: 'Komplain Internal (Jumlah)',
 					unit: 'Komplain',
 					direction: 'decrease',
+					ruleType: 'decrease_yellow',
 					descPre: 'Jumlah komplain internal terkait sikap kerja, komunikasi, atau cara kerja peserta, dalam 3 bulan sebelum mengikuti pelatihan.',
 					descPost: 'Jumlah komplain internal terkait sikap kerja, komunikasi, atau cara kerja peserta dalam 3 bulan terakhir.'
 				},
@@ -597,6 +632,7 @@
 					label: 'Penerapan Soft Skill Hasil Pelatihan (Jumlah Kasus)',
 					unit: 'Kasus',
 					direction: 'increase',
+					ruleType: 'increase',
 					descPre: 'Jumlah permasalahan kerja yang berhasil diselesaikan menggunakan kemampuan soft skill yang relevan dengan materi pelatihan, dalam 3 bulan sebelum mengikuti pelatihan.',
 					descPost: 'Jumlah permasalahan kerja yang berhasil diselesaikan menggunakan pendekatan atau metode soft skill hasil pelatihan dalam 3 bulan terakhir.'
 				},
@@ -605,6 +641,7 @@
 					label: 'Keputusan Kerja Mandiri (Jumlah Keputusan)',
 					unit: 'Keputusan',
 					direction: 'increase',
+					ruleType: 'increase',
 					descPre: 'Jumlah keputusan kerja yang diambil secara mandiri berdasarkan pengetahuan dan kompetensi yang dimiliki, tanpa menunggu instruksi atasan, dalam 3 bulan sebelum mengikuti pelatihan.',
 					descPost: 'Jumlah keputusan kerja yang diambil secara mandiri berdasarkan pembelajaran dari pelatihan, tanpa menunggu instruksi atasan, dalam 3 bulan terakhir.'
 				}
@@ -621,6 +658,7 @@
 					label: 'Insiden Kerja (Jumlah Kejadian)',
 					unit: 'Kejadian',
 					direction: 'decrease',
+					ruleType: 'decrease_yellow',
 					descPre: 'Jumlah kejadian kecelakaan kerja yang melibatkan peserta, dalam 3 bulan sebelum mengikuti pelatihan.',
 					descPost: 'Jumlah kejadian kecelakaan kerja yang melibatkan peserta dalam 3 bulan terakhir.'
 				},
@@ -629,6 +667,7 @@
 					label: 'Pelanggaran Prosedur Safety (Jumlah)',
 					unit: 'Pelanggaran',
 					direction: 'decrease',
+					ruleType: 'decrease_yellow',
 					descPre: 'Jumlah pelanggaran terhadap prosedur keselamatan kerja, dalam 3 bulan sebelum mengikuti pelatihan.',
 					descPost: 'Jumlah pelanggaran terhadap prosedur keselamatan kerja dalam 3 bulan terakhir, setelah penerapan materi safety hasil pelatihan.'
 				},
@@ -637,6 +676,7 @@
 					label: 'Pelaporan Potensi Bahaya (Jumlah Laporan)',
 					unit: 'Laporan',
 					direction: 'increase',
+					ruleType: 'increase',
 					descPre: 'Jumlah laporan potensi bahaya atau risiko kerja yang disampaikan sebagai bentuk penerapan pemahaman keselamatan kerja, dalam 3 bulan sebelum mengikuti pelatihan.',
 					descPost: 'Jumlah laporan potensi bahaya atau risiko kerja yang disampaikan sebagai bentuk penerapan pemahaman safety hasil pelatihan dalam 3 bulan terakhir.'
 				},
@@ -645,6 +685,7 @@
 					label: 'Keputusan Safety Mandiri (Jumlah Keputusan)',
 					unit: 'Keputusan',
 					direction: 'increase',
+					ruleType: 'increase',
 					descPre: 'Jumlah keputusan keselamatan kerja yang diambil secara mandiri oleh peserta berdasarkan pengetahuan keselamatan kerja yang dimiliki, tanpa menunggu instruksi atasan, dalam 3 bulan sebelum mengikuti pelatihan.',
 					descPost: 'Jumlah keputusan keselamatan kerja yang diambil secara mandiri oleh peserta berdasarkan pengetahuan safety dari pelatihan, dalam 3 bulan terakhir, tanpa menunggu instruksi atasan.'
 				}
@@ -661,6 +702,7 @@
 					label: 'Produktivitas Penyelesaian Pekerjaan Teknis',
 					unit: 'Output',
 					direction: 'increase',
+					ruleType: 'increase',
 					descPre: 'Berapa jumlah pekerjaan/output yang dapat diselesaikan oleh karyawan dalam periode kerja yang sama, dalam 3 bulan sebelum mengikuti pelatihan?',
 					descPost: 'Berapa jumlah pekerjaan/output yang dapat diselesaikan oleh karyawan dalam periode kerja yang sama, dalam kurun waktu 3 bulan terakhir?'
 				},
@@ -669,6 +711,7 @@
 					label: 'Waktu Penyelesaian Pekerjaan Teknis (Menit)',
 					unit: 'Menit',
 					direction: 'decrease',
+					ruleType: 'decrease_green',
 					descPre: 'Berapa rata-rata waktu yang dibutuhkan untuk menyelesaikan satu pekerjaan/output, dalam 3 bulan sebelum mengikuti pelatihan?',
 					descPost: 'Berapa rata-rata waktu yang dibutuhkan untuk menyelesaikan satu pekerjaan/output, dalam kurun waktu 3 bulan terakhir?'
 				},
@@ -677,6 +720,7 @@
 					label: 'Kualitas & Akurasi Hasil Kerja',
 					unit: 'Kejadian',
 					direction: 'decrease',
+					ruleType: 'decrease_yellow',
 					descPre: 'Berapa kali ditemukan kesalahan teknis pada hasil pekerjaan karyawan yang memerlukan perbaikan/rework, dalam 3 bulan sebelum mengikuti pelatihan?',
 					descPost: 'Berapa kali ditemukan kesalahan teknis pada hasil pekerjaan karyawan yang memerlukan perbaikan/rework, dalam 3 bulan terakhir?'
 				},
@@ -685,6 +729,7 @@
 					label: 'Pemecahan Masalah Teknis',
 					unit: 'Kasus',
 					direction: 'decrease',
+					ruleType: 'decrease_yellow',
 					descPre: 'Berapa kali terjadi masalah/kendala teknis dalam pekerjaan karyawan yang memerlukan bantuan atau intervensi dari atasan/rekan kerja, dalam 3 bulan sebelum mengikuti pelatihan? ',
 					descPost: 'Berapa kali terjadi masalah/kendala teknis dalam pekerjaan karyawan yang memerlukan bantuan atau intervensi dari atasan/rekan kerja, dalam kurun waktu 3 bulan terakhir?'
 				}
@@ -2104,7 +2149,7 @@
 												<div class="grid grid-cols-2 gap-1.5 text-[11px]">
 													{#each catConfig.metrics as m, mIdx}
 														{@const val = item.l4PreMetrics?.[m.id]}
-														{@const opt = getL4Option(m.direction || 'decrease', val)}
+														{@const opt = getL4Option(m.ruleType || m.direction || 'decrease', val)}
 														<div class="flex items-center gap-1 font-mono">
 															<span class="text-slate-400 font-bold">P{mIdx + 1}:</span>
 															{#if opt}
@@ -2356,10 +2401,11 @@
 												<div class="grid grid-cols-2 gap-1.5 text-[11px]">
 													{#each catConfig.metrics as m}
 														{@const dir = m.direction || 'decrease'}
+														{@const rule = m.ruleType || dir}
 														{@const pre = item.l4PreMetrics?.[m.id]}
 														{@const post = item.l4PostMetrics?.[m.id]}
-														{@const preOpt = getL4Option(dir, pre)}
-														{@const postOpt = getL4Option(dir, post)}
+														{@const preOpt = getL4Option(rule, pre)}
+														{@const postOpt = getL4Option(rule, post)}
 														<div class="flex items-center gap-1 font-mono">
 															<span class="text-slate-400 font-bold">{m.id.toUpperCase()}:</span>
 															<span class="text-slate-400">{preOpt ? `★${preOpt.score}` : (pre !== undefined && pre !== '' ? pre : '-')}</span>
@@ -3019,10 +3065,11 @@
 					<div class="grid grid-cols-1 md:grid-cols-2 gap-3.5 pt-1">
 						{#each catConfig.metrics as metric, idx}
 							{@const dir = metric.direction || 'decrease'}
+							{@const rule = metric.ruleType || dir}
 							{@const preVal = selectedL4Eval.l4PreSkillCategory === l4PostSkillCategory ? selectedL4Eval.l4PreMetrics?.[metric.id] : undefined}
 							{@const postVal = l4PostMetrics[metric.id]}
-							{@const preOpt = getL4Option(dir, preVal)}
-							{@const postOpt = getL4Option(dir, postVal)}
+							{@const preOpt = getL4Option(rule, preVal)}
+							{@const postOpt = getL4Option(rule, postVal)}
 							<div class="p-3.5 rounded-2xl bg-surface border border-slate-200 dark:border-slate-700 space-y-2.5 flex flex-col justify-between">
 								<div class="space-y-2">
 									<div class="flex items-start justify-between gap-2">
@@ -3043,7 +3090,7 @@
 										{#if preOpt}
 											<span class="px-2 py-0.5 rounded-lg border font-bold text-[10px] inline-flex items-center gap-1 {preOpt.badgeClass}">
 												<span class="material-symbols-outlined text-xs">star</span>
-												<span>Skor {preOpt.score}: {preOpt.category}</span>
+												<span>{preOpt.category}</span>
 												<span class="text-slate-500 dark:text-slate-400 font-mono text-[9px]">({preOpt.range})</span>
 											</span>
 										{:else}
@@ -3067,10 +3114,10 @@
 												required
 												class="w-full px-3 py-2 rounded-xl bg-surface-container-low border border-slate-300 dark:border-slate-600 text-xs font-bold text-on-surface outline-none focus:ring-2 focus:ring-amber-500 cursor-pointer"
 											>
-												<option value="" disabled>-- Pilih Skor Pedoman (1–5) --</option>
-												{#each l4PedomanRules[dir] as opt}
+												<option value="" disabled>-- Pilih Pedoman Kejadian --</option>
+												{#each l4PedomanRules[rule] || l4PedomanRules[dir] as opt}
 													<option value={opt.score}>
-														[Skor {opt.score}] {opt.category} • ({opt.range})
+														{opt.category} ({opt.range})
 													</option>
 												{/each}
 											</select>
@@ -3081,13 +3128,13 @@
 											{#if postOpt}
 												<span class="px-2 py-0.5 rounded-lg border font-bold text-[10px] inline-flex items-center gap-1 {postOpt.badgeClass}">
 													<span class="material-symbols-outlined text-xs">star</span>
-													<span>Skor {postOpt.score}: {postOpt.category}</span>
+													<span>{postOpt.category}</span>
 												</span>
 												<span class="text-slate-500 dark:text-slate-400 font-mono text-[10px]">
 													Frekuensi: <strong>{postOpt.range}</strong>
 												</span>
 											{:else}
-												<span class="text-[10px] text-slate-400 italic">Pilih skor untuk melihat pedoman frekuensi kejadian</span>
+												<span class="text-[10px] text-slate-400 italic">Pilih pedoman kejadian</span>
 											{/if}
 										</div>
 									</div>
@@ -3279,7 +3326,8 @@
 					<div class="grid grid-cols-1 md:grid-cols-2 gap-3.5 pt-1">
 						{#each catConfig.metrics as metric, idx}
 							{@const dir = metric.direction || 'decrease'}
-							{@const selectedOpt = getL4Option(dir, l4PreMetrics[metric.id])}
+							{@const rule = metric.ruleType || dir}
+							{@const selectedOpt = getL4Option(rule, l4PreMetrics[metric.id])}
 							<div class="p-3.5 rounded-2xl bg-surface border border-slate-200 dark:border-slate-700 space-y-2 flex flex-col justify-between">
 								<div class="flex items-start justify-between gap-2">
 									<label class="text-xs font-bold text-on-surface leading-snug">
@@ -3298,10 +3346,10 @@
 											required
 											class="w-full px-3 py-2 rounded-xl bg-surface-container-low border border-slate-300 dark:border-slate-600 text-xs font-bold text-on-surface outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
 										>
-											<option value="" disabled>-- Pilih Skor Pedoman (1–5) --</option>
-											{#each l4PedomanRules[dir] as opt}
+											<option value="" disabled>-- Pilih Pedoman Kejadian --</option>
+											{#each l4PedomanRules[rule] || l4PedomanRules[dir] as opt}
 												<option value={opt.score}>
-													[Skor {opt.score}] {opt.category} • ({opt.range})
+													{opt.category} ({opt.range})
 												</option>
 											{/each}
 										</select>
@@ -3312,13 +3360,13 @@
 										{#if selectedOpt}
 											<span class="px-2 py-0.5 rounded-lg border font-bold text-[10px] inline-flex items-center gap-1 {selectedOpt.badgeClass}">
 												<span class="material-symbols-outlined text-xs">star</span>
-												<span>Skor {selectedOpt.score}: {selectedOpt.category}</span>
+												<span>{selectedOpt.category}</span>
 											</span>
 											<span class="text-slate-500 dark:text-slate-400 font-mono text-[10px]">
 												Frekuensi: <strong>{selectedOpt.range}</strong>
 											</span>
 										{:else}
-											<span class="text-[10px] text-slate-400 italic">Pilih skor untuk melihat pedoman frekuensi kejadian</span>
+											<span class="text-[10px] text-slate-400 italic">Pilih pedoman kejadian</span>
 										{/if}
 									</div>
 								</div>
