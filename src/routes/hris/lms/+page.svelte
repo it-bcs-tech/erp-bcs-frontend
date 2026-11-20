@@ -1719,9 +1719,12 @@
 
 	function clearAllModalComps() {
 		selectedCompStandards = {};
+		lastCopiedTemplateDivision = null;
 	}
 
 	function loadStandardsForPositionAndDivision(title: string, div: string) {
+		isTemplateCopyDropdownOpen = false;
+		lastCopiedTemplateDivision = null;
 		const targetTitle = (title || '').trim().toLowerCase();
 		const targetDiv = (div || '').trim().toLowerCase();
 		if (!targetTitle) {
@@ -1779,6 +1782,9 @@
 		return matched;
 	});
 
+	let isTemplateCopyDropdownOpen = $state(false);
+	let lastCopiedTemplateDivision = $state<string | null>(null);
+
 	// Divisi lain yang sudah memiliki standar untuk jabatan yang sedang dipilih di form
 	const availableTemplateDivisions = $derived.by(() => {
 		if (!jobStandardForm.positionTitle) return [];
@@ -1810,10 +1816,14 @@
 			copied[e.competencyCode] = { selected: true, requiredLevel: e.requiredLevel };
 		});
 		selectedCompStandards = copied;
+		lastCopiedTemplateDivision = sourceDivision;
+		isTemplateCopyDropdownOpen = false;
 		notifySuccess('Standar Disalin', `Berhasil menyalin ${sourceComps.length} kompetensi dari divisi ${sourceDivision}. Silakan sesuaikan target level atau butir kompetensi jika diperlukan.`);
 	}
 
 	function openJobStandardModal(positionTitle?: string, divisionName?: string) {
+		isTemplateCopyDropdownOpen = false;
+		lastCopiedTemplateDivision = null;
 		jobStandardForm.positionTitle = positionTitle || '';
 		showAllJobStandardDivisions = false;
 
@@ -12367,35 +12377,101 @@
 
 				<!-- Banner Cerdas: Salin Standar dari Divisi Lain (Clone Template) -->
 				{#if availableTemplateDivisions.length > 0}
-					<div class="px-5 py-3 bg-gradient-to-r from-indigo-500/10 via-purple-500/10 to-primary/10 border-b border-indigo-500/20 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
-						<div class="flex items-center gap-2 min-w-0">
-							<span class="material-symbols-outlined text-indigo-500 text-lg shrink-0">content_copy</span>
-							<div>
-								<p class="font-bold text-on-surface flex items-center gap-1.5">
+					<div class="relative z-20 px-5 py-3 bg-gradient-to-r from-indigo-500/10 via-purple-500/10 to-primary/10 border-b border-indigo-500/20 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+						<div class="flex items-start sm:items-center gap-2.5 flex-1 min-w-0">
+							<span class="material-symbols-outlined text-indigo-500 text-lg shrink-0 mt-0.5 sm:mt-0">content_copy</span>
+							<div class="min-w-0 flex-1">
+								<p class="font-bold text-on-surface flex items-center gap-1.5 flex-wrap">
 									<span>Template Standar Tersedia di Divisi Lain</span>
-									<span class="px-1.5 py-0.2 rounded-full text-[9px] font-black uppercase bg-indigo-100 text-indigo-800 dark:bg-indigo-950 dark:text-indigo-300">
+									<span class="px-1.5 py-0.5 rounded-full text-[9px] font-black uppercase bg-indigo-100 text-indigo-800 dark:bg-indigo-950 dark:text-indigo-300 shrink-0">
 										{availableTemplateDivisions.length} Divisi
 									</span>
 								</p>
-								<p class="text-[11px] text-on-surface-variant">
+								<p class="text-[11px] text-on-surface-variant leading-snug mt-0.5">
 									Jabatan <strong class="text-indigo-600 dark:text-indigo-400">"{jobStandardForm.positionTitle}"</strong> sudah memiliki standar di divisi lain. Salin butir kompetensi sebagai draft untuk divisi <strong>{jobStandardForm.division}</strong>:
 								</p>
 							</div>
 						</div>
 
-						<div class="flex items-center gap-2 shrink-0 flex-wrap">
-							{#each availableTemplateDivisions as tmpl}
+						{#if availableTemplateDivisions.length === 1}
+							{@const tmpl = availableTemplateDivisions[0]}
+							{@const isLastCopied = lastCopiedTemplateDivision?.toLowerCase() === tmpl.division.toLowerCase()}
+							<button
+								type="button"
+								onclick={() => copyStandardsFromDivision(tmpl.division)}
+								class="px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-[11px] flex items-center gap-1.5 shadow-xs transition-all cursor-pointer shrink-0 max-w-full sm:max-w-[260px]"
+								title="Salin {tmpl.totalCompetencies} kompetensi dari divisi {tmpl.division}"
+							>
+								<span class="material-symbols-outlined text-xs shrink-0">{isLastCopied ? 'check_circle' : 'library_add'}</span>
+								<span class="truncate">Salin dari {tmpl.division} ({tmpl.totalCompetencies} Komp)</span>
+							</button>
+						{:else}
+							{#if isTemplateCopyDropdownOpen}
 								<button
 									type="button"
-									onclick={() => copyStandardsFromDivision(tmpl.division)}
-									class="px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-[11px] flex items-center gap-1.5 shadow-xs transition-all cursor-pointer"
-									title="Salin {tmpl.totalCompetencies} kompetensi dari divisi {tmpl.division}"
+									aria-label="Tutup menu salin template"
+									tabindex="-1"
+									onclick={() => (isTemplateCopyDropdownOpen = false)}
+									class="fixed inset-0 z-20 cursor-default"
+								></button>
+							{/if}
+
+							<div class="relative shrink-0 z-30 self-start sm:self-center">
+								<button
+									type="button"
+									aria-expanded={isTemplateCopyDropdownOpen}
+									aria-haspopup="menu"
+									onclick={() => (isTemplateCopyDropdownOpen = !isTemplateCopyDropdownOpen)}
+									onkeydown={(e) => {
+										if (e.key === 'Escape') isTemplateCopyDropdownOpen = false;
+									}}
+									class="px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-[11px] flex items-center gap-1.5 shadow-xs transition-all cursor-pointer whitespace-nowrap"
 								>
-									<span class="material-symbols-outlined text-xs">library_add</span>
-									<span>Salin dari {tmpl.division} ({tmpl.totalCompetencies} Komp)</span>
+									<span class="material-symbols-outlined text-xs shrink-0">library_add</span>
+									<span>Salin dari Divisi Lain ({availableTemplateDivisions.length})</span>
+									<span class="material-symbols-outlined text-sm transition-transform duration-150 {isTemplateCopyDropdownOpen ? 'rotate-180' : ''}">expand_more</span>
 								</button>
-							{/each}
-						</div>
+
+								{#if isTemplateCopyDropdownOpen}
+									<div
+										role="menu"
+										class="absolute left-0 sm:left-auto sm:right-0 top-full mt-1.5 w-72 sm:w-80 max-w-[calc(100vw-4rem)] rounded-2xl bg-surface border border-slate-200 dark:border-slate-700 shadow-xl py-1.5 z-30 animate-in fade-in zoom-in-95 duration-100"
+									>
+										<div class="px-3 py-1.5 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between text-[10px] font-bold uppercase tracking-wider text-slate-400">
+											<span>Pilih Divisi Sumber</span>
+											<span>{availableTemplateDivisions.length} Tersedia</span>
+										</div>
+										<div class="max-h-56 overflow-y-auto divide-y divide-slate-100/80 dark:divide-slate-800/80">
+											{#each availableTemplateDivisions as tmpl}
+												{@const isLastCopied = lastCopiedTemplateDivision?.toLowerCase() === tmpl.division.toLowerCase()}
+												<button
+													type="button"
+													role="menuitem"
+													onclick={() => copyStandardsFromDivision(tmpl.division)}
+													class="w-full px-3 py-2 text-left hover:bg-surface-container flex items-center justify-between gap-2.5 transition-colors cursor-pointer group"
+												>
+													<div class="min-w-0 flex-1">
+														<p class="text-xs font-bold text-on-surface truncate group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">{tmpl.division}</p>
+														<p class="text-[10px] text-on-surface-variant">{tmpl.totalCompetencies} kompetensi wajib</p>
+													</div>
+													{#if isLastCopied}
+														<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 flex items-center gap-1 shrink-0">
+															<span class="material-symbols-outlined text-xs">check</span>
+															<span>Tersalin</span>
+														</span>
+													{:else}
+														<span class="px-2 py-0.5 rounded-lg text-[10px] font-bold bg-indigo-50 text-indigo-700 dark:bg-indigo-950/50 dark:text-indigo-300 group-hover:bg-indigo-600 group-hover:text-white flex items-center gap-1 shrink-0 transition-colors">
+															<span class="material-symbols-outlined text-xs">library_add</span>
+															<span>Salin</span>
+														</span>
+													{/if}
+												</button>
+											{/each}
+										</div>
+									</div>
+								{/if}
+							</div>
+						{/if}
 					</div>
 				{/if}
 
